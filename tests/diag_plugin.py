@@ -18,6 +18,7 @@ def _diag_run(request, monkeypatch):
         if not (isinstance(command, list) and command and command[0] == t.CHROMIUM):
             return REAL(command, **how)
         how["timeout"] = 40
+        command = [command[0], "--enable-logging=stderr", "--v=1", *command[1:]]
         start = time.monotonic()
         lock = f"lockdir={t.LOCK.parent.is_dir()} lock={t.LOCK.exists()}"
         try:
@@ -30,6 +31,11 @@ def _diag_run(request, monkeypatch):
             err = e.stderr.decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
             err = [line for line in err.splitlines() if "dbus" not in line]
             out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            import pathlib
+            keep = pathlib.Path("/tmp/chrome-diag")
+            keep.mkdir(exist_ok=True)
+            (keep / f"{name}.err").write_text(err and "\n".join(err) or "")
+            (keep / f"{name}.ps").write_text(tree)
             sys.__stderr__.write(f"\nDIAG TIMEOUT {name} {lock} stdout={len(out)}\n")
             sys.__stderr__.write("\n".join(err[-40:]) + "\n")
             sys.__stderr__.write("\n".join(l[:200] for l in tree.splitlines() if "chrom" in l or "pytest" in l) + "\n")
