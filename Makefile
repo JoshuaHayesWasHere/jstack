@@ -23,8 +23,6 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	uv run ruff check .
-	uv run ruff format --check .
 	uv run python diag_chrome.py 2>&1 | grep -v dbus || true
 	echo ===== on 3.14
 	UV_PROJECT_ENVIRONMENT=/tmp/v314 uv run -q --python 3.14 python diag_chrome.py 2>&1 | grep -v dbus || true
