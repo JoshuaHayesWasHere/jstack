@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import time
@@ -18,7 +19,10 @@ def _diag_run(request, monkeypatch):
         if not (isinstance(command, list) and command and command[0] == t.CHROMIUM):
             return REAL(command, **how)
         how["timeout"] = 40
-        command = [command[0], "--enable-logging=stderr", "--v=1", *command[1:]]
+        extra = os.environ.get("DIAG_FLAGS", "").split()
+        if os.environ.get("DIAG_VERBOSE"):
+            extra += ["--enable-logging=stderr", "--v=1"]
+        command = [command[0], *extra, *command[1:]]
         start = time.monotonic()
         lock = f"lockdir={t.LOCK.parent.is_dir()} lock={t.LOCK.exists()}"
         try:
