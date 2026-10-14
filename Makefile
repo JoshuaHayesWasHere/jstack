@@ -23,9 +23,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	uv run python diag_chrome.py 2>&1 | grep -v dbus || true
-	echo ===== on 3.14
-	UV_PROJECT_ENVIRONMENT=/tmp/v314 uv run -q --python 3.14 python diag_chrome.py 2>&1 | grep -v dbus || true
+	PYTHONPATH=tests uv run pytest -p no:xdist -p diag_plugin -o timeout=100 -x -q tests/test_jbus_view_page.py --maxfail=3 2>&1 | grep -v dbus | head -150 || true
+	echo ===== on 4 workers
+	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py 2>&1 | grep -v dbus | tail -80 || true
 	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
