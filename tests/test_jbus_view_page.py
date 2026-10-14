@@ -29,6 +29,7 @@ its test that bound, and leaves nothing behind. The page is drawn in Liberation 
 Sans set the same words in lines of different widths.
 """
 
+import contextlib
 import fcntl
 import html
 import http.client
@@ -36,6 +37,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import threading
@@ -78,17 +80,20 @@ from test_jbus_view import (
 )
 from test_jbus_view import folder as panel
 
+NAMED = os.environ.get("JSTACK_TEST_BROWSER", "")
 CHROMIUM = (
-    os.environ.get("JSTACK_TEST_BROWSER")
-    or shutil.which("chromium")
-    or shutil.which("chromium-browser")
+    shutil.which(NAMED) if NAMED else shutil.which("chromium") or shutil.which("chromium-browser")
 )
 LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
 PATIENCE = 240
-LAUNCH, STOPPED = 60, 124
+LAUNCH = 60
+STOPPED = (124, 137)
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
+# A test waits for the lock and browses up to four times, each in its own bound, so its own
+# bound is above all of them and theirs fail first, by name.
+pytestmark = pytest.mark.timeout(PATIENCE + 4 * (LAUNCH + 5) + 30)
 DESK, PHONE = (1440, 900), (390, 844)
 NARROWEST = 500
 THUMB = 44
@@ -351,15 +356,26 @@ def browse(*arguments):
     holds 107 characters. So the browser gets a short directory of its own, whatever `TMPDIR`
     the run has: a runner's is long.
 
-    `timeout` gives the browser `LAUNCH` seconds and then stops it with every process it
-    started, and the run ends `STOPPED`. Python's own timeout would stop the browser alone.
+    `timeout` gives the browser `LAUNCH` seconds and then stops it, and the test fails with
+    a line that says so. The browser runs in a process group of its own, which goes whole when
+    it ends, also when the test is stopped from outside: Python's own timeout, or
+    pytest-timeout's, would stop one process and leave the ones it started.
     """
     command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"]
     bounded = ["timeout", "--kill-after=5", str(LAUNCH), *command, *arguments]
     made = tempfile.TemporaryDirectory(prefix="jbus-view-", dir="/tmp", ignore_cleanup_errors=True)
     with made as short, heavy():
         env = {**os.environ, "TMPDIR": short, "FONTCONFIG_FILE": str(FONTS)}
-        return subprocess.run(bounded, env=env, capture_output=True, text=True, timeout=LAUNCH + 30)
+        how = {"env": env, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE, "text": True}
+        with subprocess.Popen(bounded, start_new_session=True, **how) as browser:
+            try:
+                out, err = browser.communicate(timeout=LAUNCH + 30)
+            finally:
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(browser.pid, signal.SIGKILL)
+    if browser.returncode in STOPPED:
+        pytest.fail(f"the browser did not finish in {LAUNCH} s and was stopped: {err[-2000:]}")
+    return subprocess.CompletedProcess(bounded, browser.returncode, out, err)
 
 
 def address(port, screen, fragment=""):
@@ -407,10 +423,6 @@ def look(
         proxy.close()
         if served:
             served.close()
-    if ran.returncode == STOPPED:
-        pytest.fail(
-            f"the browser did not finish in {LAUNCH} s and was stopped: {ran.stderr[-2000:]}"
-        )
     found = re.search(r'<pre id="probe">(.*?)</pre>', ran.stdout, re.S)
     assert found, f"the probe wrote nothing: {ran.stdout[-2000:]} {ran.stderr[-2000:]}"
     return json.loads(html.unescape(found[1])) | {"writes": proxy.writes, "at": proxy.port}
@@ -437,7 +449,10 @@ def unreached(seen, names):
 
 @pytest.fixture(autouse=True)
 def a_browser():
-    """With no browser a desk skips the test, and a runner fails it."""
+    """With no browser a desk skips the test, and a runner fails it. A browser named in
+    `JSTACK_TEST_BROWSER` that is not there fails it anywhere."""
+    if NAMED and not CHROMIUM:
+        pytest.fail(f"JSTACK_TEST_BROWSER is {NAMED}, which is no program to open the page in")
     if CHROMIUM:
         return
     if os.environ.get("GITHUB_ACTIONS") == "true":
@@ -475,18 +490,31 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
     """Each thread opens the lock's file anew, as each run of this file does."""
     inside, most, start = [], [], threading.Barrier(2)
 
-    def browser(command, **how):
-        inside.append(1)
-        most.append(len(inside))
-        time.sleep(0.3)
-        inside.pop()
+    class Browser:
+        pid, returncode = 0, 0
+
+        def __init__(self, command, **how):
+            pass
+
+        def __enter__(self):
+            inside.append(1)
+            most.append(len(inside))
+            return self
+
+        def communicate(self, timeout):
+            time.sleep(0.3)
+            return "", ""
+
+        def __exit__(self, *raised):
+            inside.pop()
 
     def run():
         start.wait()
         browse()
 
     monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
-    monkeypatch.setattr(subprocess, "run", browser)
+    monkeypatch.setattr(subprocess, "Popen", Browser)
+    monkeypatch.setattr(os, "killpg", lambda group, sent: None)
     runs = [threading.Thread(target=run) for _ in range(2)]
     for one in runs:
         one.start()
@@ -501,19 +529,45 @@ def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
     """A browser that hangs, and a process it started that would outlive it, are both gone
     once the launch's bound is up: a hang costs the test that bound and no more, and leaves
     nothing behind."""
+    child = hanging(tmp_path, monkeypatch)
+    monkeypatch.setattr("test_jbus_view_page.LAUNCH", 2)
+    started = time.monotonic()
+    with pytest.raises(pytest.fail.Exception, match="the browser did not finish in 2 s"):
+        browse("http://127.0.0.1:9/")
+    assert time.monotonic() - started < 20
+    time.sleep(0.5)
+    assert not Path(f"/proc/{child.read_text().strip()}").exists()
+
+
+def test_a_browser_stopped_from_outside_leaves_no_process_it_started(tmp_path, monkeypatch):
+    """pytest-timeout stops a test with a signal: the browser and what it started go too."""
+    child = hanging(tmp_path, monkeypatch)
+
+    def stops(*caught):
+        raise TimeoutError("stopped from outside")
+
+    before = signal.signal(signal.SIGALRM, stops)
+    signal.alarm(2)
+    try:
+        with pytest.raises(TimeoutError):
+            browse("http://127.0.0.1:9/")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, before)
+    time.sleep(0.5)
+    assert not Path(f"/proc/{child.read_text().strip()}").exists()
+
+
+def hanging(tmp_path, monkeypatch):
+    """A browser that never finishes, and starts a process that would outlive it: the file
+    that holds that process's id."""
     child = tmp_path / "child"
     hangs = tmp_path / "chromium"
     hangs.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {child}\nexec sleep 300\n")
     hangs.chmod(0o755)
     monkeypatch.setattr("test_jbus_view_page.CHROMIUM", str(hangs))
     monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
-    monkeypatch.setattr("test_jbus_view_page.LAUNCH", 2)
-    started = time.monotonic()
-    ran = browse("http://127.0.0.1:9/")
-    assert time.monotonic() - started < 20
-    assert ran.returncode == STOPPED
-    time.sleep(0.5)
-    assert not Path(f"/proc/{child.read_text().strip()}").exists()
+    return child
 
 
 def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(scene, tmp_path):
