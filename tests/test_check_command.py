@@ -182,9 +182,10 @@ def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():
 
 
 def browser_tests(tmp_path, **more):
-    """A run of the browser tests on a machine with no browser on `PATH`: how it ended, and
-    what it printed."""
-    env = {name: value for name, value in outside_a_run().items() if name != "GITHUB_ACTIONS"}
+    """A run of the browser tests on a machine with no browser on `PATH` and none named in
+    `JSTACK_TEST_BROWSER`: how it ended, and what it printed."""
+    named = ("GITHUB_ACTIONS", "JSTACK_TEST_BROWSER")
+    env = {name: value for name, value in outside_a_run().items() if name not in named}
     (tmp_path / "bin").mkdir(exist_ok=True)
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:xdist"]
