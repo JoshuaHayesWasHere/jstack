@@ -23,10 +23,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	fc-match system-ui; fc-match sans-serif; fc-list : family | sort -u | head -40
-	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py 2>&1 | tail -15 || true
-	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py 2>&1 | tail -15 || true
-	for f in /tmp/chrome-diag/*.err; do echo "##### $$f"; grep -i -E 'network|utility|crash|terminat|exit|killed|signal|timed out|timeout' "$$f" | grep -v dbus | head -60; echo "##### ps"; cat "$${f%.err}.ps"; done || true
+	env | grep -i -E 'dbus|xdg|display|wayland' || true
+	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q --maxfail=3 tests/test_jbus_view_page.py 2>&1 | tail -5 || true
+	for f in /tmp/chrome-diag/*.err; do echo "##### $$f"; grep -v dbus "$$f" | grep -i -E 'network|utility|crash|terminat|exit|killed|signal|timed out|timeout|ERROR|WARNING' | head -80; echo "##### tail"; tail -30 "$$f"; echo "##### ps"; cat "$${f%.err}.ps"; done || true
 	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
