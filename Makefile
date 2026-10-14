@@ -23,7 +23,8 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	PYTHONPATH=tests uv run pytest -n $(TEST_WORKERS) -p diag_plugin -q --maxfail=9 2>&1 | grep -E '^FAILED|passed|failed|DIAG' | cut -c1-200 | tail -40 || true
+	google-chrome --version; chromium --version
+	JSTACK_TEST_BROWSER=$$(command -v google-chrome) PYTHONPATH=tests uv run pytest -n $(TEST_WORKERS) -p diag_plugin -q --maxfail=9 2>&1 | grep -E '^FAILED|passed|failed|DIAG' | cut -c1-200 | tail -40 || true
 	for f in $$(ls /tmp/chrome-diag/*.proc | head -3); do echo "##### $$f"; sed -n "1,/^## pid/p" "$$f"; grep -E "^## pid" "$$f"; echo "##### log"; grep -v -E 'dbus|scheduler_loop|component_installer' "$${f%.proc}.err" | tail -40; done || true
 	false
 

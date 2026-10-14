@@ -69,7 +69,11 @@ from test_jbus_view import (
 )
 from test_jbus_view import folder as panel
 
-CHROMIUM = shutil.which("chromium") or shutil.which("chromium-browser")
+CHROMIUM = (
+    os.environ.get("JSTACK_TEST_BROWSER")
+    or shutil.which("chromium")
+    or shutil.which("chromium-browser")
+)
 LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
