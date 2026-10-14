@@ -1,37 +1,38 @@
-import os
 import subprocess
 import sys
-import tempfile
 import time
 
 import pytest
 
+REAL = subprocess.run
+
 
 @pytest.fixture(autouse=True)
-def _diag_browse(request, monkeypatch):
+def _diag_run(request, monkeypatch):
     if request.module.__name__ != "test_jbus_view_page":
         return
     t = request.module
+    name = request.node.name
 
-    def browse(*arguments):
-        command = [t.CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"]
-        command += [*arguments]
-        made = tempfile.TemporaryDirectory(prefix="jbus-view-", dir="/tmp")
-        with made as short:
-            env = {**os.environ, "TMPDIR": short}
-            keys = {k: v for k, v in env.items() if k.startswith(("XDG", "HOME", "PATH"))}
-            start = time.monotonic()
-            try:
-                ran = subprocess.run(command, env=env, capture_output=True, text=True, timeout=40)
-                took = time.monotonic() - start
-                sys.__stderr__.write(f"\nDIAG {request.node.name} rc={ran.returncode} {took:.1f}s\n")
-                return ran
-            except subprocess.TimeoutExpired as e:
-                err = (e.stderr or b"").decode(errors="replace").splitlines()
-                err = [line for line in err if "dbus" not in line]
-                sys.__stderr__.write(f"\nDIAG TIMEOUT {request.node.name} env={keys}\n")
-                sys.__stderr__.write("\n".join(err[-25:]) + "\n")
-                sys.__stderr__.write(f"argv={command}\n")
-                raise
+    def run(command, **how):
+        if not (isinstance(command, list) and command and command[0] == t.CHROMIUM):
+            return REAL(command, **how)
+        how["timeout"] = 40
+        start = time.monotonic()
+        lock = f"lockdir={t.LOCK.parent.is_dir()} lock={t.LOCK.exists()}"
+        try:
+            ran = REAL(command, **how)
+            took = time.monotonic() - start
+            sys.__stderr__.write(f"\nDIAG {name} rc={ran.returncode} {took:.1f}s {lock}\n")
+            return ran
+        except subprocess.TimeoutExpired as e:
+            tree = REAL(["ps", "-eo", "pid,ppid,stat,etime,args", "--forest"], capture_output=True, text=True).stdout
+            err = e.stderr.decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+            err = [line for line in err.splitlines() if "dbus" not in line]
+            out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            sys.__stderr__.write(f"\nDIAG TIMEOUT {name} {lock} stdout={len(out)}\n")
+            sys.__stderr__.write("\n".join(err[-25:]) + "\n")
+            sys.__stderr__.write("\n".join(l[:200] for l in tree.splitlines() if "chrom" in l or "pytest" in l) + "\n")
+            raise
 
-    monkeypatch.setattr(t, "browse", browse)
+    monkeypatch.setattr(subprocess, "run", run)

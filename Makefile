@@ -23,7 +23,7 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	PYTHONPATH=tests uv run pytest -p no:xdist -p diag_plugin -o timeout=100 -x -q tests/test_jbus_view_page.py --maxfail=3 2>&1 | grep -v dbus | head -150 || true
+	PYTHONPATH=tests uv run pytest -p no:xdist -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py --maxfail=3 2>&1 | grep -v dbus | head -250 || true
 	echo ===== on 4 workers
 	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py 2>&1 | grep -v dbus | tail -80 || true
 	false
