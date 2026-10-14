@@ -25,11 +25,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 check:
 	uv run ruff check .
 	uv run ruff format --check .
-	chromium --version; readlink -f $$(command -v chromium); ls -la $$(command -v chromium)
-	timeout 60 chromium --headless --no-sandbox --disable-gpu --dump-dom 'data:text/html,<p>hi</p>'; echo plain rc=$$?
-	timeout 60 chromium --headless --no-sandbox --disable-gpu --dump-dom --virtual-time-budget=600 'data:text/html,<p>hi</p>'; echo budget rc=$$?
-	timeout 60 chromium --headless --no-sandbox --disable-gpu --dump-dom --virtual-time-budget=600 'data:text/html,<script>setInterval(()=>fetch("/x").catch(()=>0),100)</script><p>hi</p>'; echo interval rc=$$?
-	uv run pytest -p no:xdist -x -s -o timeout=60 -o timeout_method=thread 'tests/test_jbus_view_page.py::test_a_pass_that_left_no_list_of_threads_shows_no_count' || true
+	uv run python diag_chrome.py 2>&1 | grep -v dbus || true
+	echo ===== on 3.14
+	UV_PROJECT_ENVIRONMENT=/tmp/v314 uv run -q --python 3.14 python diag_chrome.py 2>&1 | grep -v dbus || true
 	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
