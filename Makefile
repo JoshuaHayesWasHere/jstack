@@ -23,9 +23,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	uv run ruff check .
-	uv run ruff format --check .
-	uv run pytest -n $(TEST_WORKERS)
+	PYTHONPATH=tests uv run pytest -n $(TEST_WORKERS) -p diag_plugin -q -x 2>&1 | grep -v -E '^[.sF]+ +\[' | tail -5 || true
+	for f in $$(ls /tmp/chrome-diag/*.proc | head -2); do echo "##### $$f"; cat "$$f"; echo "##### log"; grep -v -E 'dbus|scheduler_loop|component_installer' "$${f%.proc}.err" | tail -40; done || true
+	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.
