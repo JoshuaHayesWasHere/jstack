@@ -7,6 +7,26 @@ import time
 import pytest
 
 REAL = subprocess.run
+LOG = []
+
+import http.server
+import signal
+
+_orig = http.server.BaseHTTPRequestHandler.handle_one_request
+
+
+def _logged(self):
+    start = time.monotonic()
+    entry = [start, None, self.server.server_address[1], "?"]
+    LOG.append(entry)
+    try:
+        return _orig(self)
+    finally:
+        entry[1] = time.monotonic()
+        entry[3] = getattr(self, "requestline", "?")
+
+
+http.server.BaseHTTPRequestHandler.handle_one_request = _logged
 KEEP = pathlib.Path("/tmp/chrome-diag")
 
 
@@ -70,13 +90,20 @@ def _diag_run(request, monkeypatch):
         how.pop("timeout", None)
         how.pop("capture_output", None)
         start = time.monotonic()
-        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **how) as p:
+        LOG.clear()
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True, **how) as p:
             try:
                 out, err = p.communicate(timeout=40)
             except subprocess.TimeoutExpired:
                 KEEP.mkdir(exist_ok=True)
-                (KEEP / f"{name}.proc").write_text(snapshot(p.pid))
-                p.kill()
+                now = time.monotonic()
+                lines = [
+                    f"{e[0] - start:6.1f} -> {('open' if e[1] is None else f'{e[1] - start:6.1f}')} :{e[2]} {e[3]}"
+                    for e in LOG
+                    if e[0] >= start - 1
+                ]
+                (KEEP / f"{name}.proc").write_text("REQUESTS\n" + "\n".join(lines) + "\n" + snapshot(p.pid))
+                os.killpg(p.pid, signal.SIGKILL)
                 out, err = p.communicate()
                 (KEEP / f"{name}.err").write_text(err if isinstance(err, str) else err.decode())
                 sys.__stderr__.write(f"\nDIAG HUNG {name}\n")
