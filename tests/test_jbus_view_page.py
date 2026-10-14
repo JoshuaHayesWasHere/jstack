@@ -17,7 +17,16 @@ these tests is up at a time on the machine, however many runs there are. A test 
 and not the heavy-suite lock, `heavy-suite.lock` beside it, so a run under `flock` on that
 one waits on nothing it holds itself. With no `chromium` on `PATH` a desk skips them, and a
 runner (GitHub Actions sets `GITHUB_ACTIONS` to true) fails every one: a check that passed
-there would say the page was opened.
+there would say the page was opened. `JSTACK_TEST_BROWSER` names another browser to open it
+in. The check names Google Chrome on GitHub's runner, whose Chromium is a snapshot build that
+now and then never starts its virtual time: the page runs on the clock and the browser never
+prints it.
+
+Each browser has `LAUNCH` seconds. It runs under `timeout`, which then stops it with every
+process it started, and the test fails with a line that says so: a browser that hangs costs
+its test that bound, and leaves nothing behind. The page is drawn in Liberation Sans, as
+`FONTS` asks, which a desk and a runner both have: a desk's own font and a runner's DejaVu
+Sans set the same words in lines of different widths.
 """
 
 import fcntl
@@ -79,15 +88,6 @@ PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
 PATIENCE = 240
 LAUNCH, STOPPED = 60, 124
-QUIET = (
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-background-networking",
-    "--disable-component-update",
-    "--disable-sync",
-    "--disable-default-apps",
-    "--disable-extensions",
-)
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 DESK, PHONE = (1440, 900), (390, 844)
 NARROWEST = 500
@@ -354,7 +354,7 @@ def browse(*arguments):
     `timeout` gives the browser `LAUNCH` seconds and then stops it with every process it
     started, and the run ends `STOPPED`. Python's own timeout would stop the browser alone.
     """
-    command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", *QUIET, "--dump-dom"]
+    command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"]
     bounded = ["timeout", "--kill-after=5", str(LAUNCH), *command, *arguments]
     made = tempfile.TemporaryDirectory(prefix="jbus-view-", dir="/tmp", ignore_cleanup_errors=True)
     with made as short, heavy():

@@ -45,19 +45,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/green_tree.py
-      # The Python the suite runs on at a desk, where uv picks the newest it has. Left to itself
-      # uv takes a runner's own python3, 3.12.3 on ubuntu-24.04, whose argparse reads `jbus
-      # answer`'s words as unrecognized.
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-        with:
-          python-version: "3.14"
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
+        env:
+          # GitHub's image has a Chromium snapshot whose virtual time now and then never starts,
+          # and the browser tests then wait out their bound. Its Google Chrome is a stable build.
+          JSTACK_TEST_BROWSER: ${{ runner.environment == 'github-hosted' && '/usr/bin/google-chrome' || '' }}
         run: make check
       # Only after the suite ran and passed. A marker that cannot be kept costs the next run
       # of this tree its skip and nothing else.
