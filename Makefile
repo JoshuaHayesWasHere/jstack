@@ -23,15 +23,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	DIAG_VERBOSE=1 PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q --maxfail=1 tests/test_jbus_view_page.py 2>&1 | tail -3 || true
-	for f in /tmp/chrome-diag/*.err; do echo "##### $$f"; grep -v -E 'dbus|scheduler_loop|component_installer' "$$f" | head -70; done; rm -rf /tmp/chrome-diag
-	echo "===== A: as it is"
-	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q --durations=5 tests/test_jbus_view_page.py 2>&1 | grep -E 'passed|failed|s call' || true
-	echo "===== B: automation switches"
-	DIAG_FLAGS="--no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-sync --disable-default-apps --disable-extensions" PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q --durations=5 tests/test_jbus_view_page.py 2>&1 | grep -E 'passed|failed|s call' || true
-	echo "===== B again"
-	DIAG_FLAGS="--no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-sync --disable-default-apps --disable-extensions" PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q --durations=5 tests/test_jbus_view_page.py 2>&1 | grep -E 'passed|failed|s call' || true
-	false
+	uv run ruff check .
+	uv run ruff format --check .
+	uv run pytest -n $(TEST_WORKERS)
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.
