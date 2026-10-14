@@ -187,3 +187,10 @@ A restart of T3 Code cancels every turn that is running, and nothing starts them
 - **By hand,** open the thread and send one message: carry on with the brief from where it stopped.
 
 The work is not lost. The brief, the branch and the worktree are on disk, and the thread reads them again.
+
+## A test of `make check` failed on a bound
+
+| Line | Meaning | Do this |
+|---|---|---|
+| `Failed: Timeout (>120.0s) from pytest-timeout` | The test named above it waited 120 s on something that never answered: a browser, a server or a subprocess. The run went on to the next test. | Run that test alone with `uv run pytest <its id>`. The stack under the line shows where it waited. |
+| `the browser did not finish in 60 s and was stopped` | A browser test's Chromium never finished the page. It was stopped with every process it started, and its stderr follows the line. | Run the test again. If it stops again, read the stderr for the reason. |

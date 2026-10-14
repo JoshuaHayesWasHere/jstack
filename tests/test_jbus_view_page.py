@@ -74,6 +74,17 @@ LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
 PATIENCE = 240
+LAUNCH, STOPPED = 60, 124
+QUIET = (
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--disable-default-apps",
+    "--disable-extensions",
+)
+FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 DESK, PHONE = (1440, 900), (390, 844)
 NARROWEST = 500
 THUMB = 44
@@ -335,12 +346,16 @@ def browse(*arguments):
     Chromium binds a socket in a directory it makes under `TMPDIR`, and the path of a socket
     holds 107 characters. So the browser gets a short directory of its own, whatever `TMPDIR`
     the run has: a runner's is long.
+
+    `timeout` gives the browser `LAUNCH` seconds and then stops it with every process it
+    started, and the run ends `STOPPED`. Python's own timeout would stop the browser alone.
     """
-    command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", *arguments]
+    command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", *QUIET, "--dump-dom"]
+    bounded = ["timeout", "--kill-after=5", str(LAUNCH), *command, *arguments]
     made = tempfile.TemporaryDirectory(prefix="jbus-view-", dir="/tmp", ignore_cleanup_errors=True)
     with made as short, heavy():
-        env = {**os.environ, "TMPDIR": short}
-        return subprocess.run(command, env=env, capture_output=True, text=True, timeout=300)
+        env = {**os.environ, "TMPDIR": short, "FONTCONFIG_FILE": str(FONTS)}
+        return subprocess.run(bounded, env=env, capture_output=True, text=True, timeout=LAUNCH + 30)
 
 
 def address(port, screen, fragment=""):
@@ -388,6 +403,10 @@ def look(
         proxy.close()
         if served:
             served.close()
+    if ran.returncode == STOPPED:
+        pytest.fail(
+            f"the browser did not finish in {LAUNCH} s and was stopped: {ran.stderr[-2000:]}"
+        )
     found = re.search(r'<pre id="probe">(.*?)</pre>', ran.stdout, re.S)
     assert found, f"the probe wrote nothing: {ran.stdout[-2000:]} {ran.stderr[-2000:]}"
     return json.loads(html.unescape(found[1])) | {"writes": proxy.writes, "at": proxy.port}
