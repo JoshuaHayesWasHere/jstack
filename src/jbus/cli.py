@@ -558,11 +558,14 @@ def _words_left(args: argparse.Namespace, extra: list[str]) -> list[str]:
     return left
 
 
+def _usage() -> str:
+    """The usage line as Python 3.13 and later print it. 3.12 breaks it before the ` ...`."""
+    return f"jbus [-h] [--project PROJECT]\n{' ' * 12}{{{','.join(DECLARED)}}} ..."
+
+
 def main(argv: list[str] | None = None) -> int:
-    # The usage as Python 3.13 and later print it. 3.12 breaks the line before the ` ...`.
-    usage = f"jbus [-h] [--project PROJECT]\n{' ' * 12}{{{','.join(DECLARED)}}} ..."
     parser = argparse.ArgumentParser(
-        prog="jbus", usage=usage, description=__doc__, allow_abbrev=False
+        prog="jbus", usage=_usage(), description=__doc__, allow_abbrev=False
     )
     parser.add_argument("--project", help="the project's name in the config, when it has several")
     commands = parser.add_subparsers(prog="jbus", dest="command", required=True)

@@ -22,11 +22,14 @@ in. The check names Google Chrome on GitHub's runner, whose Chromium is a snapsh
 now and then never starts its virtual time: the page runs on the clock and the browser never
 prints it.
 
-Each browser has `LAUNCH` seconds. It runs under `timeout`, which then stops it with every
-process it started, and the test fails with a line that says so: a browser that hangs costs
-its test that bound, and leaves nothing behind. The page is drawn in Liberation Sans, as
-`FONTS` asks, which a desk and a runner both have: a desk's own font and a runner's DejaVu
-Sans set the same words in lines of different widths.
+Each browser has `LAUNCH` seconds. It runs under `timeout`, in a process group of its own,
+which goes whole when it ends or when the test is stopped, and the test fails with a line
+that says so: a browser that hangs costs its test that bound, and leaves nothing behind. A
+test waits up to `PATIENCE` seconds for the lock and browses up to four times, so its own
+bound is above all of those, and theirs fail first, by name.
+
+The page is drawn in Liberation Sans, as `FONTS` asks, which a desk and a runner both have: a
+desk's own font and a runner's DejaVu Sans set the same words in lines of different widths.
 """
 
 import contextlib
@@ -91,8 +94,6 @@ PATIENCE = 240
 LAUNCH = 60
 STOPPED = (124, 137)
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
-# A test waits for the lock and browses up to four times, each in its own bound, so its own
-# bound is above all of them and theirs fail first, by name.
 pytestmark = pytest.mark.timeout(PATIENCE + 4 * (LAUNCH + 5) + 30)
 DESK, PHONE = (1440, 900), (390, 844)
 NARROWEST = 500
