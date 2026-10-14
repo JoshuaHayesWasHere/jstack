@@ -500,7 +500,7 @@ def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
 ):
     """A browser that hangs, and a process it started that would outlive it, are both gone
     once the launch's bound is up: a hang costs the test that bound and no more, and leaves
-    nothing behind to slow the next browser."""
+    nothing behind."""
     child = tmp_path / "child"
     hangs = tmp_path / "chromium"
     hangs.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {child}\nexec sleep 300\n")
