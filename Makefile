@@ -25,7 +25,7 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 check:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run pytest -n $(TEST_WORKERS)
+	uv run pytest -n $(TEST_WORKERS) -rfE -o timeout_method=thread
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.
