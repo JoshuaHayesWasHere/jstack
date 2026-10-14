@@ -31,7 +31,7 @@ def _diag_run(request, monkeypatch):
             err = [line for line in err.splitlines() if "dbus" not in line]
             out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
             sys.__stderr__.write(f"\nDIAG TIMEOUT {name} {lock} stdout={len(out)}\n")
-            sys.__stderr__.write("\n".join(err[-25:]) + "\n")
+            sys.__stderr__.write("\n".join(err[-40:]) + "\n")
             sys.__stderr__.write("\n".join(l[:200] for l in tree.splitlines() if "chrom" in l or "pytest" in l) + "\n")
             raise
 

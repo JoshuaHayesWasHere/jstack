@@ -23,9 +23,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	PYTHONPATH=tests uv run pytest -p no:xdist -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py --maxfail=3 2>&1 | grep -v dbus | head -250 || true
-	echo ===== on 4 workers
-	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q tests/test_jbus_view_page.py 2>&1 | grep -v dbus | tail -80 || true
+	ulimit -a; df -h /dev/shm /tmp; free -m
+	PYTHONPATH=tests uv run pytest -n 4 -p diag_plugin -o timeout=100 -q -rf 2>&1 | grep -v dbus | grep -v '^\.*\s*\[' | tail -400 || true
+	sudo dmesg | tail -60; df -h /dev/shm /tmp; free -m
 	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
