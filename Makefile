@@ -23,8 +23,8 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 
 .PHONY: check
 check:
-	command -v python3 jbus uv; python3 -V; echo UV_PYTHON=$$UV_PYTHON
-	uv run pytest -n 4 -q tests/test_gates.py tests/test_jbus_questions.py tests/test_jbus_approval.py 2>&1 | grep -E '^(E |FAILED|>)|passed|failed' | cut -c1-300 | head -80 || true
+	PYTHONPATH=tests uv run pytest -n $(TEST_WORKERS) -p diag_plugin -q 2>&1 | grep -E '^FAILED|passed|failed|DIAG' | cut -c1-200 | tail -40 || true
+	for f in $$(ls /tmp/chrome-diag/*.proc | head -2); do echo "##### $$f"; cat "$$f"; echo "##### log"; grep -v -E 'dbus|scheduler_loop|component_installer' "$${f%.proc}.err" | tail -40; done || true
 	false
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
