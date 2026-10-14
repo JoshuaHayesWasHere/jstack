@@ -7,6 +7,7 @@ change it and `jbus-queue-add.txt` is `jbus queue add --help`. The tests run the
 command and hold it to those files, byte for byte.
 """
 
+import argparse
 import contextlib
 import io
 import re
@@ -180,3 +181,15 @@ def test_a_gate_from_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_pat
         0,
         "queued: question 1\n",
     )
+
+
+def test_the_words_python_3_12_3_hands_back_are_the_verbs_words():
+    """That argparse fills `words` with nothing when it reads the number, and hands the words
+    back unparsed: a plain string left over is a word, and so is all after `--`. An option
+    left over is still not one."""
+    args = argparse.Namespace(words=[])
+    assert cli._words_left(args, ["fine", "--strange", "--", "-x", "y"]) == ["--strange"]
+    assert args.words == ["fine", "-x", "y"]
+    given = argparse.Namespace(words=["kept"])
+    assert cli._words_left(given, ["--strange"]) == ["--strange"]
+    assert given.words == ["kept"]

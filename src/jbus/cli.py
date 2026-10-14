@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -558,19 +559,20 @@ def _words_left(args: argparse.Namespace, extra: list[str]) -> list[str]:
     return left
 
 
-def _usage() -> str:
-    """The usage line as Python 3.13 and later print it. 3.12 breaks it before the ` ...`."""
-    return f"jbus [-h] [--project PROJECT]\n{' ' * 12}{{{','.join(DECLARED)}}} ..."
+def _usage(parser: argparse.ArgumentParser) -> str:
+    """The parser's own usage, as Python 3.13 and later print it: 3.12 puts the ` ...` after
+    the verbs on a line of its own."""
+    usage = parser.format_usage().removeprefix("usage: ").rstrip("\n")
+    return re.sub(r"\n *\.\.\.$", " ...", usage)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="jbus", usage=_usage(), description=__doc__, allow_abbrev=False
-    )
+    parser = argparse.ArgumentParser(prog="jbus", description=__doc__, allow_abbrev=False)
     parser.add_argument("--project", help="the project's name in the config, when it has several")
-    commands = parser.add_subparsers(prog="jbus", dest="command", required=True)
+    commands = parser.add_subparsers(dest="command", required=True)
     for verb in DECLARED.values():
         verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))
+    parser.usage = _usage(parser)
     args, extra = parser.parse_known_args(argv)
     extra = _words_left(args, extra)
     for given in extra:
