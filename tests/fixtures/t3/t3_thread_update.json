@@ -1,0 +1,80 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "action": {
+      "description": "Metadata mutation: rename, regenerate_title, link_pull_request, or unlink_pull_request.",
+      "enum": [
+        "rename",
+        "regenerate_title",
+        "link_pull_request",
+        "unlink_pull_request"
+      ],
+      "type": "string"
+    },
+    "clientRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pullRequest": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "number": {
+              "description": "Pull request number.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "repository": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "repository",
+            "number",
+            "url"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Pull request to link. Required only when action is link_pull_request."
+    },
+    "threadId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Thread to update. Omit to update the calling thread."
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}

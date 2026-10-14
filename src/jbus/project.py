@@ -1,0 +1,115 @@
+"""`jbus project add`: one more `[[project]]` table at the end of jbus's config.
+
+The config holds a webhook's key, so no hand and no skill writes it. `add` reads the file as
+text and writes it back with one table after the last byte it had: every other table is the
+bytes it was. The file as it was is kept first, beside it, as `config.toml.<time>.bak`, and
+both stay mode 600. The table has `name`, `checkout` and `projectId` and no webhook: with no
+`webhook_url` a pass POSTs nothing for the project.
+
+The file must load as a pass loads it (`jbus.load`): a config a pass refuses is refused
+here, before anything is written, with the line `jbus.load` gives.
+
+`add` answers with one line and raises `jbus.Refused` with one line. A second run with the
+same name, checkout and id is refused as `HAS`, which a caller may read as done before; a
+name or a checkout the config has with anything else differing is refused by what it shares.
+No line has a value of any key in it, what the caller gave included: a line of this command
+is safe in any log.
+
+Each pass is a new `jbus poll` that loads the config, so the pass after `add` works the new
+project and no unit is restarted.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import tempfile
+import tomllib
+from datetime import datetime
+from pathlib import Path
+
+import jbus
+from jbus import verbs
+
+HAS = "refused: the config already has this project"
+NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+ADDED = (
+    "added: one [[project]] table, the file as it was is {backup}: "
+    "the next pass works it, restart no unit"
+)
+
+
+def _same(one: Path, other: Path) -> bool:
+    return one.resolve() == other
+
+
+def _private(path: Path, text: str) -> None:
+    """Write `text` to `path`, mode 600, in one step: a pass reads the old file or the new."""
+    handle, made = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(handle, "w") as file:
+            file.write(text)
+        os.chmod(made, 0o600)
+        os.replace(made, path)
+    except BaseException:
+        Path(made).unlink(missing_ok=True)
+        raise
+
+
+def table(name: str, checkout: Path, project_id: str) -> str:
+    """The lines of one project's table, as TOML."""
+    pairs = (("name", name), ("checkout", str(checkout)), ("projectId", project_id))
+    return "[[project]]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in pairs)
+
+
+def add(config_path: Path, name: str, checkout: str, project_id: str) -> str:
+    """Add the project's table to the config at `config_path`. The answer is the one line."""
+    if config_path.name != "config.toml":
+        raise jbus.Refused(f"refused: {config_path} is not a config.toml")
+    have = jbus.load(config_path.parent).projects
+    was = config_path.read_text()
+    if not NAME.fullmatch(name):
+        raise jbus.Refused(
+            "refused: a project's name is letters, digits, dots, dashes and underscores"
+        )
+    if not project_id.strip():
+        raise jbus.Refused("refused: --project-id is empty")
+    where = Path(checkout).expanduser().resolve()
+    if not where.is_dir():
+        raise jbus.Refused("refused: --checkout is not a directory")
+    if any(
+        (one.name, one.project_id) == (name, project_id.strip()) and _same(one.checkout, where)
+        for one in have
+    ):
+        raise jbus.Refused(HAS)
+    if any(name in (one.name, one.state) for one in have):
+        raise jbus.Refused("refused: the config already has a project of that name")
+    if any(_same(one.checkout, where) for one in have):
+        raise jbus.Refused("refused: the config already has a project with that checkout")
+    gap = "" if not was or was.endswith("\n\n") else "\n" if was.endswith("\n") else "\n\n"
+    now = was + gap + table(name, where, project_id.strip())
+    tomllib.loads(now)
+    backup = config_path.with_name(f"{config_path.name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
+    _private(backup, was)
+    _private(config_path, now)
+    return ADDED.format(backup=backup)
+
+
+def _add(args: argparse.Namespace, _: jbus.Config) -> int:
+    print(add(jbus.config_dir() / "config.toml", args.name, args.checkout, args.project_id))
+    return 0
+
+
+def _listed(listed: argparse.ArgumentParser) -> None:
+    listed_verbs = listed.add_subparsers(dest="verb", required=True)
+    added = listed_verbs.add_parser(
+        "add", help="add a project's table to the config, with no webhook", allow_abbrev=False
+    )
+    added.add_argument("name", help="the repo's directory name under the homes' state")
+    added.add_argument("--checkout", required=True, help="the path of the repo's main checkout")
+    added.add_argument("--project-id", required=True, help="the T3 Code project's id")
+
+
+VERBS = (verbs.Verb("project", "the projects of the config", _listed, _add, config=False),)

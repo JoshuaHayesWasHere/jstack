@@ -1,0 +1,5 @@
+usage: jbus queue show [-h] [--all]
+
+options:
+  -h, --help  show this help message and exit
+  --all       every row, the finished ones too

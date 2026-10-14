@@ -1,0 +1,42 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "clientRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "mode": {
+      "anyOf": [
+        {
+          "enum": [
+            "auto",
+            "queue",
+            "steer",
+            "restart"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "threadId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "threadId",
+    "message"
+  ],
+  "type": "object"
+}

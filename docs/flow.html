@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jstack: how the work flows</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f1f1f3;
+    --msg: #1b4ed8; --msg-bg: #e8eefc; --scout: #0d7d73; --scout-bg: #e3f4f2; --rev: #7e22ce; --rev-bg: #f3e8fd;
+    --ok: #047857; --ok-bg: #dcf5ea; --hold: #b45309; --hold-bg: #fcf0dc;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --gap: 26px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0c0d; --fg: #f1f1f2; --dim: #9a9aa3; --card: #17171a; --line: #34343a; --lane: #131316;
+      --msg: #7ea2ff; --msg-bg: #16203c; --scout: #4fd1c2; --scout-bg: #0f2a28; --rev: #c79bf5; --rev-bg: #261a36;
+      --ok: #45d19a; --ok-bg: #10291f; --hold: #f5b755; --hold-bg: #2e2110;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body { font-family: var(--sans); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 10px; }
+  .lead { color: var(--dim); max-width: 78ch; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  details { margin-top: 10px; color: var(--dim); }
+  summary { cursor: pointer; }
+
+  .key { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 12px; font-size: 12px; color: var(--dim); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 22px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--card); display: inline-block; }
+  .sw.file { background: none; }
+  .sw.msg { border: 1.5px dashed var(--msg); background: var(--msg-bg); }
+  .sw.scout { border-color: var(--scout); background: var(--scout-bg); }
+  .sw.rev { border-color: var(--rev); background: var(--rev-bg); }
+
+  /* The picture: four lanes, one row per step. */
+  .flow { position: relative; }
+  .lanes, .row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--gap); }
+  .lanes { position: absolute; inset: 0; }
+  .lanes i { background: var(--lane); border-radius: 8px; }
+  .row { position: relative; }
+  .cell { position: relative; min-width: 0; padding: 9px 10px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .heads .cell { padding: 12px 10px 4px; text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .box { border: 1.5px solid var(--line); border-radius: 7px; padding: 8px 10px; background: var(--card); min-width: 0; }
+  .box b { display: block; font-size: 13px; }
+  .box small { display: block; font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+  .box.plain { border-style: dotted; }
+  .box.file { background: none; }
+  .box.file b { font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+  .box.msg { border: 1.5px dashed var(--msg); background: var(--msg-bg); }
+  .box.msg b { font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+  .box.scout { border-color: var(--scout); background: var(--scout-bg); }
+  .box.rev { border-color: var(--rev); background: var(--rev-bg); }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 2px; }
+  .box.msg .tag { color: var(--msg); }
+  .box.scout .tag { color: var(--scout); }
+  .box.rev .tag { color: var(--rev); }
+  .n { display: inline-block; min-width: 1.5em; margin-right: 4px; padding: 0 5px; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 11px; text-align: center; }
+
+  /* An arrow lives in the gap to the right of its cell. */
+  .ar { position: absolute; top: 50%; left: 100%; width: var(--gap); border-top: 1.5px solid var(--dim); }
+  .ar::before, .ar::after { content: ""; position: absolute; top: -5px; border: 4.5px solid transparent; }
+  .ar.r::after, .ar.b::after { right: -1px; border-left-color: var(--dim); border-right-width: 0; }
+  .ar.l::before, .ar.b::before { left: -1px; border-right-color: var(--dim); border-left-width: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); font-weight: 600; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .auto { background: var(--ok-bg); color: var(--ok); }
+  .never { background: var(--hold-bg); color: var(--hold); }
+
+  /* The two directories. */
+  .dirs { border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; background: var(--lane); margin-top: 12px; }
+  .dirs h3 { margin: 0; font-size: 13px; font-family: var(--mono); }
+  .dirs .who { font-size: 11.5px; color: var(--dim); margin: 0 0 8px; }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+  .files code { border: 1.5px solid var(--line); border-radius: 6px; padding: 2px 7px; background: var(--card); }
+  .own { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .own > div { border: 1.5px solid var(--line); border-radius: 8px; padding: 10px; background: var(--card); min-width: 0; }
+  .own .files code { background: none; }
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .rules li { padding-left: 14px; position: relative; }
+  .rules li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
+
+  @media (max-width: 860px) {
+    main { padding: 20px 12px 48px; }
+    .lanes, .row.heads, .ar { display: none; }
+    .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 8px; border-radius: 8px; background: var(--lane); }
+    .row.rev { flex-direction: column-reverse; }
+    .cell { padding: 0; }
+    .cell:empty { display: none; }
+    .cell::before { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+    .cell.h::before { content: "Home thread"; }
+    .cell.s::before { content: "State directory"; }
+    .cell.c::before { content: "Crewmate thread"; }
+    .cell.c.other::before { content: none; }
+    .cell.g::before { content: "GitHub"; }
+    .own, .rules { grid-template-columns: minmax(0, 1fr); }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+    td { padding: 2px 0; border: 0; }
+    td:first-child { font-weight: 600; }
+  }
+</style>
+</head>
+<body>
+<main>
+<h1>How the work flows</h1>
+<p class="lead">One task, from a home to a merge. Read top to bottom. Each column is one place where something happens. The state directory is the only thing the threads share: a message only wakes a thread, the record is on disk.</p>
+
+<section style="margin-top: 20px">
+  <div class="key">
+    <span><i class="sw"></i> a step</span>
+    <span><i class="sw file"></i> a file, read or written</span>
+    <span><i class="sw msg"></i> a message between threads</span>
+    <span><i class="sw scout"></i> the scout's thread</span>
+    <span><i class="sw rev"></i> a reviewer's thread</span>
+  </div>
+
+  <div class="flow">
+    <div class="lanes"><i></i><i></i><i></i><i></i></div>
+
+    <div class="row heads">
+      <div class="cell">Home thread</div>
+      <div class="cell">State directory</div>
+      <div class="cell">Crewmate thread</div>
+      <div class="cell">GitHub</div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>hooks/home-start.sh</code>, which prints <code>templates/hook-message.md</code>. Runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
+      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-thread</b><small>written: this thread's id</small></div></div>
+      <div class="cell c"></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">2</span>Plan with you</b><small>One entry per pull request, each with a "Done when" list. A shape that is not settled is grilled in rounds first: <code>skills/grilling/SKILL.md</code>.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>templates/grill-page.html</code></small></div></div>
+      <div class="cell c"></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">3</span>Send a scout</b><small>Only when the brief cannot be written from the state directory. <code>t3_thread_launch</code> with the message <code>/scout &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>the request, shaped as <code>templates/scout-request.md</code></small></div><i class="ar r"></i></div>
+      <div class="cell c other"><div class="box scout"><span class="tag">Scout thread</span><b>Research, read only</b><small>Answers the request's questions from the code and the docs. Changes nothing in the repo.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"><div class="box plain"><b>Read the report</b><small>From disk, not from the scout's thread.</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>gains <code>## Report</code>, shaped as <code>templates/scout-report.md</code></small></div><div class="box file"><b>tasks/&lt;slug&gt;.md &nbsp;reports/&lt;slug&gt;.html</b><small>the crewmate's brief and a page, each only when the request asks</small></div><div class="box msg"><span class="tag">Message</span><b>the report is written</b><small>once, at most five lines: status, recommendation, paths</small></div><i class="ar l"></i></div>
+      <div class="cell c other"><div class="box scout"><span class="tag">Scout thread</span><b>Write it down</b><small>Then tells the home and settles itself. It never becomes the crewmate.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">4</span>Brief and launch</b><small>Launches when <code>jmerge --claims</code> shows no other brief holds the files and the machine has room. <code>t3_thread_launch</code>: a new thread in a new worktree, with the message <code>/crew &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>plan.md</b><small>the entry says <code>with crewmate</code></small></div><i class="ar r"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>Reads the brief and <code>notes.md</code>, nothing else. Then the playbook the brief's <code>Playbook:</code> line names, such as <code>playbooks/bug-fix.md</code>.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"></div>
+      <div class="cell s"></div>
+      <div class="cell c"><div class="box"><b><span class="n">6</span>Do the task</b><small>Tests first, then the repo's check command until it passes. The "Done when" list is the whole target.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"><div class="box plain"><b>Park the gate</b><small>Numbers it and shows the open gates at its start, on status, and when the planned work is done.</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>gates.md</b><small>written by the home only</small></div><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: gate</b><small>then the lines of <code>templates/gates.md</code>, filled in</small></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box plain"><b>A question only you can answer</b><small>Takes a default and carries on. A scout does the same.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"></div>
+      <div class="cell s"></div>
+      <div class="cell c"><div class="box"><b><span class="n">7</span>Open the pull request</b><small>By <code>playbooks/opening-a-pr.md</code>, its body shaped as <code>templates/pr-body.md</code>. Links it with <code>link_pull_request</code>. Never merges.</small></div><i class="ar r"></i></div>
+      <div class="cell g"><div class="box"><b>Pull request</b><small>CI runs the check command.</small></div></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Result</code>, shaped as <code>templates/result.md</code></small></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>No message: the home hears of a pull request once, at step 11. No watch is armed, and the turn ends.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the Result gains <code>Reviewer:</code></small></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">9</span>Launch the reviewer</b><small>Once, when the pull request opens, so the review runs beside CI. A failed check is fixed first. <code>t3_thread_launch</code> in the same worktree, with the message <code>/pr-review run &lt;slug&gt;</code>.</small></div><i class="ar l"></i></div>
+      <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate only for a check that failed, or a line it owes on green.</small></div></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Review</code>, shaped as <code>templates/review.md</code></small></div><i class="ar l"></i></div>
+      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>Two reviewers, one lead, one proof</b><small>Two reviewers who do not see each other read the diff, the lead judges what they found and proves one fact by running code. Fixes nothing, then settles itself.</small></div><div class="box msg"><span class="tag">Message, to the crewmate</span><b>the findings</b><small>each with its severity, file and line</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the Result gains a <code>Finding:</code> line for each finding, then <code>Second pass:</code> and <code>Fixed:</code></small></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">10</span>Fix once</b><small>Fixes what it agrees with and says why for the rest. A failed check, a comment or a conflict also wakes it: fix, push, one line in the Result.</small></div><i class="ar b"></i></div>
+      <div class="cell g"><div class="box"><b>Push, then checks again</b><small>A rebase only when GitHub reports a conflict, or <code>jmerge</code> says main changed its files.</small></div></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>Second reviewer:</code> and a second <code>## Review</code></small></div><i class="ar l"></i></div>
+      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>A second pass, and the last</b><small>Only when the fix changed a file no finding named. The message is <code>/pr-review run &lt;slug&gt; again</code>.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row rev">
+      <div class="cell h"><div class="box plain"><b>Woken by the message</b><small>It runs no watch and polls nothing.</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</b></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green.</small></div></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">12</span>Merge</b><small><code>jmerge --home &lt;threadId&gt;</code>, with no model. It merges what is reviewed, fixed and green, and prints <code>wait</code> and the reason for the rest. The home tells you.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>plan.md</b><small>the entry says <code>done</code></small></div><div class="box file"><b>merge.log</b><small>what was merged, dated</small></div></div>
+      <div class="cell c"><div class="box plain"><b>Worktree and branches removed</b><small>By <code>jmerge</code>, when clean. T3 Code settles the thread when its linked pull request merges.</small></div></div>
+      <div class="cell g"><div class="box"><b>Merged</b><small>A squash, at the exact head that was checked.</small></div></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small><code>jmerge --sweep</code>, once at each start. It removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>merge.log</b><small>what was swept, dated</small></div></div>
+      <div class="cell c"></div>
+      <div class="cell g"></div>
+    </div>
+
+    <div class="row">
+      <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Files what was learned, launches the next home with <code>/home &lt;seed&gt;</code>, the seed shaped as <code>templates/handoff-seed.md</code>, then renames and settles itself.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-thread</b><small>removed</small></div></div>
+      <div class="cell c"></div>
+      <div class="cell g"></div>
+    </div>
+  </div>
+  <p class="lead" style="margin-top: 12px">The next home starts at step 1 from that one page.</p>
+</section>
+
+<section>
+  <h2>Every message a thread sends</h2>
+  <p class="lead">A thread messages its home only when the home has something to do. Nothing is sent when a pull request opens, when a review is written, or when its findings are handled.</p>
+  <table>
+    <thead><tr><th>The message</th><th>From, to</th><th>Sent when</th></tr></thead>
+    <tbody>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The home merges on it.</td></tr>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to its home</td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It waits for your word.</td></tr>
+      <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
+      <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>
+      <tr><td><code>&lt;slug&gt;: gate</code></td><td>Crewmate or scout, to its home</td><td>It took a default on a question only you can answer, and carried on.</td></tr>
+      <tr><td>A review's findings</td><td>Reviewer, to the crewmate</td><td>After its one run. To the home only when the brief has no <code>Thread:</code> line.</td></tr>
+    </tbody>
+  </table>
+  <details><summary>Whom a message goes to</summary><p>The id in a <code>home-id</code>, read when the message is sent: the root home's, or the one in <code>&lt;scope&gt;/</code> when the <code>Home:</code> line of the brief or request names that scope. No brief names a thread. With no home listening, nothing is sent and the next home reads the result from disk.</p></details>
+</section>
+
+<section>
+  <h2>The templates</h2>
+  <p class="lead">Each file in <code>templates/</code> is the one copy of a shape. A thread reads it at the step that fills it in.</p>
+  <table>
+    <thead><tr><th>Template</th><th>Step</th><th>Filled in by</th><th>Becomes</th></tr></thead>
+    <tbody>
+      <tr><td><code>templates/hook-message.md</code></td><td>1</td><td><code>hooks/home-start.sh</code></td><td>The <code>[home]</code> lines a new thread in a main checkout starts with</td></tr>
+      <tr><td><code>templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
+      <tr><td><code>templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. Two or more open gates are shown the same way.</td></tr>
+      <tr><td><code>templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
+      <tr><td><code>templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
+      <tr><td><code>templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
+      <tr><td><code>templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
+      <tr><td><code>templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
+      <tr><td><code>templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
+      <tr><td><code>templates/review.md</code></td><td>9</td><td>Reviewer</td><td>The <code>## Review</code> section of the brief</td></tr>
+      <tr><td><code>templates/expert-answer.md</code></td><td>any</td><td>Expert</td><td>An answer to an ask, in its four parts: it is no step of a task</td></tr>
+      <tr><td><code>templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
+      <tr><td><code>templates/handoff-seed.md</code></td><td>14</td><td>Home</td><td>The next home's first message</td></tr>
+      <tr><td><code>templates/playbook.md</code></td><td>none</td><td>Whoever writes a playbook, by <code>playbooks/authoring-a-playbook.md</code></td><td>The frame of a file in <code>playbooks/</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>The root home and a scoped home</h2>
+  <p class="lead">A repo has one root home, and may have scoped homes beside it, each for one goal. Briefs, requests and notes are shared. A handoff, a plan and the gates are a home's own.</p>
+  <div class="dirs">
+    <h3>~/.local/state/home/&lt;repo&gt;/</h3>
+    <p class="who">The repo's directory, shared by every home of the repo</p>
+    <div class="files"><code>notes.md</code><code>tasks/&lt;slug&gt;.md</code><code>scouts/&lt;slug&gt;.md</code><code>reports/</code><code>merge.log</code><code>off</code></div>
+    <div class="own">
+      <div>
+        <h3>./</h3>
+        <p class="who">The root home's own. Started with <code>/home</code>, or by the hook.</p>
+        <div class="files"><code>handoff.md</code><code>plan.md</code><code>gates.md</code><code>home-thread</code><code>log/</code></div>
+      </div>
+      <div>
+        <h3>&lt;scope&gt;/</h3>
+        <p class="who">A scoped home's own. Started with <code>/home &lt;scope&gt;</code>.</p>
+        <div class="files"><code>handoff.md</code><code>plan.md</code><code>gates.md</code><code>home-thread</code><code>log/</code></div>
+      </div>
+    </div>
+  </div>
+  <ul class="rules">
+    <li>Only the root home makes a scope, and only on your word.</li>
+    <li>No home writes another home's directory.</li>
+    <li>A scoped home's slugs and branches start with its prefix.</li>
+    <li>Each home merges its own pull requests. <code>jmerge --all</code> takes the others too, on your word.</li>
+    <li>Homes do not message each other, but for a decision that crosses scopes.</li>
+    <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
+    <li>A scoped home whose plan has no open entry closes at its handoff: no next home is started.</li>
+    <li>The root home reads a scope's handoff and open plan entries when you ask for status.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><code>jmerge</code>: the merge, with no model</h2>
+  <p class="lead">One command does the merge, the sweep and the launch check. The home runs it and relays what it printed.</p>
+  <table>
+    <thead><tr><th>Run as</th><th>When</th><th>Prints</th><th>Changes</th></tr></thead>
+    <tbody>
+      <tr><td><code>jmerge --home &lt;threadId&gt;</code></td><td>On a <code>fixed and green</code> message, on status, at a home's start</td><td><code>merged</code> or <code>wait</code> and the reason, one line per open pull request</td><td>Merges, pulls the main checkout, removes the worktree and both branches, sets the plan entry to done</td></tr>
+      <tr><td><code>jmerge --check</code></td><td>To see what is ready</td><td><code>ready</code> in place of merging</td><td>Nothing</td></tr>
+      <tr><td><code>jmerge --all</code></td><td>Only on your word</td><td>As the first row</td><td>Merges the pull requests of the repo's other homes too</td></tr>
+      <tr><td><code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "YYYY-MM-DD HH:MM &lt;zone&gt;"</code></td><td>Only on your word, for a pull request it holds</td><td><code>accepted</code>, then as the first row, or <code>refused</code> and the reason</td><td>Merges that pull request at the head the hold was said at, when its review proved its safety fact there</td></tr>
+      <tr><td><code>jmerge --land &lt;name&gt;</code></td><td>Only on your word, for a stack</td><td>As the first row</td><td>Merges the pull requests of that stack too, each once its base is the default branch</td></tr>
+      <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
+      <tr><td><code>jmerge --sweep --check</code></td><td>To see both lists</td><td><code>removable</code> in place of <code>removed</code></td><td>Nothing</td></tr>
+      <tr><td><code>jmerge --claims</code></td><td>Before every launch</td><td>One line per brief that still holds files, across the homes of the repo</td><td>Nothing</td></tr>
+    </tbody>
+  </table>
+  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code> has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>src/jmerge/sweep.py</code>.</p></details>
+</section>
+
+<section>
+  <h2>What settles by itself</h2>
+  <p class="lead">A thread may settle when everything it knows is on disk and nothing unmerged or uncommitted depends on it. Settling a thread leaves its worktree and branch: those are the merge's and the sweep's.</p>
+  <table>
+    <thead><tr><th>Thread ends as</th><th>Settles</th><th>Who does it</th></tr></thead>
+    <tbody>
+      <tr><td>Crewmate: done, no pull request, nothing left, worktree clean</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
+      <tr><td>Crewmate: pull request merged</td><td><span class="chip auto">auto</span></td><td>T3 Code, because the pull request is linked to the thread</td></tr>
+      <tr><td>Scout: report done, no page</td><td><span class="chip auto">auto</span></td><td>Itself, once the home is told</td></tr>
+      <tr><td>Reviewer: findings sent, <code>## Review</code> written</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
+      <tr><td>Home: <code>/handoff</code> finished</td><td><span class="chip auto">auto</span></td><td>Itself, after it has launched the next home</td></tr>
+      <tr><td>Crewmate: pull request open</td><td><span class="chip never">not yet</span></td><td>Stays on the pull request</td></tr>
+      <tr><td>Scout: report done, with a page</td><td><span class="chip never">not yet</span></td><td>Itself, once you have ended the page's session</td></tr>
+      <tr><td>Crewmate: done, but uncommitted or unpushed work is left</td><td><span class="chip never">never auto</span></td><td>You. The sweep prints <code>kept</code> and the reason.</td></tr>
+      <tr><td>Crewmate or scout: not done, or blocked</td><td><span class="chip never">never auto</span></td><td>You</td></tr>
+      <tr><td>Reviewer: stopped before its run ended</td><td><span class="chip never">never auto</span></td><td>You: the thread stays, and says why</td></tr>
+      <tr><td>Crewmate: pull request closed unmerged</td><td><span class="chip never">worktree kept</span></td><td>You, after the home's sweep names it</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Where each thread's text is</h2>
+  <table>
+    <thead><tr><th>Thread</th><th>Typed as</th><th>Its full text</th></tr></thead>
+    <tbody>
+      <tr><td>Home</td><td><code>/home</code>, <code>/home &lt;scope&gt;</code></td><td><code>skills/home/SKILL.md</code></td></tr>
+      <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>skills/scout/SKILL.md</code></td></tr>
+      <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>skills/crew/SKILL.md</code></td></tr>
+      <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>skills/pr-review/SKILL.md</code></td></tr>
+      <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>skills/handoff/SKILL.md</code></td></tr>
+      <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>skills/grilling/SKILL.md</code></td></tr>
+    </tbody>
+  </table>
+</section>
+</main>
+</body>
+</html>

@@ -1,0 +1,180 @@
+"""A jbus that is dead or failing gets noticed: one project cannot end the pass, the status
+file is always written, a `jmerge` command cannot hang, the third failed unit in a row
+alerts through the webhook and the desk, once, and every hour the first pass queues a
+heartbeat, which is quiet: it starts no POST.
+
+Every test runs the real pass or the real command against the faked T3 Code server and
+webhook of `test_jbus_kitchen`. Nothing reaches the network.
+"""
+
+import json
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+import jbus
+import jmerge.cli
+from jbus import cli
+from test_jbus_kitchen import KEY, NOW, OPTIONS, PROJECT
+
+FAILED = (
+    "alert: pass failed 3 times in a row since 11:00 ET: "
+    "the last pass did not finish (see journalctl --user -u jbus)"
+)
+
+
+def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_written(kitchen):
+    """`broken` keeps its state where a file is, so its pass raises; `demo` comes after it."""
+    assert (
+        kitchen.main(
+            "gate",
+            "alpha",
+            stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+        )[0]
+        == 0
+    )
+    path = kitchen.config_dir / "config.toml"
+    top, demo = path.read_text().split("[[project]]", 1)
+    broken = [
+        "[[project]]",
+        'name = "broken"',
+        f"checkout = {json.dumps(str(kitchen.checkout))}",
+        'state = "demo"',
+        f"projectId = {json.dumps(PROJECT)}",
+    ]
+    kitchen.write(path, top + "\n".join(broken) + "\n[[project]]" + demo)
+    (kitchen.state_dir / "broken").write_text("a file where the state directory goes\n")
+    said = []
+    assert cli.poll(jbus.load(), NOW, said.append) == 1
+    (failed,) = [line for line in said if line.startswith("pass failed")]
+    assert failed.startswith("pass failed broken: FileExistsError: ")
+    assert "woke demo: 1 events" in said
+    assert "wait: crews out not known (broken: the pass raised)" in said
+    assert "gate alpha: question 1: which one?" in [
+        e["line"] for post in kitchen.webhook.posts for e in post
+    ]
+    status = kitchen.status()
+    assert status["projects"]["broken"]["last_error"] == failed.removeprefix("pass failed broken: ")
+    assert status["projects"]["demo"]["last_error"] == ""
+    assert status["last_pass"] == "2026-10-12 11:00 ET"
+
+
+def test_a_pass_where_nothing_raised_exits_zero(kitchen):
+    assert cli.poll(jbus.load(), NOW, lambda _: None) == 0
+    assert kitchen.main("poll")[0] == 0
+
+
+def test_a_jmerge_command_that_hangs_is_a_failed_command_after_the_timeout(tmp_path, monkeypatch):
+    monkeypatch.setenv("JMERGE_TIMEOUT", "1")
+    ran = jmerge.cli._run(tmp_path, "sleep", "5")
+    assert (ran.returncode, ran.stderr) == (124, "timed out after 1 s: sleep 5")
+    assert jmerge.cli._said(ran) == "timed out after 1 s: sleep 5"
+    monkeypatch.delenv("JMERGE_TIMEOUT")
+    assert jmerge.cli.TIMEOUT_SECONDS == 120
+    done = jmerge.cli._run(tmp_path, "echo", "ran")
+    assert (done.returncode, done.stdout) == (0, "ran\n")
+
+
+def alarm(now):
+    said = []
+    assert cli.alarm(jbus.load(), now, said.append) == 0
+    return said
+
+
+def test_the_third_alarm_in_a_row_alerts_once_and_never_shows_the_webhook(kitchen):
+    said = alarm(NOW) + alarm(NOW + timedelta(minutes=1))
+    assert said == ["pass failed: 1 in a row", "pass failed: 2 in a row"]
+    assert kitchen.events() == [] and kitchen.log("notify") == []
+    said += alarm(NOW + timedelta(minutes=2)) + alarm(NOW + timedelta(hours=1))
+    assert said[2:] == ["pass failed: 3 in a row", "alert sent: demo", "pass failed: 4 in a row"]
+    events = [event for post in kitchen.webhook.posts for event in post]
+    assert [(e["project"], e["slug"], e["event"], e["line"]) for e in events] == [
+        ("demo", "", "alert", FAILED)
+    ]
+    assert kitchen.webhook.said == [[f"demo: {FAILED}"]] and kitchen.webhook.keys == [KEY]
+    assert kitchen.log("notify") == [f"jbus | {FAILED}"]
+    assert not [line for line in said if KEY in line or kitchen.webhook.url in line]
+
+
+def test_an_alert_the_webhook_did_not_take_waits_and_a_pass_keeps_the_streaks(kitchen):
+    """The command as the unit runs it. What it could not send goes with the next flush."""
+    kitchen.webhook.status = 500
+    assert [kitchen.main("alarm") for _ in range(2)] == [
+        (0, "pass failed: 1 in a row\n"),
+        (0, "pass failed: 2 in a row\n"),
+    ]
+    code, said = kitchen.main("alarm")
+    assert (code, said) == (
+        0,
+        "pass failed: 3 in a row\nwake failed demo: the webhook answered 500\nalert waits: demo\n",
+    )
+    assert kitchen.webhook.url not in said and KEY not in said
+    (alert,) = kitchen.lines("alert")
+    assert alert.startswith("alert: pass failed 3 times in a row since ")
+    streaks = jbus.read_json(kitchen.state_dir / "streaks.json", {})
+    assert (streaks["pass"]["count"], streaks["pass"]["alerted"]) == (3, True)
+    assert (streaks["webhook demo"]["count"], streaks["webhook demo"]["alerted"]) == (1, False)
+    kitchen.webhook.status = 200
+    kitchen.poll(datetime.now(UTC) + timedelta(minutes=1))
+    assert kitchen.status()["streaks"] == {"webhook demo": streaks["webhook demo"]}
+    assert kitchen.webhook.posts == []
+    kitchen.poll(datetime.now(UTC) + timedelta(minutes=6))
+    assert kitchen.status()["streaks"] == {}
+    (post,) = kitchen.webhook.said
+    recovered = post[1].removeprefix("demo: ")
+    assert post[0] == f"demo: {alert}" and recovered.startswith("recovered: pass after 3 failures ")
+    assert kitchen.log("notify") == [f"jbus | {alert}", f"jbus | {recovered}"]
+
+
+def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(kitchen):
+    kitchen.poll(NOW)
+    kitchen.poll(NOW + timedelta(minutes=59))
+    assert kitchen.lines("heartbeat") == [
+        "heartbeat: jbus alive, last pass none, failed wakes 0, last error none"
+    ]
+    assert kitchen.webhook.posts == [] and kitchen.waiting() == []
+    kitchen.webhook.status = 500
+    kitchen.main(
+        "gate",
+        "alpha",
+        stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+    )
+    kitchen.poll(NOW + timedelta(minutes=59, seconds=30))
+    kitchen.webhook.status = 200
+    kitchen.poll(NOW + timedelta(hours=1))
+    assert kitchen.lines("heartbeat")[1:] == [
+        "heartbeat: jbus alive, last pass 11:59 ET, failed wakes 1, "
+        "last error the webhook answered 500"
+    ]
+    (heartbeat,) = [e for e in kitchen.events("heartbeat") if "11:59" in e["line"]]
+    assert (heartbeat["slug"], heartbeat["loud"], heartbeat["posted"]) == ("", "quiet", None)
+    assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(hours=1, minutes=5))
+    assert [e["event"] for e in kitchen.webhook.posts[0]] == ["gate"]
+    assert kitchen.webhook.said == [["demo: gate alpha: question 1: which one?"]]
+    assert [one["posted"] for one in kitchen.events("heartbeat")] == [None, None]
+
+
+@pytest.mark.parametrize(
+    "url", ["example.test/abc?key=SECRET", "http://example.test/a b?key=SECRET"]
+)
+def test_a_webhook_url_that_cannot_be_used_is_in_no_line_and_not_in_the_status(kitchen, url):
+    kitchen.config(url=url)
+    kitchen.main(
+        "gate",
+        "alpha",
+        stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+    )
+    said = []
+    assert cli.poll(jbus.load(), NOW, said.append) == 1
+    assert cli.alarm(jbus.load(), NOW + timedelta(minutes=6), said.append) == 1
+    assert cli.poll(jbus.load(), NOW + timedelta(hours=1), said.append) == 1
+    failed = [line for line in said if "failed demo: " in line]
+    assert [line.split(":")[0] for line in failed] == ["pass failed demo", "alarm failed demo"] + [
+        "pass failed demo"
+    ]
+    assert all("[webhook]" in line for line in failed)
+    written = "\n".join([*said, *kitchen.lines(), (kitchen.state_dir / "status.json").read_text()])
+    assert kitchen.status()["projects"]["demo"]["last_error"].count("[webhook]") >= 1
+    assert len(kitchen.lines("heartbeat")) == 2 and "[webhook]" in kitchen.lines("heartbeat")[1]
+    for part in ("SECRET", "example.test", "/abc", "/a b", KEY):
+        assert part not in written

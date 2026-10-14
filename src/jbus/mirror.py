@@ -1,0 +1,256 @@
+"""What the threads wrote down, read and never written: briefs, scout requests and the gates.
+
+Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state directory
+and sends one event for each section that is new: a Result (a follow-up included), a
+Review, a Report, an open gate, an answered gate, and a gate a thread with no home left in
+its own Result or Report. A gate that was piped to `jbus gate` is a question jbus holds
+(`questions`): it is the same event by `gate_key`, and its answer is no event. `seen.json`
+holds the file, heading and hash of every section sent, so each goes once, and a Result,
+Review or Report goes again when its text changes. The first pass of a project sends none:
+it only records what is already there.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import itertools
+import re
+from collections.abc import Iterator
+from pathlib import Path
+
+from jbus import read_json, verbs, write_json
+from jbus.wake import Pass
+
+EVENTS = {
+    "gate": "user",
+    "gate answered": "quiet",
+    "result": "quiet",
+    "review": "quiet",
+    "report": "quiet",
+}
+_GATE = re.compile(r"^## Gate (\S+?):\s*(.*)$")
+
+
+_THREAD = re.compile(r"mcp:\S+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+_GATE_LINES = ("Status:", "Asked by:", "Default:", "Built on it:", "Undo:", "Context:", "Option:")
+DEFAULT, RECOMMENDED = "default", "recommended"
+_MARK = f"(?:{DEFAULT}|{RECOMMENDED})"
+_OPTION = re.compile(
+    rf"Option:\s*(?P<name>[^<\s].*?)\s*(?:\((?P<marks>{_MARK}(?:,\s*{_MARK})*)\))?"
+    r":\s+(?P<follows>[^<\s].*)"
+)
+
+
+def sections(text: str, *, gates_inside: bool = False) -> list[tuple[str, str]]:
+    """Each `## ` heading with the lines under it, in order.
+
+    With `gates_inside`, a `## Gate` line is a line of the section it sits in: a thread with
+    no home puts its gate in its own Result or Report, and that section does not end there.
+    """
+    found: list[tuple[str, list[str]]] = []
+    for line in text.splitlines():
+        if line.startswith("## ") and not (gates_inside and found and _GATE.match(line)):
+            found.append((line.strip(), []))
+        elif found:
+            found[-1][1].append(line)
+    return [(heading, "\n".join(lines).strip()) for heading, lines in found]
+
+
+def field(body: str, name: str) -> str:
+    for line in body.splitlines():
+        if line.startswith(f"{name}:"):
+            return line[len(name) + 1 :].strip()
+    return ""
+
+
+def gates_in(text: str) -> list[tuple[str, str]]:
+    found, lines = [], text.splitlines()
+    for at, line in enumerate(lines):
+        match = _GATE.match(line.strip())
+        if match:
+            own = itertools.takewhile(lambda one: one.startswith(_GATE_LINES), lines[at + 1 :])
+            found.append((match[2].strip(), "\n".join([line.strip(), *own])))
+    return found
+
+
+def last_result(text: str) -> str:
+    whole = sections(text, gates_inside=True)
+    results = [f"{h}\n{b}" for h, b in whole if h.startswith("## Result")]
+    return results[-1] if results else ""
+
+
+def page(report: str) -> str:
+    """What a scout's Report says after its last `Page:`, or nothing when it names no page.
+
+    `Page: none` names none, and neither does `Page: none, <why>`: the reading is the one
+    `jmerge --sweep` and the scout skill's own settle block go by.
+    """
+    named = [
+        line.split("Page:", 1)[1].strip(" \t") for line in report.splitlines() if "Page:" in line
+    ]
+    return "" if not named or re.match(r"none(,|$)", named[-1]) else named[-1]
+
+
+def undelivered(text: str) -> str:
+    """A brief's last Review, whole, when it has findings and its `Sent to:` names no thread.
+
+    The reviewer writes there the thread id the findings went to, or `not sent` and why, in
+    its own words. So only a line that starts with a thread id counts as delivered.
+    """
+    reviews = [f"{h}\n{b}" for h, b in sections(text, gates_inside=True) if h == "## Review"]
+    if not reviews or field(reviews[-1], "Verdict") != "findings":
+        return ""
+    sent = [line for line in reviews[-1].splitlines() if line.startswith("Sent to:")]
+    if not sent:
+        return ""
+    to = sent[-1][len("Sent to:") :].split()
+    delivered = to and _THREAD.fullmatch(to[0].rstrip(",.;"))
+    return "" if delivered else reviews[-1]
+
+
+def question(lines: str) -> str:
+    """The one line a gate asks, from the lines a thread sent: its `## Gate <n>:` line."""
+    for line in lines.splitlines():
+        match = _GATE.match(line.strip())
+        if match:
+            return match[2].strip()
+    for line in lines.splitlines():
+        if line.strip() and not re.fullmatch(r"\S+: gate", line.strip()):
+            return line.strip()
+    return ""
+
+
+def options(lines: str) -> tuple[list[tuple[str, str, frozenset[str]]], list[str]]:
+    """The options a gate proposes, from its `Option:` lines in order: each one's short name,
+    what follows from it, and its marks. Beside them, the `Option:` lines that are not one.
+
+    A line is `Option: <short name>: <what follows from it>`, and the name ends at the first
+    colon. `(default)`, `(recommended)` or `(default, recommended)` between the name and
+    that colon marks it. A line still in its angle brackets is not filled in, and is not one.
+    """
+    found, unread = [], []
+    for line in map(str.strip, lines.splitlines()):
+        if not line.startswith("Option:"):
+            continue
+        match = _OPTION.fullmatch(line)
+        if match:
+            marks = frozenset(re.findall(_MARK, match["marks"] or ""))
+            found.append((match["name"], match["follows"].strip(), marks))
+        else:
+            unread.append(line)
+    return found, unread
+
+
+def context(lines: str) -> str:
+    """What a gate's `Context:` line says, or nothing for one that is not filled in."""
+    said = field(lines, "Context")
+    return "" if said.startswith("<") else said
+
+
+def gate_key(slug: str, asked: str) -> str:
+    """One key for a gate however it arrived: read from a file, or piped to `jbus gate`."""
+    return "asked " + hashlib.sha256(f"{slug}\n{asked}".encode()).hexdigest()[:16]
+
+
+def _found(kind: str, slug: str, heading: str, body: str) -> tuple[str, str, str] | None:
+    if kind == "tasks" and heading.startswith("## Result"):
+        return "result", f"result {slug}: {field(body, 'Status') or heading[3:]}", ""
+    if kind == "tasks" and heading == "## Review":
+        return "review", f"review {slug}: {field(body, 'Verdict') or 'written'}", ""
+    if kind == "scouts" and heading == "## Report":
+        return "report", f"report {slug}: {field(body, 'Status') or 'written'}", ""
+    return None
+
+
+def gates(text: str) -> list[tuple[str, str, str, str]]:
+    """Each gate of a `gates.md`, in order: its number, what it asks, its heading, and the
+    lines under it."""
+    found = ((_GATE.match(heading), heading, body) for heading, body in sections(text))
+    return [(match[1], match[2].strip(), heading, body) for match, heading, body in found if match]
+
+
+def home_gates(home: Path) -> Iterator[tuple[Path, str, str, str, str]]:
+    """Each gate of the home's `gates.md`, then of each scoped home's: its file, its number,
+    what it asks, the lines under it, and its `gate_key`. A file that cannot be read has
+    none."""
+    for file in (home / "gates.md", *sorted(home.glob("*/gates.md"))):
+        for number, asked, _, body in gates(_read(file)):
+            yield file, number, asked, body, gate_key(asker(body), asked)
+
+
+def asker(body: str) -> str:
+    """The slug on a gate's `Asked by:` line, or `home`."""
+    return field(body, "Asked by").split(",")[0].strip() or "home"
+
+
+def _gates(
+    text: str, held: frozenset[str] | None = frozenset()
+) -> list[tuple[str, str, str, str, str]]:
+    """The events of a `gates.md`. A gate jbus holds as a question has no `gate answered`:
+    its record is closed, and a closed one is said nowhere. With no `held`, the questions
+    could not be read, and no answered gate is said until they can."""
+    found = []
+    for number, asked, heading, body in gates(text):
+        slug = asker(body)
+        status = field(body, "Status")
+        whole = f"{heading}\n{body}"
+        if status.startswith("open"):
+            found.append((slug, "gate", f"gate {slug}: {asked}", whole, gate_key(slug, asked)))
+        elif held is None:
+            continue
+        elif status.startswith("answered") and gate_key(slug, asked) not in held:
+            line = f"gate {slug}: gate {number} answered"
+            found.append((slug, "gate answered", line, whole, f"answered {number}"))
+    return found
+
+
+def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
+    """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`)."""
+    seen_path = run.state / "seen.json"
+    seen: dict[str, dict[str, str]] = read_json(seen_path, {})
+    sent = 0
+
+    def new(file: str, heading: str, whole: str, *, again: bool) -> str:
+        digest = hashlib.sha256(whole.encode()).hexdigest()[:16]
+        was = seen.setdefault(file, {}).get(heading)
+        if was == digest or (was is not None and not again):
+            return ""
+        seen[file][heading] = digest
+        return digest
+
+    for kind in ("tasks", "scouts"):
+        for path in sorted((run.home / kind).glob("*.md")):
+            slug, counts, text = path.stem, {}, _read(path)
+            for asked, lines in gates_in(text):
+                if new(f"{kind}/{path.name}", f"gate {asked}", lines, again=False):
+                    key = gate_key(slug, asked)
+                    sent += run.find(
+                        slug, "gate", f"gate {slug}: {asked}", lines, key=key, past=True
+                    )
+            for heading, body in sections(text, gates_inside=True):
+                counts[heading] = counts.get(heading, 0) + 1
+                made = _found(kind, slug, heading, body)
+                name = f"{heading} #{counts[heading]}"
+                digest = made and new(f"{kind}/{path.name}", name, body, again=True)
+                if made and digest:
+                    what, line, _ = made
+                    whole = f"{heading}\n{body}"
+                    key = f"{kind} {name} {digest}"
+                    sent += run.find(slug, what, line, whole, key=key, past=True)
+    for slug, what, line, whole, key in _gates(_read(run.home / "gates.md"), held):
+        if new("gates.md", f"{what} {key}", whole, again=False):
+            sent += run.find(slug, what, line, whole, key=key, past=True)
+    write_json(seen_path, seen)
+    return sent
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+STEPS = (
+    verbs.Step("tellers", 10, "mirror.scan", lambda half: scan(half.run, half.held), ("sight",)),
+)

@@ -1,0 +1,9 @@
+usage: jbus queue remove [-h] --by BY --at AT slug
+
+positional arguments:
+  slug
+
+options:
+  -h, --help  show this help message and exit
+  --by BY
+  --at AT     as approve takes it

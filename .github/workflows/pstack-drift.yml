@@ -1,0 +1,40 @@
+name: pstack-drift
+
+# What changed upstream in pstack since the pin in THIRD_PARTY.md. It reports and never
+# fails: the lines go to the job summary, with one warning per path that drifted.
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    # The repo's variable RUNS_ON names the runner, and GitHub's it is with none, as for the check.
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - run: uv sync --locked
+      - name: make pstack-drift
+        # jdrift keeps its clone of pstack under the cache directory. On a runner that is kept
+        # between jobs that is the user's own, which outlives the job: the runner's temporary
+        # directory does not.
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}
+        run: |
+          if ! make -s pstack-drift > drift.txt 2> drift.err; then
+            echo "::warning::$(grep -m 1 '^jdrift: ' drift.err || echo 'pstack-drift did not run')"
+            cat drift.err >> drift.txt
+          fi
+          {
+            echo '```'
+            cat drift.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          sed -n -E 's/^(changed|gone|new) /::warning::&/p' drift.txt

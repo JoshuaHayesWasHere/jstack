@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 968 348" role="img" aria-labelledby="flow-title flow-desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+  <title id="flow-title">How a task flows through jstack</title>
+  <desc id="flow-desc">You say what is wanted. A home thread plans and writes a brief. A scout thread may research a question first, read only. A crewmate thread does the one task in its own worktree and opens the pull request. A reviewer thread reviews it and sends findings back. jbus, a command with no model, runs jmerge, which merges what is reviewed, fixed and green to main. Every thread and jbus reads and writes the state directory, outside the repo.</desc>
+  <style>
+    .card { fill: #f6f8fa; stroke: #d0d7de; }
+    .thread { fill: #0969da; }
+    .command { fill: #1a7f37; }
+    .kicker { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+    .name { fill: #1f2328; font-size: 17px; font-weight: 600; }
+    .said { fill: #59636e; font-size: 12.5px; }
+    .file { fill: #1f2328; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+    .chip { fill: #ffffff; stroke: #d0d7de; }
+    .line { stroke: #6e7781; stroke-width: 1.5; fill: none; }
+    .tie { stroke: #6e7781; stroke-width: 1.2; stroke-dasharray: 3 4; fill: none; }
+    .head { fill: #6e7781; }
+    .label { fill: #6e7781; font-size: 11.5px; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #161b22; stroke: #3d444d; }
+      .thread { fill: #4493f8; }
+      .command { fill: #3fb950; }
+      .name, .file { fill: #f0f6fc; }
+      .said { fill: #9198a1; }
+      .chip { fill: #0d1117; stroke: #3d444d; }
+      .line, .tie { stroke: #7d8590; }
+      .head, .label { fill: #7d8590; }
+    }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0 0 8 4 0 8z"/>
+    </marker>
+  </defs>
+
+  <rect class="card" x="16" y="12" width="180" height="32" rx="16"/>
+  <text class="name" x="106" y="33" text-anchor="middle" style="font-size:13px">You say what is wanted</text>
+  <path class="line" d="M106 44V68" marker-end="url(#tip)"/>
+
+  <circle class="thread" cx="318" cy="28" r="5"/>
+  <text class="label" x="330" y="32">a thread, with a model</text>
+  <circle class="command" cx="500" cy="28" r="5"/>
+  <text class="label" x="512" y="32">a command, no model</text>
+
+  <rect class="card" x="772" y="12" width="180" height="32" rx="16"/>
+  <text class="name" x="862" y="33" text-anchor="middle" style="font-size:13px">Merged to main</text>
+  <path class="line" d="M862 70V46" marker-end="url(#tip)"/>
+
+  <rect class="card" x="16" y="70" width="180" height="120" rx="8"/>
+  <rect class="thread" x="16" y="78" width="3" height="104" rx="1.5"/>
+  <text class="kicker thread" x="34" y="94">THREAD</text>
+  <text class="name" x="34" y="118">Home</text>
+  <text class="said" x="34" y="141">Plans with you and</text>
+  <text class="said" x="34" y="158">writes one brief for</text>
+  <text class="said" x="34" y="175">each task.</text>
+
+  <path class="line" d="M196 130H254" marker-end="url(#tip)"/>
+  <text class="label" x="225" y="121" text-anchor="middle">brief</text>
+
+  <rect class="card" x="256" y="70" width="180" height="120" rx="8"/>
+  <rect class="thread" x="256" y="78" width="3" height="104" rx="1.5"/>
+  <text class="kicker thread" x="274" y="94">THREAD</text>
+  <text class="name" x="274" y="118">Crewmate</text>
+  <text class="said" x="274" y="141">Does one task in its</text>
+  <text class="said" x="274" y="158">own worktree and opens</text>
+  <text class="said" x="274" y="175">the pull request.</text>
+
+  <path class="line" d="M436 114H530" marker-end="url(#tip)"/>
+  <text class="label" x="484" y="105" text-anchor="middle">pull request</text>
+  <path class="line" d="M532 148H438" marker-end="url(#tip)"/>
+  <text class="label" x="484" y="166" text-anchor="middle">findings</text>
+
+  <rect class="card" x="532" y="70" width="180" height="120" rx="8"/>
+  <rect class="thread" x="532" y="78" width="3" height="104" rx="1.5"/>
+  <text class="kicker thread" x="550" y="94">THREAD</text>
+  <text class="name" x="550" y="118">Reviewer</text>
+  <text class="said" x="550" y="141">Reviews the pull</text>
+  <text class="said" x="550" y="158">request once and</text>
+  <text class="said" x="550" y="175">fixes nothing.</text>
+
+  <path class="line" d="M712 130H770" marker-end="url(#tip)"/>
+  <text class="label" x="741" y="121" text-anchor="middle">reviewed</text>
+
+  <rect class="card" x="772" y="70" width="180" height="120" rx="8"/>
+  <rect class="command" x="772" y="78" width="3" height="104" rx="1.5"/>
+  <text class="kicker command" x="790" y="94">COMMAND, NO MODEL</text>
+  <text class="name" x="790" y="118">jbus</text>
+  <text class="said" x="790" y="141">Runs jmerge, which</text>
+  <text class="said" x="790" y="158">merges what is reviewed,</text>
+  <text class="said" x="790" y="175">fixed and green.</text>
+
+  <path class="line" d="M106 192V238" marker-start="url(#tip)" marker-end="url(#tip)"/>
+  <text class="label" x="94" y="212" text-anchor="end">a question,</text>
+  <text class="label" x="94" y="226" text-anchor="end">a report</text>
+
+  <rect class="card" x="16" y="240" width="180" height="96" rx="8" stroke-dasharray="5 4"/>
+  <rect class="thread" x="16" y="248" width="3" height="80" rx="1.5"/>
+  <text class="kicker thread" x="34" y="264">THREAD, WHEN NEEDED</text>
+  <text class="name" x="34" y="288">Scout</text>
+  <text class="said" x="34" y="309">Researches a question</text>
+  <text class="said" x="34" y="326">first, read only.</text>
+
+  <path class="tie" d="M176 190V208Q176 216 184 216H218Q226 216 226 224V256Q226 264 234 264H256"/>
+  <path class="tie" d="M196 300H256"/>
+  <path class="tie" d="M346 190V240"/>
+  <path class="tie" d="M622 190V240"/>
+  <path class="tie" d="M862 190V240"/>
+
+  <rect class="card" x="256" y="240" width="696" height="96" rx="8"/>
+  <text class="name" x="274" y="266" style="font-size:14px">The state directory, outside the repo</text>
+  <text class="said" x="274" y="286">What lasts is on disk. A thread can end at any time, and the next one starts from these files.</text>
+  <rect class="chip" x="274" y="300" width="70" height="24" rx="12"/>
+  <text class="file" x="309" y="316" text-anchor="middle">plan.md</text>
+  <rect class="chip" x="354" y="300" width="130" height="24" rx="12"/>
+  <text class="file" x="419" y="316" text-anchor="middle">scouts/&lt;slug&gt;.md</text>
+  <rect class="chip" x="494" y="300" width="124" height="24" rx="12"/>
+  <text class="file" x="556" y="316" text-anchor="middle">tasks/&lt;slug&gt;.md</text>
+  <rect class="chip" x="628" y="300" width="76" height="24" rx="12"/>
+  <text class="file" x="666" y="316" text-anchor="middle">notes.md</text>
+  <rect class="chip" x="714" y="300" width="84" height="24" rx="12"/>
+  <text class="file" x="756" y="316" text-anchor="middle">merge.log</text>
+  <rect class="chip" x="808" y="300" width="92" height="24" rx="12"/>
+  <text class="file" x="854" y="316" text-anchor="middle">handoff.md</text>
+</svg>

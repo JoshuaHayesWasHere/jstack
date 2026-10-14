@@ -1,0 +1,8 @@
+usage: jbus t3 [-h] [--wait WAIT] {login,launch-test}
+
+positional arguments:
+  {login,launch-test}
+
+options:
+  -h, --help           show this help message and exit
+  --wait WAIT          seconds to wait for the approval

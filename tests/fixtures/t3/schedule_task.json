@@ -1,0 +1,246 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "bindToCurrentThread": {
+      "anyOf": [
+        {
+          "description": "True (default) posts each run into this thread; false creates a fresh top-level thread per run.",
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "clientRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "enabled": {
+      "anyOf": [
+        {
+          "description": "Whether the schedule starts enabled; defaults true.",
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "projectId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "schedule": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "description": "Run repeatedly after a fixed number of milliseconds.",
+              "properties": {
+                "everyMs": {
+                  "allOf": [
+                    {
+                      "description": "Interval in milliseconds, with a minimum of 60000 (one minute).",
+                      "minimum": 60000
+                    }
+                  ],
+                  "description": "Positive interval in milliseconds.",
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "type": {
+                  "description": "Select interval scheduling.",
+                  "enum": [
+                    "interval"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "everyMs"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": true,
+              "description": "Run at a fixed local wall-clock time on selected weekdays.",
+              "properties": {
+                "timeOfDay": {
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Select a fixed local wall-clock time.",
+                  "enum": [
+                    "fixed_time"
+                  ],
+                  "type": "string"
+                },
+                "weekdays": {
+                  "anyOf": [
+                    {
+                      "description": "Optional weekdays; omit to run every day.",
+                      "items": {
+                        "description": "Weekday number where 0 is Sunday and 6 is Saturday.",
+                        "maximum": 6,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "timeOfDay"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": true,
+              "description": "Run on each request to the task's webhook URL. The prompt may use {{body.path}}, {{headers.name}}, {{query.name}}, {{body}} and {{request}} placeholders.",
+              "properties": {
+                "maxDeliveryAgeMinutes": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "description": "Skip requests the relay held longer than this many minutes while the environment was offline. Null runs every request.",
+                          "maximum": 1440,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "signature": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "additionalProperties": true,
+                          "properties": {
+                            "encoding": {
+                              "description": "How the HMAC-SHA256 digest is encoded in the header.",
+                              "enum": [
+                                "hex",
+                                "base64"
+                              ],
+                              "type": "string"
+                            },
+                            "header": {
+                              "type": "string"
+                            },
+                            "prefix": {
+                              "description": "Text before the digest in the header value, such as 'sha256='. Empty for none.",
+                              "type": "string"
+                            },
+                            "secret": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Shared signing secret. Omit to keep the stored secret."
+                            },
+                            "secretRef": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A secret the user entered through request_secret, used instead of secret. It is consumed by this save."
+                            }
+                          },
+                          "required": [
+                            "header",
+                            "encoding",
+                            "prefix"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Signature check; omit or null to accept requests by URL token only."
+                },
+                "type": {
+                  "description": "Run when the task's webhook URL receives a request.",
+                  "enum": [
+                    "webhook"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          ],
+          "description": "Writable trigger. Pass an object with type 'interval', 'fixed_time' or 'webhook'."
+        },
+        {
+          "contentMediaType": "application/json",
+          "type": "string"
+        }
+      ],
+      "description": "Trigger object: {type:'interval', everyMs}, {type:'fixed_time', timeOfDay, weekdays?}, or {type:'webhook'} to run on each request to a generated URL. Never stringify it unless the provider requires the compatibility form."
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "prompt",
+    "schedule"
+  ],
+  "type": "object"
+}

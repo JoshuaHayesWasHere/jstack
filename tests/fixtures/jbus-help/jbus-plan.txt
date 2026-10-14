@@ -1,0 +1,9 @@
+usage: jbus plan [-h] [--scope SCOPE] [{close}] [entry]
+
+positional arguments:
+  {close}        move a finished entry out
+  entry          the entry to close, by its slug
+
+options:
+  -h, --help     show this help message and exit
+  --scope SCOPE  a scoped home's plan, in place of the root home's

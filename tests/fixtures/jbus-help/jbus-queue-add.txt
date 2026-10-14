@@ -1,0 +1,13 @@
+usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
+                      [--entry ENTRY]
+                      slug
+
+positional arguments:
+  slug
+
+options:
+  -h, --help           show this help message and exit
+  --priority PRIORITY  an integer, lower first
+  --depends DEPENDS    slugs that must be merged first, with commas
+  --entry ENTRY        the plan entry the row is work for, when not its own
+                       slug

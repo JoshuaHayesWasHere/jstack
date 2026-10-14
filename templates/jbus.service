@@ -1,0 +1,13 @@
+# jbus: one pass over every project in ~/.config/jbus/config.toml, with no model.
+# Install: `sh install.sh` in the checkout links this file, jbus-failed.service and jbus.timer
+# into ~/.config/systemd/user/ and enables the timer, once jbus has its config. The same run
+# puts `jbus` and `jmerge` in ~/.local/bin. Do not copy this file: a copy is reported as old.
+[Unit]
+Description=jbus: launch what was approved, merge through jmerge, watch what is done, wake the Chef
+OnFailure=jbus-failed.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus poll

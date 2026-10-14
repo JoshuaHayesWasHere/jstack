@@ -1,0 +1,17 @@
+usage: jbus queue approve [-h] [--word ID] [--answer NUMBER]
+                          [--message THREAD/MESSAGE] [--rule N]
+                          [--follows SLUG] --sha SHA
+                          slug
+
+positional arguments:
+  slug
+
+options:
+  -h, --help            show this help message and exit
+  --word ID             a word `jbus word` kept, by its id
+  --answer NUMBER       the answer that closed a question
+  --message THREAD/MESSAGE
+                        the user's own message in T3 Code
+  --rule N              a rule of the home's standing.md, with --follows
+  --follows SLUG        the row he approved that this one follows up
+  --sha SHA             the first 12 of that brief's sha256

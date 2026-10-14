@@ -1,0 +1,13 @@
+usage: jbus queue [-h] {show,add,approve,hold,remove,apply} ...
+
+positional arguments:
+  {show,add,approve,hold,remove,apply}
+    show                the rows still open, as Markdown
+    add                 a row, with its brief on stdin
+    approve             record the go for the brief the user was shown
+    hold                take a row's approval back
+    remove              take a row out of the queue for good
+    apply               a batch of the four verbs on stdin, all or none
+
+options:
+  -h, --help            show this help message and exit

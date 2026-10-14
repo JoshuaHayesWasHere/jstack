@@ -1,0 +1,12 @@
+# Runs jbus.service every minute. A pass holds a lock for as long as it runs, and
+# one that finds the lock held prints `busy` and ends, so passes that overlap are harmless.
+[Unit]
+Description=jbus: a pass every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

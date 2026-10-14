@@ -1,0 +1,46 @@
+#!/bin/sh
+# Verification scaffolding: stands in for `gh` inside a verify-jstack sandbox, so no drive
+# reaches GitHub. launch.sh links it as $VERIFY_JSTACK_SANDBOX/stub/gh.
+# It answers from the files in $VERIFY_JSTACK_SANDBOX/gh, which a drive edits:
+#   open.json    the open pull requests, as `gh pr list --json` gives them
+#   merged.json  the merged ones
+#   commits.json what `gh api` gives for the default branch's commits
+# Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
+# and anything else it does not know exit 64.
+G=${VERIFY_JSTACK_SANDBOX:?source the sandbox env.sh first}/gh
+echo "$*" >>"$G/calls.log"
+arg_after() {
+  want=$1
+  shift
+  while [ "$#" -gt 1 ]; do
+    if [ "$1" = "$want" ]; then
+      echo "$2"
+      return
+    fi
+    shift
+  done
+}
+case "$1 $2" in
+"pr list")
+  if [ -n "$(arg_after --base "$@")" ]; then
+    echo "[]"
+    exit
+  fi
+  state=$(arg_after --state "$@")
+  head=$(arg_after --head "$@")
+  if [ -n "$head" ]; then
+    jq -c --arg head "$head" 'map(select(.headRefName == $head))' "$G/${state:-open}.json"
+  else
+    cat "$G/${state:-open}.json"
+  fi
+  ;;
+"repo view") echo main ;;
+"api --paginate") ;;
+api\ *)
+  case $2 in
+  */check-runs) echo '{"check_runs": []}' ;;
+  *) cat "$G/commits.json" ;;
+  esac
+  ;;
+*) exit 64 ;;
+esac

@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jbus: the line</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f4f4f6;
+    --msg: #3f5a9e; --msg-bg: #f1f4fa; --scout: #2f7a73; --scout-bg: #eef6f5; --rev: #6f4a96; --rev-bg: #f5f2f9;
+    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #96672a; --hold-bg: #faf6ee;
+    --op: var(--hold); --op-bg: var(--hold-bg);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c0c0d; --fg: #f1f1f2; --dim: #9a9aa3; --card: #17171a; --line: #34343a; --lane: #131316;
+      --msg: #93a5cf; --msg-bg: #171b25; --scout: #84b5ae; --scout-bg: #151d1c; --rev: #ac9cc7; --rev-bg: #1b1821;
+      --ok: #86b8a0; --ok-bg: #151c19; --hold: #c9a878; --hold-bg: #1e1b15; }
+  }
+  :root[data-theme="light"] { color-scheme: light; --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f4f4f6;
+    --msg: #3f5a9e; --msg-bg: #f1f4fa; --scout: #2f7a73; --scout-bg: #eef6f5; --rev: #6f4a96; --rev-bg: #f5f2f9;
+    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #96672a; --hold-bg: #faf6ee; }
+  :root[data-theme="dark"] { color-scheme: dark; --bg: #0c0c0d; --fg: #f1f1f2; --dim: #9a9aa3; --card: #17171a; --line: #34343a; --lane: #131316;
+    --msg: #93a5cf; --msg-bg: #171b25; --scout: #84b5ae; --scout-bg: #151d1c; --rev: #ac9cc7; --rev-bg: #1b1821;
+    --ok: #86b8a0; --ok-bg: #151c19; --hold: #c9a878; --hold-bg: #1e1b15; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body { font-family: var(--sans); font-size: 17.5px; line-height: 1.45; overflow-wrap: anywhere; }
+  main { max-width: 1650px; margin: 0 auto; padding: 17.5px 25px 25px; }
+  h1 { font-size: 23px; line-height: 1.2; margin: 0; }
+  p { margin: 0 0 12.5px; }
+  code, .mono { font-family: var(--mono); font-size: 0.88em; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2.5px solid var(--msg); outline-offset: 2px; }
+  ul.clean, ol.clean { list-style: none; margin: 0; padding: 0; }
+  .tag { font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .src { font-size: 14.5px; color: var(--dim); }
+  .n { display: inline-block; min-width: 1.6em; padding: 0 6px; border-radius: 1249px; background: var(--fg); color: var(--bg); font-size: 14px; text-align: center; font-weight: 700; font-family: var(--sans); }
+  .n.zero { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--line); }
+
+  /* top */
+  .top { display: flex; flex-wrap: wrap; gap: 7.5px 17.5px; align-items: baseline; }
+  .top .where { color: var(--dim); font-size: 15px; margin-right: auto; }
+  .theme { display: inline-flex; gap: 4px; }
+  .theme button { font-size: 14.5px; font-weight: 600; background: transparent; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; cursor: pointer; color: var(--dim); }
+  .theme button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  /* stopped */
+  .dead { display: none; margin-top: 12.5px; border-radius: 10px; background: var(--fg); color: var(--bg); padding: 12.5px 17.5px; }
+  body.stopped .dead { display: block; }
+  .dead .dh { display: flex; flex-wrap: wrap; gap: 5px 20px; align-items: baseline; }
+  .dead .dh b { font-size: 24px; }
+  .dead .dh button { margin-left: auto; border: 1.5px solid var(--bg); border-radius: 1249px; background: transparent; color: var(--bg); padding: 0 12.5px; cursor: pointer; font-size: 15px; font-weight: 600; }
+  .dead .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+  .dead .half { border-radius: 7.5px; padding: 7.5px 10px; background: var(--bg); color: var(--fg); min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 7.5px; align-items: center; }
+  .dead .half.fzh { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); border: 1.5px dashed var(--op); }
+  .dead .half.lvh { border: 1.5px solid var(--ok); }
+  .dead .half code { border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; background: var(--card); font-size: 14px; }
+  .dead .half small { color: var(--dim); font-size: 14.5px; }
+  .st { display: none; font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; border-radius: 5px; padding: 0 6px; line-height: 1.6; }
+  .st.fz { color: var(--op); border: 1.5px dashed var(--op); }
+  .st.lv { color: var(--ok); border: 1.5px solid var(--ok); }
+  body.stopped .st, .dead .st, .dw .st { display: inline-block; }
+
+  /* vitals */
+  .vitals { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 12.5px; }
+  .vit { text-align: left; border: 1.5px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; background: var(--card); padding: 7.5px 12.5px 9px; cursor: pointer; min-width: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; }
+  .vit:hover, .tok:hover, .laneh:hover, .youn:hover { border-color: var(--fg); }
+  .vit.e-ok { border-left-color: var(--ok); } .vit.e-op { border-left-color: var(--op); } .vit.e-msg { border-left-color: var(--msg); } .vit.e-dim { border-left-color: var(--dim); }
+  .vit .tag { grid-column: 1; }
+  .vit .stw { grid-column: 2; grid-row: 1; justify-self: end; }
+  .vit .val { grid-column: 1; font-weight: 700; font-size: 19px; line-height: 1.25; display: flex; flex-wrap: wrap; gap: 0 7.5px; align-items: baseline; }
+  .vit .val small { font-weight: 400; font-size: 14.5px; color: var(--dim); }
+  .vit .val small.bad { color: var(--op); flex-basis: 100%; }
+  .vit.wide { grid-column: span 2; }
+  .vit.wide .val { grid-column: 1 / -1; gap: 0 16px; font-size: 16px; }
+  .vit .val b { white-space: nowrap; }
+  .ck { display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; min-width: 0; }
+  .ck.zero { font-weight: 400; color: var(--dim); }
+  .vit .viz { grid-column: 2; grid-row: 2; display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; min-height: 25px; max-width: 137.5px; flex-wrap: wrap; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ok); display: inline-block; flex: none; }
+  .dot.off { background: transparent; border: 2px solid var(--op); }
+  .dot.amber { background: var(--op); }
+  .sd { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; }
+  .mb.unk { outline: 1px dashed var(--op); outline-offset: -1px; box-shadow: none; }
+  .mb { display: block; width: 87.5px; height: 4px; border-radius: 2px; background: var(--lane); box-shadow: inset 0 0 0 1px var(--line); position: relative; overflow: hidden; }
+  .mb u { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); }
+  .mbs { display: grid; gap: 2px; }
+
+  /* waits on you */
+  .you { margin-top: 10px; border: 1.5px solid var(--line); border-left: 5px solid var(--op); border-radius: 10px; background: var(--card); padding: 7.5px 12.5px; display: flex; flex-wrap: wrap; gap: 7.5px 17.5px; align-items: center; }
+  .you.none { border-left-color: var(--ok); }
+  .youn { border: 1.5px solid transparent; border-radius: 10px; background: transparent; padding: 0 7.5px 0 0; cursor: pointer; display: inline-flex; align-items: baseline; gap: 9px; }
+  .youn b { font-size: 30px; line-height: 1.1; color: var(--op); }
+  .you.none .youn b { color: var(--ok); }
+  .youn span { font-weight: 700; }
+  .yg { display: inline-flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; min-width: 0; }
+
+  /* tokens */
+  .tok { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 11px 1px 9px; background: var(--card); cursor: pointer; font-family: var(--mono); font-size: 14.5px; max-width: 100%; min-width: 0; line-height: 1.55; }
+  .tok .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .sh { width: 11px; height: 11px; flex: none; display: inline-block; background: var(--dim); }
+  .w-user .sh { background: var(--op); transform: rotate(45deg) scale(0.9); border-radius: 1px; }
+  .w-crew .sh { background: var(--msg); border-radius: 50%; }
+  .w-home .sh { background: var(--msg); border-radius: 50% 50% 2px 2px; }
+  .w-rev .sh { background: var(--rev); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  .w-ci .sh { background: var(--scout); border-radius: 2px; }
+  .w-bus .sh { background: var(--dim); height: 6px; border-radius: 4px; }
+  .w-dep .sh { background: transparent; border: 2px solid var(--dim); border-radius: 50%; }
+  .w-ok .sh { background: var(--ok); border-radius: 50%; }
+  .w-unknown .sh { background: transparent; border: 2px dashed var(--op); border-radius: 2px; }
+  .tok.w-unknown, .tok.unc, .qd.unc, .fr.unc { border-style: dashed; }
+  .mk { flex: none; width: 7.5px; height: 7.5px; border-radius: 50%; display: inline-block; }
+  .mk.long { background: var(--op); }
+  .mk.rep { background: transparent; border: 1.5px solid var(--fg); width: 9px; height: 9px; }
+  .mk.lv-moving { background: var(--ok); box-shadow: 0 0 0 2px var(--ok-bg); }
+  .mk.lv-quiet { background: transparent; border: 1.5px dashed var(--op); width: 9px; height: 9px; }
+  .mk.lv-hung { background: var(--op); border-radius: 1px; width: 9px; height: 9px; }
+  .tok.off { opacity: 0.16; }
+  .tw { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+  .mk.blk { width: 0; height: 0; border-radius: 0; border: 5px solid transparent; border-right-color: var(--op); }
+  .bn { flex: none; font-family: var(--sans); font-size: 12.5px; font-weight: 700; line-height: 1.4; padding: 0 6px; border-radius: 1249px; background: var(--fg); color: var(--bg); }
+  .bk { font-family: var(--mono); font-size: 13px; color: var(--dim); background: none; border: 0; padding: 0; white-space: nowrap; }
+  button.bk { cursor: pointer; border-bottom: 1px dotted var(--dim); }
+  button.bk:hover { color: var(--fg); }
+
+  /* the queue as a flow: three lines in the Queued lane, and a drawer of columns */
+  .fl { flex-basis: 100%; min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
+  .flh { flex: none; width: 82px; text-align: left; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 0 4px 0 0; cursor: pointer; font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .flh i { font-style: normal; font-weight: 400; }
+  .pl { border: 1.5px solid var(--line); border-radius: 1249px; background: var(--card); padding: 0 9px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--dim); }
+  .wv { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
+  .wv b { font-size: 12.5px; color: var(--dim); }
+  .qd { width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid var(--dim); background: var(--card); cursor: pointer; flex: none; }
+  .qd.w-user { border-color: var(--op); }
+  .qd.off { opacity: 0.16; }
+  .flh:hover, .pl:hover, .qd:hover, .fr:hover { border-color: var(--fg); }
+  .ph { display: none; }
+  dialog.drawer.wide { width: min(1400px, 100%); }
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 8px; margin-top: 12.5px; align-items: start; }
+  .fc { min-width: 0; display: grid; gap: 4px; align-content: start; }
+  .dw .fc h3 { margin: 0 0 2px; display: flex; gap: 7.5px; align-items: center; }
+  .fr { display: flex; align-items: center; gap: 7.5px; width: 100%; min-width: 0; text-align: left; border: 1.5px solid var(--line); border-radius: 7.5px; background: var(--card); padding: 1px 7px; cursor: pointer; font-family: var(--mono); font-size: 13px; line-height: 1.35; }
+  .fr .lb { min-width: 0; flex: 1 1 auto; }
+  .fr.pk { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .fr.pk .bn { background: var(--bg); color: var(--fg); }
+  .fr.up { border-color: var(--op); background: var(--op-bg); }
+  .fr.dn { border-color: var(--msg); background: var(--msg-bg); }
+  .fr.dim { opacity: 0.25; }
+
+  /* the line */
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 15px 0 6px; align-items: center; font-size: 14.5px; color: var(--dim); }
+  .fb { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; background: var(--card); cursor: pointer; font-size: 14.5px; font-weight: 600; }
+  .fb[aria-pressed="true"] { background: var(--lane); border-color: var(--fg); }
+  .fb i { font-style: normal; font-weight: 400; color: var(--dim); }
+  .keyk { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+  .keyk:first-of-type { margin-left: auto; }
+  .line { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .lane { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 0 12.5px; align-items: start; border-left: 5px solid var(--line); background: var(--lane); border-radius: 0 10px 10px 0; padding: 5px 10px; }
+  .lane.g { margin-top: 9px; }
+  .lane.e-user { border-left-color: var(--op); } .lane.e-crew { border-left-color: var(--msg); } .lane.e-rev { border-left-color: var(--rev); } .lane.e-ci { border-left-color: var(--scout); } .lane.e-ok { border-left-color: var(--ok); }
+  .lane.e-unknown { border-left: 5px dashed var(--op); }
+  .lane.empty { background: transparent; padding-top: 0; padding-bottom: 0; }
+  .lane.empty .laneh b { font-weight: 400; color: var(--dim); }
+  .laneh { display: inline-flex; align-items: center; gap: 9px; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 1px 5px 1px 0; cursor: pointer; text-align: left; min-width: 0; font-size: 15.5px; }
+  .laneb { min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
+  .mdots { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .md { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: var(--card); cursor: pointer; position: relative; flex: none; }
+  .md::after { content: ""; position: absolute; inset: 2.5px; border-radius: 50%; background: var(--ok); opacity: 0.8; }
+  .md:hover { border-color: var(--fg); }
+  body.stopped .frz .md, body.stopped .frz .qd { border-style: dashed; opacity: 0.6; }
+  .more { font-family: var(--sans); font-weight: 700; color: var(--dim); }
+  .cz { border: 1.5px solid var(--op); color: var(--op); background: transparent; border-radius: 6px; padding: 0 9px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
+  body.stopped .frz .tok { border-style: dashed; opacity: 0.6; }
+  body.stopped .frz .tw > :not(.tok), body.gone .tw > :not(.tok) { opacity: 0.6; }
+  .tw.off > :not(.tok) { opacity: 0.16; }
+  body.stopped .frz .yg.live .tok { border-style: solid; opacity: 1; }
+  body.stopped .line.frz .lane:not(.empty) { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
+  .calm { font-weight: 700; font-size: 16px; margin: 2px 0 7.5px; display: flex; gap: 9px; align-items: center; }
+  .calm[hidden] { display: none; }
+
+  /* drawer */
+  dialog.drawer { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(850px, 100%); max-width: 100%; border: 0; border-left: 1.5px solid var(--line); background: var(--bg); color: var(--fg); padding: 0; overflow: auto; }
+  dialog.drawer::backdrop { background: rgba(0, 0, 0, 0.45); }
+  .dw { padding: 10px 20px 50px; min-height: 100%; font-size: 16px; }
+  .dw-h { display: flex; gap: 12.5px; justify-content: space-between; align-items: flex-start; position: sticky; top: 0; background: var(--bg); padding: 10px 0; border-bottom: 1.5px solid var(--line); z-index: 1; }
+  .dw-h > div { min-width: 0; }
+  .dw-h h2 { font-size: 21px; margin: 0; }
+  .dw-h h2.mono { font-family: var(--mono); }
+  .btn { border: 1.5px solid var(--line); border-radius: 1249px; padding: 2px 15px; background: var(--card); cursor: pointer; font-size: 15.5px; font-weight: 600; flex: none; }
+  .dw h3 { margin: 25px 0 7.5px; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .chip { display: inline-block; padding: 1px 10px; border-radius: 1249px; font-size: 14.5px; font-weight: 600; max-width: 100%; }
+  .chip.user { background: var(--op-bg); color: var(--op); } .chip.crew, .chip.home { background: var(--msg-bg); color: var(--msg); } .chip.rev { background: var(--rev-bg); color: var(--rev); }
+  .chip.ok { background: var(--ok-bg); color: var(--ok); } .chip.ci { background: var(--scout-bg); color: var(--scout); }
+  .chip.plain, .chip.bus, .chip.dep { box-shadow: inset 0 0 0 1px var(--line); color: var(--dim); }
+  .chip.gap { box-shadow: inset 0 0 0 1px var(--op); color: var(--op); border-radius: 6px; }
+  .chip.unknown { border: 1.5px dashed var(--op); color: var(--op); padding: 0 9px; }
+  .gapbox { border: 1.5px dashed var(--op); border-radius: 10px; padding: 10px 12.5px; font-size: 15.5px; }
+  .gapbox b { color: var(--op); }
+  .now { border: 1.5px solid var(--line); border-left: 6px solid var(--line); border-radius: 10px; padding: 12.5px 15px; background: var(--card); margin-top: 15px; }
+  .now.w-user, .now.e-op { border-left-color: var(--op); } .now.w-crew, .now.w-home { border-left-color: var(--msg); } .now.w-rev { border-left-color: var(--rev); } .now.w-ok, .now.e-ok { border-left-color: var(--ok); } .now.w-ci { border-left-color: var(--scout); } .now.w-unknown { border-left: 6px dashed var(--op); }
+  .now .big { font-size: 19px; font-weight: 700; display: block; margin: 2px 0 5px; }
+  .linkish { border: 1.5px solid var(--line); border-radius: 7.5px; background: var(--card); padding: 0 9px; cursor: pointer; font-family: var(--mono); font-size: 14.5px; max-width: 100%; text-align: left; }
+  .linkish:hover { border-color: var(--fg); }
+  .rows li { padding: 7.5px 0; border-top: 1px solid var(--line); }
+  .rows li:first-child { border-top: 0; }
+  .rows li.hit { background: var(--op-bg); box-shadow: -10px 0 0 var(--op-bg), 10px 0 0 var(--op-bg); }
+  .steps li { display: grid; grid-template-columns: 57.5px minmax(0, 1fr) auto; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 15.5px; align-items: baseline; }
+  .steps li.one { grid-template-columns: minmax(0, 1fr); }
+  .steps li.cur { font-weight: 700; }
+  .steps .t { font-family: var(--mono); font-size: 14.5px; color: var(--dim); }
+  .steps .d { font-family: var(--mono); font-size: 14.5px; white-space: nowrap; }
+  .steps .r { display: block; color: var(--dim); font-weight: 400; font-size: 15px; }
+  dl.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 15px; margin: 0; font-size: 15.5px; }
+  dl.kv dt { font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); padding-top: 2px; }
+  dl.kv dd { margin: 0; }
+  .seg { display: block; width: 100%; height: 37.5px; border-radius: 6px; border: 1px solid var(--line); background: var(--lane); }
+  .seg .user { fill: var(--op); } .seg .crew { fill: var(--msg); } .seg .rev { fill: var(--rev); } .seg .ci { fill: var(--scout); } .seg .ok { fill: var(--ok); } .seg .unknown { fill: var(--line); }
+  .seg rect { stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .meter { margin-top: 11px; font-size: 15.5px; }
+  .meter .lbl { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
+  .meter .bar { position: relative; height: 10px; border-radius: 5px; background: var(--lane); border: 1px solid var(--line); margin-top: 2px; overflow: hidden; }
+  .meter .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); }
+  .meter .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--op); }
+  .gantt { display: block; width: 100%; background: var(--lane); border: 1px solid var(--line); border-radius: 6px; margin-top: 7.5px; }
+  .gantt .q { fill: var(--op); } .gantt .success { fill: var(--ok); } .gantt .cancelled { fill: var(--dim); opacity: 0.55; } .gantt .failure { fill: var(--fg); } .gantt .in_progress { fill: var(--msg); }
+  .gantt .faint { opacity: 0.18; }
+  .gantt line { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .bars { display: block; width: 100%; height: 70px; background: var(--lane); border: 1px solid var(--line); border-radius: 6px; }
+  .bars rect { fill: var(--ok); }
+  .axis { display: flex; justify-content: space-between; gap: 7.5px; font-size: 14px; color: var(--dim); font-family: var(--mono); }
+  .key { display: flex; flex-wrap: wrap; gap: 5px 15px; margin-top: 7.5px; font-size: 14.5px; color: var(--dim); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 17.5px; height: 11px; border-radius: 2px; display: inline-block; }
+  .sw.q, .sw.user { background: var(--op); } .sw.success, .sw.ok { background: var(--ok); } .sw.cancelled { background: var(--dim); opacity: .6; } .sw.ci { background: var(--scout); }
+  .sw.failure { background: var(--fg); } .sw.in_progress, .sw.crew { background: var(--msg); } .sw.rev { background: var(--rev); } .sw.unknown { background: var(--line); }
+  .wrap { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .wrap .po { border: 1.5px solid var(--line); border-radius: 7.5px; padding: 0 9px; font-size: 14.5px; background: var(--card); }
+
+  /* gates: the options on a row, a tick for a batch, and a gate that is open */
+  .olist { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .oc { border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 10px; font-size: 13.5px; color: var(--dim); background: var(--card); max-width: 100%; }
+  .oc.tk { color: var(--op); border-color: var(--op); border-style: dashed; }
+  .tick { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; cursor: pointer; margin-right: 5px; }
+  .tick input { width: 19px; height: 19px; margin: 0; accent-color: var(--fg); }
+  .opts { display: grid; gap: 6px; margin: 6px 0 10px; }
+  .opt { text-align: left; border: 1.5px solid var(--line); border-radius: 9px; background: var(--card); padding: 7px 10px; cursor: pointer; font-size: 15.5px; min-width: 0; }
+  .opt small { display: block; color: var(--dim); font-size: 14px; }
+  .opt[aria-pressed="true"] { border-color: var(--fg); background: var(--lane); box-shadow: inset 4px 0 0 var(--fg); }
+  .om { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; border-radius: 5px; padding: 0 5px; }
+  .om.tk { color: var(--op); border: 1.5px dashed var(--op); }
+  .om.rc { color: var(--ok); border: 1.5px solid var(--ok); }
+  textarea { font: inherit; color: inherit; display: block; width: 100%; min-height: 70px; margin-top: 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg); padding: 7px 9px; }
+  .will { margin-top: 10px; border-radius: 8px; padding: 8px 10px; background: var(--msg-bg); border: 1.5px solid var(--msg); font-size: 15px; }
+  .will.none { background: var(--ok-bg); border-color: var(--ok); }
+  .will.bad { background: var(--op-bg); border-color: var(--op); }
+  .confirm { margin-top: 8px; width: 100%; border: 0; border-radius: 10px; background: var(--fg); color: var(--bg); font-weight: 700; padding: 9px; cursor: pointer; }
+  .confirm.accept { background: var(--ok); }
+  .confirm:disabled { opacity: 0.4; cursor: default; }
+
+  @media (max-width: 1100px) {
+    .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: dense; }
+    .lane { grid-template-columns: 140px minmax(0, 1fr); }
+  }
+  /* A phone has a layout of its own: one column, the health strip as one block, the line
+     as a list, a drawer over the whole screen, and every target at least 44px. */
+  @media (max-width: 640px) {
+    main { padding: 8px 10px 32px; }
+    .theme button, .fb, .btn, .dead .dh button { min-height: 44px; min-width: 44px; }
+    .theme button { padding: 0 14px; }
+    .dead .split { grid-template-columns: minmax(0, 1fr); }
+    .vitals { gap: 0; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+    .vit { border-width: 0 0 1px 5px; border-radius: 0; min-height: 44px; padding: 5px 10px; }
+    .vitals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .vit.first, .vit.wide { grid-column: 1 / -1; }
+    .vit.wide { border-bottom-width: 0; }
+    .vit .viz { display: none; }
+    .vit[data-open="bus"] .viz, .vit[data-open="room"] .viz { display: flex; grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; min-height: 0; }
+    .vit .val { grid-column: 1 / -1; font-size: 17px; }
+    .you { padding: 4px 10px 10px; gap: 6px; }
+    .youn { min-height: 44px; flex-basis: 100%; align-items: center; }
+    .yg { flex: 1 1 calc(50% - 6px); }
+    .tok { min-height: 44px; border-radius: 10px; padding: 4px 12px; line-height: 1.3; }
+    .tok .lb { white-space: normal; overflow: visible; text-align: left; }
+    .tok .src { white-space: nowrap; }
+    .yg .tok, .tw .tok { flex: 1 1 auto; }
+    .filters { gap: 6px; }
+    .fb { padding: 0 14px; }
+    .keyk, .keyk:first-of-type { margin-left: 0; }
+    .line { gap: 5px; }
+    .lane { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 8px 8px; }
+    .lane.empty { padding-bottom: 0; }
+    .laneh { min-height: 44px; width: 100%; font-size: 16px; }
+    .laneb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .tw { display: flex; gap: 6px; }
+    .bk { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: normal; font-size: 14px; }
+    button.bk { border-bottom: 0; text-decoration: underline dotted; }
+    .mdots, .dk { display: none; }
+    .ph { display: block; }
+    .fl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .flh { width: 100%; min-height: 44px; font-size: 14px; }
+    .pl { min-height: 44px; border-radius: 10px; padding: 0 12px; text-align: left; }
+    .flow { grid-template-columns: minmax(0, 1fr); }
+    .fr { min-height: 44px; }
+    dialog.drawer { width: 100%; height: 100dvh; max-height: 100dvh; border-left: 0; }
+    .dw { padding: 4px 12px 40px; font-size: 16px; }
+    .btn { padding: 0 18px; }
+    .btn .esc { display: none; }
+    .linkish, .dw a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; margin: 2px 0; }
+    .linkish { padding: 0 12px; }
+    .opt, .confirm { min-height: 44px; }
+    .tick { min-width: 44px; min-height: 44px; }
+  }
+  a { color: var(--msg); }
+  .dead .dh span { font-size: 15.5px; }
+  body.stopped .vit.frz, body.gone .vit { border-style: dashed; }
+  body.gone .tok, body.gone .md, body.gone .qd, body.gone .vit { opacity: 0.6; border-style: dashed; }
+  body.gone .dead, body.stopped .dead { display: block; }
+  .mb.over u { background: var(--op); }
+  .ghbox { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12.5px; margin-top: 12.5px; background: var(--card); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>jbus: the line</h1>
+    <span class="where"><code id="proj"></code> <span id="readat"></span></span>
+    <div class="theme" role="group" aria-label="Light or dark view"><button type="button" data-theme-pick="auto">Auto</button><button type="button" data-theme-pick="light">Light</button><button type="button" data-theme-pick="dark">Dark</button></div>
+  </div>
+  <div class="dead" id="dead" role="alert"></div>
+  <div class="vitals" id="vitals" aria-label="Is the bus alive, and what it runs on"></div>
+  <div class="you frz" id="you" aria-label="Waits on you"></div>
+  <div class="filters" id="filters" role="group" aria-label="Show tokens held by"></div>
+  <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
+  <ol class="line frz" id="line" aria-label="The line: every open task on its step"></ol>
+</main>
+
+<dialog class="drawer" id="drawer" aria-labelledby="dw-title">
+  <div class="dw" id="dw"></div>
+</dialog>
+<script>
+(function () {
+  "use strict";
+  /* The page asks its own server and nobody else: /state.json every POLL ms,
+     /task/<slug>/github when a task's drawer opens, and /panel/<name>.json when the drawer
+     of a panel that is not on the first screen does. It draws what it is given. Its one
+     write is /answer, the answer to a gate: the server decides what the answer is and
+     what is sent, and the page shows what it said. */
+  var POLL = 15000, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
+  var $ = function (id) { return document.getElementById(id); };
+  var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
+  var missed = 0, lastAnswer = 0, gone = false, stopped = false;
+  var asked = new URLSearchParams(location.search).get("project") || "";
+  var QUERY = asked ? "?project=" + encodeURIComponent(asked) : "";
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function p2(n) { return String(n).padStart(2, "0"); }
+  function ms(t) { var v = t ? Date.parse(t) : NaN; return isNaN(v) ? null : v; }
+  function hm(t, sec) { if (t == null) return "never"; var d = new Date(t); return p2(d.getHours()) + ":" + p2(d.getMinutes()) + (sec ? ":" + p2(d.getSeconds()) : ""); }
+  function day(t) { var d = new Date(t), n = new Date(NOW); return d.toDateString() === n.toDateString() ? hm(t) : p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + " " + hm(t); }
+  function dur(v) {
+    var s = Math.round(Math.max(0, v) / 1000);
+    if (s < 60) return s + " s";
+    var m = Math.floor(s / 60), r = s % 60;
+    if (m < 60) return m + " min" + (r ? " " + r + " s" : "");
+    if (m < 2880) return Math.floor(m / 60) + " h " + p2(m % 60) + " min";
+    return Math.floor(m / 1440) + " d " + Math.floor(m % 1440 / 60) + " h";
+  }
+  function short(v) { var m = Math.floor(Math.max(0, v) / 60e3); return m < 60 ? m + "m" : m < 2880 ? Math.floor(m / 60) + "h" + p2(m % 60) : Math.floor(m / 1440) + "d"; }
+  function ord(n) { return n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"); }
+  function num(n) { return Number(n).toLocaleString("en-US"); }
+  function pct(a, b) { return b ? Math.min(100, Math.max(0, a / b * 100)) : 0; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function gap(t) { return '<span class="chip gap">' + esc(t) + '</span>'; }
+
+  var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "nobody the view knows" };
+  var WHOSHORT = { user: "you", crew: "crew", home: "home", rev: "reviewer", ci: "runner", bus: "jbus", dep: "blocked", unknown: "unknown" };
+  /* A task whose state the view cannot work out is on no step of the line. It is on the
+     lane the state gives as `unknown`, which is drawn only while a task is on it. */
+  var UNKNOWN = null;
+  function lanes() { return (S.tasks.some(function (t) { return t.step === UNKNOWN.key; }) ? [UNKNOWN] : []).concat(S.steps); }
+  var KIND = { row: ["at a gate", "Tasks at a gate"], left: ["left over", "Left over by tasks that ended"], hold: ["need your word", "Pull requests jmerge holds for your word"], approve: ["to approve", "Rows to approve"], gate: ["gates", "Open gates"], config: ["to set up", "Setup jbus lacks"] };
+  var KINDS = ["row", "left", "hold", "approve", "gate", "config"];
+
+  /* A thread's liveness, as jbus.live names it: the chip it is drawn with. Only the three of
+     MARK are a mark on a task's token: a turn is under way. */
+  var LIVE = { moving: "ok", quiet: "user", hung: "user", waiting: "plain", ended: "plain", unknown: "gap" }, MARK = { moving: 1, quiet: 1, hung: 1 };
+  function fz() { return '<span class="st fz">frozen</span>'; }
+  function lv() { return gone ? fz() : '<span class="st lv">live</span>'; }
+  function since(t) { var v = ms(t.since); return v == null ? null : NOW - v; }
+
+  /* ---------- first screen ---------- */
+  function behind(n) { return plural(n, "task waits", "tasks wait") + " behind it"; }
+  function blockedBy(b) { return "blocked by " + b.what + (b.state ? " (" + b.state + ")" : ""); }
+  function known(slug) { return TASK[slug] || ENDED[slug] || DONE[slug]; }
+  function lastOn(t) { var more = t.blockers.length - 1; return "waits on " + t.waits_on + (more ? " and " + more + " more" : ""); }
+  function waitsOn(t) { return t.slug + " " + lastOn(t); }
+  function mark(by, what, title, label) {
+    return '<i class="mk blk"></i>' + (by ? '<button type="button" class="bk" data-open="task:' + esc(by) + '" aria-label="' + esc(label) + ': open it" title="' + esc(title) + '">' + esc(what) + '</button>' : '<span class="bk" title="' + esc(title) + '">' + esc(what) + '</span>');
+  }
+  /* One task on the line. `how.next` is the Next line of a full queue: the row it waits on
+     last comes after it, and "+N" where it waits on more. Anything but an object is no `how`,
+     so `rows.map(token)` draws plain tokens. */
+  function token(t, how) {
+    var o = typeof how === "object" ? how : {}, next = o.next, cls = o.cls || "";
+    var st = STEP[t.step], age = since(t), long = age != null && age >= LONG, rep = t.visits > 1, b = t.blocked, more = t.blockers.length - 1, after = "", held = b ? blockedBy(b) : "", live = MARK[t.seen.live] ? t.seen.live : "";
+    if (next && t.waits_on) held = lastOn(t);
+    if (next && t.waits_on) after = mark(known(t.waits_on) ? t.waits_on : "", t.waits_on, waitsOn(t), waitsOn(t)) +
+      (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-label="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
+    else if (b) after = mark(b.by, b.what, blockedBy(b), t.slug + " is " + blockedBy(b));
+    return '<span class="tw' + cls + '"><button type="button" class="tok w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" aria-label="' + esc(t.slug) + ": " + esc(t.state.name) + ", waits for " + esc(t.state.waits) + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + (held ? ", " + esc(held) : "") + (t.blocks ? ", " + behind(t.blocks) : "") + (live ? ", its thread is " + live : "") + (long ? ", over 30 min here" : "") + (rep ? ", " + ord(t.visits) + " time on " + esc(st.name) : "") + '">' +
+      '<i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn" title="' + behind(t.blocks) + '">' + t.blocks + '</span>' : "") + (live ? '<i class="mk lv-' + live + '" title="its thread is ' + live + '"></i>' : "") + (long ? '<i class="mk long"></i>' : "") + (rep ? '<i class="mk rep"></i>' : "") + '</button>' +
+      after + '</span>';
+  }
+  function dot(t) { return '<button type="button" class="qd w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" title="' + esc(t.slug) + '" aria-label="' + esc(waitsOn(t)) + ", in wave " + t.wave + (t.state.kind === "unapproved" ? ", not approved" : "") + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + '"></button>'; }
+  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-label="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i>' + n + '</i></button>'; }
+  function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-label="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
+  function flowLine(name, rows, next) {
+    var more = rows.length - CAP, few = rows.length - FEW;
+    return '<div class="fl">' + flowHead(name, rows.length, "") + rows.slice(0, CAP).map(function (t, i) { return token(t, { next: next, cls: i < FEW ? "" : " dk" }); }).join("") +
+      (more > 0 ? plus(more, "dk", "+" + more, name) : "") + (few > 0 ? plus(few, "ph", "+" + few + " more", name) : "") + '</div>';
+  }
+  /* The Queued lane. A queue that is short and no deeper than wave 1 is one run of tokens.
+     A full one is three lines: Ready, Next, and Later as one dot for each row under its wave. */
+  function queuedLane(here) {
+    function of(w) { return here.filter(function (t) { return t.wave === w; }); }
+    var later = here.filter(function (t) { return t.wave > 1; }), ws = [];
+    if (here.length <= CAP && !later.length) return here.map(token).join("");
+    later.forEach(function (t) { if (ws.indexOf(t.wave) < 0) ws.push(t.wave); });
+    ws.sort(function (a, b) { return a - b; });
+    return flowLine("Ready", of(0), false) + flowLine("Next", of(1), true) + '<div class="fl">' + flowHead("Later", later.length, " dk") +
+      ws.map(function (w) { return '<span class="wv dk"><b title="wave ' + w + '">' + w + '</b>' + of(w).map(dot).join("") + '</span>'; }).join("") +
+      (later.length ? plus(later.length, "ph", later.length + " later, in " + plural(ws.length, "wave", "waves"), "Later") : "") + '</div>';
+  }
+  function renderDead() {
+    var p = S ? S.jbus : { said: "" }, end = S ? ms(p.last_end) : null;
+    var frozen = gone ? ["the line", "the wait band", "the bus", "Room", "CI checks", "gates", "GitHub"] : ["the line", "the wait band", "the bus"];
+    var live = gone ? [] : ["Room", "CI checks", "gates", "GitHub"];
+    function codes(a) { return a.map(function (x) { return '<code>' + esc(x) + '</code>'; }).join(""); }
+    $("dead").innerHTML =
+      '<div class="dh"><b>' + (gone ? "the view server does not answer" : "jbus has not passed") + '</b>' +
+      (gone ? '<span>last answer ' + (lastAnswer ? hm(lastAnswer, true) : "never") + '</span><span>' + missed + ' answers missed</span>'
+        : '<span>last pass ended ' + (end == null ? "never" : day(end) + ":" + p2(new Date(end).getSeconds())) + '</span><span>' + esc(p.said) + '</span>') +
+      (S ? '<button type="button" data-open="pulse">Detail</button>' : "") + '</div>' +
+      '<div class="split"><div class="half fzh">' + fz() + codes(frozen) + '</div>' +
+      (live.length ? '<div class="half lvh">' + lv() + codes(live) + '</div>' : "") + '</div>';
+
+  }
+  function renderTop() {
+    $("proj").textContent = S.project || "no project";
+    $("readat").textContent = hm(NOW, true); $("readat").title = "read at this time";
+    var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
+    $("vitals").innerHTML = cards.map(function (c) {
+      return '<button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>';
+    }).join("");
+  }
+  function waits(kind) { return S.waiting.filter(function (w) { return w.kind === kind; }); }
+  function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
+  function renderYou() {
+    var n = S.waiting.length;
+    var h = '<button type="button" class="youn" data-open="you" aria-label="' + n + ' things wait on you: open the lists"><b>' + n + '</b><span>wait on you</span></button>';
+    KINDS.forEach(function (k) {
+      var items = waits(k), age = oldest(items), live = k === "gate";
+      if (!items.length && (k === "hold" || k === "config" || k === "left")) return;
+      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-label="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="opacity:.5"') + '><i class="sh"></i><b style="font-family:var(--sans)">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
+    });
+    added("you").forEach(function (a) {
+      h += '<span class="yg"><button type="button" class="tok w-user" data-open="' + esc(a.said.open || a.from) + '" aria-label="' + esc(a.said.n + " " + a.said.label) + ': open it"><i class="sh"></i><b style="font-family:var(--sans)">' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button></span>';
+    });
+    $("you").className = "you frz" + (n ? "" : " none");
+    $("you").innerHTML = h;
+  }
+  function renderLine() {
+    var order = ["user", "crew", "home", "rev", "ci", "bus", "dep", "unknown"], rank = { user: 0, bus: 1, dep: 2 };
+    $("filters").innerHTML = '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i>' + S.tasks.length + '</i></button>' +
+      order.map(function (w) {
+        var n = S.tasks.filter(function (t) { return t.who === w; }).length;
+        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i>' + n + '</i></button>' : "";
+      }).join("") + fz() +
+      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>';
+    var html = "";
+    lanes().forEach(function (s) {
+      var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = here.length;
+      if (s.key === "queued") here.sort(function (a, b) { return rank[a.who] - rank[b.who] || a.priority - b.priority; });
+      else here.sort(function (a, b) { return (ms(a.since) || NOW) - (ms(b.since) || NOW); });
+      if (s.key === "merged") {
+        count = S.merged.length;
+        body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
+      } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
+      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (count ? "" : " empty") + (s.group ? " g" : "") + '"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '">' + count + '</span><b>' + esc(s.name) + '</b></button><div class="laneb">' + body + '</div></li>';
+    });
+    $("line").innerHTML = html;
+    $("calm").hidden = S.tasks.length > 0;
+    applyFilter();
+  }
+  function applyFilter() {
+    $("line").querySelectorAll(".tok[data-who]").forEach(function (tk) { var off = VIEW.filter !== "all" && tk.getAttribute("data-who") !== VIEW.filter; tk.classList.toggle("off", off); tk.parentElement.classList.toggle("off", off); });
+    $("line").querySelectorAll(".qd").forEach(function (d) { d.classList.toggle("off", VIEW.filter !== "all" && d.getAttribute("data-who") !== VIEW.filter); });
+    $("filters").querySelectorAll("[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === VIEW.filter)); });
+  }
+  function render() {
+    document.body.classList.toggle("gone", gone);
+    if (!S) { $("readat").textContent = gone ? "" : "asking the server"; document.body.classList.toggle("stopped", gone); renderDead(); return; }
+    stopped = S.jbus.stopped;
+    if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
+    document.body.classList.toggle("stopped", stopped || gone);
+    renderDead(); renderTop(); renderYou(); renderLine();
+  }
+
+  /* ---------- drawers: everything else, one click away ---------- */
+  function head(tag, title, mono) { return '<div class="dw-h"><div><span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2></div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>'; }
+  function openBtn(target, label) { return '<button type="button" class="linkish" data-open="' + esc(target) + '">' + esc(label) + '</button>'; }
+  function taskBtn(slug) { return known(slug) ? openBtn("task:" + slug, slug) : '<code>' + esc(slug) + '</code>'; }
+  function link(url, label) { return /^https:\/\/github\.com\//.test(url || "") ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>' : esc(label); }
+  function ageChip(t, cls) { var v = ms(t); return v == null ? gap("no time kept") : '<span class="chip ' + (cls || "plain") + '">' + dur(NOW - v) + ', since ' + day(v) + '</span>'; }
+  function note(kind) {
+    if (gone) return '<p style="margin-top:12.5px">' + fz() + ' The view server does not answer. This is what it said at ' + hm(lastAnswer, true) + '.</p>';
+    if (!stopped) return "";
+    var end = ms(S.jbus.last_end);
+    return '<p style="margin-top:12.5px">' + (kind === "live" ? lv() + ' The server reads this itself on each request, so it is as it is now, also while jbus is stopped.' : kind === "mixed" ? fz() + ' The lists stand as the last pass left them. ' + lv() + ' The gates are read now, from the questions jbus holds and <code>gates.md</code>.' : fz() + ' jbus writes this. It stands as the last pass left it' + (end == null ? "" : ", at " + hm(end, true)) + '.') + '</p>';
+  }
+  function ghBox(slug) { return '<h3>GitHub says ' + lv() + '</h3><div class="ghbox" id="gh" data-slug="' + esc(slug) + '"><span class="src">' + (gone ? "The view server does not answer, so GitHub cannot be asked." : "Asking GitHub.") + '</span></div>'; }
+  function ghFill(slug, g) {
+    var box = $("gh"); if (!box || box.getAttribute("data-slug") !== slug) return;
+    if (!g) { box.innerHTML = '<span class="src">The view server did not answer.</span>'; return; }
+    if (!g.pull) { box.innerHTML = '<span class="src">' + esc(g.error || "No pull request.") + '</span>'; return; }
+    var p = g.pull;
+    box.innerHTML = '<dl class="kv"><dt>pull request</dt><dd>' + link(p.url, "#" + p.number) + ' <b>' + (p.merged ? "merged" : esc(p.state)) + '</b></dd><dt>mergeable</dt><dd>' + (p.mergeable == null ? "not decided" : p.mergeable ? "yes" : "no") + (p.mergeable_state ? " (" + esc(p.mergeable_state) + ")" : "") + '</dd><dt>head</dt><dd><code>' + esc(p.head.slice(0, 12) || "unknown") + '</code></dd><dt>updated</dt><dd>' + (ms(p.updated) == null ? "unknown" : day(ms(p.updated))) + '</dd></dl>' +
+      (g.checks.length ? '<ul class="clean steps" style="margin-top:10px">' + g.checks.map(function (c) {
+        var s = ms(c.started), e = ms(c.completed);
+        return '<li><span class="t">' + (s == null ? "" : hm(s)) + '</span><span><span class="chip ' + (c.state === "success" ? "ok" : c.state === "failure" ? "user" : "crew") + '">' + esc(c.state.replace("_", " ")) + '</span> ' + link(c.url, c.name) + '</span><span class="d">' + (s == null ? "" : e == null ? "running" : dur(e - s)) + '</span></li>';
+      }).join("") + '</ul>' : '<p class="src" style="margin:10px 0 0">' + esc(g.error || "No check run on this head.") + '</p>') +
+      '<p class="src" style="margin:10px 0 0">Asked ' + (ms(g.at) == null ? "now" : hm(ms(g.at), true)) + ', kept 30 s. Read-only.</p>';
+  }
+  /* ---------- gates: answered here ---------- */
+  /* GATE is the gate that is open, as it was drawn (`w`), with the option picked and the
+     words typed: a tap sends what the drawer shows, whatever a later read says. TICK is the
+     gates ticked for a batch, which only ever takes defaults. The gate panel draws the one
+     and the you panel the other, and a write that closed clears both. */
+  var GATE = null, TICK = {}, BATCH = { busy: false, error: "" };
+  var UNKNOWN_END = "The view server did not answer, so it is not known whether anything closed. Read the list again before you answer.";
+  function gates() { return waits("gate").filter(function (w) { return w.answerable; }); }
+  function gateOf(n) { return gates().filter(function (w) { return w.number === String(n); })[0] || null; }
+  function taken(w) { for (var i = 0; i < w.options.length; i++) if (w.options[i]["default"]) return i; return -1; }
+  function whose(w) { return (w.role ? "the " + w.role + " thread of " : "the thread of ") + w.slug; }
+  function names(ns) { return ns.length < 2 ? ns.join("") : ns.slice(0, -1).join(", ") + " and " + ns[ns.length - 1]; }
+  function bad(text) { return text ? '<div class="will bad" role="alert">' + esc(text) + '</div>' : ""; }
+  /* What the server said of a write, one sentence for each question, as it wrote them. */
+  function dSaid(r) {
+    var done = r.closed.length, all = done + r.refused.length;
+    return head("Waits on you", all === 1 ? "Question " + (r.closed[0] || r.refused[0]).number : done + " of " + all + " closed") +
+      r.closed.map(function (c) { return '<div class="will' + (c.keeps ? " none" : c.sent ? "" : " bad") + '" role="status"><b>' + esc(c.say) + '</b></div>'; }).join("") +
+      r.refused.map(function (c) { return '<div class="will bad" role="status"><b>' + esc(c.say) + '</b></div>'; }).join("") +
+      '<p class="src" style="margin-top:10px">' + (done ? "What closed leaves the list at the next read." : "Nothing changed.") + '</p><p>' + openBtn("you:gate", "Back to the gates") + '</p>';
+  }
+  function write(body) { return ask("/answer" + QUERY, body); }
+  /* One write and what follows it. `failed` is told why where nothing is known to have closed. */
+  function send(body, failed) {
+    write(body).then(function (r) {
+      if (!r || !r.closed) { failed(r && r.error ? "The server refused the write: " + r.error + "." : UNKNOWN_END); return; }
+      GATE = null; TICK = {}; BATCH = { busy: false, error: "" };
+      $("dw").innerHTML = dSaid(r); $("dw-close").focus(); drawer.scrollTop = 0;
+      poll();
+    }, function () { failed(UNKNOWN_END); });
+  }
+  function eventRow(e) {
+    var cls = { user: "user", quiet: "plain" }[e.loud] || "gap";
+    return '<li><span class="t">' + hm(ms(e.at)) + '</span><span><span class="chip ' + cls + '">' + esc(e.kind) + '</span> ' + (e.slug && known(e.slug) ? taskBtn(e.slug) : "") + '<span class="r">' + esc(e.line) + '</span></span><span class="d">' + esc(e.loud) + '</span></li>';
+  }
+
+  /* Each folder of panels/ is one panel, and its panel.js is put here by the server, in a
+     function of its own that is given `panel`: one call that says what the panel draws.
+     `drawer(arg, data)` is its drawer, `card()` its card on the first screen, and `adds` what
+     it adds to another panel's drawer. A panel that is not on the first screen is asked for
+     when its drawer opens. A drawer with a GitHub box in it has GitHub asked once it is drawn. */
+  var PANELS = {}, ORDER = [];
+  function panels(name, first) { return function (def) { def.name = name; def.first = first; PANELS[name] = def; ORDER.push(def); }; }
+  /* What the panels add to a place, each with the panel it is from. */
+  function added(to, arg) {
+    return ORDER.filter(function (p) { return p.adds && p.adds[to]; }).map(function (p) { return { from: p.name, said: p.adds[to](arg) }; }).filter(function (a) { return a.said; });
+  }
+  /*panels*/
+  var drawer = $("drawer"), opener = null, turn = 0;
+  function show(p, html, from) {
+    if (!drawer.open) opener = from || document.activeElement;
+    drawer.classList.toggle("wide", !!p.wide);
+    $("dw").innerHTML = html;
+    if (!drawer.open) drawer.showModal();
+    drawer.scrollTop = 0;
+    $("dw-close").focus();
+    var hit = $("dw").querySelector(".hit"); if (hit) hit.scrollIntoView({ block: "center" });
+  }
+  function github() {
+    var gh = $("gh"), of = gh ? gh.getAttribute("data-slug") : "";
+    if (gh && !gone) ask("/task/" + encodeURIComponent(of) + "/github" + QUERY).then(function (g) { ghFill(of, g); }, function () { ghFill(of, null); });
+  }
+  function asking(p, text) { return head("Panel", p.title || p.name) + '<p class="src" style="margin-top:15px">' + text + '</p>'; }
+  /* Each source of a panel that could not be read, said under what the panel draws. */
+  function unread(sources) {
+    return (sources || []).filter(function (s) { return s.state === "missing" || s.state === "unreadable"; }).map(function (s) { return '<p style="margin-top:12.5px">' + gap(s.state) + ' <code>' + esc(s.name) + '</code> could not be read.</p>'; }).join("");
+  }
+  /* What a panel draws. One that throws says so in its drawer, and the error is still thrown,
+     after the drawer is drawn. */
+  function drawn(p, arg, data) {
+    try { return p.drawer(arg, data); } catch (e) { setTimeout(function () { throw e; }); return asking(p, "This panel could not be drawn."); }
+  }
+  function openDrawer(target, from) {
+    if (!S) return;
+    var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
+    if (!p || !p.drawer) return;
+    if (p.first) {
+      var html = drawn(p, arg);
+      if (!html) return;
+      show(p, html, from);
+      github();
+      return;
+    }
+    show(p, asking(p, gone ? "The view server does not answer, so it cannot be asked." : "Asking the server."), from);
+    if (gone) return;
+    ask("/panel/" + encodeURIComponent(kind) + ".json" + QUERY).then(function (a) {
+      if (mine !== turn || !drawer.open) return;
+      $("dw").innerHTML = (drawn(p, arg, a.data) || asking(p, "It has nothing to show.")) + unread(a.sources);
+      $("dw-close").focus();
+      github();
+    }, function () { if (mine === turn && drawer.open) $("dw").innerHTML = asking(p, "The view server did not answer."); });
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-open]");
+    if (b) { openDrawer(b.getAttribute("data-open"), drawer.contains(b) ? null : b); return; }
+    if (e.target.closest("#dw-close") || e.target === drawer) { drawer.close(); return; }
+    var f = e.target.closest("[data-filter]");
+    if (f) { VIEW.filter = f.getAttribute("data-filter"); applyFilter(); }
+  });
+  drawer.addEventListener("close", function () { if (opener && opener.isConnected && opener.focus) opener.focus(); opener = null; });
+
+  /* ---------- asking the server ---------- */
+  /* With a body it is the write, and what the server said of it is read whatever its status. */
+  function ask(path, body) {
+    var stop = new AbortController(), timer = setTimeout(function () { stop.abort(); }, body ? SEND : WAIT);
+    var how = { cache: "no-store", signal: stop.signal };
+    if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }
+    return fetch(path, how).then(function (r) {
+      if (!r.ok && !body) throw new Error("the server answered " + r.status);
+      return r.json();
+    }).finally(function () { clearTimeout(timer); });
+  }
+  function took(state) {
+    S = state; NOW = ms(S.at) || Date.now(); lastAnswer = Date.now(); missed = 0; gone = false;
+    STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
+    TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
+    ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
+    DONE = {}; S.merged.forEach(function (m) { DONE[m.slug] = m; });
+    render();
+  }
+  function lost() {
+    missed += 1;
+    if (missed >= MISS) { gone = true; if (S) NOW = Date.now(); render(); }
+  }
+  var first = true;
+  function poll() {
+    return ask("/state.json" + QUERY).then(took, lost).then(function () {
+      if (first && S) { first = false; if (hash.open) openDrawer(hash.open, null); }
+    });
+  }
+  var hash = {}; location.hash.replace(/^#/, "").split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) hash[p[0]] = decodeURIComponent(p.slice(1).join("=")); });
+  if (hash.theme === "light" || hash.theme === "dark") document.documentElement.setAttribute("data-theme-hash", hash.theme);
+  render();
+  poll();
+  setInterval(poll, POLL);
+})();
+</script>
+<script>
+(function () {
+  var KEY = "jbus-view-theme", root = document.documentElement, forced = root.getAttribute("data-theme-hash");
+  function get() { if (forced) return forced; try { return localStorage.getItem(KEY) || "auto"; } catch (e) { return "auto"; } }
+  function show(v) {
+    if (v === "light" || v === "dark") root.setAttribute("data-theme", v); else root.removeAttribute("data-theme");
+    document.querySelectorAll("[data-theme-pick]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-theme-pick") === (v || "auto"))); });
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-theme-pick]");
+    if (!b) return;
+    var v = b.getAttribute("data-theme-pick");
+    forced = null;
+    try { localStorage.setItem(KEY, v); } catch (err) {}
+    show(v);
+  });
+  window.addEventListener("storage", function (e) { if (e.key === KEY && !forced) show(e.newValue || "auto"); });
+  show(get());
+})();
+</script>
+</body>
+</html>

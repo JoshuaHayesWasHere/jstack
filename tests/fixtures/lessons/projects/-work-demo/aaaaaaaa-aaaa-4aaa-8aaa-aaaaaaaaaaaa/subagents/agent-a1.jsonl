@@ -1,0 +1,2 @@
+{"type": "user", "sessionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "cwd": "/work/demo", "message": {"role": "user", "content": "Find where login is tested."}, "isSidechain": true, "agentId": "a1"}
+{"type": "assistant", "sessionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "cwd": "/work/demo", "message": {"role": "assistant", "content": [{"type": "text", "text": "tests/test_login.py"}]}, "isSidechain": true, "agentId": "a1"}

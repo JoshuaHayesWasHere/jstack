@@ -1,0 +1,9 @@
+# Runs when jbus.service fails: a pass that raised, or one stopped at its start timeout.
+# It tells every project's webhook, at most once an hour.
+[Unit]
+Description=jbus: tell the Chef that the last pass did not finish
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus alarm

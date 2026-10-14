@@ -1,0 +1,77 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # A manual run always runs the suite, whatever marker the tree has.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # To read the marker a green run of the same tree left: an artifact of another run.
+  actions: read
+
+concurrency:
+  # A push's run and a manual run are each a group of their own. In a shared group one run
+  # waits at most, and the next one cancels it, whatever cancel-in-progress says: a burst of
+  # merges left commits of main with no check at all.
+  group: check-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  # Only a pull request shares a group, its ref, and there a new push cancels the older run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
+    # of them as JSON, which starts with a bracket. A repo with no such variable, a fork
+    # included, runs on GitHub's.
+    # RUNS_ON is for a private repo. A public repo sets none and has no runner of its own
+    # registered: with either, a stranger's pull request would run on that machine.
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # A run that ends green leaves a marker named by the tree it checked out, and a run whose
+      # tree has one skips the suite: it would test the same files again. The skip is on the
+      # steps and never on the job or the workflow, so the check `check` is always reported.
+      # A run that cannot ask runs the suite. A marker is a green run's artifact, or a ref the
+      # desk pushed after jmerge's fresh check of the same tree passed. That check ran in an
+      # environment nobody locked, so a run skipped on the desk's marker still proves the lock.
+      - name: green tree
+        id: tree
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/green_tree.py
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+      # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
+      - run: uv sync --locked
+        if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+      - name: make check
+        id: suite
+        if: steps.tree.outputs.marker != 'green'
+        run: make check
+      # Only after the suite ran and passed. A marker that cannot be kept costs the next run
+      # of this tree its skip and nothing else.
+      - name: green tree marker
+        id: marker
+        if: steps.suite.outcome == 'success' && steps.tree.outputs.name != ''
+        env:
+          NAME: ${{ steps.tree.outputs.name }}
+        run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload
+        if: steps.marker.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ steps.tree.outputs.name }}
+          path: ${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}
+          retention-days: 7
+          if-no-files-found: error
+      # A lookup or an upload that does not work never fails the run, so it says so here.
+      - name: green tree warnings
+        if: steps.tree.outcome == 'failure' || steps.upload.outcome == 'failure'
+        run: echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"

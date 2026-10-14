@@ -1,0 +1,5 @@
+usage: jbus view [-h] [--port PORT]
+
+options:
+  -h, --help   show this help message and exit
+  --port PORT  the one port it listens on

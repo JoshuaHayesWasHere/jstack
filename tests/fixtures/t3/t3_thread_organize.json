@@ -1,0 +1,43 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "action": {
+      "enum": [
+        "pin",
+        "unpin",
+        "snooze",
+        "unsnooze",
+        "settle",
+        "unsettle",
+        "archive",
+        "unarchive",
+        "mark_unread"
+      ],
+      "type": "string"
+    },
+    "snoozedUntil": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "threadId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}

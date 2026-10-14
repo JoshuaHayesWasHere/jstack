@@ -1,0 +1,67 @@
+"""Whether a thread that is out is alive: one word, worked out of what T3 Code says of it.
+
+`judge` is the whole of it. It reads no clock and no file: the pass gives it the thread's
+status, the minutes since the thread last wrote an item, how many runs are queued behind
+the one that is active, how many requests wait for an answer, and
+whether the thread holds a page that still waits on the user.
+
+The word is one of `LIVENESS`:
+
+- `moving`: a turn is under way and wrote something within `QUIET_MINUTES`;
+- `quiet`: a turn is under way and has written nothing for `QUIET_MINUTES`;
+- `hung`: it has written nothing for `HUNG_MINUTES`, or for `QUIET_MINUTES` while a run is
+  queued behind it: a wake that waits is what a long honest run does not have;
+- `waiting`: the thread waits on a request, or is silent over a request or a page that
+  waits on the user, which is never a hang;
+- `ended`: no turn is under way;
+- `unknown`: no rule above names what was given. It is never `moving`: the facts go back
+  with the word, so what nobody foresaw is said as it is.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+QUIET_MINUTES = 10
+HUNG_MINUTES = 20
+LIVENESS = ("moving", "quiet", "hung", "waiting", "ended", "unknown")
+OUT = ("moving", "quiet", "hung", "waiting", "unknown")
+TURNING = ("preparing", "queued", "starting", "running")
+OVER = ("completed", "failed", "interrupted", "cancelled", "rolled_back", "idle")
+
+
+@dataclass(frozen=True)
+class Facts:
+    """What a pass knows of one thread. `silent` is None where its last write is not known."""
+
+    status: str
+    silent: float | None
+    queued: int = 0
+    pending: int = 0
+    page: bool = False
+
+
+@dataclass(frozen=True)
+class Liveness:
+    word: str
+    facts: Facts
+
+
+def judge(facts: Facts) -> Liveness:
+    return Liveness(_word(facts), facts)
+
+
+def _word(facts: Facts) -> str:
+    if facts.status in OVER:
+        return "ended"
+    if facts.status == "waiting":
+        return "waiting"
+    if facts.status not in TURNING or facts.silent is None:
+        return "unknown"
+    if facts.silent < QUIET_MINUTES:
+        return "moving"
+    if facts.page or facts.pending:
+        return "waiting"
+    if facts.queued or facts.silent >= HUNG_MINUTES:
+        return "hung"
+    return "quiet"

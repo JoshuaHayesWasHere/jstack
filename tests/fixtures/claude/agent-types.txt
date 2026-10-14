@@ -1,0 +1,5 @@
+claude (Tools: *)
+Explore (Tools: All tools except Agent, Artifact, ArtifactComments, ArtifactData, ArtifactCheck, ExitPlanMode, Edit, Write, NotebookEdit)
+general-purpose (Tools: *)
+Plan (Tools: All tools except Agent, Artifact, ArtifactComments, ArtifactData, ArtifactCheck, ExitPlanMode, Edit, Write, NotebookEdit)
+statusline-setup (Tools: Read, Edit)

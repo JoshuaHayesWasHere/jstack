@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jstack, explained</title>
+<style>
+
+  :root {
+    color-scheme: light dark;
+    --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f1f1f3;
+    --msg: #1b4ed8; --msg-bg: #e8eefc; --scout: #0d7d73; --scout-bg: #e3f4f2; --rev: #7e22ce; --rev-bg: #f3e8fd;
+    --ok: #047857; --ok-bg: #dcf5ea; --hold: #b45309; --hold-bg: #fcf0dc;
+    --op: var(--hold); --op-bg: var(--hold-bg); --cmd: var(--ok); --cmd-bg: var(--ok-bg);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --gap: 26px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0c0d; --fg: #f1f1f2; --dim: #9a9aa3; --card: #17171a; --line: #34343a; --lane: #131316;
+      --msg: #7ea2ff; --msg-bg: #16203c; --scout: #4fd1c2; --scout-bg: #0f2a28; --rev: #c79bf5; --rev-bg: #261a36;
+      --ok: #45d19a; --ok-bg: #10291f; --hold: #f5b755; --hold-bg: #2e2110;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body { font-family: var(--sans); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  h3 { font-size: 13px; margin: 0; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--msg); }
+  .lead { color: var(--dim); max-width: 78ch; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  details { margin-top: 10px; color: var(--dim); }
+  summary { cursor: pointer; }
+
+  .key { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 12px; font-size: 12px; color: var(--dim); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 22px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--card); display: inline-block; }
+  .sw.op { border-color: var(--op); background: var(--op-bg); }
+  .sw.cmd { border-color: var(--cmd); background: var(--cmd-bg); }
+
+  .box { border: 1.5px solid var(--line); border-radius: 7px; padding: 8px 10px; background: var(--card); min-width: 0; }
+  .box b { display: block; font-size: 13px; }
+  .box small { display: block; font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+  .box.plain { border-style: dotted; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .n { display: inline-block; min-width: 1.5em; margin-right: 4px; padding: 0 5px; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 11px; text-align: center; }
+
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .chip.model { background: var(--msg-bg); color: var(--msg); }
+  .chip.cmd { background: var(--cmd-bg); color: var(--cmd); }
+  .chip.op { background: var(--op-bg); color: var(--op); }
+  .chip.scout { background: var(--scout-bg); color: var(--scout); }
+
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); font-weight: 600; }
+
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 16px; font-size: 12.5px; }
+  .toc a { border: 1.5px solid var(--line); border-radius: 999px; padding: 2px 10px; background: var(--card); color: var(--fg); text-decoration: none; }
+
+
+
+
+
+  .track { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px var(--gap); }
+  .step { position: relative; border: 1.5px solid var(--line); border-radius: 7px; padding: 8px 10px; background: var(--card); min-width: 0; }
+  .step b { display: block; font-size: 13px; }
+  .step small { display: block; font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+  .step .chip { margin-top: 6px; }
+  .step.model { border-color: var(--msg); background: var(--msg-bg); border-left: 4px solid var(--msg); }
+  .step.cmd { border-color: var(--cmd); background: var(--cmd-bg); border-left: 4px solid var(--cmd); }
+  .step.op { border-color: var(--op); background: var(--op-bg); border-left: 4px solid var(--op); }
+  .step + .step::before { content: ""; position: absolute; top: 50%; left: calc(-1 * var(--gap) - 1.5px); width: var(--gap); border-top: 1.5px solid var(--dim); }
+  .step + .step::after { content: ""; position: absolute; top: 50%; left: -7px; margin-top: -3.75px; border: 4.5px solid transparent; border-left-color: var(--dim); border-right-width: 0; }
+  .step:nth-child(5n + 1)::before, .step:nth-child(5n + 1)::after { content: none; }
+
+  .group { margin-top: 22px; }
+  .group > h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+  .group > h3 small { font-size: 12px; font-weight: 400; color: var(--dim); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; margin-top: 8px; }
+  .card { border: 1.5px solid var(--line); border-radius: 8px; padding: 10px; background: var(--card); min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .card h4 { margin: 0; font-family: var(--mono); font-size: 12.5px; }
+  .card p { margin: 0; font-size: 12.5px; }
+  .card .when { font-size: 11.5px; color: var(--dim); }
+  .card .who { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: 4px; }
+  .card.cmd { border-color: var(--cmd); }
+  .card.op { border-color: var(--op); background: var(--op-bg); }
+  .principles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin-top: 8px; }
+  .principles > div { padding: 7px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+  .principles b { font-size: 13px; }
+  .principles small { display: block; font-size: 12px; color: var(--dim); }
+  .principles .leans { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .principles .leans code { border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 10.5px; }
+
+
+  .step .n { margin-bottom: 3px; }
+  .aside { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+  .sub { margin: 14px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .rulecards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .rulecards .card { border-left: 4px solid var(--fg); }
+  .card h4.t { font-family: var(--sans); font-size: 13.5px; }
+  .card.scout { border-color: var(--scout); background: var(--scout-bg); }
+  .card h4 .n { font-family: var(--sans); }
+  .card dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 0; font-size: 12.5px; }
+  .card dt { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); padding-top: 2px; }
+  .card dd { margin: 0; }
+  .card details { margin-top: 2px; font-size: 12px; }
+  details p, details li { font-size: 12.5px; }
+  details ul { margin: 6px 0 0; padding-left: 18px; }
+  .chip.plain { box-shadow: inset 0 0 0 1px var(--line); color: var(--dim); }
+  .leans span { font-size: 10.5px; color: var(--dim); }
+  .leanrow { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: 4px; }
+  .leanrow code { border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 10.5px; }
+  .cards.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+  .after { margin-top: 12px; }
+  .sw.model { border-color: var(--msg); background: var(--msg-bg); }
+  .step.plainstep { border-style: dotted; }
+  .step.plainstep::before, .step.plainstep::after { content: none; }
+  .track.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .map { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 10px; margin-top: 14px; }
+  .map.three { grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr) minmax(0, 2.4fr); }
+  .tile { border: 1.5px solid var(--line); border-radius: 8px; padding: 10px; background: var(--lane); min-width: 0; }
+  .tile.scout { border-color: var(--scout); background: var(--scout-bg); }
+  .tile b { display: block; font-size: 13px; margin-bottom: 6px; }
+  .tile small { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); margin: 8px 0 4px; }
+  .tile b + small { margin-top: 0; }
+  .names { display: flex; flex-wrap: wrap; gap: 4px; }
+  .names a { font-family: var(--mono); font-size: 11px; border: 1.5px solid var(--line); border-radius: 6px; padding: 1px 6px; background: var(--card); color: var(--fg); text-decoration: none; }
+  @media (max-width: 940px) {
+    main { padding: 20px 12px 48px; }
+    .track { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .step + .step::before { top: -14px; left: 16px; width: 0; height: 14px; border-top: 0; border-left: 1.5px solid var(--dim); content: ""; }
+    .step + .step::after { top: -7px; left: 12.25px; margin-top: 0; border: 4.5px solid transparent; border-top-color: var(--dim); border-bottom-width: 0; content: ""; }
+    .principles { grid-template-columns: minmax(0, 1fr); }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+    td { padding: 2px 0; border: 0; }
+    td:first-child { font-weight: 600; }
+    .aside, .rulecards { grid-template-columns: minmax(0, 1fr); }
+    .track.four, .map.three { grid-template-columns: minmax(0, 1fr); }
+  }
+  .card.rev { border-color: var(--rev); background: var(--rev-bg); }
+  .chip.rev { background: var(--rev-bg); color: var(--rev); }
+
+  .sys { margin: 0; }
+  .sys svg { display: block; width: 100%; height: auto; font-family: var(--sans); }
+  .sys svg.defs { position: absolute; width: 0; height: 0; }
+  .sys .wide { display: none; }
+  .sys .tall { max-width: 460px; margin: 0 auto; }
+  @media (min-width: 1040px) {
+    .sys .wide { display: block; }
+    .sys .tall { display: none; }
+  }
+  .sys .lane { fill: var(--lane); stroke: var(--line); stroke-width: 1; }
+  .sys .lane.jstack { fill: var(--card); stroke: var(--fg); stroke-width: 2; }
+  .sys .lt { font-size: 13px; font-weight: 700; fill: var(--fg); }
+  .sys .lt.big { font-size: 17px; }
+  .sys .ls { font-size: 11px; fill: var(--dim); }
+  .sys .mid, .sys .n text, .sys .pill text, .sys .art text, .sys .file text, .sys .chip text, .sys .gate text { text-anchor: middle; }
+  .sys .ico { fill: none; stroke: var(--op); stroke-width: 2; stroke-linecap: round; }
+  .sys .n rect { stroke-width: 1.5; }
+  .sys .n.op rect { fill: var(--op-bg); stroke: var(--op); }
+  .sys .n.model rect { fill: var(--msg-bg); stroke: var(--msg); }
+  .sys .n.cmd rect { fill: var(--cmd-bg); stroke: var(--cmd); }
+  .sys .n .t { font-size: 12.5px; font-weight: 700; fill: var(--fg); }
+  .sys .n .s { font-size: 11px; fill: var(--dim); }
+  .sys .n.cmd .s { font-family: var(--mono); }
+  .sys .n .b { fill: var(--fg); stroke: var(--bg); stroke-width: 1.5; }
+  .sys .n .bn { font-size: 11px; font-weight: 700; fill: var(--bg); }
+  .sys .path { fill: none; stroke: var(--fg); stroke-width: 2.25; stroke-linejoin: round; marker-end: url(#a-fg); }
+  .sys .back { fill: none; stroke: var(--dim); stroke-width: 1.5; stroke-dasharray: 4 3; marker-end: url(#a-dim); }
+  .sys .code { fill: none; stroke: var(--dim); stroke-width: 1.25; marker-end: url(#a-dim); }
+  .sys .gatel { fill: none; stroke: var(--op); stroke-width: 1.5; stroke-dasharray: 4 3; marker-end: url(#a-op); }
+  .sys .thin { fill: none; stroke: var(--dim); stroke-width: 1.25; stroke-dasharray: 2 3; marker-end: url(#a-dim); }
+  .sys .m-fg { fill: var(--fg); }
+  .sys .m-dim { fill: var(--dim); }
+  .sys .m-op { fill: var(--op); }
+  .sys .pill rect { fill: var(--card); stroke-width: 1.5; }
+  .sys .pill.cmd rect { stroke: var(--cmd); }
+  .sys .pill.model rect { stroke: var(--msg); }
+  .sys .pill text, .sys .art text { font-size: 11.5px; font-weight: 600; fill: var(--fg); }
+  .sys .art rect { fill: var(--card); stroke: var(--fg); stroke-width: 1.25; }
+  .sys .file rect { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .sys .file text { font-family: var(--mono); font-size: 11px; fill: var(--fg); }
+  .sys .chip rect { fill: var(--lane); stroke: var(--dim); stroke-width: 1.25; stroke-dasharray: 3 3; }
+  .sys .chip.any rect { stroke: var(--op); }
+  .sys .chip text { font-size: 11px; fill: var(--dim); }
+  .sys .gate polygon { fill: var(--op-bg); stroke: var(--op); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .sys .gate text { font-size: 12.5px; font-weight: 700; fill: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+<h1>jstack, explained</h1>
+<p class="lead">The pipeline between the operator, the agents and the codebase. Follow one task from 1 to 10.</p>
+
+<div class="key">
+  <span><i class="sw op"></i> the operator</span>
+  <span><i class="sw model"></i> a thread, with a model</span>
+  <span><i class="sw cmd"></i> a command, no model</span>
+</div>
+
+<figure class="sys" id="pipeline">
+<svg class="defs" width="0" height="0" aria-hidden="true"><defs>
+<marker id="a-fg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path class="m-fg" d="M0 0L10 5L0 10z"/></marker>
+<marker id="a-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="m-dim" d="M0 0L10 5L0 10z"/></marker>
+<marker id="a-op" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="m-op" d="M0 0L10 5L0 10z"/></marker>
+</defs></svg>
+<svg class="wide" viewBox="0 0 1170 410" role="img" aria-labelledby="sys-wide-t">
+<title id="sys-wide-t">One task through jstack, steps 1 to 10: the operator on one side, the agents and the codebase on the other, jstack between them</title>
+<rect class="lane" x="1" y="6" width="1168" height="100" rx="9"/>
+<text class="lt" x="16" y="66">The operator</text>
+<text class="ls" x="16" y="82">a person</text>
+<rect class="lane jstack" x="1" y="114" width="1168" height="100" rx="9"/>
+<text class="lt big" x="16" y="162">jstack</text>
+<text class="ls" x="16" y="178">record and commands</text>
+<rect class="lane" x="1" y="222" width="1168" height="100" rx="9"/>
+<text class="lt" x="16" y="270">The agents</text>
+<text class="ls" x="16" y="286">threads, each a model</text>
+<rect class="lane" x="1" y="330" width="1168" height="74" rx="9"/>
+<text class="lt" x="16" y="364">The codebase</text>
+<text class="ls" x="16" y="380">git</text>
+<path class="path" d="M240,56 L294,56 L294,248"/>
+<path class="path" d="M334,272 L388,272 L388,80"/>
+<path class="path" d="M428,56 L482,56 L482,140"/>
+<path class="path" d="M522,164 L576,164 L576,248"/>
+<path class="path" d="M616,272 L670,272 L670,188"/>
+<path class="path" d="M710,164 L764,164 L764,248"/>
+<path class="path" d="M804,272 L816,272"/>
+<path class="path" d="M898,272 L952,272 L952,188"/>
+<path class="path" d="M992,164 L1004,164"/>
+<path class="back" d="M670,142 L670,72"/>
+<path class="back" d="M779,250 L779,72"/>
+<path class="back" d="M952,142 L952,72"/>
+<path class="code" d="M576,294 L576,347"/>
+<path class="code" d="M655,186 L655,347"/>
+<path class="code" d="M937,186 L937,347"/>
+<path class="code" d="M620,366 L623,366"/>
+<path class="code" d="M714,366 L905,366"/>
+<path class="gatel" d="M1115.56,260 L1115.56,80"/>
+<path class="thin" d="M234,272 L251,272"/>
+<g class="file"><title>plan.md, in the record on disk</title><rect x="267" y="153" width="54" height="22" rx="4"/><text class="ft" x="294" y="168">plan</text></g>
+<g class="file"><title>tasks/&lt;slug&gt;.md, in the record on disk</title><rect x="361" y="153" width="54" height="22" rx="4"/><text class="ft" x="388" y="168">brief</text></g>
+<g class="n op"><title>1. The operator says what is wanted</title><rect x="160" y="34" width="80" height="44" rx="7"/><text class="t" x="200" y="55">plan entry</text><text class="s" x="200" y="69">operator</text><circle class="b" cx="160" cy="34" r="9.5"/><text class="bn" x="160" y="38">1</text></g>
+<g class="n model"><title>2. The home writes the brief into the record</title><rect x="254" y="250" width="80" height="44" rx="7"/><text class="t" x="294" y="271">brief</text><text class="s" x="294" y="285">home</text><circle class="b" cx="254" cy="250" r="9.5"/><text class="bn" x="254" y="254">2</text></g>
+<g class="n op"><title>3. The operator approves that brief in the queue</title><rect x="348" y="34" width="80" height="44" rx="7"/><text class="t" x="388" y="55">approval</text><text class="s" x="388" y="69">operator</text><circle class="b" cx="348" cy="34" r="9.5"/><text class="bn" x="348" y="38">3</text></g>
+<g class="n cmd"><title>4. jbus launches it once jgauge room says go</title><rect x="442" y="142" width="80" height="44" rx="7"/><text class="t" x="482" y="163">launch</text><text class="s" x="482" y="177">jbus</text><circle class="b" cx="442" cy="142" r="9.5"/><text class="bn" x="442" y="146">4</text></g>
+<g class="n model"><title>5. A crewmate does the task in its own worktree</title><rect x="536" y="250" width="80" height="44" rx="7"/><text class="t" x="576" y="271">worktree</text><text class="s" x="576" y="285">crewmate</text><circle class="b" cx="536" cy="250" r="9.5"/><text class="bn" x="536" y="254">5</text></g>
+<g class="n cmd"><title>6. The check command runs, and CI runs it again on the pull request the crewmate opens</title><rect x="630" y="142" width="80" height="44" rx="7"/><text class="t" x="670" y="163">check</text><text class="s" x="670" y="177">CI</text><circle class="b" cx="630" cy="142" r="9.5"/><text class="bn" x="630" y="146">6</text></g>
+<g class="n model"><title>7. A reviewer reads the pull request and fixes nothing</title><rect x="724" y="250" width="80" height="44" rx="7"/><text class="t" x="764" y="271">review</text><text class="s" x="764" y="285">reviewer</text><circle class="b" cx="724" cy="250" r="9.5"/><text class="bn" x="724" y="254">7</text></g>
+<g class="n model"><title>8. The crewmate ends every finding</title><rect x="818" y="250" width="80" height="44" rx="7"/><text class="t" x="858" y="271">findings</text><text class="s" x="858" y="285">crewmate</text><circle class="b" cx="818" cy="250" r="9.5"/><text class="bn" x="818" y="254">8</text></g>
+<g class="n cmd"><title>9. jmerge merges what is reviewed, fixed and green</title><rect x="912" y="142" width="80" height="44" rx="7"/><text class="t" x="952" y="163">merge</text><text class="s" x="952" y="177">jmerge</text><circle class="b" cx="912" cy="142" r="9.5"/><text class="bn" x="912" y="146">9</text></g>
+<g class="n cmd"><title>10. jmerge --sweep removes the worktree and the branches</title><rect x="1006" y="142" width="80" height="44" rx="7"/><text class="t" x="1046" y="163">sweep</text><text class="s" x="1046" y="177">jmerge</text><circle class="b" cx="1006" cy="142" r="9.5"/><text class="bn" x="1006" y="146">10</text></g>
+<g class="pill cmd"><rect x="628" y="43" width="84" height="26" rx="13"/><text class="pt" x="670" y="60">pull request</text></g>
+<g class="pill model"><rect x="722" y="43" width="84" height="26" rx="13"/><text class="pt" x="764" y="60">review</text></g>
+<g class="pill cmd"><rect x="910" y="43" width="84" height="26" rx="13"/><text class="pt" x="952" y="60">merge</text></g>
+<g class="art"><rect x="532" y="350" width="88" height="32" rx="4"/><text class="at" x="576" y="370">worktree</text></g>
+<g class="art"><rect x="626" y="350" width="88" height="32" rx="4"/><text class="at" x="670" y="370">pull request</text></g>
+<g class="art"><rect x="908" y="350" width="88" height="32" rx="4"/><text class="at" x="952" y="370">main</text></g>
+<g class="gate"><title>A gate: a question only the operator can answer. The thread takes a default and carries on</title><polygon points="1071.56,56 1115.56,32 1159.56,56 1115.56,80"/><text x="1115.56" y="60">gate</text></g>
+<g class="chip any"><rect x="1082.56" y="260" width="66" height="24" rx="12"/><text x="1115.56" y="276">any step</text></g>
+<g class="chip scout"><title>A scout researches a question before a brief is written</title><rect x="170" y="260" width="60" height="24" rx="12"/><text x="200" y="276">scout</text></g>
+<g class="ico" transform="translate(16 22)"><circle cx="10" cy="6" r="5"/><path d="M1 22c0-6 4-9 9-9s9 3 9 9"/></g>
+</svg>
+<svg class="tall" viewBox="-3 0 368 672" role="img" aria-labelledby="sys-tall-t">
+<title id="sys-tall-t">One task through jstack, steps 1 to 10: the operator on one side, the agents and the codebase on the other, jstack between them</title>
+<rect class="lane" x="3" y="1" width="86" height="670" rx="9"/>
+<text class="lt mid" x="46" y="20">Operator</text>
+<text class="ls mid" x="46" y="34">a person</text>
+<rect class="lane jstack" x="94" y="1" width="86" height="670" rx="9"/>
+<text class="lt mid" x="137" y="20">jstack</text>
+<text class="ls mid" x="137" y="34">the pipeline</text>
+<rect class="lane" x="185" y="1" width="86" height="670" rx="9"/>
+<text class="lt mid" x="228" y="20">Agents</text>
+<text class="ls mid" x="228" y="34">threads</text>
+<rect class="lane" x="276" y="1" width="83" height="670" rx="9"/>
+<text class="lt mid" x="317" y="20">Codebase</text>
+<text class="ls mid" x="317" y="34">git</text>
+<path class="path" d="M46,100 L46,136 L188,136"/>
+<path class="path" d="M228,156 L228,192 L86,192"/>
+<path class="path" d="M46,212 L46,248 L97,248"/>
+<path class="path" d="M137,268 L137,304 L188,304"/>
+<path class="path" d="M228,324 L228,360 L177,360"/>
+<path class="path" d="M137,380 L137,416 L188,416"/>
+<path class="path" d="M228,436 L228,450"/>
+<path class="path" d="M228,492 L228,528 L177,528"/>
+<path class="path" d="M137,548 L137,562"/>
+<path class="back" d="M99,360 L88,360"/>
+<path class="back" d="M190,429 L88,429"/>
+<path class="back" d="M99,528 L88,528"/>
+<path class="code" d="M266,304 L275,304"/>
+<path class="code" d="M175,347 L275,347"/>
+<path class="code" d="M175,515 L275,515"/>
+<path class="code" d="M317,318 L317,343"/>
+<path class="code" d="M317,374 L317,511"/>
+<path class="gatel" d="M216,640 L86,640"/>
+<path class="thin" d="M228,92 L228,113"/>
+<g class="file"><title>plan.md, in the record on disk</title><rect x="113" y="125" width="48" height="22" rx="4"/><text class="ft" x="137" y="140">plan</text></g>
+<g class="file"><title>tasks/&lt;slug&gt;.md, in the record on disk</title><rect x="113" y="181" width="48" height="22" rx="4"/><text class="ft" x="137" y="196">brief</text></g>
+<g class="n op"><title>1. The operator says what is wanted</title><rect x="8" y="60" width="76" height="40" rx="7"/><text class="t" x="46" y="79">plan entry</text><text class="s" x="46" y="93">operator</text><circle class="b" cx="8" cy="60" r="9.5"/><text class="bn" x="8" y="64">1</text></g>
+<g class="n model"><title>2. The home writes the brief into the record</title><rect x="190" y="116" width="76" height="40" rx="7"/><text class="t" x="228" y="135">brief</text><text class="s" x="228" y="149">home</text><circle class="b" cx="190" cy="116" r="9.5"/><text class="bn" x="190" y="120">2</text></g>
+<g class="n op"><title>3. The operator approves that brief in the queue</title><rect x="8" y="172" width="76" height="40" rx="7"/><text class="t" x="46" y="191">approval</text><text class="s" x="46" y="205">operator</text><circle class="b" cx="8" cy="172" r="9.5"/><text class="bn" x="8" y="176">3</text></g>
+<g class="n cmd"><title>4. jbus launches it once jgauge room says go</title><rect x="99" y="228" width="76" height="40" rx="7"/><text class="t" x="137" y="247">launch</text><text class="s" x="137" y="261">jbus</text><circle class="b" cx="99" cy="228" r="9.5"/><text class="bn" x="99" y="232">4</text></g>
+<g class="n model"><title>5. A crewmate does the task in its own worktree</title><rect x="190" y="284" width="76" height="40" rx="7"/><text class="t" x="228" y="303">worktree</text><text class="s" x="228" y="317">crewmate</text><circle class="b" cx="190" cy="284" r="9.5"/><text class="bn" x="190" y="288">5</text></g>
+<g class="n cmd"><title>6. The check command runs, and CI runs it again on the pull request the crewmate opens</title><rect x="99" y="340" width="76" height="40" rx="7"/><text class="t" x="137" y="359">check</text><text class="s" x="137" y="373">CI</text><circle class="b" cx="99" cy="340" r="9.5"/><text class="bn" x="99" y="344">6</text></g>
+<g class="n model"><title>7. A reviewer reads the pull request and fixes nothing</title><rect x="190" y="396" width="76" height="40" rx="7"/><text class="t" x="228" y="415">review</text><text class="s" x="228" y="429">reviewer</text><circle class="b" cx="190" cy="396" r="9.5"/><text class="bn" x="190" y="400">7</text></g>
+<g class="n model"><title>8. The crewmate ends every finding</title><rect x="190" y="452" width="76" height="40" rx="7"/><text class="t" x="228" y="471">findings</text><text class="s" x="228" y="485">crewmate</text><circle class="b" cx="190" cy="452" r="9.5"/><text class="bn" x="190" y="456">8</text></g>
+<g class="n cmd"><title>9. jmerge merges what is reviewed, fixed and green</title><rect x="99" y="508" width="76" height="40" rx="7"/><text class="t" x="137" y="527">merge</text><text class="s" x="137" y="541">jmerge</text><circle class="b" cx="99" cy="508" r="9.5"/><text class="bn" x="99" y="512">9</text></g>
+<g class="n cmd"><title>10. jmerge --sweep removes the worktree and the branches</title><rect x="99" y="564" width="76" height="40" rx="7"/><text class="t" x="137" y="583">sweep</text><text class="s" x="137" y="597">jmerge</text><circle class="b" cx="99" cy="564" r="9.5"/><text class="bn" x="99" y="568">10</text></g>
+<g class="pill cmd"><rect x="7" y="348" width="78" height="24" rx="13"/><text class="pt" x="46" y="364">pull request</text></g>
+<g class="pill model"><rect x="7" y="404" width="78" height="24" rx="13"/><text class="pt" x="46" y="420">review</text></g>
+<g class="pill cmd"><rect x="7" y="516" width="78" height="24" rx="13"/><text class="pt" x="46" y="532">merge</text></g>
+<g class="art"><rect x="278" y="290" width="78" height="28" rx="4"/><text class="at" x="317" y="308">worktree</text></g>
+<g class="art"><rect x="278" y="346" width="78" height="28" rx="4"/><text class="at" x="317" y="364">pull request</text></g>
+<g class="art"><rect x="278" y="514" width="78" height="28" rx="4"/><text class="at" x="317" y="532">main</text></g>
+<g class="gate"><title>A gate: a question only the operator can answer. The thread takes a default and carries on</title><polygon points="8,640 46,618 84,640 46,662"/><text x="46" y="644">gate</text></g>
+<g class="chip any"><rect x="195" y="628" width="66" height="24" rx="12"/><text x="228" y="644">any step</text></g>
+<g class="chip scout"><title>A scout researches a question before a brief is written</title><rect x="198" y="68" width="60" height="24" rx="12"/><text x="228" y="84">scout</text></g>
+</svg>
+</figure>
+
+<nav class="toc" aria-label="On this page">
+  <a href="#task">The ten steps</a>
+  <a href="#first-day">Your first day</a>
+  <a href="#asked">What you are asked for</a>
+  <a href="#skills">Skills</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#commands">Commands</a>
+  <a href="#mindset">Mindset</a>
+</nav>
+
+<section id="task">
+<h2>The ten steps</h2>
+<p class="lead">The same numbers as the picture, one line each.</p>
+<ol class="track">
+<li class="step op"><b><span class="n">1</span>Plan entry</b><small>The operator says what is wanted. The home writes one entry per pull request in <code>plan.md</code>, with a "Done when" list.</small><span class="chip op">the operator, with the home</span></li>
+<li class="step model"><b><span class="n">2</span>Brief</b><small>The home writes <code>tasks/&lt;slug&gt;.md</code>: the task, where it may work, its <code>Design:</code>, <code>Review:</code> and <code>Playbook:</code> lines.</small><span class="chip model">a model: the home</span></li>
+<li class="step op"><b><span class="n">3</span>The queue and the approval</b><small>The brief waits as a row of the queue. The operator approves that exact brief, named by its sha.</small><span class="chip op">the operator</span></li>
+<li class="step cmd"><b><span class="n">4</span>Launch</b><small><code>jbus</code> launches an approved row once its <code>depends</code> are merged and <code>jgauge room</code> prints <code>go</code>.</small><span class="chip cmd">a command, no model</span></li>
+<li class="step model"><b><span class="n">5</span>The worktree</b><small>A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook.</small><span class="chip model">a model: the crewmate</span></li>
+<li class="step cmd"><b><span class="n">6</span>The check</b><small>The repo's check command runs once in full under a test slot, and CI runs it again on the pull request the crewmate opens.</small><span class="chip cmd">a command, no model</span></li>
+<li class="step model"><b><span class="n">7</span>The review</b><small>A reviewer in a fresh thread: two readers who do not see each other, a lead, and one safety fact proven by running code.</small><span class="chip model">a model: the reviewer</span></li>
+<li class="step model"><b><span class="n">8</span>The findings</b><small>The crewmate ends every finding with a <code>Finding:</code> line, fixed or not fixed and why, then writes one <code>Fixed:</code> line.</small><span class="chip model">a model: the crewmate</span></li>
+<li class="step cmd"><b><span class="n">9</span><code>jmerge</code></b><small>Merges what is reviewed, fixed and green at the head that was checked. For the rest it prints <code>wait</code> or <code>hold</code> and the reason.</small><span class="chip cmd">a command, no model</span></li>
+<li class="step cmd"><b><span class="n">10</span>The sweep</b><small><code>jmerge --sweep</code> removes the worktree and the branches a finished thread left, and prints what it kept and why.</small><span class="chip cmd">a command, no model</span></li>
+</ol>
+<div class="aside">
+  <div class="box plain"><span class="tag">before step 2, sometimes</span><b>A scout goes first</b><small>When the home cannot write the brief from what it knows, a scout reads the code and the docs and writes down what it found. The home itself never reads the code.</small></div>
+  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>A thread that meets a question only the operator can answer takes a default, carries on, and parks the question in <code>gates.md</code>.</small></div>
+  <div class="box plain"><span class="tag">at step 9, rarely</span><b>A hold</b><small>A pull request that touches a protected path is never merged by a plain <code>jmerge</code>. It is the operator's to accept.</small></div>
+</div>
+<details>
+  <summary>With a home thread and no queue</summary>
+  <p>A repo can run with a home thread, with <code>jbus</code> and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread: the operator says yes to the plan entry there, and the home launches the crewmate itself after <code>jgauge room</code> prints <code>go</code>. With <code>jbus</code> alone, nothing is launched that is not an approved row of the queue.</p>
+</details>
+<details>
+  <summary>The same task, file by file and message by message</summary>
+  <p><a href="flow.html">flow.html</a>, beside this page, draws every file a step reads or writes and every message a thread sends.</p>
+</details>
+</section>
+
+<section id="first-day">
+<h2>How to use it: your first day</h2>
+<p class="lead">Three things to do, then watch.</p>
+<ol class="track four">
+  <li class="step op"><b><span class="n">1</span>Start a home</b><small>Open a thread in the repo's main checkout, or type <code>/home</code>.</small><span class="chip plain">back: where things stand</span></li>
+  <li class="step op"><b><span class="n">2</span>Plan one task</b><small>Say what you want. The home asks until the shape is settled.</small><span class="chip plain">back: a plan entry and its brief</span></li>
+  <li class="step op"><b><span class="n">3</span>Approve it</b><small>Read the brief and say yes.</small><span class="chip plain">back: a crewmate you can watch and steer</span></li>
+  <li class="step cmd"><b><span class="n">4</span>Watch it merge</b><small>Nothing to do: build, review, fixes and merge run by themselves.</small><span class="chip plain">back: one <code>merged</code> line</span></li>
+</ol>
+<details>
+  <summary>Before the first day</summary>
+  <p>Install once: sync the Python project, run <code>install.sh</code> to link the skills, wire the two hooks, and put the commands on <code>PATH</code>. The README's Install section has each step.</p>
+</details>
+<details>
+  <summary>Ending the day</summary>
+  <p>Type <code>/handoff</code> in the home. It updates the plan and the notes and writes a one-page handoff. Tomorrow's home starts from that page, not from today's chat.</p>
+</details>
+</section>
+
+<section id="asked">
+<h2>How to use it: what you are asked for, and when</h2>
+<p class="lead">Three things come to you. Everything else reversible is done without asking.</p>
+<div class="cards">
+  <article class="card op"><h4 class="t">An approval</h4><p>A brief is ready, or it changed after your go, or an approved task depends on one you have not approved.</p><p class="when">You give: a yes to that exact brief.</p></article>
+  <article class="card op"><h4 class="t">A gate</h4><p>A thread met a question only you can answer. It took a default and carried on. The home shows open gates at its start, on a status request, and when the planned work is done.</p><p class="when">You give: keep the default, or change it.</p></article>
+  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;your name&gt; --at "&lt;date and time&gt;"</code>. Add <code>--check</code> to see what it would do. It is refused without the review's proven safety fact.</p></article>
+</div>
+<details>
+  <summary>If the operator is away</summary>
+<table>
+  <thead><tr><th>Asked for</th><th>When</th><th>If the operator is away</th></tr></thead>
+  <tbody>
+    <tr><td>An approval</td><td>Before a task launches</td><td>That task does not launch. Other tasks go on.</td></tr>
+    <tr><td>A gate</td><td>At any step of any thread</td><td>Nothing waits. The default stands until it is changed, and the gate says how to undo it.</td></tr>
+    <tr><td>A held pull request</td><td>At the merge</td><td>The pull request stays open. Nothing else is held up unless it depends on it.</td></tr>
+    <tr><td>One of the four pauses</td><td>Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside</td><td>The thread waits in its own thread. These are the only things a thread asks first.</td></tr>
+    <tr><td>A pull request with no review</td><td>Its brief says <code>Review: none</code></td><td>It is never merged by itself. It waits for the operator's word.</td></tr>
+  </tbody>
+</table>
+</details>
+<details>
+  <summary>What <code>wait</code> means</summary>
+  <p>A pull request that waits is not a failure and asks nothing of the operator. <code>jmerge</code> prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.</p>
+</details>
+</section>
+
+<section id="skills">
+<h2>Skills</h2>
+<p class="lead">A text a thread loads by name and follows. Seven groups, by what they are for.</p>
+<div class="map">
+<div class="tile"><b>Run the pipeline</b><div class="names">
+<!-- built: skill links, Run the pipeline -->
+<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>Settle the shape before code</b><div class="names">
+<!-- built: skill links, Settle the shape before code -->
+<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>Understand what is there</b><div class="names">
+<!-- built: skill links, Understand what is there -->
+<a href="#skill-how">how</a><a href="#skill-why">why</a><a href="#skill-teach">teach</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>Distrust the change</b><div class="names">
+<!-- built: skill links, Distrust the change -->
+<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>Catch up and keep track</b><div class="names">
+<!-- built: skill links, Catch up and keep track -->
+<a href="#skill-recall">recall</a><a href="#skill-ketchup">ketchup</a><a href="#skill-bro">bro</a><a href="#skill-show-me-your-work">show-me-your-work</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>Make the lesson stick</b><div class="names">
+<!-- built: skill links, Make the lesson stick -->
+<a href="#skill-correct">correct</a><a href="#skill-reflect">reflect</a><a href="#skill-automate-me">automate-me</a>
+<!-- built: end -->
+</div></div>
+<div class="tile"><b>House standards for text and code</b><div class="names">
+<!-- built: skill links, House standards for text and code -->
+<a href="#skill-technical-writing">technical-writing</a><a href="#skill-unslop">unslop</a><a href="#skill-no-comments">no-comments</a><a href="#skill-typescript-best-practices">typescript-best-practices</a>
+<!-- built: end -->
+</div></div>
+</div>
+<div class="group"><h3>Run the pipeline <small>Seven skills make a thread a role. Each is the full text of what that thread does.</small></h3><div class="cards">
+<!-- built: skill cards, Run the pipeline -->
+<article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads the handoff, the plan and the notes, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
+<article class="card" id="skill-crew"><h4>/crew</h4><p>Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request.</p><p class="when">Reach for it when a brief is written and approved. It is typed as <code>/crew &lt;slug&gt;</code>.</p><div class="who"><span class="chip model">a home</span><span class="chip cmd">jbus</span></div></article>
+<article class="card scout" id="skill-scout"><h4>/scout</h4><p>Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual page when asked.</p><p class="when">Reach for it when a question has to be answered before a task can be briefed.</p><div class="who"><span class="chip model">a home</span></div></article>
+<article class="card rev" id="skill-pr-review"><h4>/pr-review</h4><p>Starts a reviewer in a fresh thread. Two reviewers who do not see each other read the pull request, a lead judges their findings, and one command proves the fact the change is safe because of. It fixes nothing.</p><p class="when">Reach for it when a pull request opens. The crewmate does this by itself.</p><div class="who"><span class="chip model">a crewmate</span><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-expert"><h4>/expert</h4><p>Makes a thread an expert: the always-on subject matter expert of one subject. It answers asks from its sources and its notes, in four parts, and writes down what it learns in its own folder. It writes no code and decides nothing.</p><p class="when">Reach for it when a question about that subject needs an answer with its sources. It is typed as <code>/expert &lt;name&gt;</code>.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-handoff"><h4>/handoff</h4><p>Closes a home. It files what the thread learned, updates the plan and the notes, writes a one-page handoff and starts the next home.</p><p class="when">Reach for it when the day ends, or the home's context has grown.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
+<article class="card" id="skill-nohome"><h4>/nohome</h4><p>Opts this thread, or every new thread in the repo, out of the automatic home. With <code>merge</code> it switches the repo's automatic merge off or on.</p><p class="when">Reach for it when a thread should just do the work itself, or merges should wait.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-new-home"><h4>/new-home</h4><p>Sets up a repo's first home in six steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, its home thread, and one message to Exec.</p><p class="when">Reach for it when a repo gets its first home, or one was started by hand.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Settle the shape before code <small>Decide what to build before a thread builds it.</small></h3><div class="cards">
+<!-- built: skill cards, Settle the shape before code -->
+<article class="card" id="skill-grilling"><h4>/grilling</h4><p>Questions the operator about a plan, a decision or an idea, round after round, until nothing is left assumed.</p><p class="when">Reach for it when the work is more than one task, or a design choice is not made yet.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
+<article class="card" id="skill-architect"><h4>/architect</h4><p>Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it.</p><p class="when">Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's <code>Design:</code> line names.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a crewmate</span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Understand what is there <small>Read before changing.</small></h3><div class="cards">
+<!-- built: skill cards, Understand what is there -->
+<article class="card" id="skill-how"><h4>/how</h4><p>Explains how a subsystem works: its architecture, its runtime flow and where things live.</p><p class="when">Reach for it when you are about to change something, or ask which layer owns it.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>architect</code></span></div></article>
+<article class="card" id="skill-why"><h4>/why</h4><p>Explains why something was built this way, with a cited read of the decisions and tradeoffs from source control, issues and docs.</p><p class="when">Reach for it when you need the rationale, or are looking into a regression.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>architect</code></span></div></article>
+<article class="card" id="skill-teach"><h4>/teach</h4><p>Runs <code>how</code> and <code>why</code> and weaves what they find into one plain explanation.</p><p class="when">Reach for it when a person has to really understand a change or a subsystem.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Distrust the change <small>Evidence that a change is safe, in place of a write-up.</small></h3><div class="cards">
+<!-- built: skill cards, Distrust the change -->
+<article class="card" id="skill-blast-radius"><h4>/blast-radius</h4><p>Finds what a change could break beyond its diff, and proves the one fact it is safe because of by running real code.</p><p class="when">Reach for it when a small diff is one you do not trust. Every review runs it.</p><div class="who"><span class="chip op">the operator</span><span class="chip rev">a reviewer</span></div></article>
+<article class="card" id="skill-interrogate"><h4>/interrogate</h4><p>Two reviewers that do not see each other challenge a change, and the lead filters what they found.</p><p class="when">Reach for it when a design or a change needs adversarial pressure.</p><div class="who"><span class="chip op">the operator</span><span class="chip rev">a reviewer</span></div></article>
+<article class="card" id="skill-tdd"><h4>/tdd</h4><p>Fixes a bug test-first: a focused regression test that fails before the fix and passes after it.</p><p class="when">Reach for it when a bug has a clear, cheap test path.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-benchmark-checklist"><h4>/benchmark-checklist</h4><p>Vets a measured number before it is reported: its limiter, its tuning, its errors, whether it repeats, and whether the work happened.</p><p class="when">Reach for it when a speedup, a regression or an eval result is about to be believed.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>perf-issue</code>, <code>hillclimb</code></span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Catch up and keep track <small>For the operator after time away.</small></h3><div class="cards">
+<!-- built: skill cards, Catch up and keep track -->
+<article class="card" id="skill-recall"><h4>/recall</h4><p>Rebuilds your recent working context from the chat history, the home's record and live state, and hands back a short current-state brief.</p><p class="when">Reach for it when you start or resume work and ask where you left off.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-ketchup"><h4>/ketchup</h4><p>Catches the operator up on everything in this chat since their last message, with a summary for each action item.</p><p class="when">Reach for it when a thread ran on while you were away.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-bro"><h4>/bro</h4><p>Restates the last message in plain language, with no jargon.</p><p class="when">Reach for it when an answer was too dense to act on.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-show-me-your-work"><h4>/show-me-your-work</h4><p>Keeps a decision log for long or unattended work, one row per decision: what, why, the evidence and the result.</p><p class="when">Reach for it when a run goes on with nobody watching and will be reviewed later.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>autonomous-run</code>, <code>hillclimb</code></span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Make the lesson stick <small>Turn a repeated mistake or a habit into structure.</small></h3><div class="cards">
+<!-- built: skill cards, Make the lesson stick -->
+<article class="card" id="skill-correct"><h4>/correct</h4><p>Finds the mistakes agents keep repeating in a repo and makes each one impossible: structure first, then types, then a test, a written rule last. Each check is proven to fail on a real past mistake.</p><p class="when">Reach for it when the same correction has been given twice.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a brief with the <code>correct</code> playbook</span></div></article>
+<article class="card" id="skill-reflect"><h4>/reflect</h4><p>Reads one thread's transcript with three review subagents and a synthesiser, and ends in proposed edits and plan entries. It edits nothing.</p><p class="when">Reach for it when a thread went badly, or well, and the reason should outlast it.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>eval</code></span></div></article>
+<article class="card" id="skill-automate-me"><h4>/automate-me</h4><p>Drafts or revises a personal mode skill that captures how the user works, with evidence from recent transcripts when asked.</p><p class="when">Reach for it when you want agents to follow your working style without being told again.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>House standards for text and code <small>Loaded by name, before or after an edit.</small></h3><div class="cards">
+<!-- built: skill cards, House standards for text and code -->
+<article class="card" id="skill-technical-writing"><h4>/technical-writing</h4><p>A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation.</p><p class="when">Reach for it when you write or review a doc, a pull request description or a commit message.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>opening-a-pr</code></span></div></article>
+<article class="card" id="skill-unslop"><h4>/unslop</h4><p>Cuts the tells of machine writing from any text.</p><p class="when">Reach for it when a text is about to be read by a person.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>opening-a-pr</code></span></div></article>
+<article class="card" id="skill-no-comments"><h4>/no-comments</h4><p>A comment hunter condemns every comment that has no exception. The thread deletes what it accepts and fixes the code a comment was excusing.</p><p class="when">Reach for it when comments have piled up in a scope.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-typescript-best-practices"><h4>/typescript-best-practices</h4><p>TypeScript practices a thread loads before it reads or edits <code>.ts</code> and <code>.tsx</code> files.</p><p class="when">Reach for it when the task touches TypeScript.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<!-- built: end -->
+</div></div>
+</section>
+
+<section id="playbooks">
+<h2>Playbooks</h2>
+<p class="lead">The numbered steps for one kind of task. Four groups, by who runs it.</p>
+<div class="map three">
+<div class="tile"><b>The home runs it</b>
+<small>Plan a batch</small><div class="names">
+<!-- built: playbook links, Plan a batch -->
+<a href="#playbook-multi-phase-plan">multi-phase-plan</a>
+<!-- built: end -->
+</div>
+<small>Work a queue unattended</small><div class="names">
+<!-- built: playbook links, Work a queue unattended -->
+<a href="#playbook-autopilot-full">autopilot-full</a><a href="#playbook-autopilot-stack">autopilot-stack</a><a href="#playbook-orchestrate">orchestrate</a>
+<!-- built: end -->
+</div>
+<small>Land and resume</small><div class="names">
+<!-- built: playbook links, Land and resume -->
+<a href="#playbook-shipping">shipping</a><a href="#playbook-session-pickup">session-pickup</a>
+<!-- built: end -->
+</div>
+</div>
+<div class="tile scout"><b>A scout runs it</b>
+<div class="names">
+<!-- built: playbook links, A scout runs it -->
+<a href="#playbook-investigation">investigation</a><a href="#playbook-trace-forensics">trace-forensics</a>
+<!-- built: end -->
+</div>
+</div>
+<div class="tile"><b>A crewmate runs it</b>
+<small>Build and change</small><div class="names">
+<!-- built: playbook links, Build and change -->
+<a href="#playbook-feature">feature</a><a href="#playbook-bug-fix">bug-fix</a><a href="#playbook-refactoring">refactoring</a><a href="#playbook-perf-issue">perf-issue</a><a href="#playbook-visual-parity">visual-parity</a>
+<!-- built: end -->
+</div>
+<small>Decide by building</small><div class="names">
+<!-- built: playbook links, Decide by building -->
+<a href="#playbook-prototype">prototype</a><a href="#playbook-arena">arena</a><a href="#playbook-eval">eval</a>
+<!-- built: end -->
+</div>
+<small>Diagnose, fix nothing</small><div class="names">
+<!-- built: playbook links, Diagnose, fix nothing -->
+<a href="#playbook-runtime-forensics">runtime-forensics</a>
+<!-- built: end -->
+</div>
+<small>Long or wide runs</small><div class="names">
+<!-- built: playbook links, Long or wide runs -->
+<a href="#playbook-autonomous-run">autonomous-run</a><a href="#playbook-hillclimb">hillclimb</a><a href="#playbook-swarm">swarm</a>
+<!-- built: end -->
+</div>
+<small>Work on jstack itself</small><div class="names">
+<!-- built: playbook links, Work on jstack itself -->
+<a href="#playbook-authoring-a-playbook">authoring-a-playbook</a><a href="#playbook-authoring-a-skill">authoring-a-skill</a><a href="#playbook-correct">correct</a>
+<!-- built: end -->
+</div>
+<small>In every task</small><div class="names">
+<!-- built: playbook links, In every task -->
+<a href="#playbook-opening-a-pr">opening-a-pr</a><a href="#playbook-pause-safely">pause-safely</a>
+<!-- built: end -->
+</div>
+</div>
+<div class="tile"><b>An expert runs it</b>
+<div class="names">
+<!-- built: playbook links, An expert runs it -->
+<a href="#playbook-expert-answer">expert-answer</a><a href="#playbook-expert-check">expert-check</a><a href="#playbook-expert-study">expert-study</a><a href="#playbook-expert-refresh">expert-refresh</a><a href="#playbook-expert-research">expert-research</a>
+<!-- built: end -->
+</div>
+</div>
+</div>
+<div class="group"><h3>The home runs it <small>Named on the <code>Playbook:</code> line in the head of the home's <code>plan.md</code>.</small></h3>
+<p class="sub">Plan a batch</p>
+<div class="cards">
+<!-- built: playbook cards, Plan a batch -->
+<article class="card" id="playbook-multi-phase-plan"><h4>multi-phase-plan</h4><p>For: Work that is more than one pull request, planned as a batch of entries the operator approves once.</p></article>
+<!-- built: end -->
+</div>
+<p class="sub">Work a queue unattended</p>
+<div class="cards">
+<!-- built: playbook cards, Work a queue unattended -->
+<article class="card" id="playbook-autopilot-full"><h4>autopilot-full</h4><p>For: A queue of approved plan entries worked to its end with no word from the operator, each pull request owned by one crewmate from first commit to green.</p></article>
+<article class="card" id="playbook-autopilot-stack"><h4>autopilot-stack</h4><p>For: A queue of approved entries that each need the one before, built as one linear stack of pull requests that the operator reviews and lands.</p></article>
+<article class="card" id="playbook-orchestrate"><h4>orchestrate</h4><p>For: A standing program: many entries toward one goal that outlives a single home, worked to a predicate that can be counted.</p></article>
+<!-- built: end -->
+</div>
+<p class="sub">Land and resume</p>
+<div class="cards">
+<!-- built: playbook cards, Land and resume -->
+<article class="card" id="playbook-shipping"><h4>shipping</h4><p>For: Landing a stack that <code>autopilot-stack</code> built, on the operator's word, bottom link first and one link at a time.</p></article>
+<article class="card" id="playbook-session-pickup"><h4>session-pickup</h4><p>For: A thread that stopped with its task unfinished: a cancelled turn, a failed turn, a stuck thread. It is resumed, not started over.</p></article>
+<!-- built: end -->
+</div>
+</div>
+<div class="group"><h3>A scout runs it <small>Named on the <code>Playbook:</code> line of a scout's request, never of a brief.</small></h3>
+<div class="cards">
+<!-- built: playbook cards, A scout runs it -->
+<article class="card scout" id="playbook-investigation"><h4>investigation</h4><p>For: A read-only question: how does X work, why was Y built this way, are we sure about Z, should we do X or Y.</p></article>
+<article class="card scout" id="playbook-trace-forensics"><h4>trace-forensics</h4><p>For: A capture that already exists as a file (a CPU profile, a trace, a heap snapshot), read for the cause of a slowdown, a leak or a hang.</p></article>
+<!-- built: end -->
+</div>
+</div>
+<div class="group"><h3>A crewmate runs it <small>Named on the <code>Playbook:</code> line of a brief.</small></h3>
+<p class="sub">Build and change</p>
+<div class="cards">
+<!-- built: playbook cards, Build and change -->
+<article class="card" id="playbook-feature"><h4>feature</h4><p>For: New or changed behaviour, built from a named data shape.</p></article>
+<article class="card" id="playbook-bug-fix"><h4>bug-fix</h4><p>For: A reported defect to reproduce, root-cause and fix with runtime evidence.</p></article>
+<article class="card" id="playbook-refactoring"><h4>refactoring</h4><p>For: A change to structure or shape that keeps behaviour: rename, extract, inline, dedupe, move.</p></article>
+<article class="card" id="playbook-perf-issue"><h4>perf-issue</h4><p>For: One thing that is too slow, fixed once and proved with a number before and after.</p></article>
+<article class="card" id="playbook-visual-parity"><h4>visual-parity</h4><p>For: One component moved to a new implementation that has to look exactly as it did. One component to a brief.</p></article>
+<!-- built: end -->
+</div>
+<p class="sub">Decide by building</p>
+<div class="cards">
+<!-- built: playbook cards, Decide by building -->
+<article class="card" id="playbook-prototype"><h4>prototype</h4><p>For: A design decision that only something built and looked at can settle: which layout, which interaction, which timing.</p><div class="who"><span class="chip plain"><code>Pull request: ask first</code></span><span class="chip plain"><code>Review: none</code></span></div></article>
+<article class="card" id="playbook-arena"><h4>arena</h4><p>For: One artifact where a single attempt would lock in the wrong shape. Two runners make it apart, a judge reads both, the crewmate picks and grafts.</p></article>
+<article class="card" id="playbook-eval"><h4>eval</h4><p>For: Finding out whether a variant a model reaches by reading files (a playbook, a principle, a doc) changes what it does.</p><div class="who"><span class="chip plain"><code>Candidates:</code></span><span class="chip plain"><code>Judge:</code></span><span class="chip plain"><code>Pull request: ask first</code></span></div></article>
+<!-- built: end -->
+</div>
+<p class="sub">Diagnose, fix nothing</p>
+<div class="cards">
+<!-- built: playbook cards, Diagnose, fix nothing -->
+<article class="card" id="playbook-runtime-forensics"><h4>runtime-forensics</h4><p>For: A symptom that shows only in a running process: a spinning CPU, a leak, a visual glitch, a loop firing without input.</p><div class="who"><span class="chip plain"><code>Pull request: ask first</code></span></div></article>
+<!-- built: end -->
+</div>
+<p class="sub">Long or wide runs</p>
+<div class="cards">
+<!-- built: playbook cards, Long or wide runs -->
+<article class="card" id="playbook-autonomous-run"><h4>autonomous-run</h4><p>For: One task driven to its "Done when" with nobody watching, where each line of it can be checked by a command.</p></article>
+<article class="card" id="playbook-hillclimb"><h4>hillclimb</h4><p>For: Moving one measurable thing toward a target over many attempts. The brief's "Done when" has the target as a number.</p></article>
+<article class="card" id="playbook-swarm"><h4>swarm</h4><p>For: A task that splits into slices no one worker has to hold together, or a race of several workers on one brief.</p></article>
+<!-- built: end -->
+</div>
+<p class="sub">Work on jstack itself</p>
+<div class="cards">
+<!-- built: playbook cards, Work on jstack itself -->
+<article class="card" id="playbook-authoring-a-playbook"><h4>authoring-a-playbook</h4><p>For: Writing a new file in <code>playbooks/</code>, when a kind of task comes back and no playbook covers it.</p></article>
+<article class="card" id="playbook-authoring-a-skill"><h4>authoring-a-skill</h4><p>For: Writing or editing a <code>SKILL.md</code>, or a template a skill reads.</p></article>
+<article class="card" id="playbook-correct"><h4>correct</h4><p>For: One class of repeated mistake that the brief names, to be made impossible or at least caught.</p></article>
+<!-- built: end -->
+</div>
+<p class="sub">In every task</p>
+<div class="cards">
+<!-- built: playbook cards, In every task -->
+<article class="card" id="playbook-opening-a-pr"><h4>opening-a-pr</h4><p>For: Opening the pull request, as the last step of every other crewmate playbook. It is never picked for a brief.</p></article>
+<article class="card" id="playbook-pause-safely"><h4>pause-safely</h4><p>For: An explicit word to pause in the middle of a task, from the operator or the home: stop here, pick it up later.</p></article>
+<!-- built: end -->
+</div>
+</div>
+<div class="group"><h3>An expert runs it <small>Picked by the kind of ask.</small></h3>
+<div class="cards">
+<!-- built: playbook cards, An expert runs it -->
+<article class="card" id="playbook-expert-answer"><h4>expert-answer</h4><p>For: A question a short answer settles. The corrections are checked first, then the notes, then the source itself, and the answer has its four parts.</p></article>
+<article class="card" id="playbook-expert-check"><h4>expert-check</h4><p>For: A <code>check</code> ask: one brief, review or pull request judged against the subject. It ends in a verdict in four parts, each point tied to the rule it rests on.</p></article>
+<article class="card" id="playbook-expert-study"><h4>expert-study</h4><p>For: A <code>study</code> ask: working the syllabus into notes, each question read from its source and written down with what it rests on.</p></article>
+<article class="card" id="playbook-expert-refresh"><h4>expert-refresh</h4><p>For: A source whose revision moved past its pin. Only the notes that cite a changed file are rechecked, and the pin moves last.</p></article>
+<article class="card" id="playbook-expert-research"><h4>expert-research</h4><p>For: A <code>research</code> ask: a longer question about the expert's subject, answered in a report file in its folder, where the bulk reading goes to a subagent.</p></article>
+<!-- built: end -->
+</div>
+</div>
+<details>
+  <summary>How a thread uses a playbook</summary>
+  <p>The thread copies the playbook's numbered steps into its todo list, word for word, and works them in order. A step it does not do stays in the list as <code>skip: &lt;reason&gt;</code>. <code>Playbook: none</code>, or no line, means the thread works by its skill alone. Where a playbook and the skill disagree, the skill wins.</p>
+</details>
+</section>
+
+<section id="commands">
+<h2>Commands</h2>
+<p class="lead">Each decides one thing with no model, from rules in one file.</p>
+<ol class="track four">
+  <li class="step cmd"><b><span class="n">4</span>Launch</b><small><code>jbus</code> <code>jgauge room</code></small></li>
+  <li class="step cmd"><b><span class="n">9</span>Merge</b><small><code>jmerge</code></small></li>
+  <li class="step cmd"><b><span class="n">10</span>Sweep</b><small><code>jmerge --sweep</code></small></li>
+  <li class="step plainstep"><b>Off the path</b><small><code>jroles</code> <code>jdrift</code> <code>jbriefs</code></small></li>
+</ol>
+<div class="cards wide">
+<article class="card cmd" id="command-jmerge"><h4>jmerge <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether an open pull request merges, waits or is held.</dd><dt>Rules in</dt><dd><code>src/jmerge/ready.py</code></dd><dt>Run by</dt><dd>the home, or <code>jbus</code> when no home is listening</dd></dl><details><summary>What ready means</summary><ul><li>A brief names the pull request, and its base is the default branch.</li><li>The review is written, every finding has its <code>Finding:</code> line and the Result has its <code>Fixed:</code> line.</li><li>The check named <code>check</code> passed at the head, and that green still covers today's default branch.</li><li>A rebase kept every line.</li><li>A protected path (secrets, keys) is a hold. A guarded path (the workflows, <code>skills/</code>, the merge rules themselves) merges only with the review's proven safety fact.</li></ul></details></article>
+<article class="card cmd" id="command-jbus"><h4>jbus <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which approved rows of the queue launch on this pass, and what is told to whom. It makes no judgment call: what no rule covers becomes one <code>gate</code> line.</dd><dt>Rules in</dt><dd><code>src/jbus/dispatch.py</code></dd><dt>Run by</dt><dd>a timer, one pass a minute</dd></dl><details><summary>One pass</summary><ul><li>Runs <code>jmerge</code> when the home is off.</li><li>Reads the briefs, the scout requests and <code>gates.md</code>, and makes one event for each new Result, Review, Report and gate.</li><li>Asks for the threads and the pull requests, and ties each crewmate to its thread.</li><li>Launches the approved rows, lowest priority number first.</li><li>Says what waits on the operator, and sends what it found to the project's webhook.</li></ul></details></article>
+<article class="card cmd" id="command-jgauge-room"><h4>jgauge room <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether the machine and the plan have room for one more thread. It prints <code>go</code>, or <code>wait:</code> and the first reading with no room.</dd><dt>Rules in</dt><dd><code>src/jgauge/room.sh</code></dd><dt>Run by</dt><dd>the home before a launch, a crewmate before a review, <code>jbus</code> before each launch</dd></dl><details><summary>The readings</summary><ul><li>The one-minute load against the cores.</li><li>The memory available, and memory pressure.</li><li>The plan's five-hour and weekly limits.</li><li>A machine reading it cannot read is a <code>wait</code>. A plan limit it cannot read stops nothing.</li></ul></details></article>
+<article class="card cmd" id="command-jroles"><h4>jroles <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which model a launched thread of a role runs on: <code>crew</code>, <code>scout</code>, <code>review</code> or <code>home</code>. With no line for the role, the launch inherits its launcher's model.</dd><dt>Rules in</dt><dd><code>src/jroles/cli.py</code></dd><dt>Run by</dt><dd>any thread, before it launches one of that role</dd></dl><details><summary>The role map</summary><ul><li>One line a role in the operator's <code>jstack/roles</code> config file: <code>&lt;role&gt;: &lt;provider&gt; &lt;model&gt;</code>.</li><li><code>&lt;role&gt;: inherit</code> is the same as no line.</li><li>A map it cannot use is said on stderr, and the launch inherits.</li></ul></details></article>
+<article class="card cmd" id="command-jdrift"><h4>jdrift <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which of the files taken from the upstream skill stack are <code>same</code>, <code>changed</code> or <code>gone</code> since the pinned commit, and which upstream files are <code>new</code>.</dd><dt>Rules in</dt><dd><code>src/jdrift/cli.py</code></dd><dt>Run by</dt><dd>the operator, as <code>make pstack-drift</code></dd></dl><details><summary>What it reads</summary><ul><li>The pin and the map of taken files are in <code>THIRD_PARTY.md</code>.</li><li>It changes nothing in the repo, and no model reads anything.</li></ul></details></article>
+</div>
+<p class="lead after"><code>jbriefs</code> is the sixth command. It decides nothing: it prints every brief of every home on one page.</p>
+</section>
+
+<section id="mindset">
+<h2>Mindset</h2>
+<p class="lead">Four rules the system is built on, then the principles a playbook step names.</p>
+<div class="rulecards">
+<article class="card"><h4 class="t"><span class="n">1</span>Disk is the record, and a thread is disposable.</h4><p>A thread can end at any time. The next one starts from the files in the state directory, so nothing that matters lives in a chat.</p><div class="leanrow"><code>handoff</code><code>session-pickup</code><code>pause-safely</code></div></article>
+<article class="card"><h4 class="t"><span class="n">2</span>Judgment in threads, repeatable steps in commands.</h4><p>A model plans, writes and reviews. Whatever has the same answer every time is a command with no model, whose rules are one file.</p><div class="leanrow"><code>jmerge</code><code>jbus</code><code>jgauge room</code></div></article>
+<article class="card"><h4 class="t"><span class="n">3</span>A gate takes a default, so work never waits.</h4><p>A question only the operator can answer is parked with the default that was taken, what rests on it and how to undo it. The thread carries on.</p><div class="leanrow"><code>crew</code><code>scout</code><code>home</code></div></article>
+<article class="card"><h4 class="t"><span class="n">4</span>A test must execute something.</h4><p>A test runs the shell a skill tells an agent to run, parses a block out of it, or runs the script. Finding a sentence in a file is not a test.</p><div class="leanrow"><code>tdd</code><code>blast-radius</code><code>correct</code></div></article>
+</div>
+<div class="group"><h3>Before the code: get the shape right</h3><div class="principles">
+<!-- built: principle cards, Before the code: get the shape right -->
+<div id="principle-foundational-thinking"><b>foundational-thinking</b><small>Get the data structures right before writing logic, so the code that follows is obvious.</small><div class="leans"><code>architect</code><code>feature</code><code>refactoring</code></div></div>
+<div id="principle-model-the-domain"><b>model-the-domain</b><small>Encode the real domain in a data structure, not in conditionals scattered across files.</small><div class="leans"><code>feature</code><code>refactoring</code></div></div>
+<div id="principle-type-system-discipline"><b>type-system-discipline</b><small>Make the compiler reject impossible states, mismatched primitives and unhandled variants.</small><div class="leans"><code>typescript-best-practices</code><code>correct</code></div></div>
+<div id="principle-boundary-discipline"><b>boundary-discipline</b><small>Validate and handle errors at the system's boundaries. Trust internal code, and keep logic in pure functions.</small><div class="leans"><code>typescript-best-practices</code></div></div>
+<div id="principle-exhaust-the-design-space"><b>exhaust-the-design-space</b><small>For a decision with no precedent, build two or three competing versions and compare them side by side.</small><div class="leans"><code>arena</code><code>prototype</code><code>architect</code></div></div>
+<div id="principle-redesign-from-first-principles"><b>redesign-from-first-principles</b><small>Do not bolt a new requirement on. Redesign as if it had been there from the start.</small><div class="leans"><code>architect</code><code>arena</code><code>refactoring</code></div></div>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Keep it small</h3><div class="principles">
+<!-- built: principle cards, Keep it small -->
+<div id="principle-subtract-before-you-add"><b>subtract-before-you-add</b><small>Remove complexity first, then build on the simpler base.</small><div class="leans"><code>refactoring</code><code>architect</code><code>multi-phase-plan</code></div></div>
+<div id="principle-laziness-protocol"><b>laziness-protocol</b><small>Bias toward deletion and the smallest change that solves the problem.</small><div class="leans"><code>opening-a-pr</code><code>bug-fix</code><code>arena</code></div></div>
+<div id="principle-minimize-reader-load"><b>minimize-reader-load</b><small>Maintainability is the work a reader must do: the layers to trace and the state to hold.</small><div class="leans"><code>refactoring</code></div></div>
+<div id="principle-migrate-callers-then-delete-legacy-apis"><b>migrate-callers-then-delete-legacy-apis</b><small>When a new API is right, move its callers and delete the old one in the same wave.</small><div class="leans"><code>refactoring</code><code>feature</code><code>correct</code></div></div>
+<div id="principle-experience-first"><b>experience-first</b><small>Where convenience for the builder conflicts with delight for the user, choose delight. Fewer features, polished.</small><div class="leans"><span>no skill or playbook names it yet</span></div></div>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Prove it</h3><div class="principles">
+<!-- built: principle cards, Prove it -->
+<div id="principle-prove-it-works"><b>prove-it-works</b><small>Check the real thing directly: run it, read the value, inspect the diff. Not a proxy and not "it compiles".</small><div class="leans"><code>opening-a-pr</code><code>bug-fix</code><span>nearly every playbook</span></div></div>
+<div id="principle-test-behavior-not-implementation"><b>test-behavior-not-implementation</b><small>A test calls the code as its users do and asserts the exact result they see.</small><div class="leans"><code>bug-fix</code><code>feature</code><code>authoring-a-skill</code></div></div>
+<div id="principle-fix-root-causes"><b>fix-root-causes</b><small>Reproduce first, then ask why until the cause is reached, and fix it there.</small><div class="leans"><code>bug-fix</code><code>runtime-forensics</code><code>perf-issue</code></div></div>
+<div id="principle-attack-the-premise"><b>attack-the-premise</b><small>When two fixes that share a premise fail the same gate, suspect the premise, not the fixes.</small><div class="leans"><code>bug-fix</code></div></div>
+<div id="principle-explain-the-number"><b>explain-the-number</b><small>Before trusting a measured number, find what limits it and rule out that it measured something else.</small><div class="leans"><code>benchmark-checklist</code><code>perf-issue</code><code>hillclimb</code></div></div>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Keep moving with nobody watching</h3><div class="principles">
+<!-- built: principle cards, Keep moving with nobody watching -->
+<div id="principle-never-block-on-the-human"><b>never-block-on-the-human</b><small>On reversible work, proceed and then present. A wrong decision costs less than waiting.</small><div class="leans"><code>autopilot-full</code><code>autonomous-run</code><code>multi-phase-plan</code></div></div>
+<div id="principle-sequence-verifiable-units"><b>sequence-verifiable-units</b><small>Order work as small units that each end in a state you can check, and do not advance on red.</small><div class="leans"><code>opening-a-pr</code><code>multi-phase-plan</code><code>autopilot-stack</code></div></div>
+<div id="principle-outcome-oriented-execution"><b>outcome-oriented-execution</b><small>Converge on the target end state. Do not keep every intermediate step smooth with throwaway compatibility code.</small><div class="leans"><code>orchestrate</code><code>shipping</code><code>swarm</code></div></div>
+<div id="principle-make-operations-idempotent"><b>make-operations-idempotent</b><small>An operation reaches the same end state however many times it runs and wherever the last run stopped.</small><div class="leans"><code>pause-safely</code><code>session-pickup</code><code>shipping</code></div></div>
+<div id="principle-guard-the-context-window"><b>guard-the-context-window</b><small>Route bulk to subagents and keep summaries, not raw payloads, in the main thread.</small><div class="leans"><code>investigation</code><code>swarm</code><code>orchestrate</code></div></div>
+<!-- built: end -->
+</div></div>
+<div class="group"><h3>Many threads, and lessons that last</h3><div class="principles">
+<!-- built: principle cards, Many threads, and lessons that last -->
+<div id="principle-separate-before-serializing-shared-state"><b>separate-before-serializing-shared-state</b><small>When actors might write the same thing, remove the sharing first. Serialize by structure only when one writer is a real invariant.</small><div class="leans"><code>swarm</code><code>arena</code><code>autopilot-full</code></div></div>
+<div id="principle-encode-lessons-in-structure"><b>encode-lessons-in-structure</b><small>A rule written twice becomes a lint, a flag, a runtime check or a script, not more text.</small><div class="leans"><code>correct</code><code>reflect</code><code>authoring-a-skill</code></div></div>
+<div id="principle-build-the-lever"><b>build-the-lever</b><small>The second time the same work comes up, build the tool that does it or proves it.</small><div class="leans"><code>autonomous-run</code><code>hillclimb</code></div></div>
+<!-- built: end -->
+</div></div>
+</section>
+
+</main>
+</body>
+</html>

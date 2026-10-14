@@ -1,0 +1,370 @@
+# jbus
+
+`jbus poll` does a home's routine work with no model, so a repo can run with no home thread. A systemd timer runs one pass a minute. The **Chef** is the agent behind a project's webhook, and jbus tells it what each pass found. [The Chef](chef.md) says how to make one.
+
+One pass, under one lock, does this for every project in the config:
+
+1. It runs `jmerge` in the project's main checkout when the home is off, and makes one event for each line `jmerge` prints about a pull request.
+2. It reads the briefs, the scout requests and `gates.md` in the home's state directory, and makes one event for each new Result, Review, Report and gate.
+3. It asks T3 Code for the project's `crew: <slug>` threads and GitHub, through `gh`, for its pull requests. It makes one event per finding: `merged <slug> #<n> <sha>`, `stale <slug>: ...` for a thread past its `TIMEBOX:` (4 hours with none), one that waited 30 minutes on a request, or one that ended with no Result, and `retro <slug>: ...` for a failed check on main within a day of a merge, or for a revert of a merged pull request. A run of main that was cancelled is no failed check, whether its check run ended `cancelled` or it was cancelled before it had a job and left the commit with no check run. jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attempt` for it is 1. It says `retro <slug>: main check cancelled twice at <sha>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha>, and GitHub did not run it again` when GitHub refuses. A job that `timeout-minutes` stops also ends `cancelled`, not `timed_out`, so a suite that hangs on main is run again and then reads `cancelled twice`, never `main check failed`.
+4. It ties each crewmate to its thread, as the table below says.
+5. It launches the approved rows of the queue, after every project was asked what is out.
+6. It rewrites the queue's derived columns, says what waits on you, and POSTs what it found to the project's webhook.
+
+jbus makes no judgment call. What no rule covers is one line, `gate <slug>: <what>`, and jbus leaves that slug alone for the rest of the pass. On a project's first pass, jbus records the Results, Reviews, Reports, gates and merges that are already there and sends none of them. jbus writes nothing to GitHub and merges nothing itself.
+
+The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empty. With a thread id in that file the home merges, and jbus prints `skipped <project>: the home <id> merges`.
+
+## The verbs
+
+`jbus` takes one verb. `--project <name>` goes before the verb, as in `jbus --project demo queue show`, and names a project of the config. Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` speak for the project whose repo they are run in. `jbus events`, `jbus t3 launch-test` and the `jbus queue` verbs take the config's one project, or with several the one whose repo they are run in.
+
+| Verb | What it does |
+|---|---|
+| `jbus poll` | Runs one pass over every project. The timer runs it. |
+| `jbus alarm` | Counts a pass that did not finish. [When jbus fails](#when-jbus-fails) says what the count is for. |
+| `jbus status` | Prints what the last pass left: the status file and the record of the pass. |
+| `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` those sent at or after a time. |
+| `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` is the time the merges are counted from, a day back with none. |
+| `jbus view [--port <port>]` | Serves the bus as a page. The page reads, and writes one thing: your answer to a question. [The view](#the-view) has the rest. |
+| `jbus word --to <project> --message <thread id>/<message id>` | Sends your word to a project's home, or with `--all` in place of `--to` to every home. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types it. [Your word to a home](#your-word-to-a-home) has the rest. |
+| `jbus queue show\|add\|approve\|hold\|remove\|apply` | Prints or changes the queue table. [The queue](#the-queue) has each verb. |
+| `jbus plan [--scope <scope>]`, `jbus plan close <entry>` | Prints each entry of a home's `plan.md` with its status, or moves a finished entry out. [The plan](#the-plan) has the rest. |
+| `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number. |
+| `jbus answer <number> --message <thread id>/<message id> --default` | Closes a question with your answer. `--default` says the answer is the default the thread took, and `--differs` in its place says it is not. One of the two is required. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types the answer. |
+| `jbus done <slug>` | Sends a result now, with its lines on stdin. |
+| `jbus noticed [--all] [--json]`, `jbus noticed take\|drop <key>` | Prints the `Noticed` lines a pass kept that are new, or every one, or marks one taken or dropped. [What the threads noticed](#what-the-threads-noticed) has the rest. |
+| `jbus project add <name> --checkout <path> --project-id <id>` | Adds one project's table to the config. [Add a project](#add-a-project) has the rest. |
+| `jbus t3 login [--wait <seconds>]` | Signs jbus in to the T3 Code server. `--wait` is how long it waits for your approval, 600 seconds with none. |
+| `jbus t3 launch-test` | Starts one thread in the project and prints its id. |
+| `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for it to run. A step is declared beside its feature, as `STEPS` in its module, and a pass skips one whose needs it has not. |
+
+A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
+
+`jbus poll`, `jbus alarm`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+
+## Questions
+
+A crewmate or scout pipes a gate to `jbus gate <slug>`. jbus keeps it in `~/.local/state/jbus/<project>/questions.json` as a question with a number, sends one `gate` event, and prints `queued: question <n>`. The same question from the same slug is the same record: a second run prints `already sent: question <n>`, or `already answered: question <n>: <the answer>` once you answered it.
+
+A gate proposes every option its thread weighed. Each is one line, `Option: <short name>: <what follows from it>`, and the name ends at the first colon that a space follows. Two marks go between the name and that colon: `(default)` on the option the thread took, and `(recommended)` on the one it would pick, or `(default, recommended)` on one that is both.
+
+```
+## Gate <n>: tea or coffee?
+Status: open
+Asked by: alpha, thread mcp:crew-alpha
+Default: made tea
+Built on it: the cups in pull request 7
+Undo: pour it out, one revert
+Context: the shelf has both, and the cups are in https://example.test/demo/pull/7
+Option: tea (default): the cups stay as they are
+Option: coffee (recommended): the cups go back, one revert
+Option: water: nothing is brewed
+```
+
+The record keeps the `Context:` line as `context` and the options, in order, as `options`: each one's `name`, what `follows` from it, and whether it is the `default` and the one `recommended`. `proposed` is when a pass asked the thread of a question with no options for them. A gate may leave out the `Context:` line. jbus refuses, with `not sent:` and the form of an `Option:` line, a gate that has fewer than two options, none or several marked `(default)`, several marked `(recommended)`, two options of one name, a name that ends in parentheses that are not one of the marks, or an `Option:` line that is not filled in. Nothing is kept of such a gate, and the thread pipes it again with its lines mended.
+
+An open question piped again by the same slug takes the new lines, its context and options included, and keeps its number. An answered one is left as it is. A question asked before gates had options has none. Each pass asks the thread on the `Thread:` line of its brief or request, once for a question, to pipe the gate again with them. The message holds the gate's lines as the record has them, for the thread to pipe as they are. A question whose slug has no such line, or whose thread T3 Code no longer lists, gets no message and stays open as it is: the log has one `note` for it.
+
+A question waits on you until `jbus answer` closes it, and it is closed once. After `--default`, jbus sends the thread nothing, because the thread already did what you chose. After `--differs`, the next pass sends your words to the thread that asked. You can also answer on the page of `jbus view`, which sends a differing answer at once: [Answer a question on the page](#answer-a-question-on-the-page).
+
+The answer is a message of yours or is typed, as a word is: [Your word to a home](#your-word-to-a-home) says what `--message` reads and what `checked` records.
+
+`jbus done <slug>` sends a thread's result as a `result` event at once, in place of waiting for a pass to read the brief.
+
+## Your word to a home
+
+`jbus word` is for an approval or an instruction that answers no open question. jbus keeps the word in `~/.local/state/jbus/<project>/words.json` and sends it at once, as one queued message, to the thread id in the home's `home-id` file. It prints `sent: <project>, to <thread>, word <id>` or `waits: <project>, <why>, word <id>`, and on a second run of a word that went, `already sent: <project>, to <thread>, word <id>`. The id is what `jbus queue approve --word` takes, and the message the home gets names it too. A word that could not go waits in the file, and each pass tries it again. The same words with the same `--by` and `--at` for the same project are the same word, and a second run sends nothing again.
+
+With `--message <thread id>/<message id>`, jbus reads the message from T3 Code itself and takes its text and its own time: nothing is typed. A message that is not your own is refused, `refused: message <ref> is not <user>'s own: T3 Code has it as a <type> by <who>`. What an agent or jbus sent into a thread is such a message, though T3 Code lists it as a user message. The record then has `ref`, the title of the thread as `said_in`, and `checked: true`. The typed form, `--by` and `--at` with the words, is still taken, and its record has `checked: false`: jbus checks the name and the form of the time, and cannot check that you said it then. `--message` with `--by`, `--at` or words is refused.
+
+A word is no event, so no webhook gets it. The log still has a line for it, which `jbus events` prints.
+
+## What the threads noticed
+
+A crewmate's Result, a scout's Report and a reviewer's Review each end with a `Noticed` line: what the thread saw that is outside its task. Each pass reads them in the home's `tasks/*.md` and `scouts/*.md`, from every `## Result`, `## Review` and `## Report` section, and keeps each in `~/.local/state/jbus/<project>/noticed.json`. A line is `Noticed:`, or `Noticed` with a few words after a comma or in parentheses, as `Noticed, from the review:`. The rest of the line is one record. Each line under it that starts with `- `, `* ` or a small letter, as a `follow-up: <finding>` line does, is one more, and an indented line belongs to the item above it. The list ends at a blank line, a heading or a line that starts with a capital, such as `Left:`. A line added to the list later is one new record, and the others keep their marks. A text that is empty or says `none` is no record.
+
+A record has the slug, the section it is from, its text whole, when a pass first saw it, and its mark: `new`, `taken` or `dropped`. Its key is `<slug>:<12 hex>`, the first 12 of the sha256 of its text, so a pass that finds the same line again adds nothing. The first pass of a project, the one that finds no file, marks every line there is then as `dropped`, with the why `from before the list`. jbus writes nothing into a brief, asks you nothing about a line and makes no queue row for one: a home marks each.
+
+| Verb | What it does |
+|---|---|
+| `jbus noticed` | Prints each new record, newest first, one a line: `<key> <slug>, <section>, new: <text>`. `none is new` when there is none. |
+| `jbus noticed --all` | Prints every record, the marked ones with what took them or why they were dropped. |
+| `jbus noticed --json` | Prints the same records as a JSON list, with `--all` or without. |
+| `jbus noticed take <key> --row <slug> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record taken by the queue row or the plan entry `--row` names, of any home's `plan.md` or `plan-done.md`. A slug that is neither is refused. |
+| `jbus noticed drop <key> --why <words> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record dropped, with why. |
+
+`--at` is taken as `jbus queue remove` takes it. `--by` is one name, the home's or yours. A record is marked once: a second mark is refused, and so is a key no record has. The view's Noticed panel lists every new record and the 20 newest marked ones, and the wait band counts the new ones.
+
+## The view
+
+`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it.
+
+| Variable | What it does |
+|---|---|
+| `JBUS_VIEW_HOST` | One more address of this machine to listen on, such as its tailnet address. The view refuses an address that stands for every address, such as `0.0.0.0`. |
+| `JBUS_VIEW_NAMES` | The host names, with commas, that a request may use beside `localhost` and the two addresses. A request under any other `Host` gets 403. |
+
+To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
+
+### Answer a question on the page
+
+The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked. A gate that jbus holds as a question opens from its row. A gate that lives only in a home's `gates.md` is listed, and cannot be answered on the page.
+
+An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button. A line above the button says what will be sent and to which thread, or that nothing is sent. There are three ways to close the gate:
+
+| You do | The button says | What jbus does |
+|---|---|---|
+| Nothing: the default is selected when the gate opens. | Accept the default | Closes the question. It sends nothing, because the thread already took the default. |
+| Pick another card. | Send this option | Closes the question and sends the option's name to the thread that asked. |
+| Type in the box, with or without another card picked. | Send my words | Closes the question and sends the option's name, where you picked another, with your words after it. |
+
+A question with no options on record opens with no cards: the default and your own words both work.
+
+To close several gates at once, tick their rows, or tick every row with the one control above the list, then use "Accept the default for N". A batch only takes defaults, so it sends nothing to any thread. To pick another option or to use your own words, open that gate by itself.
+
+The answer is recorded as `jbus answer` records it: by the user of your settings, at the server's clock, in `jbus view`. An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send. If T3 Code refuses it or does not answer, the question is closed all the same, the page says why the answer was not sent, and the next pass sends it. A question is answered once: a second answer is refused, and the page shows the first one.
+
+There is no sign-in. The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer for you. Whoever can reach the port can answer, as any shell on this machine can with `jbus answer`. Only a write that has an answer to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+
+### Add a panel
+
+A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other file names it.
+
+1. `panel.py` is its data. `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
+2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
+3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count in the wait band.
+4. Set `FIRST = True` in `panel.py` only when the first screen needs the data. Without it the page asks `/panel/<name>.json` when the drawer opens.
+
+An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.
+
+## Set up jbus
+
+1. Write the config, `~/.config/jbus/config.toml`, mode 600, as [Configuration](configuration.md#jbus) shows. jbus refuses to start when group or others can read it, or the token beside it.
+2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
+3. Run `sh <checkout>/install.sh` again. With the config there, it links `templates/jbus.service`, `templates/jbus-failed.service` and `templates/jbus.timer` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`. The timer runs a pass every minute (`OnUnitActiveSec=1min`).
+
+[Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once.
+
+jbus does not renew the sign-in. It lasts as long as the token says, or 30 days when the token gives no lifetime. From `warn_days` days before it runs out, the first pass of each day sends `gate <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login`. After that a pass sends `gate <project>: T3 Code could not be asked` once a day until you run `jbus t3 login` again.
+
+To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, and jbus still merges, reads and sends. To stop the passes, run `systemctl --user disable --now jbus.timer`.
+
+## Add a project
+
+`jbus project add <name> --checkout <path> --project-id <id>` adds one `[[project]]` table at the end of the config, for a repo jbus does not look after yet. You do not edit the file by hand for it, and `/new-home <repo>` runs the command as its third step.
+
+- `<name>` is the repo's folder name, which is also the name of its directory under `~/.local/state/home`.
+- `--checkout` is the path of the repo's main checkout.
+- `--project-id` is the id of the repo's T3 Code project.
+
+The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook, so jbus POSTs nothing for the project.
+
+It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`. Each pass is a new run of `jbus poll` that loads the config, so no unit is restarted. No line it prints has a value of a key of the config.
+
+It refuses, and writes nothing, in these cases:
+
+| Line | Why |
+|---|---|
+| `refused: the config already has this project` | A table has that name, that checkout and that id. A second run changes nothing. |
+| `refused: the config already has a project of that name` | A table has that name, or keeps its state under it, with another checkout or id. |
+| `refused: the config already has a project with that checkout` | A table of another name has that checkout. |
+| `refused: --checkout is not a directory` | The path is no directory on this machine. |
+| `refused: a project's name is letters, digits, dots, dashes and underscores` | The name has another character in it. |
+| `refused: no config at <path>` | jbus is not set up yet. [Set up jbus](#set-up-jbus) comes first. |
+
+## The queue
+
+The queue table is `~/.local/state/jbus/<project>/queue.json`, and `jbus queue show` prints it as Markdown. It prints the rows still open: a row that is `merged` or `done` with no reason to wait is left out, and a last line counts them, `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one. `jbus queue show --all` prints every row. `add`, `approve`, `hold` and `remove` print the open rows after they run, with the same last line. Each column has one writer.
+
+| Columns | Written by |
+|---|---|
+| `slug`, `priority`, `depends`, `approved`, `approval`, `brief_sha`, `entry` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry`. |
+| `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
+
+`jbus queue apply` reads a batch on stdin, one verb to a line. Under each `add` comes its brief, between two marker lines:
+
+```
+add alpha --priority 1 --depends beta,gamma
+--- brief alpha
+# alpha: the brief, as it will be launched
+--- end
+approve alpha --word 0a1b2c3d4e5f --sha 1a2b3c4d5e6f
+approve epsilon --rule 6 --follows alpha --sha 6f5e4d3c2b1a
+hold delta
+```
+
+It applies every verb or none, under one lock, and prints one result line per verb. A verb that cannot be done is `refused: line <n>: <why>, and nothing in the batch was applied`, with exit code 1. The verbs run in order, so an `approve` can name the sha of a brief added earlier in the same batch. Each of the four verbs typed alone is a batch of one, with the brief of an `add` on stdin:
+
+```sh
+jbus queue add <slug> --priority <n> --depends <slug>,<slug> --entry <entry> < brief.md
+jbus queue approve <slug> --sha <sha12> --word <id>
+jbus queue hold <slug>
+jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
+```
+
+`--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge first. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority` and `--depends` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `hold` takes a row's approval back.
+
+An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
+
+An approval also names the words of yours it rests on. `jbus queue approve` takes one basis, `--word <id>`, `--answer <number>` or `--message <thread id>/<message id>`:
+
+| Basis | What it names |
+| --- | --- |
+| `--word <id>` | A word `jbus word` kept in the project's `words.json`. |
+| `--answer <number>` | The answer `jbus answer` closed a question of the project's `questions.json` with. An open question, or one its home closed in a `gates.md`, is refused. |
+| `--message <thread id>/<message id>` | A message of yours in a T3 Code thread, which jbus reads then, as `jbus word --message` does. |
+
+It takes no name and no time. With no basis, with two, or with `--by` or `--at`, it is `refused: approve takes one basis, --word <id>, --answer <number> or --message <thread id>/<message id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
+
+There is a fourth basis, and it is not your word for the row. A home approves a follow-up to work you approved by a standing rule of yours, and names the row you did approve:
+
+```sh
+jbus queue approve <slug> --sha <sha12> --rule <n> --follows <parent slug>
+```
+
+`--rule` and `--follows` go together, and with none of the three bases above: any other mix is the refusal above. jbus checks two things and judges nothing else. Whether the brief is a follow-up in substance is the home's call, and the mark on the row and the count in the digest are how you audit it.
+
+- **The rule** is rule `<n>` of the home's `standing.md`, in the home's state directory: the line that starts `<n>. `, read up to the next numbered line or heading. jbus reads the file and never writes it. With no such rule it is `refused: <path> has no rule <n>`.
+- **The parent** is a row of the same queue, or one that was removed after it merged, with an approval of its own by `--word`, `--answer` or `--message`, or the typed string of an older row. A parent that is no row is `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with none is `refused: <slug> cannot follow <parent>: <parent> has no approval`. A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take his word for <slug>`. A chain is one step: a parent that was itself approved by rule is `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take his word for <slug>`.
+
+The row's `approval` is the record of it:
+
+| Field | What it holds |
+| --- | --- |
+| `basis`, `ref` | `word`, `answer` or `message`, and the id, the number or the `<thread id>/<message id>`. By rule: `rule`, and the rule's number. |
+| `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the rule's text as `standing.md` had it then, and the other two are empty, since you said nothing of the row. |
+| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. By rule it is `true`: jbus read the rule itself. |
+| `follows` | By rule only: the slug of the parent row. |
+| `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
+
+`jbus queue show` prints it in the `approved` column as `his word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false. `<who>` is `Exec` for a session in a directory named `_exec`, `the <directory> home` for any other session, and `a shell in <directory>` where no session ran it. The view's row says the same line. A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; he did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark. `jbus queue hold <parent>` takes the go of its queued follow-ups back with the parent's, and prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`; so does `jbus queue remove` of a parent that did not merge. `jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`: the length of that list is the count of rows that launched without your word for them. A row approved before this holds only the typed string: it keeps its go and still launches, and prints `<the string> (typed, not checked)`. No time is read out of such a string, so the view gives no time from approval to merge for it.
+
+The sha leaves out the `Home:` and `Thread:` lines of the brief's head, the lines above its first `## `. They say whom the brief is sent to, not what it asks for, so a brief queued again under another home, or with its thread written in, is the brief you approved and keeps its approval. A change to any other line is another brief. The stored brief is kept whole, those lines included. A row approved before the sha left the two lines out keeps its approval while its stored brief is the text it was approved with, line for line. Queued again, such a row is taken over to the new sha of that text, so another `Home:` line on it is no change either. A launch sends the brief without the two lines, and jbus writes the launch's own `Thread:` line.
+
+`jbus queue remove` takes a row out of the queue for good, and a batch takes the same line without `jbus queue`. It is your word, so `--by` is your name.
+
+A pass decides that a slug is gone for good by one file: `~/.local/state/jbus/<project>/removed.json` names each removed slug, with who said so and when. From then on a pass sends no event for that slug, whatever its brief in the home's `tasks/`, its thread or a gate it asked says, and it tells no thread of that slug to carry on. A pass still settles a thread of the slug whose brief has a done Result with nothing left, or whose pull request merged. A thread that ended with no Result stays open in T3 Code until you settle it. A pull request opened for the slug later is still a pull request: `jmerge` judges it, and jbus tells its crew what it is short of. The slug is on no list: not in `jbus queue show`, not in `waiting-on-user.json`, not in the digest, and on the view only in the feed of past events. `jbus queue add` refuses the slug, as a row and in `--depends`. `jbus gate <slug>` refuses it too, and an answer to a question the slug asked before goes to no thread.
+
+The removal is one line of `transitions.jsonl`, with the row as it was, and one `queue` event, which is quiet. No home is sent a message: a home sees the removal in the queue. jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the same directory, and leaves the home's own `tasks/<slug>.md` as it is.
+
+`remove` asks T3 Code and GitHub what is out at that moment, and is refused in these cases:
+
+| The row | What `remove` prints |
+|---|---|
+| Another row that is not merged depends on it. | `refused: <slugs> wait on <slug>: remove them first` |
+| Its thread is at work. | `refused: <slug> is out: its thread <id> is <status>` |
+| Its pull request is open. | `refused: <slug> is out: its pull request #<n> is open` |
+| Its pull request merged. | `refused: <slug> merged as #<n>, and a merged row stays` |
+| A launch of it has no answer from T3 Code yet. | `refused: <slug> is out: its launch has no answer yet (<the launch record>)` |
+| The slug is no row. | `refused: the queue has no row <slug>` |
+
+A thread that ended or was settled stops no removal.
+
+If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse: every `queue` verb is refused until you mend the file, and a pass sends `gate <project>: removed.json does not parse`. Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request but through `jmerge`, and leaves `waiting-on-user.json` as it was.
+
+## The plan
+
+A home's `plan.md` holds one section for each entry, `## <slug>: <one line>`, with its "Done when" list and your decisions. It holds no status. An entry is often several briefs, and each brief is a row of the queue, so `jbus plan` counts what an entry has come to from its rows each time it is run:
+
+```sh
+jbus plan
+jbus plan --scope <scope>
+jbus plan close <entry>
+```
+
+`jbus plan` prints one line for each entry of the root home's plan, and with `--scope` of that scoped home's: the slug, its one line and its status, as `<slug> | <one line> | <status>`. The one line is cut at 56 characters and the status at 60. A row counts for the entry `add` was given as `--entry`, and for the entry of its own slug with none.
+
+| The status | Means |
+|---|---|
+| `4 of 7 merged, #383 at pr, 1 queued not approved` | The entry has rows, and this counts them in the words of the row statuses: the finished ones first, then each open row that has a pull request, then the rest by status. |
+| `all <n> rows finished: close it`, or `its row finished: close it` | Every row is `merged` or `done` with no reason to wait. |
+| `proposed`, `planned`, `parked`, `scouting` | The entry has no row, and this is its `Stage:` line. |
+| `no stage` | The entry has no row and no `Stage:` line. |
+| `(typed) Status: <words>` | The entry has no row, and a `Status:` line from before the status was counted. Somebody typed it, and nothing checked it. With rows, such a line is passed over. |
+
+`jbus plan close <entry>` moves the entry's section, as it is, from `plan.md` to `plan-done.md` beside it. It is `refused: <entry> has rows that are not over: <slug> (<status>)` while one is not. It is the one write `jbus plan` makes, and it changes no line of the section. No other command writes a plan: `jmerge` sets no entry to done.
+
+## What a pass launches
+
+A pass launches a row only when all of these hold:
+
+- the row has an `approved` value, and its brief has the sha256 that `approve` recorded;
+- the brief has a `Design:` line in its head that names a file or says `none, <why>`;
+- every slug in `depends` is merged;
+- no branch of its name exists, and no settled thread has its slug;
+- fewer than `max_running` crewmates are out across every project in the config;
+- `jgauge room` prints `go`.
+
+Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
+
+- **A brief changed after the go** is `gate <slug>: brief changed after approval`. Approve it again. A `Home:` or `Thread:` line of its head that changed is no change.
+- **A brief with no such `Design:` line** is a gate, once for that brief: `brief has no Design: line (run /architect or say none, <why>)`.
+- **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass. After `room_passes` passes in a row with no room, jbus sends `gate <slug>: no room for <n> passes: <why>` once.
+- **A lost reply is never launched twice.** jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks a lost reply's thread up.
+- **Overlap stops no launch.** Each crewmate has its own worktree and branch. A launch that shares a path with a brief that is out sends `overlap <slug>: shares <paths> with <holder>; whichever merges second rebases`, once per pair.
+
+`max_running` is one count for the machine. Each pass adds up the crewmates that are out in every project before it launches anything. The free slots go to the projects in turns, in the order of the config, one row a turn. `~/.local/state/jbus/rotation.json` names the project whose turn is first. If T3 Code does not answer for one project, that pass launches nothing in any project.
+
+## Tying a crewmate to its thread
+
+Each action is done once. jbus keeps its key with the keys of the events, and only after T3 Code said yes, so jbus tries an action that got no answer again on the next pass.
+
+| Action | When | What jbus does |
+|---|---|---|
+| The link | An open pull request's head branch is a slug jbus launched. | Calls `link_pull_request` with that thread and the pull request's URL. |
+| The relay | The last `## Review` of a brief with an open pull request has `Verdict: findings` and a `Sent to:` line that does not start with a thread id. | Sends that Review, whole, to the brief's `Thread:` thread, under the line `jbus: the reviewer could not deliver these findings.` |
+| The settle | A slug's pull request merged, or its last Result says `Status: done` and `Left: none` and its `Branch:` line names no pull request. For a scout, its `## Report` is written. | Settles each unsettled thread titled `crew: <slug>`, `review: <slug>` or `scout: <slug>`, and the subagent threads under them. It settles a `review:` thread only when the brief's last Review has the verdict `clean` or `findings`. It leaves a thread that is starting, `running` or `waiting` for the next pass. |
+| The leftover | A row's thread ended, or its pull request merged, with a last Result whose `Left:` line is not `none`, and no thread is at work on it. | Sends the row's home one queued message, once for a row and a `Left:` text: the slug, the pull request and whether it merged, the `Left:` line whole, each question the slug asked with its answer or that it is open, and the two ways to end it. The home is the one the brief's `Home:` line names, and its thread is the one in that home's `home-id`. |
+| The carry-on | A crewmate's thread is `failed`, `interrupted` or `cancelled`, with no Result and no pull request. | Sends one queued message for each ended run, at most two for a thread: carry on with the brief from where it stopped. A third end is `gate <slug>: thread ended <status> after two carry-ons`. |
+| The rebase | `jmerge` printed a `wait` line with `changed <files> after its check started`, `fails on <head12> over today's main` or `conflicts with its base`. | Sends the crewmate one queued message for each head: rebase in its own worktree, after `git update-ref refs/jstack/pre-rebase/<slug>/<head12> <head>`, and push with `git push --force-with-lease` on that head. |
+| The scoped review | `jmerge` printed `the rebase changed the content after its review; scoped review of git range-diff ...`. | Sends the crewmate one queued message for each head: launch one scoped reviewer, `/pr-review run <slug> scoped <old range> <new range>`. |
+| The drops | `jmerge` printed `the rebase dropped ... with no Dropped on rebase line at <head12>`. | Tells the crewmate once per head to put the lines back or to add the `Dropped on rebase:` line. The Chef gets `drops <slug>: told the crew of the drop (#<n>, <head12>)`. |
+| Main moved | The default branch's commit changed since the last pass, and an open pull request of a slug jbus launched is red. | Sends its crewmate one queued message for each pull request and commit of main: main may be what broke it, so rebase with the same backup ref and lease, and run the tests again. The head it names gets no failed-check message. |
+| The failed check | A check of an open pull request of a slug jbus launched ran and failed at its head. One whose job ran no step is a CI that started no job, and is not told. | Sends the crewmate one queued message for each head, under the key `failed\|<slug>\|<head12>`, and one more under `refailed\|<slug>\|<head12>` when a later attempt of its workflow run fails again: run the crew skill's block of "The checks". A head the rebase message went to gets none. |
+| The conflict | GitHub says such a pull request is `CONFLICTING`, and its head got no rebase message. | Before its review is written, sends the crewmate one queued message for each head, under the key `conflict\|<slug>\|<head12>`: run the first block of "A conflict". After it, sends the rebase message, also where a red check keeps `jmerge` from saying the conflict. |
+| The green | Every check of such a pull request passed at its head, and its crewmate owes a line on green and no reviewer it launched is still out: the brief says `Review: none` and has no `Reviewer: none` line yet, nor an `Unrun:`, `Stuck:` or `Stale base:` line at that head, or it has a `Fixed:` line while a home merges. | Sends the crewmate one queued message for each head, under the key `green\|<slug>\|<head12>`. A green pull request with nothing owed gets no message: no watch wakes a crewmate. |
+
+jbus calls six T3 Code tools and no other: `t3_thread_launch`, `t3_thread_list`, `t3_thread_read`, `t3_thread_send`, `link_pull_request` and `t3_thread_organize`. Two of them change a thread, and jbus sends each in one form only. `t3_thread_organize` goes out as a settle of a thread it names. `t3_thread_send` goes out as a queued message, with a retry key, to the thread on a brief's `Thread:` line.
+
+## What waits on you
+
+After a pass launches what it may, jbus follows every approved row that was not launched along its `depends` links to its root: the one thing only you can do. There are four:
+
+- **A pull request `jmerge` holds** is yours to accept. The line is `hand-merge #<n> <url>: <why>; safe because <fact> (proven at <head>); jmerge --accept <n> --by <user> --at "<YYYY-MM-DD HH:MM zone>"`, or `...; not yet, <what is short>` where the accept would be refused.
+- **A brief that changed after your go** is yours to approve again.
+- **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the three bases to pick one from.
+- **A project with no `webhook_url` or `webhook_key`, or with no sign-in to T3 Code,** is yours to configure.
+
+For each root jbus sends one `waiting-on-user` event: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`. It sends a root again each hour while it stands, and a pass that finds it gone prints `cleared <root>`. Each time a root is due, jbus raises its line on the desktop with `notify-send`, whether or not it queues an event. A project with no `webhook_url` or `webhook_key` gets no event, and while the webhook's last POST failed jbus queues only the first. In both cases jbus also prints the line in the journal. Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that stand, and `jbus queue show` prints them above the table.
+
+A row that ended with something left is not yours while its home has it. jbus tells the home once (the leftover, in the table above), and the row waits on that home: it is not in `waiting-on-user.json`, and the view shows it as ended with a leftover that its home has, with the time the home was told. It becomes yours in two ways. The home asks you a question about it, which is a gate. Or the home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `src/jbus/leftover.py`): then jbus sends one `stall` event for the row, which names the home's thread, and lists the row with that reason. A row whose home has no thread in its `home-id`, or whose home's thread T3 Code does not list as not settled, or whose message did not go, is yours at once, and its line says why. A home that takes over from the one that was told is told too. `~/.local/state/jbus/<project>/leftover.json` is the record: for each such row the `Left:` text, the home's thread, when it was told and when the stall was said.
+
+## Events and the webhook
+
+Everything a pass finds is an event. Each POST to a project's webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
+
+| `loud` | Kinds | What happens |
+|---|---|---|
+| `user` | `gate`, `waiting`, `alert`, `stall` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name. The top-level `say` holds those lines in order. |
+| `quiet` | `waiting-on-user`, `condition`, `merged`, `gate answered`, `result`, `review`, `report`, `stale`, `rebase`, `rereview`, `drops`, `proof`, `failed`, `conflict`, `refailed`, `green`, `mainmoved`, `resume`, `retro`, `snapshot`, `jmerge`, `expedite`, `heartbeat`, `queue`, `sweep`, `relayed`, `overlap`, `note`, `leftover` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
+
+A `gate` is a question a thread asked. A `waiting` event is `user` only when the list of what waits on you gained a hold, an approval, a config item or a gate of a home's `gates.md`, and `quiet` for any other change. A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
+
+A POST starts only when a `user` event waits, and it carries nothing else. jbus sends what waits for a project at most once in five minutes, in POSTs of at most 100 KB each. The key goes in two headers of each POST, `Authorization: Bearer` and `X-Automation-Key`. jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone. With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
+
+## When jbus fails
+
+A failure that repeats is told once, and so is its end. jbus counts three kinds of failure in a row:
+
+- `pass`, a pass that did not finish. `jbus.service` has `OnFailure=jbus-failed.service`, which runs `jbus alarm` to count it.
+- `webhook <project>`, a POST the webhook did not take.
+- `jmerge <project>`, a `jmerge` that did not run.
+
+The alert goes out after 3 failures in a row, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. jbus raises a `pass` alert on the desktop with `notify-send`, and the other two while the project's webhook is failing.
+
+A pass goes on past a project that raises. It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1. jbus stops a `jmerge` it runs after 300 seconds, and the unit stops a pass after five minutes (`TimeoutStartSec=5min`), so a command that hangs cannot hold every later pass. A pass that finds the lock held prints `busy` and ends.
+
+`jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, the open failure streaks, and each project's last error and the number of events in its outbox. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.
+
+Beside it a pass leaves `pass.json`: when the pass started and ended, and for each project its open rows and its `threads`. `threads` is every thread T3 Code lists as not settled, a crewmate's, a reviewer's, a scout's, a home's or any other, each with its role, slug, status, `updatedAt` and its liveness: `moving`, `quiet`, `hung`, `waiting`, `ended` or `unknown`. A turn that has written no item for 10 minutes is `quiet`: jbus counts from the pass that last saw the thread's count of items change, since T3 Code moves `updatedAt` when a message is queued. It is `hung` after 20 minutes, or after 10 with a run queued behind it, and jbus reads only a quiet thread to learn that. A thread that turns `hung` is one `stall` event for that thread and that run, and one line of `hung.jsonl` in the project's state directory. A later pass adds a line there with what became of it: `wrote again`, `interrupted` or `ended`. jbus interrupts no thread and sends a hung one nothing.

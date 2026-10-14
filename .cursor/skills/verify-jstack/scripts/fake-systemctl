@@ -1,0 +1,36 @@
+#!/bin/sh
+# The sandbox's stand-in for `systemctl --user`: it says the manager reads this HOME, and
+# does to the unit directory what systemd does on enable and disable of a linked unit. It
+# starts and stops nothing. Every call is a line in the log.
+log=${FAKE_SYSTEMCTL_LOG:-${VERIFY_JSTACK_SANDBOX:?}/systemctl.log}
+units=${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user
+echo "$*" >>"$log"
+[ "${1-}" = --user ] || {
+  echo "fake-systemctl: only --user is stood in for" >&2
+  exit 64
+}
+shift
+case ${1-} in
+show-environment) echo "HOME=$HOME" ;;
+daemon-reload) ;;
+is-enabled)
+  if [ -L "$units/timers.target.wants/$2" ]; then echo enabled; else
+    echo linked
+    exit 1
+  fi
+  ;;
+enable)
+  [ "$2" = --now ] && [ -L "$units/$3" ] || exit 1
+  mkdir -p "$units/timers.target.wants"
+  ln -sfn "$(readlink "$units/$3")" "$units/timers.target.wants/$3"
+  ;;
+disable)
+  [ "$2" = --now ] && [ -L "$units/$3" ] || exit 1
+  rm -f "$units/timers.target.wants/$3" "$units/$3"
+  ;;
+show) for unit in "$@"; do case $unit in *.service | *.timer) echo no ;; esac done ;;
+*)
+  echo "fake-systemctl: no stand-in for $*" >&2
+  exit 64
+  ;;
+esac

@@ -1,0 +1,460 @@
+"""What waits on the user: each approved row that cannot move is followed to its root.
+
+A root is one thing only the user can do, and it has a key:
+
+- `#<n>`: hand-merge a pull request that `jmerge` holds, which is green and reviewed, with
+  `jmerge --accept`: the line names the one fact the review proved it safe by, at its head;
+- `re-approve:<slug>`: approve again a brief that changed after their go;
+- `approve:<slug>`: approve a row that an approved row depends on;
+- `config:<project>`: set the webhook, or sign in to T3 Code.
+
+`walk` goes from every approved row that was not launched along its `depends` links
+(`Pass.reasons`, which `dispatch` records), and ends at a root or at progress: a thread, a
+pull request `jmerge` waits for, a slot, or a gate the Chef already has. `tell` sends one
+`waiting-on-user` event for each root, again each hour it still stands, and rewrites
+`stall.json`, when a root was first seen and last sent. The roots that stand now are its
+answer: `waiting` lists them with everything else that waits on the user.
+
+What waits on a crew is `guarded`'s: a pull request that changes a guarded path, which
+`jmerge` keeps on a `wait` line that nobody is woken by. Where the line says the head has no
+proven safety fact, and the head is a fix pushed after the last review, its crew is asked
+for the one scoped review that proves it, once per head. A wait that still says the same of
+the same head after `PASSES` passes is a `stall` event, for the chat, once: `guarded.json`
+counts the passes.
+
+A leftover its home did not close is `unclosed`'s: a row that ended with something left,
+whose home jbus told of it (`leftover`) `leftover.CLOSE_MINUTES` ago or more. It is one
+`stall` event for the row, which names the home's thread, and from then on the row is on
+the list of what waits on the user.
+
+A turn that hangs is `hung`'s: a thread that is out and has written nothing for too long
+(`live`). It is one `stall` event for that thread and that run, and one line of `hung.jsonl`.
+A later pass adds a line that says what became of it: it wrote again by itself, it was
+interrupted, or it ended. jbus interrupts nothing and sends the thread nothing.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from datetime import UTC, datetime
+from typing import Any
+
+from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
+from jbus.dispatch import launched, thread_of
+from jbus.merge import parse
+from jbus.t3 import Client
+from jbus.wake import Changed, Depends, Pass, cut, notify
+from jbus.watch import World
+
+EVENTS = {"waiting-on-user": "quiet", "stall": "user"}
+EVENT = "waiting-on-user"
+AGAIN = 60 * 60
+_READY = re.compile(r"^ready (\d+) \S+ .*?, (safe because .+ \(proven at [0-9a-f]+\))$")
+
+_GUARDED = re.compile(r"guarded \(touches \S+\), .+")
+_UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
+_RAN = re.compile(r"^Verdict: (?:clean|findings)$", re.M)
+_REBASED = re.compile(
+    r"^Rebase: patch changed in .+, before ([0-9a-f]{40}), head ([0-9a-f]{40})$", re.M
+)
+STALL = "stall"
+PASSES = 10
+REVIEWING = 30
+LEFT = 300
+HUNG = "hung.jsonl"
+WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
+BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(
+    ("completed", "failed", "rolled_back"), ENDED
+)
+
+Roots = dict[str, tuple[str, list[str]]]
+
+
+def hand_merge(run: Pass, number: int, url: str, why: str) -> str:
+    """What the user does about a held pull request: the command that merges it by hand, with
+    the fact its review proved it safe by.
+
+    `jmerge` is asked what an accept would do, with `--check`, which merges nothing. Where
+    it would refuse, there is no command to give, and the line says what is short.
+    """
+    held = f"hand-merge #{number} {url}: {why}"
+    ran = run.run("jmerge", "--accept", str(number), "--check")
+    lines = [line.strip() for line in ran.stdout.splitlines()]
+    ready = next((m for m in map(_READY.match, lines) if m and int(m[1]) == number), None)
+    if ready:
+        user = run.user
+        accept = f'jmerge --accept {number} --by {user.user} --at "{user.form()}"'
+        return f"{held}; {ready[2]}; {accept}"
+    said = (line for line in map(parse, lines) if line and line.word != "merged")
+    short = next((line.reason for line in said if line.reason and line.number == number), "")
+    return f"{held}; not yet, {short or f'jmerge --accept {number} --check did not answer'}"
+
+
+def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Roots:
+    """The roots the approved rows that wait end at, each with the rows it unblocks."""
+    name = run.project.name
+    user = run.user
+    table = {row["slug"]: row for row in rows}
+    said = (line for line in map(parse, pulls) if line and line.word == "hold" and line.reason)
+    holds = {line.number: (line.name, line.reason) for line in said}
+    merges: dict[int, str] = {}
+
+    def roots(slug: str, seen: set[str]) -> dict[str, str]:
+        if slug in seen:
+            return {}
+        seen.add(slug)
+        pull = world.open.get(slug)
+        if pull:
+            number = pull["number"]
+            if number not in holds:
+                return {}
+            if number not in merges:
+                merges[number] = hand_merge(run, number, *holds[number])
+            return {f"#{number}": merges[number]}
+        if slug in world.merged or slug in world.threads or launched(run, slug):
+            return {}
+        reason, row = run.reasons.get(slug), table.get(slug)
+        if isinstance(reason, Changed) and row:
+            now, was = reason.sha, row.get("brief_sha", "")[:12]
+            command = waiting.approve(name, slug, now, user)
+            action = f"re-approve {slug} (brief now {now}, approved {was}): {command}"
+            return {f"re-approve:{slug}": action}
+        if isinstance(reason, Depends):
+            found: dict[str, str] = {}
+            for other in reason.slugs:
+                found |= roots(other, seen)
+            return found
+        if reason is None and row and not row.get("approved"):
+            sha = queue.brief_sha(queue.brief(run.state, slug) or "")[:12]
+            return {f"approve:{slug}": f"approve {slug}: {waiting.approve(name, slug, sha, user)}"}
+        return {}
+
+    found: Roots = {}
+    for row in sorted(rows, key=queue.order):
+        if row["slug"] in run.reasons:
+            for key, action in roots(row["slug"], set()).items():
+                found.setdefault(key, (action, []))[1].append(row["slug"])
+    return found
+
+
+def config(run: Pass, client: Client | None, rows: list[queue.Row] | None) -> Roots:
+    """The project's own root: a webhook that is not set, or no sign-in to T3 Code."""
+    name, project = run.project.name, run.project
+    actions, unblocks = [], []
+    if not (project.webhook_url and project.webhook_key):
+        actions.append(f"set webhook_url and webhook_key for {name} in ~/.config/jbus/config.toml")
+        unblocks.append("events to the Chef")
+    if client is None:
+        actions.append("run jbus t3 login")
+        unblocks += [row["slug"] for row in rows or [] if row.get("status") == "queued"]
+    return {f"config:{name}": (", and ".join(actions), unblocks)} if actions else {}
+
+
+def done(run: Pass, world: World | None, rows: list[queue.Row] | None, key: str) -> bool:
+    """Whether a root no longer stands, by what needs no row judged: the user did the thing."""
+    kind, _, slug = key.partition(":")
+    if key.startswith("#"):
+        return world is not None and key not in {f"#{p['number']}" for p in world.open.values()}
+    if rows is None or kind not in ("approve", "re-approve"):
+        return False
+    row = next((row for row in rows if row["slug"] == slug), None)
+    if row is None or kind == "approve":
+        return row is None or bool(row.get("approved"))
+    return queue.approved_text(row, queue.brief(run.state, slug) or "")
+
+
+def tell(
+    run: Pass,
+    client: Client | None,
+    world: World | None,
+    rows: list[queue.Row] | None,
+    pulls: list[str],
+) -> list[waiting.Item]:
+    """Send each root that is due, say which ones cleared, and rewrite `stall.json`. The
+    answer is the roots that stand, each `{"key", "line", "since", "unblocks"}`.
+
+    A root that is due is also raised on the desk, and printed when the webhook is not set
+    or its last POST failed. A pass that could not ask T3 Code or GitHub, or read the queue,
+    or in which dispatch was off, judges no row: the roots it had are kept as they were,
+    neither sent nor cleared, but for one that is plainly `done`. So is a held pull request
+    that is still open and that `jmerge` said nothing of in this pass: it did not run, or the
+    home merges.
+    """
+    name = run.project.name
+    user = run.user
+    on = run.config.dispatch and not run.config.stop_path.exists()
+    judged = on and client is not None and world is not None and rows is not None
+    silent = {f"#{pull['number']}" for pull in (world.open.values() if world else [])} - {
+        f"#{line.number}" for line in map(parse, pulls) if line
+    }
+    found = walk(run, world, rows, pulls) if judged else {}
+    found |= config(run, client, rows)
+    was: dict[str, Any] = read_json(run.state / "stall.json", {})
+    before = {one["key"]: one for one in waiting.read(run.state) or [] if "unblocks" in one}
+    blank = not (run.project.webhook_url and run.project.webhook_key)
+    failing = run.box.marks().get("failed", 0) > 0
+    quiet = blank or failing
+    kept: dict[str, Any] = {}
+    shown = []
+    for key, (action, unblocks) in found.items():
+        entry = was.get(key) or {"since": run.now.isoformat()}
+        since = user.clock(datetime.fromisoformat(entry["since"]))
+        line = (
+            f"{EVENT} {name}: {action} · unblocks {', '.join(unblocks) or 'none'} · since {since}"
+        )
+        sent = entry.get("sent")
+        if not sent or (run.now - datetime.fromisoformat(sent)).total_seconds() >= AGAIN:
+            run.box.send(key, EVENT, line)
+            entry = {**entry, "sent": run.now.isoformat()}
+            notify(line)
+            if quiet:
+                run.say(line)
+        kept[key] = entry
+        shown.append({"key": key, "line": action, "since": entry["since"], "unblocks": unblocks})
+    for key, entry in was.items():
+        if key in kept:
+            continue
+        cleared = key.startswith("config:") or (judged and key not in silent)
+        if cleared or done(run, world, rows, key):
+            run.say(f"cleared {key}")
+        else:
+            kept[key] = entry
+            shown += [before[key]] if key in before else []
+    if kept != was:
+        write_json(run.state / "stall.json", kept)
+    return shown
+
+
+def reviewed(brief: str) -> str:
+    """The head the last review that ran saw, as the crew skill's "A second pass" reads it."""
+    ran = [body for heading, body in mirror.sections(brief) if heading == "## Review"]
+    heads = [mirror.field(body, "Head").split() for body in ran if _RAN.search(body)]
+    return (heads[-1][:1] or [""])[0] if heads else ""
+
+
+def launched_for(brief: str, head: str) -> bool:
+    """Whether the crew already launched the scoped review of this head: a `Scoped reviewer:`
+    line that ends `of <head>`, as the crew skill's "A second pass" reads it. One that names
+    another head, or none as a rebase's did before its ask named one, is no launch for this
+    one, and neither is the line of a session that had no launch tool, `Scoped reviewer:
+    none, ...`."""
+    return any(not words[2].startswith("none") for words in _reviewers(brief, head))
+
+
+def _reviewers(brief: str, head: str) -> list[list[str]]:
+    """The words of each `Scoped reviewer:` line that names this head."""
+    lines = (line.split() for line in brief.splitlines() if line.startswith("Scoped reviewer:"))
+    return [words for words in lines if words[-2:] == ["of", head]]
+
+
+def prove(run: Pass, client: Client, world: World, number: int, slug: str, short: str) -> None:
+    """Ask the crew of a done brief for the scoped review of a fix no review has proved.
+
+    Nothing is asked where the review is of the commit `jmerge` names: its proof is unproven
+    or failed, and another review of nothing does not change it. That wait is a stall. Nor
+    where the crew wrote a `Scoped reviewer:` line for the head, one that says it had no
+    launch tool included: it has told its home, and has nothing more to do.
+
+    The commit `jmerge` names is the head, or for a rebase that changed the patch the commit
+    before it, which `jmerge` compared the head with and found no proof at: a fix no review
+    proved, rebased since. The review that is asked for is of the head either way.
+    """
+    head = world.open[slug].get("headRefOid", "")
+    named = _UNPROVEN.search(short)
+    if not named or f"proof|{slug}|{head[:12]}" in read_json(run.state / "sent.json", []):
+        return
+    brief = _brief(run, slug)
+    rebased = [before for before, to in _REBASED.findall(brief)[-1:] if to == head]
+    at = (rebased or [head])[0]
+    saw = reviewed(brief)
+    done = mirror.field(mirror.last_result(brief), "Status") == "done"
+    if not at.startswith(named[1]) or not done or not saw or saw == at:
+        return
+    if _reviewers(brief, head):
+        return
+    default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
+    old, new = (run.run("git", "merge-base", default.stdout.strip(), to) for to in (saw, head))
+    if default.returncode or old.returncode or new.returncode:
+        run.say(f"wait {slug}: no range from the default branch to {saw[:12]} and {head[:12]}")
+        return
+    ask = rebase.unproven(f"{old.stdout.strip()}..{saw}", f"{new.stdout.strip()}..{head}")
+    rebase.deliver(run, client, world, number, short, ask)
+
+
+def _brief(run: Pass, slug: str) -> str:
+    try:
+        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
+    """Ask for the proof a guarded pull request is short of, and say a guarded wait that lasts.
+
+    Each pass in which `jmerge` says the same of the same head is counted. The `PASSES`th is
+    one `stall` event, which names the pull request, the head and its crew's thread. A scoped
+    reviewer the crew launched for the head starts the count again, once, and the event then
+    comes at the `REVIEWING`th pass and says so: a review lasts longer than `PASSES` passes.
+    """
+    by_number = {pull["number"]: slug for slug, pull in world.open.items()}
+    was: dict[str, Any] = read_json(run.state / "guarded.json", {})
+    kept: dict[str, Any] = {}
+    for said in map(parse, pulls):
+        if not said or said.word != "wait" or not _GUARDED.fullmatch(said.reason):
+            continue
+        number, url, short = said.number, said.name, said.reason
+        slug = by_number.get(number, "")
+        head = world.open[slug].get("headRefOid", "") if slug else ""
+        if not head:
+            continue
+        prove(run, client, world, number, slug, short)
+        brief = _brief(run, slug)
+        reviewing = launched_for(brief, head)
+        seen = was.get(slug, {})
+        same = (seen.get("head"), seen.get("short")) == (head, short)
+        same = same and seen.get("reviewing", False) == reviewing
+        passes = seen.get("passes", 0) + 1 if same else 1
+        kept[slug] = {"head": head, "short": short, "passes": passes, "reviewing": reviewing}
+        if passes >= (REVIEWING if reviewing else PASSES):
+            more = ", with a scoped reviewer launched" if reviewing else ""
+            line = (
+                f"{STALL} {slug}: #{number} {url} has waited {passes} passes at {head[:12]}"
+                f"{more}, {short}; its crew's thread is {thread_of(brief) or 'not known'}"
+            )
+            run.find(slug, STALL, line, key=f"{head[:12]} {reviewing} {short}")
+    if kept != was:
+        write_json(run.state / "guarded.json", kept)
+
+
+def unclosed(run: Pass, world: World, rows: list[queue.Row]) -> None:
+    """Say each leftover that its home was told of and did not close in time, once for the
+    row: the event names the home's thread and what the Result leaves. A row that is the
+    user's for another reason (`Record.why`) is on the list with that reason, and is no
+    stall."""
+    held = leftover.read(run.state)
+    for slug, _ in leftover.ended(run, world, rows):
+        record = held.get(slug)
+        if record is None or record.stalled or record.why:
+            continue
+        if not leftover.late(record, run.now):
+            continue
+        why = leftover.LATE.format(thread=record.thread, minutes=leftover.CLOSE_MINUTES)
+        line = f"{STALL} {slug}: it ended with something left, and {why}; left: "
+        run.find(slug, STALL, line + cut(record.left, LEFT), key="leftover")
+        leftover.said(run.state, slug, run.now)
+
+
+def _calls(run: Pass) -> dict[tuple[str, str], dict[str, Any]]:
+    """Each `hung` call of `hung.jsonl` that no later line says the end of, by its thread
+    and its run."""
+    try:
+        lines = (run.state / HUNG).read_text(errors="replace").splitlines()
+    except OSError:
+        return {}
+    still: dict[tuple[str, str], dict[str, Any]] = {}
+    for line in lines:
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(one, dict) or not isinstance(one.get("at"), str):
+            continue
+        key = (str(one.get("thread")), str(one.get("run")))
+        if "became" in one:
+            still.pop(key, None)
+        else:
+            still[key] = one
+    return still
+
+
+def watched(run: Pass) -> frozenset[str]:
+    """The threads a `hung` call is still open for: a pass reads each, to say what became."""
+    return frozenset(thread for thread, _ in _calls(run))
+
+
+def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> str:
+    """What became of a `hung` call, or nothing while it stands or cannot be told.
+
+    `now` is its thread as this pass has it, None for one T3 Code no longer lists as out.
+    The run's own status says an interrupt from an end, and a run that is neither active
+    nor among the runs read has ended. A run that is still under way wrote again when its
+    thread wrote an item after the call: a message queued to it is no write (`threads.out`).
+    """
+    if now is None:
+        return ENDED
+    if now["runs"] is None or now["run"] == at_run and at_run not in now["runs"]:
+        return ""
+    status = now["runs"].get(at_run)
+    if status is None or status in BECAME:
+        return BECAME.get(status, ENDED)
+    try:
+        wrote = datetime.fromisoformat(now["wrote"]) > datetime.fromisoformat(call["at"])
+    except (TypeError, ValueError):
+        return ""
+    return WROTE if wrote else ""
+
+
+def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
+    """Say each thread that turned `hung`, once for that thread and that run, and keep the
+    record a count of false alarms is made from.
+
+    `out` is what `threads.out` gave. The event is loud, and its line says the thread's
+    title, how long it has written nothing and how many runs wait behind it. Each call is
+    one line of `hung.jsonl`: the thread, its role, the run, the time, the minutes silent
+    and the runs queued behind. What became of a call is one more line, added by the first
+    pass that can tell: `{"at", "thread", "run", "became"}`.
+
+    A call's line is written before its event is sent, so no alarm is without its record: a
+    pass that dies between the two writes the line again and then sends. A line that cannot
+    be written is said, sends nothing, and is tried on the next pass. A thread with no
+    active run that a read named is not said: there is no run to say it of.
+    """
+    if out is None:
+        return
+    at = run.now.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    by_id = {one["id"]: one for one in out}
+    for (thread, at_run), call in _calls(run).items():
+        became = _became(by_id.get(thread), at_run, call)
+        if became:
+            _keep(run, {"at": at, "thread": thread, "run": at_run, "became": became})
+    sent = run.box.sent()
+    for one in out:
+        key = f"hung {one['id']} {one['run']}"
+        if one["live"] != "hung" or not one["run"] or f"{STALL}|{one['slug']}|{key}" in sent:
+            continue
+        queued = one["queued"]
+        behind = f"{queued or 'no'} {'run waits' if queued < 2 else 'runs wait'} behind it"
+        line = (
+            f'{STALL} {one["slug"] or run.project.name}: thread "{one["title"]}" has written '
+            f"nothing for {one['silent']} min, {behind}"
+        )
+        call = {name: one[name] for name in ("title", "role", "slug", "run", "silent", "queued")}
+        if _keep(run, {"at": at, "thread": one["id"], **call}):
+            run.find(one["slug"], STALL, line, key=key)
+
+
+def _keep(run: Pass, line: dict[str, Any]) -> bool:
+    """Add one line to `hung.jsonl`. One that cannot be written is said, and the pass goes on."""
+    try:
+        handle = os.open(run.state / HUNG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            os.write(handle, (json.dumps(line) + "\n").encode())
+        finally:
+            os.close(handle)
+    except OSError as error:
+        run.say(f"wait {run.project.name}: {HUNG} could not be written ({error})")
+        return False
+    return True
+
+
+STEPS = (
+    verbs.Step(
+        "tellers",
+        110,
+        "stall.guarded",
+        lambda half: guarded(half.run, half.client, half.seen.world, half.said),
+        ("client", "world"),
+    ),
+)

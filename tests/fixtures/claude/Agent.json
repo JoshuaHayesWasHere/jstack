@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "effort": {
+      "enum": ["low", "medium", "high", "xhigh", "max"],
+      "type": "string"
+    },
+    "isolation": {
+      "enum": ["worktree", "remote"],
+      "type": "string"
+    },
+    "model": {
+      "enum": ["sonnet", "opus", "haiku", "fable"],
+      "type": "string"
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "run_in_background": {
+      "type": "boolean"
+    },
+    "subagent_type": {
+      "type": "string"
+    }
+  },
+  "required": ["description", "prompt"],
+  "type": "object"
+}

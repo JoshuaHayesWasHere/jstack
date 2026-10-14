@@ -1,0 +1,2 @@
+{"type": "user", "sessionId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "cwd": "/work/demo", "message": {"role": "user", "content": "What does make check run?"}}
+{"type": "assistant", "sessionId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "cwd": "/work/demo", "message": {"role": "assistant", "content": [{"type": "text", "text": "ruff and pytest."}]}}

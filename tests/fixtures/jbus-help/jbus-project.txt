@@ -1,0 +1,8 @@
+usage: jbus project [-h] {add} ...
+
+positional arguments:
+  {add}
+    add       add a project's table to the config, with no webhook
+
+options:
+  -h, --help  show this help message and exit

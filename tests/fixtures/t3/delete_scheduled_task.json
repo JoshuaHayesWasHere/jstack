@@ -1,0 +1,12 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "scheduledTaskId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "scheduledTaskId"
+  ],
+  "type": "object"
+}

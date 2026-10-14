@@ -1,0 +1,17 @@
+# The paths that decide whether a check still stands: when main changes one after a pull
+# request's check started, that check ran against another CI, and the pull request waits
+# whatever paths it changes itself. It waits for a fresh check, or for a rebase where it
+# changes a guarded path. See guarded.txt.
+#
+# One pattern per line. A line that starts with # is a comment.
+# - A pattern that ends in / is a directory, and covers everything under it. With another /
+#   in it, or one at its start, it is a path from the root of the repo. With none, it is a
+#   directory of that name at any depth.
+# - Any other pattern is a file. With no / in it, it is a file name at any depth. With one,
+#   it is the whole path from the root of the repo: src/jbus/merge.py, /Makefile.
+# - * matches any run of characters between two /, and never a / itself.
+# - jmerge refuses to run on a pattern it cannot read: **, a leading !, a \, an empty part.
+.github/workflows/
+/pyproject.toml
+/uv.lock
+/Makefile
