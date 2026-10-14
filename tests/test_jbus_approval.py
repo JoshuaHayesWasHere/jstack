@@ -11,6 +11,7 @@ from dataclasses import replace
 import pytest
 
 import jbus
+import jsettings
 from jbus import questions, queue, word
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, GO, NOW, RAN, SAID, SAID_AT, SESSION
@@ -35,7 +36,8 @@ def cell(kitchen, slug):
 
 
 def viewed(kitchen):
-    sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home")
+    """The view's state, read with the config's zone, as `jbus view` reads it."""
+    sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
     return view_state.build(sources, "demo", NOW, lambda _: {})
 
 
