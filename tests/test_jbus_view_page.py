@@ -472,6 +472,27 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
     assert most == [1, 1]
 
 
+def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
+    tmp_path, monkeypatch
+):
+    """A browser that hangs, and a process it started that would outlive it, are both gone
+    once the launch's bound is up: a hang costs the test that bound and no more, and leaves
+    nothing behind to slow the next browser."""
+    child = tmp_path / "child"
+    hangs = tmp_path / "chromium"
+    hangs.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {child}\nexec sleep 300\n")
+    hangs.chmod(0o755)
+    monkeypatch.setattr("test_jbus_view_page.CHROMIUM", str(hangs))
+    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
+    monkeypatch.setattr("test_jbus_view_page.LAUNCH", 2)
+    started = time.monotonic()
+    ran = browse("http://127.0.0.1:9/")
+    assert time.monotonic() - started < 20
+    assert ran.returncode == STOPPED
+    time.sleep(0.5)
+    assert not Path(f"/proc/{child.read_text().strip()}").exists()
+
+
 def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(scene, tmp_path):
     seen = look(scene, tmp_path, task="oat-milk")
     opened = clean(seen)
