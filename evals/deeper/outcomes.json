@@ -10,9 +10,11 @@
     "not_held": 1,
     "shipped": {
       "raw": 0,
+      "raw_beyond": 0,
       "instruments": 1,
       "beyond": 1,
       "outside": 1.0,
+      "outside_no_code": 0.714,
       "proof_lines": 7,
       "words": 469
     }
@@ -28,9 +30,11 @@
     "not_held": 1,
     "shipped": {
       "raw": 3,
+      "raw_beyond": 1,
       "instruments": 3,
       "beyond": 3,
       "outside": 1.0,
+      "outside_no_code": 0.857,
       "proof_lines": 7,
       "words": 688
     }
@@ -46,9 +50,11 @@
     "not_held": 0,
     "shipped": {
       "raw": 0,
+      "raw_beyond": 0,
       "instruments": 0,
       "beyond": 0,
       "outside": 1.0,
+      "outside_no_code": 0.6,
       "proof_lines": 5,
       "words": 349
     }
@@ -64,9 +70,11 @@
     "not_held": 2,
     "shipped": {
       "raw": 0,
+      "raw_beyond": 0,
       "instruments": 1,
       "beyond": 1,
       "outside": 1.0,
+      "outside_no_code": 0.667,
       "proof_lines": 6,
       "words": 554
     }
@@ -82,9 +90,11 @@
     "not_held": 1,
     "shipped": {
       "raw": 0,
+      "raw_beyond": 0,
       "instruments": 0,
       "beyond": 0,
       "outside": 0.143,
+      "outside_no_code": 0.0,
       "proof_lines": 7,
       "words": 730
     }
@@ -100,9 +110,11 @@
     "not_held": 0,
     "shipped": {
       "raw": 2,
+      "raw_beyond": 0,
       "instruments": 2,
       "beyond": 1,
       "outside": 0.286,
+      "outside_no_code": 0.143,
       "proof_lines": 7,
       "words": 1039
     }
@@ -118,9 +130,11 @@
     "not_held": 1,
     "shipped": {
       "raw": 1,
+      "raw_beyond": 0,
       "instruments": 0,
       "beyond": 0,
       "outside": 1.0,
+      "outside_no_code": 0.429,
       "proof_lines": 7,
       "words": 643
     }
@@ -136,9 +150,11 @@
     "not_held": 0,
     "shipped": {
       "raw": 1,
+      "raw_beyond": 0,
       "instruments": 0,
       "beyond": 0,
       "outside": 0.833,
+      "outside_no_code": 0.667,
       "proof_lines": 6,
       "words": 583
     }
@@ -151,12 +167,14 @@
     "findings_info": 1,
     "follow_up_results": 0,
     "reruns": 0,
-    "not_held": 3,
+    "not_held": 2,
     "shipped": {
       "raw": 0,
+      "raw_beyond": 0,
       "instruments": 0,
       "beyond": 0,
       "outside": 0.833,
+      "outside_no_code": 0.667,
       "proof_lines": 6,
       "words": 539
     }
@@ -169,12 +187,14 @@
     "findings_info": 2,
     "follow_up_results": 1,
     "reruns": 1,
-    "not_held": 3,
+    "not_held": 2,
     "shipped": {
       "raw": 2,
+      "raw_beyond": 0,
       "instruments": 1,
       "beyond": 1,
       "outside": 1.0,
+      "outside_no_code": 1.0,
       "proof_lines": 5,
       "words": 561
     }

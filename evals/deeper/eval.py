@@ -19,6 +19,9 @@ It runs four steps, and each can be run alone (`eval.py score` rescores the comm
   and writes `scores.json`, keyed by the random ids.
 - `report`: joins the scores with the key and writes `results.md`, with the rule in
   `README.md` for whether /deeper won.
+
+`eval.py --run run-1 score report` rescores and reports a run that is kept in its own
+directory, with no model call.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ from __future__ import annotations
 import concurrent.futures
 import hashlib
 import json
+import os
 import random
 import re
 import secrets
@@ -33,6 +37,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 from math import comb
 from pathlib import Path
 
@@ -52,6 +57,8 @@ EFFORT = "medium"
 TRIALS = 2
 WORKERS = 4
 MEASURES = ("raw", "instruments", "outside")
+# Shown beside the measures as a reading of them, and not counted by the rule.
+READINGS = ("raw_beyond", "beyond", "outside_no_code")
 
 # The briefs of the eval: research, perf, analysis and outcome work, each with a pull request.
 CASES = {
@@ -117,10 +124,13 @@ def claude(prompt: str) -> str:
 
 
 def _private() -> tuple[jleak.Pattern, ...]:
+    """The private patterns of `jleak`, found as `jleak` finds them. With none, nothing that
+    could hold them is written into the repo."""
+    config = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
     try:
-        return jleak.load(jleak.path(Path.home() / ".config"))
-    except jleak.Missing:
-        return ()
+        return jleak.load(jleak.path(Path(config)))
+    except jleak.Invalid as error:
+        raise SystemExit(f"eval.py: {error}: the eval writes nothing it cannot redact") from None
 
 
 def _redact(text: str, patterns: tuple[jleak.Pattern, ...]) -> str:
@@ -132,6 +142,12 @@ def _redact(text: str, patterns: tuple[jleak.Pattern, ...]) -> str:
 def shipped(text: str) -> str:
     """The brief as the home wrote it: the text above its first Result or Review."""
     return re.split(r"^## (?:Result|Review)", text, maxsplit=1, flags=re.M)[0].strip()
+
+
+def results(text: str) -> str:
+    """The Result sections of a brief, follow-ups included, and none of its Review."""
+    parts = re.split(r"^(?=## )", text, flags=re.M)
+    return "".join(part for part in parts if part.startswith("## Result"))
 
 
 def turned_out(slug: str, text: str) -> dict[str, object]:
@@ -154,7 +170,7 @@ def turned_out(slug: str, text: str) -> dict[str, object]:
         findings_info=findings.count("info"),
         follow_up_results=len(re.findall(r"^## Result, follow-up", text, re.M)),
         reruns=len(re.findall(r"^Rerun: ", text, re.M)),
-        not_held=len(re.findall(r"does not hold", text)),
+        not_held=len(re.findall(r"\b(?:does|did) not hold\b", results(text))),
         shipped=score(_redact(shipped(text), _private())).as_dict(),
     )
     return found
@@ -199,10 +215,18 @@ def _one(slug: str, arm: str, trial: int) -> tuple[str, str, int, str, str]:
     return slug, arm, trial, claude(WRITER.format(template=template, task=task)), deeper
 
 
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
 def write() -> None:
+    """Write every brief into a new directory, and put it in place of the committed one only
+    once the last brief and the key are written: a call that fails leaves the run as it was."""
+    if not shutil.which("claude"):
+        raise SystemExit("eval.py: write: no claude on PATH, the committed run is kept")
+    fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
     for name in ("runs", "deeper"):
-        shutil.rmtree(HERE / name, ignore_errors=True)
-        (HERE / name).mkdir()
+        (fresh / name).mkdir()
     jobs = [
         (slug, arm, trial)
         for slug in CASES
@@ -214,23 +238,32 @@ def write() -> None:
         for slug, arm, trial, brief, deeper in pool.map(lambda job: _one(*job), jobs):
             brief, deeper = _redact(brief, patterns), _redact(deeper, patterns)
             name = secrets.token_hex(6)
-            (HERE / "runs" / f"{name}.md").write_text(brief + "\n")
+            (fresh / "runs" / f"{name}.md").write_text(brief + "\n")
             key[name] = {"slug": slug, "arm": arm, "trial": trial}
             if deeper:
-                (HERE / "deeper" / f"{slug}-{trial}.md").write_text(deeper + "\n")
+                (fresh / "deeper" / f"{slug}-{trial}.md").write_text(deeper + "\n")
             print(f"write: {len(key)} of {len(jobs)}", flush=True)
     shuffled = dict(random.sample(sorted(key.items()), len(key)))
-    (HERE / "key.json").write_text(json.dumps(shuffled, indent=2) + "\n")
+    (fresh / "key.json").write_text(json.dumps(shuffled, indent=2) + "\n")
+    ran = {"template": _sha(TEMPLATE), "skill": _sha(SKILL)}
+    (fresh / "run.json").write_text(json.dumps(ran, indent=2) + "\n")
+    for name in ("runs", "deeper", "key.json", "run.json"):
+        old = HERE / name
+        if old.is_dir():
+            shutil.rmtree(old)
+        elif old.exists():
+            old.unlink()
+        (fresh / name).rename(old)
+    fresh.rmdir()
     print(f"write: {len(key)} briefs in runs/, the key in key.json")
 
 
 def score_all() -> None:
     """The blind step: the text of each file in runs/, and no key."""
     scores = {
-        path.stem: score(path.read_text()).as_dict()
-        for path in sorted((HERE / "runs").glob("*.md"))
+        path.stem: score(path.read_text()).as_dict() for path in sorted((RUN / "runs").glob("*.md"))
     }
-    (HERE / "scores.json").write_text(json.dumps(scores, indent=2) + "\n")
+    (RUN / "scores.json").write_text(json.dumps(scores, indent=2) + "\n")
     print(f"score: {len(scores)} briefs scored")
 
 
@@ -244,8 +277,9 @@ def sign_test(wins: int, losses: int) -> float:
 
 
 def report() -> None:
-    key = json.loads((HERE / "key.json").read_text())
-    scores = json.loads((HERE / "scores.json").read_text())
+    key = json.loads((RUN / "key.json").read_text())
+    scores = json.loads((RUN / "scores.json").read_text())
+    ran = json.loads((RUN / "run.json").read_text())
     outcomes = json.loads((HERE / "outcomes.json").read_text())
     if set(key) != set(scores):
         raise SystemExit("report: key.json and scores.json name different briefs: run score")
@@ -262,21 +296,28 @@ def report() -> None:
         "Written by `uv run python evals/deeper/eval.py`. Do not edit by hand.",
         "",
         f"Writer: `{MODEL}` at `{EFFORT}` effort, no tools. Trials: {TRIALS} a case and arm. "
-        f"Template: `templates/brief.md` at sha256 "
-        f"`{hashlib.sha256(TEMPLATE.read_bytes()).hexdigest()[:12]}`. Skill: "
-        f"`skills/deeper/SKILL.md` at sha256 "
-        f"`{hashlib.sha256(SKILL.read_bytes()).hexdigest()[:12]}`.",
+        f"Template: `templates/brief.md` at sha256 `{ran['template']}`. Skill: "
+        f"`skills/deeper/SKILL.md` at sha256 `{ran['skill']}`, the text this run read.",
         "",
         "## Each case, the mean of its trials (plain / deeper)",
         "",
-        "| Case | Kind | Raw sources | Instruments | Beyond the skill's examples "
-        "| Proof outside | Words |",
-        "|---|---|---|---|---|---|---|",
+        "| Case | Kind | Raw sources | Raw beyond the skill's examples | Instruments "
+        "| Instruments beyond the skill's examples | Proof outside | Proof outside, no inline "
+        "code | Words |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for slug, kind in CASES.items():
         cells = [
             f"{mean(slug, 'plain', m):g} / {mean(slug, 'deeper', m):g}"
-            for m in ("raw", "instruments", "beyond", "outside", "words")
+            for m in (
+                "raw",
+                "raw_beyond",
+                "instruments",
+                "beyond",
+                "outside",
+                "outside_no_code",
+                "words",
+            )
         ]
         lines.append(f"| `{slug}` | {kind} | " + " | ".join(cells) + " |")
     lines += [
@@ -288,7 +329,7 @@ def report() -> None:
         "|---|---|---|---|---|---|---|---|",
     ]
     verdicts = {}
-    for measure in (*MEASURES, "beyond"):
+    for measure in (*MEASURES, *READINGS):
         plain = [mean(slug, "plain", measure) for slug in CASES]
         deeper = [mean(slug, "deeper", measure) for slug in CASES]
         wins = sum(d > p for p, d in zip(plain, deeper, strict=True))
@@ -313,7 +354,9 @@ def report() -> None:
     verdict = "won" if len(won) >= 2 and not lost else "lost" if len(lost) >= 2 else "did not win"
     lines += [
         "",
-        f"**Verdict: /deeper {verdict}**, by the rule in `README.md`: it wins a measure when it "
+        f"**Verdict of this run: /deeper {verdict}**, by the rule in `README.md`, which one "
+        "run decides alone and the README's Result reads across every run: it wins a measure "
+        "when it "
         "scores higher on more cases than it scores lower, with a sign test under 0.05, and it "
         f"wins the eval with two of the three measures and a loss on none. Won: "
         f"{', '.join(won) or 'none'}. Lost: {', '.join(lost) or 'none'}.",
@@ -322,10 +365,10 @@ def report() -> None:
         "",
         "The brief the home actually wrote, scored the same way, and what became of its pull "
         "request: findings of its review (errors and warnings, then info), follow-up Results, "
-        "reruns of a check, and Done when lines its Result said did not hold.",
+        "reruns of a check, and how many times its Results say a line does or did not hold.",
         "",
         "| Case | Merged | Shipped: raw / instruments / outside | Findings | Follow-ups "
-        "| Reruns | Not held |",
+        "| Reruns | Not held, in the Results |",
         "|---|---|---|---|---|---|---|",
     ]
     for slug in CASES:
@@ -337,14 +380,22 @@ def report() -> None:
             f"| {out['findings_error_or_warning']}, {out['findings_info']} "
             f"| {out['follow_up_results']} | {out['reruns']} | {out['not_held']} |"
         )
-    (HERE / "results.md").write_text("\n".join(lines) + "\n")
+    (RUN / "results.md").write_text("\n".join(lines) + "\n")
     print(f"report: /deeper {verdict}, results.md written")
 
 
 STEPS = {"cases": cases, "write": write, "score": score_all, "report": report}
+RUN = HERE
 
 
 def main(argv: list[str]) -> int:
+    """`[--run <directory>] [step...]`: `--run run-1` scores and reports a kept run."""
+    global RUN
+    if argv[:1] == ["--run"]:
+        if len(argv) < 2 or not (HERE / argv[1] / "runs").is_dir():
+            print("eval.py: --run names a directory of evals/deeper with runs/", file=sys.stderr)
+            return 2
+        RUN, argv = HERE / argv[1], argv[2:]
     asked = argv or list(STEPS)
     unknown = [step for step in asked if step not in STEPS]
     if unknown:

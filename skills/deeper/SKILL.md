@@ -64,7 +64,7 @@ Asked by: <slug>, thread <the home's thread id>
 Default: the brief is written from the rewrite /deeper gave
 Built on it: the brief tasks/<slug>.md, and the crewmate launched on it
 Undo: write the brief again from the task as written, and tell its crewmate what changed
-Context: <the four answers of /deeper, in one line each>
+Context: <the four answers of /deeper, on this one line, separated by semicolons>
 Option: use the rewrite (default, recommended): the brief starts from <answer 2>, works with <answer 3>, and is proved by <answer 4>
 Option: keep the original: the brief asks for the task as written, and the crewmate picks its own sources, tools and proof
 THE_GATE_ENDS_HERE

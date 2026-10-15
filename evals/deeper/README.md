@@ -34,6 +34,8 @@ Each brief is saved as `runs/<random id>.md`, and which arm wrote it is only in 
 - **instruments**: how many named instruments it asks for (`py-spy`, `perf stat`, `hyperfine`, `pytest --durations`, `pidstat`, `gh run`, `git bisect`, `sqlite3`, and the rest of `INSTRUMENTS`). The report also gives **beyond**: the same count without the seven instruments the skill names as its own examples, so a brief that only copies them is seen doing it;
 - **outside**: the share of its proof lines (`Done when:` items, and `Proves it:` where there is one) that name a judge outside the agent (a command, a test, a measured number, CI, a dataset, the user's check) and do not rest on a review or a self-report.
 
+Beside the three measures, `results.md` gives three readings of them that the rule does not count, added after the first two runs: **raw_beyond**, the raw count without the seven kinds the skill lists as its examples (logs, transcripts, traces, a profile, the database, CI runs, the machine's counters); **beyond**, the same for instruments; and **outside_no_code**, the outside share without its first branch, which takes any span in backticks as a judge, so a line that only names a path counts. They rescore the committed briefs, with no model call: `uv run python evals/deeper/eval.py score report`, and `--run run-1 score report` for the first run.
+
 `report` joins the scores to the key. Then, for each case, the brief as it shipped is scored the same way, beside how its pull request turned out: merged or not, the findings of its review, follow-up Results, reruns of a check, and Done when lines that did not hold.
 
 ## The rule for a win
@@ -58,17 +60,18 @@ It runs `cases`, `write`, `score` and `report` in order. `write` calls `claude -
 
 ## Result
 
-Two runs, both of 2026-10-15, scored by the same script under the same rule. **Run 2, on the skill as it merges, won. Run 1, on an earlier form of the skill, did not.** Only what the two runs agree on is a finding.
+Two runs, both of 2026-10-15, scored by the same script under the same rule. They differ only in the form the skill told `/deeper` to print its rewritten prompt in (a nested fence in run 1, which the repo's fence finder skips, and a block quote in run 2: `git diff fbb2892 7a0815c -- skills/deeper/SKILL.md`), so they are two runs of the same skill. **On raw sources and instruments, `/deeper` won in both runs. Proof outside the agent is not shown either way. The rule's no-loss condition held in one run of the two, so the eval as a whole does not show a win on all it set out to.**
 
 | Measure | Run 1: mean plain to deeper, cases up / down, p | Run 2: the same |
 |---|---|---|
 | Raw sources | 0.80 to 3.95, 10 / 0, 0.002 | 0.65 to 3.90, 10 / 0, 0.002 |
 | Instruments | 0.20 to 4.80, 10 / 0, 0.002 | 0.25 to 4.75, 10 / 0, 0.002 |
-| Instruments beyond the skill's examples | 0.20 to 2.45, 9 / 0, 0.004 | 0.15 to 2.55, 10 / 0, 0.002 |
 | Proof outside the agent | 0.61 to 0.62, 4 / 6, 0.754 | 0.57 to 0.75, 8 / 2, 0.109 |
-| Verdict | did not win: proof outside lost | won: raw and instruments, no measure lost |
+| Verdict of the run, by the rule | did not win: proof outside lost | won: no measure lost |
+| Reading: raw beyond the skill's examples | 0.20 to 1.50, 8 / 0, 0.008 | 0.20 to 1.40, 9 / 0, 0.004 |
+| Reading: instruments beyond the skill's examples | 0.20 to 2.45, 9 / 0, 0.004 | 0.15 to 2.55, 10 / 0, 0.002 |
+| Reading: proof outside, no inline code | 0.39 to 0.33, 3 / 7, 0.344 | 0.36 to 0.38, 6 / 4, 0.754 |
 
-- Run 1 is in `run-1/`. Its `/deeper` printed the rewritten prompt in a nested fence, which the repo's fence finder skips, so the skill was changed to print it as a block quote and the eval was run again on that text. Nothing in the scorer, the cases or the rule changed between the runs: they are in the commit before run 1.
-- **What holds:** `/deeper` makes a brief name its raw material and an expert's instruments, on every case of both runs, and not only by copying the skill's own examples.
-- **What does not hold:** whether it moves the share of the proof that sits outside the agent. It went down in run 1 and up in run 2, and neither sign test is under 0.05. Read it as no effect shown. A brief through `/deeper` is about 1.5 to 2 times as long, with more `Done when:` items, and not every extra item is a check a script reads as an outside judge. The planned `Proves it:` line in the template (the deeper-proves-it brief) is aimed at that gap.
-- **How the shipped briefs turned out:** all ten pull requests merged. The shipped briefs scored like the plain arm (raw 0.9 and instruments 0.8 on the mean), and their reviews raised 30 errors and warnings over the ten. Seven of the ten had a `Done when` line their Result said did not hold at first. Ten cases are too few, and those outcomes too unlike the three measures, to tie a finding to a missing source or instrument.
+- **What holds:** `/deeper` makes a brief name its raw material and an expert's instruments, on every case of both runs. The gain stands when the skill's own examples are taken out, for raw material as well as for instruments.
+- **What does not hold:** that it moves the proof outside the agent. That measure went down in run 1 and up in run 2, neither under 0.05. Without inline code the rise of run 2 is gone (0.36 to 0.38): what rose was lines naming a path or a command in backticks, which the measure, fixed before the run, counts as a judge. So the measure is weaker than its name, and nothing here ties a change in it to a `Proves it:` line.
+- **How the shipped briefs turned out:** all ten pull requests merged. The shipped briefs scored like the plain arm (raw 0.9 and instruments 0.8 on the mean), and their reviews raised 30 errors and warnings over the ten. Seven of the ten have a Result that says at least once that a line does or did not hold. Ten cases are too few, and those outcomes too unlike the three measures, to tie a review finding to a missing source or instrument.

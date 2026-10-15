@@ -50,6 +50,8 @@ def test_a_deep_brief_names_its_raw_material_its_instruments_and_an_outside_proo
     said = score.score(DEEP)
     assert (said.raw, said.instruments, said.beyond, said.proof_lines) == (5, 3, 1, 3)
     assert said.outside == pytest.approx(2 / 3, abs=0.001)
+    assert said.raw_beyond == 2
+    assert said.outside_no_code == pytest.approx(1 / 3, abs=0.001)
 
 
 def test_a_shallow_brief_names_none_and_rests_on_the_crewmate():
@@ -87,3 +89,34 @@ def test_the_sign_test_is_two_sided(wins, losses, p):
 def test_the_shipped_brief_is_the_text_above_its_result():
     text = "# a: b\nTask: c\n\n## Result\nStatus: done\n"
     assert run.shipped(text) == "# a: b\nTask: c"
+
+
+def test_write_with_no_claude_keeps_the_committed_run(tmp_path, monkeypatch):
+    (tmp_path / "runs").mkdir()
+    (tmp_path / "runs" / "kept.md").write_text("# kept\n")
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
+    with pytest.raises(SystemExit, match="no claude on PATH"):
+        run.write()
+    assert [path.name for path in tmp_path.rglob("*")] == ["runs", "kept.md"]
+
+
+def test_no_private_patterns_stops_the_eval_before_it_writes(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    with pytest.raises(SystemExit, match="no private patterns at .*writes nothing it cannot"):
+        run._private()
+
+
+def test_the_private_patterns_are_read_where_jleak_reads_them(tmp_path, monkeypatch):
+    (tmp_path / "jstack").mkdir()
+    (tmp_path / "jstack" / "outbound.toml").write_text("[patterns]\nname = 'Ada'\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    assert run._redact("Ada wrote it", run._private()) == "the user wrote it"
+
+
+def test_not_held_is_counted_in_the_results_alone():
+    text = (
+        "# a: b\nDone when: it does not hold\n## Result\nDone when: x (does not hold)\n"
+        "## Review\nMeets the brief: no, it did not hold\n## Result, follow-up\ny did not hold\n"
+    )
+    assert len(__import__("re").findall(r"\b(?:does|did) not hold\b", run.results(text))) == 2

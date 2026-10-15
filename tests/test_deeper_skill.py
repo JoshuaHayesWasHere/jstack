@@ -27,7 +27,8 @@ def gate_lines(slug):
     filled = block.replace("<slug>", slug).replace("<the home's thread id>", "mcp:home-1")
     filled = re.sub(r"<answer (\d)>", r"answer \1", filled)
     filled = filled.replace(
-        "<the four answers of /deeper, in one line each>", "a profiler; the raw log; py-spy; a test"
+        "<the four answers of /deeper, on this one line, separated by semicolons>",
+        "a profiler; the raw log; py-spy; a test",
     )
     return filled
 

@@ -17,4 +17,4 @@ Ask for the deeper version of the task, not a bigger one. A bigger task covers m
 
 Pairs with [Prove It Works](prove-it-works.md), which checks the real artifact once the work is done; [Explain the Number](explain-the-number.md), which asks what limits a measured number; [Build the Lever](build-the-lever.md), which turns the outside judge into a script anyone can rerun; and [Attack the Premise](attack-the-premise.md), which suspects the shared assumption when the deeper look contradicts it.
 
-<!-- card: Prove it | 6 | In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment. | `deeper`; `perf-issue`; `investigation` -->
+<!-- card: Prove it | 6 | In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment. | `deeper` -->
