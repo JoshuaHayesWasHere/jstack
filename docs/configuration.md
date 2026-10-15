@@ -35,7 +35,7 @@ Each value is one word with no space and no comma. A file with any other key, or
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>]`, with `#` for a comment.
+`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`, with `#` for a comment.
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|

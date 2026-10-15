@@ -14,6 +14,7 @@ name each one. A constant whose name starts with `_` is a piece of a reason or a
 
 from __future__ import annotations
 
+import ast
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -862,6 +863,86 @@ def stale_paths(
         if path in ours or any(_protects(pattern, path) for pattern in ci_paths)
     )
     return tuple(dict.fromkeys(stale))
+
+
+def modules(path: str) -> tuple[str, ...]:
+    """The names a Python file may be imported by: its dotted path and each tail of it, as
+    any directory may be an import root (`src/`, or a test directory pytest puts on the
+    path, where `tests/test_a.py` imports `test_b`). A package is its `__init__.py`.
+    Nothing for any other file. A tail that is also a library's name counts too: it fails
+    toward a fresh check."""
+    if not path.endswith(".py"):
+        return ()
+    parts = path[: -len(".py")].split("/")
+    if parts[-1] == "__init__":
+        parts.pop()
+    if not parts:
+        return ()
+    return tuple(".".join(parts[start:]) for start in range(len(parts)))
+
+
+def imports(path: str, text: str) -> set[str]:
+    """Every module a Python file's imports load: each dotted prefix of `import a.b`, and
+    for `from a import b` both `a` and `a.b`, a relative one read from the file's own
+    package, by its full dotted path alone: a tail of it would make `from .models import x`
+    in one directory a caller of `models.py` in every other. Nothing for a file that is not
+    Python or does not parse."""
+    if not path.endswith(".py"):
+        return set()
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return set()
+    package = path.endswith("/__init__.py") or path == "__init__.py"
+    full = modules(path)[:1]
+    homes = [name.split(".") if package else name.split(".")[:-1] for name in full]
+    loaded = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            named = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                up = node.level - 1
+                bases = [home[: len(home) - up] for home in homes if len(home) >= up]
+                froms = [
+                    ".".join([*base, *(node.module or "").split(".")]).strip(".") for base in bases
+                ]
+            else:
+                froms = [node.module or ""]
+            named = [f"{base}.{alias.name}".strip(".") for base in froms for alias in node.names]
+            named += froms
+        else:
+            continue
+        for name in filter(None, named):
+            parts = name.split(".")
+            loaded.update(".".join(parts[:end]) for end in range(1, len(parts) + 1))
+    return loaded
+
+
+def uses(path: str, text: str, other: str) -> bool:
+    """Whether a file calls on another: imports it, Python's way, or names its path, with
+    a `/` in it (a bare root name such as `Makefile` is a word as often as a reference). A
+    `conftest.py` is used by every Python file under its directory, as pytest loads it."""
+    if other.endswith("conftest.py") and path.endswith(".py"):
+        if path.startswith(other[: -len("conftest.py")]):
+            return True
+    if "/" in other and other in text:
+        return True
+    return bool(imports(path, text) & set(modules(other)))
+
+
+def callers_and_dependencies(ours: dict[str, str], theirs: dict[str, str]) -> tuple[str, ...]:
+    """The paths of `theirs` that are a caller of the pull request's files or something they
+    depend on. `ours` is each file the pull request changes with its text at the head, and
+    `theirs` each other one the default branch changed with its text at its tip, empty where
+    it is gone. A file of `theirs` counts when it uses one of `ours`, or one of `ours` uses
+    it (`uses`). A check that ran before such a change ran the patch against code it no
+    longer meets, so it is stale as a file of its own would make it."""
+    return tuple(
+        path
+        for path, text in theirs.items()
+        if any(uses(path, text, own) or uses(own, ours[own], path) for own in ours)
+    )
 
 
 def short_on_main(

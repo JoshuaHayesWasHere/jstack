@@ -202,7 +202,11 @@ def test_the_gates_under_a_note_of_ten_lines_are_not_counted_and_are_kept_whole(
     assert (scene.home_dir / "handoff.md").read_text() == f"{note}\nWas home: {THREAD}\n"
 
 
-HAIKU = {"provider": "claudeAgent", "model": "claude-haiku-5-5"}
+HAIKU = {
+    "provider": "claudeAgent",
+    "model": "claude-haiku-5-5",
+    "options": [{"id": "effort", "value": "medium"}],
+}
 GROK = {"provider": "grok", "model": "grok-build", "instanceId": "grok-work"}
 ROLES = """home: codex gpt-5-codex
 exec: claudeAgent claude-haiku-5-5
