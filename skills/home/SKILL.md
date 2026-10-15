@@ -896,7 +896,7 @@ It prints the last five, each as `<name>, <time>: <words>`. A message whose word
 
 ### A go given on a page
 
-The user's answer on a Lavish page is their go for the rows it names, and it is approved by what they sent, which jbus reads from Lavish's state file itself: never by the poll's text, which is this thread's report of it. Once a page's answer comes back, step 5 of the grilling skill's "On a page" prints the send's reference, `<session key>/<entry id>`: the last entry of the page's session in `${LAVISH_AXI_STATE_DIR:-~/.lavish-axi}/state.json` whose role is `user`, with the send's time and text under it. Approve only when that text is the answer the poll returned: a later send may take the go back. Approve each row with it:
+The user's answer on a Lavish page is their go for the rows it names, and it is approved by what they sent, which jbus reads from Lavish's state file itself: never by the poll's text, which is this thread's report of it. Once a page's answer comes back, step 5 of the grilling skill's "On a page" prints the send's reference, `<session key>/<entry id>`: the last entry of the page's session in `${LAVISH_AXI_STATE_DIR:-~/.lavish-axi}/state.json` whose role is `user`, with the send's time and text under it. Approve only when that text is the answer the poll returned. Where it is not, approve nothing by `--page`: a later send may take the go back, so ask the user for their word another way. Approve each row with it:
 
 ```sh
 jbus --project <project> queue approve <slug> --sha <sha12> --page <session key>/<entry id>

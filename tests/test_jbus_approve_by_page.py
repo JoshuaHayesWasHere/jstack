@@ -124,3 +124,24 @@ def test_a_state_file_that_does_not_parse_approves_nothing(kitchen):
         1,
         f"refused: Lavish's state at {where / 'state.json'} does not parse\n",
     )
+
+
+def test_a_state_file_that_cannot_be_read_approves_nothing(kitchen):
+    where = kitchen.root / "lavish" / "state.json"
+    where.mkdir(parents=True)
+    add(kitchen, "alpha", approve=False)
+    assert go(kitchen, "alpha", "--page", REF) == (
+        1,
+        f"refused: Lavish's state at {where} cannot be read\n",
+    )
+    assert rows(kitchen)["alpha"]["approved"] == ""
+
+
+def test_a_session_with_no_page_file_approves_nothing(kitchen):
+    lavish(kitchen, {KEY: {"key": KEY, "status": "ended", "chat": chat()}})
+    add(kitchen, "alpha", approve=False)
+    assert go(kitchen, "alpha", "--page", REF) == (
+        1,
+        f"refused: session {KEY} keeps no page file\n",
+    )
+    assert rows(kitchen)["alpha"]["approved"] == ""
