@@ -384,6 +384,24 @@
   .rcell span { font-size: 13.5px; font-weight: 600; }
   .rcell.e-user { border-top-color: var(--op); background: var(--op-bg); } .rcell.e-crew { border-top-color: var(--msg); background: var(--msg-bg); } .rcell.e-rev { border-top-color: var(--rev); background: var(--rev-bg); }
   .rcell.e-ci { border-top-color: var(--scout); background: var(--scout-bg); } .rcell.e-ok { border-top-color: var(--ok); background: var(--ok-bg); } .rcell.e-q { border-top-color: var(--dim); background: var(--card); } .rcell.e-unknown { border-top-style: dashed; border-top-color: var(--op); }
+  /* threads: who works on what, by role, in a band on each project's row and page */
+  .w-scout .sh { background: var(--scout); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); width: 12px; }
+  .w-other .sh { background: transparent; border: 2px solid var(--dim); border-radius: 2px; }
+  .thb { margin-top: 10px; border: 1.5px solid var(--line); border-left: 5px solid var(--msg); border-radius: 10px; background: var(--card); padding: 4px 12px; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+  .proj .thb { margin-top: 8px; background: var(--bg); }
+  .thb.calm { border-left-color: var(--ok); }
+  .thb.blind { border-left: 5px dashed var(--op); }
+  .thh { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+  .thb.blind .thh { flex: 1 1 auto; }
+  .thh b { font-size: 15.5px; }
+  .thh .src { font-size: 14px; }
+  .thr { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; }
+  .thr .rl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+  .chs { display: flex; flex-wrap: wrap; gap: 5px 6px; min-width: 0; align-items: center; }
+  .tok.th .src { font-family: var(--sans); font-size: 13px; }
+  .tok.th.ended { opacity: 0.55; border-style: dashed; }
+  a.pl { text-decoration: none; display: inline-flex; align-items: center; }
+  @media (max-width: 640px) { .thb { display: block; padding: 5px 12px 8px; } .thr { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 5px; } .tok.th, a.pl { min-height: 44px; } }
   .empty-q { margin: 8px 0 0; color: var(--dim); font-weight: 700; display: flex; gap: 9px; align-items: center; }
   .none { margin-top: 12.5px; border: 1.5px solid var(--line); border-left: 6px solid var(--op); border-radius: 10px; padding: 12.5px 15px; background: var(--card); }
   .none .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
@@ -425,6 +443,7 @@
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
   <div class="vitals" id="vitals" aria-label="This project: its threads, checks, bus and blind spots"></div>
+  <div id="band"></div>
   <div class="you frz" id="you" aria-label="Waits on you"></div>
   <div class="filters" id="filters" role="group" aria-label="Show tokens held by"></div>
   <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
@@ -521,6 +540,30 @@
   /* A thread's liveness, as jbus.live names it: the chip it is drawn with. Only the three of
      MARK are a mark on a task's token: a turn is under way. */
   var LIVE = { moving: "ok", quiet: "user", hung: "user", waiting: "plain", ended: "plain", unknown: "gap" }, MARK = { moving: 1, quiet: 1, hung: 1 };
+  /* A thread's role, as jbus.threads names it: its shape, its name for one and for many,
+     and what it does. A thread is followed by its role and slug: `thread:<role>:<slug>`,
+     `-` for a slug it has none of. On a project's page it opens a drawer; elsewhere, as on
+     the row of every project, it is a link to that drawer on the project's page. */
+  var ROLE = {
+    crew: ["crew", "crewmate", "Crewmates", "The thread that does a task's one brief, in its own worktree: it writes the Result and handles the findings."],
+    scout: ["scout", "scout", "Scouts", "A thread that researches one request, read-only, and writes its Report under it: it changes nothing in the repo."],
+    reviewer: ["rev", "reviewer", "Reviewers", "A fresh thread that reads a task's pull request and sends its findings to the crewmate."],
+    home: ["home", "home", "Home", "The thread that plans the project's work and hands each task to a crewmate."],
+    other: ["other", "other thread", "Other", "A thread whose title names no role, so what it works on is not known."]
+  };
+  var LIVESAY = { moving: "a turn is under way and it writes", quiet: "a turn is under way but it has written nothing for a while", hung: "it has written nothing for longer, or a run waits behind it", waiting: "it waits on a request", ended: "its turn ended: it is not working now", unknown: "the pass could not say" };
+  function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
+  /* One thread as a token: its shape, its slug, its mark while a turn is under way, and in
+     a word what it is at: a scout's request, or its liveness, and how long since it wrote. */
+  function threadChip(t, project) {
+    var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = MARK[t.live] ? t.live : "", q = t.request;
+    var word = q && q.state !== "missing" ? q.state : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
+    var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q.state === "missing" ? "is not there" : q.state) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
+    var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + '<span class="src">' + esc(word + age) + '</span>';
+    var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
+    return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-label="' + esc(say) + '">' + inner + '</a>'
+      : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-label="' + esc(say) + '">' + inner + '</button>';
+  }
   function fz() { return '<span class="st fz">frozen</span>'; }
   function lv() { return gone ? fz() : '<span class="st lv">live</span>'; }
   function since(t) { var v = ms(t.since); return v == null ? null : NOW - v; }
@@ -667,13 +710,14 @@
         "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room");
   }
   /* A project's health, as its summary has it: one chip for each fact, as [edge, text, why].
-     Its row draws them, and its dot in the sidebar is amber where one of them is, with the why. */
+     Its row draws them, but for its threads, which its Threads band says, and its dot in the
+     sidebar is amber where one of them is, with the why. */
   function health(p) {
     var h = p.health, c = h.checks, b = h.bus;
     return [
       [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", "its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
       [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), "its bus: " + b.outbox + " in the outbox, " + plural(b.failed_wakes, "failed wake", "failed wakes") + (b.last_error ? ", last error: " + b.last_error : "")],
-      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? "the last pass left no list of its threads" : plural(h.threads, "thread", "threads") + " out"],
+      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? "the last pass left no list of its threads" : plural(h.threads, "thread", "threads") + " out", "threads"],
       [h.blind ? "op" : "ok", "Blind " + h.blind, plural(h.blind, "thing", "things") + " its page cannot say now"]
     ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", "not read: " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
   }
@@ -714,11 +758,15 @@
     if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on nobody, so the count above leaves them out.") + '"><b>' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>';
     return h;
   }
+  /* The Threads band of a project, as the threads panel draws it: with links to the project's
+     page where `away`, as on the row of every project. */
+  function band(name, threads, away) { return added("band", { name: name, threads: threads, away: away }).map(function (a) { return a.said; }).join(""); }
   function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
     var held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
     var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
-    out += '<div class="chips">' + health(p).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
+    out += '<div class="chips">' + health(p).filter(function (x) { return x[3] !== "threads"; }).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
+    out += band(p.name, p.threads, true);
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
     if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
@@ -753,7 +801,8 @@
     if (!PROJECT) renderStack();
     else {
       if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
-      renderTop(); renderYou(); renderLine();
+      /* A page whose last pass listed no thread at all has no band: its threads card says 0 out. */
+      renderTop(); put($("band"), S.threads && !S.threads.length ? "" : band(PROJECT, S.threads, false)); renderYou(); renderLine();
     }
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }

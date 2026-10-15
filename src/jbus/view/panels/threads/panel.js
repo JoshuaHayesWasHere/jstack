@@ -1,6 +1,8 @@
-/* The threads that are out: its card of counts, and the drawer that lists each by role. */
+/* The threads that are out: its card of counts, the drawer that lists each by role, and the
+   Threads band of a project's row and page. */
 var ROLES = [["crew", "crews", "crew"], ["scout", "scouts", "scout"], ["reviewer", "reviewers", "reviewer"], ["home", "homes", "home"], ["other", "other threads", "other thread"]];
-function threadsOut(role) { return (S.threads || []).filter(function (t) { return t.out && (!role || t.role === role); }); }
+function threadsOf(list, role) { return (list || []).filter(function (t) { return t.out && (!role || t.role === role); }); }
+function threadsOut(role) { return threadsOf(S.threads, role); }
 function are(list, word) { return list.filter(function (t) { return t.live === word; }).length; }
 function outSay(list) { return list.length + " out, " + are(list, "quiet") + " quiet, " + are(list, "hung") + " hung"; }
 function threadRow(t) {
@@ -8,7 +10,7 @@ function threadRow(t) {
   if (t.queued) more.push(plural(t.queued, "run waits", "runs wait") + " behind it");
   if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
   if (t.page) more.push("it holds a page that waits on you");
-  return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + (t.role === "crew" && (TASK[t.slug] || ENDED[t.slug]) ? taskBtn(t.slug) : '<code>' + esc(t.title) + '</code>') + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
+  return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + (t.role !== "other" ? openBtn(threadAt(t), t.title) : '<code>' + esc(t.title) + '</code>') + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
     (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
 }
 function dThreads(role) {
@@ -28,7 +30,29 @@ function dThreads(role) {
   if (rest.length) h += '<h3>' + rest.length + ' not settled, with no turn under way</h3><ul class="clean rows">' + rest.map(threadRow).join("") + '</ul>';
   return h;
 }
+/* The band: the threads of today by role, those out first, each with its liveness and when it
+   last wrote, and one that ended today dimmed. Those that ended before today, and those of no
+   role, are folded into one way to the drawer. A pass that left no list is said as a blind
+   spot, never as none. `v.away` is a row of every project, whose ways lead to the project's page. */
+function band(v) {
+  var all = v.threads, away = v.away ? v.name : "";
+  function more(target, label) {
+    return away ? '<a class="pl" href="' + esc(href(away, target)) + '" title="' + esc(v.name + ": " + label) + '">' + esc(label) + '</a>' : '<button type="button" class="pl" data-open="' + esc(target) + '">' + esc(label) + '</button>';
+  }
+  var h = '<div class="thb' + (!all ? " blind" : threadsOf(all).length ? "" : " calm") + '" role="group" aria-label="Threads of ' + esc(v.name) + '"><div class="thh"><b>Threads</b>';
+  if (!all) return h + '<span>not known</span><span class="src">the last pass left no list: a blind spot, not none</span>' + fz() + '</div></div>';
+  var roled = all.filter(function (t) { return t.role !== "other"; }), shown = roled.filter(function (t) { return t.today; });
+  var ended = shown.filter(function (t) { return !t.out; }).length, older = roled.length - shown.length, other = all.length - roled.length;
+  h += '<span>' + threadsOf(all).length + ' out</span>' + (ended ? '<span class="src">' + ended + ' ended today</span>' : "") + fz() + '</div>';
+  ROLES.slice(0, 4).forEach(function (r) {
+    var mine = shown.filter(function (t) { return t.role === r[0]; }).sort(function (a, b) { return (b.out - a.out) || ((ms(b.updated) || 0) - (ms(a.updated) || 0)); });
+    if (mine.length) h += '<div class="thr"><span class="rl">' + ROLE[r[0]][2] + '</span><span class="chs">' + mine.map(function (t) { return threadChip(t, away); }).join("") + '</span></div>';
+  });
+  if (older || other) h += '<div class="thr"><span class="rl">Folded</span><span class="chs">' + more("threads", (older ? older + " ended before today" : "") + (older && other ? ", " : "") + (other ? other + " of no role" : "")) + '</span></div>';
+  return h + '</div>';
+}
 panel({
+  adds: { band: band },
   card: function () {
     var out = threadsOut();
     return { at: 30, e: !S.threads || are(out, "hung") ? "op" : are(out, "quiet") ? "msg" : "ok", tag: "threads", st: fz(), frz: true,

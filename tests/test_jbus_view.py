@@ -2718,7 +2718,7 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
     assert "the threads that are out" not in json.dumps(state["blind"])
 
 
-REQUEST = "# {slug}: what is in the {slug} tin\nRequest: \"look in the tin\"\n"
+REQUEST = '# {slug}: what is in the {slug} tin\nRequest: "look in the tin"\n'
 REPORTED = REQUEST + "\n## Report\nStatus: {status}\nAnswers:\n- it holds tea\n"
 
 
@@ -2738,8 +2738,7 @@ def test_each_scouts_request_says_researching_reported_or_blocked(scene, served)
         tea_tin=REQUEST.format(slug="tea-tin"),
         jam_tin=REPORTED.format(slug="jam-tin", status="done"),
         oat_tin=REPORTED.format(slug="oat-tin", status="blocked (the tin is welded shut)"),
-        rye_tin=REPORTED.format(slug="rye-tin", status="not done")
-        + "\n## Report\nStatus: done\n",
+        rye_tin=REPORTED.format(slug="rye-tin", status="not done") + "\n## Report\nStatus: done\n",
         fig_tin=REQUEST.format(slug="fig-tin")
         + "\n## Report\nStatus: blocked\nAnswers:\n- half\n## Gate 2: open the tin?\n"
         + "Status: open\n",

@@ -67,6 +67,8 @@ from test_jbus_view import (
     NAMES,
     NOW,
     PIPED,
+    REPORTED,
+    REQUEST,
     Process,
     Scene,
     Served,
@@ -81,6 +83,7 @@ from test_jbus_view import (
     kinds,
     logged,
     out,
+    requested,
     rounded,
     row,
     said_by_him,
@@ -867,12 +870,7 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert [row["project"] for row in stack["rows"]] == ["demo", "larder", "pantry"]
     assert all(row["seen"] and row["box"][2] >= 1100 for row in stack["rows"])
     assert rows["demo"]["head"] == "demo acme/demo, 9 open tasks, 1 merged today Open ›"
-    assert rows["demo"]["chips"] == [
-        "CI 1 running, 0 failed",
-        "Bus 2 in outbox",
-        "Threads 0 out",
-        "Blind 1",
-    ]
+    assert rows["demo"]["chips"] == ["CI 1 running, 0 failed", "Bus 2 in outbox", "Blind 1"]
     assert [cell[0] for cell in rows["demo"]["cells"]] == [
         "3 Queued",
         "1 Running",
@@ -1499,6 +1497,135 @@ def test_a_pass_that_left_no_list_of_threads_shows_no_count(scene, tmp_path):
     assert drawer["now"].startswith("NOT KNOWN The last pass left no list")
 
 
+def a_day_of_threads(scene):
+    """Every role at work: a crewmate that hung and one that ended an hour ago, a reviewer, a
+    scout researching and one that reported and ended, the home, and two to fold: a crewmate
+    that ended before the day began, and a thread of no role."""
+    requested(
+        scene, look=REQUEST.format(slug="look"), tin=REPORTED.format(slug="tin", status="done")
+    )
+    scene.passed(
+        20,
+        threads=[
+            out("crew: jam-jar", "hung", minutes=25, queued=2),
+            out("crew: oat-milk", "ended", "completed", minutes=120),
+            out("crew: oat-bowl", "ended", "completed", minutes=60 * 17),
+            out("review: jam-jar"),
+            out("scout: look", "waiting", minutes=90),
+            out("scout: tin", "ended", "completed", minutes=30),
+            out("home: demo"),
+            out("a thread he opened", "ended", "completed"),
+        ],
+        rows={"jam-jar": {"threads": 2, "thread_status": "running", "live": "hung"}},
+    )
+
+
+def chips(seen_band):
+    return [(rl, [(c["text"], c["open"], c["ended"]) for c in cs]) for rl, cs in seen_band["rows"]]
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_it_works_on(
+    scene, tmp_path, screen
+):
+    a_day_of_threads(scene)
+    seen = look(scene, tmp_path, budget=9000, screen=screen)
+    opened = clean(seen, screen)
+    band = seen["threads"]
+    assert band["seen"] and band["head"] == "Threads 4 out 2 ended today"
+    assert chips(band) == [
+        (
+            "CREWMATES",
+            [
+                ("jam-jar hung 25m", "thread:crew:jam-jar", False),
+                ("oat-milk ended 2h00", "thread:crew:oat-milk", True),
+            ],
+        ),
+        (
+            "SCOUTS",
+            [
+                ("look researching 1h30", "thread:scout:look", False),
+                ("tin reported 30m", "thread:scout:tin", True),
+            ],
+        ),
+        ("REVIEWERS", [("jam-jar moving 1m", "thread:reviewer:jam-jar", False)]),
+        ("HOME", [("demo moving 1m", "thread:home:demo", False)]),
+        ("FOLDED", [("1 ended before today, 1 of no role", "threads", False)]),
+    ]
+    tips = {c["open"]: c["tip"] for _, cs in band["rows"] for c in cs}
+    assert tips["thread:scout:look"].startswith(
+        "scout look: it waits on a request, its request researching, last wrote "
+    )
+    drawers = {one["target"]: one for one in seen["opened"]}
+    assert {"thread:crew:oat-bowl", "threads"} <= opened, "the folded ones are a click away"
+    look_at = drawers["thread:scout:look"]
+    assert (look_at["title"], look_at["now"].split(":")[0]) == ("look", "SCOUT FROZEN waiting")
+    assert "researching Its request has no Report yet." in look_at["said"]
+    assert "ASKS look: what is in the look tin" in look_at["said"]
+    assert "STATUS done" in drawers["thread:scout:tin"]["said"]
+    assert "jam-jar is on Running: " in drawers["thread:reviewer:jam-jar"]["said"]
+    assert "2 runs wait behind it" in drawers["thread:crew:jam-jar"]["said"]
+    assert "The home of demo: it plans the work" in drawers["thread:home:demo"]["said"]
+    assert "oat-bowl" in drawers["thread:crew:oat-bowl"]["said"]
+    assert "Its threads: jam-jar hung 25m jam-jar moving 1m" in drawers["task:jam-jar"]["now"]
+    assert "Its threads: oat-milk ended 2h00" in drawers["task:oat-milk"]["now"]
+    others = [
+        one["now"]
+        for target, one in drawers.items()
+        if target.startswith("task:")
+        and target[5:] not in ("jam-jar", "oat-milk", "oat-bowl")
+        and not one["now"].startswith("NOW: MERGED")
+    ]
+    assert others and all("No thread on it was listed by the last pass." in now for now in others)
+    if screen == PHONE:
+        assert (seen["small"], seen["cut"]) == ([], [])
+    else:
+        assert seen["words"] <= WORDS, seen["words"]
+
+
+def test_a_thread_is_a_link_that_opens_cold_with_the_way_back_to_its_project(scene, tmp_path):
+    a_day_of_threads(scene)
+    (first,) = walked(scene, tmp_path, "#/demo/thread/scout/look", ["look"])
+    assert (first["open"], first["hash"], first["title"]) == (
+        True,
+        "#/demo/thread/scout/look",
+        "look",
+    )
+    assert first["crumbs"] == [
+        ["All", "#/"],
+        ["demo", "#/demo"],
+        ["look", "#/demo/thread/scout/look"],
+    ]
+
+
+def test_every_projects_row_has_its_threads_band_and_a_blind_one_where_no_list_was_left(
+    scene, tmp_path
+):
+    stacked(scene)
+    a_day_of_threads(scene)
+    seen = look(scene, tmp_path, route="#/")
+    clean(seen)
+    rows = {row["project"]: row["threads"] for row in seen["stack"]["rows"]}
+    assert rows["demo"]["head"] == "Threads 4 out 2 ended today"
+    assert chips(rows["demo"])[0] == (
+        "CREWMATES",
+        [
+            ("jam-jar hung 25m", "#/demo/thread/crew/jam-jar", False),
+            ("oat-milk ended 2h00", "#/demo/thread/crew/oat-milk", True),
+        ],
+    )
+    assert chips(rows["demo"])[-1] == (
+        "FOLDED",
+        [("1 ended before today, 1 of no role", "#/demo/threads", False)],
+    )
+    for name in ("larder", "pantry"):
+        assert rows[name]["head"] == (
+            "Threads not known the last pass left no list: a blind spot, not none"
+        )
+        assert "blind" in rows[name]["cls"].split() and rows[name]["rows"] == []
+    assert seen["words"] <= EVERY, seen["words"]
+
+
 def frozen(seen, since, said):
     """The page of a jbus that has stopped: the banner, and what is frozen and what live."""
     clean(seen)
@@ -1834,6 +1961,7 @@ def test_a_filter_in_a_drawer_redraws_it_in_place(scene, tmp_path):
     [
         ("#/demo/task/no-such-task", "No task named no-such-task in demo"),
         ("#/demo/gate/999", "No gate named 999 in demo"),
+        ("#/demo/thread/scout/no-tin", "No thread named scout no-tin in demo"),
         ("#/demo/nothing", "No drawer called nothing in demo"),
         ("#/nowhere/task/tea-cups", "No project named nowhere"),
     ],
@@ -2134,6 +2262,7 @@ def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp
     """The scene has a question jbus holds, which is what opens the drawer of a gate."""
     gated(scene)
     a_noticed(scene, ("alpha", "new", 5, {}))
+    scene.passed(20, threads=[out("home: demo")])
     seen = look(scene, tmp_path)
     assert unreached(seen, [one.name for one in panels.found()]) == []
 
