@@ -14,4 +14,10 @@ function dRoom() {
     (r.tmp ? meter("/tmp file slots", pct(r.tmp.used, r.tmp.total).toFixed(0) + "% (" + num(r.tmp.used) + " of " + num(r.tmp.total) + ")", pct(r.tmp.used, r.tmp.total), l.slots, "limit " + l.slots + "%") : meter("/tmp file slots", "unknown", null, null, "could not be read")) +
     '<p class="src" style="margin-top:15px">T3 sign-in for jbus expires ' + (ms(st.token_expires) == null ? "unknown" : day(ms(st.token_expires))) + '.</p>';
 }
-panel({ drawer: dRoom });
+panel({
+  gloss: {
+    room: ["Room", "Whether the machine has room to launch one more thread: its load and its /tmp file slots against their limits. Full is jbus launching nothing new. It is the machine's, not a project's."],
+    plan: ["Plan", "The plan's use of its five-hour and seven-day limits, as a session last wrote it. Past the limit jbus launches nothing new."]
+  },
+  drawer: dRoom
+});

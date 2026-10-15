@@ -9,13 +9,13 @@ function picked(w) { return "your pick on a Lavish page, " + whenSaid(w.said_at)
 function wordRow(w, hit) {
   var h = '<li' + (w.key === hit ? ' class="hit"' : "") + '>';
   if (w.kind === "answer" && w.home) {
-    return h + '<span class="n">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b> ' + taskBtn(w.slug) +
+    return h + '<span class="n" data-gloss="count:question">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b> ' + taskBtn(w.slug) +
       '<br><span class="tag">Default</span> ' + esc(w["default"] || "nothing is said") +
       '<br><span class="tag">Closed by its home</span> &quot;' + esc(w.words) + '&quot;' +
       '<br><span class="src">Its home wrote this in its gates.md. It is not your answer as jbus took it, and has no time.</span></li>';
   }
   if (w.kind === "answer") {
-    return h + '<span class="n">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b> ' + taskBtn(w.slug) +
+    return h + '<span class="n" data-gloss="count:question">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b> ' + taskBtn(w.slug) +
       '<br><span class="tag">Default</span> ' + esc(w["default"] || "nothing is said") +
       '<br><span class="tag">Your answer</span> &quot;' + esc(w.words) + '&quot; ' + (w.keeps ? '<span class="chip ok">the default stands</span>' : '<span class="chip user">not the default</span>') +
       '<br><span class="src">' + esc(whenSaid(w.at)) + (w.by ? ", by " + esc(w.by) : "") + (w.where ? ", in " + esc(w.where) : "") + '</span></li>';

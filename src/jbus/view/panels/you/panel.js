@@ -10,7 +10,7 @@ function batchFoot() {
 function gateRow(w) {
   var can = w.answerable;
   return (can ? '<label class="tick"><input type="checkbox" data-tick="' + esc(w.number) + '"' + (TICK[w.number] ? " checked" : "") + ' aria-label="Tick question ' + esc(w.number) + ' to close it with its default"></label>' : "") +
-    '<span class="n">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b>' + (w.home ? ' <span class="chip plain">' + esc(w.home) + '</span>' : "") + ' ' + ageChip(w.since, "user") +
+    '<span class="n" data-gloss="count:question">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b>' + (w.home ? ' <span class="chip plain">' + esc(w.home) + '</span>' : "") + ' ' + ageChip(w.since, "user") +
     (w.options.length ? '<br><span class="olist">' + w.options.map(function (o) { return '<span class="oc' + (o["default"] ? " tk" : "") + '">' + esc(o.name) + (o["default"] ? " (taken)" : "") + '</span>'; }).join("") + '</span>' : '<br>') +
     '<span class="tag">If you do not answer</span> ' + esc(w["default"] || "nothing is said") + '<br>' +
     (can ? openBtn("gate:" + w.number, "Open question " + w.number) : '<span class="src">It lives in a home\'s <code>gates.md</code>, and cannot be answered here.</span>');
@@ -40,7 +40,7 @@ function dYou(hit) {
       (k === "gate" ? '<p class="src" style="margin:10px 0 0">' + openBtn("words:answer", "The questions you answered, in Your words") + '</p>' : "");
   });
   var shut = S.gates.filter(function (g) { return !g.open; });
-  if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3><ul class="clean rows">' + shut.map(function (g) { return '<li><span class="n zero">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }).join("") + '</ul>';
+  if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3><ul class="clean rows">' + shut.map(function (g) { return '<li><span class="n zero" data-gloss="count:question">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }).join("") + '</ul>';
   return h;
 }
 document.addEventListener("click", function (e) {

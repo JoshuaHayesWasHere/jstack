@@ -62,6 +62,10 @@ function dChecks() {
     'Asked of GitHub once a minute' + (ms(c.at) == null ? "" : ", last at " + hm(ms(c.at), true)) + '. <code>checks.json</code>: ' + c.green + ' of ' + c.commits + ' commits of main green.</p>';
 }
 panel({
+  gloss: {
+    checks: ["CI checks", "The runs of the repo's workflows on GitHub, read live: what runs, what waits for a runner, and each branch whose newest run failed."],
+    runners: ["Runners", "The GitHub Actions runner units of this machine, and how many are active. A check waits for one of them. They are the machine's, not a project's."]
+  },
   card: function () {
     var rs = runStats();
     return { at: 40, e: S.checks.error || rs.now.failed.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
