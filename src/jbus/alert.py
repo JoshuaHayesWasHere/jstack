@@ -5,8 +5,8 @@ finish, `webhook <project>` for a POST the project's own webhook did not take, `
 webhook <project>` for a POST of the project's that the top-level webhook did not take,
 `blocking webhook <project>` for a body of the project's that the second target did not take,
 `jmerge <project>` for a `jmerge` that did not run, `snapshot` for a snapshot of the homes'
-state tree that did not finish. `failed` counts one and gives the alert
-line once the count has reached the threshold. `ok` ends the streak, and gives the recovered
+state tree that did not finish. `failed` counts one and gives the alert line once the count
+has reached the threshold. `ok` ends the streak, and gives the recovered
 line when it had alerted. Everything else is silence: the failures before the threshold, the
 ones after the alert, and a success with no alert before it.
 
