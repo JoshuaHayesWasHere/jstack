@@ -322,9 +322,9 @@ On `on the bus`, there is nothing to do. On `jbus is not installed`, tell the us
 
 1. Find the repo's T3 Code project id as step 2 of `/new-home` does: `t3_project_list` with `{"limit": 100}`, the entry whose `workspaceRoot` is the checkout the line names, asking again with each `nextCursor` until it is found or the list ends. Make no project here: with none found, or no such tool, tell the user `needs you: add <the checkout> as a project in T3 Code, then start a home again`, and go on to step 5.
 2. Read step 3 of `$T/../skills/new-home/SKILL.md` now, and run its block in the main checkout, with the checkout and the project id filled in.
-3. Read its lines as `/new-home` does: `done`, `already`, or `needs you:` and what the user runs. Tell the user the `jbus project` line, and that jbus merges here as it does for every project.
+3. Read its lines as `/new-home` does: `done`, `already`, or `needs you:` and what the user runs. Tell the user the `jbus project` line.
 
-The block runs `jbus project add`, the only writer of jbus's config. Never open, print or edit that file. It never writes `home-thread`: a repo joins the bus whole, and no home merges its own pull requests in jbus's place, whatever its rules say. A home that cannot add its repo goes on with step 5: the pass names it among the homes not on the bus, in `jbus status` and on the view's machine row, until somebody adds it.
+The block runs `jbus project add`, the only writer of jbus's config. Never open, print or edit that file. It never writes `home-thread`, whatever the home's rules say: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand. A home that cannot add its repo goes on with step 5: the pass names it among the homes not on the bus, in `jbus status` and on the view's machine row, until somebody adds it.
 
 ### The home before this one
 

@@ -98,7 +98,7 @@ esac
 
 `jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key. Never open, print or edit that file here. The project's name in jbus is the repo's folder name, which is also the name of its state directory. Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
 
-It never writes `home-thread`. Every repo on the bus is merged by jbus, a repo whose home started by `/home` as much as one set up here: no home merges its own pull requests in jbus's place.
+It never writes `home-thread`, here or at a home's start: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand.
 
 ## 4. What the repo lacks for a merge
 
