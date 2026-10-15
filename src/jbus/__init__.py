@@ -23,6 +23,12 @@ its own keeps them whole, and is posted its events there as well (`wake.Box`): o
 two pairs are the same. One with only one of the two keys is refused: half a pair beside the
 top-level one would post with the wrong key. The top-level pair is secret whether a project
 takes it or not.
+
+A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the
+second target: the webhook of what blocks (`waiting.blocking`), which jbus-relay fans out.
+It is posted no event, only each item that blocks as it opens, each reminder and each
+refresh (`wake.Box.blocking`). Half of that pair is refused as half of the other is, and
+both are secret.
 """
 
 from __future__ import annotations
@@ -83,6 +89,7 @@ class Config:
     ignored: tuple[str, ...] = ()
     unread: tuple[Hook, ...] = ()
     webhook: Hook = ("", "")
+    blocking: Hook = ("", "")
 
     @property
     def token_path(self) -> Path:
@@ -124,7 +131,7 @@ class Config:
 
     def hooks(self) -> list[Project | Hook]:
         """Every webhook URL and key the config file holds, read or not."""
-        return [*self.projects, self.webhook, *self.unread]
+        return [*self.projects, self.webhook, self.blocking, *self.unread]
 
     def state(self, project: Project) -> Path:
         """Where jbus keeps this project's queue, outbox, launches and what it has sent."""
@@ -194,26 +201,28 @@ def _unread(raw: dict[str, Any]) -> tuple[Hook, ...]:
 
 
 PAIR = ("webhook_url", "webhook_key")
+BLOCKING = ("blocking_url", "blocking_key")
 
 
-def _missing(table: dict[str, Any]) -> str | None:
-    """The key of the table's webhook pair that is missing beside the other, or None. A URL
-    with an empty key counts as a key missing: it would post with no key. An empty URL
-    beside a key is no webhook, and loads."""
-    present = [key for key in PAIR if key in table]
+def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
+    """The key of the table's pair that is missing beside the other, or None. A URL with an
+    empty key counts as a key missing: it would post with no key. An empty URL beside a key
+    is no webhook, and loads."""
+    url, key = pair
+    present = [name for name in pair if name in table]
     if len(present) == 1:
-        return next(key for key in PAIR if key not in table)
-    if present and table["webhook_url"] and not table["webhook_key"]:
-        return "webhook_key"
+        return next(name for name in pair if name not in table)
+    if present and table[url] and not table[key]:
+        return key
     return None
 
 
-def _pair(table: dict[str, Any], default: Hook) -> Hook:
-    """The table's webhook URL and key, or `default` when it has neither. `_missing` has
-    refused half a pair first."""
-    if not any(key in table for key in PAIR):
+def _pair(table: dict[str, Any], default: Hook, pair: tuple[str, str] = PAIR) -> Hook:
+    """The table's URL and key, or `default` when it has neither. `_missing` has refused
+    half a pair first."""
+    if not any(name in table for name in pair):
         return default
-    return str(table["webhook_url"]), str(table["webhook_key"])
+    return str(table[pair[0]]), str(table[pair[1]])
 
 
 def load(directory: Path | None = None) -> Config:
@@ -229,11 +238,14 @@ def load(directory: Path | None = None) -> Config:
         raw = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as error:
         raise Refused(f"refused: {path} does not parse: {error}") from error
-    if missing := _missing(raw):
-        raise Refused(
-            f"refused: {path} has no top-level {missing} beside the other: give it both, or neither"
-        )
+    for pair in (PAIR, BLOCKING):
+        if missing := _missing(raw, pair):
+            raise Refused(
+                f"refused: {path} has no top-level {missing} beside the other: "
+                "give it both, or neither"
+            )
     webhook = _pair(raw, ("", ""))
+    blocking = _pair(raw, ("", ""), BLOCKING)
     try:
         projects = []
         for entry in raw.get("project", []):
@@ -279,6 +291,7 @@ def load(directory: Path | None = None) -> Config:
         ignored=ignored,
         unread=_unread(raw),
         webhook=webhook,
+        blocking=blocking,
     )
 
 

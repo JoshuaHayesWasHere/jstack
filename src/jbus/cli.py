@@ -10,7 +10,9 @@ the settle), tells a crew whose pull request `jmerge` calls stale or conflicting
 and one whose pull request is short of something it can fix what to do (`expedite`),
 launches the rows of the queue that were approved, rewrites the table's derived columns
 (with why each row waits, and a line for each change of status), says what waits on the user
-(`stall`), again each hour, and rewrites the one list of it (`waiting`).
+(`stall`), again each hour, and rewrites the one list of it (`waiting`), and of what
+blocks in it posts to the second target what opened, a reminder and the hourly refresh
+(`waiting.cadence`).
 A row that ended with something left is sent to its home to close, once (`leftover`): it
 waits on that home, and on the user only where it has no home or the home did not close it.
 The launches come after every project was asked what is out: `max_running` caps the crews
@@ -117,7 +119,7 @@ def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
-        box = wake.Box(config.state(one), one, config.webhook)
+        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
         marks = box.marks()
         projects[one.name] = {
             **_hook(config, box, box.routes[0], alert.webhook(one.name)),
@@ -127,6 +129,9 @@ def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
         for route in box.routes[1:]:
             key = alert.top_level(one.name)
             projects[one.name]["top_level"] = _hook(config, box, route, key)
+        if box.blocking is not None:
+            key = alert.blocking(one.name)
+            projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
     return {
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
@@ -263,8 +268,10 @@ def second_half(half: Half, client: t3.Client | None) -> None:
         keep_work(half, rows or [], states)
     users = half.said.crews(half.crews)
     roots = stall.tell(run, client, world, rows, users)
+    listed = None
     if not half.blind:
-        waiting.keep(run, world, rows, users, roots, derived=derived, read_all=read)
+        listed = waiting.keep(run, world, rows, users, roots, derived=derived, read_all=read)
+    waiting.cadence(run, listed, rows, world)
     if world is not None:
         run.box.began()
     day = run.box.snapshot_due(run.user.local(run.now))

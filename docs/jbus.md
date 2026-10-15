@@ -398,7 +398,7 @@ The top-level webhook is the monitor of every project: jbus posts it every `user
 
 The two posts keep apart. Each webhook of a project has its own outbox, its own five-minute gap, its own last error and its own failure streak: the project's own in `~/.local/state/jbus/<project>/`, the top-level one's in `top-level/` inside it. One webhook that is down neither holds back nor repeats what the other is posted. The top-level webhook gets the same `user` events as the project's own, each with its `project`, and nothing quiet. With no top-level pair there is one webhook per project, as before.
 
-Everything a pass finds is an event. Each POST to a webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
+Everything a pass finds is an event. Each POST to a webhook is `{"kind": "events", "say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
 
 | `loud` | Kinds | What happens |
 |---|---|---|
@@ -409,6 +409,31 @@ A `gate` is a question a thread asked. A `waiting` event is `user` only when the
 
 A POST starts only when a `user` event waits, and it carries nothing else. jbus sends what waits for a project at most once in five minutes, in POSTs of at most 100 KB each. The key goes in two headers of each POST, `Authorization: Bearer` and `X-Automation-Key`. jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone. With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
 
+## What blocks
+
+Of what waits on you, an item blocks when it is open and nothing can move without you. One function decides it, `waiting.blocking` in `src/jbus/waiting.py`, and the second target, the reminder and the refresh all read it:
+
+| Case | What blocks | From |
+|---|---|---|
+| a | A gate with no default, which only a home's `gates.md` can have, or one whose question or context names force-push, deploy, deleting data or an outside message (`PAUSE`) | `questions.json`, and the `gates.md` of each home |
+| b | A row with no approval of its brief (its `brief_sha` is empty, or the brief changed after the go), or a row that waits with no brief stored | `queue.json`, `briefs/<slug>.md` |
+| c | A pull request `jmerge` holds | `waiting-on-user.json` |
+| d | A leftover whose home did not close it in 30 minutes or has none, a config item, an alert that stands, of the project or of the pass, or a gate with a default whose slug has had no event for 30 minutes (`CLOSE_MINUTES`) with no thread at work | `waiting-on-user.json`, `streaks.json`, `events.jsonl` |
+
+A gate with a default whose thread still writes does not block, nor does a row jbus put at `gate`, nor a leftover its home has.
+
+Two timers sit beside `CLOSE_MINUTES` in `src/jbus/leftover.py`. An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second: jbus keeps the key of each item it reminded of in `~/.local/state/jbus/<project>/blocking.json`, a question by its number (`gate:q<n>`), a hold by its pull request (`#<n>`) and anything else by its kind and slug. An item that closes before then gets none. Every `REFRESH_MINUTES` (60), on the pass that begins the hour, jbus posts every open item, oldest first, whether or not anything changed: an empty list is the all-clear. The first pass after the second target is set posts no opening body for what blocks already.
+
+These go to the second target, `blocking_url` and `blocking_key` at the top of the config ([Configuration](configuration.md)). It is a route of its own, with its outbox, gap, last error, failure streak and status in `blocking/` inside the project's state, so one that is down holds back no other webhook. It is posted no event, and nothing quiet. With no such pair nothing more is posted. Every body has a top-level `kind`, which jbus-relay routes on:
+
+| `kind` | Sent to | Body |
+|---|---|---|
+| `events` | Every webhook | `{"kind", "say", "events"}`, the events of [Events and the webhook](#events-and-the-webhook). The second target's has `events` empty, `items` the items that began to block in that pass, batched, and `project` and `at`. It waits on the five-minute gap. |
+| `reminder` | The second target | `{"kind", "project", "at", "say", "items"}`, the items due a reminder in that pass. It waits on no gap. |
+| `refresh` | The second target | The same, with every open item, oldest first, or none, and `say` is `<project>: nothing blocks`. It waits on no gap, and a newer refresh takes the place of one still in the outbox. |
+
+An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}`, with `slug`, `number`, `url`, `question` and `default` where it has them. `case` is the letter above and `why` says it in words. A body that fails stays in the outbox and goes again on the next pass, in order. The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
+
 ## When jbus fails
 
 A failure that repeats is told once, and so is its end. jbus counts three kinds of failure in a row:
@@ -416,12 +441,13 @@ A failure that repeats is told once, and so is its end. jbus counts three kinds 
 - `pass`, a pass that did not finish. `jbus.service` has `OnFailure=jbus-failed.service`, which runs `jbus alarm` to count it.
 - `webhook <project>`, a POST the project's own webhook did not take.
 - `top-level webhook <project>`, a POST of the project's events that the top-level webhook did not take.
+- `blocking webhook <project>`, a body of the project's that the second target did not take.
 - `jmerge <project>`, a `jmerge` that did not run.
 
 The alert goes out after 3 failures in a row, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing.
 
 A pass goes on past a project that raises. It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1. jbus stops a `jmerge` it runs after 300 seconds, and the unit stops a pass after five minutes (`TimeoutStartSec=5min`), so a command that hangs cannot hold every later pass. A pass that finds the lock held prints `busy` and ends.
 
-`jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, the open failure streaks, the homes not on the bus ([Add a project](#add-a-project)), and each project's last error and the number of events in its outbox. A project posted to the top-level webhook beside its own also has `top_level`, the same three counts for that webhook. The view's Bus card shows both outboxes. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.
+`jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, the open failure streaks, the homes not on the bus ([Add a project](#add-a-project)), and each project's last error and the number of events in its outbox. A project posted to the top-level webhook beside its own also has `top_level`, the same three counts for that webhook, and with a second target set it has `blocking`, the same for that one. The view's Bus card shows each outbox. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.
 
 Beside it a pass leaves `pass.json`: when the pass started and ended, and for each project its open rows and its `threads`. `threads` is every thread T3 Code lists as not settled, a crewmate's, a reviewer's, a scout's, a home's or any other, each with its role, slug, status, `updatedAt` and its liveness: `moving`, `quiet`, `hung`, `waiting`, `ended` or `unknown`. A turn that has written no item for 10 minutes is `quiet`: jbus counts from the pass that last saw the thread's count of items change, since T3 Code moves `updatedAt` when a message is queued. It is `hung` after 20 minutes, or after 10 with a run queued behind it, and jbus reads only a quiet thread to learn that. A thread that turns `hung` is one `stall` event for that thread and that run, and one line of `hung.jsonl` in the project's state directory. A later pass adds a line there with what became of it: `wrote again`, `interrupted` or `ended`. jbus interrupts no thread and sends a hung one nothing.
