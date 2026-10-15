@@ -48,8 +48,17 @@ def test_third_party_names_the_commit_and_carries_the_notice():
 
 
 def test_third_party_lists_every_principle_file_and_no_other():
-    listed = re.findall(r"^- `(principles/[^`]+)`$", THIRD_PARTY.read_text(), re.M)
-    assert listed == [str(path.relative_to(REPO)) for path in FILES]
+    text = THIRD_PARTY.read_text()
+    listed = re.findall(r"^- `(principles/[^`]+)`$", text, re.M)
+    (own,) = re.findall(r"^jstack's own: (.+)$", text, re.M)
+    ours = [path for path in re.findall(r"`([^`]+)`", own) if path.startswith("principles/")]
+    assert sorted(listed + ours) == [str(path.relative_to(REPO)) for path in FILES]
+    assert not set(listed) & set(ours)
+
+
+def test_there_are_25_principles_and_the_25th_is_depth_over_breadth():
+    assert len(FILES) == 25
+    assert PRINCIPLES / "depth-over-breadth.md" in FILES
 
 
 UNSTACKED = [PRINCIPLES / "build-the-lever.md", PRINCIPLES / "sequence-verifiable-units.md"]

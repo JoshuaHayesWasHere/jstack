@@ -1,0 +1,202 @@
+{
+  "2bbc992905de": {
+    "slug": "tests-parallel",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "225634165e0b": {
+    "slug": "hj-home-gauge",
+    "arm": "plain",
+    "trial": 1
+  },
+  "ed1a7f996f30": {
+    "slug": "jv-usage",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "7175c9fe99ac": {
+    "slug": "cs-stubs-in-process",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "0b2251ffd64a": {
+    "slug": "cs-runner-workers",
+    "arm": "plain",
+    "trial": 2
+  },
+  "9dbd46f17077": {
+    "slug": "rs-parallel-reviews",
+    "arm": "plain",
+    "trial": 1
+  },
+  "ae5f8e36f101": {
+    "slug": "tests-parallel",
+    "arm": "plain",
+    "trial": 1
+  },
+  "cda61aa63db6": {
+    "slug": "hj-home-gauge",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "ba49fdaf79fb": {
+    "slug": "cs-runner-workers",
+    "arm": "plain",
+    "trial": 1
+  },
+  "5a385d7587e8": {
+    "slug": "cs-stubs-in-process",
+    "arm": "plain",
+    "trial": 1
+  },
+  "ece3bb229f57": {
+    "slug": "tests-parallel",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "a87f969ec399": {
+    "slug": "tests-parallel",
+    "arm": "plain",
+    "trial": 2
+  },
+  "883c13da8e88": {
+    "slug": "ci-hosted-green",
+    "arm": "plain",
+    "trial": 2
+  },
+  "15bf6eb3dbdb": {
+    "slug": "jv-usage",
+    "arm": "plain",
+    "trial": 1
+  },
+  "d347093b5671": {
+    "slug": "hj-home-gauge",
+    "arm": "plain",
+    "trial": 2
+  },
+  "3043bc30550f": {
+    "slug": "rs-load-limit",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "a7ce0d819331": {
+    "slug": "check-workers-share",
+    "arm": "plain",
+    "trial": 1
+  },
+  "077ebc4167cc": {
+    "slug": "ci-hosted-green",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "01466c305108": {
+    "slug": "rs-load-limit",
+    "arm": "plain",
+    "trial": 1
+  },
+  "163159f805a2": {
+    "slug": "jstack-leak-zero",
+    "arm": "plain",
+    "trial": 2
+  },
+  "06728f85df77": {
+    "slug": "rs-parallel-reviews",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "85378dc3b6b2": {
+    "slug": "ci-hosted-green",
+    "arm": "plain",
+    "trial": 1
+  },
+  "140e53cefc7d": {
+    "slug": "cs-runner-workers",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "412db8947d6a": {
+    "slug": "ci-hosted-green",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "b473723615c3": {
+    "slug": "cs-runner-workers",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "7b65ab6e7eb8": {
+    "slug": "rs-load-limit",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "ef8b0d22fdd4": {
+    "slug": "rs-parallel-reviews",
+    "arm": "plain",
+    "trial": 2
+  },
+  "776748bd7a33": {
+    "slug": "jv-usage",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "b0ce3cfff467": {
+    "slug": "check-workers-share",
+    "arm": "plain",
+    "trial": 2
+  },
+  "184613ef341b": {
+    "slug": "check-workers-share",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "b9df4b813fad": {
+    "slug": "rs-parallel-reviews",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "bf89801f475b": {
+    "slug": "rs-load-limit",
+    "arm": "plain",
+    "trial": 2
+  },
+  "6b08e595846c": {
+    "slug": "jstack-leak-zero",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "8f2b0f7855b7": {
+    "slug": "jv-usage",
+    "arm": "plain",
+    "trial": 2
+  },
+  "998e55e4692c": {
+    "slug": "jstack-leak-zero",
+    "arm": "plain",
+    "trial": 1
+  },
+  "3c6ac4759f06": {
+    "slug": "hj-home-gauge",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "d6a46c5fb0f0": {
+    "slug": "check-workers-share",
+    "arm": "deeper",
+    "trial": 1
+  },
+  "90b53b2fb346": {
+    "slug": "cs-stubs-in-process",
+    "arm": "deeper",
+    "trial": 2
+  },
+  "185e2451e6de": {
+    "slug": "cs-stubs-in-process",
+    "arm": "plain",
+    "trial": 2
+  },
+  "c2929be9a2f7": {
+    "slug": "jstack-leak-zero",
+    "arm": "deeper",
+    "trial": 2
+  }
+}
