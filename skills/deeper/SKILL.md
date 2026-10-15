@@ -29,9 +29,9 @@ These are Felix's words, and each answer is about this task, in this repo, on th
 
 ## Output
 
-Print exactly this, filled in, and nothing after it:
+Print exactly this, filled in, and nothing after it. The rewritten prompt is the block quote under its heading, every line of it starting `> `:
 
-````
+```markdown
 ## 1. What a top professional would do
 <the field, then one to three lines>
 
@@ -45,20 +45,19 @@ Print exactly this, filled in, and nothing after it:
 - <the judge, and what it must say for the task to be done>
 
 ## Rewritten prompt
+> <the task, rewritten to ask for exactly the four answers: the user's own words first, in
+> quotes, then the material to start from, the instruments to use, and the outside judge as
+> its proof>
 ```
-<the task, rewritten to ask for exactly the four answers: the user's own words first, in quotes,
-then the material to start from, the instruments to use, and the outside judge as its proof>
-```
-````
 
 The rewritten prompt keeps the user's goal and scope. It adds depth to them, never a new deliverable: what it adds is where to start, what to measure with, and what decides that it is done. In a brief, answer 2 is what to read first, answer 3 is how the work is done, and answer 4 is its proof.
 
 ## Run by a home
 
-Typed by the user, the skill ends at its output. Run by a home on a brief it is writing, it does not block: the home takes the rewritten prompt as the default, writes the brief from it, and parks the choice as a gate for the user with the two options, then carries on. Run this with `<slug>` in place of the brief's slug in the three places it stands, and with the lines in angle brackets filled in:
+Typed by the user, the skill ends at its output. Run by a home on a brief it is writing, it does not block: the home takes the rewritten prompt as the default, writes the brief from it, and parks the choice as a gate for the user with the two options, then carries on. Run this with `<slug>` in place of the brief's slug in the four places it stands, and with the lines in angle brackets filled in:
 
 ```sh
-jbus gate '<slug>' << 'THE_GATE_ENDS_HERE'
+gate=$(cat << 'THE_GATE_ENDS_HERE'
 ## Gate <n>: <slug>: keep the task as written, or take the deeper rewrite of it?
 Status: open
 Asked by: <slug>, thread <the home's thread id>
@@ -69,6 +68,14 @@ Context: <the four answers of /deeper, in one line each>
 Option: use the rewrite (default, recommended): the brief starts from <answer 2>, works with <answer 3>, and is proved by <answer 4>
 Option: keep the original: the brief asks for the task as written, and the crewmate picks its own sources, tools and proof
 THE_GATE_ENDS_HERE
+)
+if ! command -v jbus > /dev/null; then
+    echo "not sent: jbus is not installed here, so put the gate's lines in the brief's Result under Noticed"
+elif said=$(printf '%s\n' "$gate" | jbus gate '<slug>' 2>&1); then
+    echo "sent to jbus: $said"
+else
+    echo "not sent: jbus said: $said"
+fi
 ```
 
-Leave `<n>` as it is: jbus numbers the question. An answer that keeps the original comes back as a message from jbus, and the home writes the brief again from the task as written.
+Leave `<n>` as it is: jbus numbers the question. On `not sent: jbus said`, mend the line it names and run it again. An answer that keeps the original comes back as a message from jbus, and the home writes the brief again from the task as written.

@@ -64,15 +64,16 @@ def test_proof_lines_are_the_done_when_items_and_a_proves_it_line():
 
 
 def test_the_eval_reads_the_rewritten_prompt_from_the_form_the_skill_prints():
-    form = re.search(
-        r"^````\n(.*?)^````$", (REPO / "skills/deeper/SKILL.md").read_text(), re.M | re.S
-    )
-    printed = form[1].replace("<the task, rewritten", "Measure it.\n<the task, rewritten")
-    assert run.rewritten(printed).startswith("Measure it.\n<the task, rewritten to ask")
+    skill = (REPO / "skills/deeper/SKILL.md").read_text()
+    form = re.search(r"^```markdown\n(.*?)^```$", skill, re.M | re.S)
+    printed = form[1].replace("> <the task, rewritten", "> Measure it.\n> <the task, rewritten")
+    said = run.rewritten(printed)
+    assert said.startswith("Measure it.\n<the task, rewritten to ask for exactly the four")
+    assert said.endswith("its proof>")
 
 
 def test_an_output_with_no_rewritten_prompt_is_refused():
-    with pytest.raises(RuntimeError, match="no Rewritten prompt"):
+    with pytest.raises(RuntimeError, match="no Rewritten prompt as a block quote"):
         run.rewritten("## 1. What a top professional would do\nnothing\n")
 
 

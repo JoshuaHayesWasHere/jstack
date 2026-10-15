@@ -183,11 +183,11 @@ def request(slug: str) -> str:
 
 
 def rewritten(said: str) -> str:
-    """The prompt in the fence under `## Rewritten prompt` of /deeper's output."""
-    found = re.search(r"^## Rewritten prompt\s*\n+```[^\n]*\n(.*?)^```", said, re.M | re.S)
+    """The block quote under `## Rewritten prompt` of /deeper's output, without its `> `."""
+    found = re.search(r"^## Rewritten prompt[ \t]*\n+((?:>.*(?:\n|$))+)", said, re.M)
     if not found:
-        raise RuntimeError("/deeper printed no Rewritten prompt in a fence")
-    return found[1].strip()
+        raise RuntimeError("/deeper printed no Rewritten prompt as a block quote")
+    return "\n".join(re.sub(r"^> ?", "", line) for line in found[1].splitlines()).strip()
 
 
 def _one(slug: str, arm: str, trial: int) -> tuple[str, str, int, str, str]:
