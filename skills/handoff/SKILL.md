@@ -59,7 +59,7 @@ That is **the block at the top**: run it in the same call as each block below. E
 
 A handoff is a home's. A repo has one root home, and may have scoped homes beside it (`skills/home/SKILL.md`, "Where a home's state lives"), and each hands off in its own directory, `$M`: `$H` for the root home, `$H/<scope>` for a scoped one. `this_home` sets it as the home skill does, from the one `home-id` that holds this thread's id. `handed_off` sets `$L` to the directory of the home a thread was, from the `Was home:` line step 3 writes, or to nothing. Each block below is run with that id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). In a session with no tool that gives the id, put nothing in its place: the handoff is the root's.
 
-A party that is no repo's home hands off too, as Exec does. Its folder is `~/.local/state/home/_<name>`, beside the repos' state directories, and holds its thread id in a `home-id`. `party_home` finds it by that id, and sets `$M` to the folder and `$P` to the name. It finds no expert, whose folder has a `CHARTER.md`: an expert rolls over as `$T/../skills/expert/SKILL.md` "When to roll over" says, and never by this skill. `handed_off` finds a party that handed off as it finds a home.
+A party that is no repo's home hands off too. Its folder is `~/.local/state/home/_<name>`, beside the repos' state directories, and holds its thread id in a `home-id`. `party_home` finds it by that id, and sets `$M` to the folder and `$P` to the name. It finds no expert, whose folder has a `CHARTER.md`: an expert rolls over as `$T/../skills/expert/SKILL.md` "When to roll over" says, and never by this skill. `handed_off` finds a party that handed off as it finds a home.
 
 Before step 1, see which home this is:
 
@@ -233,51 +233,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       ```
 
       The list holds every thread whose title has those words: this thread, which still has that title, and for the root home the repo's scoped homes too. The next home is the thread with exactly that title that is newer than this one. If the launch fails all the same, tell the user as for `not the home`, with the seed in the message, and stop: no rename, no settle.
-   3. Tell each party paired with this home the next home's id. Run this with the block at the top, with the id the launch gave in place of `<its threadId>`:
-
-      ```sh
-      ME='<threadId>'
-      NEXT='<its threadId>'
-      D=${H%/*}/_exec/direct.md
-      handed_off "$ME"
-      case $NEXT in
-      '' | *'<'* | *'>'*) L= ;;
-      esac
-      if [ "$L" = "$H" ] && [ -f "$D" ]; then
-          awk -v repo="$R" '
-              function trimmed(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-              /^## / { pairs = ($(0) == "## Pairs"); next }
-              pairs && /^\|/ {
-                  split($(0), cell, "|")
-                  n = split(tolower(cell[2]), pair, ",")
-                  for (i = 1; i <= n; i++) {
-                      at = index(pair[i], " and ")
-                      if (!at) continue
-                      a = trimmed(substr(pair[i], 1, at - 1))
-                      b = trimmed(substr(pair[i], at + 5))
-                      if (a == tolower(repo) || a == "any home") print b
-                      else if (b == tolower(repo) || b == "any home") print a
-                  }
-              }' "$D" | sort -u | while IFS= read -r party; do
-              case $party in
-              '' | *[!a-z0-9._-]*) continue ;;
-              esac
-              id=$(cat "${H%/*}/_$party/home-id" 2> /dev/null | tr -d '[:space:]')
-              if [ -n "$id" ] && [ "$id" != "$ME" ] && [ "$id" != "$NEXT" ]; then
-                  echo "tell $id: the home of $R is $NEXT now, and $ME handed off. Its id is in $H/home-id: read it there before each send."
-              fi
-          done
-      fi
-      ```
-
-      It reads the pairs Exec keeps in `~/.local/state/home/_exec/direct.md`, under `## Pairs`, and never writes that file. A pair is this home's when one side is the repo's name or `any home`, and the other side is a party whose id is in `~/.local/state/home/_<its name>/home-id`. For each line `tell <id>: <line>` it prints, send that thread the line with `t3_thread_send`, once:
-
-      ```json
-      {"threadId": "<thread>", "message": "<the line>"}
-      ```
-
-      When it prints nothing, send nothing and say nothing of it: there is no such file, no pair names this home, or this is a scoped home, whose id no party sends to.
-   4. Tell the user, in three lines at most: what was written, the one thing that is next, and the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`.
+   3. Tell the user, in three lines at most: what was written, the one thing that is next, and the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`.
 
 5. **Rename and settle.**
 
@@ -329,11 +285,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
    told="Thread $ME, the $P thread before this one, handed off with /handoff and is settled: send it nothing. Before anything else, read \"The thread a party's handoff started\" in $(realpath "$T/../skills/handoff/SKILL.md") and do what it says, with $P in place of <party>. Then start from $M/handoff.md${boot:+ and $page}."
    message=$(printf '%s\n\n%s\n' "${boot:-You are the next thread of $P's home, in $M.}" "$told")
    title="home: $P"
-   case $P in
-   exec) role=exec ;;
-   *) role=expert ;;
-   esac
-   model=$(uv run --project "$T/.." jroles "$role") || model=
+   model=$(uv run --project "$T/.." jroles expert) || model=
    if ! launch=$(jq -cn --arg title "$title" --arg message "$message" --argjson selection "${model:-null}" '{title: $title, workspaceStrategy: {type: "root"}, message: $message} + if $selection then {modelSelection: $selection} else {} end') ||
        ! rename=$(jq -cn --arg title "$title (handed off $(date +%F))" '{action: "rename", title: $title}'); then
        echo "not closed: jq did not run, and nothing is changed"
@@ -362,7 +314,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
 
    On `a party's home`, first stop what this thread has running in the background, as step 1 does. Then make three calls, in the order printed, each with the object after its word, as printed: `launch:` with the `t3-code` server's `t3_thread_launch`, `rename:` with `t3_thread_update`, `settle:` with `t3_thread_organize`, the last call of the turn (if your harness defers one, load it first). Between the launch and the rename, tell the user in three lines at most what was written, and the link to the next thread, `[<title>](t3-thread://v1/<its threadId>)`.
 
-   The root workspace is the main checkout of the project this thread is in, which is the party's folder, and the project and the modes are this thread's. The model is the one the role map names for the party's role, which is `exec` for Exec and `expert` for any other party that hands off here, and that is never an expert, whose rollover is not this skill's: the block asks `jroles` for it, and the `launch:` line has it as `modelSelection`. With no line for that role the call has no `modelSelection`, and the next thread runs on this thread's model. A line the block prints on stderr says why the map gives no model: the launch is made all the same, and the user is told that line. The message is the last fenced block of the folder's `RESTART.md`, the one a new thread of the party is started with by hand, and under it the lines that send the next thread to the section below. With no such page it is those lines alone. A launch has no retry key: if the call fails or its reply is lost, look for the thread as 2 of step 4 says before launching again. If the launch fails all the same, or the session has no `t3_thread_launch`, give the user the message to start a thread with, and rename and settle nothing.
+   The root workspace is the main checkout of the project this thread is in, which is the party's folder, and the project and the modes are this thread's. The model is the one the role map names for `expert`, for any party that hands off here, and that is never an expert, whose rollover is not this skill's: the block asks `jroles` for it, and the `launch:` line has it as `modelSelection`. With no line for that role the call has no `modelSelection`, and the next thread runs on this thread's model. A line the block prints on stderr says why the map gives no model: the launch is made all the same, and the user is told that line. The message is the last fenced block of the folder's `RESTART.md`, the one a new thread of the party is started with by hand, and under it the lines that send the next thread to the section below. With no such page it is those lines alone. A launch has no retry key: if the call fails or its reply is lost, look for the thread as 2 of step 4 says before launching again. If the launch fails all the same, or the session has no `t3_thread_launch`, give the user the message to start a thread with, and rename and settle nothing.
 
 ### The thread a party's handoff started
 

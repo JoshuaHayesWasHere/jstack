@@ -17,7 +17,7 @@ import pytest
 from test_understanding_skills import block, blocks, git
 
 REPO = Path(__file__).parent.parent
-PROJECT, THREAD, EXEC = "p-winnie", "mcp:the-home", "mcp:exec"
+PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
     'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "first"\n'
     'checkout = "/somewhere/first"\nprojectId = "p-first"\nwebhook_url = "http://127.0.0.1:1/w"\n'
@@ -75,15 +75,6 @@ class Machine:
 
     def merge(self, shell="sh"):
         return self.run("4 to merge", shell=shell, **{"the checkout": str(self.repo)})
-
-    def exec(self, did):
-        filled = {
-            "the checkout": str(self.repo),
-            "the T3 project id": PROJECT,
-            "the home thread id": THREAD,
-            "done or already": did,
-        }
-        return self.run("6 Exec", **filled)
 
     def files(self):
         return sorted(str(p.relative_to(self.home)) for p in self.home.rglob("*") if p.is_file())
@@ -144,14 +135,14 @@ def test_the_state_directory_is_the_one_the_home_skills_first_home_step_makes(ma
 
 
 def test_a_folder_of_a_party_is_no_repos_home(machine):
-    party = machine.home / "repos" / "_exec"
+    party = machine.home / "repos" / "_jez"
     party.mkdir()
     git(party, "init", "-q")
-    assert machine.first("_exec") == [
-        f"not a repo's home: a folder named _exec under {machine.state.parent} is a party's, "
-        "as Exec's is. Nothing is done."
+    assert machine.first("_jez") == [
+        f"not a repo's home: a folder named _jez under {machine.state.parent} is a party's, "
+        "as an expert's is. Nothing is done."
     ]
-    assert not (machine.state.parent / "_exec").exists()
+    assert not (machine.state.parent / "_jez").exists()
 
 
 def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
@@ -159,9 +150,6 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
     for name, text in (("plan.md", ""), ("notes.md", ""), ("merge-seen", "0\n")):
         (machine.state / name).write_text(text)
     (machine.state / "home-id").write_text(f"{THREAD}\n")
-    exec_id = machine.state.parent / "_exec" / "home-id"
-    exec_id.parent.mkdir()
-    exec_id.write_text(f"{EXEC}\n")
     was = sorted(p.name for p in machine.state.iterdir())
     assert machine.first("Winnie")[3:] == [
         f"1 state directory: already, {machine.state} has its plan.md",
@@ -191,21 +179,11 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
         f"(/nohome merge), home-thread holds empty (a home's thread id on one line of "
         f"{machine.state}/home-thread, written by hand)",
     ]
-    assert machine.exec("done") == [
-        f"to: {EXEC}",
-        f"message: new home: Winnie. Checkout {machine.repo}, state directory {machine.state}, "
-        f"T3 project {PROJECT}, jbus project Winnie (in jbus's config), home thread {THREAD}. "
-        "Set up by /new-home.",
-    ]
     assert sorted(p.name for p in machine.state.iterdir()) == was
-    assert exec_id.read_text() == f"{EXEC}\n"
-    assert sorted(p.name for p in exec_id.parent.iterdir()) == ["home-id"]
+    assert sorted(p.name for p in machine.state.parent.iterdir()) == ["Winnie"]
 
     now = machine.config.read_text()
     assert machine.jbus() == ["3 jbus project: already, jbus's config has its table"]
-    assert machine.exec("already") == [
-        "6 Exec: already, nothing was set up in this run, so there is nothing new to tell"
-    ]
     assert machine.config.read_text() == now
     assert len(list(machine.config.parent.glob("config.toml.*.bak"))) == 1
 
@@ -276,16 +254,6 @@ def test_a_repo_that_lacks_nothing_for_a_merge_says_already_and_no_switch_is_wri
     assert machine.files() == was
 
 
-def test_with_no_exec_the_message_is_the_users_to_pass_on(machine):
-    (said,) = machine.exec("done")
-    assert said == (
-        f"6 Exec: needs you: no thread id is in {machine.state.parent}/_exec/home-id, so nobody "
-        f"was told: new home: Winnie. Checkout {machine.repo}, state directory {machine.state}, "
-        f"T3 project {PROJECT}, jbus project Winnie (not in jbus's config yet), home thread "
-        f"{THREAD}. Set up by /new-home."
-    )
-
-
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
 def test_under_zsh_a_repo_with_one_yml_workflow_and_no_yaml_one_is_read_as_sh_reads_it(machine):
     flows = machine.repo / ".github" / "workflows"
@@ -298,7 +266,7 @@ def test_under_zsh_a_repo_with_one_yml_workflow_and_no_yaml_one_is_read_as_sh_re
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
 def test_every_block_starts_by_asking_zsh_to_read_it_as_sh(machine):
     text = (REPO / "skills/new-home/SKILL.md").read_text()
-    assert len(blocks(text, "sh")) == 4
+    assert len(blocks(text, "sh")) == 3
     for body in blocks(text, "sh"):
         done = subprocess.run(["zsh", "-c", body], cwd=machine.home, capture_output=True, text=True)
         assert (done.returncode, done.stderr) == (0, "")

@@ -10,7 +10,7 @@ import re
 import pytest
 
 from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
-from test_party_handoff import EXEC, Party, takes
+from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
 from test_tool_calls import CALLS, PLACEHOLDER, REPO, errors
 
@@ -112,18 +112,17 @@ def test_a_close_run_twice_and_cut_before_the_launch_ends_where_one_run_ends(sce
     assert scene.file.read_text() == f"{OTHER}\n"
 
 
-def test_the_handoff_launches_tells_then_renames_then_settles_and_only_passes_mail_on_after():
+def test_the_handoff_launches_then_renames_then_settles_and_only_passes_mail_on_after():
     assert [call.tool for call in HANDOFF] == [
         "update_scheduled_task",
         "t3_thread_launch",
         "t3_thread_list",
-        "t3_thread_send",
         "t3_thread_update",
         "t3_thread_organize",
         "t3_thread_send",
         "t3_thread_send",
     ]
-    _, launch, lookup, _, rename, settle, *_ = (call.given for call in HANDOFF)
+    _, launch, lookup, rename, settle, *_ = (call.given for call in HANDOFF)
     assert launch["title"] == "home: demo"
     assert launch["workspaceStrategy"] == {"type": "root"}
     assert lookup == {"titleContains": launch["title"]}
@@ -202,14 +201,8 @@ def test_the_gates_under_a_note_of_ten_lines_are_not_counted_and_are_kept_whole(
     assert (scene.home_dir / "handoff.md").read_text() == f"{note}\nWas home: {THREAD}\n"
 
 
-HAIKU = {
-    "provider": "claudeAgent",
-    "model": "claude-haiku-5-5",
-    "options": [{"id": "effort", "value": "medium"}],
-}
 GROK = {"provider": "grok", "model": "grok-build", "instanceId": "grok-work"}
 ROLES = """home: codex gpt-5-codex
-exec: claudeAgent claude-haiku-5-5
 expert: grok grok-build grok-work
 """
 
@@ -232,23 +225,19 @@ def launched(printed):
     return given
 
 
-def test_execs_handoff_starts_its_next_thread_on_the_model_the_map_gives_exec(party, role_map):
+def test_a_partys_handoff_starts_its_next_thread_on_the_model_the_map_gives_expert(party, role_map):
     role_map(ROLES)
     given = launched(party.hands_off())
     assert set(given) == {"title", "workspaceStrategy", "message", "modelSelection"}
-    assert given["modelSelection"] == HAIKU
-    assert given["title"] == "home: exec"
-
-
-def test_a_party_that_is_not_exec_takes_the_model_of_the_role_expert(party, role_map):
-    role_map(ROLES)
+    assert given["modelSelection"] == GROK
+    assert given["title"] == "home: desk"
     own = party.folder("cook", COOK)
     given = launched(party.hands_off(COOK, own))
     assert given["title"] == "home: cook"
     assert given["modelSelection"] == GROK
 
 
-@pytest.mark.parametrize("roles", [None, "home: codex gpt-5-codex\n", "exec: inherit\n"])
+@pytest.mark.parametrize("roles", [None, "home: codex gpt-5-codex\n", "expert: inherit\n"])
 def test_with_no_model_for_its_role_the_launch_is_the_one_that_inherits(party, role_map, roles):
     if roles is not None:
         role_map(roles)
@@ -256,11 +245,11 @@ def test_with_no_model_for_its_role_the_launch_is_the_one_that_inherits(party, r
 
 
 def test_a_map_that_cannot_be_used_is_said_and_the_handoff_still_launches(party, role_map):
-    role_map("exec: claudeAgent\n")
-    (party.own / "handoff.next.md").write_text("# exec: handoff, today\n")
-    ran = party.does("launch: ", EXEC, quiet=False)
+    role_map("expert: claudeAgent\n")
+    (party.own / "handoff.next.md").write_text("# desk: handoff, today\n")
+    ran = party.does("launch: ", DESK, quiet=False)
     assert ran.returncode == 0
-    assert ran.stderr == "bad line 1: exec: claudeAgent\n"
+    assert ran.stderr == "bad line 1: expert: claudeAgent\n"
     printed = [tuple(line.split(": ", 1)) for line in ran.stdout.splitlines()]
     assert set(launched(printed)) == {"title", "workspaceStrategy", "message"}
 
@@ -268,7 +257,7 @@ def test_a_map_that_cannot_be_used_is_said_and_the_handoff_still_launches(party,
 def test_a_close_run_again_prints_the_same_model_selection(party, role_map):
     role_map(ROLES)
     first = party.hands_off()
-    ran = party.does("launch: ", EXEC)
+    ran = party.does("launch: ", DESK)
     again = [tuple(line.split(": ", 1)) for line in ran.stdout.splitlines()]
     assert again[0][0] == "closed before"
     assert launched(again) == launched(first)
