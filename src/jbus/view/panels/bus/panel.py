@@ -3,7 +3,9 @@ and the last events of the log. The outbox itself is never opened.
 
 `top_level` is the same count for the top-level webhook, the monitor of every project, where
 the project posts to it beside its own webhook: its outbox, its failed wakes, its last error
-and its last POST. It is None where the project has one webhook."""
+and its last POST. It is None where the project has one webhook. `blocking` is the same for
+the second target, the webhook of what blocks, and None where the config sets none: its
+outbox holds bodies, not events."""
 
 from __future__ import annotations
 
@@ -12,7 +14,7 @@ from typing import Any
 from jbus import read_json
 from jbus.view.clean import ANY
 from jbus.view.state import EVENTS_FILE, Read, Spot, kept, text, when
-from jbus.wake import LOUDNESS, TOP_LEVEL
+from jbus.wake import BLOCKING, LOUDNESS, TOP_LEVEL
 
 FIRST = True
 SHOWN = 40
@@ -30,6 +32,7 @@ SHAPE = {
         "today": {ANY: None},
         "events": [_EVENT],
         "top_level": {"outbox": None, "failed_wakes": None, "last_error": None, "posted": None},
+        "blocking": {"outbox": None, "failed_wakes": None, "last_error": None, "posted": None},
     }
 }
 NOT_KEPT = (Spot("the time each step of a pass took is not kept", 510),)
@@ -52,7 +55,6 @@ SOURCES = (
 def build(read: Read) -> dict[str, Any]:
     status = read.panel("pulse")["jbus"]["status"]
     wake, keys = read.table("wake.json") or {}, read.once(sent) or []
-    top, posts = status["top_level"], read.table(f"{TOP_LEVEL}/wake.json") or {}
     today: dict[str, int] = {}
     for one in read.events:
         if one["at"] >= read.day:
@@ -74,12 +76,21 @@ def build(read: Read) -> dict[str, Any]:
             "loudness": dict(LOUDNESS),
             "today": today,
             "events": read.events[-SHOWN:],
-            "top_level": top
-            and {
-                "outbox": top["outbox"],
-                "failed_wakes": top["failed_wakes"],
-                "last_error": text(posts.get("last_error")) or top["last_error"],
-                "posted": when(posts.get("posted")),
-            },
+            "top_level": _route(read, status["top_level"], TOP_LEVEL),
+            "blocking": _route(read, status["blocking"], BLOCKING),
         }
+    }
+
+
+def _route(read: Read, one: dict[str, Any] | None, folder: str) -> dict[str, Any] | None:
+    """A webhook beside the project's own: its counts from the status file, and its last
+    error and POST from its own `wake.json`."""
+    if not one:
+        return None
+    posts = read.table(f"{folder}/wake.json") or {}
+    return {
+        "outbox": one["outbox"],
+        "failed_wakes": one["failed_wakes"],
+        "last_error": text(posts.get("last_error")) or one["last_error"],
+        "posted": when(posts.get("posted")),
     }

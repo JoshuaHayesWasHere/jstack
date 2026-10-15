@@ -46,6 +46,32 @@ first pass that writes the list sends none. No webhook URL, key or token is in t
 the event: `redact` takes each out of what a pass found, before it is compared with the
 file.
 
+What blocks is a part of this list, and the one function that decides it is `blocking`: an
+item is open and nothing can move without the user. It is the design's Blocking test
+(`docs/jbus.md`, "What blocks"), by these fields:
+
+- (a) a `gate` whose `default` is empty, which only a home's `gates.md` can have since `jbus
+  gate` refuses a question with none, or whose question or context names one of `PAUSE`.
+  jstack keeps no always-pause list of its own: `PAUSE` is it, read off the words;
+- (b) an `approve` item, a row whose `brief_sha` is empty since nobody approved it or whose
+  brief changed after the go, and a row of the queue that waits with no brief in
+  `briefs/<slug>.md`;
+- (c) a `hold`, a pull request `jmerge` holds;
+- (d) a stall: a `left` item, a leftover that is the user's since its home did not close it
+  in `CLOSE_MINUTES` or has none; a `config` item; a streak of `alert` that alerted, of this
+  project or of the pass, but for the second target's own; and a gate that has a default
+  whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
+
+A gate with a default whose thread still writes, a `row` jbus put at `gate`, and a leftover
+its home has are not blocking.
+
+`cadence` keeps `blocking.json`, `{"open", "reminded", "period"}`, and queues the second
+target's bodies (`wake.Box.post`): the items that opened in a pass, one `reminder` for each
+item still open `REMIND_MINUTES` after it opened, and a `refresh` of every open item, oldest
+first, on the pass that begins a new `REFRESH_MINUTES`, also when none is open. An item is
+named by its key, the list's own, so a question by its number. A pass that cannot judge a
+stall, or is blind, closes nothing it had.
+
 The file had another name once (`jbus.old_names`). `read` takes a file of that name where there is
 none of this one, each line by the name its event has now, and `keep` removes it once it has
 written this one.
@@ -55,13 +81,15 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import re
 from collections.abc import Collection
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import jsettings
 from jbus import (
+    alert,
     leftover,
     merge,
     mirror,
@@ -73,7 +101,7 @@ from jbus import (
     write_json,
 )
 from jbus.wake import CONDITION, Pass, Slot, renamed
-from jbus.watch import World
+from jbus.watch import LIVE, World
 
 EVENTS = {"waiting": "user"}
 EVENT = "waiting"
@@ -84,6 +112,17 @@ Item = dict[str, Any]
 
 
 NAME = "waiting-on-user.json"
+BLOCKS = "blocking.json"
+PAUSE = {
+    "force-push": r"\bforce[- ]?push",
+    "deploy": r"\bdeploy",
+    "deleting data": r"\b(delet|drop|eras|wip)\w*\b[^.]*\b(data|database|tables?|rows|records)\b",
+    "an outside message": (
+        r"\b(customers?|outside|external|public)\b[^.]*\b(message|e-?mail|post|reply)"
+        r"|\b(message|e-?mail|post|reply)\w*\b[^.]*\b(customers?|outside|external|public)\b"
+    ),
+}
+KEEP_REMINDED = timedelta(days=14)
 
 
 def path(state: Path) -> Path:
@@ -346,3 +385,212 @@ def keep(
         with contextlib.suppress(OSError):
             file.unlink()
     return listed
+
+
+def paused(text: str) -> str:
+    """The always-pause name a text falls under, or nothing."""
+    return next((name for name, rule in PAUSE.items() if re.search(rule, text, re.I)), "")
+
+
+def _last_events(run: Pass) -> dict[str, datetime]:
+    """When each slug last had an event in the log."""
+    last: dict[str, datetime] = {}
+    for one in run.box.log():
+        slug = one.get("slug")
+        if slug:
+            at = datetime.fromisoformat(one["at"])
+            last[slug] = max(last.get(slug, at), at)
+    return last
+
+
+def _at_work(world: World, slug: str) -> bool:
+    """Whether any thread of the slug is at work: a crewmate beside its reviewer counts."""
+    return any(
+        thread.get("status") in LIVE and not thread.get("settled")
+        for thread in world.threads.get(slug, [])
+    )
+
+
+def _why(
+    run: Pass, one: Item, world: World | None, last: dict[str, datetime]
+) -> tuple[str, str] | None:
+    """The case of the Blocking test an item of the list is, and why, or None where it is
+    not blocking. `("?", "")` is a stall this pass cannot judge: it has no `world`."""
+    kind = one["kind"]
+    if kind == "hold":
+        return "c", "a pull request jmerge holds"
+    if kind == "approve":
+        return "b", "a row with no approval of its brief"
+    if kind in ("left", "config"):
+        return "d", "a leftover no home closed" if kind == "left" else "jbus cannot go on"
+    if kind != "gate":
+        return None
+    if not str(one.get("default") or "").strip():
+        return "a", "a gate with no default"
+    named = paused(f"{one.get('question', '')} {one.get('context', '')}")
+    if named:
+        return "a", f"always-pause: {named}"
+    slug = one.get("slug") or ""
+    if not slug or slug == "home":
+        return None
+    if world is None:
+        return "?", ""
+    if _at_work(world, slug):
+        return None
+    since = last.get(slug) or datetime.fromisoformat(one["since"])
+    if (run.now - since).total_seconds() < leftover.CLOSE_MINUTES * 60:
+        return None
+    return "d", f"no event for {leftover.CLOSE_MINUTES} min and no thread at work"
+
+
+def _blocks(run: Pass, item: Item, case: str, why: str) -> Item:
+    kept = ("key", "kind", "line", "since", "slug", "number", "url", "question", "default")
+    return {"project": run.project.name, "case": case, "why": why} | {
+        name: item[name] for name in kept if item.get(name) not in (None, "")
+    }
+
+
+def _alarms(run: Pass) -> list[Item]:
+    """The streaks that alerted and still stand, of this project or of the pass. The second
+    target's own is left out: it would be posted to the webhook that fails."""
+    name = run.project.name
+    mine = {alert.PASS, alert.webhook(name), alert.top_level(name), alert.jmerge(name)}
+    found = []
+    for key, one in sorted(alert.streaks(run.config.state_dir).items()):
+        if key in mine and one.get("alerted"):
+            line = f"alert: {key} failed {one.get('count')} times in a row"
+            item = {"key": f"alarm:{key}", "kind": "alarm", "line": line, "since": one["since"]}
+            found.append(_blocks(run, item, "d", "a jbus alarm"))
+    return found
+
+
+def _briefless(run: Pass, rows: list[queue.Row] | None, listed: list[Item]) -> list[Item]:
+    """The rows that wait to launch with no brief stored for them."""
+    keys = {one["key"] for one in listed}
+    found = []
+    for row in sorted(rows or [], key=queue.order):
+        slug = row["slug"]
+        if row.get("status", "queued") not in ("queued", "gate") or f"approve:{slug}" in keys:
+            continue
+        if slug in run.removed or queue.brief(run.state, slug) is not None:
+            continue
+        line = f"brief {slug}: the queue has no brief for it, add it again"
+        item = {"key": f"brief:{slug}", "kind": "brief", "line": line, "slug": slug}
+        item["since"] = run.now.isoformat()
+        found.append(_blocks(run, item, "b", "a row with no brief"))
+    return found
+
+
+def blocking(
+    run: Pass,
+    listed: list[Item],
+    rows: list[queue.Row] | None,
+    world: World | None,
+    had: dict[str, Item] | None = None,
+) -> list[Item]:
+    """What blocks, oldest first: each item of the list that passes the Blocking test, each
+    row with no brief, and each alarm. `had` is what blocked in the last pass: a stall this
+    pass cannot judge, and a row with no brief where it has no rows, stays as it was."""
+    had = had or {}
+    last = _last_events(run)
+    context = {questions.item(asked)["key"]: asked.context for asked in questions.load(run.state)}
+    found = []
+    for one in listed:
+        said = _why(run, one | {"context": context.get(one["key"], "")}, world, last)
+        if said is None:
+            continue
+        case, why = said
+        if case == "?":
+            found += [had[one["key"]]] if one["key"] in had else []
+        else:
+            found.append(_blocks(run, one, case, why))
+    if rows is None:
+        found += [one for one in had.values() if one["kind"] == "brief"]
+    else:
+        found += _briefless(run, rows, listed)
+    found += _alarms(run)
+    return sorted(found, key=lambda one: (datetime.fromisoformat(one["since"]), one["key"]))
+
+
+def _say(name: str, kind: str, items: list[Item]) -> list[str]:
+    if not items and kind == "refresh":
+        return [f"{name}: nothing blocks"]
+    return [f"{name}: {kind} {one['line']}" for one in items]
+
+
+def _body(run: Pass, kind: str, items: list[Item]) -> dict[str, Any]:
+    """One body for the second target. One of kind `events` has `events`, empty, so every
+    body of that kind has the same keys."""
+    made = {"kind": kind, "project": run.project.name, "at": run.now.isoformat()}
+    if kind == "events":
+        made["events"] = []
+    made |= {"say": _say(run.project.name, kind, items), "items": items}
+    return redact(made, run.config.secrets())
+
+
+def _opened(one: Item, had: dict[str, Item], last: str | None, now: datetime) -> str:
+    """When an item began to block: as the last pass had it, or for one new to the list
+    since that pass its own `since`, or this pass. A gate that turns into a stall begins to
+    block now, not when it was asked."""
+    if one["key"] in had:
+        return had[one["key"]].get("opened") or had[one["key"]]["since"]
+    if last is None or datetime.fromisoformat(one["since"]) > datetime.fromisoformat(last):
+        return one["since"]
+    return now.isoformat()
+
+
+def _age(one: Item, now: datetime) -> float:
+    return (now - datetime.fromisoformat(one["opened"])).total_seconds()
+
+
+def cadence(
+    run: Pass,
+    listed: list[Item] | None,
+    rows: list[queue.Row] | None,
+    world: World | None,
+) -> list[Item]:
+    """Judge what blocks, queue the second target's bodies, and rewrite `blocking.json`. The
+    answer is what blocks, oldest first by when each began to block (`opened`). `listed` is
+    None for a blind pass: it judges nothing, keeps what it had open, and still sends what
+    falls due. The first pass that writes the file sends no opening body: what blocks then
+    did not open in it. With no second target it judges nothing and writes nothing, so the
+    first pass that has one starts from what blocks then. The marks are written before the
+    bodies are queued: a pass that dies between the two sends a body once too few, never
+    twice."""
+    path = run.state / BLOCKS
+    if run.box.blocking is None:
+        return []
+    kept = read_json(path, None)
+    first = not isinstance(kept, dict)
+    kept = kept if isinstance(kept, dict) else {}
+    had: dict[str, Item] = kept.get("open", {})
+    now = run.now
+    found = list(had.values()) if listed is None else blocking(run, listed, rows, world, had)
+    found = [one | {"opened": _opened(one, had, kept.get("at"), now)} for one in found]
+    found.sort(key=lambda one: (datetime.fromisoformat(one["opened"]), one["key"]))
+    opened = [one for one in found if one["key"] not in had]
+    reminded: dict[str, str] = kept.get("reminded", {})
+    still = {one["key"] for one in found}
+    reminded = {
+        key: at
+        for key, at in reminded.items()
+        if key in still or now - datetime.fromisoformat(at) < KEEP_REMINDED
+    }
+    due = [
+        one
+        for one in found
+        if one["key"] not in reminded and _age(one, now) >= leftover.REMIND_MINUTES * 60
+    ]
+    reminded |= {one["key"]: now.isoformat() for one in due}
+    period = int(now.timestamp() // (leftover.REFRESH_MINUTES * 60))
+    refresh = not first and period > kept.get("period", period)
+    open_now = {one["key"]: one for one in redact(found, run.config.secrets())}
+    marks = {"at": now.isoformat(), "open": open_now, "reminded": reminded, "period": period}
+    write_json(path, marks, mode=0o600)
+    if opened and not first:
+        run.box.post(_body(run, "events", opened))
+    if due:
+        run.box.post(_body(run, "reminder", due))
+    if refresh:
+        run.box.post(_body(run, "refresh", found))
+    return found
