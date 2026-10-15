@@ -28,8 +28,11 @@ SHAPE = {
         "green": None,
         "runners": [_UNIT],
         "runners_read": None,
+        "now": {"running": None, "waiting": None, "failed": None},
     }
 }
+QUEUED = ("queued", "requested")
+FAILED = ("failure", "timed_out", "startup_failure")
 
 
 def runs(read: Read) -> dict[str, Any]:
@@ -72,8 +75,21 @@ def runners(read: Read) -> list[dict[str, str]] | None:
     ]
 
 
+def tally(runs: list[dict[str, Any]]) -> dict[str, int]:
+    """How many runs run now, how many wait for a runner, and how many branches failed: a
+    branch once, while the newest run of one of its workflows failed. The runs are oldest
+    first, as `github.GitHub.runs` gives them, and the card counts them the same way."""
+    newest = {(one.get("branch"), one.get("name")): one for one in runs}
+    failed = {one.get("branch") for one in newest.values() if one.get("state") in FAILED}
+    return {
+        "running": sum(1 for one in runs if one.get("state") == "in_progress"),
+        "waiting": sum(1 for one in runs if one.get("state") in QUEUED),
+        "failed": len(failed),
+    }
+
+
 def _units(read: Read) -> dict[str, Any]:
-    return {"at": iso(read.now), "read": read.once(runners) is not None}
+    return {"at": iso(read.now), "read": read.machine(runners) is not None}
 
 
 SOURCES = (
@@ -92,7 +108,8 @@ def build(read: Read) -> dict[str, Any]:
             "error": text(asked.get("error")),
             "commits": len(kept),
             "green": sum(1 for word in kept.values() if word == "green"),
-            "runners": read.once(runners) or [],
-            "runners_read": read.once(runners) is not None,
+            "runners": read.machine(runners) or [],
+            "runners_read": read.machine(runners) is not None,
+            "now": tally(asked.get("runs", [])),
         }
     }

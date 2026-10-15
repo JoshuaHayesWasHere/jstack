@@ -33,6 +33,7 @@ import jsettings
 from jbus import cli, leftover, merge, noticed, questions, queue, record, view, word, work
 from jbus.view import panels
 from jbus.view import state as built
+from jbus.view.panels.room import panel as room_panel
 from jbus.view.state import waves
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
@@ -496,9 +497,12 @@ class Served:
         finally:
             link.close()
 
-    def write(self, body, origin=None, path="/answer", **how):
-        """A write as the server's own page makes it, or from the origin given: `""` is a
-        request with no `Origin` header. The answer is its status and what it said."""
+    def write(self, body, origin=None, path=None, **how):
+        """A write as the server's own page makes it, to the one project of the state
+        directory, or from the origin given: `""` is a request with no `Origin` header. The
+        answer is its status and what it said."""
+        if path is None:
+            path = "/answer?project=" + built.projects(self.doors.app.sources)[0]
         origin = f"http://127.0.0.1:{self.port}" if origin is None else origin
         headers = {"Content-Type": "application/json"} | ({"Origin": origin} if origin else {})
         sent = body if isinstance(body, str) else json.dumps(body)
@@ -596,6 +600,184 @@ def test_jbus_digest_takes_the_expiry_from_the_token_file_where_there_is_one(
 def test_a_since_that_is_not_a_time_is_refused(served):
     status, _, body = served.ask("/digest.json?since=yesterday")
     assert (status, json.loads(body)) == (400, {"error": "since is not a time"})
+
+
+def stacked(scene):
+    """Beside `demo`, two projects of the state directory, made up small: `pantry`, with
+    one task running, one at a gate and one merged today, a gate it asks and a noticed line,
+    in a repo of its own, and `larder`, whose queue is empty. Beside them a directory with
+    no queue, which is no project, and a retired project, which jbus no longer looks after
+    and the view never reads."""
+    pantry, larder = scene.state_dir / "pantry", scene.state_dir / "larder"
+    for made in (pantry, larder, scene.home_dir / "pantry", scene.home_dir / "larder"):
+        made.mkdir()
+    (scene.state_dir / "launches").mkdir()
+    retired = scene.root / "jbus-retired" / "hydra"
+    retired.mkdir(parents=True)
+    (retired / "queue.json").write_text(json.dumps([row("old-pot", "running")]))
+    rows = [
+        row("fig-jam", "running", thread="mcp:fig"),
+        row("fig-tart", "gate", why="a gate the Chef has", since=et(ago(minutes=40))),
+        row("fig-roll", "merged", pr="#3"),
+    ]
+    (pantry / "queue.json").write_text(json.dumps(rows))
+    lines = [judge_row(one, pantry) for one in rows]
+    (pantry / "work.json").write_text(json.dumps({"at": iso(NOW), "work": lines}))
+    gate = item("row", "row:fig-tart", "gate fig-tart: which tin?", minutes=40, slug="fig-tart")
+    (pantry / "waiting-on-user.json").write_text(json.dumps([gate]))
+    moved = {"slug": "fig-roll", "from": "pr", "to": "merged", "at": iso(ago(minutes=9))}
+    (pantry / "transitions.jsonl").write_text(json.dumps(moved) + "\n")
+    stamp = et(ago(minutes=8)).removesuffix(" ET")
+    (scene.home_dir / "pantry" / "merge.log").write_text(
+        f"{stamp} wait 4 https://{GITHUB}/acme/pantry/pull/4: check has not passed\n"
+    )
+    (larder / "queue.json").write_text("[]")
+    return retired
+
+
+def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    a_noticed(scene, ("tea-kettle", "new", 5, {}), ("jam-jar", "dropped", 9, {}))
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+        larder = served.json("/state.json?project=larder")
+    finally:
+        served.close()
+    assert stack["at"] == iso(NOW)
+    assert list(stack["machine"]) == ["jbus", "room", "runners", "runners_read"]
+    assert stack["machine"]["jbus"]["stopped"] is False
+    assert stack["machine"]["jbus"]["status"] == {
+        "last_pass": demo["jbus"]["status"]["last_pass"],
+        "token_expires": demo["jbus"]["status"]["token_expires"],
+        "streaks": {},
+    }
+    same = {key: one for key, one in demo["room"].items() if key != "tmp"}
+    assert {key: one for key, one in stack["machine"]["room"].items() if key != "tmp"} == same
+    assert stack["machine"]["runners"] == demo["checks"]["runners"]
+    assert [one["name"] for one in stack["projects"]] == ["demo", "larder", "pantry"]
+    by = {one["name"]: one for one in stack["projects"]}
+    assert by["larder"] == {
+        "name": "larder",
+        "repo": "",
+        "waits": 0,
+        "waiting": {},
+        "noticed": 0,
+        "open": 0,
+        "steps": {},
+        "merged": 0,
+        "health": {
+            "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},
+            "bus": {"outbox": 0, "failed_wakes": 0, "last_error": ""},
+            "threads": None,
+            "blind": len(larder["blind"]) - sum(len(one.not_kept) for one in panels.found()),
+            "unwell": [
+                {"name": one["name"], "state": one["state"]}
+                for one in larder["sources"]
+                if one["state"] != "ok" and one["by"] != "session"
+            ],
+        },
+    }
+    pantry = by["pantry"]
+    assert (pantry["repo"], pantry["waits"], pantry["noticed"]) == ("acme/pantry", 1, 0)
+    assert pantry["waiting"] == {"row": {"count": 1, "since": iso(ago(minutes=40))}}
+    assert (pantry["open"], pantry["steps"], pantry["merged"]) == (2, {"running": 1, "gate": 1}, 1)
+    assert pantry["health"]["checks"] == {"running": 1, "waiting": 0, "failed": 0, "error": ""}
+    shown = by["demo"]
+    assert (shown["repo"], shown["waits"], shown["noticed"]) == ("acme/demo", 4, 1)
+    assert {kind: one["count"] for kind, one in shown["waiting"].items()} == dict.fromkeys(
+        ("gate", "row", "approve", "hold"), 1
+    )
+    assert shown["waits"] == len(demo["waiting"])
+    steps = [one["step"] for one in demo["tasks"]]
+    assert shown["steps"] == {key: steps.count(key) for key in built.STEP if key in steps}
+    assert shown["steps"] == {
+        "queued": 3,
+        "running": 1,
+        "gate": 1,
+        "second": 1,
+        "check": 1,
+        "rebase": 1,
+        "hold": 1,
+    }
+    assert (shown["open"], shown["merged"]) == (9, len(demo["merged"]))
+    assert shown["health"]["bus"] == {"outbox": 2, "failed_wakes": 0, "last_error": ""}
+    assert shown["health"]["threads"] == 0
+    assert "hydra" not in json.dumps(stack)
+
+
+def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path, monkeypatch):
+    """systemd, the room script and the runner units are asked once for an answer of
+    `/stack.json`, with three projects as with one, and the runs of GitHub once for each
+    repo, then kept: a second answer within the minute asks GitHub nothing."""
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    calls = scene.root / "machine.calls"
+    scene.script(
+        "systemctl",
+        f'printf "systemctl %s\\n" "$2" >> {calls}\n'
+        'case "$2" in\n'
+        f"list-units) cat {scene.root}/runners.json ;;\n"
+        f"*) cat {scene.root}/systemctl.txt ;;\nesac\n",
+    )
+    room = scene.bin / "room.sh"
+    limits = "LOAD=85\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\n"
+    room.write_text(f'{limits}echo room >> {calls}\necho "go: there is room"\n')
+    monkeypatch.setattr(room_panel, "ROOM", room)
+    served = Served(scene)
+    try:
+        served.json("/stack.json")
+        assert sorted(calls.read_text().splitlines()) == [
+            "room",
+            "systemctl list-units",
+            "systemctl show",
+        ]
+        runs = [one for one in scene.asked() if "actions/runs" in one]
+        assert sorted(runs) == [
+            "api repos/acme/demo/actions/runs?per_page=40",
+            "api repos/acme/pantry/actions/runs?per_page=40",
+        ]
+        calls.write_text("")
+        served.json("/stack.json")
+        assert len(calls.read_text().splitlines()) == 3
+        assert len([one for one in scene.asked() if "actions/runs" in one]) == 2
+    finally:
+        served.close()
+
+
+def test_a_retired_project_is_never_read_and_a_link_to_it_finds_nothing(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    retired = stacked(scene)
+    (retired / "queue.json").chmod(0)
+    served = Served(scene)
+    try:
+        assert "hydra" not in served.ask("/stack.json")[2]
+        assert served.ask("/state.json?project=hydra")[0] == 404
+        assert served.ask("/state.json?project=../jbus-retired/hydra")[0] == 404
+    finally:
+        served.close()
+        (retired / "queue.json").chmod(0o644)
+
+
+def test_an_answer_names_its_project_and_goes_to_that_projects_state_alone(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    number = asks(scene)
+    pantry = scene.state_dir / "pantry"
+    served = Served(scene)
+    try:
+        for path in ("/answer", "/answer?project=", "/answer?project=hydra"):
+            assert served.write({"numbers": [number]}, path=path)[0] == 404
+        assert kept(scene.state)[number].answer is None
+        assert served.write({"numbers": [number]}, path="/answer?project=pantry")[0] == 409
+        assert not questions.path(pantry).exists()
+        status, said = served.write({"numbers": [number]}, path="/answer?project=demo")
+        assert (status, [one["number"] for one in said["closed"]]) == (200, [number])
+        assert kept(scene.state)[number].answer is not None
+    finally:
+        served.close()
 
 
 def test_another_method_is_405(served):

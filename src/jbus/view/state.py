@@ -89,6 +89,7 @@ from jbus import (
     leftover,
     merge,
     mirror,
+    noticed,
     old_names,
     questions,
     queue,
@@ -99,7 +100,7 @@ from jbus import (
 from jbus.live import LIVENESS, OUT
 from jbus.threads import OTHER, ROLES
 from jbus.view import panels
-from jbus.view.clean import HOST, keep
+from jbus.view.clean import ANY, HOST, keep
 from jbus.wake import LOG
 
 APPROVAL = 400
@@ -900,6 +901,7 @@ class Read:
         runs: Callable[[str], dict[str, Any]],
         code: dict[str, Any] | None = None,
         found: tuple[panels.Panel, ...] | None = None,
+        shared: dict[Any, Any] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
         self.code = code or {}
@@ -907,12 +909,21 @@ class Read:
         self.state, self.home = sources.state(name), sources.home(name)
         self.panels = panels.found() if found is None else found
         self._kept: dict[Any, Any] = {}
+        self._shared: dict[Any, Any] = {} if shared is None else shared
 
     def once(self, make: Callable[[Read], Any]) -> Any:
         """What `make` gives of this, worked out the first time it is asked."""
         if make not in self._kept:
             self._kept[make] = make(self)
         return self._kept[make]
+
+    def machine(self, make: Callable[[Read], Any]) -> Any:
+        """What `make` gives of the machine, which is the same for every project: worked out
+        the first time any `Read` that shares `shared` with this one asks, as one answer of
+        `/stack.json` reads every project with one `shared`."""
+        if make not in self._shared:
+            self._shared[make] = make(self)
+        return self._shared[make]
 
     def panel(self, name: str) -> dict[str, Any]:
         """What the panel `name` builds, before it is cut to its shape."""
@@ -1127,3 +1138,100 @@ def build(
     which code answers, as the server's `Code.said` gives it: it goes under `jbus`.
     """
     return Read(sources, name, now, runs, code).answer()
+
+
+KEPT_BY_JBUS = ("last_pass", "token_expires", "streaks")
+SUMMARY = {
+    "name": None,
+    "repo": None,
+    "waits": None,
+    "waiting": {ANY: {"count": None, "since": None}},
+    "noticed": None,
+    "open": None,
+    "steps": {ANY: None},
+    "merged": None,
+    "health": {
+        "checks": {"running": None, "waiting": None, "failed": None, "error": None},
+        "bus": {"outbox": None, "failed_wakes": None, "last_error": None},
+        "threads": None,
+        "blind": None,
+        "unwell": [{"name": None, "state": None}],
+    },
+}
+
+
+def summary(read: Read) -> dict[str, Any]:
+    """One project as the overview has it: what waits on the user, by kind with the oldest
+    `since`, the new noticed lines (counted apart: they are no wait), its open tasks by step,
+    in the order of the line, what merged today, and its health. The threads are the ones
+    out, or None where the last pass left no list. Blind is what the project's page cannot
+    say now, without what it never can. Unwell is each source that is not ok, but for one a
+    session writes."""
+    waiting = read.panel("you")["waiting"]
+    kinds: dict[str, dict[str, Any]] = {}
+    for one in waiting:
+        kind = kinds.setdefault(one["kind"], {"count": 0, "since": None})
+        kind["count"] += 1
+        if one["since"] and (kind["since"] is None or one["since"] < kind["since"]):
+            kind["since"] = one["since"]
+    held = [task["step"] for task in read.tasks]
+    steps = {key: held.count(key) for key in STEP if key in held}
+    checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
+    never = sum(len(panel.not_kept) for panel in read.panels)
+    return {
+        "name": read.name,
+        "repo": read.where,
+        "waits": len(waiting),
+        "waiting": kinds,
+        "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
+        "open": len(held),
+        "steps": steps,
+        "merged": len(read.panel("merged")["merged"]),
+        "health": {
+            "checks": checks["now"] | {"error": checks["error"]},
+            "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
+            "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
+            "blind": len(read.panel("blind")["blind"]) - never,
+            "unwell": [
+                {"name": one["name"], "state": one["state"]}
+                for one in read.listed
+                if one["state"] != "ok" and one["by"] != "session"
+            ],
+        },
+    }
+
+
+def stack(
+    sources: Sources,
+    now: datetime,
+    runs: Callable[[str], dict[str, Any]],
+    code: dict[str, Any] | None = None,
+    found: tuple[panels.Panel, ...] | None = None,
+) -> dict[str, Any]:
+    """What `/stack.json` holds: the machine once, and a summary of each project.
+
+    The machine is what one jbus and one room serve every project with: the pass and the
+    timer, the room and the plan's use, and the runner units. Each project is read as
+    `/state.json` reads it, by a `Read` of its own, and every `Read` shares one `machine`, so
+    systemd, the room script and the runner units are asked once for the answer, however
+    many projects there are. `runs` is asked once for each repo, and keeps its answer.
+    """
+    found = panels.found() if found is None else found
+    keys(found)
+    shared: dict[Any, Any] = {}
+    shapes = {panel.name: panel.shape for panel in found}
+    base = Read(sources, "", now, runs, code, found, shared)
+    pulse = shapes["pulse"]["jbus"]
+    kept_by_jbus = {key: pulse["status"][key] for key in KEPT_BY_JBUS}
+    checks = base.panel("checks")["checks"]
+    machine = {
+        "jbus": keep(base.panel("pulse")["jbus"], pulse | {"status": kept_by_jbus}),
+        "room": keep(base.panel("room")["room"], shapes["room"]["room"]),
+        "runners": keep(checks["runners"], shapes["checks"]["checks"]["runners"]),
+        "runners_read": checks["runners_read"],
+    }
+    every = [
+        keep(summary(Read(sources, name, now, runs, code, found, shared)), SUMMARY)
+        for name in projects(sources)
+    ]
+    return {"at": iso(now), "machine": machine, "projects": every}

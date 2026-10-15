@@ -66,8 +66,9 @@ NOT_KEPT = (
 )
 
 
-def _units() -> dict[str, dict[str, str]] | None:
-    """What systemd says of the timer and the service, or None where it did not answer."""
+def systemd(read: Read) -> dict[str, dict[str, str]] | None:
+    """What systemd says of the timer and the service, or None where it did not answer. It is
+    the machine's, so one answer of the server asks it once (`Read.machine`)."""
     try:
         asked = subprocess.run(
             ["systemctl", "--user", "show", TIMER, SERVICE, "-p", ASKED],
@@ -92,7 +93,7 @@ def pulse(read: Read) -> dict[str, Any]:
     sources, name, now = read.sources, read.name, read.now
     record = read.record
     status = _table(sources.state_dir / "status.json") or {}
-    units = _units()
+    units = read.machine(systemd)
     timer, service = (units or {}).get(TIMER, {}), (units or {}).get(SERVICE, {})
     started, ended = when(record.get("started")), when(record.get("ended"))
     last = ended or when(status.get("last_pass"), sources.user)

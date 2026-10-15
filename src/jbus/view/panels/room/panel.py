@@ -139,7 +139,7 @@ def room(read: Read) -> dict[str, Any]:
 
 def _past(read: Read) -> list[str]:
     """The limits of the plan whose window is over."""
-    return [key for key, one in read.once(room)["plan"].items() if one["used"] is None]
+    return [key for key, one in read.machine(room)["plan"].items() if one["used"] is None]
 
 
 def _limits(read: Read) -> dict[str, Any]:
@@ -160,12 +160,12 @@ SOURCES = (
 
 def blind(read: Read) -> list[Spot]:
     """A room check that did not run, and each limit of the plan whose window is over."""
-    plan = read.once(room)["plan"]
-    unknown = read.once(room)["answer"] == "unknown"
+    plan = read.machine(room)["plan"]
+    unknown = read.machine(room)["answer"] == "unknown"
     return [Spot("the room check did not run", 200)] * unknown + [
         Spot(f"the plan's {LIMITS[key]} limit is {plan[key]['say']}", 210) for key in _past(read)
     ]
 
 
 def build(read: Read) -> dict[str, Any]:
-    return {"room": read.once(room)}
+    return {"room": read.machine(room)}
