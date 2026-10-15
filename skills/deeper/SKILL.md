@@ -12,6 +12,8 @@ Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with m
 
 The rule behind it is `principles/depth-over-breadth.md`: in research, perf, analysis and outcome work, go one level deeper, not wider. It is not for a mechanical fix, a rename, or a task whose "Done when" already names its data, its instruments and its outside judge: say so in one line and stop.
 
+To have the task sharpened and then done, with no rewrite handed back, use `/sharpen` (`skills/sharpen/SKILL.md`) in place of this.
+
 ## Input
 
 What follows `/deeper`: the text of a task, or the path of a draft brief. For a path, read the file and take its `Task:` and `Done when:` lines as the task. Read only what the four answers need: the files the task names, and the data it would rest on, enough to name them by path, command or query. Do no part of the task itself.

@@ -116,6 +116,7 @@ skills/crew/SKILL.md <- pstack/skills/interrogate/references/lead-judgment.md
 skills/how/SKILL.md <- pstack/skills/how/SKILL.md
 skills/how/references/explainer-prompt.md <- pstack/skills/how/references/explainer-prompt.md
 skills/how/references/explorer-prompt.md <- pstack/skills/how/references/explorer-prompt.md
+skills/in-your-own-words/SKILL.md <- pstack/skills/in-your-own-words/SKILL.md
 skills/interrogate/SKILL.md <- pstack/skills/interrogate/SKILL.md
 skills/interrogate/references/code-quality-review.md <- pstack/skills/interrogate/references/code-quality-review.md
 skills/interrogate/references/lead-judgment.md <- pstack/skills/interrogate/references/lead-judgment.md
@@ -130,6 +131,7 @@ skills/reflect/references/divergent-reviewer.md <- pstack/skills/reflect/referen
 skills/reflect/references/judgment-reviewer.md <- pstack/skills/reflect/references/judgment-reviewer.md
 skills/reflect/references/synthesizer.md <- pstack/skills/reflect/references/synthesizer.md
 skills/reflect/references/tooling-reviewer.md <- pstack/skills/reflect/references/tooling-reviewer.md
+skills/sharpen/SKILL.md <- pstack/skills/sharpen/SKILL.md
 skills/show-me-your-work/SKILL.md <- pstack/skills/show-me-your-work/SKILL.md
 skills/show-me-your-work/scripts/log.sh <- pstack/skills/show-me-your-work/scripts/log.sh
 skills/tdd/SKILL.md <- pstack/skills/tdd/SKILL.md
@@ -259,5 +261,5 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 - Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with models", 2026-10-13: https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/
 - Taken from: the prompt the post gives for Depth, quoted whole in `skills/deeper/SKILL.md` as its four questions, and the Depth moves the principle names: the instruments the best in the field use, reproducing a number from the raw data, an ambitious target said to be reasonable, and an outside judge in place of the model judging itself.
 - Changed here: each question is answered for this repo and this machine, by path, command or query; the skill loads only when typed, and run by a home it parks the choice between the task as written and the rewrite as a gate, with the rewrite as the default. Altitude and Range are not taken.
-- Ties to pstack: `/deeper` pushes a task deeper, where pstack's `/sharpen` (cursor/plugins #615) and `/in-your-own-words` tighten its goal. Neither is in this repo yet: their port is planned, and it lands beside `/deeper` as the skills that sharpen a task before a brief goes out.
+- Ties to pstack: `/deeper` pushes a task deeper, where pstack's `/sharpen` (cursor/plugins #615) and `/in-your-own-words` tighten its goal. Both are taken whole, in the map above. `/sharpen` asks most of the same questions and then does the work, with no rewrite handed back; `/deeper` does none of the work and hands back the four answers and the rewrite. Each skill names the other in one line.
 - License: none is stated on the post. The prompt is quoted with this credit, and the rest is jstack's own text.
