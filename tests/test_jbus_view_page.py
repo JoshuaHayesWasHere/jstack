@@ -2885,6 +2885,30 @@ def test_the_machine_folded_says_the_pass_once_and_counts_what_else_wants_a_look
     assert bands(seen)["machine"]["sum"] == said
 
 
+def test_the_homes_off_the_bus_are_counted_on_the_machine_and_named_in_its_tip(scene, tmp_path):
+    """Two homes with no project: the machine's Homes item counts them, names them in its tip,
+    and the folded machine counts it among what wants a look. With none, there is no item."""
+
+    def machine(nth, body):
+        m = body["machine"]
+        m["jbus"] |= {"stopped": False}
+        m["jbus"]["status"]["homes_off_bus"] = ["firstmate", "LittleRamPantries"]
+        m["room"] |= {"answer": "go", "plan": {}}
+        m |= {"runners": [{"unit": "runner.service", "active": "active"}], "runners_read": True}
+        m["unwell"] = []
+        return body
+
+    seen = look(scene, tmp_path, route="#/", alter=machine)
+    assert seen["errors"] == []
+    assert [one["tag"] for one in seen["machine"]] == [*MACHINE, "Homes"]
+    (homes,) = [one for one in seen["machine"] if one["tag"] == "Homes"]
+    assert homes["val"] == "2 off bus"
+    assert homes["tip"].startswith("Homes not on the bus: firstmate, LittleRamPantries.")
+    script = remembered({"machine": "folded"}) + PROBE
+    folded = look(scene, tmp_path, route="#/", script=script, alter=machine)
+    assert bands(folded)["machine"]["sum"] == "jbus passing, 1 wants a look"
+
+
 def test_a_band_folds_and_unfolds_by_click_and_by_key_and_nothing_else_is_drawn_again(
     scene, tmp_path
 ):

@@ -893,13 +893,16 @@
   }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   /* Whether each of the machine's facts wants a look: the jbus pass, its sources that were not
-     read, the room, the runners and the plan. Its row draws them as edges, the pass and the
-     sources on one, and its folded line counts all but the pass, which it says by name. */
+     read, the room, the runners, the plan and the homes with no project in jbus's config. Its
+     row draws them as edges, the pass and the sources on one, and the homes only when there
+     is one, and its folded line counts all but the pass, which it says by name. */
+  function offBus(m) { return (m.jbus.status && m.jbus.status.homes_off_bus) || []; }
   function machineEdges(m) {
     var r = m.room, plan = r.plan || {}, up = m.runners.filter(function (u) { return u.active === "active"; }).length;
     return {
       stopped: !!m.jbus.stopped, unread: m.unwell.length > 0, room: r.answer !== "go", runners: !m.runners_read || up < m.runners.length,
-      plan: ["five_hour", "seven_day"].some(function (k) { return plan[k] && plan[k].used != null && plan[k].used >= r.limits.plan; })
+      plan: ["five_hour", "seven_day"].some(function (k) { return plan[k] && plan[k].used != null && plan[k].used >= r.limits.plan; }),
+      homes: offBus(m).length > 0
     };
   }
   function machineRow(m) {
@@ -915,7 +918,9 @@
       mitem(edge.runners ? "op" : "ok", "Runners", m.runners_read ? up + "/" + us.length : "not known",
         m.runners_read ? "Runner units of this machine: " + (us.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", ") || "none") : "systemd did not answer", o && "checks") +
       mitem(edge.plan ? "op" : "ok", "Plan", used("five_hour") + "/" + used("seven_day"),
-        "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room");
+        "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room") +
+      (edge.homes ? mitem("op", "Homes", offBus(m).length + " off bus",
+        "Homes not on the bus: " + offBus(m).join(", ") + ". Each has a home-id and no project in jbus's config: its home's next start adds it, or jbus project add does") : "");
   }
   /* A project's health, as its summary has it: one chip for each fact, as [edge, text, why].
      Its row draws them, but for its threads, which its Threads band says, and its dot in the
@@ -948,7 +953,7 @@
     put($("mach-c"), foldCtl("machine", "This machine", "machine"));
     /* Folded, it is one line: the pass, and how many of the rest want a look. A stopped pass is
        never all well. */
-    var edge = m ? machineEdges(m) : {}, looks = ["unread", "room", "runners", "plan"].filter(function (k) { return edge[k]; }).length;
+    var edge = m ? machineEdges(m) : {}, looks = ["unread", "room", "runners", "plan", "homes"].filter(function (k) { return edge[k]; }).length;
     say($("mach-sum"), !m ? "" : (edge.stopped ? "jbus stopped" : "jbus passing") + (looks ? ", " + plural(looks, "wants", "want") + " a look" : edge.stopped ? "" : ", all well"));
     put($("machine"), row);
   }

@@ -124,6 +124,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
             }
         },
         "streaks": {},
+        "homes_off_bus": [],
         "token_expires": "2026-11-11 10:00 ET",
     }
     assert kitchen.status() == written

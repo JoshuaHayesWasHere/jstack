@@ -72,7 +72,7 @@ When no entry has that checkout, make one with `t3_project_create`, called with 
 
 ## 3. The project's table in jbus's config
 
-Run this with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
+This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/SKILL.md`). Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
@@ -97,6 +97,8 @@ esac
 ```
 
 `jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key. Never open, print or edit that file here. The project's name in jbus is the repo's folder name, which is also the name of its state directory. Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
+
+It never writes `home-thread`, here or at a home's start: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand.
 
 ## 4. What the repo lacks for a merge
 
