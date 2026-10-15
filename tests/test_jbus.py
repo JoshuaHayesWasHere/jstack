@@ -126,6 +126,10 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
         "streaks": {},
         "homes_off_bus": [],
         "token_expires": "2026-11-11 10:00 ET",
+        "sign_in_reminder": (
+            "sign-in to the webhook of demo on 2026-11-04, each day from 2026-11-08, "
+            "and when it runs out at 2026-11-11 10:00 ET"
+        ),
     }
     assert kitchen.status() == written
     assert stat.S_IMODE((kitchen.state_dir / "status.json").stat().st_mode) == 0o600
