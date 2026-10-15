@@ -155,6 +155,10 @@ skills/why/references/synthesizer-prompt.md <- pstack/skills/why/references/synt
 
 Each line is a file here and the upstream paths it was written from, at the commit above. A file added from pstack gets a line, and a move of the `Commit:` line follows a read of what changed.
 
+jstack's own: `principles/depth-over-breadth.md`
+
+The file on that line sits beside the ones taken and is jstack's own, from the Felix Rieseberg section below: no upstream path fed it, so `jdrift` prints it as `own` and compares nothing for it.
+
 Not taken: `pstack/skills/create-verification-skill`, `pstack/skills/maintain-verification-skill`, `pstack/skills/make-bot-ui`, `pstack/skills/poteto-help`, `pstack/skills/setup-pstack`, `pstack/skills/poteto-mode/playbooks/babysit.md`, `pstack/skills/poteto-mode/playbooks/worktree-cleanup.md`
 
 `make pstack-drift` lists what changed upstream since that commit, for the paths of the map:
@@ -247,3 +251,13 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 - Version: 4.14.0, the file `axe.min.js` of the package `https://registry.npmjs.org/axe-core/-/axe-core-4.14.0.tgz`, integrity `sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==`
 - Changed here: nothing. The file is taken whole, with its notice.
 - License: the Mozilla Public License 2.0, whose text is at https://mozilla.org/MPL/2.0/, as the notice at the top of the file says.
+
+## Felix Rieseberg
+
+`skills/deeper/SKILL.md` and `principles/depth-over-breadth.md` are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).
+
+- Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with models", 2026-10-13: https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/
+- Taken from: the prompt the post gives for Depth, quoted whole in `skills/deeper/SKILL.md` as its four questions, and the Depth moves the principle names: the instruments the best in the field use, reproducing a number from the raw data, an ambitious target said to be reasonable, and an outside judge in place of the model judging itself.
+- Changed here: each question is answered for this repo and this machine, by path, command or query; the skill loads only when typed, and run by a home it parks the choice between the task as written and the rewrite as a gate, with the rewrite as the default. Altitude and Range are not taken.
+- Ties to pstack: `/deeper` pushes a task deeper, where pstack's `/sharpen` (cursor/plugins #615) and `/in-your-own-words` tighten its goal. Neither is in this repo yet: their port is planned, and it lands beside `/deeper` as the skills that sharpen a task before a brief goes out.
+- License: none is stated on the post. The prompt is quoted with this credit, and the rest is jstack's own text.

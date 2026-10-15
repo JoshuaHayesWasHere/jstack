@@ -425,7 +425,7 @@
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
 <!-- built: skill links, Settle the shape before code -->
-<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a>
+<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-deeper">deeper</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Understand what is there</b><div class="names">
@@ -456,12 +456,12 @@
 </div>
 <div class="group"><h3>Run the pipeline <small>Seven skills make a thread a role. Each is the full text of what that thread does.</small></h3><div class="cards">
 <!-- built: skill cards, Run the pipeline -->
-<article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads the handoff, the plan and the notes, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
+<article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads the last home's note and what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
 <article class="card" id="skill-crew"><h4>/crew</h4><p>Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request.</p><p class="when">Reach for it when a brief is written and approved. It is typed as <code>/crew &lt;slug&gt;</code>.</p><div class="who"><span class="chip model">a home</span><span class="chip cmd">jbus</span></div></article>
 <article class="card scout" id="skill-scout"><h4>/scout</h4><p>Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual page when asked.</p><p class="when">Reach for it when a question has to be answered before a task can be briefed.</p><div class="who"><span class="chip model">a home</span></div></article>
 <article class="card rev" id="skill-pr-review"><h4>/pr-review</h4><p>Starts a reviewer in a fresh thread. Two reviewers who do not see each other read the pull request, a lead judges their findings, and one command proves the fact the change is safe because of. It fixes nothing.</p><p class="when">Reach for it when a pull request opens. The crewmate does this by itself.</p><div class="who"><span class="chip model">a crewmate</span><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-expert"><h4>/expert</h4><p>Makes a thread an expert: the always-on subject matter expert of one subject. It answers asks from its sources and its notes, in four parts, and writes down what it learns in its own folder. It writes no code and decides nothing.</p><p class="when">Reach for it when a question about that subject needs an answer with its sources. It is typed as <code>/expert &lt;name&gt;</code>.</p><div class="who"><span class="chip op">the operator</span></div></article>
-<article class="card" id="skill-handoff"><h4>/handoff</h4><p>Closes a home. It files what the thread learned, updates the plan and the notes, writes a one-page handoff and starts the next home.</p><p class="when">Reach for it when the day ends, or the home's context has grown.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
+<article class="card" id="skill-handoff"><h4>/handoff</h4><p>Closes a home. It writes a note of ten lines at most and starts the next home, whose start reads the rest from jbus.</p><p class="when">Reach for it when the day ends, or the home's context has grown.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <article class="card" id="skill-nohome"><h4>/nohome</h4><p>Opts this thread, or every new thread in the repo, out of the automatic home. With <code>merge</code> it switches the repo's automatic merge off or on.</p><p class="when">Reach for it when a thread should just do the work itself, or merges should wait.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-new-home"><h4>/new-home</h4><p>Sets up a repo's first home in six steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, its home thread, and one message to Exec.</p><p class="when">Reach for it when a repo gets its first home, or one was started by hand.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
@@ -470,6 +470,7 @@
 <!-- built: skill cards, Settle the shape before code -->
 <article class="card" id="skill-grilling"><h4>/grilling</h4><p>Questions the operator about a plan, a decision or an idea, round after round, until nothing is left assumed.</p><p class="when">Reach for it when the work is more than one task, or a design choice is not made yet.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <article class="card" id="skill-architect"><h4>/architect</h4><p>Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it.</p><p class="when">Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's <code>Design:</code> line names.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a crewmate</span></div></article>
+<article class="card" id="skill-deeper"><h4>/deeper</h4><p>Asks for the deeper version of a task, not a bigger one: what an expert would do, from what raw material, with which instruments, and what outside the agent proves it. Returns the four answers and the prompt rewritten.</p><p class="when">Reach for it before a research, perf, analysis or outcome brief goes out.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a home, before a brief</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Understand what is there <small>Read before changing.</small></h3><div class="cards">
@@ -731,6 +732,7 @@
 <div id="principle-fix-root-causes"><b>fix-root-causes</b><small>Reproduce first, then ask why until the cause is reached, and fix it there.</small><div class="leans"><code>bug-fix</code><code>runtime-forensics</code><code>perf-issue</code></div></div>
 <div id="principle-attack-the-premise"><b>attack-the-premise</b><small>When two fixes that share a premise fail the same gate, suspect the premise, not the fixes.</small><div class="leans"><code>bug-fix</code></div></div>
 <div id="principle-explain-the-number"><b>explain-the-number</b><small>Before trusting a measured number, find what limits it and rule out that it measured something else.</small><div class="leans"><code>benchmark-checklist</code><code>perf-issue</code><code>hillclimb</code></div></div>
+<div id="principle-depth-over-breadth"><b>depth-over-breadth</b><small>In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment.</small><div class="leans"><code>deeper</code><code>perf-issue</code><code>investigation</code></div></div>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Keep moving with nobody watching</h3><div class="principles">

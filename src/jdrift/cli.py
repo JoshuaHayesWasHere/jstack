@@ -2,8 +2,9 @@
 
 Run in this repo, it reads the pin and the map from the pstack section of `THIRD_PARTY.md`,
 brings a cache clone of the upstream to its `main`, and prints one line per upstream path the
-map names: `same`, `changed` with the commits that changed it, or `gone`. Then one `new` line
-per upstream skill or playbook that the map does not name and `Not taken:` does not list.
+map names: `same`, `changed` with the commits that changed it, or `gone`. Then one `own` line
+per file on the `jstack's own:` line, which has no upstream and so never drifts, and one `new`
+line per upstream skill or playbook that the map does not name and `Not taken:` does not list.
 It changes nothing in this repo. No model reads anything, and no token is used.
 """
 
@@ -28,7 +29,7 @@ NUMSTAT_OF_A_BINARY_FILE = "-"
 
 @dataclass(frozen=True)
 class Line:
-    kind: Literal["same", "changed", "gone", "new"]
+    kind: Literal["same", "changed", "gone", "own", "new"]
     upstream: str
     local: tuple[str, ...] = ()
     added: int = 0
@@ -44,7 +45,12 @@ class Line:
             return f"{line}\n{self.diff.rstrip()}" if self.diff else line
         if self.kind == "gone":
             return f"gone {self.upstream}{to}"
+        if self.kind == "own":
+            return f"own {', '.join(self.local)}"
         return f"{self.kind} {self.upstream}"
+
+
+DRIFTED = ("changed", "gone", "new")
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -113,6 +119,7 @@ def compare(clone: Path, pinned: Pinned, with_diff: bool) -> tuple[str, list[Lin
         else:
             lines.append(Line("same", upstream))
 
+    lines.extend(Line("own", "", (local,)) for local in pinned.own)
     for directory in (SKILLS, PLAYBOOKS):
         for entry in _out(clone, "ls-tree", "--name-only", main_, f"{directory}/").splitlines():
             reached = any(u == entry or u.startswith(f"{entry}/") for u in pinned.sources)
@@ -146,4 +153,4 @@ def main(argv: list[str] | None = None) -> int:
     print(header)
     for line in lines:
         print(line)
-    return 1 if args.strict and any(line.kind != "same" for line in lines) else 0
+    return 1 if args.strict and any(line.kind in DRIFTED for line in lines) else 0
