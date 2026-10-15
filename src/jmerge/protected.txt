@@ -1,7 +1,7 @@
 # The paths jmerge never merges a change to: a pull request that changes one is printed as
 # `hold <number> <url>: needs <the user's name>, touches <path>`, and the user merges it. They are the
-# secrets, and the two lists themselves: what is held and what is guarded is the user's to
-# change. The paths jmerge merges under a stricter gate are in guarded.txt.
+# secrets, the two lists themselves, and a live tailnet policy or DNS: what is held and what
+# is guarded is the user's to change. The paths jmerge merges under a stricter gate are in guarded.txt.
 #
 # One pattern per line. A line that starts with # is a comment.
 # - A pattern that ends in / is a directory, and covers everything under it. With another /
@@ -18,3 +18,7 @@ secrets/
 *.key
 /src/jmerge/protected.txt
 /src/jmerge/guarded.txt
+# A change under policy/ applies to the live tailnet's policy once it merges.
+/policy/
+# A change under dns/ applies to the live DNS records once it merges.
+/dns/

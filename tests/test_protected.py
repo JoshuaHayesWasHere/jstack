@@ -33,6 +33,10 @@ PATHS = [
     ("*.key", "id.key", "docs/monkey"),
     ("/src/jmerge/protected.txt", "src/jmerge/protected.txt", "docs/src/jmerge/protected.txt"),
     ("/src/jmerge/guarded.txt", "src/jmerge/guarded.txt", "src/jmerge/guarded.txt.md"),
+    ("/policy/", "policy/tailnet.hujson", "docs/policy.md"),
+    ("/policy/", "policy/tailnet.hujson", "src/policy/x.py"),
+    ("/dns/", "dns/records.tf", "docs/dns.md"),
+    ("/dns/", "dns/zones/example.tf", "infra/dns/records.tf"),
 ]
 
 GUARDED_PATHS = [
@@ -69,6 +73,8 @@ def test_the_file_has_the_patterns_and_none_of_its_comments():
         "*.key",
         "/src/jmerge/protected.txt",
         "/src/jmerge/guarded.txt",
+        "/policy/",
+        "/dns/",
     )
     assert {pattern for pattern, _, _ in PATHS} == set(PATTERNS)
     assert {pattern for pattern, _, _ in GUARDED_PATHS} == set(GUARDED)
@@ -221,7 +227,10 @@ def write(merged, path):
     return ["add", path]
 
 
-@pytest.mark.parametrize("path", ["secrets/prod.json", "src/jmerge/protected.txt"])
+@pytest.mark.parametrize(
+    "path",
+    ["secrets/prod.json", "src/jmerge/protected.txt", "policy/tailnet.hujson", "dns/records.tf"],
+)
 @pytest.mark.parametrize("flags", [(), ("--all",), ("--land", "demo"), ("--check",)])
 def test_jmerge_holds_a_pull_request_that_changes_a_protected_path(merged, path, flags):
     change(merged, write(merged, path))
@@ -230,7 +239,9 @@ def test_jmerge_holds_a_pull_request_that_changes_a_protected_path(merged, path,
     assert merged.untouched()
 
 
-@pytest.mark.parametrize("path", ["skills.md", ".github/dependabot.yml"])
+@pytest.mark.parametrize(
+    "path", ["skills.md", ".github/dependabot.yml", "docs/policy.md", "src/policy/x.py"]
+)
 def test_jmerge_merges_a_pull_request_that_only_comes_near_one(merged, path):
     change(merged, write(merged, path))
     merged.home.open_pull_request(merged.head, files=["a.txt", path])
