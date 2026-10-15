@@ -57,6 +57,11 @@ _LOOSE = (
 _SPAN = re.compile(r"`([^`\n]+)`")
 _PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
 
+SIZES = ("S", "M", "L", "XL")
+_SIZES = "(S, M, L or XL)"
+PLAYBOOKS = Path(__file__).parents[2] / "playbooks"
+_PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
+
 
 @dataclass(frozen=True)
 class Entry:
@@ -160,6 +165,61 @@ def proves_it(text: str) -> Proof | None:
         if line.startswith("Proves it:"):
             return proof(line.removeprefix("Proves it:"))
     return None
+
+
+def _head(text: str, label: str) -> str | None:
+    """What the first `<label>` line of a brief's head says, or None for a head with none."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith(label):
+            return line.removeprefix(label).strip()
+    return None
+
+
+def _template(said: str) -> bool:
+    return said.startswith("<") or "|" in said
+
+
+def sized(text: str) -> str:
+    """Why a brief's `Size:` line names no t-shirt size, in one line, or nothing.
+
+    The size is what the feature playbook's step 4 reads to decide on a design read, so a
+    brief with no line is refused: it would count as S, as every brief did before the line.
+    """
+    said = _head(text, "Size:")
+    if said is None:
+        fault = "brief has no Size: line"
+    elif not said:
+        fault = "brief's Size: line is empty"
+    elif _template(said):
+        fault = "brief's Size: line is the template's own text"
+    elif said not in SIZES:
+        fault = f"brief's Size: line says {said}"
+    else:
+        return ""
+    return f"{fault} {_SIZES}"
+
+
+def playbook(text: str) -> str:
+    """Why a brief's `Playbook:` line names no playbook, in one line, or nothing.
+
+    The name is the line's first word, as the crew skill reads it, and it is a file of
+    `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
+    """
+    said = _head(text, "Playbook:")
+    name = said.split()[0] if said else ""
+    if said is None or name == "none":
+        return ""
+    if not said:
+        fault = "is empty"
+    elif _template(said):
+        fault = "is the template's own text"
+    elif "/" in name or not (PLAYBOOKS / f"{name}.md").is_file():
+        fault = f"names {name}, which is no file in playbooks/"
+    else:
+        return ""
+    return f"brief's Playbook: line {fault} {_PLAYBOOK}"
 
 
 @dataclass(frozen=True)

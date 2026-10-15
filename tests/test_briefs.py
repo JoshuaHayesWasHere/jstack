@@ -542,3 +542,76 @@ def test_the_default_page_is_outside_the_state_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     assert cli.default_out() == tmp_path / "cache" / "jbriefs" / "briefs.html"
     assert cli.DEFAULT_STATE == Path.home() / ".local" / "state" / "home"
+
+
+SHAPED = BRIEF.replace("Done when:", "Size: S\nPlaybook: feature\nDone when:", 1)
+PLAYBOOK_ASKED = "(name a file in playbooks/, without its .md, or none)"
+
+
+def test_a_brief_with_a_size_and_a_real_playbook_holds():
+    assert (parse.sized(SHAPED), parse.playbook(SHAPED)) == ("", "")
+    for size in parse.SIZES:
+        assert parse.sized(SHAPED.replace("Size: S", f"Size: {size}")) == ""
+    for name in ("none", "bug-fix", "authoring-a-skill"):
+        assert parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {name}")) == ""
+
+
+def test_a_brief_with_no_playbook_line_counts_as_none():
+    assert parse.playbook(SHAPED.replace("Playbook: feature\n", "")) == ""
+
+
+@pytest.mark.parametrize(
+    ("said", "why"),
+    [
+        ("fix", "names fix, which is no file in playbooks/"),
+        ("feature.", "names feature., which is no file in playbooks/"),
+        ("../feature", "names ../feature, which is no file in playbooks/"),
+        ("", "is empty"),
+        ("<a row `a crewmate` runs>", "is the template's own text"),
+    ],
+    ids=["fix", "feature.", "a path", "empty", "the template"],
+)
+def test_a_playbook_that_is_no_file_is_refused_with_one_line(said, why):
+    text = SHAPED.replace("Playbook: feature", f"Playbook: {said}".rstrip())
+    assert parse.playbook(text) == f"brief's Playbook: line {why} {PLAYBOOK_ASKED}"
+
+
+@pytest.mark.parametrize(
+    ("line", "why"),
+    [
+        (None, "brief has no Size: line"),
+        ("Size:", "brief's Size: line is empty"),
+        ("Size: medium", "brief's Size: line says medium"),
+        ("Size: S.", "brief's Size: line says S."),
+        ("Size: <S | M | L | XL>", "brief's Size: line is the template's own text"),
+    ],
+    ids=["no size", "empty", "a word", "a stop after it", "the template"],
+)
+def test_a_brief_with_no_size_is_refused_with_one_line(line, why):
+    text = SHAPED.replace("Size: S\n", f"{line}\n" if line else "")
+    assert parse.sized(text) == f"{why} (S, M, L or XL)"
+
+
+def test_only_the_head_of_a_brief_is_read_for_its_size_and_playbook():
+    after = SHAPED.replace("Size: S\nPlaybook: feature\n", "") + RESULT
+    assert parse.sized(after + "Size: S\n") == "brief has no Size: line (S, M, L or XL)"
+    assert parse.playbook(after + "Playbook: fix\n") == ""
+
+
+def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_filled_in():
+    (line,) = [one for one in TEMPLATE.read_text().splitlines() if one.startswith("Size:")]
+    text = written(by_a_scout=False)
+    assert line in text and parse.sized(text).endswith("is the template's own text (S, M, L or XL)")
+    filled = text.replace(line, "Size: M").replace(
+        next(one for one in text.splitlines() if one.startswith("Playbook:")), "Playbook: feature"
+    )
+    assert (parse.sized(filled), parse.playbook(filled)) == ("", "")
+    entry = (TEMPLATE.parent / "plan-entry.md").read_text().splitlines()
+    assert [one for one in entry if one.startswith("Size:")] == [line]
+
+
+def test_every_playbook_on_disk_is_a_name_the_parser_takes():
+    names = {path.stem for path in parse.PLAYBOOKS.glob("*.md")}
+    assert "feature" in names
+    for name in names:
+        assert parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {name}")) == ""

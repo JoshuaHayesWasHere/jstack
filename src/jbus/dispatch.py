@@ -26,6 +26,11 @@ metric, dataset, external judge or the user. A brief with no such line was writt
 the line was asked for, and is launched as it was approved: refusing it would strand every
 row approved before.
 
+Nor is one with no t-shirt size on a `Size:` line, or whose `Playbook:` line names no file
+of `playbooks/` and is not `none` (`jbriefs.parse`). A row whose go was run before
+`SHAPED_SINCE`, or that holds only a typed go, was approved before the two were asked for,
+and is launched as it was approved.
+
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
 all. The merge is where it is settled, and `jbus.rebase` tells the crew that must rebase.
@@ -52,6 +57,7 @@ OVERLAP_PATHS = 5
 NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
 _NONE = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
 _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
+SHAPED_SINCE = "2026-10-15 11:15 ET"
 
 
 def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
@@ -162,6 +168,29 @@ def proven(brief: str) -> str:
     """
     found = parse.proves_it(brief)
     return found.why if found else ""
+
+
+def shaped_since(row: queue.Row) -> bool:
+    """Whether a row's go was run once a brief was asked for its size and a real playbook.
+
+    The time is the approval record's, in the one shape `queue` writes, so the two compare
+    as text. A typed go has no time, and is from before.
+    """
+    at = queue.ran_at(row)
+    return bool(at) and at >= SHAPED_SINCE
+
+
+CHECKS = (("no design", designed), ("no proof", proven))
+SHAPED = (("no size", parse.sized), ("no playbook", parse.playbook))
+
+
+def short_of(row: queue.Row, brief: str) -> tuple[str, str]:
+    """The first reason a brief may not be launched, in one line, and its kind, or two blanks."""
+    for kind, check in CHECKS + (SHAPED if shaped_since(row) else ()):
+        why = check(brief)
+        if why:
+            return why, kind
+    return "", ""
 
 
 def where(brief: str) -> set[str]:
@@ -329,9 +358,7 @@ class Turns:
                     run.gate(slug, "brief changed after approval", key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now)
                 continue
-            short, kind = designed(brief), "no design"
-            if not short:
-                short, kind = proven(brief), "no proof"
+            short, kind = short_of(row, brief)
             if short:
                 if not full:
                     run.gate(slug, short, key=f"{kind}, brief {row['brief_sha'][:12]}")
