@@ -11,7 +11,7 @@ approved row whose brief has none.
 
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,11 +21,11 @@ import jsettings
 import test_home_merge as merge
 import test_jmerge_rangediff as rangediff
 from jbriefs import parse
-from jbus import dispatch, stall
+from jbus import dispatch, queue, stall
 from jmerge import proof, ready
 from test_briefs import TEMPLATE
 from test_jbus_kitchen import NOW, Kitchen
-from test_jbus_queue import add, brief, gates
+from test_jbus_queue import add, brief, gates, go
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, merged, proven, rules  # noqa: F401
 
 HEAD = merge.PUSHED
@@ -643,6 +643,53 @@ def test_a_row_whose_brief_proves_it_by_the_agents_word_is_gated_and_one_with_no
     kitchen.poll(NOW + timedelta(minutes=6))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
     assert len(gates(kitchen)) == 1
+
+
+SHAPED_AFTER = datetime(2026, 10, 16, 15, 0, tzinfo=UTC)
+SIZED = "Size: S\n"
+
+
+@pytest.mark.parametrize(
+    ("more", "why"),
+    [
+        ("Playbook: feature\n", parse.sized("")),
+        (SIZED + "Playbook: fix\n", parse.playbook("Playbook: fix\n")),
+        (SIZED + "Playbook: feature.\n", parse.playbook("Playbook: feature.\n")),
+    ],
+    ids=["no size", "fix", "feature."],
+)
+def test_a_row_approved_since_the_rule_is_gated_for_no_size_or_no_playbook(kitchen, more, why):
+    kitchen.monkeypatch.setattr(queue, "clock", lambda: SHAPED_AFTER)
+    kitchen.config(max_running=6)
+    add(kitchen, "alpha", text=brief("alpha", more).replace(SIZED, "", 1))
+    add(kitchen, "beta", priority=2, text=brief("beta", "Playbook: feature\n"))
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert why.startswith(("brief has no Size: line (", "brief's Playbook: line names "))
+    assert gates(kitchen) == [f"condition alpha: {why}"]
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
+    add(kitchen, "alpha", text=brief("alpha", "Playbook: none\n"))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
+    assert len(gates(kitchen)) == 1
+
+
+def test_a_row_approved_before_the_first_pass_that_asks_launches_as_it_was_approved(kitchen):
+    """Grandfathered: the first pass that asks for a size and a playbook keeps its time, so
+    a row approved before it, as every row on the queue when the rule merged was, launches
+    as it did. One approved since, in a later pass, is asked."""
+    add(kitchen, "alpha", text=brief("alpha", "Playbook: fix\n").replace(SIZED, ""))
+    add(kitchen, "beta", text=brief("beta", "Playbook: fix\n").replace(SIZED, ""), approve=False)
+    kitchen.poll(NOW + timedelta(minutes=1))
+    since = json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"]
+    assert datetime.fromisoformat(since) == NOW + timedelta(minutes=1)
+    assert gates(kitchen) == []
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+    kitchen.monkeypatch.setattr(queue, "clock", lambda: NOW + timedelta(minutes=2))
+    assert go(kitchen, "beta")[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=4))
+    assert gates(kitchen) == [f"condition beta: {parse.sized('')}"]
+    assert json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"] == since
 
 
 def test_a_brief_with_no_design_line_is_gated_before_what_it_depends_on_has_merged(kitchen):

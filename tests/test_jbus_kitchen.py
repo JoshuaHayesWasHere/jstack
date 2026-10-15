@@ -800,7 +800,7 @@ ASK = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
 
 def approved(kitchen, slug, priority=1):
     """A row of the queue with its brief, and the user's go for it."""
-    text = f"# {slug}: a task\nDesign: none, a test\nWhere: `src/{slug}/`\n"
+    text = f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: `src/{slug}/`\n"
     assert kitchen.main("queue", "add", slug, "--priority", str(priority), stdin=text)[0] == 0
     assert go(kitchen, slug)[0] == 0
 
@@ -829,7 +829,7 @@ PASS = timedelta(minutes=3)
 
 def queued(kitchen, slug, text=None):
     """A row of the queue, approved, as the Chef adds one."""
-    text = text or f"# {slug}: a task\nDesign: none, a test\nWhere: `src/{slug}/`\n"
+    text = text or f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: `src/{slug}/`\n"
     assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     sha = jbus.queue.brief_sha(text)[:12]
     go = ["queue", "approve", slug, "--word", kitchen.word(), "--sha", sha]

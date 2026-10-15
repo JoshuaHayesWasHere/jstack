@@ -17,7 +17,7 @@ CHANGED = "main changed src/jbus/cli.py after its check started"
 
 def task(slug, *paths):
     named = ", ".join(f"`{path}`" for path in paths)
-    return f"# {slug}: a task\nDesign: none, a test\nWhere: {named}\n"
+    return f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: {named}\n"
 
 
 def claim(slug, *paths, state="out"):
