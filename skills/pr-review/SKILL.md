@@ -249,7 +249,7 @@ Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
 Report a finding only when it is about a changed line, or about something a changed line breaks. Give every finding the file and line of the changed line, and when the damage is elsewhere, say where in the text.
 For a finding about a removed line, give the line that now sits just before or just after where it was. For a finding about what the change as a whole lacks (a "Done when" line it does not meet, a test it does not have), give no file and say so.
-End every finding with the principle it breaks, `(principle: <name>)`, a name from the principles listed above, or `(principle: none)` when it breaks none of them.
+End every finding with the principle it breaks, `(principle: <name>)`, a name from the principles listed above, or `(principle: none)` when it breaks none of them or none is listed.
 Do not report and do not fix a bug or weakness in code this pull request did not change, however real: those are handled elsewhere.
 Do not ask for work beyond what the task above needed.
 Read the changed code the way a tech lead would, and answer these about it:
@@ -285,6 +285,8 @@ INTENT=$(
   *)
     if [ "${play#*/}" != "$play" ] || [ ! -f "$P" ]; then
       printf '\nPlaybook: %s, which is no playbook here: the crewmate worked with none.\n' "$play"
+    elif by=$(sed -n 's/^Run by: //p' "$P" | head -n 1) && [ "${by%%,*}" != "a crewmate" ]; then
+      printf '\nPlaybook: %s, which is for %s and not a crewmate: the crewmate worked with none.\n' "$play" "${by%%,*}"
     else
       cited=$(grep -o 'principles/[a-z0-9-]*\.md' "$P" | awk '!seen[$(0)]++' | while read -r file; do
         [ -f "$T/../$file" ] || continue
