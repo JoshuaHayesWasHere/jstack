@@ -353,7 +353,7 @@ webhook_key = "<its key>"
 name = "<project>"
 ```
 
-It covers every project that has no pair of its own, so a new project gets events with no table to edit. A project whose own table has both keys keeps its own pair, which wins over the default. A table with only one of the two keys is refused, by name and with the key that is missing, since half a pair beside the default would post with the wrong key. A half pair at the top is refused the same way. The default URL and key are secrets like a project's: jbus takes them out of every line and log.
+It covers every project that has no pair of its own, so a new project gets events with no table to edit. A project whose own table has both keys keeps its own pair, which wins over the default. A table with only one of the two keys, or with a URL and an empty key, is refused, by name and with the key that is missing, since half a pair beside the default would post with the wrong key. A half pair at the top is refused the same way. The default URL and key are secrets like a project's: jbus takes them out of every line and log.
 
 Everything a pass finds is an event. Each POST to a project's webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
 
