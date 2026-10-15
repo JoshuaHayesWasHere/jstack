@@ -21,6 +21,7 @@ function dBus() {
     '<p class="src" style="margin-top:7.5px">From <code>events.jsonl</code>. <code>sent.json</code> keeps ' + num(b.sent) + ' keys. <code>stall.json</code> holds ' + b.stalls + '.</p>';
 }
 panel({
+  gloss: { bus: ["Bus outbox", "Events a pass wrote to send to the Chef and has not sent yet. A failed wake is a send that did not go out."] },
   card: function () {
     var b = S.bus;
     var t = b.top_level, top = t ? ", top-level webhook: " + t.outbox + " events in its outbox, " + t.failed_wakes + " failed wakes" + (t.last_error ? ", last error: " + t.last_error : "") : "";

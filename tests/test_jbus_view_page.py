@@ -272,6 +272,7 @@ class Proxy:
         self.dark_after = None
         self.asked, self.stacks = [], 0
         self.alter = lambda nth, body: body
+        self.alter_state = lambda nth, body: body
         self.refused = ()
         self.writes = []
         self.on_write = lambda nth: None
@@ -311,6 +312,8 @@ class Proxy:
                 if self.path == "/stack.json":
                     proxy.stacks += 1
                     body = json.dumps(proxy.alter(proxy.stacks, json.loads(body))).encode()
+                if self.path.startswith("/state.json"):
+                    body = json.dumps(proxy.alter_state(proxy.states, json.loads(body))).encode()
                 self.send_response(answer.status)
                 self.send_header("Content-Type", answer.getheader("Content-Type"))
                 self.send_header("Content-Length", str(len(body)))
@@ -441,12 +444,14 @@ def look(
     alter=None,
     tap="",
     walk=None,
+    alter_state=None,
 ):
     """Open the page in the browser and give back what the probe found. The server is one
     started here over the scene, or the one that listens on `port`. The page is the scene's
     project, `#/demo`, or the `route` given, as `#/` for every project, and `fragment` is
     more of the address after it, as `theme=dark`. `alter` is given the count of
-    each answer of `/stack.json` and its body, and gives back the body the page gets, and
+    each answer of `/stack.json` and its body, and gives back the body the page gets,
+    `alter_state` the same for `/state.json`, and
     `tap` selects what the probe taps 3 s after the page loads, and `walk` is the steps the
     probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. With
     `gates`, the
@@ -457,6 +462,7 @@ def look(
     proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk)
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
+    proxy.alter_state = alter_state or proxy.alter_state
     proxy.dark_after = dark_after
     fragment = (f"#/{scene.name}" if route is None else route) + (
         "&" + fragment.lstrip("#") if fragment else ""
@@ -1119,7 +1125,10 @@ def test_the_new_noticed_lines_are_a_count_in_the_wait_band_that_opens_their_pan
     )
     seen = look(scene, tmp_path)
     opened = clean(seen)
-    assert (seen["tiles"][-1]["text"], seen["tiles"][-1]["open"]) == ("2 noticed", "noticed")
+    tile = seen["tiles"][-1]
+    assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
+    assert "term:noticed" in seen["tips"]
+    assert seen["count"] == "10 wait on you", "the two noticed lines are not in the count"
     assert "noticed" in opened
     drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
     assert drawer["title"] == "2 new lines of 3, newest first"
@@ -2276,7 +2285,14 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         assert "://" not in part
         for loads in ("<link", "<img", "<iframe", "<object", "<embed", " src=", "@import", "url("):
             assert loads not in part, loads
-    asks = ["/answer", "/panel/", "/stack.json", "/state.json", "/task/"]
+    asks = [
+        "/answer",
+        "/panel/",
+        "/panel/steps.json?project=",
+        "/stack.json",
+        "/state.json",
+        "/task/",
+    ]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
     assert "fetch(path," in page and page.count("fetch(") == 1
     assert page.count("<script") == 2 and all(script in page for script in scripts)
@@ -2444,3 +2460,217 @@ def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_p
     finally:
         proxy.close()
         served.close()
+
+
+HOLDERS = ["user", "crew", "home", "rev", "ci", "bus", "dep", "ok", "scout", "other", "unknown"]
+MARKS = ["long", "rep", "blk", "bn", "lv-moving", "lv-quiet", "lv-hung"]
+
+
+def test_every_step_shape_mark_and_card_has_a_question_mark_that_says_what_it_means(
+    scene, tmp_path
+):
+    """A `?` stands beside each card, of the project and of the machine, each step that holds
+    a task, the wait band and the Threads band. The folded key has one for every shape and
+    every mark, the steps drawer one for every step, and the glossary lists them all."""
+    lineup(scene, TODAY)
+    seen = look(scene, tmp_path, walk=["key:?:"], at=4500, budget=12000)
+    clean(seen)
+    cards = ["card:threads", "card:checks", "card:bus", "card:blind"]
+    machine = ["card:jbus", "card:room", "card:runners", "card:plan"]
+    lanes = [f"step:{lane['open'].partition(':')[2] or lane['open']}" for lane in seen["lanes"]]
+    assert set(cards + machine + lanes + ["term:waits", "term:threads"]) <= set(seen["tips"])
+    assert len(lanes) == 11, "every step that holds a task, Merged by its own name"
+    assert seen["keyed"] == [f"who:{w}" for w in HOLDERS] + [f"mark:{m}" for m in MARKS]
+    drawers = {one["target"]: one for one in seen["opened"]}
+    steps = drawers["steps:queued"]["tips"]
+    assert [tip for tip in steps if tip.startswith("step:")] == [f"step:{k}" for k in STEP_KEYS]
+    (glossary,) = seen["walked"]
+    assert glossary["title"] == "Every term on the page"
+    for said in (*LANES, "Crewmate", "Over 30 minutes on its step", "Threads out", "Room"):
+        assert said in glossary["said"], said
+    assert seen["words"] <= WORDS, seen["words"]
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_a_toggletip_opens_by_key_and_by_tap_and_esc_or_a_tap_elsewhere_closes_it(
+    scene, tmp_path, screen
+):
+    lineup(scene, TODAY)
+    walk = [
+        'key:Enter:#vitals [data-tip="card:threads"]',
+        "esc",
+        'key: :#vitals [data-tip="card:bus"]',
+        'tap:#line [data-tip="step:running"]',
+        'tap:#line [data-tip="step:running"]',
+        'tap:#machine [data-tip="card:room"]',
+        "tap:#filters",
+    ]
+    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000, screen=screen)
+    assert seen["errors"] == []
+    by_key, esc, space, tapped, again, room, away = seen["walked"]
+    assert by_key["tip"].startswith("Threads out")
+    assert (by_key["expanded"], by_key["open"], by_key["hash"]) == (
+        ["card:threads"],
+        False,
+        "#/demo",
+    )
+    assert (esc["tip"], esc["expanded"], esc["focus"]) == ("", [], "card:threads")
+    assert esc["hash"] == "#/demo", "Esc closes the toggletip and nothing else"
+    assert space["tip"].startswith("Bus outbox")
+    assert tapped["tip"].startswith("Running")
+    assert "a crewmate thread has the task" in tapped["tip"]
+    assert tapped["expanded"] == ["step:running"]
+    assert (again["tip"], again["expanded"]) == ("", []), "a second tap closes it"
+    assert room["tip"].startswith("Room")
+    assert (away["tip"], away["expanded"]) == ("", [])
+
+
+def test_hovering_a_shape_a_mark_or_a_count_shows_what_it_means_and_so_does_a_focused_token(
+    scene, tmp_path
+):
+    lineup(scene, TODAY)
+    walk = [
+        "hover:#line .mk.long",
+        "hover:#line .tok.w-user .sh",
+        "hover:#line .bn",
+        "hover:#line .laneh .n",
+        "hover:#side .sp .n",
+        'hover:#filters [data-filter="all"] i',
+        "focus:#line .tok.w-crew",
+        "esc",
+    ]
+    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    long, shape, behind, lane, side, every, focused, esc = [step["peek"] for step in seen["walked"]]
+    assert every.startswith("Count How many open tasks this project has")
+    assert long == "Mark Over 30 minutes on its step."
+    assert shape.startswith("You Drawn as a diamond, amber. Only you can move it")
+    assert behind.startswith("Count How many tasks wait behind it")
+    assert lane.startswith("Count How many open tasks are on this step")
+    assert side.startswith("Count How many things wait on you")
+    assert focused.startswith("Crewmate Drawn as a dot, blue.")
+    assert esc == ""
+
+
+def test_on_every_project_a_shape_and_a_count_say_what_they_mean_too(scene, tmp_path):
+    lineup(scene, TODAY)
+    walk = ["hover:#yrows .sh", "hover:#yrows .pj .n", "hover:#rows .rcell b", "look"]
+    seen = look(scene, tmp_path, route="#/", walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    shape, waits, cell, _ = [step["peek"] for step in seen["walked"]]
+    assert shape.startswith("You Drawn as a diamond, amber.")
+    assert waits.startswith("Count How many things wait on you")
+    assert cell.startswith("Count How many open tasks are on this step")
+
+
+@pytest.mark.parametrize(("route", "help"), [("#/demo", "#/demo/help"), ("#/", "#/help")])
+def test_the_question_mark_key_opens_the_glossary_and_esc_goes_back(scene, tmp_path, route, help):
+    lineup(scene, TODAY)
+    walk = ["key:?:", "key:?:", "esc", "tap:#helpme", "look"]
+    seen = look(scene, tmp_path, route=route, walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    opened, twice, esc, tapped, _ = seen["walked"]
+    assert (opened["hash"], opened["open"], opened["title"]) == (
+        help,
+        True,
+        "Every term on the page",
+    )
+    assert twice["hash"] == help and twice["back"] == "", "a second ? opens no second glossary"
+    assert (esc["hash"], esc["open"]) == (route, False)
+    assert (tapped["hash"], tapped["open"]) == (help, True)
+
+
+def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path):
+    lineup(scene, TODAY)
+    seen = look(scene, tmp_path, route="#/help", walk=["look"], at=4500, budget=12000)
+    assert seen["errors"] == []
+    (first,) = seen["walked"]
+    assert (first["hash"], first["open"], first["title"]) == (
+        "#/help",
+        True,
+        "Every term on the page",
+    )
+    assert first["crumbs"] == [["All", "#/"], ["Every term on the page", "#/help"]]
+    assert "Step 2 of 12: a crewmate thread has the task" in first["said"], "notes come cold too"
+    assert seen["stack"]["shown"], "the glossary is over every project"
+
+
+def test_the_wait_band_of_every_project_says_noticed_is_not_counted_and_why(scene, tmp_path):
+    lineup(scene, TODAY)
+    a_noticed(
+        scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle")))
+    )
+    walk = ['tap:#yrows [data-tip="term:noticed"]']
+    seen = look(scene, tmp_path, route="#/", walk=walk, at=4500, budget=12000)
+    assert seen["errors"] == []
+    (row,) = seen["stack"]["waits"]
+    assert [t["text"] for t in row["tokens"]][-1] == "2 noticed, not counted"
+    assert seen["stack"]["total"] == "10 wait on you"
+    (tapped,) = seen["walked"]
+    assert tapped["tip"].startswith("Noticed, not counted")
+    assert "wait on a home, not on you" in tapped["tip"]
+    assert seen["words"] <= EVERY, seen["words"]
+
+
+def test_an_open_toggletip_stays_open_when_a_poll_draws_its_row_again(scene, tmp_path):
+    lineup(scene, TODAY)
+    a_noticed(scene, ("tea-kettle", "new", 5, {}))
+
+    def more(nth, body):
+        body["projects"][0]["waits"] += nth
+        return body
+
+    walk = ['tap:#yrows [data-tip="term:noticed"]'] + ["look"] * 30
+    seen = look(
+        scene, tmp_path, route="#/", walk=walk, alter=more, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    opened = seen["walked"][0]
+    redrawn = [c["at"] for c in seen["changes"] if c["part"].startswith("yrows:")]
+    assert redrawn and max(redrawn) > 2500, "the row was drawn again after the tip opened"
+    assert {step["tip"] for step in seen["walked"]} == {opened["tip"]}
+    assert seen["walked"][-1]["expanded"] == ["term:noticed"]
+
+
+def test_an_open_toggletip_stays_on_its_own_row_when_a_row_above_gains_one(scene, tmp_path):
+    """Each project's noticed ? has the same key: the tip stays with pantry's, by its row,
+    and keeps the focus a key put on it, when demo's row above gains one."""
+    lineup(scene, TODAY)
+    stacked(scene)
+
+    def more(nth, body):
+        for project in body["projects"]:
+            if project["name"] == "demo":
+                project["noticed"] = 0 if nth < 2 else 3
+            if project["name"] == "pantry":
+                project["noticed"], project["waits"] = 1, project["waits"] + nth
+        return body
+
+    walk = ['key:Enter:#yrows [data-key="pantry"] [data-tip="term:noticed"]'] + ["look"] * 30
+    seen = look(
+        scene, tmp_path, route="#/", walk=walk, alter=more, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    first, last = seen["walked"][0], seen["walked"][-1]
+    assert (first["rows"], first["tip"][:20]) == (["pantry"], "Noticed, not counted")
+    assert [t["text"] for t in seen["stack"]["waits"][0]["tokens"]][-1] == "3 noticed, not counted"
+    assert (last["rows"], last["tip"], last["focus"]) == (["pantry"], first["tip"], "term:noticed")
+
+
+def test_the_folded_key_stays_open_with_its_focus_when_a_poll_redraws_the_filters(scene, tmp_path):
+    lineup(scene, TODAY)
+
+    def fewer(nth, body):
+        body["tasks"] = body["tasks"][: len(body["tasks"]) - (nth > 1)]
+        return body
+
+    walk = ["tap:#filters details.gk summary", 'focus:#filters [data-tip="who:crew"]']
+    walk += ["look"] * 30
+    seen = look(
+        scene, tmp_path, walk=walk, alter_state=fewer, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    redrawn = [c["at"] for c in seen["changes"] if c["part"] == "fbs"]
+    assert redrawn and max(redrawn) > 3000, "the filters were drawn again after the key opened"
+    assert all(step["key"] for step in seen["walked"])
+    assert seen["walked"][-1]["focus"] == "who:crew"

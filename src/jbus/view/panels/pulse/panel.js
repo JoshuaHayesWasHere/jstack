@@ -21,4 +21,7 @@ function dPulse() {
   h += '<h3>Where the rest is</h3><p>' + openBtn("bus", "The bus") + ' ' + openBtn("room", "Machine room") + ' ' + openBtn("checks", "CI checks on GitHub") + '</p>';
   return h;
 }
-panel({ drawer: dPulse });
+panel({
+  gloss: { jbus: ["jbus", "The timer that passes about once a minute: it reads each project's queue, launches, merges and sends events. Passing is its timer running and the last pass ended in time. One jbus serves every project of this machine."] },
+  drawer: dPulse
+});

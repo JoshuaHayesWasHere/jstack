@@ -23,7 +23,7 @@ panel({
   adds: {
     you: function () {
       var n = noticedNew().length;
-      return n ? { n: n, label: "noticed", open: "noticed" } : "";
+      return n ? { n: n, label: "noticed, not counted", open: "noticed", tip: "term:noticed", count: "count:noticed" } : "";
     }
   }
 });
