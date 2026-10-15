@@ -2801,3 +2801,248 @@ def test_a_tick_is_no_field_so_esc_on_it_goes_back_and_g_a_goes_to_every_project
     assert (opened["hash"], opened["open"]) == ("#/demo/you/gate", True)
     assert (esc["hash"], esc["open"]) == ("#/demo", False)
     assert (keyed["hash"], keyed["open"]) == ("#/", False)
+
+
+ROW_BANDS = ["machine", "/waits", "/row/demo", "/row/larder", "/row/pantry"]
+PAGE_BANDS = ["machine", "demo/cards", "demo/threads", "demo/you", "demo/line"]
+FOLDS = {
+    "machine": "folded",
+    "/waits": "folded",
+    "/row/larder": "hidden",
+    "/row/pantry": "folded",
+    "demo/cards": "folded",
+    "demo/threads": "folded",
+    "demo/you": "hidden",
+    "demo/line": "folded",
+}
+
+
+def remembered(folds, opened=False):
+    """A script that puts `folds` where the browser keeps them before the page starts, as an
+    earlier visit leaves them, and with `opened` opens the header's list a moment after."""
+    seeded = f"localStorage.setItem('jbus-view-fold', {json.dumps(json.dumps(folds))});"
+    if opened:
+        seeded += 'window.addEventListener("load", function () { setTimeout(function () {'
+        seeded += ' document.getElementById("kept").open = true; }, 1500); });'
+    return seeded
+
+
+def bands(seen):
+    return {band["key"]: band for band in seen["folds"]["bands"]}
+
+
+@pytest.mark.parametrize(("route", "keys"), [("#/", ROW_BANDS), ("#/demo", PAGE_BANDS)])
+def test_every_band_is_drawn_whole_with_a_fold_and_a_hide_button(scene, tmp_path, route, keys):
+    """Every band of the view, the machine's included, is drawn whole the first time, each
+    with two real buttons in its header: fold, which says it is expanded and names its body,
+    and hide. Nothing is hidden or folded, so the header lists nothing."""
+    every_kind(scene)
+    seen = look(scene, tmp_path, route=route)
+    assert seen["errors"] == []
+    assert sorted(bands(seen)) == sorted(keys)
+    for band in seen["folds"]["bands"]:
+        assert (band["st"], band["seen"], band["expanded"], band["body"], band["sum"]) == (
+            "open",
+            True,
+            "true",
+            True,
+            "",
+        ), band
+        assert band["fold"] == ["BUTTON", band["name"], True], band
+        assert band["hide"] == ["BUTTON", f"Hide {band['name']}", True], band
+    assert (seen["folds"]["kept"], seen["folds"]["store"]) == ("", None)
+    if route == "#/demo":
+        assert bands(seen)["demo/line"]["grouped"] is False, "the line's buttons are no filter"
+
+
+@pytest.mark.parametrize(
+    ("stopped", "unread", "said"),
+    [
+        (False, False, "jbus passing, all well"),
+        (False, True, "jbus passing, 1 wants a look"),
+        (True, False, "jbus stopped"),
+        (True, True, "jbus stopped, 1 wants a look"),
+    ],
+)
+def test_the_machine_folded_says_the_pass_once_and_counts_what_else_wants_a_look(
+    scene, tmp_path, stopped, unread, said
+):
+    """The machine with its room, runners and plan well: folded, its line says the pass by
+    name, and counts sources not read beside it, a stopped pass included."""
+
+    def machine(nth, body):
+        m = body["machine"]
+        m["jbus"] |= {"stopped": stopped, "why": "the timer is not active"}
+        m["room"] |= {"answer": "go", "plan": {}}
+        m |= {"runners": [{"unit": "runner.service", "active": "active"}], "runners_read": True}
+        m["unwell"] = [{"name": "room", "state": "missing"}] if unread else []
+        return body
+
+    script = remembered({"machine": "folded"}) + PROBE
+    seen = look(scene, tmp_path, route="#/", script=script, alter=machine)
+    assert seen["errors"] == []
+    assert bands(seen)["machine"]["st"] == "folded"
+    assert bands(seen)["machine"]["sum"] == said
+
+
+def test_a_band_folds_and_unfolds_by_click_and_by_key_and_nothing_else_is_drawn_again(
+    scene, tmp_path
+):
+    """A tap folds the line to its header, Enter unfolds it, Space folds the Threads band, a tap
+    folds the machine to its one line. Between the first step and the last only the header's
+    count is drawn again, and the page asks the server for nothing more."""
+    every_kind(scene)
+    line, threads = '[data-fold="demo/line"]', '[data-fold="demo/threads"]'
+    walk = [
+        "look",
+        f"tap:{line}",
+        f"key:Enter:{line}",
+        f"key: :{threads}",
+        'tap:[data-fold="machine"]',
+    ]
+    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    look_, tapped, entered, spaced, machine = [
+        {band["key"]: band for band in step["folds"]["bands"]} | {"": step}
+        for step in seen["walked"]
+    ]
+    assert look_["demo/line"]["st"] == "open"
+    assert (tapped["demo/line"]["st"], tapped["demo/line"]["expanded"]) == ("folded", "false")
+    assert tapped["demo/line"]["body"] is False and tapped["demo/line"]["seen"] is True
+    assert tapped[""]["folds"]["kept"] == "1 folded"
+    assert json.loads(tapped[""]["folds"]["store"]) == {"demo/line": "folded"}
+    assert [b["st"] for k, b in tapped.items() if k not in ("", "demo/line")] == ["open"] * 4
+    assert (entered["demo/line"]["st"], entered["demo/line"]["expanded"]) == ("open", "true")
+    assert entered[""]["focus"] == "fold:demo/line"
+    assert (entered[""]["folds"]["kept"], entered[""]["folds"]["store"]) == ("", None)
+    assert (spaced["demo/threads"]["st"], spaced["demo/threads"]["body"]) == ("folded", False)
+    assert spaced["demo/threads"]["seen"] and spaced["demo/line"]["st"] == "open"
+    assert machine["machine"]["st"] == "folded"
+    assert re.fullmatch(r"jbus passing, (all well|\d+ wants? a look)", machine["machine"]["sum"])
+    assert machine[""]["folds"]["kept"] == "2 folded"
+    first, last = seen["walked"][0]["changes"], seen["walked"][-1]["changes"]
+    assert {one["part"] for one in seen["changes"][first:last]} <= {"kept-s", "kept-l"}
+    asked = [one.partition("?")[0] for one in seen["asked"]]
+    assert (asked.count("/state.json"), asked.count("/stack.json")) == (1, 1)
+
+
+def test_a_hidden_band_is_listed_in_the_header_and_comes_back_and_show_all_shows_everything(
+    scene, tmp_path
+):
+    """Hide takes a project's row off every project's view, and the focus to the header's
+    count; the list there brings it back, and Show all unhides and unfolds everything. A tap
+    on a row's button does not open the row's project."""
+    every_kind(scene)
+    walk = ['tap:[data-hide="/row/larder"]', "tap:#kept-s", 'tap:[data-show="/row/larder"]']
+    walk += ['tap:[data-hide="/waits"]', 'tap:[data-fold="/row/pantry"]', "tap:#kept-s"]
+    walk += ["tap:[data-showall]"]
+    seen = look(scene, tmp_path, route="#/", walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    steps = seen["walked"]
+    hid, listed, shown, _, folded, again, everything = (
+        {band["key"]: band for band in step["folds"]["bands"]} for step in steps
+    )
+    assert all(step["hash"] == "#/" for step in steps), "no tap opened a project"
+    assert (hid["/row/larder"]["st"], hid["/row/larder"]["seen"]) == ("hidden", False)
+    assert (steps[0]["folds"]["kept"], steps[0]["focus"]) == ("1 hidden", "kept-s")
+    assert json.loads(steps[0]["folds"]["store"]) == {"/row/larder": "hidden"}
+    assert steps[1]["folds"]["list"] == ["Show larder", "Show all"]
+    assert (shown["/row/larder"]["st"], shown["/row/larder"]["seen"]) == ("open", True)
+    assert (steps[2]["folds"]["kept"], steps[2]["focus"]) == ("", "fold:/row/larder")
+    assert folded["/row/pantry"]["st"] == "folded" and folded["/row/pantry"]["sum"]
+    assert steps[4]["folds"]["kept"] == "1 hidden, 1 folded"
+    assert steps[5]["folds"]["list"] == ["Show Waits on you", "Show all"]
+    assert {band["st"] for band in everything.values()} == {"open"}
+    assert (steps[6]["folds"]["kept"], steps[6]["folds"]["store"]) == ("", None)
+    assert all(band["seen"] and band["body"] for band in everything.values())
+
+
+RELOAD = """
+if (!sessionStorage.getItem("jv-reloaded")) {
+  window.addEventListener("load", function () { setTimeout(function () {
+    document.querySelector('[data-fold="demo/line"]').click();
+    document.querySelector('[data-hide="demo/threads"]').click();
+    sessionStorage.setItem("jv-reloaded", "1");
+    location.reload();
+  }, 2000); });
+} else {
+"""
+
+
+def test_a_band_folded_or_hidden_is_so_after_a_reload(scene, tmp_path):
+    """The two taps of a first visit, then a reload: the page comes back as they left it."""
+    every_kind(scene)
+    seen = look(scene, tmp_path, script=RELOAD + PROBE + "\n}", at=3000, budget=15000)
+    assert seen["errors"] == []
+    states = {key: band["st"] for key, band in bands(seen).items()}
+    assert states == {key: "open" for key in PAGE_BANDS} | {
+        "demo/line": "folded",
+        "demo/threads": "hidden",
+    }
+    assert seen["folds"]["kept"] == "1 hidden, 1 folded"
+
+
+@pytest.mark.parametrize(("route", "keys"), [("#/", ROW_BANDS), ("#/demo", PAGE_BANDS)])
+def test_the_choice_is_kept_per_view_and_project_and_holds_through_a_new_poll(
+    scene, tmp_path, route, keys
+):
+    """What the browser keeps is put on as the page loads, and again after the poll at 15 s
+    draws the page again. A choice for another project's page is not this one's."""
+    every_kind(scene)
+    folds = FOLDS | {"larder/line": "hidden"}
+    seen = look(
+        scene, tmp_path, route=route, script=remembered(folds) + PROBE, at=17000, budget=22000
+    )
+    assert seen["errors"] == []
+    asked = [one.partition("?")[0] for one in seen["asked"]]
+    assert asked.count("/state.json" if route == "#/demo" else "/stack.json") >= 2
+    for key, band in bands(seen).items():
+        st = FOLDS.get(key, "open")
+        assert band["st"] == st, band
+        assert band["seen"] is (st != "hidden"), band
+        assert band["body"] is (st == "open"), band
+        assert band["expanded"] == ("false" if st == "folded" else "true"), band
+    if route == "#/demo":
+        assert seen["folds"]["kept"] == "1 hidden, 4 folded"
+        assert re.fullmatch(
+            r"\d+ threads? out, CI .*, bus \d+ in outbox, \d+ blind spots?",
+            bands(seen)["demo/cards"]["sum"],
+        )
+    else:
+        assert seen["folds"]["kept"] == "1 hidden, 3 folded"
+        assert re.fullmatch(
+            r"all well|\d+ things? wants? a look", bands(seen)["/row/pantry"]["sum"]
+        )
+
+
+@pytest.mark.parametrize("route", ["#/", "#/demo"])
+def test_on_a_phone_every_fold_button_and_the_list_of_hidden_bands_take_a_thumb(
+    scene, tmp_path, route
+):
+    every_kind(scene)
+    for folds, opened in (({}, False), (FOLDS, True)):
+        seen = look(
+            scene, tmp_path, route=route, screen=PHONE, script=remembered(folds, opened) + PROBE
+        )
+        clean(seen, PHONE)
+        ours = [one for one in seen["small"] if re.match(r"(fv-b|kb|SUMMARY)\b", one)]
+        assert (ours, seen["cut"]) == ([], [])
+        if folds:
+            assert seen["folds"]["kept"] and min(seen["folds"]["keptBox"]) >= THUMB
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize(
+    ("route", "screen"), [("#/", DESK), ("#/demo", DESK), ("#/", PHONE), ("#/demo", PHONE)]
+)
+def test_axe_finds_no_serious_issue_with_bands_folded_hidden_and_listed(
+    scene, tmp_path, route, screen, theme
+):
+    """The axe run of every view, as above, with bands folded and hidden and the header's
+    list of them open."""
+    every_kind(scene)
+    script = remembered(FOLDS, opened=True) + AXE
+    when = {"budget": 60000, "screen": screen, "at": 3000}
+    seen = look(scene, tmp_path, route=route, fragment=f"theme={theme}", script=script, **when)
+    assert seen["theme"] == theme
+    assert (seen["errors"], seen["violations"], seen["rings"]) == ([], [], [])

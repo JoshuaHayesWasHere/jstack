@@ -68,7 +68,7 @@ panel({
   },
   card: function () {
     var rs = runStats();
-    return { at: 40, e: S.checks.error || rs.now.failed.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
+    return { at: 40, sum: S.checks.error ? "CI not read" : "CI " + CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "), e: S.checks.error || rs.now.failed.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
       val: (S.checks.error ? '<small class="bad">' + esc(S.checks.error) + '</small>' : CHECKS.map(function (c) { var runs = rs.now[c[0]]; return '<span class="ck' + (runs.length ? "" : " zero") + '"><span>' + runs.length + " " + c[1] + '</span>' + (runs.length ? ' <small>' + esc(branches(runs)) + '</small>' : "") + '</span>'; }).join(" ")),
       viz: "", label: "The repo's checks on GitHub: " + (S.checks.error || checksSay(rs)) };
   },
