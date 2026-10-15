@@ -4,8 +4,9 @@ never cancelled by the next one: each push's run is a concurrency group of its o
 The workflow file is read as YAML, by the little of it these two blocks use: mappings by
 their indentation, a scalar, and a list in brackets.
 
-Every job takes its runner from one repo variable, and GitHub's when the repo has none: the
-tree names no machine. Every workflow is given read access to the contents and no more, and
+Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
+`jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
+The check names Google Chrome as its test browser on every runner. Every workflow is given read access to the contents and no more, and
 none runs on `pull_request_target`. The check may also read the repo's artifacts, which is
 where a green run's marker is.
 
@@ -30,7 +31,7 @@ DRIFT = WORKFLOWS / "pstack-drift.yml"
 GREEN_TREE = WORKFLOWS.parent.parent / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
-    " || vars.RUNS_ON || 'ubuntu-latest' }}"
+    " || vars.RUNS_ON || 'jstack-ephemeral' }}"
 )
 
 
@@ -167,13 +168,13 @@ def picked(expression, variable):
     return eval(inner.replace("&&", " and ").replace("||", " or "), names)
 
 
-def test_the_runner_is_githubs_with_no_variable_and_a_label_or_a_list_of_them_with_one():
+def test_the_runner_is_the_local_one_with_no_variable_and_a_label_or_a_list_of_them_with_one():
     for runs_on in {
         runs_on
         for found in map(jobs, map(Path.read_text, WORKFLOWS.glob("*.yml")))
         for runs_on in found.values()
     }:
-        assert picked(runs_on, "") == "ubuntu-latest"
+        assert picked(runs_on, "") == "jstack-ephemeral"
         assert picked(runs_on, "jstack") == "jstack"
         assert picked(runs_on, '["one", "two"]') == ["one", "two"]
 
@@ -192,6 +193,12 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
         more = {"actions": "read"} if path == CHECK else {}
         assert block("permissions", path) == {"contents": "read"} | more, path.name
         assert "pull_request_target" not in path.read_text(), path.name
+
+
+def test_the_check_names_google_chrome_on_every_runner():
+    assert step_env(CHECK.read_text(), "make check") == {
+        "JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"
+    }
 
 
 def test_a_bare_hosted_label_is_read_as_it_is_written():

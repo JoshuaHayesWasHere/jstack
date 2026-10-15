@@ -23,11 +23,12 @@ concurrency:
 jobs:
   check:
     # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
-    # of them as JSON, which starts with a bracket. A repo with no such variable, a fork
-    # included, runs on GitHub's.
-    # RUNS_ON is for a private repo. A public repo sets none and has no runner of its own
-    # registered: with either, a stranger's pull request would run on that machine.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'ubuntu-latest' }}
+    # of them as JSON, which starts with a bracket. With none it is the local ephemeral
+    # runner, never GitHub's: every CI job runs locally, by the owner's word ("EVERYTHING CI
+    # IS DONE LOCALLY. THAT IS THE DEFAULT."). This repo is public, so a stranger's pull
+    # request reaches that runner only through GitHub's gate: the repo requires approval for
+    # all external contributors, so a fork's run waits for the owner every time.
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,9 +55,10 @@ jobs:
         id: suite
         if: steps.tree.outputs.marker != 'green'
         env:
-          # GitHub's image has a Chromium snapshot whose virtual time now and then never starts,
-          # and the browser tests then wait out their bound. Its Google Chrome is a stable build.
-          JSTACK_TEST_BROWSER: ${{ runner.environment == 'github-hosted' && '/usr/bin/google-chrome' || '' }}
+          # A stable Google Chrome, which the local runner image installs and GitHub's image
+          # has too. A Chromium snapshot's virtual time now and then never starts, and the
+          # browser tests then wait out their bound.
+          JSTACK_TEST_BROWSER: /usr/bin/google-chrome
         run: make check
       # Only after the suite ran and passed. A marker that cannot be kept costs the next run
       # of this tree its skip and nothing else.
