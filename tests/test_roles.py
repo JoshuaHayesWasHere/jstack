@@ -54,7 +54,10 @@ def test_exec_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
     assert roles("exec", MAP) == ("", "")
     assert roles("exec", MAP + "exec: inherit\n") == ("", "")
     given = MAP + "home: grok grok-build\nexec: claudeAgent claude-haiku-5-5\n"
-    haiku = '{"provider": "claudeAgent", "model": "claude-haiku-5-5"}\n'
+    haiku = (
+        '{"provider": "claudeAgent", "model": "claude-haiku-5-5", '
+        '"options": [{"id": "effort", "value": "medium"}]}\n'
+    )
     assert roles("exec", given) == (haiku, "")
     assert roles("home") == ('{"provider": "grok", "model": "grok-build"}\n', "")
 
@@ -71,6 +74,7 @@ def test_a_full_line_prints_the_selection_as_one_json_object(roles):
         "provider": "claudeAgent",
         "model": "claude-sonnet-5-5",
         "instanceId": "claude-work",
+        "options": [{"id": "effort", "value": "medium"}],
     }
 
 
@@ -136,3 +140,37 @@ def test_what_it_prints_is_a_model_selection_the_launch_tool_takes(roles, role):
     assert twins
     for twin in twins:
         assert errors(twin, {**twin.given, "modelSelection": selection}) == []
+
+
+@pytest.mark.parametrize(
+    ("line", "effort"),
+    [
+        ("scout: claudeAgent claude-sonnet-5-5", "medium"),
+        ("scout: claudeAgent claude-sonnet-5-5 effort=medium", "medium"),
+        ("scout: claudeAgent claude-sonnet-5-5 effort=low", "low"),
+        ("scout: claudeAgent claude-sonnet-5-5 claude-work effort=low", "low"),
+    ],
+)
+def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, line, effort):
+    """T3 Code launches a model with no effort option at its own default, which is high for
+    Claude Sonnet 5.5: the selection names one, so the role map never raises a thread."""
+    selection = json.loads(roles("scout", line + "\n").out)
+    assert selection["options"] == [{"id": "effort", "value": effort}]
+
+
+@pytest.mark.parametrize("level", ["high", "xhigh", "max", "ultracode", "ultrathink", ""])
+def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, level):
+    text = f"scout: claudeAgent claude-opus-5-5 effort={level}\ncrew: grok grok-build\n"
+    assert roles("scout", text) == ("", f"refused scout: effort={level} is not low or medium\n")
+    assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+
+
+def test_only_a_claude_line_names_an_effort_and_only_last(roles):
+    assert roles("crew", "crew: codex gpt-5-codex effort=low\n") == (
+        "",
+        "refused crew: only a Claude line names an effort\n",
+    )
+    line = "crew: claudeAgent effort=low claude-opus-5-5"
+    assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
+    line = "crew: claudeAgent claude-opus-5-5 a b effort=low"
+    assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
