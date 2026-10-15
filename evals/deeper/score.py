@@ -83,23 +83,16 @@ SKILL_EXAMPLES = frozenset(
     {"py-spy", "pytest-durations", "hyperfine", "perf", "pidstat", "git-bisect", "sqlite3"}
 )
 
-OUTSIDE = re.compile(
-    r"`[^`]+`"
-    r"|\btests?\b|\bexits? (?:0|1|2|with)\b|\bexit code\b"
-    r"|\bmeasured\b|\bmeasure\b|\bbenchmark|\bmedian\b|\bp\d\d\b|\bspread\b"
-    r"|\b\d+(?:\.\d+)?\s?(?:ms|s|seconds?|minutes?|%|GB|MB|x)\b"
-    r"|\bCI\b|\bcheck(?:s)? (?:pass|passes|passed|green)\b|\bgreen\b"
-    r"|\bdataset\b|\bmetric\b|\bthe user (?:checks|confirms|says|sees|answers)\b",
-    CASE,
-)
-OUTSIDE_NO_CODE = re.compile(
+# Words that name a judge outside the agent. `OUTSIDE` adds any span in backticks to them.
+_JUDGES = (
     r"\btests?\b|\bexits? (?:0|1|2|with)\b|\bexit code\b"
     r"|\bmeasured\b|\bmeasure\b|\bbenchmark|\bmedian\b|\bp\d\d\b|\bspread\b"
     r"|\b\d+(?:\.\d+)?\s?(?:ms|s|seconds?|minutes?|%|GB|MB|x)\b"
     r"|\bCI\b|\bcheck(?:s)? (?:pass|passes|passed|green)\b|\bgreen\b"
-    r"|\bdataset\b|\bmetric\b|\bthe user (?:checks|confirms|says|sees|answers)\b",
-    CASE,
+    r"|\bdataset\b|\bmetric\b|\bthe user (?:checks|confirms|says|sees|answers)\b"
 )
+OUTSIDE = re.compile(r"`[^`]+`|" + _JUDGES, CASE)
+OUTSIDE_NO_CODE = re.compile(_JUDGES, CASE)
 SELF = re.compile(
     r"\breview(?:ed|er|ers)?\b|\bcrewmate (?:confirms|checks|says|judges)\b"
     r"|\blooks? (?:right|good|fine)\b|\bself-(?:report|assess)|\bagent (?:confirms|judges)\b",

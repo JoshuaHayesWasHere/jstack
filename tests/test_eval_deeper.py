@@ -91,14 +91,60 @@ def test_the_shipped_brief_is_the_text_above_its_result():
     assert run.shipped(text) == "# a: b\nTask: c"
 
 
-def test_write_with_no_claude_keeps_the_committed_run(tmp_path, monkeypatch):
-    (tmp_path / "runs").mkdir()
-    (tmp_path / "runs" / "kept.md").write_text("# kept\n")
+def kept_run(here):
+    (here / "run-1" / "runs").mkdir(parents=True)
+    (here / "run-1" / "runs" / "kept.md").write_text("# kept\n")
+    (here / "run-1" / "key.json").write_text("{}\n")
+    return sorted(path.relative_to(here).as_posix() for path in here.rglob("*"))
+
+
+def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
+    before = kept_run(tmp_path)
     monkeypatch.setattr(run, "HERE", tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
     with pytest.raises(SystemExit, match="no claude on PATH"):
         run.write()
-    assert [path.name for path in tmp_path.rglob("*")] == ["runs", "kept.md"]
+    assert sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*")) == before
+
+
+def test_a_call_that_fails_partway_leaves_the_kept_run_and_no_part_of_the_new_one(
+    tmp_path, monkeypatch
+):
+    before = kept_run(tmp_path)
+    calls = iter(range(100))
+
+    def one(slug, arm, trial):
+        if next(calls) >= 2:
+            raise RuntimeError("claude exited 1")
+        return slug, arm, trial, "# a brief\n", ""
+
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "WORKERS", 1)
+    monkeypatch.setattr(run, "_one", one)
+    monkeypatch.setattr(run, "_private", lambda: ())
+    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
+    with pytest.raises(RuntimeError, match="claude exited 1"):
+        run.write()
+    assert sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*")) == before
+
+
+def test_a_whole_write_adds_the_next_run_beside_the_kept_one(tmp_path, monkeypatch):
+    kept_run(tmp_path)
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "_one", lambda slug, arm, trial: (slug, arm, trial, "# b\n", ""))
+    monkeypatch.setattr(run, "_private", lambda: ())
+    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
+    run.write()
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["run-1", "run-2"]
+    assert (tmp_path / "run-1" / "runs" / "kept.md").is_file()
+    assert len(list((tmp_path / "run-2" / "runs").glob("*.md"))) == 2 * run.TRIALS * len(run.CASES)
+
+
+def test_run_scores_and_reports_a_kept_run_and_refuses_to_write(capsys):
+    assert run.main(["--run", "run-1", "write"]) == 2
+    assert run.main(["--run", "run-1", "cases"]) == 2
+    assert run.main(["--run", "run-9"]) == 2
+    assert "--run" in capsys.readouterr().err
 
 
 def test_no_private_patterns_stops_the_eval_before_it_writes(tmp_path, monkeypatch):
@@ -114,9 +160,12 @@ def test_the_private_patterns_are_read_where_jleak_reads_them(tmp_path, monkeypa
     assert run._redact("Ada wrote it", run._private()) == "the user wrote it"
 
 
-def test_not_held_is_counted_in_the_results_alone():
+def test_not_held_is_counted_in_the_results_alone(tmp_path, monkeypatch):
+    (tmp_path / "jstack").mkdir()
+    (tmp_path / "jstack" / "outbound.toml").write_text("[patterns]\nname = 'Ada'\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     text = (
         "# a: b\nDone when: it does not hold\n## Result\nDone when: x (does not hold)\n"
         "## Review\nMeets the brief: no, it did not hold\n## Result, follow-up\ny did not hold\n"
     )
-    assert len(__import__("re").findall(r"\b(?:does|did) not hold\b", run.results(text))) == 2
+    assert run.turned_out("a", text)["not_held"] == 2

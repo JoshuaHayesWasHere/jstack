@@ -13,15 +13,17 @@ It runs four steps, and each can be run alone (`eval.py score` rescores the comm
   the shipped brief's pull request turned out, from the brief's Result and Review and GitHub.
 - `write`: for each case, `TRIALS` times, writes two briefs with the same writer and the same
   template: one from the request as it is, one from the prompt /deeper rewrote it to. Each
-  brief goes to `runs/<random id>.md`, and which is which only to `key.json`. What a model
-  wrote has the private patterns of `jleak` taken out, as the cases have.
-- `score`: runs `score.py` over `runs/*.md`, which sees each brief's text and nothing else,
-  and writes `scores.json`, keyed by the random ids.
-- `report`: joins the scores with the key and writes `results.md`, with the rule in
+  brief goes to `run-<n>/runs/<random id>.md`, and which is which only to
+  `run-<n>/key.json`. What a model wrote has the private patterns of `jleak` taken out, as
+  the cases have.
+- `score`: runs `score.py` over `run-<n>/runs/*.md`, which sees each brief's text and
+  nothing else, and writes `run-<n>/scores.json`, keyed by the random ids.
+- `report`: joins the scores with the key and writes `run-<n>/results.md`, with the rule in
   `README.md` for whether /deeper won.
 
-`eval.py --run run-1 score report` rescores and reports a run that is kept in its own
-directory, with no model call.
+Each run is kept in its own directory, `run-<n>/`: `write` adds the next one and touches
+none, and `score` and `report` read the last. `eval.py --run run-1` rescores and reports
+a kept run, with no model call, and refuses `cases` and `write`.
 """
 
 from __future__ import annotations
@@ -150,6 +152,11 @@ def results(text: str) -> str:
     return "".join(part for part in parts if part.startswith("## Result"))
 
 
+def not_held(text: str) -> int:
+    """How many times the brief's Results say a line does or did not hold."""
+    return len(re.findall(r"\b(?:does|did) not hold\b", results(text)))
+
+
 def turned_out(slug: str, text: str) -> dict[str, object]:
     """How the pull request of a shipped brief turned out, from the brief and from GitHub."""
     url = re.search(r"https://github\.com/[^\s)]+/pull/\d+", text)
@@ -170,7 +177,7 @@ def turned_out(slug: str, text: str) -> dict[str, object]:
         findings_info=findings.count("info"),
         follow_up_results=len(re.findall(r"^## Result, follow-up", text, re.M)),
         reruns=len(re.findall(r"^Rerun: ", text, re.M)),
-        not_held=len(re.findall(r"\b(?:does|did) not hold\b", results(text))),
+        not_held=not_held(text),
         shipped=score(_redact(shipped(text), _private())).as_dict(),
     )
     return found
@@ -219,43 +226,51 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
 
 
+def runs() -> list[Path]:
+    """The kept runs, `run-<n>/`, in the order they were written."""
+    found = [path for path in HERE.glob("run-*") if path.name[4:].isdigit()]
+    return sorted(found, key=lambda path: int(path.name[4:]))
+
+
 def write() -> None:
-    """Write every brief into a new directory, and put it in place of the committed one only
-    once the last brief and the key are written: a call that fails leaves the run as it was."""
+    """Write a new run, `run-<n>/`, next to the kept ones. It is built in a directory of its
+    own and put in place by one rename once its last brief and its key are written, so a call
+    that fails leaves no part of it and no kept run is touched."""
+    global RUN
     if not shutil.which("claude"):
-        raise SystemExit("eval.py: write: no claude on PATH, the committed run is kept")
-    fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
-    for name in ("runs", "deeper"):
-        (fresh / name).mkdir()
+        raise SystemExit("eval.py: write: no claude on PATH, no run is written")
+    patterns = _private()
     jobs = [
         (slug, arm, trial)
         for slug in CASES
         for arm in ("plain", "deeper")
         for trial in range(1, TRIALS + 1)
     ]
-    key, patterns = {}, _private()
-    with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool:
-        for slug, arm, trial, brief, deeper in pool.map(lambda job: _one(*job), jobs):
-            brief, deeper = _redact(brief, patterns), _redact(deeper, patterns)
-            name = secrets.token_hex(6)
-            (fresh / "runs" / f"{name}.md").write_text(brief + "\n")
-            key[name] = {"slug": slug, "arm": arm, "trial": trial}
-            if deeper:
-                (fresh / "deeper" / f"{slug}-{trial}.md").write_text(deeper + "\n")
-            print(f"write: {len(key)} of {len(jobs)}", flush=True)
-    shuffled = dict(random.sample(sorted(key.items()), len(key)))
-    (fresh / "key.json").write_text(json.dumps(shuffled, indent=2) + "\n")
-    ran = {"template": _sha(TEMPLATE), "skill": _sha(SKILL)}
-    (fresh / "run.json").write_text(json.dumps(ran, indent=2) + "\n")
-    for name in ("runs", "deeper", "key.json", "run.json"):
-        old = HERE / name
-        if old.is_dir():
-            shutil.rmtree(old)
-        elif old.exists():
-            old.unlink()
-        (fresh / name).rename(old)
-    fresh.rmdir()
-    print(f"write: {len(key)} briefs in runs/, the key in key.json")
+    fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
+    try:
+        for name in ("runs", "deeper"):
+            (fresh / name).mkdir()
+        key = {}
+        with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool:
+            for slug, arm, trial, brief, deeper in pool.map(lambda job: _one(*job), jobs):
+                brief, deeper = _redact(brief, patterns), _redact(deeper, patterns)
+                name = secrets.token_hex(6)
+                (fresh / "runs" / f"{name}.md").write_text(brief + "\n")
+                key[name] = {"slug": slug, "arm": arm, "trial": trial}
+                if deeper:
+                    (fresh / "deeper" / f"{slug}-{trial}.md").write_text(deeper + "\n")
+                print(f"write: {len(key)} of {len(jobs)}", flush=True)
+        shuffled = dict(random.sample(sorted(key.items()), len(key)))
+        (fresh / "key.json").write_text(json.dumps(shuffled, indent=2) + "\n")
+        ran = {"template": _sha(TEMPLATE), "skill": _sha(SKILL)}
+        (fresh / "run.json").write_text(json.dumps(ran, indent=2) + "\n")
+        kept = runs()
+        made = HERE / f"run-{int(kept[-1].name[4:]) + 1 if kept else 1}"
+        fresh.rename(made)
+    finally:
+        shutil.rmtree(fresh, ignore_errors=True)
+    RUN = made
+    print(f"write: {len(key)} briefs in {made.name}/runs/, the key in {made.name}/key.json")
 
 
 def score_all() -> None:
@@ -385,17 +400,27 @@ def report() -> None:
 
 
 STEPS = {"cases": cases, "write": write, "score": score_all, "report": report}
+KEPT = ("score", "report")
 RUN = HERE
 
 
 def main(argv: list[str]) -> int:
-    """`[--run <directory>] [step...]`: `--run run-1` scores and reports a kept run."""
+    """`[step...]`, or `--run <run-n> [score] [report]`, which scores and reports a kept run
+    and writes none. With no `--run`, `score` and `report` read the last run."""
     global RUN
+    kept = runs()
+    RUN = kept[-1] if kept else HERE / "run-1"
     if argv[:1] == ["--run"]:
-        if len(argv) < 2 or not (HERE / argv[1] / "runs").is_dir():
-            print("eval.py: --run names a directory of evals/deeper with runs/", file=sys.stderr)
+        if len(argv) < 2 or HERE / argv[1] not in kept:
+            print(
+                f"eval.py: --run names a kept run: {', '.join(p.name for p in kept) or 'none'}",
+                file=sys.stderr,
+            )
             return 2
-        RUN, argv = HERE / argv[1], argv[2:]
+        RUN, argv = HERE / argv[1], argv[2:] or list(KEPT)
+        if set(argv) - set(KEPT):
+            print("eval.py: --run scores and reports a kept run: score, report", file=sys.stderr)
+            return 2
     asked = argv or list(STEPS)
     unknown = [step for step in asked if step not in STEPS]
     if unknown:

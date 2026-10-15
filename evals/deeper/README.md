@@ -28,13 +28,13 @@ The writer is the same model, effort and prompt in both arms, with no tools, so 
 
 ## Blind scoring
 
-Each brief is saved as `runs/<random id>.md`, and which arm wrote it is only in `key.json`. `score.py` scores the files in `runs/` from their text alone: it never sees the key or the file name, and it is a script, not a model, so it is neither the writing agent nor another model judging it. Its lexicons were committed before the first brief was written. It scores three things:
+Each run is its own directory, `run-<n>/`. Each brief is saved as `run-<n>/runs/<random id>.md`, and which arm wrote it is only in `run-<n>/key.json`. `score.py` scores the files in `runs/` from their text alone: it never sees the key or the file name, and it is a script, not a model, so it is neither the writing agent nor another model judging it. Its lexicons were committed before the first brief was written. It scores three things:
 
 - **raw**: how many kinds of raw material the brief names (logs, transcripts, traces, a profile, a database, the machine's counters, per-test timings, the event log, CI runs, git history, raw data, samples);
 - **instruments**: how many named instruments it asks for (`py-spy`, `perf stat`, `hyperfine`, `pytest --durations`, `pidstat`, `gh run`, `git bisect`, `sqlite3`, and the rest of `INSTRUMENTS`). The report also gives **beyond**: the same count without the seven instruments the skill names as its own examples, so a brief that only copies them is seen doing it;
 - **outside**: the share of its proof lines (`Done when:` items, and `Proves it:` where there is one) that name a judge outside the agent (a command, a test, a measured number, CI, a dataset, the user's check) and do not rest on a review or a self-report.
 
-Beside the three measures, `results.md` gives three readings of them that the rule does not count, added after the first two runs: **raw_beyond**, the raw count without the seven kinds the skill lists as its examples (logs, transcripts, traces, a profile, the database, CI runs, the machine's counters); **beyond**, the same for instruments; and **outside_no_code**, the outside share without its first branch, which takes any span in backticks as a judge, so a line that only names a path counts. They rescore the committed briefs, with no model call: `uv run python evals/deeper/eval.py score report`, and `--run run-1 score report` for the first run.
+Beside the three measures, each run's `results.md` gives three readings of them that the rule does not count, added after the first two runs: **raw_beyond**, the raw count without the seven kinds the skill lists as its examples (logs, transcripts, traces, a profile, the database, CI runs, the machine's counters); **beyond**, the same for instruments; and **outside_no_code**, the outside share without its first branch, which takes any span in backticks as a judge, so a line that only names a path counts. They rescore the committed briefs, with no model call: `uv run python evals/deeper/eval.py --run run-1` and `--run run-2`.
 
 `report` joins the scores to the key. Then, for each case, the brief as it shipped is scored the same way, beside how its pull request turned out: merged or not, the findings of its review, follow-up Results, reruns of a check, and Done when lines that did not hold.
 
@@ -50,17 +50,17 @@ From the root of the repo:
 uv run python evals/deeper/eval.py
 ```
 
-It runs `cases`, `write`, `score` and `report` in order. `write` calls `claude -p` 60 times (ten cases, two trials, one call for plain and two for deeper), four at a time. `cases` reads the home's `tasks/` on this machine and asks GitHub how each pull request ended. On a machine without them, `uv run python evals/deeper/eval.py score report` rescores the committed briefs.
+It runs `cases`, `write`, `score` and `report` in order. `write` calls `claude -p` 60 times (ten cases, two trials, one call for plain and two for deeper), four at a time, and adds the next run, `run-<n>/`, in one rename once every brief and the key are written: a failed call leaves nothing, and no kept run is touched. It stops first when there is no `claude` or no private patterns for `jleak`. `cases` reads the home's `tasks/` on this machine and asks GitHub how each pull request ended. On a machine without them, `uv run python evals/deeper/eval.py --run run-2` rescores and reports a kept run, and refuses to write one.
 
 ## Limits
 
-- One writer model, two trials a case: the spread across trials is in `results.md`, and a gap smaller than it is noise.
-- A lexicon counts words, not whether a source or a tool is the right one for the task. A brief that names more is not proven to be a better one; `beyond` and the word counts in `results.md` show how much of a gap is the skill's examples and length.
+- One writer model, two trials a case: the spread across trials is in each run's `results.md`, and a gap smaller than it is noise.
+- A lexicon counts words, not whether a source or a tool is the right one for the task. A brief that names more is not proven to be a better one; `beyond` and the word counts in each run's `results.md` show how much of a gap is the skill's examples and length.
 - The writer has no tools, in both arms: the briefs are written from the request alone, as the first draft of a home is.
 
 ## Result
 
-Two runs, both of 2026-10-15, scored by the same script under the same rule. They differ only in the form the skill told `/deeper` to print its rewritten prompt in (a nested fence in run 1, which the repo's fence finder skips, and a block quote in run 2: `git diff fbb2892 7a0815c -- skills/deeper/SKILL.md`), so they are two runs of the same skill. **On raw sources and instruments, `/deeper` won in both runs. Proof outside the agent is not shown either way. The rule's no-loss condition held in one run of the two, so the eval as a whole does not show a win on all it set out to.**
+Two runs, both of 2026-10-15, scored by the same script under the same rule. Each run's numbers are in `run-1/results.md` and `run-2/results.md`. They differ in two places of the skill text that `/deeper` reads (`git diff fbb2892 7a0815c -- skills/deeper/SKILL.md`): the form it is told to print its rewritten prompt in (a nested fence in run 1, which the repo's fence finder skips, and a block quote in run 2), and the shell block of "Run by a home", which now says when jbus cannot take the gate. Neither touches the four questions, so they are two runs of the same questions. **On raw sources and instruments, `/deeper` won in both runs. Proof outside the agent is not shown either way. The rule's no-loss condition held in one run of the two, so the eval as a whole does not show a win on all it set out to.**
 
 | Measure | Run 1: mean plain to deeper, cases up / down, p | Run 2: the same |
 |---|---|---|
