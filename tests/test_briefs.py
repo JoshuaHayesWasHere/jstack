@@ -268,6 +268,8 @@ PROOFS = {
     "a bare percentage": ("coverage stays above 90%", "a metric"),
     "a rate": ("error rate under 2%", "a metric"),
     "a judge": ("a human judge scores it", "an external judge"),
+    "tests beside the crew": ("the skill text tests, and the crew's lines", "a test"),
+    "the crewmate's tests": ("the crewmate's tests", "a test"),
 }
 
 REFUSED = {
@@ -300,6 +302,7 @@ REFUSED = {
         "names the crewmate, the agent's own word",
     ),
     "the agent tests it": ("the agent tests it", "names the agent, the agent's own word"),
+    "it tests": ("the crewmate says it tests well", "names the crewmate, the agent's own word"),
     "two spans in backticks": (
         "the `crewmate` says so. The `reviewer` agrees",
         "names the crewmate, the agent's own word",

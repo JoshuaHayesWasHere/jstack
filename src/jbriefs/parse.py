@@ -29,7 +29,9 @@ _NAMED = (
     (
         "a test",
         r"\btests?/|\btest_\w+|\w+_test\b|\bpytest\b|\buv run\b"
-        r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+",
+        r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+"
+        r"|\b(?!(crew|crewmates?|reviewers?|agents?|self|model|it|he|she|they|who|that|which"
+        r"|will|can|could|should|would|must|to|does|did|may|might)\b)[\w-]+[ -]tests\b",
     ),
     (
         "an external judge",
