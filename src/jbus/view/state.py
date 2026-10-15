@@ -732,8 +732,9 @@ def request(home: Path, slug: str) -> dict[str, str]:
         return {"state": "researching", "status": "", "asks": asks}
     own = re.split(r"^## ", reports[-1], maxsplit=1, flags=re.M)[0]
     status = text(mirror.field(own, "Status"), 160)
-    word = status.split(" ", 1)[0].rstrip(",.:;")
-    state = {"done": "reported", "blocked": "blocked"}.get(word, "not done")
+    word = status.split(" ", 1)[0]
+    blocked = word.rstrip(",.:;") == "blocked"
+    state = "reported" if word == "done" else "blocked" if blocked else "not done"
     return {"state": state, "status": status, "asks": asks}
 
 
