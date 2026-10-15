@@ -112,9 +112,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     band: box(document.getElementById("you")),
     bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.amber", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
     meters: all('#vitals [data-open="room"] .mb').filter(seen).length,
-    small: small(main),
-    cut: cut(main),
-    cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: c.getAttribute("aria-label"), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c) }; }),
+    small: small(document.body),
+    cut: cut(document.body),
+    cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: c.getAttribute("aria-label"), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c), valbox: box(c.querySelector(".val")) }; }),
+    /* The shell: the header, the sidebar of every project, and the machine, drawn once. */
+    header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")) },
+    side: { box: box(document.getElementById("side")), items: all("#side .sp").map(function (a) { var d = a.querySelector(".hd"); return { name: text(a.querySelector(".nm")), count: text(a.querySelector(".n")), dot: d ? d.className.replace(/^hd ?/, "") || "ok" : "", tip: a.title, href: a.getAttribute("href"), current: a.getAttribute("aria-current") || "", seen: seen(a), box: box(a) }; }) },
+    machine: all("#machine .mi").map(function (c) { return { tag: text(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, open: c.getAttribute("data-open"), seen: seen(c), box: box(c) }; }),
+    folded: all("#line .folded [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open"), seen(b)]; }),
     count: text(document.querySelector("#you .youn")),
     tiles: all("#you .yg").map(function (y) { return { seen: seen(y.querySelector(".tok")), text: text(y.querySelector(".tok")), open: y.querySelector(".tok").getAttribute("data-open"), state: tag(y), border: border(y.querySelector(".tok")) }; }),
     line: tag(document.getElementById("filters")),
@@ -135,7 +140,6 @@ window.addEventListener("load", function () { setTimeout(function () {
     stack: (function () {
       var view = document.getElementById("stack"), none = document.getElementById("none");
       return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
-        machine: all("#machine .vit").map(function (c) { return { tag: text(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, seen: seen(c) }; }),
         total: text(document.querySelector("#wtotal")),
         waits: all("#yrows .yrow").map(function (r) { return { project: r.getAttribute("data-key"), count: +text(r.querySelector(".pj .n")), seen: seen(r), quiet: text(r.querySelector(".quiet")),
           tokens: all(".tok", r).map(function (t) { return { text: text(t), href: t.getAttribute("href"), tip: t.title }; }) }; }),
