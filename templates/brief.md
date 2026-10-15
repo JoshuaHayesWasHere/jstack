@@ -2,6 +2,7 @@
 Task: "<the request, in the user's words>"
 Done when:
 - <a check>
+Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review>
 Where: <files or areas it concerns>
 Do not touch: <what is out of bounds>
 Decisions: <any the user already made, in their words>
