@@ -172,7 +172,8 @@ def flush(run: wake.Pass) -> int:
     by how that went. The answer is how many the project's own webhook took.
 
     The own webhook goes first, so an alert it gives is posted to the top-level one in the
-    same pass. A project with no top-level route any more ends that streak, with no line.
+    same pass. A project with no top-level route any more ends that streak, with no line, and
+    drops what waited for it: a pair that comes back later is posted only what is new.
     """
     state, name = run.config.state_dir, run.project.name
     sent = 0
@@ -190,4 +191,5 @@ def flush(run: wake.Pass) -> int:
             tell(run, key, said)
     if not any(route.top for route in run.box.routes):
         retire(state, top_level(name))
+        run.box.drop_top_level()
     return sent

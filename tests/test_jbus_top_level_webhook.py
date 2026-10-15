@@ -201,3 +201,22 @@ def test_the_view_s_bus_has_no_top_level_part_where_the_project_has_one_webhook(
         assert served.json("/state.json?project=demo")["bus"]["top_level"] is None
     finally:
         served.close()
+
+
+def test_a_top_level_pair_removed_and_given_back_posts_nothing_that_waited_before(kitchen, top):
+    monitored(kitchen, top)
+    top.status = 500
+    held(kitchen)
+    for minutes in (10, 16, 22):
+        kitchen.poll(later(minutes))
+    assert len(outbox(kitchen, "top-level")) == 2
+    assert "top-level webhook demo" in kitchen.status()["streaks"]
+    kitchen.config()
+    kitchen.poll(later(28))
+    assert not (kitchen.state / "top-level").exists()
+    assert "top-level webhook demo" not in kitchen.status()["streaks"]
+    top.status = 200
+    monitored(kitchen, top)
+    kitchen.poll(later(34))
+    assert top.said == []
+    assert "top_level" in kitchen.status()["projects"]["demo"]

@@ -428,6 +428,11 @@ class Box:
         marks = read_json((route or self.routes[0]).folder / "wake.json", {})
         return {**marks, "failed": int(bool(marks.get("last_error")))}
 
+    def drop_top_level(self) -> None:
+        """Remove the top-level route's outbox and marks, once the project has no such route."""
+        with self._locked():
+            shutil.rmtree(self.state / TOP_LEVEL, ignore_errors=True)
+
     def waiting(self, route: Route | None = None) -> int:
         return len(self._outbox(route))
 
