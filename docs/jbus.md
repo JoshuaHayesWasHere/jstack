@@ -37,11 +37,12 @@ The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empt
 | `jbus project add <name> --checkout <path> --project-id <id>` | Adds one project's table to the config. [Add a project](#add-a-project) has the rest. |
 | `jbus t3 login [--wait <seconds>]` | Signs jbus in to the T3 Code server. `--wait` is how long it waits for your approval, 600 seconds with none. |
 | `jbus t3 launch-test` | Starts one thread in the project and prints its id. |
+| `jbus snapshot [--alarm]` | Commits the homes' state tree and pushes it. `--alarm` counts a snapshot that did not finish. [Back up the homes' state](#back-up-the-homes-state) has the rest. |
 | `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for it to run. A step is declared beside its feature, as `STEPS` in its module, and a pass skips one whose needs it has not. |
 
 A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+`jbus poll`, `jbus alarm`, `jbus snapshot`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
 
 ## Questions
 
@@ -175,13 +176,24 @@ An edit of `panel.js` is live on the next request, and the server restarts itsel
 
 1. Write the config, `~/.config/jbus/config.toml`, mode 600, as [Configuration](configuration.md#jbus) shows. jbus refuses to start when group or others can read it, or the token beside it.
 2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
-3. Run `sh <checkout>/install.sh` again. With the config there, it links `templates/jbus.service`, `templates/jbus-failed.service` and `templates/jbus.timer` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`. The timer runs a pass every minute (`OnUnitActiveSec=1min`).
+3. Run `sh <checkout>/install.sh` again. With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer` and `jbus-snapshot.timer`. `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`. `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](#back-up-the-homes-state)).
 
 [Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once.
 
 jbus does not renew the sign-in. It lasts as long as the token says, or 30 days when the token gives no lifetime. From `warn_days` days before it runs out, the first pass of each day sends `gate <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login`. After that a pass sends `gate <project>: T3 Code could not be asked` once a day until you run `jbus t3 login` again.
 
 To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, and jbus still merges, reads and sends. To stop the passes, run `systemctl --user disable --now jbus.timer`.
+
+## Back up the homes' state
+
+The homes' state tree, `~/.local/state/home` (the config's `home_dir`), is a git repo, and `jbus-snapshot.timer` backs it up at 08:30 and 17:30 local time. It has `Persistent=true`, so a time the machine slept through runs as soon as it is up again. The timer runs `jbus-snapshot.service`, which runs `jbus snapshot`:
+
+1. It stages everything in the tree (`git add -A`). With nothing staged, it prints `snapshot: nothing changed` and ends.
+2. gitleaks reads what is staged (`gitleaks protect --staged`). A secret in it, or no gitleaks on the machine, unstages it all, commits nothing, and fails the snapshot.
+3. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone.
+4. It pushes to `origin` when the repo has one.
+
+A snapshot that did not finish fails the unit, whose `OnFailure=jbus-snapshot-failed.service` runs `jbus snapshot --alarm`. The first one alerts at once ([When jbus fails](#when-jbus-fails)). `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs, and `git -C ~/.local/state/home log -1` the last one. To take one now, run `systemctl --user start jbus-snapshot.service`.
 
 ## Add a project
 
@@ -436,15 +448,16 @@ An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}
 
 ## When jbus fails
 
-A failure that repeats is told once, and so is its end. jbus counts three kinds of failure in a row:
+A failure that repeats is told once, and so is its end. jbus counts these kinds of failure in a row:
 
 - `pass`, a pass that did not finish. `jbus.service` has `OnFailure=jbus-failed.service`, which runs `jbus alarm` to count it.
 - `webhook <project>`, a POST the project's own webhook did not take.
 - `top-level webhook <project>`, a POST of the project's events that the top-level webhook did not take.
 - `blocking webhook <project>`, a body of the project's that the second target did not take.
 - `jmerge <project>`, a `jmerge` that did not run.
+- `snapshot`, a snapshot of the homes' state that did not finish. `jbus snapshot --alarm` counts it.
 
-The alert goes out after 3 failures in a row, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing.
+The alert goes out after 3 failures in a row, and for `snapshot` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass` or `snapshot` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing.
 
 A pass goes on past a project that raises. It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1. jbus stops a `jmerge` it runs after 300 seconds, and the unit stops a pass after five minutes (`TimeoutStartSec=5min`), so a command that hangs cannot hold every later pass. A pass that finds the lock held prints `busy` and ends.
 
