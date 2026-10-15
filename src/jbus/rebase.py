@@ -61,6 +61,7 @@ from jbus import dispatch, merge, read_json, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, TITLE, World, checks, crew_threads
+from jmerge import ready
 
 EVENTS = {
     "rebase": "quiet",
@@ -92,8 +93,9 @@ MESSAGE = (
 
 
 _CONTENT = re.compile(
-    r"\bthe rebase changed the content after its review; scoped review of "
-    r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
+    r"\b"
+    + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}"))
+    + r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
 )
 REREVIEW = (
     "jbus: your rebase of pull request #{number} changed its content after its review ({command})."
