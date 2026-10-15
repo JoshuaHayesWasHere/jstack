@@ -642,7 +642,9 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
         tip, paths = moved
-        stale = ready.stale_paths(one.files, left, paths, self.ci) or self.related(one, tip, paths)
+        stale = ready.stale_paths(one.files, left, paths, self.ci) or self.related(
+            one, left, tip, paths
+        )
         if not stale:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
@@ -656,13 +658,18 @@ class Repo:
         short, note = found
         return short, "" if short else tip, note
 
-    def related(self, one: ready.PullRequest, tip: str, paths: tuple[str, ...]) -> tuple[str, ...]:
+    def related(
+        self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
+    ) -> tuple[str, ...]:
         """The paths the default branch changed that are a caller of the pull request's
         files or something they depend on (`ready.callers_and_dependencies`): its files read
-        at its head, the others at the tip. A file git cannot read there is read as empty."""
+        at its head, the others at the tip. A file git cannot read there is read as empty,
+        and so is each path its renames left (`left`): a caller of the old module is one the
+        rename breaks."""
         ours = {
             path: _text(self.main, "git", "show", f"{one.head}:{path}") or "" for path in one.files
         }
+        ours |= {path: "" for path in left if path not in ours}
         theirs = {
             path: _text(self.main, "git", "show", f"{tip}:{path}") or ""
             for path in paths

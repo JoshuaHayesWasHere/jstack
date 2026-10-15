@@ -37,7 +37,7 @@ Before a merge, `jmerge` asks `git ls-remote` whether main is the commit the pul
 
 ## Fresh against main
 
-The check's start is the earliest start of the runs named `check` at the head. After a `git fetch` in the main checkout, `jmerge` lists the paths the first-parent commits of the default branch changed since then. A pull request waits when one of those paths is its own, is a CI path in `src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`), or is a caller of its files or something they depend on. That last is read from the files, at the tip for main's and at the head for its own: one imports the other, Python's way (a `conftest.py` counts for every Python file under its directory), or names the other's path where that path has a `/` in it:
+The check's start is the earliest start of the runs named `check` at the head. After a `git fetch` in the main checkout, `jmerge` lists the paths the first-parent commits of the default branch changed since then. A pull request waits when one of those paths is its own, is a CI path in `src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`), or is a caller of its files or something they depend on. That last is read from the files, at the tip for main's and at the head for its own: one imports the other, Python's way, by the file's dotted path or any tail of it (a `conftest.py` counts for every Python file under its directory), or names the other's path where that path has a `/` in it:
 
 ```
 wait <number> <url>: main changed <up to five paths, then "and <k> more"> after its check started at <HH:MM> <zone>; it needs a fresh check

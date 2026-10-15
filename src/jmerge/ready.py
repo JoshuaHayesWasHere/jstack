@@ -866,8 +866,11 @@ def stale_paths(
 
 
 def modules(path: str) -> tuple[str, ...]:
-    """The names a Python file is imported by: its dotted path, and under `src/` that path
-    with the `src` left off. A package is its `__init__.py`. Nothing for any other file."""
+    """The names a Python file may be imported by: its dotted path and each tail of it, as
+    any directory may be an import root (`src/`, or a test directory pytest puts on the
+    path, where `tests/test_a.py` imports `test_b`). A package is its `__init__.py`.
+    Nothing for any other file. A tail that is also a library's name counts too: it fails
+    toward a fresh check."""
     if not path.endswith(".py"):
         return ()
     parts = path[: -len(".py")].split("/")
@@ -875,10 +878,7 @@ def modules(path: str) -> tuple[str, ...]:
         parts.pop()
     if not parts:
         return ()
-    names = [".".join(parts)]
-    if parts[0] == "src" and len(parts) > 1:
-        names.append(".".join(parts[1:]))
-    return tuple(names)
+    return tuple(".".join(parts[start:]) for start in range(len(parts)))
 
 
 def imports(path: str, text: str) -> set[str]:

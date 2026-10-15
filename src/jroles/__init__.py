@@ -11,8 +11,11 @@ A role with no line, or with `inherit`, is launched on the model of the thread t
 A Claude selection always carries its effort, `medium` where the line names none. T3 Code
 launches a model with no effort option at that model's own default, which is `high` for some
 (Claude Sonnet 5.5, Claude Opus 5), and the user's rule is that no thread runs above medium.
-So the map may lower a role to `low` and nothing raises one: any other level refuses the map.
-The other providers name their effort option otherwise, and a line for one takes none.
+So the map may lower a role to `low` and nothing raises one: any other level refuses that
+role, whose launch then inherits.
+That holds for Claude lines only. The other providers name their effort option otherwise,
+and a line for one takes none: it launches at that provider's own default, which is not read
+here, as T3 Code lists no models for them on this machine.
 """
 
 from __future__ import annotations

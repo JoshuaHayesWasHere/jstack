@@ -8,8 +8,9 @@ The command is run against a real origin, as in `tests/test_jmerge_fresh.py`."""
 
 import pytest
 
+import test_home_merge as merge
 from jmerge import ready
-from test_jmerge_fresh import BEFORE, STALE, Kitchen, git, url, write
+from test_jmerge_fresh import BEFORE, STALE, STARTED, Kitchen, git, url, write
 
 CORE = "def f():\n    return 1\n"
 RENAMED = "def g():\n    return 1\n"
@@ -40,6 +41,16 @@ def test_main_changing_what_a_changed_file_depends_on_makes_its_check_stale(kitc
     kitchen.crew("two", 7, {"src/pkg/caller.py": CALLER})
     kitchen.on_main({"src/pkg/core.py": CORE + "\n# theirs\n"})
     assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('src/pkg/core.py')}"]
+
+
+def test_main_adding_a_caller_of_the_module_a_rename_left_makes_its_check_stale(kitchen):
+    """A rename is the change most likely to break a caller: one of the old module counts."""
+    kitchen.crew("two", 7, {"src/pkg/core.py": None, "src/pkg/engine.py": CORE}, renamed=True)
+    (kitchen.home.stub / "left-7").write_text("src/pkg/core.py\n")
+    kitchen.pulls["two"]["files"] = [merge.file("src/pkg/engine.py", renamed=True)]
+    kitchen.checked("two", STARTED)
+    kitchen.on_main({"src/pkg/caller.py": CALLER})
+    assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('src/pkg/caller.py')}"]
 
 
 def test_main_changing_a_file_that_names_a_changed_files_path_makes_its_check_stale(kitchen):
@@ -79,10 +90,10 @@ def test_the_fresh_check_runs_on_the_merge_result_and_catches_a_caller_main_adde
     assert f"fresh: python3 check.py passed on {head[:12]} over {main[:12]}" in said
 
 
-def test_a_python_file_is_named_by_its_dotted_path_and_under_src_without_it():
-    assert ready.modules("src/jmerge/ready.py") == ("src.jmerge.ready", "jmerge.ready")
+def test_a_python_file_is_named_by_its_dotted_path_and_each_tail_of_it():
+    assert ready.modules("src/jmerge/ready.py") == ("src.jmerge.ready", "jmerge.ready", "ready")
     assert ready.modules("src/jmerge/__init__.py") == ("src.jmerge", "jmerge")
-    assert ready.modules("tests/conftest.py") == ("tests.conftest",)
+    assert ready.modules("tests/conftest.py") == ("tests.conftest", "conftest")
     assert ready.modules("docs/jmerge.md") == ()
 
 
@@ -100,6 +111,9 @@ def test_imports_are_every_module_a_file_loads_relative_ones_read_from_its_packa
         "jmerge.sweep",
         "jmerge.proof",
         "jmerge.proof.x",
+        "sweep",
+        "proof",
+        "proof.x",
         "src",
         "src.jmerge",
         "src.jmerge.sweep",
@@ -129,3 +143,9 @@ def test_callers_and_dependencies_go_both_ways_and_skip_the_rest():
     )
     ours = {"tests/test_ready.py": "from jmerge import ready\n"}
     assert ready.callers_and_dependencies(ours, {"tests/conftest.py": ""}) == ("tests/conftest.py",)
+    ours = {"tests/test_a.py": "from test_b import X\n"}
+    theirs = {"tests/test_b.py": "X = 1\n"}
+    assert ready.callers_and_dependencies(ours, theirs) == ("tests/test_b.py",)
+    ours = {"src/pkg/engine.py": CORE, "src/pkg/core.py": ""}
+    theirs = {"src/pkg/caller.py": CALLER}
+    assert ready.callers_and_dependencies(ours, theirs) == ("src/pkg/caller.py",)
