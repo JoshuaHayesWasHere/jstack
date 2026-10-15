@@ -9,7 +9,7 @@ A thread is an agent with a model. A command has no model. The state directory i
 | Step | Who | What happens |
 |---|---|---|
 | 1. Plan entry | You, with the home | You say what is wanted. The home writes one entry per pull request in `plan.md`, with a "Done when" list. |
-| 2. Brief | The home | It writes `tasks/<slug>.md`: the task, where it may work, and its `Design:`, `Review:` and `Playbook:` lines. |
+| 2. Brief | The home | It writes `tasks/<slug>.md`: the task, where it may work, and its `Proves it:`, `Design:`, `Review:` and `Playbook:` lines. |
 | 3. The queue and the approval | You | The brief waits as a row of the queue. You approve that exact brief, named by its sha. |
 | 4. Launch | `jbus` | It launches an approved row once the rows its `depends` names are merged and `jgauge room` prints `go`. |
 | 5. The worktree | The crewmate | A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook. |
