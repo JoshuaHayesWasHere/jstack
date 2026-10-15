@@ -164,7 +164,7 @@ Not taken: `pstack/skills/create-verification-skill`, `pstack/skills/maintain-ve
 `make pstack-drift` lists what changed upstream since that commit, for the paths of the map:
 
 - It keeps a clone of the source in `${XDG_CACHE_HOME:-~/.cache}/jstack/cursor-plugins`, fetches its `main`, and needs only `git` and the network: no token.
-- It prints `same`, `changed` (with the lines added and removed, the files here that came from the path, and each upstream commit) or `gone` for each upstream path, then `new` for each upstream skill or playbook that is neither in the map nor on `Not taken:`.
+- It prints `same`, `changed` (with the lines added and removed, the files here that came from the path, and each upstream commit) or `gone` for each upstream path, then `own` for each file on the `jstack's own:` line, then `new` for each upstream skill or playbook that is neither in the map nor on `Not taken:`.
 - `make pstack-drift ARGS=--diff` adds the diff under each `changed` line. `ARGS=--strict` exits 1 when anything drifted. Without it the exit is 0 whatever it finds. A run that cannot start, with no `git`, no pin, or a pin that is not in the upstream history, exits 2.
 - The workflow `.github/workflows/pstack-drift.yml` runs it every Monday and puts the lines in the job's summary.
 

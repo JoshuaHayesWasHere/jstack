@@ -58,4 +58,12 @@ It runs `cases`, `write`, `score` and `report` in order. `write` calls `claude -
 
 ## Result
 
-See `results.md` for the numbers, and the verdict line in it.
+Run of 2026-10-15, numbers in `results.md`. **By the rule above, `/deeper` did not win.**
+
+- **Raw sources: won.** Higher on 10 cases of 10 (mean 0.80 to 3.95, sign test p 0.002).
+- **Instruments: won.** Higher on 10 of 10 (0.20 to 4.80, p 0.002). Without the skill's seven examples it is still higher on 9 of 10 and tied on 1 (0.20 to 2.45, p 0.004), so the gain is not only copied examples.
+- **Proof outside the agent: lost.** Lower on 6 cases of 10 and higher on 4 (0.61 to 0.62 on the mean, p 0.75). A brief through `/deeper` is about 1.5 times as long and has more `Done when:` items, and the extra items (a baseline table, a census, a reproduction) are not all checks a script reads as outside judges. The rule counts a measure scored lower on more cases as lost, so the eval is lost, however small that gap.
+
+The finding: `/deeper` makes a brief name its raw material and its instruments, by a wide margin on every case, and does not move the share of its proof that sits outside the agent. That is the gap the planned `Proves it:` line in the template (the deeper-proves-it brief) is for. The eval is left as it was run: no lexicon, rule or case was changed after the first brief was written (the scorer and this rule are in the commit before the runs).
+
+How the shipped briefs turned out: all ten pull requests merged. The shipped briefs scored like the plain arm (raw 0.9, instruments 0.8 on the mean) and their reviews raised 30 errors and warnings over the ten. Seven of the ten had a `Done when` line the Result said did not hold at first. Ten cases are too few, and the outcome is too unlike the three measures, to tie a review finding to a missing source or instrument.

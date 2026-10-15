@@ -13,7 +13,8 @@ It runs four steps, and each can be run alone (`eval.py score` rescores the comm
   the shipped brief's pull request turned out, from the brief's Result and Review and GitHub.
 - `write`: for each case, `TRIALS` times, writes two briefs with the same writer and the same
   template: one from the request as it is, one from the prompt /deeper rewrote it to. Each
-  brief goes to `runs/<random id>.md`, and which is which only to `key.json`.
+  brief goes to `runs/<random id>.md`, and which is which only to `key.json`. What a model
+  wrote has the private patterns of `jleak` taken out, as the cases have.
 - `score`: runs `score.py` over `runs/*.md`, which sees each brief's text and nothing else,
   and writes `scores.json`, keyed by the random ids.
 - `report`: joins the scores with the key and writes `results.md`, with the rule in
@@ -208,9 +209,10 @@ def write() -> None:
         for arm in ("plain", "deeper")
         for trial in range(1, TRIALS + 1)
     ]
-    key = {}
+    key, patterns = {}, _private()
     with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool:
         for slug, arm, trial, brief, deeper in pool.map(lambda job: _one(*job), jobs):
+            brief, deeper = _redact(brief, patterns), _redact(deeper, patterns)
             name = secrets.token_hex(6)
             (HERE / "runs" / f"{name}.md").write_text(brief + "\n")
             key[name] = {"slug": slug, "arm": arm, "trial": trial}

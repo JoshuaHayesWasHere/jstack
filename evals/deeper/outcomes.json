@@ -1,0 +1,182 @@
+{
+  "tests-parallel": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/339",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 2,
+    "findings_info": 6,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 1,
+    "shipped": {
+      "raw": 0,
+      "instruments": 1,
+      "beyond": 1,
+      "outside": 1.0,
+      "proof_lines": 7,
+      "words": 469
+    }
+  },
+  "cs-stubs-in-process": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/403",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 1,
+    "findings_info": 5,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 1,
+    "shipped": {
+      "raw": 3,
+      "instruments": 3,
+      "beyond": 3,
+      "outside": 1.0,
+      "proof_lines": 7,
+      "words": 688
+    }
+  },
+  "check-workers-share": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/363",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 1,
+    "findings_info": 2,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 0,
+    "shipped": {
+      "raw": 0,
+      "instruments": 0,
+      "beyond": 0,
+      "outside": 1.0,
+      "proof_lines": 5,
+      "words": 349
+    }
+  },
+  "cs-runner-workers": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/400",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 0,
+    "findings_info": 4,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 2,
+    "shipped": {
+      "raw": 0,
+      "instruments": 1,
+      "beyond": 1,
+      "outside": 1.0,
+      "proof_lines": 6,
+      "words": 554
+    }
+  },
+  "rs-parallel-reviews": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/pipeline/pull/22",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 2,
+    "findings_info": 2,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 1,
+    "shipped": {
+      "raw": 0,
+      "instruments": 0,
+      "beyond": 0,
+      "outside": 0.143,
+      "proof_lines": 7,
+      "words": 730
+    }
+  },
+  "rs-load-limit": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/pipeline/pull/26",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 2,
+    "findings_info": 3,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 0,
+    "shipped": {
+      "raw": 2,
+      "instruments": 2,
+      "beyond": 1,
+      "outside": 0.286,
+      "proof_lines": 7,
+      "words": 1039
+    }
+  },
+  "hj-home-gauge": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/391",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 3,
+    "findings_info": 4,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 1,
+    "shipped": {
+      "raw": 1,
+      "instruments": 0,
+      "beyond": 0,
+      "outside": 1.0,
+      "proof_lines": 7,
+      "words": 643
+    }
+  },
+  "jv-usage": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/427",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 5,
+    "findings_info": 10,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 0,
+    "shipped": {
+      "raw": 1,
+      "instruments": 0,
+      "beyond": 0,
+      "outside": 0.833,
+      "proof_lines": 6,
+      "words": 583
+    }
+  },
+  "jstack-leak-zero": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/380",
+    "merged": true,
+    "status": "done",
+    "findings_error_or_warning": 7,
+    "findings_info": 1,
+    "follow_up_results": 0,
+    "reruns": 0,
+    "not_held": 3,
+    "shipped": {
+      "raw": 0,
+      "instruments": 0,
+      "beyond": 0,
+      "outside": 0.833,
+      "proof_lines": 6,
+      "words": 539
+    }
+  },
+  "ci-hosted-green": {
+    "pull_request": "https://github.com/JoshuaHayesWasHere/jstack/pull/1",
+    "merged": true,
+    "status": "blocked",
+    "findings_error_or_warning": 7,
+    "findings_info": 2,
+    "follow_up_results": 1,
+    "reruns": 1,
+    "not_held": 3,
+    "shipped": {
+      "raw": 2,
+      "instruments": 1,
+      "beyond": 1,
+      "outside": 1.0,
+      "proof_lines": 5,
+      "words": 561
+    }
+  }
+}
