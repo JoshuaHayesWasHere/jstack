@@ -491,9 +491,11 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
 ## Handing a task to a crewmate
 
-1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first. Its `Home:` line names this home and never a thread. A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes no such line. The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off. A brief a scout wrote is already there: check that its `Home:` line is as this says, set it if not, and go to step 2.
+1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first. Its `Home:` line names this home and never a thread. A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes no such line. The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off. A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. jbus launches no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty: it is a gate that says why.
+
+   Its `Size:` line is the task's t-shirt size, `S`, `M`, `L` or `XL`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. jbus launches no brief with no such line, or with any other word on it: it is a gate that says why.
 
    Its `Review:` line says how much review the pull request gets. It is fixed now, when the brief is written, and the crewmate and the reviewer both go by it:
 
@@ -515,7 +517,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
    echo "none | nothing above fits"
    ```
 
-   Pick from what it prints, by who runs the row. A brief takes a row `a crewmate` runs whose kind of task this is, or `none`. A scout's request takes a row `a scout` runs, or `none`. A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it. A brief with no line counts as `none`, and the crewmate works by the crew skill alone. A row that ends `in a brief with` some lines asks for those lines in the brief: write them. Do not read the playbook to pick it: its row is enough.
+   Pick from what it prints, by who runs the row. A brief takes a row `a crewmate` runs whose kind of task this is, or `none`. A scout's request takes a row `a scout` runs, or `none`. A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it. A brief with no line counts as `none`, and the crewmate works by the crew skill alone. jbus launches no brief whose line names a playbook that is no file there, such as `fix` or `feature.`: it is a gate that says why. A row that ends `in a brief with` some lines asks for those lines in the brief: write them. Do not read the playbook to pick it: its row is enough.
 
 2. Start the crewmate thread with the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first). The brief must be on disk before this call.
 
