@@ -491,7 +491,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
 ## Handing a task to a crewmate
 
-1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first. Its `Home:` line names this home and never a thread. A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes no such line. The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off. A brief a scout wrote is already there: check that its `Home:` line is as this says, set it if not, and go to step 2.
+1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first. Its `Home:` line names this home and never a thread. A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes no such line. The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off. A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. jbus launches no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty: it is a gate that says why.
 

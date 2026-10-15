@@ -25,7 +25,7 @@ from jbus import dispatch, queue, stall
 from jmerge import proof, ready
 from test_briefs import TEMPLATE
 from test_jbus_kitchen import NOW, Kitchen
-from test_jbus_queue import add, brief, gates, rows
+from test_jbus_queue import add, brief, gates, go
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, merged, proven, rules  # noqa: F401
 
 HEAD = merge.PUSHED
@@ -674,15 +674,22 @@ def test_a_row_approved_since_the_rule_is_gated_for_no_size_or_no_playbook(kitch
     assert len(gates(kitchen)) == 1
 
 
-def test_a_row_approved_before_the_rule_launches_with_no_size_and_an_unknown_playbook(kitchen):
-    """Grandfathered: its approval was run before `SHAPED_SINCE`, as every row on the queue
-    when the rule merged was."""
-    assert queue.ran_at({"approval": None}) == ""
+def test_a_row_approved_before_the_first_pass_that_asks_launches_as_it_was_approved(kitchen):
+    """Grandfathered: the first pass that asks for a size and a playbook keeps its time, so
+    a row approved before it, as every row on the queue when the rule merged was, launches
+    as it did. One approved since, in a later pass, is asked."""
     add(kitchen, "alpha", text=brief("alpha", "Playbook: fix\n"))
-    assert queue.ran_at(rows(kitchen)["alpha"]) < dispatch.SHAPED_SINCE
-    kitchen.poll()
+    add(kitchen, "beta", text=brief("beta", "Playbook: fix\n"), approve=False)
+    kitchen.poll(NOW + timedelta(minutes=1))
+    since = json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"]
+    assert datetime.fromisoformat(since) == NOW + timedelta(minutes=1)
     assert gates(kitchen) == []
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+    kitchen.monkeypatch.setattr(queue, "clock", lambda: NOW + timedelta(minutes=2))
+    assert go(kitchen, "beta")[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=4))
+    assert gates(kitchen) == [f"condition beta: {parse.sized('')}"]
+    assert json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"] == since
 
 
 def test_a_brief_with_no_design_line_is_gated_before_what_it_depends_on_has_merged(kitchen):

@@ -157,16 +157,6 @@ def proof(said: str) -> Proof:
     return Proof(said, fault="names nothing outside the agent")
 
 
-def proves_it(text: str) -> Proof | None:
-    """The first `Proves it:` line of a brief's head, judged, or None for a brief with none."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("Proves it:"):
-            return proof(line.removeprefix("Proves it:"))
-    return None
-
-
 def _head(text: str, label: str) -> str | None:
     """What the first `<label>` line of a brief's head says, or None for a head with none."""
     for line in text.splitlines():
@@ -175,6 +165,12 @@ def _head(text: str, label: str) -> str | None:
         if line.startswith(label):
             return line.removeprefix(label).strip()
     return None
+
+
+def proves_it(text: str) -> Proof | None:
+    """The first `Proves it:` line of a brief's head, judged, or None for a brief with none."""
+    said = _head(text, "Proves it:")
+    return None if said is None else proof(said)
 
 
 def _template(said: str) -> bool:

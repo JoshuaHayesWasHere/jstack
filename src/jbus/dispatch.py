@@ -27,9 +27,10 @@ the line was asked for, and is launched as it was approved: refusing it would st
 row approved before.
 
 Nor is one with no t-shirt size on a `Size:` line, or whose `Playbook:` line names no file
-of `playbooks/` and is not `none` (`jbriefs.parse`). A row whose go was run before
-`SHAPED_SINCE`, or that holds only a typed go, was approved before the two were asked for,
-and is launched as it was approved.
+of `playbooks/` and is not `none` (`jbriefs.parse`). The first pass that asks for the two
+writes its time in `shaped.json` (`shaped_since`). A row whose go was run before that time,
+or that holds only a typed go, was approved before the two were asked for, and is launched
+as it was approved.
 
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
@@ -42,6 +43,7 @@ import os
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -57,7 +59,7 @@ OVERLAP_PATHS = 5
 NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
 _NONE = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
 _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
-SHAPED_SINCE = "2026-10-15 11:15 ET"
+SHAPED = "shaped.json"
 
 
 def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
@@ -170,23 +172,44 @@ def proven(brief: str) -> str:
     return found.why if found else ""
 
 
-def shaped_since(row: queue.Row) -> bool:
-    """Whether a row's go was run once a brief was asked for its size and a real playbook.
+def shaped_since(run: Pass) -> datetime:
+    """When a brief was first asked for its size and a real playbook: the first pass that
+    asked, which wrote its time in `shaped.json` beside the queue and is read from it since.
 
-    The time is the approval record's, in the one shape `queue` writes, so the two compare
-    as text. A typed go has no time, and is from before.
+    A pass that finds the file is what keeps every row approved before the rule merged
+    launching as it was approved, whenever that merge was.
     """
-    at = queue.ran_at(row)
-    return bool(at) and at >= SHAPED_SINCE
+    path = run.state / SHAPED
+    kept = read_json(path, {}).get("since")
+    if kept:
+        return datetime.fromisoformat(kept)
+    write_json(path, {"since": run.now.isoformat()})
+    return run.now
+
+
+def approved_at(run: Pass, row: queue.Row) -> datetime | None:
+    """When a row's go was run, by its record, in the zone the user's settings name.
+
+    A typed go has no time, and neither has a stamp that does not parse: both are None.
+    """
+    try:
+        at = datetime.strptime(queue.ran_at(row)[:16], "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+    return run.user.local(at)
 
 
 CHECKS = (("no design", designed), ("no proof", proven))
-SHAPED = (("no size", parse.sized), ("no playbook", parse.playbook))
+ASKED = (("no size", parse.sized), ("no playbook", parse.playbook))
 
 
-def short_of(row: queue.Row, brief: str) -> tuple[str, str]:
-    """The first reason a brief may not be launched, in one line, and its kind, or two blanks."""
-    for kind, check in CHECKS + (SHAPED if shaped_since(row) else ()):
+def short_of(brief: str, shaped: bool) -> tuple[str, str]:
+    """The first reason a brief may not be launched, in one line, and its kind, or two blanks.
+
+    The size and the playbook are asked of it only where `shaped`: its go was run since the
+    rule.
+    """
+    for kind, check in CHECKS + (ASKED if shaped else ()):
         why = check(brief)
         if why:
             return why, kind
@@ -321,6 +344,7 @@ class Turns:
     client: Client
     world: World
     left: list[queue.Row]
+    since: datetime
     waited: dict[str, Any] = field(default_factory=dict)
 
     def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str]]:
@@ -358,7 +382,8 @@ class Turns:
                     run.gate(slug, "brief changed after approval", key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now)
                 continue
-            short, kind = short_of(row, brief)
+            at = approved_at(run, row)
+            short, kind = short_of(brief, at is not None and at > self.since)
             if short:
                 if not full:
                     run.gate(slug, short, key=f"{kind}, brief {row['brief_sha'][:12]}")
@@ -484,7 +509,7 @@ class Turns:
 
 def turns(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> Turns:
     settle_lost(run, client)
-    return Turns(run, client, world, sorted(rows, key=queue.order))
+    return Turns(run, client, world, sorted(rows, key=queue.order), shaped_since(run))
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
