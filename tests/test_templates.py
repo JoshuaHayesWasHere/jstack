@@ -166,9 +166,11 @@ def test_the_skills_between_them_read_every_template_but_the_hooks_and_the_playb
     for skill in SKILLS:
         read.update(Path(file) for file in resolved(skill, tmp_path)[1])
     in_templates = {path for path in read if path.parent == TEMPLATES.resolve()}
-    units = ("jbus.service", "jbus.timer", "jbus-failed.service", "jbus-view.service")
-    assert in_templates == set(TEMPLATES.resolve().iterdir()) - {
-        TEMPLATES.resolve() / name for name in ("hook-message.md", "playbook.md", *units)
+    units = {
+        path for path in TEMPLATES.resolve().iterdir() if path.suffix in (".service", ".timer")
+    }
+    assert in_templates == set(TEMPLATES.resolve().iterdir()) - units - {
+        TEMPLATES.resolve() / name for name in ("hook-message.md", "playbook.md")
     }
 
 

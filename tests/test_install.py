@@ -28,7 +28,16 @@ SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-sy
 SKILLS = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
 ROOTS = (".claude/skills", ".agents/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
-UNITS = ["jbus-failed.service", "jbus-view.service", "jbus.service", "jbus.timer"]
+UNITS = [
+    "jbus-failed.service",
+    "jbus-snapshot-failed.service",
+    "jbus-snapshot.service",
+    "jbus-snapshot.timer",
+    "jbus-view.service",
+    "jbus.service",
+    "jbus.timer",
+]
+TIMERS = ["jbus-snapshot.timer", "jbus.timer"]
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
@@ -492,10 +501,12 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
     assert user.run() == (0, user.every("ok", units))
     for name in UNITS:
         assert os.readlink(user.units / name) == str(REPO / "templates" / name)
-    wanted = user.units / "timers.target.wants" / "jbus.timer"
-    assert os.readlink(wanted) == str(REPO / "templates" / "jbus.timer")
+    for timer in TIMERS:
+        wanted = user.units / "timers.target.wants" / timer
+        assert os.readlink(wanted) == str(REPO / "templates" / timer)
     ran = [line for line in user.said(user.systemctl_log) if "show" not in line]
-    assert ran[:2] == ["--user daemon-reload", "--user enable --now jbus.timer"]
+    enabled = [f"--user enable --now {timer}" for timer in TIMERS]
+    assert ran[:3] == ["--user daemon-reload", *enabled]
     before = user.snapshot()
     assert user.run() == (0, user.every("ok", units))
     assert user.snapshot() == before
@@ -590,7 +601,7 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
     }
     assert all(line.startswith("removed ") for line in said)
     assert user.listing() == []
-    assert "--user disable --now jbus.timer" in user.said(user.systemctl_log)
+    assert {f"--user disable --now {t}" for t in TIMERS} <= set(user.said(user.systemctl_log))
     assert user.said(user.uv_log)[-1] == "tool uninstall jstack"
     assert user.run("--uninstall") == (0, [])
     assert user.listing() == []

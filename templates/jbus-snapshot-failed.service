@@ -1,0 +1,9 @@
+# Runs when jbus-snapshot.service fails: a snapshot that gitleaks refused, a push that did not go,
+# or one stopped at its start timeout. The first in a row alerts the desk and every project, once.
+[Unit]
+Description=jbus snapshot: tell the Chef that the last snapshot did not finish
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus snapshot --alarm
