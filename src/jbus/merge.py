@@ -13,18 +13,27 @@ theirs.
 
 A sweep is `jmerge`'s too, and jbus only ever asks what one would remove: `SWEEP` is the
 one command it runs for it, and it has `--check`.
+
+A reason no rule of `RULES` names puts its pull request on no step, and the view shows it
+in the Unknown lane. `unplaced` sends the row's home one queued message, once for a row and
+a reason text, since the fix is a rule, which a home briefs. It is a quiet event, and the
+row is not the user's: it is not in `waiting-on-user.json`. Two reasons are on no step by
+design and tell nobody (`OFF_STEP`): another home's pull request and a draft.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 import subprocess
 from dataclasses import dataclass
 
 from jbus import alert
+from jbus.t3 import Client, T3Error
 from jbus.wake import Pass
+from jmerge import ready
 
-EVENTS = {"jmerge": "quiet", "sweep": "quiet"}
+EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
 _LINE = re.compile(r"^(merged|wait|hold|refused) (\d+)\b(?: (\S+)(?: (.+))?)?")
 _NO_LIST = re.compile(
     r"jmerge: .*(protected|guarded|ci-paths)\.txt "
@@ -32,7 +41,22 @@ _NO_LIST = re.compile(
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
 SWEEP = ("jmerge", "--sweep", "--check")
-UNRULED = re.compile(r"needs .+?, the review of ([0-9a-f]{12}) did not rule on the drops in .+")
+UNRULED = re.compile(
+    re.escape(ready.UNRULED_DROPS)
+    .replace(r"\{user\}", ".+?")
+    .replace(r"\{head\}", "([0-9a-f]{12})")
+    .replace(r"\{files\}", ".+")
+)
+UNPLACED = "unplaced"
+OFF_STEP = (ready.OTHER_HOME, ready.DRAFT)
+TOLD = (
+    "jbus: the view cannot place {slug}. jmerge said of its pull request #{number} `{said}`, "
+    "and `merge.RULES` in src/jbus/merge.py has no rule for it, so it shows in the Unknown "
+    "lane. Brief the fix and queue it: the reason as a named constant in src/jmerge/ready.py, "
+    "and a rule in `merge.RULES` that puts it on its step. {user} is not asked: send {user} "
+    "nothing about it. A question only {user} can answer is a gate: take the default and pipe "
+    "it to `jbus gate <the fix's slug>`."
+)
 
 
 @dataclass(frozen=True)
@@ -68,6 +92,7 @@ RULES = (
     ("proof", r"no proven safety fact"),
     ("second", r"second pass is not written|the rebase changed the (content|patch) after"),
     ("second", r"scoped review has not ruled|not the one its review saw|no head to compare"),
+    ("second", r"scoped review of it is not written"),
     ("rebase", r"needs a rebase|^the rebase dropped|conflicts with (its base|today's)"),
     ("rebase", r"fails on \S+ over today's|^its Rebase line"),
     ("check", r"check has not (passed|finished)|fresh check|GitHub has not decided"),
@@ -182,3 +207,29 @@ def sweep(run: Pass) -> tuple[bool, str]:
     if lines:
         run.box.send("", "sweep", f"sweep {run.project.name}: {found}", "\n".join(lines))
     return True, found
+
+
+def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, thread: str) -> None:
+    """Tell the home of a row whose pull request is on no step, once for the row and what
+    `jmerge` said of it, `<word>: <reason>`. `thread` is the home's, or nothing where it has
+    none. A message that did not go is sent again on the next pass."""
+    reason = said.partition(": ")[2]
+    if not reason or step(said) or reason in OFF_STEP:
+        return
+    digest = hashlib.sha256(said.encode()).hexdigest()[:12]
+    if f"{UNPLACED}|{slug}|{digest}" in run.box.sent():
+        return
+    if not thread:
+        run.say(f"wait {slug}: no rule names what jmerge said of it, and it has no home to tell")
+        return
+    text = TOLD.format(slug=slug, number=number, said=said, user=run.user.user)
+    client.recipients = client.recipients | {thread}
+    asked = {"threadId": thread, "message": text, "mode": "queue"}
+    try:
+        client.call("t3_thread_send", {**asked, "clientRequestId": f"{UNPLACED}|{slug}|{digest}"})
+    except T3Error as error:
+        run.say(f"wait {slug}: its home could not be told that no rule names its reason ({error})")
+        return
+    line = f"{UNPLACED} {slug}: told its home, thread {thread}, that no rule names `{said}`"
+    run.find(slug, UNPLACED, line, text, key=digest)
+    run.say(line)
