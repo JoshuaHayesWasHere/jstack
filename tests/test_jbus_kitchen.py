@@ -84,7 +84,7 @@ class Server:
 class Webhook(Server):
     def __init__(self):
         self.posts, self.keys, self.sleep, self.status = [], [], 0, 200
-        self.said = []
+        self.said, self.bodies = [], []
         super().__init__()
 
     def answer(self, handler, body):
@@ -93,7 +93,8 @@ class Webhook(Server):
             return self.reply(handler, {}, self.status)
         self.keys.append(handler.headers.get(wake.HEADER))
         taken = json.loads(body)
-        self.posts.append(taken["events"])
+        self.bodies.append(taken)
+        self.posts.append(taken.get("events"))
         self.said.append(taken["say"])
         self.reply(handler, {})
 

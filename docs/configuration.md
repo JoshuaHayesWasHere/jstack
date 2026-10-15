@@ -80,6 +80,8 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
 | `webhook_url` | Empty | The top-level webhook, the monitor of every project: `jbus` POSTs it every project's events for you, and it is the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither: half a pair is refused. |
+| `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus.md#what-blocks) has the bodies. |
+| `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither: half a pair is refused. Both are secret like the webhook's. |
 
 Each `[[project]]` table is one repo:
 

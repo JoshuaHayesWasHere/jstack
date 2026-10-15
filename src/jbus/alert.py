@@ -3,6 +3,7 @@
 A streak is the failures in a row of one thing, under a key: `pass` for a pass that did not
 finish, `webhook <project>` for a POST the project's own webhook did not take, `top-level
 webhook <project>` for a POST of the project's that the top-level webhook did not take,
+`blocking webhook <project>` for a body of the project's that the second target did not take,
 `jmerge <project>` for a `jmerge` that did not run. `failed` counts one and gives the alert
 line once the count has reached the threshold. `ok` ends the streak, and gives the recovered
 line when it had alerted. Everything else is silence: the failures before the threshold, the
@@ -48,6 +49,10 @@ def webhook(project: str) -> str:
 
 def top_level(project: str) -> str:
     return f"{wake.TOP_LEVEL} webhook {project}"
+
+
+def blocking(project: str) -> str:
+    return f"{wake.BLOCKING} webhook {project}"
 
 
 def jmerge(project: str) -> str:
@@ -173,23 +178,38 @@ def flush(run: wake.Pass) -> int:
 
     The own webhook goes first, so an alert it gives is posted to the top-level one in the
     same pass. A project with no top-level route any more ends that streak, with no line, and
-    drops what waited for it: a pair that comes back later is posted only what is new.
+    drops what waited for it: a pair that comes back later is posted only what is new. The
+    second target goes first, with its own streak, so an alert it gives is posted to the
+    others in the same pass, and the same holds for it.
     """
     state, name = run.config.state_dir, run.project.name
+    if run.box.blocking is None:
+        retire(state, blocking(name))
+        run.box.drop_blocking()
+    else:
+        ended: list[str] = []
+        run.box.flush_blocking(run.now, run.say, went=ended.append)
+        _count(run, blocking(name), ended)
     sent = 0
     for route in run.box.routes:
         key = top_level(name) if route.top else webhook(name)
         went: list[str] = []
         took = run.box.flush(run.now, run.say, route=route, went=went.append)
         sent = sent if route.top else took
-        for why in went:
-            said = (
-                failed(state, key, why, now=run.now, user=run.user)
-                if why
-                else ok(state, key, user=run.user)
-            )
-            tell(run, key, said)
+        _count(run, key, went)
     if not any(route.top for route in run.box.routes):
         retire(state, top_level(name))
         run.box.drop_top_level()
     return sent
+
+
+def _count(run: wake.Pass, key: str, went: list[str]) -> None:
+    """Keep a webhook's streak by how its flush ended, and tell what the streak gives."""
+    state = run.config.state_dir
+    for why in went:
+        said = (
+            failed(state, key, why, now=run.now, user=run.user)
+            if why
+            else ok(state, key, user=run.user)
+        )
+        tell(run, key, said)

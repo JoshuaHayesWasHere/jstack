@@ -90,7 +90,8 @@ def test_a_flush_carries_the_key_in_both_headers_and_is_taken(tmp_path, webhook)
     assert seen["content-type"] == "application/json"
     assert "x-jbus-key" not in seen
     (post,) = webhook.posts
-    assert sorted(post) == ["events", "say"] and post["say"] == ["demo: gate alpha: which?"]
+    assert sorted(post) == ["events", "kind", "say"] and post["say"] == ["demo: gate alpha: which?"]
+    assert post["kind"] == "events"
     assert [event["line"] for event in post["events"]] == ["gate alpha: which?"]
     assert waiting(made) == []
 

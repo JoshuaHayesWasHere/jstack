@@ -49,6 +49,7 @@ SHAPE = {
             "last_error": None,
             "outbox": None,
             "top_level": {"failed_wakes": None, "last_error": None, "outbox": None},
+            "blocking": {"failed_wakes": None, "last_error": None, "outbox": None},
             "sign_in": None,
             "sweep": None,
             "streaks": {ANY: None},
@@ -106,7 +107,6 @@ def pulse(read: Read) -> dict[str, Any]:
     mine = mine if isinstance(mine, dict) else {}
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
-    top = mine.get("top_level")
     said = "systemd did not answer"
     if units is not None:
         said = (
@@ -141,13 +141,8 @@ def pulse(read: Read) -> dict[str, Any]:
             "failed_wakes": count(mine.get("failed_wakes")),
             "last_error": text(mine.get("last_error")),
             "outbox": count(mine.get("outbox")),
-            "top_level": {
-                "failed_wakes": count(top.get("failed_wakes")),
-                "last_error": text(top.get("last_error")),
-                "outbox": count(top.get("outbox")),
-            }
-            if isinstance(top, dict)
-            else None,
+            "top_level": _hook(mine.get("top_level")),
+            "blocking": _hook(mine.get("blocking")),
             "sign_in": text(mine.get("sign_in")),
             "sweep": text(mine.get("sweep")),
             "streaks": {
@@ -157,6 +152,18 @@ def pulse(read: Read) -> dict[str, Any]:
             },
             "homes_off_bus": [text(home, 60) for home in homes if isinstance(home, str)],
         },
+    }
+
+
+def _hook(one: Any) -> dict[str, Any] | None:
+    """What the status file says of a webhook beside the project's own, or None where the
+    project posts to no such webhook."""
+    if not isinstance(one, dict):
+        return None
+    return {
+        "failed_wakes": count(one.get("failed_wakes")),
+        "last_error": text(one.get("last_error")),
+        "outbox": count(one.get("outbox")),
     }
 
 
