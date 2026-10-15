@@ -1,6 +1,6 @@
 """Every repo with a home is a jbus project. A home's start adds its repo with the one block
-that adds a repo, new-home's step 3, and a home that merges by itself writes `home-thread`
-first. What slips past is named by each pass, by `jbus status` and on the view's machine row.
+that adds a repo, new-home's step 3, which never writes `home-thread`: jbus merges for every
+project. What slips past is named by each pass, by `jbus status` and on the view's machine row.
 
 The skill's blocks are run as the home skill says, in one call with the block at the top, the
 block that finds this home and the block that reads jbus, on a made-up home directory with
@@ -21,12 +21,11 @@ from test_jbus_kitchen import NOW
 from test_understanding_skills import block, git
 
 REPO = Path(__file__).parent.parent
-PROJECT, THREAD, OLDER = "p-winnie", "mcp:the-home", "mcp:an-older-home"
+PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
     'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "first"\n'
     'checkout = "/somewhere/first"\nprojectId = "p-first"\n'
 )
-ADD = "<the id of a home that merges by itself, or nothing>"
 OFF = "homes not on the bus"
 
 
@@ -83,14 +82,10 @@ class Machine:
         top = block("home", "R=$(basename")
         return self.sh("\n".join((top, found, reads, block("home", "on the bus:"))))
 
-    def add(self, merges="", checkout=None):
+    def add(self):
         """New-home's step 3, as the home's start fills it in."""
         body = block("new-home", "jbus project add")
-        filled = {
-            "<the checkout>": str(checkout or self.repo),
-            "<the T3 project id>": PROJECT,
-            ADD: merges,
-        }
+        filled = {"<the checkout>": str(self.repo), "<the T3 project id>": PROJECT}
         for placeholder, value in filled.items():
             assert placeholder in body
             body = body.replace(placeholder, value)
@@ -142,37 +137,15 @@ def test_a_home_whose_repo_jbus_has_is_left_as_it_is(machine):
     assert len(list(machine.config.parent.glob("config.toml.*.bak"))) == 1
 
 
-def test_a_home_that_merges_by_itself_writes_its_switch_before_the_add(machine):
-    assert machine.add(THREAD) == [
-        f"3 home-thread: done, {machine.switch} holds {THREAD}: the home merges here, "
-        "jbus runs no jmerge",
-        added(machine),
-    ]
-    assert machine.seen.read_text() == f"{THREAD}\n", "the switch was on when jbus was asked"
-    assert machine.switch.read_text() == f"{THREAD}\n"
-    assert machine.who_merges() == ["home merges"]
-
-
-def test_a_switch_that_holds_an_id_is_kept_as_it_is(machine):
-    machine.switch.write_text(f"{OLDER}\n")
-    assert machine.add(THREAD) == [
-        f"3 home-thread: already, {machine.switch} holds {OLDER}: a home merges here, "
-        "jbus runs no jmerge",
-        added(machine),
-    ]
-    assert machine.switch.read_text() == f"{OLDER}\n"
-
-
-def test_a_switch_that_cannot_be_written_adds_no_project(machine):
-    other = machine.home / "repos" / "Stateless"
-    other.mkdir()
-    switch = machine.state.parent / "Stateless" / "home-thread"
-    assert machine.add(THREAD, checkout=other) == [
-        f"3 home-thread: needs you: echo '{THREAD}' > {switch}, and run this again: the "
-        "project is not added, so jbus merges nothing here yet"
-    ]
-    assert machine.tables() == ["first"]
-    assert not machine.seen.exists()
+def test_registration_writes_no_switch_whatever_the_homes_rules_say(machine):
+    (machine.state / "standing.md").write_text(
+        "1. This repo's home merges its own pull requests, by itself.\n"
+    )
+    assert machine.start()[0].startswith("not on the bus: Winnie has no project")
+    assert machine.add() == [added(machine)]
+    assert machine.seen.read_text() == "none\n", "no switch was on when jbus was asked"
+    assert not machine.switch.exists()
+    assert machine.who_merges() == ["jbus merges"]
 
 
 def homes(kitchen):
