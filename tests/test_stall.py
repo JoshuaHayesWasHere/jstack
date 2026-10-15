@@ -26,7 +26,10 @@ ACCEPTED = f"ready 286 {HEAD} ps-agnostic ps-agnostic, accepted: {WHY}, {SAFE}\n
 UNBLOCKS = " · unblocks jbus-a, jbus-b, jbus-c, jbus-d · since 11:00 ET"
 HAND = f"hand-merge #286 {URL}: {WHY}; {SAFE}; jmerge --accept 286 {STAMP}"
 MERGE = f"waiting-on-user demo: {HAND}{UNBLOCKS}"
-SET = "set webhook_url and webhook_key for demo in ~/.config/jbus/config.toml"
+SET = (
+    "set webhook_url and webhook_key for demo in its [[project]] table, "
+    "or at the top of ~/.config/jbus/config.toml for every project"
+)
 WEBHOOK = f"waiting-on-user demo: {SET} · unblocks events to the Chef · since 11:00 ET"
 
 

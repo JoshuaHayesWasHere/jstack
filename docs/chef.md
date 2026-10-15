@@ -2,7 +2,7 @@
 
 The Chef is the agent behind a project's webhook. `jbus` does the routine work with no model, and the Chef is where a model reads what `jbus` found: it tells you what needs you, and it puts your decisions into the queue.
 
-The Chef is optional. With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads. It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself. It also counts the missing webhook as something that waits on you: each hour it raises `set webhook_url and webhook_key for <project> in ~/.config/jbus/config.toml` on the desktop and prints it in the journal.
+The Chef is optional. With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads. It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself. It also counts the missing webhook as something that waits on you: each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
 
 This page says what the Chef is sent, what it may run, and how to make one as a T3 Code thread.
 
@@ -62,7 +62,7 @@ A T3 Code webhook task runs one turn of a thread for each request. That thread i
 
 1. Open a new thread in T3 Code, in the project `jbus` looks after. If the repo has an automatic home, type `/nohome` first.
 2. Ask the thread to make a webhook task with `schedule_task`, bound to this thread, with the prompt below. T3 Code needs T3 Connect remote access to give the task a URL.
-3. Put the URL the thread reports in `webhook_url` of the project, in `~/.config/jbus/config.toml`. Put a long random string in `webhook_key`. `jbus` POSTs nothing while either is empty.
+3. Put the URL the thread reports in `webhook_url`, in `~/.config/jbus/config.toml`, and a long random string in `webhook_key`. At the top of the file, above the first `[[project]]`, the pair is the default: it covers every project that has no pair of its own. In a project's table it is that project's own, and it wins over the default. With an empty `webhook_url`, `jbus` POSTs nothing, and a `webhook_url` with an empty `webhook_key` is refused.
 4. Wait for the first POST. `jbus` sends one when a pass finds an event for you or for the Chef, and a project's first pass sends none. The Chef's thread then runs one turn. After that, `jbus status` shows no last error for the project. An empty error before the first POST proves nothing.
 
 A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret: anyone who has it can start a turn of the Chef. The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600. The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote. `jbus` does not sign the body, so leave the task's `signature` unset.
