@@ -4,7 +4,10 @@ protected paths once a day. Run as `tests/test_jbus_kitchen.py` runs: the real p
 the fakes.
 """
 
+import ast
+import string
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -12,6 +15,9 @@ import pytest
 from jbus import merge
 from jmerge import ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
+from test_jbus_leftover import loud
+from test_jbus_queue import add
+from test_jbus_row_ends import PULL, listed, result, sends
 
 
 def test_with_the_home_on_jbus_leaves_the_merge_to_it(kitchen):
@@ -174,28 +180,146 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
     assert kitchen.lines() == []
 
 
+# The reasons `jmerge.ready` holds by name, each on its step. Two are on no step, and the
+# view shows them as Unknown: `OTHER_HOME` is a pull request of another home, which that
+# home's own view places, and `DRAFT` is one its author has not said is done, which no rule
+# of a merge's steps is about.
+STEPS = {
+    "OTHER_HOME": "",
+    "DRAFT": "",
+    "MERGE_OFF": "hold",
+    "NO_BRIEF": "result",
+    "RULES_CHANGED": "check",
+    "MAIN_MOVED": "check",
+    "FRESH_QUEUED": "check",
+    "FRESH_CONFLICT": "rebase",
+    "NO_HEAD": "second",
+    "BASE": "hold",
+    "IN_STACK": "hold",
+    "IN_UNNAMED_STACK": "hold",
+    "REVIEW_NONE": "hold",
+    "NO_REVIEW": "review",
+    "NO_VERDICT": "review",
+    "NO_FIXED": "findings",
+    "NOT_PUSHED": "findings",
+    "SECOND_UNWRITTEN": "second",
+    "FIX_UNREVIEWED": "second",
+    "UNENDED": "findings",
+    "FIXED_NO_COMMIT": "findings",
+    "REBASE_UNSAID": "rebase",
+    "REBASE_UNTRUE": "rebase",
+    "CANNOT_CHECK": "rebase",
+    "DROPPED": "rebase",
+    "NOT_UPHELD": "hold",
+    "UNRULED_DROPS": "hold",
+    "SCOPED_UNRULED": "second",
+    "CONTENT_CHANGED": "second",
+    "NOT_PASSED": "check",
+    "CONFLICTS": "rebase",
+    "UNDECIDED": "check",
+    "TOUCHES": "hold",
+    "RENAMES_UNSAID": "hold",
+    "UNLISTED": "hold",
+    "NO_START": "check",
+    "GUARDED_UNENDED": "findings",
+    "NOT_SEEN": "second",
+    "MAIN_CHANGED": "check",
+    "FRESH_FAILS": "rebase",
+}
+# What `ready` names that is no reason: the check's name, the rules' path, and the words of
+# a note and of a local check's result.
+WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
+
+
+# What a template is filled with: a word with no space or comma, as a user, a head or a path
+# is, but for what a stale check needs, which is `ready`'s own.
+def _filled(template):
+    filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
+    fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
+    return template.format(**{name: filled.get(name, "x1") for name in fields})
+
+
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
-    """The reasons `jmerge.ready` holds by name. One that is added, or that stops matching
-    its rule, fails here: a reason no rule names is given by name too, as no step."""
-    steps = {
-        "OTHER_HOME": "",
-        "DRAFT": "",
-        "MERGE_OFF": "hold",
-        "NO_BRIEF": "result",
-        "RULES_CHANGED": "check",
-        "MAIN_MOVED": "check",
-        "FRESH_QUEUED": "check",
-        "FRESH_CONFLICT": "rebase",
-        "NO_HEAD": "second",
-    }
-    words = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT"}
+    """Every reason `jmerge.ready` holds by name, each on its step. One that is added with
+    no rule, or that stops matching its rule, fails here, and so does a constant that is
+    named nowhere above."""
     named = {
         name
         for name, value in vars(ready).items()
         if name.isupper() and isinstance(value, str) and not name.startswith("_")
     }
-    assert named - words == set(steps)
-    assert {name: merge.step(f"wait: {getattr(ready, name)}") for name in steps} == steps
+    assert named - WORDS == set(STEPS)
+    reasons = {name: _filled(getattr(ready, name)) for name in STEPS}
+    assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
+
+
+# What a reason may be built with besides `ready`'s constants: the empty string, the word of
+# a line, and what joins the pieces of one.
+BARE = {"", "wait", "hold", ", ", " and ", ".."}
+
+
+def _returned(function):
+    """Every string literal a function of `ready.py` returns or formats as a reason: in what
+    it returns, in what it formats or joins there, and in what it assigned to a name it
+    returns. A literal that is the argument of any other call is read, not returned."""
+    assigned = {}
+    for node in ast.walk(function):
+        if isinstance(node, ast.Assign | ast.AugAssign | ast.AnnAssign) and node.value:
+            for target in node.targets if isinstance(node, ast.Assign) else [node.target]:
+                for name in ast.walk(target):
+                    if isinstance(name, ast.Name):
+                        assigned.setdefault(name.id, []).append(node.value)
+    found, seen = [], set()
+
+    def look(node):
+        if isinstance(node, ast.JoinedStr):
+            found.append(ast.unparse(node))
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            found.append(node.value)
+        elif isinstance(node, ast.Name) and node.id not in seen:
+            seen.add(node.id)
+            for value in assigned.get(node.id, []):
+                look(value)
+        elif isinstance(node, ast.Call):
+            called = node.func
+            if isinstance(called, ast.Attribute) and called.attr in ("format", "join"):
+                if called.attr == "format":
+                    look(called.value)
+                for argument in [*node.args, *(one.value for one in node.keywords)]:
+                    look(argument)
+        elif isinstance(node, ast.Tuple | ast.List | ast.Set | ast.Starred | ast.BoolOp):
+            for child in ast.iter_child_nodes(node):
+                look(child)
+        elif isinstance(node, ast.IfExp):
+            look(node.body)
+            look(node.orelse)
+        elif isinstance(node, ast.BinOp):
+            look(node.left)
+            look(node.right)
+        elif isinstance(node, ast.ListComp | ast.GeneratorExp):
+            look(node.elt)
+
+    for node in ast.walk(function):
+        if isinstance(node, ast.Return) and node.value is not None:
+            look(node.value)
+    return found
+
+
+def test_every_reason_ready_returns_is_one_of_its_constants():
+    """A reason written inline in a function of `ready.py` is one no test of the steps sees:
+    each string literal a function returns or formats is a constant of the module."""
+    tree = ast.parse(Path(ready.__file__).read_text())
+    constants = {
+        value for name, value in vars(ready).items() if name.isupper() and isinstance(value, str)
+    }
+    inline = [
+        (function.name, literal)
+        for function in ast.walk(tree)
+        if isinstance(function, ast.FunctionDef)
+        for literal in _returned(function)
+        if literal not in constants | BARE
+    ]
+    assert inline == []
 
 
 @pytest.mark.parametrize(
@@ -227,3 +351,42 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
 )
 def test_a_reason_of_jmerge_is_on_the_step_its_first_rule_names(said, step):
     assert merge.step(said) == step
+
+
+UNPLACED = "a reason nobody has printed before"
+
+
+def unplaced(kitchen, reason=UNPLACED):
+    """Alpha, whose pull request #9 is open and on no step: `jmerge` says a reason no rule
+    names. Its home has a thread."""
+    thread = kitchen.t3.thread("demo", "completed", title="home: demo")
+    (kitchen.home / "home-id").write_text(thread["threadId"] + "\n")
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", result("none", pull=PULL))
+    kitchen.set("open.json", [kitchen.opened("alpha", 9)])
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {reason}\n")
+    return thread
+
+
+def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
+    home = unplaced(kitchen)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
+    (sent,) = sends(kitchen)
+    assert (sent["threadId"], sent["mode"]) == (home["threadId"], "queue")
+    said = sent["message"]
+    assert "alpha" in said and f"`wait: {UNPLACED}`" in said
+    assert "`merge.RULES` in src/jbus/merge.py has no rule for it" in said
+    assert "Brief the fix" in said
+    assert listed(kitchen, "unplaced") == [] and loud(kitchen) == []
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: another reason nobody has printed\n")
+    kitchen.poll(NOW + timedelta(minutes=2))
+    assert len(sends(kitchen)) == 2
+
+
+def test_a_row_on_its_step_or_of_another_home_tells_its_home_nothing(kitchen):
+    unplaced(kitchen, ready.FIX_UNREVIEWED)
+    kitchen.poll()
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.OTHER_HOME}\n")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert sends(kitchen) == []
