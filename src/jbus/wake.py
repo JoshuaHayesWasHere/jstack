@@ -29,7 +29,8 @@ The second target, the config's `blocking` pair, is a route of its own beside th
 there. A pass queues it one `events` body of the items that began to block in it, with
 `items` beside `say` and `events`, and a reminder or a refresh as they fall due. Its flush
 keeps the five-minute gap for the first, and a reminder or a refresh waits on no gap: it
-takes along what waits before it, so the bodies go in order. A refresh that waits takes the
+takes along what waits before it, so the bodies go in order. A retry after a POST that
+failed waits on the gap, whatever it carries. A refresh that waits takes the
 place of the one before it, which is out of date.
 
 The log is `events.jsonl`. A line is added for an event as it was queued, `{"at", "id",
@@ -487,7 +488,8 @@ class Box:
         self, now: datetime, say=print, *, went: Callable[[str], None] = lambda _: None
     ) -> int:
         """Post the bodies that wait for the second target, in order: once its gap has
-        passed since its last POST, or at once when a reminder or a refresh waits. One try
+        passed since its last POST, or at once when a reminder or a refresh waits and the
+        last POST did not fail: a retry waits on the gap, as every route's does. One try
         each, and the first that fails ends the flush. The answer is how many went, and
         `went` hears how it ended, as for `flush`."""
         route = self.blocking
@@ -499,7 +501,8 @@ class Box:
             marks = read_json(wakes, {})
             if not waiting:
                 return 0
-            timed = any(one.get("kind") in TIMERS for one in waiting)
+            fresh = not marks.get("last_error")
+            timed = fresh and any(one.get("kind") in TIMERS for one in waiting)
             if not timed and now.timestamp() - marks.get("posted", 0) < GAP:
                 return 0
             marks = {**marks, "posted": now.timestamp()}

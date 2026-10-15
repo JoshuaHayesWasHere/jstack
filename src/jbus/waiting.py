@@ -404,8 +404,11 @@ def _last_events(run: Pass) -> dict[str, datetime]:
 
 
 def _at_work(world: World, slug: str) -> bool:
-    thread = world.thread(slug) or {}
-    return thread.get("status") in LIVE and not thread.get("settled")
+    """Whether any thread of the slug is at work: a crewmate beside its reviewer counts."""
+    return any(
+        thread.get("status") in LIVE and not thread.get("settled")
+        for thread in world.threads.get(slug, [])
+    )
 
 
 def _why(
@@ -490,9 +493,10 @@ def blocking(
     pass cannot judge, and a row with no brief where it has no rows, stays as it was."""
     had = had or {}
     last = _last_events(run)
+    context = {questions.item(asked)["key"]: asked.context for asked in questions.load(run.state)}
     found = []
     for one in listed:
-        said = _why(run, one, world, last)
+        said = _why(run, one | {"context": context.get(one["key"], "")}, world, last)
         if said is None:
             continue
         case, why = said
@@ -549,8 +553,14 @@ def cadence(
     answer is what blocks, oldest first by when each began to block (`opened`). `listed` is
     None for a blind pass: it judges nothing, keeps what it had open, and still sends what
     falls due. The first pass that writes the file sends no opening body: what blocks then
-    did not open in it."""
+    did not open in it. With no second target it judges nothing and writes nothing, so the
+    first pass that has one starts from what blocks then. The marks are written before the
+    bodies are queued: a pass that dies between the two sends a body once too few, never
+    twice."""
     path = run.state / BLOCKS
+    if run.box.blocking is None:
+        path.unlink(missing_ok=True)
+        return []
     kept = read_json(path, None)
     first = not isinstance(kept, dict)
     kept = kept if isinstance(kept, dict) else {}
@@ -560,8 +570,6 @@ def cadence(
     found = [one | {"opened": _opened(one, had, kept.get("at"), now)} for one in found]
     found.sort(key=lambda one: (datetime.fromisoformat(one["opened"]), one["key"]))
     opened = [one for one in found if one["key"] not in had]
-    if opened and not first:
-        run.box.post(_body(run, "events", opened))
     reminded: dict[str, str] = kept.get("reminded", {})
     still = {one["key"] for one in found}
     reminded = {
@@ -574,13 +582,16 @@ def cadence(
         for one in found
         if one["key"] not in reminded and _age(one, now) >= leftover.REMIND_MINUTES * 60
     ]
-    if due:
-        run.box.post(_body(run, "reminder", due))
-        reminded |= {one["key"]: now.isoformat() for one in due}
+    reminded |= {one["key"]: now.isoformat() for one in due}
     period = int(now.timestamp() // (leftover.REFRESH_MINUTES * 60))
-    if not first and period > kept.get("period", period):
-        run.box.post(_body(run, "refresh", found))
+    refresh = not first and period > kept.get("period", period)
     open_now = {one["key"]: one for one in redact(found, run.config.secrets())}
     marks = {"at": now.isoformat(), "open": open_now, "reminded": reminded, "period": period}
     write_json(path, marks, mode=0o600)
+    if opened and not first:
+        run.box.post(_body(run, "events", opened))
+    if due:
+        run.box.post(_body(run, "reminder", due))
+    if refresh:
+        run.box.post(_body(run, "refresh", found))
     return found

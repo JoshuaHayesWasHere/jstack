@@ -196,7 +196,21 @@ def test_a_failing_second_target_leaves_the_others_alone(kitchen, second):
     ]
     second.status = 200
     kitchen.poll(later(16))
+    assert kinds(second) == []
+    kitchen.poll(later(19))
     assert kinds(second) == ["events", "reminder"]
+
+
+def test_a_failing_refresh_is_tried_again_on_the_gap_not_on_every_pass(kitchen, second):
+    relayed(kitchen, second)
+    second.status = 500
+    for minutes in range(60, 72):
+        kitchen.poll(later(minutes))
+    streak = kitchen.status()["streaks"][alert.blocking("demo")]
+    assert streak["count"] == 3
+    second.status = 200
+    kitchen.poll(later(75))
+    assert kinds(second) == ["refresh"]
 
 
 def test_a_reminder_does_not_wait_on_the_gap(kitchen, second):
@@ -216,7 +230,100 @@ def test_with_no_second_pair_nothing_is_posted_beyond_the_events(kitchen):
         kitchen.poll(later(minutes))
     assert {body["kind"] for body in kitchen.webhook.bodies} == {"events"}
     assert not (kitchen.state / "blocking").exists()
+    assert not (kitchen.state / waiting.BLOCKS).exists()
     assert "blocking" not in kitchen.status()["projects"]["demo"]
+
+
+def test_a_pair_set_later_reminds_of_what_was_open_before_it(kitchen, second):
+    kitchen.poll()
+    hold(kitchen, 9)
+    for minutes in (1, 16, 30):
+        kitchen.poll(later(minutes))
+    kitchen.config(blocking_url=second.url + "/relay", blocking_key=SECOND_KEY)
+    kitchen.poll(later(31))
+    (reminder,) = second.bodies
+    assert reminder["kind"] == "reminder" and keys(reminder) == ["#9"]
+
+
+def test_a_pause_word_in_the_context_alone_blocks(kitchen, second):
+    relayed(kitchen, second)
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    asked = gate("which one?", "alpha").replace(
+        "Status: open\n", "Status: open\nContext: the second one force-pushes main\n", 1
+    )
+    assert "Context: the second one" in asked
+    assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
+    kitchen.poll(later(1))
+    (opened,) = second.bodies
+    assert opened["items"][0]["why"] == "always-pause: force-push"
+
+
+def test_a_defaulted_gate_is_no_stall_while_two_threads_of_its_slug_are_at_work(kitchen, second):
+    kitchen.monkeypatch.setattr(wake.Box, "clock", staticmethod(lambda: NOW))
+    relayed(kitchen, second)
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    kitchen.t3.thread("alpha")
+    kitchen.t3.thread("alpha")
+    kitchen.main("gate", "alpha", stdin=gate("tea or coffee?", "alpha"))
+    kitchen.poll(later(31))
+    assert second.bodies == []
+
+
+def judged(kitchen, listed, rows=None, world=None, had=None):
+    """`waiting.blocking` over a made-up list, with the second target set."""
+    config = jbus.load()
+    run = wake.Pass(config, config.project("demo"), later(1))
+    return waiting.blocking(run, listed, rows, world, had)
+
+
+def made(kind, key, **more):
+    return {"kind": kind, "key": key, "line": f"{kind} {key}", "since": NOW.isoformat(), **more}
+
+
+def test_each_case_of_the_blocking_test(kitchen, second):
+    relayed(kitchen, second)
+    listed = [
+        made("gate", "gate:#3:ab", default="", question="which one?", slug="home"),
+        made("gate", "gate:q4", default="tea", question="tea?", slug="alpha"),
+        made("approve", "approve:alpha", slug="alpha"),
+        made("left", "left:beta", slug="beta"),
+        made("config", "config:demo"),
+        made("row", "row:gamma", slug="gamma"),
+    ]
+    rows = [{"slug": "delta", "status": "queued"}]
+    found = {one["key"]: (one["case"], one["why"]) for one in judged(kitchen, listed, rows)}
+    assert found == {
+        "gate:#3:ab": ("a", "a gate with no default"),
+        "approve:alpha": ("b", "a row with no approval of its brief"),
+        "brief:delta": ("b", "a row with no brief"),
+        "left:beta": ("d", "a leftover no home closed"),
+        "config:demo": ("d", "jbus cannot go on"),
+    }
+
+
+def test_an_alarm_that_stands_blocks_and_the_second_target_s_own_does_not(kitchen, second):
+    relayed(kitchen, second)
+    state = jbus.load().state_dir
+    user = jbus.load().user
+    for key in (alert.PASS, alert.blocking("demo"), alert.webhook("other")):
+        for _ in range(3):
+            alert.failed(state, key, "down", now=NOW, user=user)
+        alert.told(state, key)
+    found = judged(kitchen, [])
+    assert [(one["key"], one["case"]) for one in found] == [("alarm:pass", "d")]
+
+
+def test_a_blind_pass_keeps_what_it_had(kitchen, second):
+    relayed(kitchen, second)
+    hold(kitchen, 9)
+    kitchen.poll(later(1))
+    config = jbus.load()
+    run = wake.Pass(config, config.project("demo"), later(5))
+    kept = waiting.cadence(run, None, None, None)
+    assert [one["key"] for one in kept] == ["#9"]
+    stall = made("gate", "gate:q4", default="tea", question="tea?", slug="alpha")
+    had = {"gate:q4": {**stall, "case": "d"}}
+    assert [one["key"] for one in judged(kitchen, [stall], had=had)] == ["gate:q4"]
 
 
 HALVES = [{"blocking_url": "https://example.test/relay"}, {"blocking_key": KEY}]
