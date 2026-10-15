@@ -211,12 +211,18 @@ def test_a_top_level_pair_removed_and_given_back_posts_nothing_that_waited_befor
         kitchen.poll(later(minutes))
     assert len(outbox(kitchen, "top-level")) == 2
     assert "top-level webhook demo" in kitchen.status()["streaks"]
+    own = (outbox(kitchen), kitchen.webhook.said[:])
     kitchen.config()
     kitchen.poll(later(28))
     assert not (kitchen.state / "top-level").exists()
     assert "top-level webhook demo" not in kitchen.status()["streaks"]
+    waited = [one["say"] for one in own[0]]
+    assert waited and outbox(kitchen) == [] and kitchen.webhook.said == [*own[1], waited]
+    assert marks(kitchen)["last_error"] == ""
     top.status = 200
     monitored(kitchen, top)
     kitchen.poll(later(34))
     assert top.said == []
-    assert "top_level" in kitchen.status()["projects"]["demo"]
+    shown = kitchen.status()["projects"]["demo"]
+    assert shown["top_level"] == {"outbox": 0, "failed_wakes": 0, "last_error": ""}
+    assert (shown["outbox"], shown["last_error"]) == (0, "")
