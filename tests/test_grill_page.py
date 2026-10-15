@@ -355,3 +355,69 @@ def test_a_round_of_the_wrong_shape_says_so_and_does_not_stop_the_script():
     ]
     assert drawn["send_disabled"] is True
     assert page(raw="null")["problems"] == ["The round is not an object."]
+
+
+@pytest.mark.parametrize(
+    ("sessions", "said"),
+    [
+        (
+            {
+                "k1": {
+                    "key": "k1",
+                    "file": "PAGE",
+                    "chat": [
+                        {"role": "user", "id": "e1", "text": "first"},
+                        {
+                            "role": "user",
+                            "id": "e2",
+                            "at": "2026-10-12T14:30:00Z",
+                            "text": "1. a\n2. b",
+                        },
+                        {"role": "agent", "id": "e3", "text": "thanks"},
+                    ],
+                },
+                "k2": {"key": "k2", "file": "/another.html", "chat": []},
+            },
+            "k1/e2\nsent 2026-10-12T14:30:00Z: 1. a 2. b",
+        ),
+        (
+            {"k2": {"key": "k2", "file": "/another.html"}},
+            "no entry: Lavish keeps no session of this page",
+        ),
+        (
+            {"k1": {"file": "PAGE", "chat": [{"role": "agent", "id": "e1"}]}},
+            "no entry: the page has no send by the user",
+        ),
+        (
+            {"k1": {"file": "PAGE", "chat": [{"role": "user", "text": "go"}]}},
+            "no entry: Lavish kept the send with no id, so no approval can name it",
+        ),
+        (None, "no entry: Lavish's state at STATE could not be read"),
+    ],
+)
+def test_the_skills_block_names_the_last_send_by_the_user_on_the_page(tmp_path, sessions, said):
+    user = tmp_path / "user"
+    (user / ".claude" / "skills").mkdir(parents=True)
+    (user / ".claude" / "skills" / "grilling").symlink_to(REPO / "skills" / "grilling")
+    checkout = tmp_path / "code" / "alpha"
+    checkout.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(checkout)], check=True)
+    page = user / ".local" / "state" / "home" / "alpha" / "reports" / "grill-cutover.html"
+    lavish = tmp_path / "lavish"
+    lavish.mkdir()
+    if sessions is not None:
+        text = json.dumps({"sessions": sessions}).replace('"PAGE"', json.dumps(str(page)))
+        (lavish / "state.json").write_text(text)
+    found = re.findall(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", on_a_page(), re.M | re.S)
+    top, *_ = blocks = [textwrap.dedent(block) for block in found]
+    (named,) = [block for block in blocks if "no entry:" in block]
+    ran = subprocess.run(
+        ["sh", "-c", "\n".join([top, named]).replace("<slug>", "cutover")],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "HOME": str(user), "LAVISH_AXI_STATE_DIR": str(lavish)},
+        cwd=checkout,
+        check=False,
+    )
+    state = str(lavish / "state.json")
+    assert (ran.returncode, ran.stdout, ran.stderr) == (0, said.replace("STATE", state) + "\n", "")

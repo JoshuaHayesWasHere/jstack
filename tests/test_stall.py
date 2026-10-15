@@ -19,7 +19,10 @@ WHY = "needs user, touches skills/crew/SKILL.md"
 HOLD = f"hold 286 {URL}: {WHY}\n"
 ROWS = ["jbus-a", "jbus-b", "jbus-c", "jbus-d"]
 STAMP = '--by user --at "<YYYY-MM-DD HH:MM ET>"'
-BASES = "with --word <id>, --answer <number> or --message <thread id>/<message id>"
+BASES = (
+    "with --word <id>, --answer <number>, --message <thread id>/<message id> or --page "
+    "<session key>/<entry id>"
+)
 HEAD = "c" * 40
 SAFE = f"safe because 41 passed (proven at {HEAD[:12]})"
 ACCEPTED = f"ready 286 {HEAD} ps-agnostic ps-agnostic, accepted: {WHY}, {SAFE}\n"

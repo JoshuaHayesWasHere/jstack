@@ -16,14 +16,12 @@ and only after T3 Code said yes, so one that got no answer is tried again on the
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 from dataclasses import replace
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jbus import dispatch, mirror, queue, read_json, record, stall, verbs
+from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs
 from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
@@ -127,19 +125,6 @@ def relay(run: Pass, client: Client, world: World) -> None:
 UNSEEN = "its page has no session in Lavish's state at {}, so its thread stays"
 
 
-def _lavish() -> Path:
-    return (
-        Path(os.environ.get("LAVISH_AXI_STATE_DIR") or Path.home() / ".lavish-axi") / "state.json"
-    )
-
-
-def _sessions() -> list[dict[str, Any]]:
-    """Each session Lavish keeps, from its own state file: no command of its is on every `PATH`."""
-    state = read_json(_lavish(), {})
-    kept = state.get("sessions") if isinstance(state, dict) else None
-    return [one for one in kept.values() if isinstance(one, dict)] if isinstance(kept, dict) else []
-
-
 def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> str:
     """Why the page a scout's Report names may still wait on the user, or nothing.
 
@@ -154,7 +139,7 @@ def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> s
     file = str((run.home / "reports" / f"{slug}.html").resolve())
     mine = [one for one in sessions if one.get("key") in keys or one.get("file") == file]
     if not mine:
-        return UNSEEN.format(_lavish())
+        return UNSEEN.format(lavish.path())
     heard = all(
         one.get("status") == "ended" and not one.get("prompts") and not one.get("pending_prompts")
         for one in mine
@@ -170,7 +155,7 @@ def _scouts(run: Pass) -> dict[str, str]:
         reports = [body for heading, body in whole if heading == REPORT]
         if reports:
             pages[slug] = mirror.page(reports[-1])
-    sessions = _sessions() if any(pages.values()) else []
+    sessions = lavish.sessions() if any(pages.values()) else []
     return {slug: _waits(run, slug, page, sessions) for slug, page in pages.items()}
 
 
@@ -341,7 +326,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     """
     held = _scouts(run)
     over = finished(run, world, held)
-    unseen = {slug for slug, why in held.items() if why == UNSEEN.format(_lavish())}
+    unseen = {slug for slug, why in held.items() if why == UNSEEN.format(lavish.path())}
     slug_of: dict[str, str] = {}
     waiting: list[dict[str, Any]] = []
     try:

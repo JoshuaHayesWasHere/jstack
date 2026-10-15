@@ -16,15 +16,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 import jbus
-from jbus import dispatch, questions, queue, t3, verbs, waiting, wake, watch, word
+from jbus import dispatch, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
 
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     """What `queue remove` and `queue approve` ask, and the one quiet event a removal sends.
 
     `said` gives the words an approval names: a word of the project's `words.json`, the
-    answer of a closed question of its `questions.json`, a message read from T3 Code, or a
-    rule of the home's `standing.md`.
+    answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
+    read from Lavish's state file, or a rule of the home's `standing.md`.
 
     `out` asks T3 Code and GitHub now: a thread that is at work, an open pull request, or a
     merged one. A thread that ended or was settled is not out. Where either cannot be asked,
@@ -80,6 +80,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     def said(basis: str, ref: str) -> queue.Said:
         if basis == "message":
             return t3.heard(config, ref)
+        if basis == queue.PAGE:
+            return lavish.picked(config.user, ref)
         if basis == queue.RULE:
             return queue.rule(config.home(project) / "standing.md", ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
@@ -138,6 +140,9 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--answer", metavar="NUMBER", help="the answer that closed a question")
     approve.add_argument(
         "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
+    )
+    approve.add_argument(
+        "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
     )
     approve.add_argument(
         "--rule", metavar="N", help="a rule of the home's standing.md, with --follows"
