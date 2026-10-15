@@ -20,7 +20,7 @@ function dFlow(pick) {
   function one(t) {
     var how = !p ? "" : t === p ? "pk" : up[t.slug] ? "up" : down[t.slug] ? "dn" : "dim";
     var says = how === "up" ? ", " + p.slug + " waits on it" : how === "dn" ? ", it waits on " + p.slug : "";
-    return '<button type="button" class="fr w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + (how ? " " + how : "") + '" data-pick="' + esc(t.slug) + '" aria-pressed="' + (t === p) + '" aria-label="' + esc(t.slug + ": " + t.state.name + says + (t.unconfirmed ? ", " + t.unconfirmed.line : "")) + '"><i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn" title="' + behind(t.blocks) + '">' + t.blocks + '</span>' : "") + '</button>';
+    return '<button type="button" class="fr w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + (how ? " " + how : "") + '" data-pick="' + esc(t.slug) + '" aria-pressed="' + (t === p) + '" aria-description="' + esc(t.slug + ": " + t.state.name + says + (t.unconfirmed ? ", " + t.unconfirmed.line : "")) + '"><i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? ' <span class="bn" title="' + behind(t.blocks) + '">' + t.blocks + '</span>' : "") + '</button>';
   }
   return head("The line", "The queue as a flow") +
     '<div class="now"><span class="tag">The longest chain</span><span class="big">' + (!last ? "No row is queued" : !last.wave ? "No queued row waits behind another" : (last.wave + 1) + " deep, behind " + esc(standsAt(at))) + '</span>' +

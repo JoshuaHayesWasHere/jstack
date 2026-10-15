@@ -118,6 +118,8 @@ window.addEventListener("load", function () { setTimeout(function () {
       return [text(r.querySelector(".rl")), all(".tok, .pl", r).map(function (c) { return { text: text(c), open: c.getAttribute("data-open") || c.getAttribute("href"), ended: c.classList.contains("ended"), tip: c.title, seen: seen(c) }; })];
     }) } : null;
   }
+  /* What a voice says of it past its name: the description, or the label of one that shows no words. */
+  function called(el) { return el.getAttribute("aria-description") || el.getAttribute("aria-label"); }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
@@ -140,7 +142,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     meters: all("#machine .mb").filter(seen).length,
     small: small(document.body),
     cut: cut(document.body),
-    cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: c.getAttribute("aria-label"), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c), valbox: box(c.querySelector(".val")) }; }),
+    cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: called(c), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c), valbox: box(c.querySelector(".val")) }; }),
     /* The shell: the header, the sidebar of every project, and the machine, drawn once. */
     header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")) },
     side: { box: box(document.getElementById("side")), items: all("#side .sp").map(function (a) { var d = a.querySelector(".hd"); return { name: text(a.querySelector(".nm")), count: text(a.querySelector(".n")), dot: d ? d.className.replace(/^hd ?/, "") || "ok" : "", tip: a.title, href: a.getAttribute("href"), current: a.getAttribute("aria-current") || "", seen: seen(a), box: box(a) }; }) },
@@ -152,14 +154,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     calm: seen(document.getElementById("calm")),
     lanes: all("#line .lane").map(function (l) {
       return { name: text(l.querySelector(".laneh b")), open: l.querySelector(".laneh").getAttribute("data-open"), count: +text(l.querySelector(".n")), seen: seen(l.querySelector(".laneh")), box: box(l),
-        tokens: all(".tok", l).map(function (t) { return { slug: text(t.querySelector(".lb")), open: t.getAttribute("data-open"), who: t.getAttribute("data-who"), live: (function (m) { return m ? m.className.replace("mk lv-", "") : ""; })(t.querySelector('.mk[class*="lv-"]')), long: !!t.querySelector(".mk.long"), again: !!t.querySelector(".mk.rep"), shape: !!t.querySelector(".sh"), seen: seen(t), shown: shown(t), box: box(t), border: border(t), blocks: text(t.querySelector(".bn")), blocked: text(t.parentElement.querySelector(".bk")), blocker: (t.parentElement.querySelector("button.bk") || t).getAttribute("data-open"), mark: !!t.parentElement.querySelector(".mk.blk"), wrap: t.parentElement.className, label: t.getAttribute("aria-label") }; }),
+        tokens: all(".tok", l).map(function (t) { return { slug: text(t.querySelector(".lb")), open: t.getAttribute("data-open"), who: t.getAttribute("data-who"), live: (function (m) { return m ? m.className.replace("mk lv-", "") : ""; })(t.querySelector('.mk[class*="lv-"]')), long: !!t.querySelector(".mk.long"), again: !!t.querySelector(".mk.rep"), shape: !!t.querySelector(".sh"), seen: seen(t), shown: shown(t), box: box(t), border: border(t), blocks: text(t.querySelector(".bn")), blocked: text(t.parentElement.querySelector(".bk")), blocker: (t.parentElement.querySelector("button.bk") || t).getAttribute("data-open"), mark: !!t.parentElement.querySelector(".mk.blk"), wrap: t.parentElement.className, label: called(t) }; }),
         dots: all(".md", l).map(function (d) { return { open: d.getAttribute("data-open"), seen: seen(d) }; }),
         lines: all(".fl", l).map(function (f) {
           return { name: written(f.querySelector(".flh b")), count: +written(f.querySelector(".flh i")), named: shown(f.querySelector(".flh")),
             tokens: all(".tok", f).filter(shown).map(function (t) { return [text(t.querySelector(".lb"))].concat(all(".bk", t.parentElement).map(text)); }),
             more: all(".pl", f).filter(shown).map(function (b) { return [text(b), b.getAttribute("data-open")]; }),
             waves: all(".wv", f).filter(shown).map(function (w) { return [+text(w.querySelector("b")), all(".qd", w).map(function (d) { return d.getAttribute("title"); })]; }),
-            dots: all(".qd", f).filter(shown).map(function (d) { return { open: d.getAttribute("data-open"), label: d.getAttribute("aria-label"), words: text(d), off: d.classList.contains("off"), border: border(d) }; }) };
+            dots: all(".qd", f).filter(shown).map(function (d) { return { open: d.getAttribute("data-open"), label: called(d), words: text(d), off: d.classList.contains("off"), border: border(d) }; }) };
         }) };
     }),
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
@@ -203,7 +205,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     return { title: text(document.getElementById("dw-title")), chain: text(dw.querySelector(".now .big")), box: box(drawer),
       columns: all(".fc", dw).map(function (c) { return [text(c.querySelector("h3")), all(".fr", c).map(function (r) { return text(r.querySelector(".lb")); })]; }),
       lefts: all(".fc", dw).map(function (c) { return box(c)[0]; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length,
-      borders: all(".fr", dw).map(border).filter(function (x, i, a) { return a.indexOf(x) === i; }), labels: all(".fr", dw).map(function (r) { return r.getAttribute("aria-label"); }),
+      borders: all(".fr", dw).map(border).filter(function (x, i, a) { return a.indexOf(x) === i; }), labels: all(".fr", dw).map(function (r) { return called(r); }),
       picked: slugs(".fr.pk"), up: slugs(".fr.up"), down: slugs(".fr.dn"), dim: slugs(".fr.dim").length, said: text(dw.querySelector("p")) };
   }
   if (window.__pick) {

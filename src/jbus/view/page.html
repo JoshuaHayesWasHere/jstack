@@ -9,7 +9,7 @@
     color-scheme: light dark;
     --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f4f4f6;
     --msg: #3f5a9e; --msg-bg: #f1f4fa; --scout: #2f7a73; --scout-bg: #eef6f5; --rev: #6f4a96; --rev-bg: #f5f2f9;
-    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #96672a; --hold-bg: #faf6ee;
+    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #8f6226; --hold-bg: #faf6ee;
     --op: var(--hold); --op-bg: var(--hold-bg);
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --mono: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -21,7 +21,7 @@
   }
   :root[data-theme="light"] { color-scheme: light; --bg: #fcfcfc; --fg: #27272a; --dim: #6b6b76; --card: #ffffff; --line: #d4d4d8; --lane: #f4f4f6;
     --msg: #3f5a9e; --msg-bg: #f1f4fa; --scout: #2f7a73; --scout-bg: #eef6f5; --rev: #6f4a96; --rev-bg: #f5f2f9;
-    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #96672a; --hold-bg: #faf6ee; }
+    --ok: #2f7a5f; --ok-bg: #f0f7f3; --hold: #8f6226; --hold-bg: #faf6ee; }
   :root[data-theme="dark"] { color-scheme: dark; --bg: #0c0c0d; --fg: #f1f1f2; --dim: #9a9aa3; --card: #17171a; --line: #34343a; --lane: #131316;
     --msg: #93a5cf; --msg-bg: #171b25; --scout: #84b5ae; --scout-bg: #151d1c; --rev: #ac9cc7; --rev-bg: #1b1821;
     --ok: #86b8a0; --ok-bg: #151c19; --hold: #c9a878; --hold-bg: #1e1b15; }
@@ -35,6 +35,9 @@
   code, .mono { font-family: var(--mono); font-size: 0.88em; }
   button { font: inherit; color: inherit; }
   :focus-visible { outline: 2.5px solid var(--msg); outline-offset: 2px; }
+  /* The first stop of Tab: out of sight until it has the focus, then over the header. */
+  .skip { position: absolute; left: 12px; top: -80px; z-index: 20; display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; background: var(--card); color: var(--fg); border: 1.5px solid var(--fg); border-radius: 8px; font-weight: 700; text-decoration: none; }
+  .skip:focus { top: 6px; }
   ul.clean, ol.clean { list-style: none; margin: 0; padding: 0; }
   .tag { font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
   .src { font-size: 14.5px; color: var(--dim); }
@@ -192,10 +195,9 @@
   body.stopped .frz .md, body.stopped .frz .qd { border-style: dashed; opacity: 0.6; }
   .more { font-family: var(--sans); font-weight: 700; color: var(--dim); }
   .cz { border: 1.5px solid var(--op); color: var(--op); background: transparent; border-radius: 6px; padding: 0 9px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
-  body.stopped .frz .tok { border-style: dashed; opacity: 0.6; }
-  body.stopped .frz .tw > :not(.tok), body.gone .tw > :not(.tok) { opacity: 0.6; }
+  body.stopped .frz .tok { border-style: dashed; }
   .tw.off > :not(.tok) { opacity: 0.16; }
-  body.stopped .frz .yg.live .tok { border-style: solid; opacity: 1; }
+  body.stopped .frz .yg.live .tok { border-style: solid; }
   body.stopped .line.frz .lane { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
   .folded { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; padding: 3px 10px 3px 15px; }
   .folded .tag { margin-right: 4px; }
@@ -353,7 +355,8 @@
   a { color: var(--msg); }
   .dead .dh span { font-size: 15.5px; }
   body.stopped .vit.frz, body.gone .vit { border-style: dashed; }
-  body.gone .tok, body.gone .md, body.gone .qd, body.gone .vit { opacity: 0.6; border-style: dashed; }
+  body.gone .md, body.gone .qd { opacity: 0.6; }
+  body.gone .tok, body.gone .md, body.gone .qd, body.gone .vit { border-style: dashed; }
   body.gone .dead, body.stopped .dead { display: block; }
   .mb.over u { background: var(--op); }
   .ghbox { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12.5px; margin-top: 12.5px; background: var(--card); }
@@ -400,7 +403,7 @@
   .thr .rl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
   .chs { display: flex; flex-wrap: wrap; gap: 5px 6px; min-width: 0; align-items: center; }
   .tok.th .src { font-family: var(--sans); font-size: 13px; }
-  .tok.th.ended { opacity: 0.55; border-style: dashed; }
+  .tok.th.ended { border-style: dashed; color: var(--dim); }
   a.pl { text-decoration: none; display: inline-flex; align-items: center; }
   @media (max-width: 640px) { .thb { display: block; padding: 5px 12px 8px; } .thr { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 5px; } .tok.th, a.pl { min-height: 44px; } }
   .empty-q { margin: 8px 0 0; color: var(--dim); font-weight: 700; display: flex; gap: 9px; align-items: center; }
@@ -462,6 +465,7 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to the view</a>
 <header class="hdr">
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
@@ -475,7 +479,7 @@
   <div class="sl" id="mach-h">This machine</div>
   <section class="mach" id="machine" aria-labelledby="mach-h"></section>
 </aside>
-<main>
+<main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
   <div id="stack" hidden>
     <div class="you" id="waits" aria-label="Waits on you, in every project"><span class="youn" id="wtotal"></span><div class="yrows" id="yrows"></div></div>
@@ -688,8 +692,8 @@
     var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
     var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + '<span class="src">' + esc(word + age) + '</span>';
     var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
-    return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-label="' + esc(say) + '">' + inner + '</a>'
-      : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-label="' + esc(say) + '">' + inner + '</button>';
+    return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</a>'
+      : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
   }
   function fz() { return '<span class="st fz">frozen</span>'; }
   function lv() { return gone ? fz() : '<span class="st lv">live</span>'; }
@@ -702,7 +706,7 @@
   function lastOn(t) { var more = t.blockers.length - 1; return "waits on " + t.waits_on + (more ? " and " + more + " more" : ""); }
   function waitsOn(t) { return t.slug + " " + lastOn(t); }
   function mark(by, what, title, label) {
-    return '<i class="mk blk"></i>' + (by ? '<button type="button" class="bk" data-open="task:' + esc(by) + '" aria-label="' + esc(label) + ': open it" title="' + esc(title) + '">' + esc(what) + '</button>' : '<span class="bk" title="' + esc(title) + '">' + esc(what) + '</span>');
+    return '<i class="mk blk"></i>' + (by ? '<button type="button" class="bk" data-open="task:' + esc(by) + '" aria-description="' + esc(label) + ': open it" title="' + esc(title) + '">' + esc(what) + '</button>' : '<span class="bk" title="' + esc(title) + '">' + esc(what) + '</span>');
   }
   /* One task on the line. `how.next` is the Next line of a full queue: the row it waits on
      last comes after it, and "+N" where it waits on more. Anything but an object is no `how`,
@@ -712,15 +716,15 @@
     var st = STEP[t.step], age = since(t), long = age != null && age >= LONG, rep = t.visits > 1, b = t.blocked, more = t.blockers.length - 1, after = "", held = b ? blockedBy(b) : "", live = MARK[t.seen.live] ? t.seen.live : "";
     if (next && t.waits_on) held = lastOn(t);
     if (next && t.waits_on) after = mark(known(t.waits_on) ? t.waits_on : "", t.waits_on, waitsOn(t), waitsOn(t)) +
-      (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-label="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
+      (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-description="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
     else if (b) after = mark(b.by, b.what, blockedBy(b), t.slug + " is " + blockedBy(b));
-    return '<span class="tw' + cls + '"><button type="button" class="tok w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" aria-label="' + esc(t.slug) + ": " + esc(t.state.name) + ", waits for " + esc(t.state.waits) + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + (held ? ", " + esc(held) : "") + (t.blocks ? ", " + behind(t.blocks) : "") + (live ? ", its thread is " + live : "") + (long ? ", over 30 min here" : "") + (rep ? ", " + ord(t.visits) + " time on " + esc(st.name) : "") + '">' +
+    return '<span class="tw' + cls + '"><button type="button" class="tok w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" aria-description="' + esc(t.slug) + ": " + esc(t.state.name) + ", waits for " + esc(t.state.waits) + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + (held ? ", " + esc(held) : "") + (t.blocks ? ", " + behind(t.blocks) : "") + (live ? ", its thread is " + live : "") + (long ? ", over 30 min here" : "") + (rep ? ", " + ord(t.visits) + " time on " + esc(st.name) : "") + '">' +
       '<i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn">' + t.blocks + '</span>' : "") + (live ? '<i class="mk lv-' + live + '"></i>' : "") + (long ? '<i class="mk long"></i>' : "") + (rep ? '<i class="mk rep"></i>' : "") + '</button>' +
       after + '</span>';
   }
   function dot(t) { return '<button type="button" class="qd w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" title="' + esc(t.slug) + '" aria-label="' + esc(waitsOn(t)) + ", in wave " + t.wave + (t.state.kind === "unapproved" ? ", not approved" : "") + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + '"></button>'; }
-  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-label="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i data-gloss="count:flow">' + n + '</i></button>'; }
-  function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-label="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
+  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-description="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i data-gloss="count:flow">' + n + '</i></button>'; }
+  function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-description="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
   function flowLine(name, rows, next) {
     var more = rows.length - CAP, few = rows.length - FEW;
     return '<div class="fl">' + flowHead(name, rows.length, "") + rows.slice(0, CAP).map(function (t, i) { return token(t, { next: next, cls: i < FEW ? "" : " dk" }); }).join("") +
@@ -756,24 +760,24 @@
   function renderTop() {
     var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
     put($("vitals"), cards.map(function (c) {
-      return '<div class="vw' + (c.cls || "") + '"><button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>' + hint("card:" + c.k, c.tag) + '</div>';
+      return '<div class="vw' + (c.cls || "") + '"><button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-description="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>' + hint("card:" + c.k, c.tag) + '</div>';
     }).join(""));
   }
   function waits(kind) { return S.waiting.filter(function (w) { return w.kind === kind; }); }
   function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
   function renderYou() {
     var n = S.waiting.length;
-    var h = '<button type="button" class="youn" data-open="you" aria-label="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b><span>wait on you</span></button>' + hint("term:waits", "Waits on you");
+    var h = '<button type="button" class="youn" data-open="you" aria-description="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b><span>wait on you</span></button>' + hint("term:waits", "Waits on you");
     KINDS.forEach(function (k) {
       var items = waits(k), age = oldest(items), live = k === "gate";
       if (!items.length && (k === "hold" || k === "config" || k === "left")) return;
-      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-label="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="opacity:.5"') + '><i class="sh"></i><b style="font-family:var(--sans)" data-gloss="count:kind">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
+      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-description="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="color:var(--dim)"') + '><i class="sh"></i><b style="font-family:var(--sans)" data-gloss="count:kind">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
     });
     /* What a panel adds beside the count, as the noticed lines, is not in it: its own words
        say so, and its ? says why. */
     added("you").forEach(function (a) {
       var faint = !!a.said.tip;
-      h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-label="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
+      h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
     });
     $("you").className = "you frz" + (n ? "" : " none");
     put($("you"), h);
@@ -784,7 +788,7 @@
     put($("fbs"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i data-gloss="count:all">' + S.tasks.length + '</i></button>' +
       order.map(function (w) {
         var n = S.tasks.filter(function (t) { return t.who === w; }).length;
-        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i data-gloss="count:held">' + n + '</i></button>' : "";
+        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-description="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i data-gloss="count:held">' + n + '</i></button>' : "";
       }).join("") + fz() +
       '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>');
     /* Only a step that holds a task takes a row. The rest are folded into one line of their
@@ -798,7 +802,7 @@
       if (s.key === "merged") {
         body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md w-ok" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
       } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
-      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span><b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
+      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-description="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span><b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
     });
     if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
     put($("line"), html);
@@ -820,8 +824,8 @@
     return STACK ? STACK.machine : null;
   }
   function mitem(e, tag, val, tip, open) {
-    var inner = '<span class="tag">' + tag + '</span><span class="val">' + val + '</span>';
-    return '<span class="mw">' + (open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>') + hint("card:" + tag.toLowerCase(), tag) + '</span>';
+    var inner = '<span class="tag">' + tag + '</span> <span class="val">' + val + '</span>';
+    return '<span class="mw">' + (open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-description="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>') + hint("card:" + tag.toLowerCase(), tag) + '</span>';
   }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   function machineRow(m) {
@@ -884,7 +888,7 @@
       var w = p.waiting[k]; if (!w) return;
       var age = ms(w.since) == null ? "" : short(NOW - ms(w.since)), say = p.name + ": " + w.count + " " + KIND[k][0] + (age ? ", the oldest for " + age : "");
       any = true;
-      h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b data-gloss="count:kind">' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
+      h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-description="' + esc(say + ". Open the list") + '"><i class="sh"></i><b data-gloss="count:kind">' + w.count + '</b> <span class="lb">' + KIND[k][0] + '</span>' + (age ? ' <span class="src">' + age + '</span>' : "") + '</a>';
     });
     if (!any) h += '<span class="quiet">nothing waits on you</span>';
     if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on a home, not on you, so the count leaves them out.") + '"><b data-gloss="count:noticed">' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>' + hint("term:noticed", "noticed, not counted");
@@ -1063,7 +1067,7 @@
     h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--dim)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
-    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
+    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project in the sidebar</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
     return h;
   }
   panels("help", true)({ title: "Every term on the page", free: true, drawer: function () { var h = dHelp(); setTimeout(notes); return h; } });
@@ -1259,8 +1263,26 @@
     }
     var b = e.target.closest && e.target.closest("[data-tip]");
     if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); keyHit = { at: Date.now(), on: b }; toggleTip(b); return; }
-    if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "") && !e.target.isContentEditable) { e.preventDefault(); glossary(); }
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    var after = Date.now() - gAt < GKEY; gAt = 0;
+    if (e.key === "?") { e.preventDefault(); glossary(); }
+    else if (e.key === "g") gAt = Date.now();
+    else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
+  /* Linear's keys: g then a, within GKEY ms, is every project, and g then p the project after
+     this one in the sidebar, the first after the last or after every project. No key is taken
+     from a field being typed in. */
+  var gAt = 0, GKEY = 1500;
+  function typing(el) { return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || "") || !!el.isContentEditable; }
+  function nextProject() {
+    var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
+    return ps.length ? ps[(ps.indexOf(PROJECT) + 1) % ps.length] : PROJECT;
+  }
+  /* The skip link puts the focus on the view and writes no address: a hash is a route here. */
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest(".skip")) return;
+    e.preventDefault(); $("main").focus();
+  });
   document.addEventListener("click", function (e) {
     var row = e.target.closest("#rows .proj");
     if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
@@ -1275,7 +1297,9 @@
      A drawer the browser shut by itself is the page under it. */
   var escaped = false;
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "Escape" || !drawer.open) return;
+    if (e.key !== "Escape") return;
+    if (typing(e.target)) { e.preventDefault(); e.stopPropagation(); e.target.blur(); return; }
+    if (!drawer.open) return;
     e.preventDefault(); e.stopPropagation();
     escaped = true; setTimeout(function () { escaped = false; });
     up();
