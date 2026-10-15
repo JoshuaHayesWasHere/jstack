@@ -8,8 +8,9 @@ the main checkout up to date, and removes the crewmate's worktree and branches. 
 no plan: `jbus plan` counts an entry's status from its queue rows. It prints one line per
 open pull request. A pull request based on
 another branch is never merged, and one in a stack only with `--land`. A draft is never
-merged. One whose check started before main changed one of its paths, or a path in
-`ci-paths.txt`, waits: its green no longer covers today's main. Where the repo's state has
+merged. One whose check started before main changed one of its paths, a path in
+`ci-paths.txt`, or a caller of its files or something they depend on, waits: its green no
+longer covers today's main. Where the repo's state has
 a `fresh-check` file, the command in it is run once on the head merged over today's main,
 in a worktree of its own, and a pass stands in for the stale check and marks the merged tree
 on the origin, so main's run of that tree skips the suite. One whose rebase
@@ -631,8 +632,9 @@ class Repo:
         and what a local check found, where its own check was stale and one stood in.
 
         The default branch is fetched each time, so a pull request is judged against what
-        an earlier merge of the same run put there. One that changed only other paths
-        leaves the check standing. A check with no start time is compared with nothing.
+        an earlier merge of the same run put there. One that changed only other paths, none
+        of them a caller of the pull request's files or something they depend on, leaves the
+        check standing. A check with no start time is compared with nothing.
         """
         if one.started is None:
             return "", "", ""
@@ -640,7 +642,7 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
         tip, paths = moved
-        stale = ready.stale_paths(one.files, left, paths, self.ci)
+        stale = ready.stale_paths(one.files, left, paths, self.ci) or self.related(one, tip, paths)
         if not stale:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
@@ -653,6 +655,20 @@ class Repo:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         short, note = found
         return short, "" if short else tip, note
+
+    def related(self, one: ready.PullRequest, tip: str, paths: tuple[str, ...]) -> tuple[str, ...]:
+        """The paths the default branch changed that are a caller of the pull request's
+        files or something they depend on (`ready.callers_and_dependencies`): its files read
+        at its head, the others at the tip. A file git cannot read there is read as empty."""
+        ours = {
+            path: _text(self.main, "git", "show", f"{one.head}:{path}") or "" for path in one.files
+        }
+        theirs = {
+            path: _text(self.main, "git", "show", f"{tip}:{path}") or ""
+            for path in paths
+            if path not in ours
+        }
+        return ready.callers_and_dependencies(ours, theirs)
 
     def short_of_guarded(
         self, one: ready.PullRequest, text: str, rebase: ready.Rebase | None, note: str
@@ -1211,8 +1227,9 @@ def parser() -> argparse.ArgumentParser:
         "open pull request. A pull request based on another "
         "branch is never merged, and one whose brief has a Stack: line only with --land. "
         "A draft is never merged, with any flag. "
-        "One whose check started before main changed one of its paths or a CI path "
-        "(src/jmerge/ci-paths.txt) waits for a fresh check: where the repo's state has a "
+        "One whose check started before main changed one of its paths, a CI path "
+        "(src/jmerge/ci-paths.txt), or a caller of its files or something they depend on "
+        "waits for a fresh check: where the repo's state has a "
         "fresh-check file, its command is run once a run on the head merged over today's "
         "main, and a pass stands in. One whose rebase dropped a line waits for its crew to say "
         "why and for the scoped review to uphold it, and is printed as hold when it does not. "
