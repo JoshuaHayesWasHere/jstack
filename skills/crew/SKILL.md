@@ -376,6 +376,8 @@ A default branch that moved is a reason to rebase in two cases only. GitHub says
 
 Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message. It rebases onto the pull request's base, the default branch. On a conflict it does so when GitHub reports `CONFLICTING`, and does nothing on any other answer. On `stale` it does so whatever GitHub reports, `MERGEABLE` included. It never rebases a link of a stack, a brief with a `Stack:` line in its head, `stale` or not: such a branch holds the commits of the links under it, and this rebase would replay them ("A link that moved").
 
+It rebases twice at most for the default branch once the pull request is fixed and green, and not a third time. The mark of that is the Result's `Fixed:` line, which a crewmate writes whoever merges: the `fixed and green` line is sent only while a home merges. Each rebase the block starts after that line, one that stops on a conflict included, it records itself as the last line of the brief, `Rebased after fixed: <the head before> onto origin/<base> at <its tip>`. Where two such lines are there already, a default branch that keeps landing on this pull request's files is work that collides, and sequencing it is the home's and the user's, not one more rebase. So in place of the third the block writes `Rebase hold: at <head>, a third rebase after fixed and green, onto origin/<base> at <its tip>`, once for a head, and prints a line that begins `hold:`. `jmerge` reads that line and waits at that head.
+
 It never rebases under a review that is running either. A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line. While the brief has more of those lines than of those sections, the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone. Run the block again on the message that brings that review's findings.
 
 Before it rebases, the block keeps the head under `refs/jstack/pre-rebase/<slug>/<the head's first 12 characters>`. A worktree shares its refs with the main checkout, so `jmerge` always finds the commit before the rebase there, and `jmerge --sweep` deletes only branches and the gate's refs, so the ref outlives the branch. These refs are never pushed, and they are removed only by hand.
@@ -391,6 +393,11 @@ reviewing() {
         result && /^(Reviewer|Second reviewer|Scoped reviewer): / && !/^[A-Za-z ]+: none/ {launched++}
         END {exit !(launched > written)}' "$B" 2> /dev/null
 }
+read -r fixed rebased lifted << EOF
+$(awk '/^Fixed: / {fixed = 1} /^Rebased after fixed: / {n++} /^Rebase hold lifted: / {lift++}
+    END {print fixed + 0, n + 0, lift + 0}' "$B" 2> /dev/null)
+EOF
+note() { { { [ -z "$(tail -c1 "$B")" ] || echo >> "$B"; } && echo "${1}" >> "$B"; } 2> /dev/null; }
 if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
     echo "the rebase is not finished: resolve these, then git rebase --continue"
     git diff --name-only --diff-filter=U
@@ -412,15 +419,32 @@ else
             echo "could not fetch origin/$base: no rebase"
         elif git merge-base --is-ancestor "origin/$base" HEAD; then
             echo "already on origin/$base: no rebase"
+        elif [ "$fixed" = 1 ] && [ "$rebased" -ge $((2 + lifted)) ]; then
+            head=$(git rev-parse HEAD)
+            line="Rebase hold: at $head, a third rebase after fixed and green, onto origin/$base at $(git rev-parse "origin/$base")"
+            if grep -q "^Rebase hold: at $head," "$B" 2> /dev/null; then
+                echo "hold: no third rebase after fixed and green, the brief has the line $(grep "^Rebase hold: at $head," "$B" | tail -n 1)"
+            elif note "$line"; then
+                echo "hold: no third rebase after fixed and green, the brief has the line $line"
+            else
+                echo "hold: no third rebase after fixed and green, and the brief could not be written: add the line $line"
+            fi
         elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then
             echo "could not keep the head under refs/jstack/pre-rebase: no rebase"
         else
-            echo "$(git rev-parse HEAD) $base $pushed" > "$G/crew-before-rebase"
+            before=$(git rev-parse HEAD)
+            echo "$before $base $pushed" > "$G/crew-before-rebase"
+            counted() {
+                line="Rebased after fixed: $before onto origin/$base at $(git rev-parse "origin/$base")"
+                if [ "$fixed" = 1 ] && ! note "$line"; then echo "the brief could not be written: add the line $line"; fi
+            }
             if said=$(git rebase -q "origin/$base" 2>&1); then
                 echo "rebased onto origin/$base"
+                counted
             elif [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
                 echo "the rebase stopped: resolve these, then git rebase --continue"
                 git diff --name-only --diff-filter=U
+                counted
             else
                 rm "$G/crew-before-rebase"
                 echo "the rebase did not start: no rebase"
@@ -432,7 +456,7 @@ else
 fi
 ```
 
-When it says GitHub has not decided, or that it could not ask, fetch, keep the head or start, there is no rebase: say what it printed in the Result and end your turn. `already on` is a branch that holds the tip of its base: there is nothing to rebase onto. On `a link of a stack`, do what "A link that moved" says for a conflict. jbus tells this thread once for each head in conflict, so do not ask again.
+When it says GitHub has not decided, or that it could not ask, fetch, keep the head or start, there is no rebase: say what it printed in the Result and end your turn. `already on` is a branch that holds the tip of its base: there is nothing to rebase onto. On `hold`, nothing was rebased: leave the line the block wrote where it is, and park a gate ("Do the task") that asks whether to rebase once more, with what main changed and the pull request's url. The default is that it waits and the home sequences the colliding work; the other options are one more rebase, and closing the pull request for a fresh branch. jbus lists the gate as waiting on the user. An answer to rebase once more is a line under the hold, `Rebase hold lifted: question <number>, by <who>`: each such line allows one more rebase, and the block is run again. Where the block says the brief could not be written, add the line it names yourself: the count is read from the brief. On `a link of a stack`, do what "A link that moved" says for a conflict. jbus tells this thread once for each head in conflict, so do not ask again.
 
 The file `crew-before-rebase` in the git directory is the record of a rebase from its start to its push. Its first line is the head before the rebase, the base, and the head the pull request had at GitHub when the rebase started. The push removes the file.
 
@@ -557,7 +581,7 @@ fi
 
 On `pushed`, the record is removed. On `the push was refused` or `no push`, nothing was pushed and nothing is forced: somebody else pushed to this branch, or the record is gone. Add what it printed to the Result, park a gate ("Do the task") that asks what to do with the commits on the origin's branch, with the default that the pull request waits, and end your turn.
 
-A rebase adds no line to the Result and changes none. A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it. A commit made before the push, for the check command or for a line put back, is read with the rebase.
+A rebase adds no line to the Result and changes none, but for the `Rebased after fixed:` and `Rebase hold:` lines the first block writes past the `Fixed:` line. A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it. A commit made before the push, for the check command or for a line put back, is read with the rebase.
 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread. Where it is not, the rebase changed what was reviewed, and jbus says so in a message here: `the rebase changed the content after its review`, with the two ranges of that range-diff. That message, and nothing else, starts one scoped review, of the changed hunks only. Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>` to the Result, and handle its findings as a review's. Until its `## Review` section is written, the first block above does not rebase. A head gets one scoped review: a later rebase gets its own only on its own message, and its `Scoped reviewer:` line is added under the earlier one, which stays: the first block counts every reviewer that was launched. A push for a failed check made after a review saw an older head is ruled on the same way: its `CI fix:` line ("The checks") has `jmerge` compare the two heads, a clean range-diff carries the review over, and one that is not brings the same message here, which starts the one scoped review. A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 

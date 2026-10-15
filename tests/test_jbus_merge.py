@@ -221,6 +221,7 @@ STEPS = {
     "NOT_SEEN": "second",
     "MAIN_CHANGED": "check",
     "FRESH_FAILS": "rebase",
+    "REBASE_HELD": "rebase",
 }
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
 
