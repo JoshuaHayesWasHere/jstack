@@ -24,7 +24,7 @@ _STATUS = re.compile(r"^Status:[ \t]*(?P<status>.*)$", re.MULTILINE)
 _THREAD = re.compile(r"^Thread:[ \t]*(?P<thread>\S+)", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
-_PLAYBOOK = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
+_REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
 
 _NAMED = (
@@ -156,7 +156,7 @@ class Result:
     @property
     def playbook(self) -> Steps | None:
         """The steps the `Playbook:` line reports, or None for a Result with no such line."""
-        found = _PLAYBOOK.search(self.text)
+        found = _REPORTED.search(self.text)
         return steps(found["said"]) if found else None
 
 
