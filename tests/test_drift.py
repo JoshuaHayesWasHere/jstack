@@ -270,6 +270,47 @@ def test_exit_2_with_a_map_that_does_not_parse(upstream, capsys, broken, said):
     assert err.startswith("jdrift: THIRD_PARTY.md: the Upstream map: block") and said in err
 
 
+def own(upstream, *paths):
+    """The checkout's `THIRD_PARTY.md` with a `jstack's own:` line naming `paths`."""
+    line = "jstack's own: " + ", ".join(f"`{path}`" for path in paths)
+    text = SECTION.format(pin=upstream.pin, map=MAP).replace(
+        "\nNot taken:", f"\n{line}\n\nNot taken:"
+    )
+    (upstream.checkout / "THIRD_PARTY.md").write_text(text)
+
+
+def test_own_line_for_each_file_that_is_jstacks_own_after_the_map_and_before_the_new(
+    upstream, capsys
+):
+    own(upstream, "principles/deeper.md", "skills/ours/SKILL.md")
+    upstream.drift()
+    _, lines, _ = run(upstream, capsys)
+    assert [line.split()[:2] for line in lines[1:]][3:] == [
+        ["same", "pstack/skills/poteto-mode/playbooks/one.md"],
+        ["own", "principles/deeper.md"],
+        ["own", "skills/ours/SKILL.md"],
+        ["new", "pstack/skills/delta"],
+        ["new", "pstack/skills/poteto-mode/playbooks/two.md"],
+    ]
+
+
+def test_an_own_file_is_no_drift_under_strict(upstream, capsys):
+    own(upstream, "principles/deeper.md")
+    code, lines, _ = run(upstream, capsys, "--strict")
+    assert code == 0
+    assert lines[-1] == "own principles/deeper.md"
+
+
+def test_exit_2_with_a_file_that_is_both_mapped_and_jstacks_own(upstream, capsys):
+    own(upstream, "skills/alpha/SKILL.md")
+    code, lines, err = run(upstream, capsys)
+    assert (code, lines) == (2, [])
+    assert err == (
+        "jdrift: THIRD_PARTY.md: skills/alpha/SKILL.md is in the Upstream map: block "
+        "and on the jstack's own: line\n"
+    )
+
+
 def test_exit_2_with_no_map_block_at_all(upstream, capsys):
     text = SECTION.format(pin=upstream.pin, map=MAP).replace("Upstream map:", "Map:")
     (upstream.checkout / "THIRD_PARTY.md").write_text(text)
@@ -404,3 +445,15 @@ def test_shipped_map_has_every_file_the_prose_credits():
     names = set(credited(prose))
     assert len(names) > 80
     assert names - set(local_sources(pinned)) == set()
+
+
+def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is_jstacks():
+    _, pinned = section()
+    mapped = set(local_sources(pinned))
+    principles = {f"principles/{path.name}" for path in (ROOT / "principles").glob("*.md")}
+    assert principles - mapped == set(pinned.own) & principles
+    assert set(pinned.own) <= {
+        file.relative_to(ROOT).as_posix() for top in TOPS for file in (ROOT / top).rglob("*")
+    }
+    assert "principles/depth-over-breadth.md" in pinned.own
+    assert len(principles) == 25

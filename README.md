@@ -134,7 +134,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 28 skills, and seven skills run the flow. Each `SKILL.md` is the full text of what its thread does.
+`skills/` holds 29 skills, and seven skills run the flow. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -146,7 +146,7 @@ Each command has one page.
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, its home thread, and one message to Exec. It does only what is missing. |
 
-The other 21 are loaded by name. `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/blast-radius`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
+The other 22 are loaded by name. `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/blast-radius`, `/deeper`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
 
 ## What is in the repo
 
