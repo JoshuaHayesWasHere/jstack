@@ -363,3 +363,83 @@ def test_proof_lines_are_not_counted_as_findings_or_as_their_endings(tmp_path):
     assert crew.said(tmp_path, "The review", "Finding:", brief) == [
         "write Fixed: <the head you pushed>, 2 findings each have their ending"
     ]
+
+
+PRINCIPLES = {
+    "first-rule": "# First rule\n\nApply when one thing.\n\nThe whole of the first rule.\n",
+    "second-rule": "# Second rule\n\nApply when another.\n\nThe whole of the second rule.\n",
+    "unused-rule": "# Unused rule\n\nCited by no playbook here.\n",
+}
+
+
+def cited(tmp_path, steps):
+    """A repo whose crewmate's and scout's playbooks have `steps` as their body, with the
+    three principles above in its `principles/`."""
+    repo = made(tmp_path)
+    (repo / "principles").mkdir()
+    for name, text in PRINCIPLES.items():
+        (repo / "principles" / f"{name}.md").write_text(text)
+    for name in ("for-a-crewmate", "for-a-scout"):
+        playbook = repo / "playbooks" / f"{name}.md"
+        playbook.write_text(playbook.read_text() + steps)
+    return repo
+
+
+TWO_CITED = (
+    "\nA path such as `principles/<name>.md` is from the root of the repo.\n\n"
+    "1. Do one thing (`principles/second-rule.md`).\n"
+    "2. Do another (`principles/first-rule.md`, `principles/second-rule.md`).\n"
+    "3. Check it (`principles/first-rule.md`).\n"
+)
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_each_principle_the_playbook_cites_is_printed_once_in_full_after_it(skill, tmp_path):
+    repo = cited(tmp_path, TWO_CITED)
+    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
+    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
+    printed = "\n".join(said[2:]) + "\n"
+    assert said[:2] == [
+        str((repo / "playbooks" / f"{name}.md").resolve()),
+        f"the principles playbooks/{name}.md cites, each in full below: second-rule first-rule",
+    ]
+    for rule in ("first-rule", "second-rule"):
+        assert printed.count(PRINCIPLES[rule]) == 1
+        assert said.count(f"==> principles/{rule}.md <==") == 1
+    assert PRINCIPLES["unused-rule"] not in printed
+    assert printed.index(PRINCIPLES["second-rule"]) < printed.index(PRINCIPLES["first-rule"])
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_a_playbook_that_cites_no_principle_prints_nothing_more(skill, tmp_path):
+    repo = cited(
+        tmp_path, "\nA path such as `principles/<name>.md` is from the root.\n\n1. Do it.\n"
+    )
+    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
+    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
+    assert said == [str((repo / "playbooks" / f"{name}.md").resolve())]
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill, tmp_path):
+    repo = cited(tmp_path, "\n1. One (`principles/gone-rule.md`, `principles/first-rule.md`).\n")
+    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
+    _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
+    assert said[:2] == [
+        f"no principle: playbooks/{name}.md cites principles/gone-rule.md, which is not there",
+        f"the principles playbooks/{name}.md cites, each in full below: first-rule",
+    ]
+    assert "\n".join(said).count(PRINCIPLES["first-rule"].strip()) == 1
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_a_real_playbook_prints_the_real_principles_it_cites(skill, tmp_path):
+    name = "authoring-a-skill" if skill == "crew" else "investigation"
+    playbook = (PLAYBOOKS / f"{name}.md").read_text()
+    names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
+    assert names
+    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
+    assert f"each in full below: {' '.join(names)}" in said[1]
+    printed = "\n".join(said) + "\n"
+    for rule in names:
+        assert printed.count((REPO / "principles" / f"{rule}.md").read_text()) == 1

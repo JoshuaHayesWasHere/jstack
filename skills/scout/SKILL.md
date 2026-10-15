@@ -53,14 +53,29 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
                        else
                            echo "lacks the line the playbook asks for: $asked"
                        fi
-                   done ;;
+                   done
+               printed=
+               for cited in $(grep -o 'principles/[a-z0-9-]*\.md' "$f" | awk '!seen[$(0)]++'); do
+                   if [ -f "$T/../$cited" ]; then
+                       printed="$printed $cited"
+                   else
+                       echo "no principle: playbooks/$name.md cites $cited, which is not there"
+                   fi
+               done
+               if [ -n "$printed" ]; then
+                   echo "the principles playbooks/$name.md cites, each in full below:$(printf '%s\n' $printed | sed 's|^principles/\(.*\)\.md$| \1|' | tr -d '\n')"
+                   for cited in $printed; do
+                       printf '\n==> %s <==\n' "$cited"
+                       cat "$T/../$cited"
+                   done
+               fi ;;
            *) echo "not a scout's: playbooks/$name.md is for ${by%%,*}" ;;
            esac
        fi ;;
    esac
    ```
 
-   It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the report. On `not a scout's`, the file is for a crewmate or the home: do the same again. When its first line is a path, read that file now. Copy its numbered steps into your todo list, word for word, before any todo of your own (with no todo tool, write the list in this thread), and work them in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo. A line the block prints under the path is a line the playbook's `Run by:` asks the request to have. On `lacks the line`, the request stands as the home wrote it: say what it printed in the report. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
+   It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the report. On `not a scout's`, the file is for a crewmate or the home: do the same again. When its first line is a path, read that file now. Copy its numbered steps into your todo list, word for word, before any todo of your own (with no todo tool, write the list in this thread), and work them in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo. A line the block prints under the path is a line the playbook's `Run by:` asks the request to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report. On `lacks the line`, the request stands as the home wrote it: say what it printed in the report. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
 4. Say in two lines what you are about to find out, then start. Do not wait for a go-ahead: the request is the go-ahead.
 
 ## Carry on
