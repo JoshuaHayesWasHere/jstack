@@ -16,10 +16,13 @@ one loads, and `Config.ignored` names each, so that a pass can say so until it i
 A webhook URL and key in a table nothing reads are still secret while they are in the file:
 `Config.unread` keeps them, for `secrets` alone.
 
-A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the pair
-of every project that has neither key of its own. A project with both keys of its own keeps
-them whole, and one with only one of the two is refused: half a pair beside the top-level one
-would post with the wrong key. The top-level pair is secret whether a project takes it or not.
+A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
+top-level webhook: the monitor of every project, posted each event for the user of each one,
+and the pair of every project that has neither key of its own. A project with both keys of
+its own keeps them whole, and is posted its events there as well (`wake.Box`): once, where the
+two pairs are the same. One with only one of the two keys is refused: half a pair beside the
+top-level one would post with the wrong key. The top-level pair is secret whether a project
+takes it or not.
 """
 
 from __future__ import annotations

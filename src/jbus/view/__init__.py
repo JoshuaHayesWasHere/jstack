@@ -147,10 +147,10 @@ _WAITS = {
         "url",
     )
 } | {"unblocks": [None]}
+_WEBHOOK = {"failed_wakes": None, "last_error": None, "outbox": None}
 _HOOK = {
-    "failed_wakes": None,
-    "last_error": None,
-    "outbox": None,
+    **_WEBHOOK,
+    "top_level": _WEBHOOK,
     "sign_in": None,
     "sweep": None,
 }
