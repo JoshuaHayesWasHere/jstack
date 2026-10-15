@@ -36,6 +36,7 @@ _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
 _CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
+_HELD = re.compile(r"Rebase hold: at ([0-9a-f]{40}), |Rebase hold lifted: ")
 
 OTHER_HOME = "another home's"
 REQUIRED = "check"
@@ -88,6 +89,7 @@ NOT_SEEN = "its head is not the one its review saw"
 MAIN_CHANGED = "{default} changed {paths} after its check started at {since}; it needs {needs}"
 FRESH_CHECK = "a fresh check"
 FRESH_FAILS = "{command} fails on {head} over today's main {tip}{how}"
+REBASE_HELD = "its crew held a third rebase after fixed and green, and its gate asks the user"
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -224,6 +226,22 @@ def held(one: PullRequest, default: str, stack: str | None, land: str | None) ->
     if stack is None or (stack and stack == land):
         return ""
     return IN_STACK.format(stack=stack) if stack else IN_UNNAMED_STACK
+
+
+def rebase_held(text: str, head: str) -> str:
+    """Why a pull request whose crew held a rebase waits, or nothing.
+
+    Past its `Fixed:` line a crew rebases twice for the default branch, and in place of the
+    third writes `Rebase hold: at <head>, ...` and parks a gate. The pull request waits at
+    that head until a `Rebase hold lifted:` line comes after it; a later head is one the
+    crew rebased after all.
+    """
+    last = ""
+    for line in text.splitlines():
+        found = _HELD.match(line)
+        if found:
+            last = found[1] or ""
+    return REBASE_HELD if last and last == head else ""
 
 
 @dataclass
