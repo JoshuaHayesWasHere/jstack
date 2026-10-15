@@ -1,9 +1,10 @@
 """`jbus snapshot` commits the homes' state tree and pushes it, twice a day, and a snapshot that
 did not finish alerts once.
 
-Each test runs the real verb on a real git repo in the kitchen's home tree, with the real
-gitleaks, and pushes to a bare repo beside it. The units are read as systemd reads them, and
-by `systemd-analyze verify` where the machine has it.
+Each test runs the real verb on a real git repo in the kitchen's home tree, and pushes to a
+bare repo beside it. It uses the real gitleaks where the machine has one; on a machine with
+none, a stand-in that finds nothing reads the changes and the secret test is skipped. The
+units are read as systemd reads them, and by `systemd-analyze verify` where the machine has it.
 """
 
 import configparser
@@ -116,7 +117,10 @@ def test_a_commit_whose_push_failed_is_pushed_by_the_next_run_with_nothing_chang
     bare = tmp_path / "gone.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
     assert take() == (0, ["snapshot: nothing changed, pushed"])
-    assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
+    caught_up = git(tree, "rev-parse", "HEAD")
+    assert git(bare, "rev-parse", "main") == caught_up
+    assert take() == (0, ["snapshot: nothing changed, pushed"])
+    assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD") == caught_up
 
 
 @pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
@@ -180,7 +184,7 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
         options = [
             line
             for line in (REPO / "templates" / name).read_text().splitlines()
-            if "=" in line and not line.startswith("#")
+            if line.strip() and not line.lstrip().startswith(("#", ";"))
         ]
         assert options and not [line for line in options if "_exec" in line]
 
