@@ -4,7 +4,8 @@ The tree is the config's `home_dir`, `~/.local/state/home`, a git repo. A snapsh
 everything (`git add -A`), and with nothing staged it ends there. gitleaks reads what is
 staged, and one secret in it unstages it all and commits nothing. Otherwise it commits
 `snapshot <YYYY-MM-DD HH:MM ET>`, in the user's zone, and pushes to `origin` when the repo
-has one.
+has one. A run with nothing to commit still pushes a commit `origin` lacks, so a push that
+failed is made again by the next run.
 
 `jbus-snapshot.timer` runs it at 08:30 and 17:30. A snapshot that did not finish fails
 `jbus-snapshot.service`, whose `OnFailure=` runs `jbus snapshot --alarm`: the first failure
@@ -46,13 +47,23 @@ def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:
         raise Failed(f"{what} failed: {said or f'exit {ran.returncode}'}")
 
 
+def _remote(tree: Path) -> bool:
+    return _git(tree, "remote", "get-url", "origin").returncode == 0
+
+
 def take(tree: Path, now: datetime, user: jsettings.Settings) -> str:
     """Snapshot the tree, and say what was done in one line. `Failed` when it could not."""
     if _git(tree, "rev-parse", "--git-dir").returncode:
         raise Failed(f"{tree} is not a git repo")
     _must(_git(tree, "add", "-A"), "git add")
     if _git(tree, "diff", "--cached", "--quiet").returncode == 0:
-        return "snapshot: nothing changed"
+        if (
+            not _remote(tree)
+            or not _git(tree, "rev-list", "-n1", "HEAD", "--not", "--remotes=origin").stdout
+        ):
+            return "snapshot: nothing changed"
+        _must(_git(tree, "push", "-q", "origin", "HEAD"), "git push")
+        return "snapshot: nothing changed, pushed what was behind"
     gitleaks = shutil.which("gitleaks")
     scanned = (
         subprocess.run(
@@ -69,7 +80,7 @@ def take(tree: Path, now: datetime, user: jsettings.Settings) -> str:
             raise Failed("no gitleaks to read the changes, nothing committed")
         raise Failed("gitleaks found a secret in the changes, nothing committed")
     _must(_git(tree, "commit", "-q", "-m", f"snapshot {user.stamp(now)}"), "git commit")
-    if _git(tree, "remote", "get-url", "origin").returncode:
+    if not _remote(tree):
         return "snapshot: committed, no remote to push to"
     _must(_git(tree, "push", "-q", "origin", "HEAD"), "git push")
     return "snapshot: committed and pushed"

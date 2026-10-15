@@ -97,6 +97,19 @@ def test_a_push_that_fails_is_a_failed_snapshot(tree, tmp_path):
     assert code == 1 and said.startswith("snapshot: git push failed: ")
 
 
+def test_a_commit_whose_push_failed_is_pushed_by_the_next_run_with_nothing_changed(tree, tmp_path):
+    git(tree, "remote", "add", "origin", str(tmp_path / "gone.git"))
+    (tree / "demo" / "notes.md").write_text("# notes\nbehind\n")
+    assert take()[0] == 1
+    code, (said,) = take()
+    assert code == 1 and said.startswith("snapshot: git push failed: ")
+    bare = tmp_path / "gone.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+    assert take() == (0, ["snapshot: nothing changed, pushed what was behind"])
+    assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
+    assert take() == (0, ["snapshot: nothing changed"])
+
+
 @pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
 def test_a_staged_secret_is_refused_and_nothing_is_committed_or_left_staged(tree):
     before = git(tree, "rev-parse", "HEAD")
@@ -155,7 +168,8 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
         assert (Path(command[0]).name, command[1:]) == ("jbus", words)
         assert unit["Service"]["Type"] == "oneshot"
     for unit in (service, failed, timer):
-        assert "_exec" not in str(dict(unit.items()))
+        values = [value for section in unit.values() for value in section.values()]
+        assert values and not [value for value in values if "_exec" in value]
 
 
 @pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
