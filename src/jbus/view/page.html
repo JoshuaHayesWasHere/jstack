@@ -426,14 +426,17 @@
   .tip.peek { pointer-events: none; max-width: min(300px, calc(100vw - 20px)); font-size: 14px; }
   .sh, .mk, .bn, .hd, .sd, [data-gloss] { cursor: help; }
   .vw { position: relative; min-width: 0; display: flex; }
-  .vw > .vit { flex: 1 1 auto; padding-right: 34px; }
-  .vw > .hint { position: absolute; top: 5px; right: 5px; }
+  .vw > .vit { flex: 1 1 auto; }
+  .vw > .vit .stw { margin-right: 24px; }
+  .vw > .vit .val { grid-column: 1 / -1; }
+  .vw > .hint { position: absolute; top: 3px; right: 4px; }
   .vw.wide { grid-column: span 2; }
   .mw { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
   .mw > .mi { flex: 1 1 auto; }
   .mw > .hint { align-self: center; }
   .lhw { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
-  details.gk { flex-basis: 100%; font-size: 14.5px; }
+  details.gk { font-size: 14.5px; margin-left: 10px; }
+  details.gk[open] { flex-basis: 100%; margin-left: 0; }
   details.gk summary { cursor: pointer; color: var(--dim); width: max-content; max-width: 100%; }
   .gk .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; }
   .gk .legend > span { display: inline-flex; align-items: center; gap: 6px; }
@@ -446,8 +449,8 @@
   .theme.help::before { content: "?"; font-weight: 800; }
   @media (max-width: 640px) {
     .hint { width: 44px; height: 44px; }
-    .vw > .vit { padding-right: 44px; }
-    .vw > .hint { top: 0; right: 0; }
+    .vw > .vit .stw { margin-right: 26px; }
+    .vw > .hint { top: 0; right: 0; align-items: flex-start; justify-content: flex-end; padding: 3px; }
     .vw.wide { grid-column: 1 / -1; }
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
   }
@@ -642,7 +645,7 @@
   /* The note of each step, kept from the last state read: every project has the same steps. */
   var NOTES = {};
   function stepGloss(key) {
-    var s = STEP[key] || (STACK ? STACK.steps.filter(function (x) { return x.key === key; })[0] : null), all = S ? S.steps : STACK ? STACK.steps : [];
+    var s = STEP[key] || (STACK ? STACK.steps.filter(function (x) { return x.key === key; })[0] : null), all = (S ? S.steps : STACK ? STACK.steps : []).filter(function (x) { return x.key !== "unknown"; });
     if (!s) return null;
     var at = all.map(function (x) { return x.key; }).indexOf(key), note = s.note || NOTES[key];
     return [s.name, (at < 0 ? "Not a step of the line" : "Step " + (at + 1) + " of " + all.length) + (note ? ": " + note : "") + ". " + (s.who === "ok" ? "It is done." : s.who === "unknown" ? "Who holds it is not known." : s.who ? "Held by " + WHO[s.who] + "." : "Who holds it depends on the row: its shape says.")];
@@ -878,7 +881,7 @@
       h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b data-gloss="count:kind">' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
     });
     if (!any) h += '<span class="quiet">nothing waits on you</span>';
-    if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" aria-label="' + esc(p.name + ": " + p.noticed + " new noticed lines, not counted: they wait on a home, not on you. Open them") + '"><b data-gloss="count:noticed">' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>' + hint("term:noticed", "noticed, not counted");
+    if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on a home, not on you, so the count leaves them out.") + '"><b data-gloss="count:noticed">' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>' + hint("term:noticed", "noticed, not counted");
     return h;
   }
   /* The Threads band of a project, as the threads panel draws it: with links to the project's

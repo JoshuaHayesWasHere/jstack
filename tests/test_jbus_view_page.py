@@ -1049,7 +1049,7 @@ def test_a_poll_draws_again_only_the_parts_whose_data_changed(scene, tmp_path):
     first = max(one["at"] for one in seen["changes"] if one["part"].startswith("rows:"))
     later = {one["part"] for one in seen["changes"] if one["at"] > first + 1000}
     assert later == {"wtotal", "yrows:pantry", "projects"}
-    assert seen["stack"]["total"] == "10 wait on you"
+    assert seen["stack"]["total"] == "6 wait on you"
 
 
 def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
@@ -2279,7 +2279,14 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         assert "://" not in part
         for loads in ("<link", "<img", "<iframe", "<object", "<embed", " src=", "@import", "url("):
             assert loads not in part, loads
-    asks = ["/answer", "/panel/", "/stack.json", "/state.json", "/task/"]
+    asks = [
+        "/answer",
+        "/panel/",
+        "/panel/steps.json?project=",
+        "/stack.json",
+        "/state.json",
+        "/task/",
+    ]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
     assert "fetch(path," in page and page.count("fetch(") == 1
     assert page.count("<script") == 2 and all(script in page for script in scripts)
@@ -2496,7 +2503,11 @@ def test_a_toggletip_opens_by_key_and_by_tap_and_esc_or_a_tap_elsewhere_closes_i
     assert seen["errors"] == []
     by_key, esc, space, tapped, again, room, away = seen["walked"]
     assert by_key["tip"].startswith("Threads out")
-    assert (by_key["expanded"], by_key["open"], by_key["hash"]) == (["card:threads"], False, "#/demo")
+    assert (by_key["expanded"], by_key["open"], by_key["hash"]) == (
+        ["card:threads"],
+        False,
+        "#/demo",
+    )
     assert (esc["tip"], esc["expanded"], esc["focus"]) == ("", [], "card:threads")
     assert esc["hash"] == "#/demo", "Esc closes the toggletip and nothing else"
     assert space["tip"].startswith("Bus outbox")
@@ -2551,7 +2562,11 @@ def test_the_question_mark_key_opens_the_glossary_and_esc_goes_back(scene, tmp_p
     seen = look(scene, tmp_path, route=route, walk=walk, at=4000 + 500 * len(walk), budget=12000)
     assert seen["errors"] == []
     opened, twice, esc, tapped, _ = seen["walked"]
-    assert (opened["hash"], opened["open"], opened["title"]) == (help, True, "Every term on the page")
+    assert (opened["hash"], opened["open"], opened["title"]) == (
+        help,
+        True,
+        "Every term on the page",
+    )
     assert twice["hash"] == help and twice["back"] == "", "a second ? opens no second glossary"
     assert (esc["hash"], esc["open"]) == (route, False)
     assert (tapped["hash"], tapped["open"]) == (help, True)
@@ -2562,14 +2577,20 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
     seen = look(scene, tmp_path, route="#/help", walk=["look"], at=4500, budget=12000)
     assert seen["errors"] == []
     (first,) = seen["walked"]
-    assert (first["hash"], first["open"], first["title"]) == ("#/help", True, "Every term on the page")
+    assert (first["hash"], first["open"], first["title"]) == (
+        "#/help",
+        True,
+        "Every term on the page",
+    )
     assert first["crumbs"] == [["All", "#/"], ["Every term on the page", "#/help"]]
     assert seen["stack"]["shown"], "the glossary is over every project"
 
 
 def test_the_wait_band_of_every_project_says_noticed_is_not_counted_and_why(scene, tmp_path):
     lineup(scene, TODAY)
-    a_noticed(scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle"))))
+    a_noticed(
+        scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle")))
+    )
     walk = ['tap:#yrows [data-tip="term:noticed"]']
     seen = look(scene, tmp_path, route="#/", walk=walk, at=4500, budget=12000)
     assert seen["errors"] == []
