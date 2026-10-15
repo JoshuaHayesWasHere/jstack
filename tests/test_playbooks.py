@@ -105,6 +105,16 @@ def problems(path, root):
     return found
 
 
+def uncited(root):
+    """The principles at `root` that no playbook there names, so no thread is sent to read them."""
+    cited = set()
+    for path in (root / "playbooks").glob("*.md"):
+        rows = path.read_text().splitlines()
+        cited.update(named("\n".join(row for row in rows if not row.startswith("Source:"))))
+    every = (f"principles/{path.name}" for path in (root / "principles").glob("*.md"))
+    return sorted(name for name in every if name not in cited)
+
+
 PRINCIPLES_OF_TESTS_AND_CODE = (
     "principles/test-behavior-not-implementation.md",
     "principles/sequence-verifiable-units.md",
@@ -140,6 +150,10 @@ def test_the_directory_holds_playbooks_and_nothing_else():
 @pytest.mark.parametrize("path", FILES, ids=lambda path: path.stem)
 def test_a_playbook_has_the_shape_and_can_be_followed(path):
     assert problems(path, REPO) == []
+
+
+def test_every_principle_is_named_by_a_playbook():
+    assert uncited(REPO) == []
 
 
 @pytest.fixture
@@ -345,3 +359,21 @@ def test_a_design_step_after_the_code_is_a_problem():
 def test_a_design_step_that_leaves_a_brief_with_no_size_open_is_a_problem():
     text = "# A playbook\n\n" + DESIGN.replace(" A brief with no size counts as S.", "") + BUILD
     assert design_problems(text) == ["does not say what size a brief with none has"]
+
+
+def test_a_principle_no_playbook_names_is_uncited(root):
+    (root / "principles" / "two.md").write_text("# There\n")
+    check(root)
+    assert uncited(root) == ["principles/two.md"]
+    both = "1. Read `principles/one.md` and `principles/two.md`.\n"
+    check(root, steps=both + "2. Run `playbooks/opening-a-pr.md`.")
+    assert uncited(root) == []
+
+
+def test_a_principle_named_only_on_the_source_line_is_uncited(root):
+    check(
+        root,
+        source="Source: pstack, `principles/one.md`",
+        steps="1. Read the code.\n2. Run `playbooks/opening-a-pr.md`.",
+    )
+    assert uncited(root) == ["principles/one.md"]
