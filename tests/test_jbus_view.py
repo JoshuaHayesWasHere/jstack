@@ -1086,7 +1086,7 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
         answer,
         by=user.user,
         at=et(ago(minutes=30)),
-        where="Exec",
+        where="Sous Chef",
         keeps=False,
         user=user,
     )
@@ -1098,8 +1098,8 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
         iso(ago(minutes=19)),
         thread="mcp:home",
         sent_at=iso(ago(minutes=18)),
-        ref="mcp:exec/m1",
-        said_in="Exec",
+        ref="mcp:sous/m1",
+        said_in="Sous Chef",
         checked=True,
     )
     waits = word.Word(
@@ -1111,9 +1111,9 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
         waits="the home has no home-id",
     )
     scene.write(word.NAME, [asdict(went), asdict(waits)])
-    by = {"session": "s-1", "directory": f"/made/up/{queue.EXEC}"}
+    by = {"session": "s-1", "directory": "/made/up/elsewhere"}
     made = queue.Approval(
-        "word", went.id, went.words, went.at, "Exec", True, by, iso(ago(minutes=10))
+        "word", went.id, went.words, went.at, "Sous Chef", True, by, iso(ago(minutes=10))
     )
     rows = table()
     rows[1] |= {"approved": made.line(), "approval": queue.held(made)}
@@ -1142,7 +1142,7 @@ def test_the_words_panel_lists_his_answers_his_words_and_each_approval_newest_fi
         "by": jsettings.load().user,
         "at": iso(ago(minutes=30)),
     }
-    assert (answered["keeps"], answered["where"], answered["slug"]) == (False, "Exec", "alpha")
+    assert (answered["keeps"], answered["where"], answered["slug"]) == (False, "Sous Chef", "alpha")
     went, waits = entry["word:a1b2c3d4e5f6"], entry["word:f6e5d4c3b2a1"]
     assert (went["kept_at"], went["sent_at"]) == (iso(ago(minutes=19)), iso(ago(minutes=18)))
     assert (waits["sent_at"], waits["waits"]) == (None, "the home has no home-id")
@@ -1151,7 +1151,7 @@ def test_the_words_panel_lists_his_answers_his_words_and_each_approval_newest_fi
         "basis": "word",
         "rests": "word:a1b2c3d4e5f6",
         "words": "go ahead with the kettle",
-        "who": "Exec",
+        "who": "the elsewhere home",
         "ran_at": iso(ago(minutes=10)),
     }
     assert approved["said_at"] == iso(ago(minutes=20))

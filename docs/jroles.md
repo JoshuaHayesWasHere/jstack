@@ -12,7 +12,7 @@ review: grok grok-build
 home: inherit
 ```
 
-A line is `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`. The roles are `crew`, `scout`, `review`, `home`, `expert` and `exec`. `exec` is the party Exec, whose handoff starts its next thread on that line's model, and the handoff of any other party that is not an expert reads `expert`. An expert's own rollover is the expert skill's and does not go this way. `<provider>` is T3 Code's id for Claude, Codex or Grok: `claudeAgent`, `codex` or `grok`. `<role>: inherit` is the same as no line, and so is no file.
+A line is `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`. The roles are `crew`, `scout`, `review`, `home` and `expert`. The handoff of a party that is no repo's home reads `expert`. An expert's own rollover is the expert skill's and does not go this way. `<provider>` is T3 Code's id for Claude, Codex or Grok: `claudeAgent`, `codex` or `grok`. `<role>: inherit` is the same as no line, and so is no file.
 
 A Claude line always launches at `medium` effort, or at `low` where it ends `effort=low`. T3 Code launches a model with no effort at that model's own default, which is `high` for Claude Sonnet 5.5 and Claude Opus 5, and no thread here runs above medium: any other level refuses the line's role, and its launch inherits. A Codex or Grok line takes no effort and launches at that provider's own default, which is not read here: T3 Code lists no models for them on this machine.
 

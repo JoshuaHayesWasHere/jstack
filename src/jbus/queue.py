@@ -101,7 +101,6 @@ BASIS = (
 RULE = "rule"
 BY_RULE = "--rule <n> with --follows <parent slug>"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
-EXEC = "_exec"
 SESSION = "CLAUDE_CODE_SESSION_ID"
 
 Row = dict[str, Any]
@@ -208,12 +207,11 @@ class Approval:
     follows: str = ""
 
     def who(self) -> str:
-        """Exec, the home of the directory it was run in, or a shell where no session ran it."""
+        """The home of the directory it was run in, or a shell where no session ran it."""
         directory = self.ran_by.get("directory", "")
         if not self.ran_by.get("session"):
             return f"a shell in {directory}"
-        name = Path(directory).name
-        return "Exec" if name == EXEC else f"the {name} home"
+        return f"the {Path(directory).name} home"
 
     def line(self) -> str:
         if self.basis == RULE:
