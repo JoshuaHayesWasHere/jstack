@@ -88,7 +88,7 @@ def parse(text: str) -> Line | None:
 
 RULES = (
     ("hold", r"^needs [^\s,]+, |needs the user's word|which the user lands|^its base is "),
-    ("hold", r"a stack its brief does not name|auto-merge is off"),
+    ("hold", r"a stack its brief does not name|auto-merge is off|held a third rebase"),
     ("proof", r"no proven safety fact"),
     ("second", r"second pass is not written|the rebase changed the (content|patch) after"),
     ("second", r"scoped review has not ruled|not the one its review saw|no head to compare"),

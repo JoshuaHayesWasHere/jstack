@@ -824,9 +824,12 @@ class PullRequest:
         states = ("rebase-merge", "rebase-apply")
         return any((self.git_dir / name).exists() for name in states)
 
-    def run(self, about):
+    def run(self, about, home=None):
+        script = block("Stay on the pull request", about)
+        if home:
+            script = script.replace("<slug>", "alpha")
         return subprocess.run(
-            ["sh", "-c", block("Stay on the pull request", about)],
+            ["sh", "-c", script],
             capture_output=True,
             text=True,
             cwd=self.work,
@@ -839,6 +842,7 @@ class PullRequest:
                 "GIT_COMMITTER_NAME": "t",
                 "GIT_COMMITTER_EMAIL": "t@example.com",
                 "GIT_EDITOR": "true",
+                **({"H": str(home)} if home else {}),
             },
         ).stdout
 
@@ -971,6 +975,79 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
     assert second_pass(launched, review(saw) + review(pr.head())) == [
         "had: the second pass is written, and it is the last"
     ]
+
+
+def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
+    """Upstream's cap: past merge prep, trunk forcing a third rebase is held and reported.
+    The block counts the rebases it made after the `Fixed:` line, writes the stop line in
+    place of the third, and `jmerge` reads that line for the head it holds."""
+    pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
+    home = tmp_path / "home"
+    (home / "tasks").mkdir(parents=True)
+    brief = home / "tasks" / "alpha.md"
+    brief.write_text(BRIEF)
+    other = tmp_path / "other"
+
+    def main_moves(name):
+        pr.commit(other, name, "theirs\n", f"main changes {name}")
+        git(other, "push", "-q", "origin", "HEAD:main")
+        return git(other, "rev-parse", "HEAD")
+
+    assert pr.run("mergeable", home).splitlines() == ["rebased onto origin/main"]
+    assert "Rebased after fixed:" not in brief.read_text()
+    brief.write_text(brief.read_text() + f"Fixed: {pr.head()}\n")
+
+    for name in ("second.txt", "third.txt"):
+        before, tip = pr.head(), main_moves(name)
+        assert pr.run("mergeable", home).splitlines() == ["rebased onto origin/main"]
+        assert git(pr.work, "rev-parse", "HEAD~1") == tip
+        assert f"Rebased after fixed: {before} onto origin/main at {tip}\n" in brief.read_text()
+    assert ready.rebase_held(brief.read_text(), pr.head()) == ""
+
+    held, tip = pr.head(), main_moves("fourth.txt")
+    third = "a third rebase after fixed and green"
+    stop = f"Rebase hold: at {held}, {third}, onto origin/main at {tip}"
+    told = [f"hold: no third rebase after fixed and green, the brief has the line {stop}"]
+    assert pr.run("mergeable", home).splitlines() == told
+    assert pr.head() == held
+    assert not pr.rebasing()
+    again = [f"held: no third rebase after fixed and green, and its gate is parked already: {stop}"]
+    assert pr.run("mergeable", home).splitlines() == again
+    assert brief.read_text().count("Rebase hold:") == 1
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert ready.rebase_held(brief.read_text(), held) == ready.REBASE_HELD
+    assert ready.rebase_held(brief.read_text(), tip) == ""
+
+    brief.write_text(brief.read_text() + "Rebase hold lifted: question 7, by the user\n")
+    assert ready.rebase_held(brief.read_text(), held) == ""
+    assert pr.run("mergeable", home).splitlines() == ["rebased onto origin/main"]
+    assert brief.read_text().count("Rebased after fixed:") == 3
+
+
+def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
+    """A follow-up with no `Fixed:` line of its own counts its rebases, and holds the third."""
+    pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
+    home = tmp_path / "home"
+    (home / "tasks").mkdir(parents=True)
+    brief = home / "tasks" / "alpha.md"
+    before = pr.head()
+    brief.write_text(BRIEF + f"Fixed: {before}\nRebased after fixed: {'e' * 40}\n")
+    said = pr.run("mergeable", home).splitlines()
+    assert said[0] == "the rebase stopped: resolve these, then git rebase --continue"
+    assert pr.rebasing()
+    counted = f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    assert brief.read_text().endswith(counted)
+    git(pr.work, "rebase", "--abort")
+
+    brief.write_text(brief.read_text() + "\n## Result, follow-up (a steer)\nStatus: done\n")
+    for count in (3, 4):
+        assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
+        assert brief.read_text().count("Rebased after fixed:") == count
+        git(pr.work, "rebase", "--abort")
+    (third,) = pr.run("mergeable", home).splitlines()
+    assert third.startswith("hold: no third rebase after fixed and green, the brief has the line ")
+    assert brief.read_text().count("Rebased after fixed:") == 4
+    assert not pr.rebasing()
 
 
 def covers(main, brief, head):
