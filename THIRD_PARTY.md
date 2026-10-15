@@ -238,3 +238,12 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 - Taken from: `skills/karpathy-guidelines/SKILL.md`, section 3, "Surgical Changes": "Every changed line should trace directly to the user's request", and the rule that a change removes what it orphaned and only mentions dead code that was there before
 - Changed here: reworded as two things a reviewer looks for in the changed lines. The rest of the file is not taken: its other three sections are covered by `principles/`, and "If uncertain, ask" is against `principles/never-block-on-the-human.md`.
 - License: the skill's frontmatter and the README say MIT. The repo has no license file, so there is no notice text to copy.
+
+## axe-core
+
+`tests/fixtures/jbus-view/axe.min.js` is axe-core, by Deque Systems, the accessibility engine the page tests of `jbus view` run in the browser. Only the tests read it: the view never serves it.
+
+- Source: https://github.com/dequelabs/axe-core
+- Version: 4.14.0, the file `axe.min.js` of the package `https://registry.npmjs.org/axe-core/-/axe-core-4.14.0.tgz`, integrity `sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==`
+- Changed here: nothing. The file is taken whole, with its notice.
+- License: the Mozilla Public License 2.0, whose text is at https://mozilla.org/MPL/2.0/, as the notice at the top of the file says.
