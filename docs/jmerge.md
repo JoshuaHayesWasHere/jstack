@@ -64,7 +64,7 @@ A push that fixes a failed check after the review is read the same way. The crew
 
 `jmerge` reads three lists from its own package directory, never from a pull request. Each has one pattern per line and `#` for a comment. A pattern that ends in `/` is a directory. Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root. `jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read, such as `**` or a leading `!`.
 
-**Protected paths** are in `src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, and the files `protected.txt` and `guarded.txt` themselves. A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`. So is one whose file list GitHub cut short.
+**Protected paths** are in `src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the files `protected.txt` and `guarded.txt` themselves, and the directories `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records. A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`. So is one whose file list GitHub cut short.
 
 **Guarded paths** are in `src/jmerge/guarded.txt`: `acceptance/`, `.github/workflows/`, `src/jmerge/`, `src/jbus/` and `skills/`. `jmerge` merges a pull request that changes one under a stricter gate, and prints a part that does not hold as `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
 
