@@ -18,7 +18,7 @@ secrets/
 *.key
 /src/jmerge/protected.txt
 /src/jmerge/guarded.txt
-# A change under policy/ applies to the live tailnet's policy once it merges.
+# A change under /policy/ at the repo's root applies to the live tailnet's policy once it merges.
 /policy/
-# A change under dns/ applies to the live DNS records once it merges.
+# A change under /dns/ at the repo's root applies to the live DNS records once it merges.
 /dns/

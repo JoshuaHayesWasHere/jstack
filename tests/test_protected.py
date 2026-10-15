@@ -34,7 +34,7 @@ PATHS = [
     ("/src/jmerge/protected.txt", "src/jmerge/protected.txt", "docs/src/jmerge/protected.txt"),
     ("/src/jmerge/guarded.txt", "src/jmerge/guarded.txt", "src/jmerge/guarded.txt.md"),
     ("/policy/", "policy/tailnet.hujson", "docs/policy.md"),
-    ("/policy/", "policy/tailnet.hujson", "src/policy/x.py"),
+    ("/policy/", "policy/acls/tailnet.hujson", "src/policy/x.py"),
     ("/dns/", "dns/records.tf", "docs/dns.md"),
     ("/dns/", "dns/zones/example.tf", "infra/dns/records.tf"),
 ]
