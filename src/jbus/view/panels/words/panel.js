@@ -5,6 +5,7 @@ var WORDKIND = { answer: "questions you answered", word: "words sent down", appr
 function wordsOf(kind) { return S.words.filter(function (w) { return w.kind === kind; }); }
 function wordEntry(key) { return S.words.filter(function (w) { return w.key === key; })[0] || null; }
 function whenSaid(at) { var t = ms(at); return t == null ? "a time not kept" : day(t); }
+function picked(w) { return "your pick on a Lavish page, " + whenSaid(w.said_at) + ", " + (w.said_in || "").split("/").pop(); }
 function wordRow(w, hit) {
   var h = '<li' + (w.key === hit ? ' class="hit"' : "") + '>';
   if (w.kind === "answer" && w.home) {
@@ -27,7 +28,7 @@ function wordRow(w, hit) {
   var rests = w.rests && wordEntry(w.rests);
   return h + taskBtn(w.slug) + ' ' + (w.basis ? '<span class="chip plain">' + esc(w.basis === "rule" ? "by rule " + w.ref : "by " + w.basis) + '</span>' : gap("no record")) +
     (w.basis ? '<br><span class="tag">Rests on</span> &quot;' + esc(w.words) + '&quot;' + (rests ? " " + openBtn("words:" + w.rests, "see it") : "") +
-      '<br><span class="src">' + (w.basis === "rule" ? "A follow-up of " + esc(w.follows) + "; he did not speak of this row" : "Said " + esc(whenSaid(w.said_at)) + (w.said_in ? " in " + esc(w.said_in) : "") + (w.checked ? "" : " (time typed)")) + '. Run ' + esc(whenSaid(w.ran_at)) + ' by ' + esc(w.who) + '.</span>'
+      '<br><span class="src">' + (w.basis === "rule" ? "A follow-up of " + esc(w.follows) + "; he did not speak of this row" : w.basis === "page" ? esc(picked(w).replace(/^y/, "Y")) : "Said " + esc(whenSaid(w.said_at)) + (w.said_in ? " in " + esc(w.said_in) : "") + (w.checked ? "" : " (time typed)")) + '. Run ' + esc(whenSaid(w.ran_at)) + ' by ' + esc(w.who) + '.</span>'
       : '<br>' + esc(w.line) + (w.words ? '<br><span class="src">The row holds &quot;' + esc(w.words) + '&quot;.</span>' : "")) + '</li>';
 }
 function dWords(arg) {
@@ -48,7 +49,7 @@ panel({
     task: function (t) {
       var w = wordEntry("approval:" + t.slug);
       if (!w) return "";
-      var said = w.basis ? (w.basis === "rule" ? "by rule " + w.ref + ", a follow-up of " + w.follows : "on your word, said " + whenSaid(w.said_at)) + ", run " + whenSaid(w.ran_at) + " by " + w.who : w.line;
+      var said = w.basis ? (w.basis === "rule" ? "by rule " + w.ref + ", a follow-up of " + w.follows : w.basis === "page" ? "on " + picked(w) : "on your word, said " + whenSaid(w.said_at)) + ", run " + whenSaid(w.ran_at) + " by " + w.who : w.line;
       return '<span class="tag">Approval</span> ' + openBtn("words:approval:" + t.slug, said);
     }
   }

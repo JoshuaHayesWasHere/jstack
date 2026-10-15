@@ -12,17 +12,18 @@ is also given the sha of the brief the user was shown, and is refused when the s
 is another.
 
 An approval rests on words of the user's that something else holds, and `approve` names
-them: a word `jbus word` kept, the answer that closed a question, or a message of a T3 Code
-thread. It takes no name and no time. The row's `approval` is the record (`Approval`): the
+them: a word `jbus word` kept, the answer that closed a question, a message of a T3 Code
+thread, or a pick he sent from a Lavish page (`PAGE`), read from Lavish's own state file.
+It takes no name and no time. The row's `approval` is the record (`Approval`): the
 basis and its reference, the words, when and where they were said, whether it was T3 Code
-that jbus read them out of, and who ran the command and when, which jbus writes. `approved`
-holds the line that says so, and is what every reader asks to know whether the row has a go.
-An older row holds only a typed string there, and still has its go (`approval`).
+or Lavish that jbus read them out of, and who ran the command and when, which jbus writes.
+`approved` holds the line that says so, and is what every reader asks to know whether the
+row has a go. An older row holds only a typed string there, and still has its go (`approval`).
 
-A fourth basis is not his word for the row: a home approves a follow-up by a standing rule
+One more basis is not his word for the row: a home approves a follow-up by a standing rule
 (`RULE`), and names the parent row the user did give his word for (`follows`). The words
 kept are the rule's, as the home's `standing.md` had it then (`rule`). The parent's own
-approval is by one of the three bases or the typed string, so a chain is one step
+approval is by one of the other bases or the typed string, so a chain is one step
 (`_parent`), and the row's line says he did not speak of it. A `hold` of the parent, or a
 `remove` of one that did not merge, takes the go of its queued follow-ups back with it.
 
@@ -91,8 +92,12 @@ STATUSES = (
 FINAL = ("merged", "done")
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 _SENT_TO = ("Home:", "Thread:")
-BASES = ("word", "answer", "message")
-BASIS = "--word <id>, --answer <number> or --message <thread id>/<message id>"
+PAGE = "page"
+BASES = ("word", "answer", "message", PAGE)
+BASIS = (
+    "--word <id>, --answer <number>, --message <thread id>/<message id> or --page "
+    "<session key>/<entry id>"
+)
 RULE = "rule"
 BY_RULE = "--rule <n> with --follows <parent slug>"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
@@ -170,8 +175,9 @@ def runner() -> dict[str, str]:
 @dataclass(frozen=True)
 class Said:
     """Words of the user's as whatever keeps them has them: when and where they were said,
-    and whether jbus read the words and the time from T3 Code (`checked`) or was typed them.
-    `ref` is the `<thread id>/<message id>` they were read from, or nothing."""
+    and whether jbus read the words and the time from T3 Code or Lavish (`checked`) or was
+    typed them. `ref` is the `<thread id>/<message id>` or `<session key>/<entry id>` they were
+    read from, or nothing."""
 
     words: str
     said_at: str
@@ -183,7 +189,8 @@ class Said:
 @dataclass(frozen=True)
 class Approval:
     """A row's go. `basis` is one of `BASES` and `ref` names the record of it: a word's id, a
-    question's number, or `<thread id>/<message id>`. `ran_by` is `runner` and `ran_at` the
+    question's number, `<thread id>/<message id>`, or for `PAGE` `<session key>/<entry id>`,
+    whose `said_in` is the page's file. `ran_by` is `runner` and `ran_at` the
     clock, both as jbus found them: no option gives either.
 
     With the basis `RULE`, `ref` is the rule's number, `words` the rule's text and `follows`
@@ -212,9 +219,12 @@ class Approval:
         if self.basis == RULE:
             parent = f"rule {self.ref}, follow-up of {self.follows}"
             return f"{parent}; run {self.ran_at} by {self.who()}; he did not speak of this row"
+        ran = f"run {self.ran_at} by {self.who()}"
+        if self.basis == PAGE:
+            return f"his pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
         typed = "" if self.checked else " (time typed)"
         where = f", in {self.said_in}" if self.said_in else ""
-        return f"his word, {self.said_at}{typed}{where}; run {self.ran_at} by {self.who()}"
+        return f"his word, {self.said_at}{typed}{where}; {ran}"
 
 
 def record(row: Row) -> Approval | None:
@@ -843,12 +853,12 @@ def parse(text: str) -> list[tuple[int, Verb]]:
     """A batch as its verbs, each with the number of the line it is on.
 
     A line is `add <slug> --priority N [--depends a,b] [--entry <plan entry>]`, `approve
-    <slug> --sha <12>` with one of `--word <id>`, `--answer <number>` and `--message
-    <thread id>/<message id>`, or with `--rule <n> --follows <parent slug>`, `hold <slug>`
-    or `remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM ZONE>"`. Under an `add` comes its
-    brief,
-    between a line `--- brief <slug>` and a line `--- end`: the lines between are the brief,
-    as they are, so a brief cannot hold either marker as a line of its own.
+    <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`, `--message
+    <thread id>/<message id>` and `--page <session key>/<entry id>`, or with `--rule <n>
+    --follows <parent slug>`, `hold <slug>` or `remove <slug> --by <user> --at "<YYYY-MM-DD
+    HH:MM ZONE>"`. Under an `add` comes its brief, between a line `--- brief <slug>` and a
+    line `--- end`: the lines between are the brief, as they are, so a brief cannot hold
+    either marker as a line of its own.
     """
     lines = text.splitlines(keepends=True)
     verbs: list[tuple[int, Verb]] = []

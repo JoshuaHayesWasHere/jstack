@@ -54,7 +54,7 @@ from pathlib import Path
 import pytest
 
 import jsettings
-from jbus import questions, view
+from jbus import questions, queue, view
 from jbus.view import panels
 from jbus.view.panels.usage import panel as usage
 from test_jbus_view import (
@@ -80,6 +80,7 @@ from test_jbus_view import (
     rounded,
     row,
     said_by_him,
+    table,
 )
 from test_jbus_view import folder as panel
 
@@ -1622,6 +1623,36 @@ def shown(port, tmp_path, opens):
         return ""
     said = ran.stdout.partition(open_)[2].partition("</dialog>")[0]
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", said))).strip()
+
+
+def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scene, tmp_path):
+    by = {"session": "s-1", "directory": f"/made/up/{queue.EXEC}"}
+    page = "/made/up/reports/grill-tea.html"
+    made = queue.Approval(
+        "page",
+        "k1/e3",
+        "1. Cups: as recommended",
+        et(ago(minutes=20)),
+        page,
+        True,
+        by,
+        iso(ago(minutes=10)),
+    )
+    rows = table()
+    rows[1] |= {"approved": made.line(), "approval": queue.held(made)}
+    scene.queue(rows)
+    served = Served(scene)
+    try:
+        task = shown(served.port, tmp_path, "task:tea-cups")
+        words = shown(served.port, tmp_path, "words:approval:tea-cups")
+    finally:
+        served.close()
+    assert "Approval on your pick on a Lavish page, " in task
+    assert ", grill-tea.html, run " in task.partition("Approval on your pick")[2]
+    assert "by page" in words
+    assert "Your pick on a Lavish page, " in words
+    assert "grill-tea.html. Run " in words
+    assert page not in words
 
 
 def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_lines(

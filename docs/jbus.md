@@ -207,26 +207,27 @@ jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 
 An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
 
-An approval also names the words of yours it rests on. `jbus queue approve` takes one basis, `--word <id>`, `--answer <number>` or `--message <thread id>/<message id>`:
+An approval also names the words of yours it rests on. `jbus queue approve` takes one basis, `--word <id>`, `--answer <number>`, `--message <thread id>/<message id>` or `--page <session key>/<entry id>`:
 
 | Basis | What it names |
 | --- | --- |
 | `--word <id>` | A word `jbus word` kept in the project's `words.json`. |
 | `--answer <number>` | The answer `jbus answer` closed a question of the project's `questions.json` with. An open question, or one its home closed in a `gates.md`, is refused. |
 | `--message <thread id>/<message id>` | A message of yours in a T3 Code thread, which jbus reads then, as `jbus word --message` does. |
+| `--page <session key>/<entry id>` | What you sent from a Lavish page: the entry of that session's `chat` with that `id`, which jbus reads then from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes. The record keeps its `text` as the words, its `at` as when, and the page's file as where, and the row reads `his pick on a Lavish page, <time>, <page file name>`. A state file that is not there, a session or an entry it does not have, and an entry whose `role` is not `user` are each refused in one line, and so is a reference with no `/`. The grilling skill prints the reference of a page's last send. |
 
-It takes no name and no time. With no basis, with two, or with `--by` or `--at`, it is `refused: approve takes one basis, --word <id>, --answer <number> or --message <thread id>/<message id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
+It takes no name and no time. With no basis, with two, or with `--by` or `--at`, it is `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
 
-There is a fourth basis, and it is not your word for the row. A home approves a follow-up to work you approved by a standing rule of yours, and names the row you did approve:
+There is one more basis, and it is not your word for the row. A home approves a follow-up to work you approved by a standing rule of yours, and names the row you did approve:
 
 ```sh
 jbus queue approve <slug> --sha <sha12> --rule <n> --follows <parent slug>
 ```
 
-`--rule` and `--follows` go together, and with none of the three bases above: any other mix is the refusal above. jbus checks two things and judges nothing else. Whether the brief is a follow-up in substance is the home's call, and the mark on the row and the count in the digest are how you audit it.
+`--rule` and `--follows` go together, and with none of the bases above: any other mix is the refusal above. jbus checks two things and judges nothing else. Whether the brief is a follow-up in substance is the home's call, and the mark on the row and the count in the digest are how you audit it.
 
 - **The rule** is rule `<n>` of the home's `standing.md`, in the home's state directory: the line that starts `<n>. `, read up to the next numbered line or heading. jbus reads the file and never writes it. With no such rule it is `refused: <path> has no rule <n>`.
-- **The parent** is a row of the same queue, or one that was removed after it merged, with an approval of its own by `--word`, `--answer` or `--message`, or the typed string of an older row. A parent that is no row is `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with none is `refused: <slug> cannot follow <parent>: <parent> has no approval`. A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take his word for <slug>`. A chain is one step: a parent that was itself approved by rule is `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take his word for <slug>`.
+- **The parent** is a row of the same queue, or one that was removed after it merged, with an approval of its own by `--word`, `--answer`, `--message` or `--page`, or the typed string of an older row. A parent that is no row is `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with none is `refused: <slug> cannot follow <parent>: <parent> has no approval`. A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take his word for <slug>`. A chain is one step: a parent that was itself approved by rule is `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take his word for <slug>`.
 
 The row's `approval` is the record of it:
 
@@ -334,7 +335,7 @@ After a pass launches what it may, jbus follows every approved row that was not 
 
 - **A pull request `jmerge` holds** is yours to accept. The line is `hand-merge #<n> <url>: <why>; safe because <fact> (proven at <head>); jmerge --accept <n> --by <user> --at "<YYYY-MM-DD HH:MM zone>"`, or `...; not yet, <what is short>` where the accept would be refused.
 - **A brief that changed after your go** is yours to approve again.
-- **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the three bases to pick one from.
+- **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the four bases to pick one from.
 - **A project with no `webhook_url` or `webhook_key`, or with no sign-in to T3 Code,** is yours to configure.
 
 For each root jbus sends one `waiting-on-user` event: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`. It sends a root again each hour while it stands, and a pass that finds it gone prints `cleared <root>`. Each time a root is due, jbus raises its line on the desktop with `notify-send`, whether or not it queues an event. A project with no `webhook_url` or `webhook_key` gets no event, and while the webhook's last POST failed jbus queues only the first. In both cases jbus also prints the line in the journal. Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that stand, and `jbus queue show` prints them above the table.

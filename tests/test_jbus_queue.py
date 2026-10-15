@@ -22,9 +22,9 @@ HEAD = (
 )
 RULE = "|" + " --- |" * 13
 NO_BASIS = (
-    "approve takes one basis, --word <id>, --answer <number> or --message <thread id>/<message "
-    "id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who "
-    "ran it and when"
+    "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
+    "id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and "
+    "no --by and no --at: jbus writes who ran it and when"
 )
 
 
