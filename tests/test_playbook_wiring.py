@@ -17,6 +17,7 @@ import pytest
 import test_crew_skill as crew
 import test_home_merge as merge
 import test_playbooks as shape
+from jbriefs import parse
 
 REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
@@ -25,6 +26,7 @@ NAMES = sorted(path.stem for path in PLAYBOOKS.glob("*.md"))
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 SLUG = "alpha"
 READERS = {"crew": ("tasks", "brief.md"), "scout": ("scouts", "scout-request.md")}
+READERS_OF = {"a crewmate": "crew", "a scout": "scout"}
 WHOSE = {
     "crew": "a crewmate's",
     "scout": "a scout's",
@@ -398,11 +400,11 @@ def test_each_principle_the_playbook_cites_is_printed_once_in_full_after_it(skil
     repo = cited(tmp_path, TWO_CITED)
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    printed = "\n".join(said[2:]) + "\n"
-    assert said[:2] == [
-        str((repo / "playbooks" / f"{name}.md").resolve()),
-        f"the principles playbooks/{name}.md cites, each in full below: second-rule first-rule",
-    ]
+    printed = "\n".join(said[5:]) + "\n"
+    assert said[0] == str((repo / "playbooks" / f"{name}.md").resolve())
+    assert said[5] == (
+        f"the principles playbooks/{name}.md cites, each in full below: second-rule first-rule"
+    )
     for rule in ("first-rule", "second-rule"):
         assert printed.count(PRINCIPLES[rule]) == 1
         assert said.count(f"==> principles/{rule}.md <==") == 1
@@ -411,13 +413,17 @@ def test_each_principle_the_playbook_cites_is_printed_once_in_full_after_it(skil
 
 
 @pytest.mark.parametrize("skill", READERS)
-def test_a_playbook_that_cites_no_principle_prints_nothing_more(skill, tmp_path):
+def test_a_playbook_that_cites_no_principle_prints_its_steps_and_nothing_more(skill, tmp_path):
     repo = cited(
         tmp_path, "\nA path such as `principles/<name>.md` is from the root.\n\n1. Do it.\n"
     )
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    assert said == [str((repo / "playbooks" / f"{name}.md").resolve())]
+    assert said == [
+        str((repo / "playbooks" / f"{name}.md").resolve()),
+        f"the steps of playbooks/{name}.md, a checklist to copy into your todo list as printed:",
+        "1. Do it.",
+    ]
 
 
 @pytest.mark.parametrize("skill", READERS)
@@ -425,7 +431,8 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
     repo = cited(tmp_path, "\n1. One (`principles/gone-rule.md`, `principles/first-rule.md`).\n")
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    assert said[:2] == [
+    assert said[1:4] == [
+        "1. One (`principles/gone-rule.md`, `principles/first-rule.md`).",
         f"no principle: playbooks/{name}.md cites principles/gone-rule.md, which is not there",
         f"the principles playbooks/{name}.md cites, each in full below: first-rule",
     ]
@@ -439,7 +446,50 @@ def test_a_real_playbook_prints_the_real_principles_it_cites(skill, tmp_path):
     names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
     assert names
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
-    assert f"each in full below: {' '.join(names)}" in said[1]
+    assert (
+        f"the principles playbooks/{name}.md cites, each in full below: {' '.join(names)}" in said
+    )
     printed = "\n".join(said) + "\n"
     for rule in names:
         assert printed.count((REPO / "principles" / f"{rule}.md").read_text()) == 1
+
+
+NUMBERED = re.compile(r"^\d+\. \S.*$", re.M)
+
+
+@pytest.mark.parametrize(
+    ("skill", "name"),
+    [
+        (READERS_OF[role(PLAYBOOKS / f"{name}.md")], name)
+        for name in NAMES
+        if role(PLAYBOOKS / f"{name}.md") in READERS_OF
+    ],
+)
+def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_checklist(
+    skill, name, tmp_path
+):
+    """Each numbered step of the playbook is one line under the line that names them, as the
+    playbook has it and numbered 1 to the last, so a Result's `Playbook:` line can report each
+    by its number and jbriefs reads one entry for each."""
+    steps = [step[0] for step in NUMBERED.finditer((PLAYBOOKS / f"{name}.md").read_text())]
+    assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
+    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
+    at = said.index(
+        f"the steps of playbooks/{name}.md, a checklist to copy into your todo list as printed:"
+    )
+    assert said[at + 1 : at + 1 + len(steps)] == steps
+    following = said[at + 1 + len(steps) :][:1]
+    assert not following or following[0].startswith(f"the principles playbooks/{name}.md cites")
+    reported = "; ".join(f"{n} done" for n in range(1, len(steps) + 1))
+    read = parse.steps(f"{name}; {reported}")
+    assert (read.fault, len(read.steps)) == ("", len(steps))
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
+    repo = cited(
+        tmp_path, "\n1. Do one thing.\n   2. an indented line\nSee 3. in prose.\n2. Then.\n"
+    )
+    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
+    _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
+    assert said[1:] == ["1. Do one thing.", "2. Then."]
