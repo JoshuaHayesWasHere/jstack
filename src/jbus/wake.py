@@ -162,17 +162,19 @@ def event(
     text: str = "",
     cap: int = CAP,
     loud: Loud | None = None,
+    machine: bool = False,
 ) -> dict:
     """One event, at its kind's level or at `loud`, a lower one. A kind `LOUDNESS` does not
     name is a `KeyError`, and a level above the kind's is a `ValueError`. What it says in
     the chat names the project: one webhook is posted every project's. A line that begins
-    `<kind> <project>:` names it already, and is said as it is."""
+    `<kind> <project>:` names it already, and is said as it is, and so is the line of an
+    event of the `machine`, which is no project's."""
     level = LOUDNESS[kind]
     if loud is not None and LEVELS.index(loud) < LEVELS.index(level):
         raise ValueError(f"{kind} is {level}: it cannot be sent as {loud}")
     loud = loud or level
     made = {"project": project, "slug": slug, "event": kind, "line": line, "text": cut(text, cap)}
-    named = line.startswith(f"{kind} {project}:")
+    named = machine or line.startswith(f"{kind} {project}:")
     say = line if named else f"{project}: {line}"
     return {**made, "loud": loud} | ({"say": say} if loud == "user" else {})
 
@@ -281,6 +283,12 @@ class Box:
             return None
         return Route(*self.second, self.state / BLOCKING, blocking=True)
 
+    @property
+    def machine_route(self) -> Route:
+        """The route an event of the machine waits in: the top-level webhook's, or the
+        project's own where that is not a route of its own."""
+        return next((route for route in self.routes if route.top), self.routes[0])
+
     @staticmethod
     def clock() -> datetime:
         """The time a line of the log is written with."""
@@ -313,15 +321,17 @@ class Box:
         key: str | None = None,
         cap: int = CAP,
         loud: Loud | None = None,
+        machine: bool = False,
     ) -> bool:
         """Queue one event. With a key, only the first event of that key is ever queued.
 
-        One for the user waits in the outbox of each route for a POST. A quiet one is only
-        logged, so the log is its one record: where its line cannot be written it is owed,
-        and goes into the log, before any later line, as soon as one can be written. The
-        answer is False only for a key that was sent before.
+        One for the user waits in the outbox of each route for a POST. One of the `machine`,
+        which is told once and not once a project, waits only in `machine_route`'s. A quiet
+        one is only logged, so the log is its one record: where its line cannot be written it
+        is owed, and goes into the log, before any later line, as soon as one can be written.
+        The answer is False only for a key that was sent before.
         """
-        made = event(self.project.name, slug, kind, line, text, cap, loud)
+        made = event(self.project.name, slug, kind, line, text, cap, loud, machine)
         with self._locked():
             if key is not None:
                 sent = self.sent()
@@ -329,7 +339,7 @@ class Box:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
             if made["loud"] == "user":
-                for route in self.routes:
+                for route in [self.machine_route] if machine else self.routes:
                     route.folder.mkdir(parents=True, exist_ok=True)
                     waiting = [*self._outbox(route), made]
                     write_json(route.folder / "outbox.json", waiting, mode=0o600)
