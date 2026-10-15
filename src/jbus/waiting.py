@@ -559,7 +559,6 @@ def cadence(
     twice."""
     path = run.state / BLOCKS
     if run.box.blocking is None:
-        path.unlink(missing_ok=True)
         return []
     kept = read_json(path, None)
     first = not isinstance(kept, dict)
