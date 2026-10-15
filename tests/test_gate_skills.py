@@ -661,14 +661,14 @@ SIZED = "Size: S\n"
 def test_a_row_approved_since_the_rule_is_gated_for_no_size_or_no_playbook(kitchen, more, why):
     kitchen.monkeypatch.setattr(queue, "clock", lambda: SHAPED_AFTER)
     kitchen.config(max_running=6)
-    add(kitchen, "alpha", text=brief("alpha", more))
-    add(kitchen, "beta", priority=2, text=brief("beta", SIZED + "Playbook: feature\n"))
+    add(kitchen, "alpha", text=brief("alpha", more).replace(SIZED, "", 1))
+    add(kitchen, "beta", priority=2, text=brief("beta", "Playbook: feature\n"))
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert why.startswith(("brief has no Size: line (", "brief's Playbook: line names "))
     assert gates(kitchen) == [f"condition alpha: {why}"]
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    add(kitchen, "alpha", text=brief("alpha", SIZED + "Playbook: none\n"))
+    add(kitchen, "alpha", text=brief("alpha", "Playbook: none\n"))
     kitchen.poll(NOW + timedelta(minutes=6))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
     assert len(gates(kitchen)) == 1
@@ -678,8 +678,8 @@ def test_a_row_approved_before_the_first_pass_that_asks_launches_as_it_was_appro
     """Grandfathered: the first pass that asks for a size and a playbook keeps its time, so
     a row approved before it, as every row on the queue when the rule merged was, launches
     as it did. One approved since, in a later pass, is asked."""
-    add(kitchen, "alpha", text=brief("alpha", "Playbook: fix\n"))
-    add(kitchen, "beta", text=brief("beta", "Playbook: fix\n"), approve=False)
+    add(kitchen, "alpha", text=brief("alpha", "Playbook: fix\n").replace(SIZED, ""))
+    add(kitchen, "beta", text=brief("beta", "Playbook: fix\n").replace(SIZED, ""), approve=False)
     kitchen.poll(NOW + timedelta(minutes=1))
     since = json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"]
     assert datetime.fromisoformat(since) == NOW + timedelta(minutes=1)
