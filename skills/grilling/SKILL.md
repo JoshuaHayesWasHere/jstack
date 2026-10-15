@@ -101,12 +101,12 @@ F="$H/reports/grill-<slug>.html"
              else ([$page.value.chat[]? | select(.role == "user")] | last) as $sent
              | if $sent == null then "no entry: the page has no send by the user"
                elif ($sent.id // "") == "" then "no entry: Lavish kept the send with no id, so no approval can name it"
-               else "\($page.key)/\($sent.id)" end
+               else "\($page.key)/\($sent.id)\nsent \($sent.at // "at no time"): \($sent.text // "" | gsub("\\s+"; " "))" end
              end' "$S"
    fi
    ```
 
-   Approve each row the answer gives its go with `jbus --project <project> queue approve <slug> --sha <sha12> --page <the line it printed>`, the sha being that of the brief the page showed. On `no entry`, the page's answer is no approval jbus can read: ask the user for their word another way.
+   It prints the reference on its first line and, on the second, `sent <time>: <text>`, the send as Lavish kept it. The last send may be one made after the poll returned, such as a typed correction or the next round's picks. So compare the text with what the poll returned, and approve only when they are the same send. Approve each row the answer gives its go with `jbus --project <project> queue approve <slug> --sha <sha12> --page <the first line>`, the sha being that of the brief the page showed. Where the text is not the poll's answer, read the newer send first: it may take the go back. On `no entry`, the page's answer is no approval jbus can read: ask the user for their word another way.
 6. Recompute the frontier and write the next round into the same file: move each answered question into `settled`, put the new frontier in `questions`, and raise `round`. The open page reloads by itself, so go back to step 4. When the frontier is empty, the last round is one question that asks the user to confirm the shared understanding.
 7. On that confirmation, write the Decisions as "In a home" says. Each line carries the date, the question's `id`, the option's label and the note, word for word. An answer with no note is a picked choice: say so, and do not pass the label off as the user's wording. Then end the session. The file stays.
 

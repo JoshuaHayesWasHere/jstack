@@ -63,7 +63,9 @@ def picked(user: jsettings.Settings, ref: str) -> queue.Said:
         kept = _kept(where)
     except FileNotFoundError:
         raise Refused(f"refused: Lavish keeps no state file at {where}") from None
-    except (OSError, ValueError):
+    except OSError:
+        raise Refused(f"refused: Lavish's state at {where} cannot be read") from None
+    except ValueError:
         raise Refused(f"refused: Lavish's state at {where} does not parse") from None
     found = kept.get(key)
     if found is None:
@@ -86,4 +88,7 @@ def picked(user: jsettings.Settings, ref: str) -> queue.Said:
         at = datetime.fromisoformat(str(one["at"]).replace("Z", "+00:00"))
     except (KeyError, ValueError):
         raise Refused(f"refused: chat entry {ref} has no time Lavish kept") from None
-    return queue.Said(words, user.stamp(at), str(found.get("file") or ""), True, ref)
+    page = str(found.get("file") or "")
+    if not page:
+        raise Refused(f"refused: session {key} keeps no page file")
+    return queue.Said(words, user.stamp(at), page, True, ref)

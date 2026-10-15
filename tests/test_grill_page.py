@@ -367,13 +367,18 @@ def test_a_round_of_the_wrong_shape_says_so_and_does_not_stop_the_script():
                     "file": "PAGE",
                     "chat": [
                         {"role": "user", "id": "e1", "text": "first"},
-                        {"role": "user", "id": "e2", "text": "picks"},
+                        {
+                            "role": "user",
+                            "id": "e2",
+                            "at": "2026-10-12T14:30:00Z",
+                            "text": "1. a\n2. b",
+                        },
                         {"role": "agent", "id": "e3", "text": "thanks"},
                     ],
                 },
                 "k2": {"key": "k2", "file": "/another.html", "chat": []},
             },
-            "k1/e2",
+            "k1/e2\nsent 2026-10-12T14:30:00Z: 1. a 2. b",
         ),
         (
             {"k2": {"key": "k2", "file": "/another.html"}},
