@@ -450,7 +450,7 @@
   var POLL = 15000, EVERY = 4, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
-  var missed = 0, lastAnswer = 0, gone = false, stopped = false, READ = 0;
+  var missed = 0, lastAnswer = 0, gone = false, stopped = false;
   /* Where the page is: the hash, and nothing else. `#/` is every project, `#/<project>` one
      project, and `#/<project>/<panel>/<arg>` that project with the drawer of a panel open, as
      `#/infra/task/<slug>` or `#/infra/gate/3`: the parts after the panel are its `data-open`
@@ -651,7 +651,7 @@
   }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   function machineRow(m) {
-    var j = m.jbus, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go", o = m.opens;
+    var j = m.jbus, stopped = j.stopped, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go", o = m.opens;
     var us = m.runners, up = us.filter(function (u) { return u.active === "active"; }).length;
     var load = r.load[0] == null ? null : pct(r.load[0], r.cores), tmp = r.tmp ? pct(r.tmp.used, r.tmp.total) : null;
     function used(key) { var x = plan[key]; return x && x.used != null ? x.used + "%" : "?"; }
@@ -666,18 +666,18 @@
       mitem(over ? "op" : "ok", "Plan", used("five_hour") + "/" + used("seven_day"),
         "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room");
   }
-  /* A project's health, as its summary has it: one chip for each fact, as [edge, text, tip].
-     Its row draws them, and its dot in the sidebar is amber where one of them is. */
+  /* A project's health, as its summary has it: one chip for each fact, as [edge, text, why].
+     Its row draws them, and its dot in the sidebar is amber where one of them is, with the why. */
   function health(p) {
     var h = p.health, c = h.checks, b = h.bus;
     return [
-      [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
-      [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")],
-      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? p.name + ": the last pass left no list of its threads" : p.name + ": " + plural(h.threads, "thread", "threads") + " out"],
-      [h.blind ? "op" : "ok", "Blind " + h.blind, p.name + ": " + plural(h.blind, "thing", "things") + " its page cannot say now"]
-    ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
+      [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", "its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
+      [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), "its bus: " + b.outbox + " in the outbox, " + plural(b.failed_wakes, "failed wake", "failed wakes") + (b.last_error ? ", last error: " + b.last_error : "")],
+      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? "the last pass left no list of its threads" : plural(h.threads, "thread", "threads") + " out"],
+      [h.blind ? "op" : "ok", "Blind " + h.blind, plural(h.blind, "thing", "things") + " its page cannot say now"]
+    ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", "not read: " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
   }
-  function amber(p) { return health(p).filter(function (x) { return x[0] === "op"; }).map(function (x) { return x[1]; }); }
+  function amber(p) { return health(p).filter(function (x) { return x[0] === "op"; }).map(function (x) { return x[2]; }); }
   /* The sidebar: All first, then each project the server lists, with what waits on you and a
      dot for its health. The project in front counts from its own read, which is the newer. */
   function renderSide() {
@@ -718,7 +718,7 @@
   function projectRow(p) {
     var held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
     var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
-    out += '<div class="chips">' + health(p).map(function (x) { return chip(x[0], esc(x[1]), x[2]); }).join("") + '</div>';
+    out += '<div class="chips">' + health(p).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
     if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
@@ -747,7 +747,7 @@
     if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderSide(); renderDead(); return; }
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
-    say($("readat"), "read " + hm(READ, true)); $("readat").title = "The time of the last read of the server";
+    say($("readat"), "read " + hm(ms(PROJECT ? S.at : STACK.at) || lastAnswer, true)); $("readat").title = "The time of the last read of the server";
     renderSide();
     renderDead();
     if (!PROJECT) renderStack();
@@ -976,9 +976,9 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; NOW = READ = ms(STACK.at) || Date.now(); heard(); render(); }
+  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); }
   function took(state) {
-    S = state; NOW = READ = ms(S.at) || Date.now(); heard(); NOSUCH = "";
+    S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });

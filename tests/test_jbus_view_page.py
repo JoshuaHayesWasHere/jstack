@@ -925,12 +925,18 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
     scene, tmp_path, screen
 ):
     sidebar(scene)
-    seen = look(scene, tmp_path, screen=screen)
+
+    def healthy(nth, body):
+        """demo with nothing wrong: its one blind spot taken off."""
+        next(one for one in body["projects"] if one["name"] == "demo")["health"]["blind"] = 0
+        return body
+
+    seen = look(scene, tmp_path, screen=screen, alter=healthy)
     clean(seen, screen)
     items = seen["side"]["items"]
     assert [(one["name"], one["count"], one["dot"]) for one in items] == [
         ("All", "5", ""),
-        ("demo", "4", "op"),
+        ("demo", "4", "ok"),
         ("larder", "0", "op"),
         ("pantry", "1", "op"),
     ]
@@ -940,12 +946,16 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
         ("#/larder", ""),
         ("#/pantry", ""),
     ]
-    assert items[1]["tip"] == "demo: 4 wait on you. Blind 1", "amber as its row's Blind chip"
-    assert items[2]["tip"] == (
-        "larder: 0 wait on you. CI: the repo is not known. Bus 0 in outbox, 2 failed wakes. "
-        "Threads not known. Blind 1. 11 sources unread"
-    )
-    assert items[3]["tip"] == "pantry: 1 wait on you. Threads not known. Blind 2. 6 sources unread"
+    assert items[1]["tip"] == "demo: 4 wait on you"
+    assert items[2]["tip"].startswith(
+        "larder: 0 wait on you. its checks on GitHub: the repo is not known. its bus: 0 in the "
+        "outbox, 2 failed wakes, last error: 500. the last pass left no list of its threads. "
+        "1 thing its page cannot say now. not read: work.json missing, "
+    ), items[2]["tip"]
+    assert items[3]["tip"].startswith(
+        "pantry: 1 wait on you. the last pass left no list of its threads. 2 things its page "
+        "cannot say now. not read: "
+    ), items[3]["tip"]
     assert all(one["seen"] for one in items)
     assert len({one["box"][0] for one in items}) == 1, "one column"
     assert len({one["box"][1] for one in items}) == 4
@@ -1060,6 +1070,17 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
     clean(seen)
     assert (seen["hash"], seen["count"]) == ("#/pantry", "1 wait on you")
     assert [asked.partition("?")[0] for asked in seen["asked"]].count("/stack.json") == 1
+
+
+def test_a_link_to_no_project_draws_the_machine_with_its_own_word_on_jbus(scene, tmp_path):
+    """No project's read is in hand there, so the machine is the one /stack.json read, and
+    whether jbus passes is its word, whatever the page drew before."""
+    stacked(scene)
+    scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
+    seen = look(scene, tmp_path, route="#/hydra")
+    assert seen["errors"] == []
+    assert [one["tag"] for one in seen["machine"]] == MACHINE
+    assert re.fullmatch(r"stopped \d\d:\d\d", seen["machine"][0]["val"]), seen["machine"][0]
 
 
 def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(scene, tmp_path):
