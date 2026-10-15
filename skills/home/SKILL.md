@@ -427,7 +427,7 @@ When in doubt between the two, any one of the durable column's conditions decide
 
 **A durable scout** is launched like a crewmate:
 
-1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block under it that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and no line for the root home.
+1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and no line for the root home.
 
 2. Start the scout thread with `t3_thread_launch`. The request must be on disk before this call.
 
@@ -517,7 +517,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
    Pick from what it prints, by who runs the row. A brief takes a row `a crewmate` runs whose kind of task this is, or `none`. A scout's request takes a row `a scout` runs, or `none`. A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it. A brief with no line counts as `none`, and the crewmate works by the crew skill alone. A row that ends `in a brief with` some lines asks for those lines in the brief: write them. Do not read the playbook to pick it: its row is enough.
 
-   Then ask for the deeper version of the task, not a bigger one (`$T/../principles/depth-over-breadth.md`). Run this, for a brief or a scout's request alike, with the playbook you picked in place of the words in angle brackets, or, where you picked `none`, the kind of work: `research`, `perf`, `analysis`, `outcome` or `other`:
+   Then ask for the deeper version of the task, not a bigger one (`$T/../principles/depth-over-breadth.md`). Run this, for a brief or a scout's request alike, with the playbook you picked in place of the words in angle brackets. Put the kind of work there instead, `research`, `perf`, `analysis`, `outcome` or `other`, where you picked `none`, and where the playbook hides the kind: an outcome under `feature` or `autonomous-run` is `outcome`, and a bug whose cause is not proven is `analysis`, whatever the playbook:
 
    ```sh
    picked='<the playbook picked, or for none the kind of work>'
@@ -530,6 +530,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
        echo "3. What specific methods and tools would they use, each with the command that runs it here? A brief's Instruments: line, for the crew"
        echo "4. What, other than the agent or the user's trust in it, would show the result is right? A brief's Proves it: line"
        ;;
+   bug-fix) echo "skip: a bug fix with a known cause goes by the direct path; where the cause is not proven, run this again with analysis" ;;
    *) echo "skip: $picked is not research, perf, analysis or outcome work: a mechanical fix, a docs change and a bug fix with a known cause go by the direct path" ;;
    esac
    ```
