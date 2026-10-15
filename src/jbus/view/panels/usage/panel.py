@@ -60,7 +60,7 @@ def _projects(read: Read) -> dict[str, Any]:
     return {"at": newest, "read": True, "path": PROJECTS}
 
 
-SOURCES = (Source(KEPT, "server", _projects, 160),)
+SOURCES = (Source(KEPT, "server", _projects, 160, machine=True),)
 
 
 def folder(working: Path) -> Path:

@@ -153,8 +153,8 @@ def _limits(read: Read) -> dict[str, Any]:
 
 
 SOURCES = (
-    Source("the machine", "server", lambda read: {"at": iso(read.now)}, 160),
-    Source("limits", "session", _limits, 170),
+    Source("the machine", "server", lambda read: {"at": iso(read.now)}, 160, machine=True),
+    Source("limits", "session", _limits, 170, machine=True),
 )
 
 
@@ -162,8 +162,9 @@ def blind(read: Read) -> list[Spot]:
     """A room check that did not run, and each limit of the plan whose window is over."""
     plan = read.machine(room)["plan"]
     unknown = read.machine(room)["answer"] == "unknown"
-    return [Spot("the room check did not run", 200)] * unknown + [
-        Spot(f"the plan's {LIMITS[key]} limit is {plan[key]['say']}", 210) for key in _past(read)
+    return [Spot("the room check did not run", 200, machine=True)] * unknown + [
+        Spot(f"the plan's {LIMITS[key]} limit is {plan[key]['say']}", 210, machine=True)
+        for key in _past(read)
     ]
 
 

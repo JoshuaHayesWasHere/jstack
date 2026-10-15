@@ -168,8 +168,8 @@ def _status(read: Read) -> dict[str, Any]:
 
 
 SOURCES = (
-    Source(TIMER, "server", _timer, 10),
-    Source("status.json", "jbus", _status, 20),
+    Source(TIMER, "server", _timer, 10, machine=True),
+    Source("status.json", "jbus", _status, 20, machine=True),
     PASS_FILE,
     kept("main.json", lambda read: read.table("main.json"), 80),
 )

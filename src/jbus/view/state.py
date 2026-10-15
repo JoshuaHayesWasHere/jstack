@@ -838,21 +838,24 @@ def _source(
 class Source:
     """One source a panel reads: its name, who writes it (`jbus`, the `server` itself or a
     `session`), and how it is now, as the arguments `_source` takes beside `now`. The list
-    of the sources is in the order of `rank`."""
+    of the sources is in the order of `rank`. A `machine` source is the same for every
+    project, so the overview says it once, on the machine row, and on no project's row."""
 
     name: str
     by: str
     seen: Callable[[Read], dict[str, Any]]
     rank: int = 1000
+    machine: bool = False
 
 
 @dataclass(frozen=True)
 class Spot:
     """One thing a panel cannot say, a line of `blind`, which opens the panel that says it.
-    The lines are in the order of `rank`."""
+    The lines are in the order of `rank`. A `machine` one is the same for every project."""
 
     line: str
     rank: int = 1000
+    machine: bool = False
 
 
 def kept(name: str, value: Callable[[Read], Any], rank: int = 1000) -> Source:
@@ -876,7 +879,7 @@ def _merges(read: Read) -> dict[str, Any]:
     return {"at": _mtime(path), "read": read.log is not None, "path": path}
 
 
-PASS_FILE = Source("pass.json", "jbus", _passed, 30)
+PASS_FILE = Source("pass.json", "jbus", _passed, 30, machine=True)
 QUEUE_FILE = kept("queue.json", lambda read: read.table_of_rows, 40)
 WAITING_FILE = kept(waiting.NAME, lambda read: read.left, 50)
 MOVES_FILE = kept("transitions.jsonl", lambda read: read.moves, 60)
@@ -1165,8 +1168,9 @@ def summary(read: Read) -> dict[str, Any]:
     `since`, the new noticed lines (counted apart: they are no wait), its open tasks by step,
     in the order of the line, what merged today, and its health. The threads are the ones
     out, or None where the last pass left no list. Blind is what the project's page cannot
-    say now, without what it never can. Unwell is each source that is not ok, but for one a
-    session writes."""
+    say now, without what it never can and without a source that could not be read, which is
+    in unwell. Unwell is each source of the project that is not ok, but for one a session
+    writes. What is the machine's, a source or a blind spot, is on no project's row."""
     waiting = read.panel("you")["waiting"]
     kinds: dict[str, dict[str, Any]] = {}
     for one in waiting:
@@ -1177,7 +1181,13 @@ def summary(read: Read) -> dict[str, Any]:
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
-    never = sum(len(panel.not_kept) for panel in read.panels)
+    machine = {one.name for panel in read.panels for one in panel.sources if one.machine}
+    own = [
+        spot
+        for panel in read.panels
+        for spot in (panel.data.blind(read) if hasattr(panel.data, "blind") else [])
+        if not spot.machine
+    ]
     return {
         "name": read.name,
         "repo": read.where,
@@ -1188,14 +1198,15 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "health": {
-            "checks": checks["now"] | {"error": checks["error"]},
+            "checks": {key: len(at) for key, at in checks["now"].items()}
+            | {"error": checks["error"]},
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
             "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
-            "blind": len(read.panel("blind")["blind"]) - never,
+            "blind": len(own),
             "unwell": [
                 {"name": one["name"], "state": one["state"]}
                 for one in read.listed
-                if one["state"] != "ok" and one["by"] != "session"
+                if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
             ],
         },
     }

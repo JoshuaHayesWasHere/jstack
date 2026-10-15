@@ -33,6 +33,7 @@ import jsettings
 from jbus import cli, leftover, merge, noticed, questions, queue, record, view, word, work
 from jbus.view import panels
 from jbus.view import state as built
+from jbus.view.panels.checks import panel as checks_panel
 from jbus.view.panels.room import panel as room_panel
 from jbus.view.state import waves
 from jmerge import ready
@@ -543,12 +544,12 @@ def test_each_route_answers_and_anything_else_is_404(served):
     status, headers, page = served.ask("/")
     assert (status, headers["Content-Type"]) == (200, "text/html; charset=utf-8")
     assert "<title>jbus: the line</title>" in page
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert (state["project"], state["projects"], state["repo"]) == ("demo", ["demo"], "acme/demo")
     digest = served.json("/digest.json?since=2026-10-12T00:00")
     assert digest["since"] == "2026-10-12T04:00:00+00:00"
     assert [one["slug"] for one in digest["projects"]["demo"]["merged"]] == ["rye-loaf"]
-    assert served.json("/task/oat-milk/github")["pull"]["number"] == 13
+    assert served.json("/task/oat-milk/github?project=demo")["pull"]["number"] == 13
     assert served.json("/healthz") == {"ok": True}
     for path in ("/nothing", "/state.json/more", "/task/oat-milk", "/task/oat-milk/github/x"):
         assert served.ask(path)[0] == 404, path
@@ -641,7 +642,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     a_noticed(scene, ("tea-kettle", "new", 5, {}), ("jam-jar", "dropped", 9, {}))
     served = Served(scene)
     try:
-        stack = served.json("/stack.json")
+        stack = served.json("/stack.json?project=demo")
         demo = served.json("/state.json?project=demo")
         larder = served.json("/state.json?project=larder")
     finally:
@@ -663,6 +664,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert stack["machine"]["runners"] == demo["checks"]["runners"]
     assert [one["name"] for one in stack["projects"]] == ["demo", "larder", "pantry"]
     by = {one["name"]: one for one in stack["projects"]}
+    assert by["larder"]["health"]["blind"] == 1
     assert by["larder"] == {
         "name": "larder",
         "repo": "",
@@ -676,11 +678,13 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
             "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},
             "bus": {"outbox": 0, "failed_wakes": 0, "last_error": ""},
             "threads": None,
-            "blind": len(larder["blind"]) - sum(len(one.not_kept) for one in panels.found()),
+            "blind": 1,
             "unwell": [
                 {"name": one["name"], "state": one["state"]}
                 for one in larder["sources"]
-                if one["state"] != "ok" and one["by"] != "session"
+                if one["state"] != "ok"
+                and one["by"] != "session"
+                and one["name"] not in ("jbus.timer", "status.json", "pass.json", "runner units")
             ],
         },
     }
@@ -732,7 +736,7 @@ def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path,
     monkeypatch.setattr(room_panel, "ROOM", room)
     served = Served(scene)
     try:
-        served.json("/stack.json")
+        served.json("/stack.json?project=demo")
         assert sorted(calls.read_text().splitlines()) == [
             "room",
             "systemctl list-units",
@@ -744,11 +748,27 @@ def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path,
             "api repos/acme/pantry/actions/runs?per_page=40",
         ]
         calls.write_text("")
-        served.json("/stack.json")
+        served.json("/stack.json?project=demo")
         assert len(calls.read_text().splitlines()) == 3
         assert len([one for one in scene.asked() if "actions/runs" in one]) == 2
     finally:
         served.close()
+
+
+def test_the_checks_are_told_apart_once_by_the_server_for_the_card_and_the_overview():
+    def run(branch, state, name="check"):
+        return {"branch": branch, "state": state, "name": name}
+
+    runs = [
+        run("a", "failure"),
+        run("a", "success"),
+        run("b", "failure"),
+        run("b", "timed_out", "lint"),
+        run("c", "in_progress"),
+        run("d", "queued"),
+        run("d", "requested", "lint"),
+    ]
+    assert checks_panel.tally(runs) == {"running": [4], "waiting": [5, 6], "failed": [2]}
 
 
 def test_a_retired_project_is_never_read_and_a_link_to_it_finds_nothing(tmp_path, monkeypatch):
@@ -786,7 +806,7 @@ def test_an_answer_names_its_project_and_goes_to_that_projects_state_alone(tmp_p
 
 def test_another_method_is_405(served):
     for method in ("POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "BREW"):
-        status, headers, _ = served.ask("/state.json", method=method)
+        status, headers, _ = served.ask("/state.json?project=demo", method=method)
         assert (method, status, headers.get("Allow")) == (method, 405, "GET")
 
 
@@ -807,7 +827,7 @@ def test_the_one_write_is_post_answer_and_every_other_method_of_it_is_405(scene,
         status, headers, _ = served.ask("/answer", method=method)
         assert (method, status, headers.get("Allow")) == (method, 405, "POST")
     assert served.ask("/answer")[0] == 404
-    assert served.write({"numbers": [number]}, path="/state.json")[0] == 405
+    assert served.write({"numbers": [number]}, path="/state.json?project=demo")[0] == 405
     assert kept(scene.state)[number].answer is None
     status, said = served.write({"numbers": [number]})
     assert (status, [one["number"] for one in said["closed"]]) == (200, [number])
@@ -915,7 +935,9 @@ def test_a_question_with_no_options_on_record_takes_the_default_and_his_words(sc
     for one in old["records"]:
         del one["options"], one["context"]
     file.write_text(json.dumps(old))
-    (shown, _) = [one for one in served.json("/state.json")["waiting"] if one["answerable"]]
+    (shown, _) = [
+        one for one in served.json("/state.json?project=demo")["waiting"] if one["answerable"]
+    ]
     assert (shown["options"], shown["default"]) == ([], "the first one")
     status, said = served.write({"numbers": [numbers[0]]})
     assert (status, said["closed"][0]["keeps"]) == (200, True)
@@ -942,7 +964,9 @@ def test_an_option_the_question_does_not_have_closes_nothing(scene, served):
 
 
 def test_a_gate_that_lives_only_in_a_homes_file_is_listed_and_cannot_be_answered(scene, served):
-    (gate,) = [one for one in served.json("/state.json")["waiting"] if one["kind"] == "gate"]
+    (gate,) = [
+        one for one in served.json("/state.json?project=demo")["waiting"] if one["kind"] == "gate"
+    ]
     assert (gate["number"], gate["question"], gate["answerable"]) == ("4", "tea or coffee?", False)
     assert (gate["options"], gate["thread"], gate["role"]) == ([], "", "")
     before = (scene.home / "gates.md").read_bytes()
@@ -963,7 +987,7 @@ def test_the_state_gives_each_open_question_what_its_gate_wrote_and_who_asked(sc
     number = questions.ask(scene.state, scene.home, "alpha", lines, ago(minutes=25))[0].number
     asks(scene, "milk?", slug="survey")
     asks(scene, "sugar?", slug="expert-sage")
-    shown = {one["question"]: one for one in served.json("/state.json")["waiting"]}
+    shown = {one["question"]: one for one in served.json("/state.json?project=demo")["waiting"]}
     one = shown["tea or coffee?"]
     assert (one["number"], one["answerable"], one["since"]) == (
         str(number),
@@ -1037,7 +1061,7 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
 
 def test_the_words_panel_lists_his_answers_his_words_and_each_approval_newest_first(scene, served):
     number = said_by_him(scene)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     said = state["words"]
     typed = sorted(one["slug"] for one in table() if one["approved"] and one["slug"] != "tea-cups")
     assert [one["key"] for one in said] == [
@@ -1077,7 +1101,7 @@ def test_the_words_panel_lists_his_answers_his_words_and_each_approval_newest_fi
     )
     assert "approval:tea-kettle" not in entry
     assert [one for one in said if one.get("question") == "milk?"] == []
-    assert served.json("/panel/words.json")["data"] == {"words": said}
+    assert served.json("/panel/words.json?project=demo")["data"] == {"words": said}
     names = {one["name"]: one["state"] for one in state["sources"]}
     assert (names["questions.json"], names["words.json"]) == ("ok", "ok")
 
@@ -1091,7 +1115,7 @@ def test_a_question_its_home_closed_in_gates_md_is_said_to_be_closed_by_its_home
             + PIPED.format(n=number, asked="which lid?", status="answered: red", slug="jam-lid")
         )
     questions.closed_in_files(types.SimpleNamespace(home=scene.home, state=scene.state))
-    entry = {one["key"]: one for one in served.json("/state.json")["words"]}
+    entry = {one["key"]: one for one in served.json("/state.json?project=demo")["words"]}
     closed = entry[f"question:{number}"]
     assert (closed["home"], closed["words"], closed["where"]) == (True, "answered: red", "")
     assert (closed["by"], closed["at"]) == ("", None)
@@ -1100,7 +1124,7 @@ def test_a_question_its_home_closed_in_gates_md_is_said_to_be_closed_by_its_home
 
 def test_an_answered_question_is_on_no_waiting_list_and_the_open_one_still_is(scene, served):
     number = said_by_him(scene)
-    waiting = served.json("/state.json")["waiting"]
+    waiting = served.json("/state.json?project=demo")["waiting"]
     asked = [one["question"] for one in waiting if one["kind"] == "gate"]
     assert "milk?" in asked
     assert "which pot?" not in [one["question"] for one in waiting]
@@ -1110,7 +1134,7 @@ def test_an_answered_question_is_on_no_waiting_list_and_the_open_one_still_is(sc
 def test_a_words_file_that_does_not_parse_is_said_and_the_rest_is_listed(scene, served):
     number = said_by_him(scene)
     (scene.state / word.NAME).write_text("{not json")
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert {one["name"]: one["state"] for one in state["sources"]}["words.json"] == "unreadable"
     assert f"question:{number}" in [one["key"] for one in state["words"]]
     assert [one for one in state["words"] if one["kind"] == "word"] == []
@@ -1119,13 +1143,19 @@ def test_a_words_file_that_does_not_parse_is_said_and_the_rest_is_listed(scene, 
 def test_a_token_planted_in_his_answer_his_word_and_an_approval_is_in_no_answer(scene, served):
     planted = "ghp_" + "Wq4" * 12
     said_by_him(scene, answer=f"yes, and {planted}", sent=f"go with {planted}")
-    paths = ["/", "/state.json", "/digest.json", "/task/tea-cups/github", *view.routes()]
+    paths = [
+        "/",
+        "/state.json?project=demo",
+        "/digest.json",
+        "/task/tea-cups/github?project=demo",
+        *view.routes(),
+    ]
     held = {}
     for path in paths:
         _, headers, body = served.ask(path)
         held[path] = planted in body + json.dumps(headers)
     assert held == dict.fromkeys(paths, False)
-    said = json.dumps(served.json("/panel/words.json"))
+    said = json.dumps(served.json("/panel/words.json?project=demo"))
     assert said.count("[redacted]") == 3
 
 
@@ -1336,17 +1366,24 @@ def test_a_host_header_that_is_not_the_servers_is_refused(scene):
         assert served.ask("/healthz", host=f"localhost:{served.port}")[0] == 200
         assert served.ask("/healthz", host=f"kitchen.example.test:{served.port}")[0] == 200
         for host in ("evil.example.test", f"evil.example.test:{served.port}", "127.0.0.1:1", ""):
-            assert served.ask("/state.json", host=host)[0] == 403, host
+            assert served.ask("/state.json?project=demo", host=host)[0] == 403, host
     finally:
         served.close()
 
 
 def test_no_answer_has_a_cors_header_and_none_may_be_stored(served):
-    for path in ("/", "/state.json", "/digest.json", "/task/oat-milk/github", "/healthz", "/no"):
+    for path in (
+        "/",
+        "/state.json?project=demo",
+        "/digest.json",
+        "/task/oat-milk/github?project=demo",
+        "/healthz",
+        "/no",
+    ):
         _, headers, _ = served.ask(path)
         assert headers["Cache-Control"] == "no-store", path
         assert [name for name in headers if name.lower().startswith("access-control")] == []
-    _, headers, _ = served.ask("/state.json", method="POST")
+    _, headers, _ = served.ask("/state.json?project=demo", method="POST")
     assert headers["Cache-Control"] == "no-store"
 
 
@@ -1429,7 +1466,7 @@ def test_the_verb_is_jbus_view_and_it_needs_no_config(scene, monkeypatch):
 
 
 def test_a_queued_row_is_yours_blocked_or_waiting_for_jbus(served):
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     assert {slug: (found[slug]["step"], found[slug]["who"]) for slug in found if "tea" in slug} == {
         "tea-kettle": ("queued", "user"),
         "tea-cups": ("queued", "dep"),
@@ -1440,7 +1477,7 @@ def test_a_queued_row_is_yours_blocked_or_waiting_for_jbus(served):
 
 
 def test_the_two_rebase_reasons_are_the_rebase_step_and_the_second_pass(served):
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     assert (found["oat-bowl"]["step"], found["oat-bowl"]["who"]) == ("rebase", "crew")
     assert (found["oat-spoon"]["step"], found["oat-spoon"]["who"]) == ("second", "rev")
     assert found["oat-bowl"]["state"]["say"].startswith("the rebase dropped 2 of main's lines")
@@ -1480,11 +1517,11 @@ def test_the_two_rebase_reasons_are_the_rebase_step_and_the_second_pass(served):
 )
 def test_a_reason_of_jmerge_puts_a_pull_request_on_its_step(scene, served, why, step):
     scene.queue([row("oat-bowl", "pr", pr="#11", checks="passed", why=why)])
-    assert tasks(served.json("/state.json"))["oat-bowl"]["step"] == step
+    assert tasks(served.json("/state.json?project=demo"))["oat-bowl"]["step"] == step
 
 
 def test_the_line_has_twelve_steps_and_every_open_row_is_on_one(served):
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert [one["key"] for one in state["steps"]] == [
         "queued",
         "running",
@@ -1508,7 +1545,7 @@ def test_the_line_has_twelve_steps_and_every_open_row_is_on_one(served):
 
 
 def test_a_task_says_since_when_it_is_on_its_step_and_how_often_it_came_back(served):
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     assert found["oat-milk"]["since"] == iso(ago(minutes=4))
     assert found["oat-milk"]["visits"] == 2
     assert [one["step"] for one in found["oat-milk"]["history"]] == ["check", "review", "check"]
@@ -1634,7 +1671,7 @@ def test_each_kind_of_row_is_in_one_state_with_one_reason_and_names_no_other(sce
         "quiet",
         "unknown",
     }
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     found = {one["slug"]: one for one in state["tasks"] + state["ended"]}
     assert {slug: one["state"]["kind"] for slug, one in found.items()} == expected
     unclosed = {"fig-burr", "fig-rind"}
@@ -1672,7 +1709,7 @@ def test_each_kind_of_row_is_in_one_state_with_one_reason_and_names_no_other(sce
 def test_the_tasks_of_state_json_hold_exactly_the_states_of_work_json(scene, served):
     kinds(scene)
     judged = json.loads((scene.state / "work.json").read_text())["work"]
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     drawn = {
         one["slug"]: (one["state"]["kind"], one["who"], one["step"])
         for one in state["tasks"] + state["ended"]
@@ -1698,7 +1735,7 @@ def test_a_quiet_thread_and_a_closed_pull_request_are_drawn_as_the_pass_judged_t
             row("fig-shut", "left", pr="#18", why=closed, thread="mcp:15"),
         ]
     )
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     calm, shut = found["fig-calm"], found["fig-shut"]
     assert (calm["state"]["name"], calm["step"], calm["who"]) == ("Quiet", "running", "crew")
     assert calm["state"]["say"] == "its thread has written nothing for a while"
@@ -1716,7 +1753,7 @@ def test_a_quiet_thread_and_a_closed_pull_request_are_drawn_as_the_pass_judged_t
 def test_a_row_work_json_does_not_have_is_unknown_and_says_what_its_row_says(scene, served):
     scene.queue([row("oat-bowl", "running", thread="mcp:0000")], judged=False)
     scene.write("work.json", {"at": iso(NOW), "answered": "both", "work": []})
-    bowl = tasks(served.json("/state.json"))["oat-bowl"]
+    bowl = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
     assert (bowl["state"]["kind"], bowl["step"], bowl["who"]) == ("unknown", "unknown", "unknown")
     assert bowl["state"]["say"] == "the last pass did not judge it: work.json does not have it"
     assert bowl["state"]["row"] == "the row says running, approved"
@@ -1724,7 +1761,7 @@ def test_a_row_work_json_does_not_have_is_unknown_and_says_what_its_row_says(sce
 
 def test_a_task_the_last_pass_did_not_confirm_says_so(scene, served):
     scene.queue([row("oat-bowl", "running", thread="mcp:0000", confirmed=False)])
-    bowl = tasks(served.json("/state.json"))["oat-bowl"]
+    bowl = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
     assert bowl["state"]["kind"] == "working"
     assert bowl["unconfirmed"]["line"] == built.NOT_CONFIRMED
 
@@ -1733,7 +1770,7 @@ def test_a_task_behind_a_row_the_pass_judged_merged_is_still_behind_it_as_jbus_h
     scene, served
 ):
     kinds(scene)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     found = {one["slug"]: one for one in state["tasks"] + state["ended"]}
     stem, sap, fly = found["fig-stem"], found["fig-sap"], found["fig-fly"]
     assert stem["state"]["say"] == "fig-pip comes first"
@@ -1749,7 +1786,7 @@ def test_a_task_behind_a_row_the_pass_judged_merged_is_still_behind_it_as_jbus_h
 
 def test_a_task_that_is_merged_or_finished_is_not_on_the_line_and_a_lost_one_is(scene, served):
     kinds(scene)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     open_work = tasks(state)
     assert {"fig-pip", "fig-tree", "fig-pod"} & set(open_work) == set()
     assert {"fig-moth", "fig-vine"} <= set(open_work)
@@ -1775,7 +1812,7 @@ def test_a_fix_whose_scoped_review_is_not_written_is_on_the_second_pass(scene, s
     reason, which `jmerge` gave and no rule named."""
     why = "wait: its fix is not reviewed: the scoped review of it is not written"
     scene.queue([row("jv-work-state", "pr", pr="#431", checks="passed", why=why)])
-    task = tasks(served.json("/state.json"))["jv-work-state"]
+    task = tasks(served.json("/state.json?project=demo"))["jv-work-state"]
     assert (task["step"], task["who"]) == ("second", "rev")
     assert task["state"]["say"] == why.removeprefix("wait: ")
 
@@ -1784,7 +1821,7 @@ def test_a_reason_of_jmerge_that_no_pattern_matches_is_unknown_and_on_a_lane_of_
     scene, served
 ):
     scene.queue([row("oat-bowl", "pr", pr="#11", checks="passed", why="wait: another home's")])
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     bowl = tasks(state)["oat-bowl"]
     assert (bowl["state"]["kind"], bowl["state"]["name"]) == ("unknown", "Unknown")
     assert bowl["state"]["say"] == "jmerge said: another home's"
@@ -1793,7 +1830,7 @@ def test_a_reason_of_jmerge_that_no_pattern_matches_is_unknown_and_on_a_lane_of_
     assert (state["unknown"]["key"], state["unknown"]["name"]) == ("unknown", "Unknown")
     assert (bowl["state"]["waits"], bowl["state"]["row"]) == ("what the view cannot tell", "")
     scene.queue([row("oat-bowl", "pr", pr="#11")])
-    said = tasks(served.json("/state.json"))["oat-bowl"]["state"]
+    said = tasks(served.json("/state.json?project=demo"))["oat-bowl"]["state"]
     assert (said["kind"], said["say"]) == ("unknown", "jmerge has said nothing of it yet")
 
 
@@ -1843,7 +1880,7 @@ def test_one_task_that_is_not_confirmed_is_said_as_one(scene, served):
     scene.queue([row("oat-bowl", "running", thread="mcp:0000")])
     record = json.loads((scene.state_dir / "pass.json").read_text())
     scene.write("pass.json", record | {"silent": {scene.name: "T3 Code"}}, scene.state_dir)
-    blind = [one["line"] for one in served.json("/state.json")["blind"]]
+    blind = [one["line"] for one in served.json("/state.json?project=demo")["blind"]]
     assert "1 task is not confirmed since 2026-10-12 15:59 ET: T3 Code did not answer" in blind
 
 
@@ -1866,7 +1903,7 @@ def test_a_pass_that_starts_keeps_what_the_last_one_said_did_not_answer(tmp_path
 
 def test_the_limits_file_is_a_source_and_a_limit_whose_reset_is_past_is_unknown(scene, served):
     path = scene.root / "limits"
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     source = {one["name"]: one for one in state["sources"]}["limits"]
     assert (source["by"], source["state"]) == ("session", "ok")
     assert source["at"] == built.iso(datetime.fromtimestamp(path.stat().st_mtime, UTC))
@@ -1875,7 +1912,7 @@ def test_the_limits_file_is_a_source_and_a_limit_whose_reset_is_past_is_unknown(
     path.write_text(f"five_hour 23.0 {past}\nseven_day 22.0 {ahead}\n")
     written = ago(hours=6).timestamp()
     os.utime(path, (written, written))
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     plan = state["room"]["plan"]
     assert plan["five_hour"] == {
         "used": None,
@@ -1890,14 +1927,14 @@ def test_the_limits_file_is_a_source_and_a_limit_whose_reset_is_past_is_unknown(
     line = f"the plan's five-hour limit is unknown, last written {et(ago(hours=6))}"
     assert {"line": line, "open": "room"} in state["blind"]
     path.unlink()
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["room"]["plan"] == {}
     assert {one["name"]: one["state"] for one in state["sources"]}["limits"] == "missing"
     assert [one for one in state["blind"] if "could not be read" in one["line"]] == []
 
 
 def test_the_page_says_what_it_still_cannot_say(served):
-    blind = [one["line"] for one in served.json("/state.json")["blind"]]
+    blind = [one["line"] for one in served.json("/state.json?project=demo")["blind"]]
     spots = [spot for panel in panels.found() for spot in panel.not_kept]
     never = [spot.line for spot in sorted(spots, key=lambda spot: spot.rank)]
     assert never and never == blind[-len(never) :]
@@ -1966,7 +2003,7 @@ def test_a_merged_task_that_left_a_note_is_done_and_waits_only_for_a_word_on_the
 ):
     leftovers(scene)
     assert len(NOTE) > 300
-    jam = tasks(served.json("/state.json"))["plum-jam"]
+    jam = tasks(served.json("/state.json?project=demo"))["plum-jam"]
     said = jam["state"]
     assert (said["kind"], said["name"]) == ("leftover", "Ended, with a leftover")
     assert "lost" not in json.dumps(jam).lower()
@@ -1983,7 +2020,7 @@ def test_a_merged_task_that_left_a_note_is_done_and_waits_only_for_a_word_on_the
 
 def test_a_task_that_ended_with_no_pull_request_and_a_note_is_done_too(scene, served):
     leftovers(scene)
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     said = found["plum-pit"]["state"]
     assert (said["kind"], said["waits"]) == ("leftover", "your word on that note")
     assert said["say"].startswith("it ended with no pull request and the work is done. ")
@@ -2001,7 +2038,7 @@ def test_a_task_that_ended_with_no_pull_request_and_a_note_is_done_too(scene, se
 
 def test_a_row_that_ended_says_its_brief_is_not_finished_only_where_a_status_says_so(scene, served):
     leftovers(scene)
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     said = {one: found[f"plum-{one}"]["state"] for one in OPEN}
     assert {one["name"] for one in said.values()} == {"Ended, not closed"}
     assert said["leaf"]["say"] == "it ended with no pull request: its Result has no Branch line"
@@ -2018,13 +2055,13 @@ def test_a_note_longer_than_the_view_keeps_is_cut_and_the_sentence_keeps_its_end
     leftovers(scene)
     brief = scene.home / "tasks" / "plum-jam.md"
     brief.write_text(brief.read_text().replace(NOTE, "long " * 2000))
-    say = tasks(served.json("/state.json"))["plum-jam"]["state"]["say"]
+    say = tasks(served.json("/state.json?project=demo"))["plum-jam"]["state"]["say"]
     assert say.endswith("once you say the rest is not wanted") and len(say) < 5000
 
 
 def test_the_waiting_list_words_a_leftover_as_the_drawer_does(scene, served):
     leftovers(scene)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     found = tasks(state)
     lines = {one["slug"]: one["line"] for one in state["waiting"] if one["kind"] == "left"}
     assert lines == {
@@ -2046,7 +2083,7 @@ def test_a_chain_of_three_names_each_blocker_and_the_first_blocks_two(scene, ser
             row("nut-bowl", "running", thread="mcp:1"),
         ]
     )
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     assert found["nut-shell"]["blocked"] == {"by": "", "what": "findings", "state": ""}
     assert found["nut-meat"]["blocked"] == {
         "by": "nut-shell",
@@ -2085,7 +2122,7 @@ def test_each_queued_row_has_a_wave_and_the_one_row_it_waits_on_last(scene, serv
             row("pea-salt", depends=["pea-done"]),
         ]
     )
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     assert {slug: (one["wave"], one["waits_on"]) for slug, one in found.items()} == {
         "pea-pod": (None, ""),
         "pea-one": (0, ""),
@@ -2111,7 +2148,7 @@ def test_rows_that_depend_on_each_other_still_get_a_wave():
 
 
 def test_the_wait_band_is_the_list_the_pass_left_with_the_gates_read_now(scene, served):
-    waiting = served.json("/state.json")["waiting"]
+    waiting = served.json("/state.json?project=demo")["waiting"]
     assert [(one["kind"], one["line"]) for one in waiting] == [
         ("gate", "gate 4: tea or coffee?"),
         ("row", "gate jam-lid: which lid?"),
@@ -2122,7 +2159,7 @@ def test_the_wait_band_is_the_list_the_pass_left_with_the_gates_read_now(scene, 
     assert (waiting[0]["question"], waiting[0]["default"]) == ("tea or coffee?", "tea")
     with open(scene.home / "gates.md", "a") as gates:
         gates.write("\n" + GATE.format(n=6, asked="milk?", status="open", default="no"))
-    waiting = served.json("/state.json")["waiting"]
+    waiting = served.json("/state.json?project=demo")["waiting"]
     assert [one["line"] for one in waiting if one["kind"] == "gate"] == [
         "gate 4: tea or coffee?",
         "gate 6: milk?",
@@ -2131,7 +2168,7 @@ def test_the_wait_band_is_the_list_the_pass_left_with_the_gates_read_now(scene, 
 
 
 def test_jbus_is_passing_while_the_timer_is_active_and_a_pass_ended_lately(served):
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (False, "")
     assert jbus["last_end"] == iso(ago(seconds=20))
     assert jbus["said"] == "jbus.timer active (waiting), jbus.service success, exit 0"
@@ -2139,7 +2176,7 @@ def test_jbus_is_passing_while_the_timer_is_active_and_a_pass_ended_lately(serve
 
 def test_jbus_has_stopped_when_the_timer_is_not_active(scene, served):
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (True, "the timer is not active")
     assert jbus["said"] == "jbus.timer inactive (dead), jbus.service exit-code, exit 1"
     assert jbus["last_end"] == iso(ago(seconds=20))
@@ -2147,26 +2184,26 @@ def test_jbus_has_stopped_when_the_timer_is_not_active(scene, served):
 
 def test_jbus_has_stopped_when_the_last_pass_ended_more_than_150_s_ago(scene, served):
     scene.passed(seconds_ago=150)
-    assert served.json("/state.json")["jbus"]["stopped"] is False
+    assert served.json("/state.json?project=demo")["jbus"]["stopped"] is False
     scene.passed(seconds_ago=151)
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (True, "no pass in the last 150 s")
     assert jbus["last_end"] == iso(ago(seconds=151))
 
 
 def test_a_pass_that_is_running_is_no_stop_and_one_that_hangs_is(scene, served):
     scene.passed(seconds_ago=-10, running=True)
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["pass"]["running"]) == (False, True)
     scene.now = NOW + timedelta(seconds=200)
-    assert served.json("/state.json")["jbus"]["stopped"] is True
+    assert served.json("/state.json?project=demo")["jbus"]["stopped"] is True
 
 
 def test_a_pass_that_systemd_says_is_running_is_no_stop_however_long_it_takes(scene, served):
     scene.passed(seconds_ago=-10, running=True)
     scene.now = NOW + timedelta(seconds=200)
     scene.timer(service="activating")
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (False, "")
 
 
@@ -2175,13 +2212,13 @@ def test_a_pass_that_starts_and_dies_each_minute_has_stopped(scene, served):
     record = json.loads((scene.state_dir / "pass.json").read_text())
     record |= {"started": iso(ago(seconds=5)).replace("+00:00", "Z"), "ended": None}
     scene.write("pass.json", record, scene.state_dir)
-    jbus = served.json("/state.json")["jbus"]
+    jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (True, "no pass in the last 150 s")
     assert jbus["last_end"] == iso(ago(seconds=400).replace(second=0))
 
 
 def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
-    sources = {one["name"]: one["by"] for one in served.json("/state.json")["sources"]}
+    sources = {one["name"]: one["by"] for one in served.json("/state.json?project=demo")["sources"]}
     assert {name for name, by in sources.items() if by == "server"} == {
         "jbus.timer",
         "gates.md",
@@ -2196,19 +2233,19 @@ def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
 
 
 def test_the_room_is_the_one_answer_jgauge_room_gives(scene, served):
-    room = served.json("/state.json")["room"]
+    room = served.json("/state.json?project=demo")["room"]
     assert (room["answer"], room["why"], room["load"][0]) == ("go", "", 2.5)
     assert room["plan"]["five_hour"]["used"] == 23.0
     assert room["limits"] == {"load": 85, "memory": 6, "pressure": 10, "slots": 85, "plan": 85}
     scene.machine(five_hour=91.0)
-    room = served.json("/state.json")["room"]
+    room = served.json("/state.json?project=demo")["room"]
     assert room["answer"] == "wait"
     assert room["why"].startswith("the five-hour limit is 91.0% used, at or over 85%")
 
 
 def test_github_is_asked_for_the_checks_card_once_a_minute(scene, served):
     for _ in range(5):
-        state = served.json("/state.json")
+        state = served.json("/state.json?project=demo")
     assert scene.asked() == ["api repos/acme/demo/actions/runs?per_page=40"]
     assert [(run["branch"], run["state"]) for run in state["checks"]["runs"]] == [
         ("oat-bowl", "success"),
@@ -2217,18 +2254,18 @@ def test_github_is_asked_for_the_checks_card_once_a_minute(scene, served):
     ]
     assert state["checks"]["runs"][0]["url"] == RUN.format(500)
     scene.now = NOW + timedelta(seconds=59)
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     assert len(scene.asked()) == 1
     scene.now = NOW + timedelta(seconds=61)
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     assert scene.asked() == ["api repos/acme/demo/actions/runs?per_page=40"] * 2
 
 
 def test_github_is_asked_for_a_pull_request_only_when_its_drawer_opens(scene, served):
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     scene.calls.write_text("")
     for _ in range(3):
-        found = served.json("/task/oat-milk/github")
+        found = served.json("/task/oat-milk/github?project=demo")
     assert scene.asked() == [
         "api repos/acme/demo/pulls/13",
         "api repos/acme/demo/commits/" + "d00d" * 10 + "/check-runs",
@@ -2245,52 +2282,56 @@ def test_github_is_asked_for_a_pull_request_only_when_its_drawer_opens(scene, se
     }
     assert [(one["name"], one["state"]) for one in found["checks"]] == [("check", "in_progress")]
     scene.now = NOW + timedelta(seconds=31)
-    served.json("/task/oat-milk/github")
+    served.json("/task/oat-milk/github?project=demo")
     assert len(scene.asked()) == 4
 
 
 def test_a_slow_github_holds_no_other_request_and_none_for_long(scene, served):
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     served.doors.app.github.patience = 0.2
     asks = (scene.bin / "gh").read_text().removeprefix("#!/bin/sh\n")
     scene.script("gh", "sleep 0.7\n" + asks)
     began = time.monotonic()
-    drawer = threading.Thread(target=served.json, args=("/task/oat-milk/github",))
+    drawer = threading.Thread(target=served.json, args=("/task/oat-milk/github?project=demo",))
     drawer.start()
     time.sleep(0.05)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert time.monotonic() - began < 1.0
     assert len(state["checks"]["runs"]) == 3
     drawer.join()
-    waiting = served.json("/task/oat-milk/github")
+    waiting = served.json("/task/oat-milk/github?project=demo")
     assert (waiting["pull"], waiting["error"]) == (None, "GitHub has not answered yet")
     scene.now = NOW + timedelta(seconds=61)
-    stale = served.json("/state.json")
+    stale = served.json("/state.json?project=demo")
     assert time.monotonic() - began < 1.2
     assert (len(stale["checks"]["runs"]), stale["checks"]["error"]) == (3, "")
     time.sleep(1.7)
-    assert served.json("/task/oat-milk/github")["pull"]["number"] == 13
+    assert served.json("/task/oat-milk/github?project=demo")["pull"]["number"] == 13
 
 
 def test_a_task_with_no_pull_request_asks_github_nothing(scene, served):
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     scene.calls.write_text("")
-    assert served.json("/task/jam-jar/github") == {"slug": "jam-jar", "pull": None, "checks": []}
+    assert served.json("/task/jam-jar/github?project=demo") == {
+        "slug": "jam-jar",
+        "pull": None,
+        "checks": [],
+    }
     assert scene.asked() == []
 
 
 def test_a_slug_the_queue_does_not_have_is_404_and_asks_nothing(scene, served):
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     scene.calls.write_text("")
     for slug in ("nobody", "..", "oat-milk%2F..", "%2e%2e", "13", "oat-milk/../jam-jar"):
-        assert served.ask(f"/task/{slug}/github")[0] == 404, slug
+        assert served.ask(f"/task/{slug}/github?project=demo")[0] == 404, slug
     assert scene.asked() == []
 
 
 def test_github_is_only_ever_read(scene, served):
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     for slug in ("oat-bowl", "oat-spoon", "oat-milk", "oat-honey"):
-        served.json(f"/task/{slug}/github")
+        served.json(f"/task/{slug}/github?project=demo")
     assert scene.asked()
     for call in scene.asked():
         words = call.split()
@@ -2300,9 +2341,9 @@ def test_github_is_only_ever_read(scene, served):
 
 def test_a_github_that_does_not_answer_is_said_and_the_page_still_gets_its_state(scene, served):
     scene.script("gh", "exit 1\n")
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert (state["checks"]["runs"], state["checks"]["error"]) == ([], "GitHub did not answer")
-    assert served.json("/task/oat-milk/github")["error"] == "GitHub did not answer"
+    assert served.json("/task/oat-milk/github?project=demo")["error"] == "GitHub did not answer"
     assert len(state["tasks"]) == 9
 
 
@@ -2372,12 +2413,19 @@ def plant(scene):
 
 def test_a_fake_secret_planted_in_every_source_is_in_no_answer(scene, served):
     plant(scene)
-    paths = ["/", "/state.json", "/state.json?project=demo", "/digest.json", "/healthz", "/nothing"]
+    paths = [
+        "/",
+        "/state.json?project=demo",
+        "/state.json?project=demo",
+        "/digest.json",
+        "/healthz",
+        "/nothing",
+    ]
     paths += [f"/task/{one['slug']}/github" for one in table()]
     paths += view.routes()[len(view.FIXED) :]
     paths += [
         "/digest.json?since=2026-10-01",
-        f"/task/{OPAQUE}/github",
+        f"/task/{OPAQUE}/github?project=demo",
         "/state.json?project=nobody",
     ]
     held = {}
@@ -2386,7 +2434,7 @@ def test_a_fake_secret_planted_in_every_source_is_in_no_answer(scene, served):
         said = body + json.dumps(headers)
         held[path] = [secret for secret in PLANTED if secret in said]
     assert held == {path: [] for path in paths}
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert "[redacted]" in json.dumps(state)
     assert len(state["tasks"]) == 10
 
@@ -2394,7 +2442,7 @@ def test_a_fake_secret_planted_in_every_source_is_in_no_answer(scene, served):
 def test_a_link_to_a_pull_request_or_a_run_of_this_repo_is_kept(scene, served):
     line = f"see {PULL.format(13)} and {RUN.format(502)}, not {LINKS[1]} or {LINKS[0]}."
     scene.events(("result", "chef", "oat-milk", line, 1))
-    said = served.json("/state.json")["bus"]["events"][-1]["line"]
+    said = served.json("/state.json?project=demo")["bus"]["events"][-1]["line"]
     assert said == f"see {PULL.format(13)} and {RUN.format(502)}, not [link] or [link]."
 
 
@@ -2403,7 +2451,7 @@ def test_a_word_that_only_holds_the_shape_of_a_key_leaves_whole(scene, served):
     line = "result refresh-token: Status: done, see risk-register-of-the-whole-kitchen"
     scene.queue([row(slug, "running"), row("disk-usage-of-the-pantry-shelves-again", "running")])
     scene.events(("result", "chef", slug, line, 1))
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert [one["slug"] for one in state["tasks"]] == [
         "disk-usage-of-the-pantry-shelves-again",
         slug,
@@ -2415,10 +2463,10 @@ def test_a_word_that_only_holds_the_shape_of_a_key_leaves_whole(scene, served):
         "slug": slug,
         "line": line,
     }
-    assert served.ask(f"/task/{slug}/github")[0] == 200
+    assert served.ask(f"/task/{slug}/github?project=demo")[0] == 200
     kept = "X-Automation-Key: " + "h7Kq" * 6
     scene.events(("note", "quiet", "", f"{kept} and my-token = hunter2hunter2", 1))
-    said = served.json("/state.json")["bus"]["events"][-1]["line"]
+    said = served.json("/state.json?project=demo")["bus"]["events"][-1]["line"]
     assert said == "X-Automation-Key: [redacted] and my-token = [redacted]"
 
 
@@ -2432,7 +2480,7 @@ def test_the_files_that_hold_secrets_are_never_opened(scene, served, monkeypatch
         return real(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "read_text", spy)
-    for path in ("/state.json", "/digest.json", "/task/oat-milk/github"):
+    for path in ("/state.json?project=demo", "/digest.json", "/task/oat-milk/github?project=demo"):
         served.json(path)
     assert opened
     assert [name for name in opened if "outbox.json" in name or "/config/" in name] == []
@@ -2448,7 +2496,7 @@ def test_the_server_writes_nothing(scene, served):
         return found
 
     before = tree()
-    for path in ("/", "/digest.json", "/task/oat-milk/github", *view.routes()):
+    for path in ("/", "/digest.json", "/task/oat-milk/github?project=demo", *view.routes()):
         served.ask(path)
     assert tree() == before
 
@@ -2460,7 +2508,7 @@ def test_a_source_that_is_missing_or_does_not_parse_is_said_and_nothing_raises(s
         (scene.state / name).unlink()
     (scene.home / "merge.log").unlink()
     (scene.state_dir / "pass.json").write_text("[]")
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     sources = {one["name"]: one["state"] for one in state["sources"]}
     assert (sources["queue.json"], sources["main.json"], sources["status.json"]) == (
         "unreadable",
@@ -2471,7 +2519,7 @@ def test_a_source_that_is_missing_or_does_not_parse_is_said_and_nothing_raises(s
     assert (state["tasks"], state["waiting"][0]["kind"]) == ([], "gate")
     assert (state["jbus"]["stopped"], state["jbus"]["pass"]["ended"]) == (False, None)
     (scene.state_dir / "status.json").unlink()
-    assert served.json("/state.json")["jbus"]["stopped"] is True
+    assert served.json("/state.json?project=demo")["jbus"]["stopped"] is True
     assert {"line": "queue.json could not be read", "open": "pulse"} in state["blind"]
     assert {"line": "main.json could not be read", "open": "pulse"} in state["blind"]
     assert served.ask("/digest.json")[0] == 200
@@ -2484,21 +2532,21 @@ def test_a_long_pass_that_is_passing_names_no_source(scene, served):
     started, before = ago(seconds=0).timestamp(), ago(seconds=60).timestamp()
     os.utime(scene.state_dir / "pass.json", (started, started))
     os.utime(scene.state_dir / "status.json", (before, before))
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["jbus"]["stopped"] is False
     assert {one["name"]: one["state"] for one in state["sources"] if one["state"] != "ok"} == {}
 
 
 def test_a_home_with_no_gates_file_and_a_passing_jbus_names_no_source(scene, served):
     (scene.home / "gates.md").unlink()
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["jbus"]["stopped"] is False
     assert {one["name"]: one["state"] for one in state["sources"] if one["state"] != "ok"} == {}
     assert [one for one in state["blind"] if "gates.md" in one["line"]] == []
 
 
 def test_only_an_old_answer_of_github_is_stale(scene, served):
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert {one["state"] for one in state["sources"]} == {"ok"}
     old = ago(seconds=400).timestamp()
     for path in (scene.state_dir / "status.json", scene.state_dir / "pass.json"):
@@ -2508,7 +2556,7 @@ def test_only_an_old_answer_of_github_is_stale(scene, served):
     asks = (scene.bin / "gh").read_text().removeprefix("#!/bin/sh\n")
     scene.script("gh", "sleep 0.5\n" + asks)
     scene.now = NOW + timedelta(seconds=200)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert {one["name"]: one["state"] for one in state["sources"] if one["state"] != "ok"} == {
         "GitHub": "stale",
     }
@@ -2521,9 +2569,11 @@ def test_a_state_directory_with_no_project_answers_with_none(tmp_path, monkeypat
         path.unlink() if path.is_file() else path.rmdir()
     served = Served(scene)
     try:
-        state = served.json("/state.json")
-        assert (state["project"], state["projects"], state["tasks"]) == ("", [], [])
-        assert state["jbus"]["stopped"] is True
+        stack = served.json("/stack.json")
+        assert stack["projects"] == []
+        assert stack["machine"]["jbus"]["stopped"] is True
+        for path in ("/state.json", "/state.json?project=demo", "/panel/pulse.json"):
+            assert served.ask(path)[0] == 404
         assert served.ask("/")[0] == 200
     finally:
         served.close()
@@ -2537,7 +2587,7 @@ def test_a_second_project_is_asked_for_by_name(tmp_path, monkeypatch):
     (scene.state_dir / "launches").mkdir()
     served = Served(scene)
     try:
-        assert served.json("/state.json")["projects"] == ["demo", "pantry"]
+        assert served.json("/state.json?project=demo")["projects"] == ["demo", "pantry"]
         found = served.json("/state.json?project=pantry")
         assert (found["project"], [one["slug"] for one in found["tasks"]]) == (
             "pantry",
@@ -2588,7 +2638,7 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         ],
         rows={"jam-jar": {"threads": 1, "thread_status": "running", "live": "hung"}},
     )
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert [(t["title"], t["role"], t["slug"], t["live"], t["out"]) for t in state["threads"]] == [
         ("crew: jam-jar", "crew", "jam-jar", "hung", True),
         ("review: oat-milk, second pass", "reviewer", "oat-milk", "quiet", True),
@@ -2620,14 +2670,14 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         threads=[out("crew: jam-jar", "hung", run_started=began, queued=2), out("crew: jam-jar")],
         rows={"jam-jar": {"threads": 2, "thread_status": None, "live": None}},
     )
-    seen = tasks(served.json("/state.json"))["jam-jar"]["seen"]
+    seen = tasks(served.json("/state.json?project=demo"))["jam-jar"]["seen"]
     assert (seen["live"], seen["wrote"], seen["queued"]) == ("", None, 0)
     assert "the threads that are out" not in json.dumps(state["blind"])
 
 
 def test_a_pass_that_left_no_list_of_threads_is_a_blind_spot_and_no_count_of_none(scene, served):
     scene.passed(20, threads=None)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["threads"] is None
     assert {
         "line": "the threads that are out are not known: the last pass left no list of them",
@@ -2643,7 +2693,7 @@ def test_a_launched_row_whose_thread_is_gone_and_wrote_nothing_is_lost(scene, se
             row("fig-new", "launched", thread="mcp:3"),
         ]
     )
-    found = tasks(served.json("/state.json"))
+    found = tasks(served.json("/state.json?project=demo"))
     said = found["fig-gone"]["state"]
     assert (said["kind"], said["name"]) == ("lost", "Lost")
     assert said["say"] == "its thread is gone and wrote nothing"
@@ -2670,7 +2720,7 @@ def test_a_pull_request_ten_minutes_on_review_with_no_reviewer_listed_says_so(
     scene.queue([row("fig-read", "pr", pr="#31", why=f"wait: {reason}")])
     scene.merge_log(logged(minutes, "wait", 31, reason))
     scene.passed(20, threads=threads)
-    task = tasks(served.json("/state.json"))["fig-read"]
+    task = tasks(served.json("/state.json?project=demo"))["fig-read"]
     assert (task["step"], task["state"]["say"]) == ("review", says)
     waits = "its crewmate to start a reviewer" if says.startswith("no reviewer") else "its reviewer"
     assert task["state"]["waits"] == waits
@@ -2681,7 +2731,9 @@ def test_many_requests_at_once_each_get_an_answer(served):
 
     def ask():
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{served.port}/state.json") as answer:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{served.port}/state.json?project=demo"
+            ) as answer:
                 answers.append(answer.status)
         except urllib.error.URLError as error:
             answers.append(str(error))
@@ -2743,7 +2795,7 @@ class Process:
             return None
 
     def code(self):
-        return (self.ask("/state.json") or {}).get("jbus", {}).get("code", {})
+        return (self.ask("/state.json?project=demo") or {}).get("jbus", {}).get("code", {})
 
     def until(self, holds, seconds=20):
         end = time.monotonic() + seconds
@@ -2767,7 +2819,7 @@ def process(scene):
 
 def test_the_state_says_when_the_server_started_and_that_its_code_is_as_on_disk(served):
     before = datetime.now(UTC)
-    code = served.json("/state.json")["jbus"]["code"]
+    code = served.json("/state.json?project=demo")["jbus"]["code"]
     assert sorted(code) == ["error", "stale", "started"]
     assert (code["stale"], code["error"]) == (False, "")
     assert datetime.fromisoformat(code["started"]) <= before
@@ -2936,7 +2988,7 @@ def test_a_panel_is_one_folder_of_two_files_and_the_rest_is_built_from_the_folde
         assert [one for one in files if one != "__pycache__"] == ["panel.js", "panel.py"], name
     found = panels.found()
     assert [panel.name for panel in found] == folders
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     shaped = {key for panel in found if panel.first for key in panel.shape}
     assert set(state) == set(built.keys()) == {*built.FRAME, *shaped}
     first = [one for one in found if one.first]
@@ -2969,9 +3021,9 @@ def test_a_key_that_two_panels_give_is_refused():
 
 
 def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_state(served):
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     for panel in panels.found():
-        said = served.json(f"/panel/{panel.name}.json")
+        said = served.json(f"/panel/{panel.name}.json?project=demo")
         assert sorted(said) == ["at", "data", "panel", "sources"]
         assert (said["panel"], said["at"]) == (panel.name, state["at"])
         assert set(said["data"]) == set(panel.shape)
@@ -2983,7 +3035,12 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
                 assert key not in state, key
         names = {source.name for source in panel.sources}
         assert said["sources"] == [one for one in state["sources"] if one["name"] in names]
-    for path in ("/panel/nothing.json", "/panel/pulse", "/panel/pulse.json/x", "/panel/Pulse.json"):
+    for path in (
+        "/panel/nothing.json?project=demo",
+        "/panel/pulse",
+        "/panel/pulse.json/x",
+        "/panel/Pulse.json",
+    ):
         assert served.ask(path)[0] == 404, path
     assert served.ask("/panel/pulse.json?project=nobody")[0] == 404
     assert served.json("/panel/pulse.json?project=demo")["panel"] == "pulse"
@@ -3021,12 +3078,12 @@ def test_a_folder_added_to_a_copy_of_the_package_is_a_panel_and_no_other_file_is
     ]
     scene.write("sample.json", {"lines": ["one", f"see {LINKS[0]}"]})
     process.start()
-    said = process.ask("/panel/sample.json")
+    said = process.ask("/panel/sample.json?project=demo")
     assert (said["panel"], said["data"]) == ("sample", {"count": 2, "lines": ["one", "see [link]"]})
     assert [(one["name"], one["by"], one["state"]) for one in said["sources"]] == [
         ("sample.json", "jbus", "ok")
     ]
-    state = process.ask("/state.json")
+    state = process.ask("/state.json?project=demo")
     assert "count" not in state and "lines" not in state
     assert state["sources"][-1]["name"] == "sample.json"
     assert [one for one in state["blind"] if "sample" in one["line"]] == []
@@ -3038,11 +3095,11 @@ def test_a_folder_added_to_a_copy_of_the_package_is_a_panel_and_no_other_file_is
     assert '"A sample, edited"' in raw(process, "/")[1]
     assert process.run.poll() is None and process.code()["stale"] is False
     (scene.state / "sample.json").unlink()
-    said = process.ask("/panel/sample.json")
+    said = process.ask("/panel/sample.json?project=demo")
     assert said["data"] == {"count": 0, "lines": []}
     assert [one["state"] for one in said["sources"]] == ["missing"]
     spot = {"line": "sample.json could not be read", "open": "sample"}
-    assert spot in process.ask("/state.json")["blind"]
+    assert spot in process.ask("/state.json?project=demo")["blind"]
 
 
 def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, process):
@@ -3053,21 +3110,21 @@ def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, pr
     made = folder(process, "sample", data="raise ValueError('a panel that does not load')\n")
     process.until(lambda: process.code().get("error"))
     assert process.code()["error"].startswith("the code on disk does not start: ValueError")
-    assert process.ask("/panel/sample.json") is None
-    assert process.ask("/panel/pulse.json")["panel"] == "pulse"
+    assert process.ask("/panel/sample.json?project=demo") is None
+    assert process.ask("/panel/pulse.json?project=demo")["panel"] == "pulse"
     assert "sample" not in raw(process, "/")[1]
     (made / "panel.py").write_text(SAMPLE)
     assert process.run.wait(timeout=20) == 0
     process.start()
-    assert process.ask("/panel/sample.json")["panel"] == "sample"
+    assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
 
 
 def test_a_panel_asked_for_by_itself_looks_at_its_own_sources_and_no_other(scene, served):
     scene.script("systemctl", f"echo asked >> {scene.root}/systemctl.calls\n")
-    served.json("/panel/merged.json")
+    served.json("/panel/merged.json?project=demo")
     assert not (scene.root / "systemctl.calls").exists()
     assert scene.asked() == []
-    served.json("/panel/pulse.json")
+    served.json("/panel/pulse.json?project=demo")
     assert (scene.root / "systemctl.calls").exists()
 
 
@@ -3080,12 +3137,12 @@ def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(s
     (made / "panel.py").write_text(SAMPLE)
     time.sleep(1)
     assert process.run.poll() is None
-    assert process.ask("/panel/sample.json") is None
+    assert process.ask("/panel/sample.json?project=demo") is None
     assert process.code()["stale"] is False
     (made / "panel.js").write_text(LINKED)
     assert process.run.wait(timeout=20) == 0
     process.start()
-    assert process.ask("/panel/sample.json")["panel"] == "sample"
+    assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
     assert process.code()["stale"] is False
 
 
@@ -3153,7 +3210,7 @@ def rounded(scene, slug="oat-milk"):
 
 def test_the_rounds_of_a_brief_are_its_review_sections_as_jmerge_reads_them(scene, served):
     brief, first, fixed = rounded(scene)
-    said = {one["slug"]: one for one in served.json("/state.json")["rounds"]}
+    said = {one["slug"]: one for one in served.json("/state.json?project=demo")["rounds"]}
     assert said["oat-milk"] == {
         "slug": "oat-milk",
         "read": True,
@@ -3173,14 +3230,15 @@ def test_the_rounds_of_a_brief_are_its_review_sections_as_jmerge_reads_them(scen
     ]
     assert merged.found == 2 and merged.reviewed == fixed and merged.verdict == "clean"
     assert (
-        served.json("/panel/rounds.json")["data"]["rounds"] == served.json("/state.json")["rounds"]
+        served.json("/panel/rounds.json?project=demo")["data"]["rounds"]
+        == served.json("/state.json?project=demo")["rounds"]
     )
 
 
 def test_a_brief_that_cannot_be_read_says_so_and_counts_nothing(scene, served):
     rounded(scene, "oat-bowl")
     (scene.home / "tasks" / "oat-bowl.md").chmod(0)
-    said = {one["slug"]: one for one in served.json("/state.json")["rounds"]}
+    said = {one["slug"]: one for one in served.json("/state.json?project=demo")["rounds"]}
     if os.access(scene.home / "tasks" / "oat-bowl.md", os.R_OK):
         pytest.skip("this user reads a file of mode 0")
     assert said["oat-bowl"] == {
@@ -3202,7 +3260,7 @@ def test_the_checks_list_each_runner_and_a_stopped_one_is_no_blind_spot(scene, s
         ("actions-runner-a.service", "active", "running"),
         ("actions-runner-b.service", "inactive", "dead"),
     )
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["checks"]["runners"] == [
         {"unit": "actions-runner-a.service", "active": "active", "sub": "running"},
         {"unit": "actions-runner-b.service", "active": "inactive", "sub": "dead"},
@@ -3251,7 +3309,7 @@ def test_the_noticed_panel_lists_each_line_newest_first_with_its_mark(scene, ser
         ("jam-jar", "taken", 60, {"row": "fix-jar", "by": "home", "at": "2026-10-12 10:58 ET"}),
         ("oat-milk", "new", 5, {}),
     )
-    said = served.json("/state.json")["noticed"]
+    said = served.json("/state.json?project=demo")["noticed"]
     assert [one["key"] for one in said] == [fresh, taken, old]
     assert {key: said[1][key] for key in ("slug", "mark", "row", "by", "seen_at", "text")} == {
         "slug": "jam-jar",
@@ -3262,17 +3320,20 @@ def test_the_noticed_panel_lists_each_line_newest_first_with_its_mark(scene, ser
         "text": "jam-jar saw a thing",
     }
     assert said[2]["why"] == "from before the list"
-    assert served.json("/state.json")["noticed_older"] == 0
-    assert served.json("/panel/noticed.json")["data"] == {"noticed": said, "noticed_older": 0}
+    assert served.json("/state.json?project=demo")["noticed_older"] == 0
+    assert served.json("/panel/noticed.json?project=demo")["data"] == {
+        "noticed": said,
+        "noticed_older": 0,
+    }
     many = [(f"old-{n:02}", "dropped", 500 + n, {"why": "from before the list"}) for n in range(30)]
     a_noticed(scene, ("oat-milk", "new", 5, {}), *many)
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert [one["slug"] for one in state["noticed"]] == [
         "oat-milk",
         *(f"old-{n:02}" for n in range(20)),
     ]
     assert state["noticed_older"] == 10
     (scene.state / noticed.NAME).write_text("{not json")
-    state = served.json("/state.json")
+    state = served.json("/state.json?project=demo")
     assert state["noticed"] == []
     assert {one["name"]: one["state"] for one in state["sources"]}[noticed.NAME] == "unreadable"

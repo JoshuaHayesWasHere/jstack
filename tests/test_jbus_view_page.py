@@ -902,6 +902,8 @@ def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(
     assert seen["first"] == [] and seen["cards"] == []
     seen = look(scene, tmp_path, route="#/")
     assert "hydra" not in json.dumps(seen["stack"])
+    seen = look(scene, tmp_path, route="#/%E0")
+    assert seen["errors"] == [] and seen["stack"]["none"].startswith("No project named %E0 ")
 
 
 def test_on_a_phone_every_project_is_one_column_with_nothing_cut(scene, tmp_path):

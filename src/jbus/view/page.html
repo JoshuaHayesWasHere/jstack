@@ -414,9 +414,11 @@
   })();
   function where() {
     var parts = location.hash.replace(/^#/, "").split("&"), named = parts[0].charAt(0) === "/" ? parts.shift() : "/";
-    HASH = {}; parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) HASH[p[0]] = decodeURIComponent(p.slice(1).join("=")); });
+    /* A part that is not a name (#/%E0) is kept as it was written: no project has it. */
+    function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
+    HASH = {}; parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) HASH[p[0]] = name(p.slice(1).join("=")); });
     var was = PROJECT;
-    PROJECT = decodeURIComponent(named.slice(1).split("/")[0] || "");
+    PROJECT = name(named.slice(1).split("/")[0] || "");
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     OPEN = HASH.open || "";
     if (PROJECT !== was) { S = null; NOSUCH = ""; }

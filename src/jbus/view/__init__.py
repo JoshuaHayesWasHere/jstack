@@ -15,9 +15,10 @@ The routes that read are `routes()`, all `GET`:
 - `/stack.json`: the machine once, and a summary of each project (`state.stack`). The
   machine's checks run once for it, however many projects there are, and the runs of
   GitHub are asked for each repo at once;
-- `/state.json`: the state of one project (`state.Read.answer`), the first or `?project=`: the
+- `/state.json?project=<project>`: the state of one project (`state.Read.answer`): the
   frame, and what each panel of the first screen builds;
-- `/panel/<name>.json`: what one panel builds, for each folder of `panels/` (`panels`);
+- `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
+  `panels/` (`panels`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
@@ -343,25 +344,23 @@ class App:
         self.code = Code(panels=tuple(panel.name for panel in self.panels))
         self.github = GitHub(self.clock)
 
-    def _project(self, query: dict[str, list[str]], first: bool = True) -> str | None:
-        """The project an address asks for: the named one, else the first where `first`, or
-        None for one that is not there. With no project at all it is the empty name."""
-        names = state.projects(self.sources)
+    def _project(self, query: dict[str, list[str]]) -> str | None:
+        """The project an address names with `?project=`, or None where it names none, or one
+        the state directory does not have."""
         asked = query.get("project", [""])[-1]
-        if asked or not first:
-            return asked if asked in names else None
-        return names[0] if names else ""
+        return asked if asked and asked in state.projects(self.sources) else None
 
     def _stack(self) -> dict[str, Any]:
         """What `/stack.json` holds. The runs of each repo are asked at once, each in a thread
         of its own, so no repo waits on another's `gh`: the summaries then take what is kept."""
-        repos = {state.repo(self.sources, name) for name in state.projects(self.sources)} - {""}
+        repos = sorted({state.repo(self.sources, name) for name in state.projects(self.sources)})
+        repos = [repo for repo in repos if repo]
         with ThreadPoolExecutor(max_workers=max(1, len(repos))) as pool:
-            list(pool.map(self.github.runs, sorted(repos)))
+            asked = dict(zip(repos, pool.map(self.github.runs, repos), strict=True))
         built = state.stack(
-            self.sources, self.clock(), self.github.runs, self.code.said(), self.panels
+            self.sources, self.clock(), lambda repo: asked[repo], self.code.said(), self.panels
         )
-        return clean(built, tuple(sorted(repos)))
+        return clean(built, tuple(repos))
 
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
@@ -499,7 +498,7 @@ class App:
 
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
         """The one write: close each question the body numbers with the user's answer."""
-        name = self._project(query, first=False)
+        name = self._project(query)
         if path != WRITE or not name:
             return NOT_FOUND
         try:
