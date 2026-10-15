@@ -29,7 +29,7 @@
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); }
   body { font-family: var(--sans); font-size: 17.5px; line-height: 1.45; overflow-wrap: anywhere; }
-  main { max-width: 1650px; margin: 0 auto; padding: 17.5px 25px 25px; }
+  main { min-width: 0; padding: 14px 25px 25px; }
   h1 { font-size: 23px; line-height: 1.2; margin: 0; }
   p { margin: 0 0 12.5px; }
   code, .mono { font-family: var(--mono); font-size: 0.88em; }
@@ -41,12 +41,31 @@
   .n { display: inline-block; min-width: 1.6em; padding: 0 6px; border-radius: 1249px; background: var(--fg); color: var(--bg); font-size: 14px; text-align: center; font-weight: 700; font-family: var(--sans); }
   .n.zero { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--line); }
 
-  /* top */
-  .top { display: flex; flex-wrap: wrap; gap: 7.5px 17.5px; align-items: baseline; }
-  .top .where { color: var(--dim); font-size: 15px; margin-right: auto; }
-  .theme { display: inline-flex; gap: 4px; }
-  .theme button { font-size: 14.5px; font-weight: 600; background: transparent; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; cursor: pointer; color: var(--dim); }
-  .theme button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  /* the shell: a header, a sidebar of every project and the machine, and the view */
+  .hdr { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1.5px solid var(--line); padding: 8px 25px; display: flex; flex-wrap: wrap; gap: 6px 17.5px; align-items: center; }
+  .brand { font-weight: 800; font-size: 18px; text-decoration: none; color: var(--fg); white-space: nowrap; }
+  .hdr h1 { font-size: 15.5px; font-weight: 400; margin-right: auto; min-width: 0; }
+  .readat { font-size: 14.5px; color: var(--dim); white-space: nowrap; }
+  .shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); max-width: 1650px; margin: 0 auto; }
+  .side { border-right: 1.5px solid var(--line); padding: 14px 12px 30px 25px; position: sticky; top: 50px; align-self: start; max-height: calc(100vh - 50px); overflow: auto; min-width: 0; }
+  .side nav { display: grid; gap: 2px; }
+  .sl { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin: 18px 0 4px; }
+  .sp { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 8px; color: var(--fg); text-decoration: none; font-size: 15.5px; border: 1.5px solid transparent; min-width: 0; }
+  .sp .nm { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+  .sp:hover { border-color: var(--line); }
+  .sp[aria-current="page"] { background: var(--lane); border-color: var(--fg); font-weight: 700; }
+  .sp .n { font-size: 12.5px; }
+  .hd { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--ok); }
+  .hd.op { background: var(--op); }
+  .mach { display: grid; gap: 4px; }
+  .mi { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline; text-align: left; border: 1.5px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; background: var(--card); padding: 2px 8px; font-size: 14.5px; min-width: 0; color: var(--fg); }
+  button.mi { cursor: pointer; }
+  button.mi:hover { border-color: var(--fg); }
+  .mi.e-ok { border-left-color: var(--ok); } .mi.e-op { border-left-color: var(--op); }
+  .mi .val { font-weight: 700; display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: center; justify-content: flex-end; min-width: 0; }
+  .mi .val small { font-weight: 400; color: var(--dim); }
+  .theme { font-size: 14.5px; font-weight: 600; background: transparent; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; cursor: pointer; color: var(--dim); }
+  .theme:hover { border-color: var(--fg); color: var(--fg); }
 
   /* stopped */
   .dead { display: none; margin-top: 12.5px; border-radius: 10px; background: var(--fg); color: var(--bg); padding: 12.5px 17.5px; }
@@ -66,9 +85,9 @@
   body.stopped .st, .dead .st, .dw .st { display: inline-block; }
 
   /* vitals */
-  .vitals { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 12.5px; }
+  .vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
   .vit { text-align: left; border: 1.5px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; background: var(--card); padding: 7.5px 12.5px 9px; cursor: pointer; min-width: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; }
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; align-content: start; }
   .vit:hover, .tok:hover, .laneh:hover, .youn:hover { border-color: var(--fg); }
   .vit.e-ok { border-left-color: var(--ok); } .vit.e-op { border-left-color: var(--op); } .vit.e-msg { border-left-color: var(--msg); } .vit.e-dim { border-left-color: var(--dim); }
   .vit .tag { grid-column: 1; }
@@ -81,7 +100,8 @@
   .vit .val b { white-space: nowrap; }
   .ck { display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; min-width: 0; }
   .ck.zero { font-weight: 400; color: var(--dim); }
-  .vit .viz { grid-column: 2; grid-row: 2; display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; min-height: 25px; max-width: 137.5px; flex-wrap: wrap; }
+  .vit .viz { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; }
+  .vit .viz:empty { display: none; }
   .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ok); display: inline-block; flex: none; }
   .dot.off { background: transparent; border: 2px solid var(--op); }
   .dot.amber { background: var(--op); }
@@ -164,8 +184,6 @@
   .lane.g { margin-top: 9px; }
   .lane.e-user { border-left-color: var(--op); } .lane.e-crew { border-left-color: var(--msg); } .lane.e-rev { border-left-color: var(--rev); } .lane.e-ci { border-left-color: var(--scout); } .lane.e-ok { border-left-color: var(--ok); }
   .lane.e-unknown { border-left: 5px dashed var(--op); }
-  .lane.empty { background: transparent; padding-top: 0; padding-bottom: 0; }
-  .lane.empty .laneh b { font-weight: 400; color: var(--dim); }
   .laneh { display: inline-flex; align-items: center; gap: 9px; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 1px 5px 1px 0; cursor: pointer; text-align: left; min-width: 0; font-size: 15.5px; }
   .laneb { min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
   .mdots { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -179,7 +197,11 @@
   body.stopped .frz .tw > :not(.tok), body.gone .tw > :not(.tok) { opacity: 0.6; }
   .tw.off > :not(.tok) { opacity: 0.16; }
   body.stopped .frz .yg.live .tok { border-style: solid; opacity: 1; }
-  body.stopped .line.frz .lane:not(.empty) { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
+  body.stopped .line.frz .lane { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
+  .folded { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; padding: 3px 10px 3px 15px; }
+  .folded .tag { margin-right: 4px; }
+  .folded button { border: 1.5px solid var(--line); border-radius: 1249px; background: transparent; padding: 0 10px; cursor: pointer; font-size: 14px; color: var(--dim); }
+  .folded button:hover { border-color: var(--fg); color: var(--fg); }
   .calm { font-weight: 700; font-size: 16px; margin: 2px 0 7.5px; display: flex; gap: 9px; align-items: center; }
   .calm[hidden] { display: none; }
 
@@ -266,20 +288,33 @@
     .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: dense; }
     .lane { grid-template-columns: 140px minmax(0, 1fr); }
   }
+  /* Under 900px the sidebar is a row of chips over the view: every project, then the machine. */
+  @media (max-width: 899.98px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; max-height: none; overflow: visible; border-right: 0; border-bottom: 1.5px solid var(--line); padding: 8px 10px; display: grid; gap: 6px; }
+    .side nav, .mach { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sl { display: none; }
+    .sp, .mi { min-height: 44px; flex: 0 1 auto; }
+    .sp { border-color: var(--line); background: var(--card); padding: 4px 12px; }
+    .mi { display: inline-flex; align-items: center; gap: 6px; }
+  }
   /* A phone has a layout of its own: one column, the health strip as one block, the line
      as a list, a drawer over the whole screen, and every target at least 44px. */
   @media (max-width: 640px) {
     main { padding: 8px 10px 32px; }
-    .theme button, .fb, .btn, .dead .dh button { min-height: 44px; min-width: 44px; }
-    .theme button { padding: 0 14px; }
+    .hdr { position: static; padding: 4px 10px; gap: 0 10px; }
+    .hdr h1 { order: 3; flex-basis: 100%; }
+    .brand { min-height: 44px; display: inline-flex; align-items: center; }
+    .side nav .sp { flex: 1 1 auto; }
+    .theme, .fb, .btn, .dead .dh button { min-height: 44px; min-width: 44px; }
+    .theme { padding: 0 14px; }
     .dead .split { grid-template-columns: minmax(0, 1fr); }
     .vitals { gap: 0; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
     .vit { border-width: 0 0 1px 5px; border-radius: 0; min-height: 44px; padding: 5px 10px; }
-    .vitals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .vit.first, .vit.wide { grid-column: 1 / -1; }
-    .vit.wide { border-bottom-width: 0; }
+    .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .vit.wide { grid-column: 1 / -1; border-bottom-width: 0; }
     .vit .viz { display: none; }
-    .vit[data-open="bus"] .viz, .vit[data-open="room"] .viz { display: flex; grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; min-height: 0; }
+    .vit[data-open="bus"] .viz { display: flex; }
     .vit .val { grid-column: 1 / -1; font-size: 17px; }
     .you { padding: 4px 10px 10px; gap: 6px; }
     .youn { min-height: 44px; flex-basis: 100%; align-items: center; }
@@ -293,7 +328,6 @@
     .keyk, .keyk:first-of-type { margin-left: 0; }
     .line { gap: 5px; }
     .lane { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 8px 8px; }
-    .lane.empty { padding-bottom: 0; }
     .laneh { min-height: 44px; width: 100%; font-size: 16px; }
     .laneb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .tw { display: flex; gap: 6px; }
@@ -323,10 +357,7 @@
   .mb.over u { background: var(--op); }
   .ghbox { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12.5px; margin-top: 12.5px; background: var(--card); }
 
-  /* every project: the machine once, one wait band, and a row for each project */
-  .top a { color: var(--msg); }
-  .vitals.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .vitals.four .vit { cursor: default; }
+  /* every project: one wait band, and a row for each project */
   .yrows { display: grid; gap: 6px; flex: 1 1 520px; min-width: 0; }
   .yrow { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; min-width: 0; }
   .pj { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 14.5px; font-weight: 700; border-radius: 6px; padding: 0 8px; background: var(--lane); box-shadow: inset 0 0 0 1px var(--line); color: var(--fg); text-decoration: none; white-space: nowrap; }
@@ -358,43 +389,49 @@
   .none .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
   /* where the page is, and the way back */
   .crumbs { display: inline-flex; flex-wrap: wrap; gap: 0 7px; align-items: baseline; }
+  .hdr .crumbs a + a::before { content: "/" / ""; color: var(--dim); padding-right: 7px; display: inline-block; }
   .crumbs a { color: var(--msg); text-decoration: none; }
   .crumbs a:hover { text-decoration: underline; }
   .crumbs a[aria-current="page"] { color: var(--fg); }
   .dw-h .crumbs { font-size: 14px; color: var(--dim); }
   .back { display: block; margin: 4px 0 2px; border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--msg); font-size: 15px; font-weight: 600; text-align: left; }
   .back:hover { text-decoration: underline; }
-  @media (max-width: 1100px) { .vitals.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 640px) {
-    .vitals.four { grid-template-columns: minmax(0, 1fr); }
-    .pj, .hc, .rcell, a.tok, .pjh .go, .top a, .back { min-height: 44px; display: inline-flex; align-items: center; }
+    .pj, .hc, .rcell, a.tok, .pjh .go, .back, .folded button { min-height: 44px; display: inline-flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .pjh .go { margin-left: 0; }
   }
 </style>
 </head>
 <body>
+<header class="hdr">
+  <a class="brand" href="#/">jbus view</a>
+  <h1 id="title"></h1>
+  <span class="readat" id="readat"></span>
+  <button type="button" class="theme" id="theme">Auto</button>
+</header>
+<div class="shell">
+<aside class="side" id="side" aria-label="Every project, and this machine">
+  <nav id="projects" aria-label="Projects"></nav>
+  <div class="sl" id="mach-h">This machine</div>
+  <section class="mach" id="machine" aria-labelledby="mach-h"></section>
+</aside>
 <main>
-  <div class="top">
-    <h1 id="title">jbus: the line</h1>
-    <span class="where"><span id="readat"></span></span>
-    <div class="theme" role="group" aria-label="Light or dark view"><button type="button" data-theme-pick="auto">Auto</button><button type="button" data-theme-pick="light">Light</button><button type="button" data-theme-pick="dark">Dark</button></div>
-  </div>
   <div class="dead" id="dead" role="alert"></div>
   <div id="stack" hidden>
-    <div class="vitals four" id="machine" aria-label="This machine: one jbus and one room serve every project"></div>
     <div class="you" id="waits" aria-label="Waits on you, in every project"><span class="youn" id="wtotal"></span><div class="yrows" id="yrows"></div></div>
     <div id="rows" aria-label="Every project"></div>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
-  <div class="vitals" id="vitals" aria-label="Is the bus alive, and what it runs on"></div>
+  <div class="vitals" id="vitals" aria-label="This project: its threads, checks, bus and blind spots"></div>
   <div class="you frz" id="you" aria-label="Waits on you"></div>
   <div class="filters" id="filters" role="group" aria-label="Show tokens held by"></div>
   <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
   <ol class="line frz" id="line" aria-label="The line: every open task on its step"></ol>
   </div>
 </main>
+</div>
 
 <dialog class="drawer" id="drawer" aria-labelledby="dw-title">
   <div class="dw" id="dw"></div>
@@ -402,14 +439,15 @@
 <script>
 (function () {
   "use strict";
-  /* The page asks its own server and nobody else, one request each POLL ms: /stack.json on
-     a bare link, which is every project at once, and /state.json of one project on
-     #/<project>. It asks /task/<slug>/github when a task's drawer opens, and
+  /* The page asks its own server and nobody else, each POLL ms: /stack.json on a bare link,
+     which is every project at once, and /state.json of one project on #/<project>, with
+     /stack.json beside it once each EVERY polls, for the sidebar's count of every project. It
+     asks /task/<slug>/github when a task's drawer opens, and
      /panel/<name>.json when the drawer of a panel that is not on the first screen does. It
      draws what it is given, and a part whose drawing did not change is not drawn again. Its
      one write is /answer, the answer to a gate of the project it shows: the server decides
      what the answer is and what is sent, and the page shows what it said. */
-  var POLL = 15000, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
+  var POLL = 15000, EVERY = 4, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
@@ -546,7 +584,6 @@
       (live.length ? '<div class="half lvh">' + lv() + codes(live) + '</div>' : "") + '</div>');
   }
   function renderTop() {
-    say($("readat"), hm(NOW, true)); $("readat").title = "read at this time";
     var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
     put($("vitals"), cards.map(function (c) {
       return '<button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>';
@@ -576,17 +613,20 @@
         return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i>' + n + '</i></button>' : "";
       }).join("") + fz() +
       '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>');
-    var html = "";
+    /* Only a step that holds a task takes a row. The rest are folded into one line of their
+       names, each still a way to its drawer. */
+    var html = "", folded = [];
     lanes().forEach(function (s) {
-      var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = here.length;
+      var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = s.key === "merged" ? S.merged.length : here.length;
+      if (!count) { folded.push('<button type="button" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ': no task. Open this step">' + esc(s.name) + '</button>'); return; }
       if (s.key === "queued") here.sort(function (a, b) { return rank[a.who] - rank[b.who] || a.priority - b.priority; });
       else here.sort(function (a, b) { return (ms(a.since) || NOW) - (ms(b.since) || NOW); });
       if (s.key === "merged") {
-        count = S.merged.length;
         body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
       } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
-      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (count ? "" : " empty") + (s.group ? " g" : "") + '"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '">' + count + '</span><b>' + esc(s.name) + '</b></button><div class="laneb">' + body + '</div></li>';
+      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '">' + count + '</span><b>' + esc(s.name) + '</b></button><div class="laneb">' + body + '</div></li>';
     });
+    if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
     put($("line"), html);
     $("calm").hidden = S.tasks.length > 0;
     applyFilter();
@@ -596,24 +636,71 @@
     $("line").querySelectorAll(".qd").forEach(function (d) { d.classList.toggle("off", VIEW.filter !== "all" && d.getAttribute("data-who") !== VIEW.filter); });
     $("filters").querySelectorAll("[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === VIEW.filter)); });
   }
-  /* ---------- every project: the machine once, one wait band, a row for each ---------- */
-  function mcard(e, tag, val, tip, viz) { return '<div class="vit e-' + e + '" title="' + esc(tip) + '"><span class="tag">' + tag + '</span><span class="val">' + val + '</span>' + (viz ? '<span class="viz">' + viz + '</span>' : "") + '</div>'; }
+  /* ---------- the shell: the header, the sidebar of every project, and the machine ---------- */
+  /* The machine is what one jbus and one room serve every project with: the pass, the room,
+     the runner units and the plan. It is drawn once, in the sidebar, on every view, and is on
+     no project's card or row. On a project's page it is that project's own read of them, and
+     each opens its drawer; on every project it is the one /stack.json read. */
+  function machineOf() {
+    if (PROJECT && S) return { jbus: S.jbus, room: S.room, runners: S.checks.runners, runners_read: S.checks.runners_read, unwell: STACK ? STACK.machine.unwell : [], opens: true };
+    return STACK ? STACK.machine : null;
+  }
+  function mitem(e, tag, val, tip, open) {
+    var inner = '<span class="tag">' + tag + '</span><span class="val">' + val + '</span>';
+    return open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>';
+  }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
-  function machineRow() {
-    var m = STACK.machine, j = m.jbus, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go";
+  function machineRow(m) {
+    var j = m.jbus, stopped = j.stopped, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go", o = m.opens;
     var us = m.runners, up = us.filter(function (u) { return u.active === "active"; }).length;
     var load = r.load[0] == null ? null : pct(r.load[0], r.cores), tmp = r.tmp ? pct(r.tmp.used, r.tmp.total) : null;
-    function used(key, name) { var x = plan[key]; return name + " " + (x && x.used != null ? '<b>' + x.used + '%</b>' : "unknown"); }
+    function used(key) { var x = plan[key]; return x && x.used != null ? x.used + "%" : "?"; }
     var over = ["five_hour", "seven_day"].some(function (k) { return plan[k] && plan[k].used != null && plan[k].used >= l.plan; });
     var bad = m.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ");
-    return mcard(stopped || bad ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i><b>' + (stopped ? "stopped" : "passing") + '</b> <small>' + (end == null ? "never" : hm(end)) + '</small>' + (bad ? ' <small class="bad">' + esc(bad) + '</small>' : ""),
-        (stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project.") + (bad ? " Not read, for every project: " + bad + "." : "")) +
-      mcard(ok ? "ok" : "op", "room", ok ? "ok" : r.answer === "wait" ? "full" : "unknown", "Machine room: " + (ok ? "room to launch" : r.why) + ". Load " + (r.load[0] == null ? "unknown" : r.load[0]) + " of " + r.cores + " cores.",
-        '<span class="mbs">' + bar(load, l.load) + bar(tmp, l.slots) + '</span>') +
-      mcard(!m.runners_read || up < us.length ? "op" : "ok", "runners", m.runners_read ? up + ' <small>of ' + us.length + ' active</small>' : '<small class="bad">not known</small>',
-        m.runners_read ? "Runner units of this machine: " + (us.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", ") || "none") : "systemd did not answer",
-        us.map(function (u) { return '<i class="dot' + (u.active === "active" ? "" : " off") + '"></i>'; }).join("")) +
-      mcard(over ? "op" : "ok", "plan", used("five_hour", "5h") + " " + used("seven_day", "7d"), "The plan's use, five hours and seven days, held to " + l.plan + "%. " + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? plan[k].say : ""; }).filter(String).join(". "));
+    return mitem(stopped || bad ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i>' + (stopped ? "stopped" : "passing") + ' <small>' + (end == null ? "never" : hm(end)) + '</small>',
+        (stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project") + (bad ? ". Not read: " + bad : ""), o && "pulse") +
+      mitem(ok ? "ok" : "op", "Room", (ok ? "ok" : r.answer === "wait" ? "full" : "unknown") + ' <span class="mbs">' + bar(load, l.load) + bar(tmp, l.slots) + '</span>',
+        "Machine room: " + (ok ? "room to launch" : r.why) + ". Load " + (r.load[0] == null ? "unknown" : r.load[0]) + " of " + r.cores + " cores", o && "room") +
+      mitem(!m.runners_read || up < us.length ? "op" : "ok", "Runners", m.runners_read ? up + "/" + us.length : "not known",
+        m.runners_read ? "Runner units of this machine: " + (us.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", ") || "none") : "systemd did not answer", o && "checks") +
+      mitem(over ? "op" : "ok", "Plan", used("five_hour") + "/" + used("seven_day"),
+        "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room");
+  }
+  /* A project's health, as its summary has it: one chip for each fact, as [edge, text, why].
+     Its row draws them, and its dot in the sidebar is amber where one of them is, with the why. */
+  function health(p) {
+    var h = p.health, c = h.checks, b = h.bus;
+    return [
+      [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", "its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
+      [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), "its bus: " + b.outbox + " in the outbox, " + plural(b.failed_wakes, "failed wake", "failed wakes") + (b.last_error ? ", last error: " + b.last_error : "")],
+      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? "the last pass left no list of its threads" : plural(h.threads, "thread", "threads") + " out"],
+      [h.blind ? "op" : "ok", "Blind " + h.blind, plural(h.blind, "thing", "things") + " its page cannot say now"]
+    ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", "not read: " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
+  }
+  function amber(p) { return health(p).filter(function (x) { return x[0] === "op"; }).map(function (x) { return x[2]; }); }
+  /* The sidebar: All first, then each project the server lists, with what waits on you and a
+     dot for its health. The project in front counts from its own read, which is the newer. */
+  function renderSide() {
+    var ps = STACK ? STACK.projects.slice() : [], here = PROJECT && S && !NOSUCH;
+    function waitsOf(p) { return here && p.name === PROJECT ? S.waiting.length : p.waits; }
+    if (here && !ps.some(function (p) { return p.name === PROJECT; })) ps.push({ name: PROJECT, waits: S.waiting.length });
+    var all = ps.reduce(function (t, p) { return t + waitsOf(p); }, 0);
+    function n(v) { return '<span class="n' + (v ? " op" : " zero") + '">' + v + '</span>'; }
+    put($("projects"), (ps.length ? '<a class="sp" href="' + esc(href("")) + '"' + (PROJECT ? "" : ' aria-current="page"') + ' title="Every project: ' + all + ' wait on you"><span class="nm">All</span>' + n(all) + '</a>' : "") +
+      ps.map(function (p) {
+        var w = waitsOf(p), bad = p.health ? amber(p) : [];
+        return '<a class="sp" href="' + esc(href(p.name)) + '"' + (p.name === PROJECT ? ' aria-current="page"' : "") + ' title="' + esc(p.name + ": " + w + " wait on you" + (bad.length ? ". " + bad.join(". ") : "")) + '">' + (p.health ? '<i class="hd' + (bad.length ? " op" : "") + '"></i>' : "") + '<span class="nm">' + esc(p.name) + '</span>' + n(w) + '</a>';
+      }).join(""));
+    var m = machineOf();
+    $("mach-h").hidden = !m;
+    put($("machine"), m ? machineRow(m) : "");
+  }
+  /* The header: where the page is, All then the project, each a link, and when it was read. */
+  function renderHeader() {
+    var at = PROJECT || NOSUCH;
+    put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
+    if (document.title !== named) document.title = named;
   }
   function waitRow(p) {
     var h = '<a class="pj" href="' + href(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '">' + p.waits + '</span></a>', any = false;
@@ -629,14 +716,9 @@
   }
   function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
-    var h = p.health, c = h.checks, b = h.bus, held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
+    var held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
     var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
-    out += '<div class="chips">' +
-      chip(c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + esc(c.error) : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")) +
-      chip(b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")) +
-      chip(h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? p.name + ": the last pass left no list of its threads" : p.name + ": " + plural(h.threads, "thread", "threads") + " out") +
-      chip(h.blind ? "op" : "ok", "Blind " + h.blind, p.name + ": " + plural(h.blind, "thing", "things") + " its page cannot say now") +
-      (h.unwell.length ? chip("op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (s) { return s.name + " " + s.state; }).join(", ")) : "") + '</div>';
+    out += '<div class="chips">' + health(p).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
     if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
@@ -645,8 +727,6 @@
   }
   function renderStack() {
     var ps = STACK.projects, n = ps.reduce(function (t, p) { return t + p.waits; }, 0);
-    say($("readat"), hm(NOW, true)); $("readat").title = "read at this time";
-    put($("machine"), machineRow());
     $("waits").className = "you" + (n ? "" : " none");
     put($("wtotal"), '<b>' + n + '</b><span>wait on you</span>');
     keyed($("yrows"), "div", "yrow", ps.map(function (p) { return { key: p.name, html: waitRow(p) }; }));
@@ -658,19 +738,17 @@
   var drawnOnce = false;
   function render() {
     document.body.classList.toggle("gone", gone);
-    /* One project's page says where it is in the title: All, then the project, each a link. */
-    if (PROJECT) put($("title"), '<nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; <a href="' + esc(href(PROJECT)) + '" aria-current="page"><code>' + esc(PROJECT) + '</code></a></nav>');
-    else put($("title"), "jbus: every project");
-    var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
-    if (document.title !== named) document.title = named;
+    renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
     $("stack").hidden = !!PROJECT || !STACK;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
-    if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderDead(); return; }
+    if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderSide(); renderDead(); return; }
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
+    say($("readat"), "read " + hm(ms(PROJECT ? S.at : STACK.at) || lastAnswer, true)); $("readat").title = "The time of the last read of the server";
+    renderSide();
     renderDead();
     if (!PROJECT) renderStack();
     else {
@@ -792,7 +870,7 @@
     if (!drawer.open) return;
     ours += 1;
     drawer.close();
-    var b = first && document.querySelector('main [data-open="' + CSS.escape(first) + '"]');
+    var b = first && document.querySelector('.shell [data-open="' + CSS.escape(first) + '"]');
     if (b) b.focus();
   }
   function github() {
@@ -911,12 +989,17 @@
     missed += 1;
     if (missed >= MISS) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
-  /* One request a poll, for the view in front. An answer to a view that is no longer in
-     front is dropped. A project the state directory does not have is said, and no fault. */
-  var turnOf = 0, pending = "";
+  /* A poll asks for the view in front: every project's /stack.json, or one project's
+     /state.json and, on its first poll and each EVERY after, /stack.json for the sidebar. An
+     answer to a view that is no longer in front is dropped. A project the state directory
+     does not have is said, and no fault. */
+  var turnOf = 0, pending = "", beat = 0;
   function poll() {
     var mine = turnOf;
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
+    /* The sidebar's count of every project, beside one project's page: a miss of it is no
+       miss of the server, which the project's own read says. */
+    if (!STACK || beat++ % EVERY === EVERY - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
@@ -959,14 +1042,19 @@
 (function () {
   var KEY = "jbus-view-theme", root = document.documentElement, forced = root.getAttribute("data-theme-hash");
   function get() { if (forced) return forced; try { return localStorage.getItem(KEY) || "auto"; } catch (e) { return "auto"; } }
+  /* One button: it names the look in use, and a tap takes the next of auto, light and dark. */
+  var NEXT = { auto: "light", light: "dark", dark: "auto" }, NAME = { auto: "Auto", light: "Light", dark: "Dark" }, now = "auto";
   function show(v) {
-    if (v === "light" || v === "dark") root.setAttribute("data-theme", v); else root.removeAttribute("data-theme");
-    document.querySelectorAll("[data-theme-pick]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-theme-pick") === (v || "auto"))); });
+    now = NAME[v] ? v : "auto";
+    if (now === "light" || now === "dark") root.setAttribute("data-theme", now); else root.removeAttribute("data-theme");
+    var b = document.getElementById("theme");
+    b.textContent = NAME[now];
+    b.setAttribute("aria-label", "Light or dark: " + now + (now === "auto" ? ", as the browser asks" : "") + ". Tap for " + NEXT[now]);
+    b.title = b.getAttribute("aria-label");
   }
   document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest("[data-theme-pick]");
-    if (!b) return;
-    var v = b.getAttribute("data-theme-pick");
+    if (!e.target.closest || !e.target.closest("#theme")) return;
+    var v = NEXT[now];
     forced = null;
     try { localStorage.setItem(KEY, v); } catch (err) {}
     show(v);
