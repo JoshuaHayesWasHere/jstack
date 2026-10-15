@@ -124,3 +124,29 @@ def test_project_add_writes_no_webhook_and_the_new_project_takes_the_top_level_p
         "webhook" not in (kitchen.config_dir / "config.toml").read_text().split("[[project]]")[-1]
     )
     assert pairs(jbus.load())["added"] == (URL, KEY)
+
+
+@pytest.mark.parametrize("top", [True, False], ids=["top-level", "own"])
+def test_a_url_with_an_empty_key_is_refused_as_a_key_missing(kitchen, top):
+    blank = (f"webhook_url = {json.dumps(URL)}", 'webhook_key = ""')
+    if top:
+        write(kitchen, table(kitchen, "demo"), top=blank)
+        line = f"refused: {kitchen.config_dir / 'config.toml'} has no top-level webhook_key"
+    else:
+        write(kitchen, table(kitchen, "demo", *blank))
+        line = "refused: project demo has no webhook_key of its own"
+    with pytest.raises(jbus.Refused) as refused:
+        jbus.load()
+    assert str(refused.value).startswith(line + " beside the other")
+
+
+def test_an_empty_url_beside_a_key_loads_as_no_webhook(kitchen):
+    write(kitchen, table(kitchen, "demo", 'webhook_url = ""', f'webhook_key = "{OWN_KEY}"'))
+    assert pairs(jbus.load()) == {"demo": ("", OWN_KEY)}
+
+
+def test_a_brace_in_a_project_name_is_no_placeholder_in_the_refusal(kitchen):
+    write(kitchen, table(kitchen, "a{b}x}", f'webhook_key = "{OWN_KEY}"'))
+    with pytest.raises(jbus.Refused) as refused:
+        jbus.load()
+    assert str(refused.value).startswith("refused: project a{b}x} has no webhook_url of its own")

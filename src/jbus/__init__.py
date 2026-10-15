@@ -193,15 +193,23 @@ def _unread(raw: dict[str, Any]) -> tuple[Hook, ...]:
 PAIR = ("webhook_url", "webhook_key")
 
 
-def _pair(table: dict[str, Any], half: str) -> Hook | None:
-    """The table's webhook URL and key, or None when it has neither. Half a pair is refused
-    with `half`, which is given the key that is missing and has no value in it."""
+def _missing(table: dict[str, Any]) -> str | None:
+    """The key of the table's webhook pair that is missing beside the other, or None. A URL
+    with an empty key counts as a key missing: it would post with no key. An empty URL
+    beside a key is no webhook, and loads."""
     present = [key for key in PAIR if key in table]
-    if not present:
-        return None
     if len(present) == 1:
-        (missing,) = set(PAIR) - set(present)
-        raise Refused(half.format(missing=missing))
+        return next(key for key in PAIR if key not in table)
+    if present and table["webhook_url"] and not table["webhook_key"]:
+        return "webhook_key"
+    return None
+
+
+def _pair(table: dict[str, Any], default: Hook) -> Hook:
+    """The table's webhook URL and key, or `default` when it has neither. `_missing` has
+    refused half a pair first."""
+    if not any(key in table for key in PAIR):
+        return default
     return str(table["webhook_url"]), str(table["webhook_key"])
 
 
@@ -218,25 +226,30 @@ def load(directory: Path | None = None) -> Config:
         raw = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as error:
         raise Refused(f"refused: {path} does not parse: {error}") from error
-    top = f"refused: {path} has no top-level {{missing}} beside the other: give it both, or neither"
-    webhook = _pair(raw, top) or ("", "")
-    own = (
-        "refused: project {name} has no {{missing}} of its own beside the other: "
-        "give it both, or neither to take the top-level pair"
-    )
-    try:
-        projects = tuple(
-            Project(
-                name=str(entry["name"]),
-                checkout=Path(str(entry["checkout"])).expanduser(),
-                state=str(entry.get("state") or entry["name"]),
-                project_id=str(entry["projectId"]),
-                webhook_url=url,
-                webhook_key=key,
-            )
-            for entry in raw.get("project", [])
-            for url, key in [_pair(entry, own.format(name=entry["name"])) or webhook]
+    if missing := _missing(raw):
+        raise Refused(
+            f"refused: {path} has no top-level {missing} beside the other: give it both, or neither"
         )
+    webhook = _pair(raw, ("", ""))
+    try:
+        projects = []
+        for entry in raw.get("project", []):
+            if missing := _missing(entry):
+                raise Refused(
+                    f"refused: project {entry['name']} has no {missing} of its own beside the "
+                    "other: give it both, or neither to take the top-level pair"
+                )
+            url, key = _pair(entry, webhook)
+            projects.append(
+                Project(
+                    name=str(entry["name"]),
+                    checkout=Path(str(entry["checkout"])).expanduser(),
+                    state=str(entry.get("state") or entry["name"]),
+                    project_id=str(entry["projectId"]),
+                    webhook_url=url,
+                    webhook_key=key,
+                )
+            )
         server = str(raw["server"]).rstrip("/")
         ignored = _ignored(raw)
     except (KeyError, TypeError) as error:
@@ -255,7 +268,7 @@ def load(directory: Path | None = None) -> Config:
         warn_days=int(raw.get("warn_days", 5)),
         wake_alert=int(raw.get("wake_alert", 12)),
         room_passes=int(raw.get("room_passes", 10)),
-        projects=projects,
+        projects=tuple(projects),
         config_dir=directory,
         state_dir=Path(os.environ.get("JBUS_STATE_DIR") or home / ".local" / "state" / "jbus"),
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
