@@ -28,11 +28,15 @@ _URL = re.compile(r"https?://[^\s)>\]`]+")
 _OUTSIDE = (
     (
         "a test",
-        r"\btests?\b|\btests?/|\btest_\w+|\w+_test\b|\bpytest\b|\bmake \w|\buv run\b|`[^`]+`",
+        r"(?<![\w-])tests?\b|\btests?/|\btest_\w+|\w+_test\b|\bpytest\b"
+        r"|\bmake (check|test\w*|lint)\b|\buv run\b|`[^`]*(/|\.|\s-)[^`]*`",
     ),
-    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*%"),
+    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*% of\b"),
     ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
-    ("an external judge", r"\bjudge\b|\bCI\b|\bgithub\b|\bthird[- ]party\b"),
+    (
+        "an external judge",
+        r"\b(external|outside|independent|blind) judge\b|\bCI\b|\bgithub\b|\bthird[- ]party\b",
+    ),
     ("the user", r"\bthe user\b|\buser's\b|\bthe (operator|owner)\b|\bhis (word|pick|eye)\b"),
 )
 _SELF = (

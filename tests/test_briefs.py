@@ -273,6 +273,17 @@ REFUSED = {
     "the model": ("the model judges it", "names the model, the agent's own word"),
     "a review alone": ("a careful review", "names a review alone, the agent's own word"),
     "nothing": ("it works", "names nothing outside the agent"),
+    "make sure": (
+        "the crewmate will make sure it works",
+        "names the crewmate, the agent's own word",
+    ),
+    "a self-test": ("a self-test by the agent", "names the agent, the agent's own word"),
+    "a percentage of sure": (
+        "the reviewer is 100% sure",
+        "names the reviewer, the agent's own word",
+    ),
+    "the model as judge": ("the model is the judge", "names the model, the agent's own word"),
+    "a word in backticks": ("`the crewmate` says so", "names the crewmate, the agent's own word"),
 }
 
 ASKED = "(name a test, a command, a metric, a dataset, an external judge or the user)"
