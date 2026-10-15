@@ -242,7 +242,7 @@ def flowing(scene, sizes):
 class Proxy:
     """A door in front of the server that adds the probe to the page, and can go dark."""
 
-    def __init__(self, upstream, at, task="", pick="", gates=None, probe=True, tap=""):
+    def __init__(self, upstream, at, task="", pick="", gates=None, probe=True, tap="", walk=None):
         self.upstream, self.dark, self.states = upstream, False, 0
         self.dark_after = None
         self.asked, self.stacks = [], 0
@@ -252,6 +252,7 @@ class Proxy:
         self.on_write = lambda nth: None
         asked = f"window.__task = {json.dumps(task)}; window.__pick = {json.dumps(pick)};"
         asked += f"window.__gates = {json.dumps(gates)}; window.__tap = {json.dumps(tap)};"
+        asked += f"window.__walk = {json.dumps(walk)};"
         head = f"<script>window.__at = {at}; {asked}{PROBE}</script>"
         proxy = self
 
@@ -414,19 +415,21 @@ def look(
     route=None,
     alter=None,
     tap="",
+    walk=None,
 ):
     """Open the page in the browser and give back what the probe found. The server is one
     started here over the scene, or the one that listens on `port`. The page is the scene's
     project, `#/demo`, or the `route` given, as `#/` for every project, and `fragment` is
-    more of the address after it, as `#open=task:oat-bowl`. `alter` is given the count of
+    more of the address after it, as `theme=dark`. `alter` is given the count of
     each answer of `/stack.json` and its body, and gives back the body the page gets, and
-    `tap` selects what the probe taps 3 s after the page loads. With
+    `tap` selects what the probe taps 3 s after the page loads, and `walk` is the steps the
+    probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. With
     `gates`, the
     probe answers them, and what it found has each write the page made under `writes`.
     `on_write` is called with the count of each write before it is passed on, and a write
     it answers `dark` for meets no server."""
     served = None if port else Served(scene)
-    proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap)
+    proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk)
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
     proxy.dark_after = dark_after
@@ -806,8 +809,8 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
         "1 noticed, not counted",
     ]
     assert [token["href"] for token in waits["demo"]["tokens"]][-2:] == [
-        "#/demo&open=you:gate",
-        "#/demo&open=noticed",
+        "#/demo/you/gate",
+        "#/demo/noticed",
     ]
     assert all(token["tip"].startswith("demo: ") for token in waits["demo"]["tokens"])
     assert [token["tip"] for token in waits["pantry"]["tokens"]] == [
@@ -835,9 +838,9 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
         "1 Merged",
     ]
     assert rows["pantry"]["cells"] == [
-        ["1 Running", "#/pantry&open=steps:running"],
-        ["1 Gate", "#/pantry&open=steps:gate"],
-        ["1 Merged", "#/pantry&open=merged"],
+        ["1 Running", "#/pantry/steps/running"],
+        ["1 Gate", "#/pantry/steps/gate"],
+        ["1 Merged", "#/pantry/merged"],
     ]
     assert (rows["larder"]["cells"], rows["larder"]["empty"]) == ([], "nothing open")
     assert rows["pantry"]["empty"] == ""
@@ -1484,7 +1487,7 @@ def test_a_drawer_is_opened_by_its_name_in_the_address_under_the_servers_own_pol
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#/demo&open=task:oat-bowl",
+            f"http://127.0.0.1:{served.port}/#/demo/task/oat-bowl",
         )
     finally:
         served.close()
@@ -1492,6 +1495,113 @@ def test_a_drawer_is_opened_by_its_name_in_the_address_under_the_servers_own_pol
     said = html.unescape(re.sub(r"<[^>]+>", "", ran.stdout))
     assert "the rebase dropped 2 of main's lines" in said
     assert "#11 open" in said
+
+
+def walked(scene, tmp_path, route, walk):
+    """What the page showed after each step of `walk`, from `route` opened cold."""
+    seen = look(scene, tmp_path, route=route, walk=walk, at=4000 + 500 * len(walk), budget=12000)
+    assert seen["errors"] == []
+    return seen["walked"]
+
+
+TEA = "#/demo/task/tea-cups"
+WORDS_AT = "#/demo/words/approval/tea-cups"
+
+
+@pytest.mark.parametrize(
+    ("route", "drawer"),
+    [
+        ("#/", ""),
+        ("#/demo", ""),
+        (TEA, "tea-cups"),
+        (WORDS_AT, "things you said"),
+        ("#/demo/you/gate", "things wait on you"),
+        ("#/demo/steps/queued", "The steps, top to bottom"),
+        ("#/demo&open=task:tea-cups", "tea-cups"),
+    ],
+)
+def test_every_route_opens_cold_from_a_pasted_link(scene, tmp_path, route, drawer):
+    """A view is a link: pasted in a new tab it opens on its own, with the drawer it names, and
+    an old `&open=` link is rewritten to its route."""
+    said_by_him(scene)
+    (first,) = walked(scene, tmp_path, route, ["look"])
+    assert first["open"] is bool(drawer)
+    assert first["hash"] == ("#/demo/task/tea-cups" if "&open=" in route else route)
+    if drawer:
+        assert drawer in first["title"]
+        assert first["crumbs"][:2] == [["All", "#/"], ["demo", "#/demo"]]
+        assert first["crumbs"][2] == [first["title"], first["hash"]]
+        assert first["back"] == "", "a drawer opened cold has nothing before it"
+    elif route == "#/demo":
+        assert first["crumbs"] == [["All", "#/"], ["demo", "#/demo"]]
+
+
+def test_back_closes_a_drawer_forward_opens_it_and_esc_goes_back_one_layer(scene, tmp_path):
+    said_by_him(scene)
+    steps = walked(
+        scene,
+        tmp_path,
+        TEA,
+        ["look", "open:words:approval:tea-cups", "back", "forward", "esc", "esc"]
+        + ["open:you", "back", "forward", "close"],
+    )
+    seen = [(one["step"], one["hash"], one["open"]) for one in steps]
+    assert seen == [
+        ("look", TEA, True),
+        ("open:words:approval:tea-cups", WORDS_AT, True),
+        ("back", TEA, True),
+        ("forward", WORDS_AT, True),
+        ("esc", TEA, True),
+        ("esc", "#/demo", False),
+        ("open:you", "#/demo/you", True),
+        ("back", "#/demo", False),
+        ("forward", "#/demo/you", True),
+        ("close", "#/demo", False),
+    ]
+    task, words = steps[0]["title"], steps[1]["title"]
+    assert task.startswith("tea-cups")
+    assert [one["back"] for one in steps[:5]] == ["", f"← {task}", "", f"← {task}", ""]
+    assert steps[1]["crumbs"] == [["All", "#/"], ["demo", "#/demo"], [words, WORDS_AT]]
+    assert steps[0]["crumbs"] == [["All", "#/"], ["demo", "#/demo"], [task, TEA]]
+    assert steps[4]["focus"] == "words:approval:tea-cups", "back on the button that opened it"
+
+
+def test_the_arrow_and_the_breadcrumbs_lead_to_real_pages(scene, tmp_path):
+    said_by_him(scene)
+    steps = walked(
+        scene,
+        tmp_path,
+        "#/demo",
+        ["open:task:tea-cups", "open:words:approval:tea-cups", "arrow", "crumb:1", "back"]
+        + ["open:task:tea-cups", "crumb:0"],
+    )
+    seen = [(one["step"], one["hash"], one["open"]) for one in steps]
+    assert seen == [
+        ("open:task:tea-cups", TEA, True),
+        ("open:words:approval:tea-cups", WORDS_AT, True),
+        ("arrow", TEA, True),
+        ("crumb:1", "#/demo", False),
+        ("back", TEA, True),
+        ("open:task:tea-cups", TEA, True),
+        ("crumb:0", "#/", False),
+    ]
+    assert steps[1]["back"] == f"← {steps[0]['title']}"
+
+
+@pytest.mark.parametrize(
+    ("route", "said"),
+    [
+        ("#/demo/task/no-such-task", "No task named no-such-task in demo"),
+        ("#/demo/gate/999", "No gate named 999 in demo"),
+        ("#/demo/nothing", "No drawer called nothing in demo"),
+        ("#/nowhere/task/tea-cups", "No project named nowhere"),
+    ],
+)
+def test_a_link_to_a_name_that_is_not_there_says_which(scene, tmp_path, route, said):
+    said_by_him(scene)
+    (first,) = walked(scene, tmp_path, route, ["look"])
+    assert first["hash"] == route
+    assert first["notice"].startswith(said), first["notice"]
 
 
 def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(scene, tmp_path):
@@ -1504,7 +1614,7 @@ def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(s
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#/demo&open=words:approval:tea-cups",
+            f"http://127.0.0.1:{served.port}/#/demo/words/approval/tea-cups",
         )
     finally:
         served.close()
@@ -1538,7 +1648,7 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#/demo&open=words:question:{number}",
+            f"http://127.0.0.1:{served.port}/#/demo/words/question/{number}",
         )
     finally:
         served.close()
@@ -1793,7 +1903,7 @@ def shown(port, tmp_path, opens):
     ran = browse(
         f"--user-data-dir={tmp_path / 'profile'}",
         "--virtual-time-budget=3000",
-        f"http://127.0.0.1:{port}/#/demo&open={opens}",
+        f"http://127.0.0.1:{port}/#/demo/{opens.replace(':', '/')}",
     )
     open_ = '<dialog class="drawer" id="drawer" aria-labelledby="dw-title" open="">'
     if open_ not in ran.stdout:
@@ -1854,16 +1964,19 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         assert (seen["tiles"][-1]["text"], seen["tiles"][-1]["open"]) == ("1 sample", "sample")
         assert seen["words"] <= WORDS
         said = shown(process.port, tmp_path, "sample")
-        assert said.startswith("Sample 2 sample lines Close"), said
+        assert said.startswith("All › demo › 2 sample lines Sample 2 sample lines Close"), said
         assert "a first line a second line" in said and "could not be read" not in said
         assert "a sample line of oat-milk the sample" in shown(
             process.port, tmp_path, "task:oat-milk"
         )
         said = shown(process.port, tmp_path, "thrown")
-        assert said.startswith("Panel thrown Close") and "This panel could not be drawn." in said
+        assert (
+            said.startswith("All › demo › thrown Panel thrown Close")
+            and "This panel could not be drawn." in said
+        )
         (scene.state / "sample.json").unlink()
         said = shown(process.port, tmp_path, "sample")
-        assert said.startswith("Sample 0 sample lines Close"), said
+        assert said.startswith("All › demo › 0 sample lines Sample 0 sample lines Close"), said
         assert said.endswith("missing sample.json could not be read.")
     finally:
         process.stop()
@@ -1881,7 +1994,9 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
     finally:
         served.close()
     assert "2 reviews, 1 rebase, 3 wakes" in task
-    assert drawer.startswith("Rounds oat-milk Close (Esc) Now 2 reviews, 1 rebase, 3 wakes"), drawer
+    assert drawer.startswith(
+        "All › demo › oat-milk Rounds oat-milk Close (Esc) Now 2 reviews, 1 rebase, 3 wakes"
+    ), drawer
     at = ago(minutes=20).astimezone()
     when = f"{at:%H:%M}" if at.date() == NOW.astimezone().date() else f"{at:%m-%d %H:%M}"
     assert f"1st findings review of {first[:12]} 2 findings {when}" in drawer

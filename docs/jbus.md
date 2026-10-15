@@ -117,7 +117,24 @@ The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A 
 | Waits on you | The total, and one row for each project: its count, then a token for each kind of wait (gates, rows at a gate, pull requests that need your word, rows to approve), each named for its project. The new noticed lines are a token of their own, labelled "not counted": they wait on nobody, so the total leaves them out. The total is the sum of the rows. |
 | One row for each project | Its repo, open tasks and merges of today, health chips (CI, the bus outbox, threads out, blind spots, and any source that could not be read), and a count for each step of the line that holds a task. A project with an empty queue says "nothing open". |
 
-A project's row opens its page, `#/<project>`: the line, as a bare link showed it before. A token or a step count opens that project's page with its drawer open, as `#/infra&open=you:gate`. An old link, `?project=<project>`, opens `#/<project>`. A link to a project the state directory does not have, a retired one included, says there is no such project.
+A project's row opens its page, `#/<project>`: the line, as a bare link showed it before. A token or a step count opens that project's page with its drawer open.
+
+### Every view is a link
+
+Each view has its own address, a hash, so it opens cold from a pasted link, and the browser's back and forward walk it:
+
+| Address | Opens |
+|---|---|
+| `#/` | Every project. |
+| `#/<project>` | One project's page. |
+| `#/<project>/task/<slug>` | That page with the drawer of one task open. |
+| `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/infra/gate/3`, `#/infra/you/gate` or `#/infra/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
+
+`&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
+
+A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
+
+A link to a project the state directory does not have, a retired one included, says there is no such project. A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
 
 The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one. `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once for the answer, however many projects there are, and asks GitHub for the runs of each repo, kept a minute. A part of the page whose drawing did not change is not drawn again. An answer to a gate goes to the one project whose page it is: `POST /answer?project=<project>`, and a write that names no project gets 404.
 
