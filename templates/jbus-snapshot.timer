@@ -1,0 +1,12 @@
+# Runs jbus-snapshot.service at 08:30 and 17:30 local time. Persistent=true runs one that the
+# machine slept through as soon as it is up again.
+[Unit]
+Description=jbus snapshot: the homes' state tree at 08:30 and 17:30
+
+[Timer]
+OnCalendar=*-*-* 08:30:00
+OnCalendar=*-*-* 17:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

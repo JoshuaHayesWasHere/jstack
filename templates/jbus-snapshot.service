@@ -1,0 +1,12 @@
+# jbus snapshot: commit the homes' state tree, ~/.local/state/home, and push it to its origin.
+# Install: `sh install.sh` links this file, jbus-snapshot-failed.service and jbus-snapshot.timer
+# into ~/.config/systemd/user/ with the jbus units, and enables the timer. Do not copy this file.
+[Unit]
+Description=jbus snapshot: commit and push the homes' state tree
+OnFailure=jbus-snapshot-failed.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus snapshot
