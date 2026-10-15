@@ -1588,6 +1588,54 @@ def test_the_arrow_and_the_breadcrumbs_lead_to_real_pages(scene, tmp_path):
     assert steps[1]["back"] == f"← {steps[0]['title']}"
 
 
+def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, tmp_path):
+    """Esc on a drawer a pasted link opened rewrites its entry to the page. Forward again, the
+    arrow still goes back to that drawer, not to the page, and a drawer opened over another
+    puts the focus on its own Close."""
+    said_by_him(scene)
+    steps = walked(
+        scene,
+        tmp_path,
+        TEA,
+        ["look", "open:words:approval:tea-cups", "esc", "esc", "forward", "arrow", "cancel"],
+    )
+    seen = [(one["step"], one["hash"], one["open"]) for one in steps]
+    assert seen == [
+        ("look", TEA, True),
+        ("open:words:approval:tea-cups", WORDS_AT, True),
+        ("esc", TEA, True),
+        ("esc", "#/demo", False),
+        ("forward", WORDS_AT, True),
+        ("arrow", TEA, True),
+        ("cancel", "#/demo", False),
+    ]
+    assert steps[1]["focus"] == "dw-close"
+    assert steps[4]["back"] == f"← {steps[0]['title']}"
+
+
+def test_a_filter_in_a_drawer_redraws_it_in_place(scene, tmp_path):
+    """The role filters of the threads drawer are no layers: Esc after two of them shuts it."""
+    said_by_him(scene)
+    steps = walked(
+        scene,
+        tmp_path,
+        "#/demo",
+        [
+            "open:threads",
+            'tap:#dw [data-open="threads:crew"]',
+            'tap:#dw [data-open="threads:scout"]',
+        ]
+        + ["esc"],
+    )
+    seen = [(one["hash"], one["open"], one["back"]) for one in steps]
+    assert seen == [
+        ("#/demo/threads", True, ""),
+        ("#/demo/threads/crew", True, ""),
+        ("#/demo/threads/scout", True, ""),
+        ("#/demo", False, ""),
+    ]
+
+
 @pytest.mark.parametrize(
     ("route", "said"),
     [
