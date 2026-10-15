@@ -476,7 +476,7 @@ def test_a_block_run_without_the_block_it_is_run_after_says_so_and_does_nothing(
     homes.home_starts(ROOT)
     before = homes.state()
     guarded = [text for text in blocks("home") if "SEP:?" in text or "SEP=" in text]
-    assert len(guarded) == 7
+    assert len(guarded) == 8
     for text in guarded:
         ran = subprocess.run(
             ["sh", "-c", f"{paths('home')}\n{text}"],

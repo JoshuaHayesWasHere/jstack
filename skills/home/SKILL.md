@@ -300,7 +300,31 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    ```
 
    It keeps each line once. The lines under `## to read` are never cut, so each is the heading as it is. The status of "When a thread sends a message" runs step 4's block too, and marks in the same way.
-5. Do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which merges what is ready or, while jbus merges, prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start. Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run. Both go by the block of "Who merges", and run no `jmerge` on `jbus merges`. A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed. Then tell the user where things stand in at most six lines: what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan and the note, any open decision, and the open questions step 4 printed. A gate is piped to jbus and no message brings it: where step 4 printed a question, give it to the user as "Show the open ones" ("Gates") says, by its block. Before that summary, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left. Last before the summary, do what "Its thread" says, under "The home before this one".
+5. First, where step 4 printed `no project:` under `## questions`, do what "On the bus" says, below these steps: a repo with a home is a jbus project. Then do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which merges what is ready or, while jbus merges, prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start. Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run. Both go by the block of "Who merges", and run no `jmerge` on `jbus merges`. A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed. Then tell the user where things stand in at most six lines: what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan and the note, any open decision, and the open questions step 4 printed. A gate is piped to jbus and no message brings it: where step 4 printed a question, give it to the user as "Show the open ones" ("Gates") says, by its block. Before that summary, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left. Last before the summary, do what "Its thread" says, under "The home before this one".
+
+### On the bus
+
+Every repo with a home is a project of jbus's config: jbus launches, merges, keeps the questions and carries the user's word only for a project it has. `/new-home` adds the repo, and a home started by `/home` in a repo, or before that step was there, did not. So a home that finds its repo missing adds it, before step 5 merges or launches anything. Run this in the main checkout, in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"):
+
+```sh
+: "${SEP:?run the block that reads jbus first}"
+C=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+if [ -n "$P" ]; then
+    echo "on the bus: $R is jbus project $P"
+elif ! command -v jbus > /dev/null; then
+    echo "not on the bus: jbus is not installed here, so nothing is added: sh install.sh in $T/.."
+else
+    echo "not on the bus: $R has no project in jbus's config: add it with the block of step 3 of $T/../skills/new-home/SKILL.md, checkout $C"
+fi
+```
+
+On `on the bus`, there is nothing to do. On `jbus is not installed`, tell the user the line and go on. On `has no project`, add it, with the one block that adds a repo, so this start and `/new-home` cannot drift:
+
+1. Find the repo's T3 Code project id as step 2 of `/new-home` does: `t3_project_list` with `{"limit": 100}`, the entry whose `workspaceRoot` is the checkout the line names, asking again with each `nextCursor` until it is found or the list ends. Make no project here: with none found, or no such tool, tell the user `needs you: add <the checkout> as a project in T3 Code, then start a home again`, and go on to step 5.
+2. Read step 3 of `$T/../skills/new-home/SKILL.md` now, and run its block in the main checkout, with the checkout and the project id filled in.
+3. Read its lines as `/new-home` does: `done`, `already`, or `needs you:` and what the user runs. Tell the user the `jbus project` line.
+
+The block runs `jbus project add`, the only writer of jbus's config. Never open, print or edit that file. It never writes `home-thread`, whatever the home's rules say: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand. A home that cannot add its repo goes on with step 5: the pass names it among the homes not on the bus, in `jbus status` and on the view's machine row, until somebody adds it.
 
 ### The home before this one
 

@@ -658,6 +658,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "last_pass": demo["jbus"]["status"]["last_pass"],
         "token_expires": demo["jbus"]["status"]["token_expires"],
         "streaks": {},
+        "homes_off_bus": [],
     }
     same = {key: one for key, one in demo["room"].items() if key != "tmp"}
     assert {key: one for key, one in stack["machine"]["room"].items() if key != "tmp"} == same
@@ -724,6 +725,26 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert shown["health"]["bus"] == {"outbox": 2, "failed_wakes": 0, "last_error": ""}
     assert shown["health"]["threads"] == 0
     assert "hydra" not in json.dumps(stack)
+
+
+def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path, monkeypatch):
+    """The homes the last pass found with no project are on the machine, as names, and a name
+    that is no string is left out."""
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    status = json.loads((scene.state_dir / "status.json").read_text())
+    status["homes_off_bus"] = ["firstmate", "LittleRamPantries", {"name": "not a name"}]
+    scene.write("status.json", status, scene.state_dir)
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    off = ["firstmate", "LittleRamPantries"]
+    assert stack["machine"]["jbus"]["status"]["homes_off_bus"] == off
+    assert demo["jbus"]["status"]["homes_off_bus"] == off
+    assert all("homes_off_bus" not in json.dumps(one) for one in stack["projects"])
 
 
 def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_row(

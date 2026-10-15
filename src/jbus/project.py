@@ -18,6 +18,13 @@ is safe in any log.
 
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` works the new
 project and no unit is restarted.
+
+`missing` is what slipped past `add`: each folder of the homes' state root that holds a
+home's `home-id` and is the home of no project of the config. A home adds its repo at its
+start, and one started before that rule, or whose add was refused, is named here: the pass
+says the list when it changes, and `jbus status` and the view's machine row show it. A
+party's folder, `_<name>` (Exec's, an expert's), is no repo's home and is never named, and a
+folder that is a link to a project's home is that home.
 """
 
 from __future__ import annotations
@@ -96,6 +103,26 @@ def add(config_path: Path, name: str, checkout: str, project_id: str) -> str:
     _private(backup, was)
     _private(config_path, now)
     return ADDED.format(backup=backup)
+
+
+def missing(config: jbus.Config) -> list[str]:
+    """The folders under the homes' state root with a `home-id` and no project, by name."""
+    homes = {config.home(one).resolve() for one in config.projects}
+    try:
+        found = list(config.home_dir.iterdir())
+    except OSError:
+        return []
+    named = []
+    for folder in found:
+        mark = folder / "home-id"
+        if folder.name.startswith("_") or not folder.is_dir() or folder.resolve() in homes:
+            continue
+        try:
+            if mark.is_file() and mark.read_text().strip():
+                named.append(folder.name)
+        except OSError:
+            continue
+    return sorted(named, key=str.lower)
 
 
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:

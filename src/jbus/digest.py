@@ -48,6 +48,7 @@ from jbus import (
     Refused,
     alert,
     merge,
+    project,
     queue,
     read_json,
     record,
@@ -82,10 +83,11 @@ def since(given: str | None, user: jsettings.Settings) -> datetime | None:
 
 
 def status(config: Config) -> dict[str, Any]:
-    """What `jbus status` prints: the status file, the streaks as they are now, and the
-    record of the pass."""
+    """What `jbus status` prints: the status file, the streaks and the homes not on the bus
+    as they are now, and the record of the pass."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
+        "homes_off_bus": project.missing(config),
         "pass": record.read(config),
     }
 
@@ -198,7 +200,8 @@ def build(
 
 
 def _status(_: argparse.Namespace, config: Config) -> int:
-    """Print the status file, with the streaks as they are now and the record of the pass.
+    """Print the status file, with the streaks and the homes not on the bus as they are now
+    and the record of the pass.
 
     The file's own streaks are a copy from the last pass that ended, and `jbus alarm` counts
     after it. The record is there from the start of a pass, so a first pass that never ended
