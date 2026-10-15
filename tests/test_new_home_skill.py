@@ -70,7 +70,11 @@ class Machine:
     def jbus(self, checkout=None, project=PROJECT):
         return self.run(
             "jbus project add",
-            **{"the checkout": str(checkout or self.repo), "the T3 project id": project},
+            **{
+                "the checkout": str(checkout or self.repo),
+                "the T3 project id": project,
+                "the id of a home that merges by itself, or nothing": "",
+            },
         )
 
     def merge(self, shell="sh"):
@@ -234,7 +238,11 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
     assert machine.run(
         "jbus project add",
         path=str(bare),
-        **{"the checkout": str(machine.repo), "the T3 project id": PROJECT},
+        **{
+            "the checkout": str(machine.repo),
+            "the T3 project id": PROJECT,
+            "the id of a home that merges by itself, or nothing": "",
+        },
     ) == [
         "3 jbus project: needs you: sh install.sh in the checkout that holds this skill, "
         "jbus is not on PATH"

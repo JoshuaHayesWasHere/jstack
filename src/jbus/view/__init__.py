@@ -174,6 +174,7 @@ DIGEST = {
         "token_expires": None,
         "projects": {ANY: _HOOK},
         "streaks": {ANY: {"key": None, "count": None, "since": None, "alerted": None}},
+        "homes_off_bus": [None],
         "pass": {
             "started": None,
             "ended": None,

@@ -57,6 +57,7 @@ from jbus import (
     leftover,
     merge,
     mirror,
+    project,
     questions,
     queue,
     record,
@@ -111,25 +112,27 @@ def _hook(config: jbus.Config, box: wake.Box, route: wake.Route, key: str) -> di
 
 
 def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
-    """What the status file holds: read back from what the pass left, and nothing new."""
+    """What the status file holds: read back from what the pass left, and the homes not on
+    the bus, which no pass leaves (`project.missing`)."""
     expires = t3.expiry(config.token_path)
     projects = {}
-    for project in config.projects:
-        box = wake.Box(config.state(project), project, config.webhook)
+    for one in config.projects:
+        box = wake.Box(config.state(one), one, config.webhook)
         marks = box.marks()
-        projects[project.name] = {
-            **_hook(config, box, box.routes[0], alert.webhook(project.name)),
+        projects[one.name] = {
+            **_hook(config, box, box.routes[0], alert.webhook(one.name)),
             "sign_in": expiring(config, now),
             "sweep": marks.get("sweep", ""),
         }
         for route in box.routes[1:]:
-            key = alert.top_level(project.name)
-            projects[project.name]["top_level"] = _hook(config, box, route, key)
+            key = alert.top_level(one.name)
+            projects[one.name]["top_level"] = _hook(config, box, route, key)
     return {
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
         "projects": projects,
         "streaks": alert.streaks(config.state_dir),
+        "homes_off_bus": project.missing(config),
     }
 
 
@@ -430,8 +433,10 @@ def poll(
     pass that cannot be written is said, and the pass does all it does with one.
 
     A config that still has a key nothing reads is said in one line, on each pass until
-    the key is removed. What the copy to Exec left behind goes here too: its streak, which
-    nothing else would end, and each project's list of copies owed.
+    the key is removed. The homes that have no project in the config are said in one line
+    too, on the pass their list changes (`project.missing`). What the copy to Exec left
+    behind goes here too: its streak, which nothing else would end, and each project's list
+    of copies owed.
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:
@@ -451,9 +456,9 @@ def poll(
                 f"{', '.join(config.ignored)}: jbus reads none of them, remove them"
             )
         alert.retire(config.state_dir, RETIRED)
-        for project in config.projects:
+        for one in config.projects:
             with contextlib.suppress(OSError):
-                (config.state(project) / EXEC_SENT).unlink()
+                (config.state(one) / EXEC_SENT).unlink()
         now = now or datetime.now(UTC)
         last = jbus.read_json(config.status_path, {})
         raised: dict[str, str] = {}
@@ -496,6 +501,8 @@ def poll(
             if recovered and not raised:
                 alert.told(config.state_dir, alert.PASS)
         report = status(config, now)
+        if report["homes_off_bus"] != last.get("homes_off_bus", []):
+            say(f"homes not on the bus: {', '.join(report['homes_off_bus']) or 'none'}")
         for name, why in raised.items():
             if name in report["projects"]:
                 report["projects"][name]["last_error"] = why
@@ -522,15 +529,15 @@ def alarm(
     if line:
         wake.notify(line)
     code = 0
-    for project in config.projects:
+    for one in config.projects:
         try:
-            run = wake.Pass(config, project, now, say)
+            run = wake.Pass(config, one, now, say)
             alert.deliver(run, line, desk=False)
             alert.flush(run)
             if line:
-                say(f"alert {'waits' if run.box.waiting() else 'sent'}: {project.name}")
+                say(f"alert {'waits' if run.box.waiting() else 'sent'}: {one.name}")
         except Exception as error:
-            say(f"alarm failed {project.name}: {_why(error, project)}")
+            say(f"alarm failed {one.name}: {_why(error, one)}")
             code = 1
     if line:
         alert.told(config.state_dir, alert.PASS)

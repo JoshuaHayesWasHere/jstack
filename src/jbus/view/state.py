@@ -1198,7 +1198,7 @@ def build(
     return Read(sources, name, now, runs, code).answer()
 
 
-KEPT_BY_JBUS = ("last_pass", "token_expires", "streaks")
+KEPT_BY_JBUS = ("last_pass", "token_expires", "streaks", "homes_off_bus")
 SUMMARY = {
     "name": None,
     "repo": None,

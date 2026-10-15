@@ -72,19 +72,30 @@ When no entry has that checkout, make one with `t3_project_create`, called with 
 
 ## 3. The project's table in jbus's config
 
-Run this with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
+This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/SKILL.md`). Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets, and nothing in place of the third: the home this skill launches lets jbus merge.
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 C='<the checkout>'
 P='<the T3 project id>'
-case $C$P in
+ME='<the id of a home that merges by itself, or nothing>'
+case $C$P$ME in
 '' | *'<'* | *'>'*)
-    echo "not filled in: put the checkout step 1 printed and the T3 project id of step 2 in place of the placeholders" ;;
+    echo "not filled in: put the checkout step 1 printed, the T3 project id of step 2, and a home's id or nothing in place of the placeholders" ;;
 *)
+    S=$HOME/.local/state/home/${C##*/}/home-thread
+    switch=
+    if [ -n "$ME" ]; then switch=$(cat "$S" 2> /dev/null | tr -d '[:space:]'); fi
     if ! command -v jbus > /dev/null; then
         echo "3 jbus project: needs you: sh install.sh in the checkout that holds this skill, jbus is not on PATH"
+    elif [ -n "$ME" ] && [ -z "$switch" ] && ! printf '%s\n' "$ME" 2> /dev/null > "$S"; then
+        echo "3 home-thread: needs you: echo '$ME' > $S, and run this again: the project is not added, so jbus merges nothing here yet"
     else
+        if [ -n "$switch" ]; then
+            echo "3 home-thread: already, $S holds $switch: a home merges here, jbus runs no jmerge"
+        elif [ -n "$ME" ]; then
+            echo "3 home-thread: done, $S holds $ME: the home merges here, jbus runs no jmerge"
+        fi
         said=$(jbus project add "${C##*/}" --checkout "$C" --project-id "$P" 2>&1)
         case $said in
         'added: '*) echo "3 jbus project: done, ${said#added: }" ;;
@@ -97,6 +108,8 @@ esac
 ```
 
 `jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key. Never open, print or edit that file here. The project's name in jbus is the repo's folder name, which is also the name of its state directory. Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
+
+The third placeholder is the merge switch, and only a home that merges by itself fills it, with its own thread id. The block writes that id to `home-thread` before the add, so the first pass that works the project finds the switch on and runs no `jmerge` beside the home's: one of the two merges, never both. It leaves a switch that holds an id as it is, and empties none. Where the switch cannot be written the project is not added, and the line says what to run. A switch written and an add refused stays written: jbus runs no `jmerge` for a repo with no project anyway. With nothing in the third placeholder `home-thread` is not touched, and jbus merges.
 
 ## 4. What the repo lacks for a merge
 
