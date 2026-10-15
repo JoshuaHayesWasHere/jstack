@@ -62,18 +62,23 @@ def test_the_answers_go_to_read_to_the_crew_and_to_proves_it():
     assert fourth.endswith("A brief's Proves it: line")
 
 
-@pytest.mark.parametrize("picked", ["other", "refactoring", "feature", "none"])
+@pytest.mark.parametrize("picked", ["other", "refactoring", "none"])
 def test_a_mechanical_fix_a_docs_change_and_a_known_bug_skip_it(picked):
     (said,) = run(picked)
     assert said.startswith(f"skip: {picked} ")
     assert "mechanical fix" in said and "docs change" in said and "known cause" in said
 
 
-def test_a_bug_fix_skips_only_with_its_cause_known_and_one_unproven_goes_deeper_as_analysis():
-    (said,) = run("bug-fix")
-    assert said.startswith("skip: a bug fix with a known cause ")
-    assert said.endswith("run this again with analysis")
-    assert run("analysis")[0].startswith("deeper: ")
+@pytest.mark.parametrize(
+    ("picked", "kind"),
+    [("bug-fix", "analysis"), ("feature", "outcome"), ("autonomous-run", "outcome")],
+)
+def test_a_playbook_that_hides_the_kind_skips_and_sends_the_home_back_with_it(picked, kind):
+    (said,) = run(picked)
+    assert said.startswith("skip: ")
+    again = said.rsplit("run this again with ", 1)[1]
+    assert again == kind
+    assert run(again)[0].startswith("deeper: ")
 
 
 def test_the_placeholder_left_in_is_refused():

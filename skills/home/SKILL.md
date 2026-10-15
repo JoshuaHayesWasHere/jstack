@@ -531,6 +531,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
        echo "4. What, other than the agent or the user's trust in it, would show the result is right? A brief's Proves it: line"
        ;;
    bug-fix) echo "skip: a bug fix with a known cause goes by the direct path; where the cause is not proven, run this again with analysis" ;;
+   feature | autonomous-run) echo "skip: a $picked task that builds a named change goes by the direct path; where it is an outcome to reach, run this again with outcome" ;;
    *) echo "skip: $picked is not research, perf, analysis or outcome work: a mechanical fix, a docs change and a bug fix with a known cause go by the direct path" ;;
    esac
    ```
