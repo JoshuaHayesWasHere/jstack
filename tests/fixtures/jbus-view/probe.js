@@ -4,10 +4,23 @@
    found into a pre the browser prints. In a frame, which is how the test gets a screen as narrow as a phone,
    the pre goes into the page that holds the frame. */
 window.__errs = [];
+/* Each change to the page, from the start: when, and the part it is in, the nearest element
+   with an id, or a row of every project by its key. */
+window.__changes = [];
+new MutationObserver(function (records) {
+  records.forEach(function (r) {
+    var el = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+    while (el && !el.id && !(el.getAttribute && el.getAttribute("data-key"))) el = el.parentElement;
+    var key = el && el.getAttribute("data-key");
+    window.__changes.push({ at: Math.round(performance.now()), part: !el ? "" : key ? el.parentElement.id + ":" + key : el.id });
+  });
+}).observe(document, { childList: true, subtree: true, characterData: true });
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
 window.addEventListener("unhandledrejection", function (e) {
   window.__errs.push("rejection: " + String(e.reason && e.reason.message || e.reason));
 });
+/* A tap the test asks for, on what `__tap` selects, a moment after the page loads. */
+window.addEventListener("load", function () { if (window.__tap) setTimeout(function () { var el = document.querySelector(window.__tap); if (el) el.click(); else window.__errs.push("nothing to tap: " + window.__tap); }, 3000); });
 window.addEventListener("load", function () { setTimeout(function () {
   var vh = window.innerHeight, vw = window.innerWidth, drawer = document.getElementById("drawer");
   function seen(el) {
@@ -84,6 +97,16 @@ window.addEventListener("load", function () { setTimeout(function () {
         }) };
     }),
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
+    stack: (function () {
+      var view = document.getElementById("stack"), none = document.getElementById("none");
+      return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
+        machine: all("#machine .vit").map(function (c) { return { tag: text(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, seen: seen(c) }; }),
+        total: text(document.querySelector("#wtotal")),
+        waits: all("#yrows .yrow").map(function (r) { return { project: r.getAttribute("data-key"), count: +text(r.querySelector(".pj .n")), seen: seen(r), quiet: text(r.querySelector(".quiet")),
+          tokens: all(".tok", r).map(function (t) { return { text: text(t), href: t.getAttribute("href"), tip: t.title }; }) }; }),
+        rows: all("#rows .proj").map(function (r) { return { project: r.getAttribute("data-key"), seen: seen(r), box: box(r), head: text(r.querySelector(".pjh")), opens: r.querySelector("h2 a").getAttribute("href"),
+          chips: all(".hc", r).map(text), cells: all(".rcell", r).map(function (c) { return [text(c), c.getAttribute("href")]; }), empty: text(r.querySelector(".empty-q")) }; }) };
+    })(),
     links: [],
     opened: []
   };
@@ -172,6 +195,9 @@ window.addEventListener("load", function () { setTimeout(function () {
     setTimeout(function () {
       out.github = text(document.getElementById("gh"));
       out.errors = window.__errs;
+      out.changes = window.__changes;
+      out.hash = location.hash;
+      out.marked = performance.getEntriesByName("jbus-first-render").length;
       out.nan = /NaN|undefined|\[object/.test(document.body.innerText);
       var pre = document.createElement("pre");
       pre.id = "probe";

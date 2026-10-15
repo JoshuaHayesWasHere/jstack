@@ -75,7 +75,7 @@ class Page:
 def state(kitchen, now=NOW):
     served = Served(Page(kitchen, now))
     try:
-        return served.json("/state.json")
+        return served.json("/state.json?project=" + kitchen.state.name)
     finally:
         served.close()
 

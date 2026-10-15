@@ -1,18 +1,16 @@
 /* The repo's checks on GitHub: its card of what runs, waits and failed, and the drawer of runs. */
-/* A check is one run of the repo's workflow on GitHub. These are the words GitHub has for
-   a run that no runner has taken yet, and for one that ended badly. */
-var QUEUED = { queued: 1, requested: 1 }, FAILED = { failure: 1, timed_out: 1, startup_failure: 1 };
+/* A check is one run of the repo's workflow on GitHub. What runs, waits for a runner and
+   failed is the server's to say (`tally` in panel.py): `S.checks.now` names the runs. These
+   are the words GitHub has for a run that ended badly. */
+var FAILED = { failure: 1, timed_out: 1, startup_failure: 1 };
 var CHECKS = [["running", "running"], ["waiting", "waiting for a runner"], ["failed", "failed"]];
 function runStats() {
-  var by = {}, waited = [], newest = {}, now = { running: [], waiting: [], failed: [] };
-  S.checks.runs.forEach(function (r) {
+  var by = {}, waited = [], runs = S.checks.runs, now = {};
+  runs.forEach(function (r) {
     by[r.state] = (by[r.state] || 0) + 1;
     if (ms(r.started) > ms(r.created)) waited.push(r);
-    newest[r.branch + " " + r.name] = r;
-    if (r.state === "in_progress") now.running.push(r); else if (QUEUED[r.state]) now.waiting.push(r);
   });
-  var red = {};
-  Object.keys(newest).forEach(function (k) { var r = newest[k]; if (FAILED[r.state] && !red[r.branch]) { red[r.branch] = true; now.failed.push(r); } });
+  CHECKS.forEach(function (c) { now[c[0]] = (S.checks.now[c[0]] || []).map(function (at) { return runs[at]; }).filter(Boolean); });
   var worst = waited.slice().sort(function (a, b) { return (ms(b.started) - ms(b.created)) - (ms(a.started) - ms(a.created)); })[0] || null;
   return { by: by, waited: waited, worst: worst, now: now, ended: Object.keys(FAILED).reduce(function (n, k) { return n + (by[k] || 0); }, 0) };
 }

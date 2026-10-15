@@ -81,7 +81,7 @@ def worktree(place, slug):
 
 
 def asked(served):
-    return served.json("/panel/usage.json")["data"]["usage"]
+    return served.json("/panel/usage.json?project=demo")["data"]["usage"]
 
 
 def task(served, slug):
@@ -131,7 +131,7 @@ def test_a_task_with_no_transcript_is_not_known_and_never_zero(place, served):
 
 def test_the_panel_names_its_source_and_the_age_of_what_it_read(place, served):
     path = transcript(worktree(place, "jam-jar") / "s1.jsonl", 1)
-    answer = served.json("/panel/usage.json")
+    answer = served.json("/panel/usage.json?project=demo")
     assert [one["name"] for one in answer["sources"]] == ["~/.claude/projects"]
     assert answer["sources"][0]["at"] == answer["data"]["usage"]["newest"]
     assert answer["data"]["usage"]["newest"] is not None
@@ -149,7 +149,7 @@ def test_no_transcript_is_read_for_the_first_screen_and_one_ask_reads_each_once(
     read = []
     real = session.of_transcript
     monkeypatch.setattr(session, "of_transcript", lambda path: read.append(path) or real(path))
-    served.json("/state.json")
+    served.json("/state.json?project=demo")
     assert read == []
     asked(served)
     assert len(read) == 1
@@ -181,10 +181,10 @@ def test_a_transcript_that_grew_is_counted_again(place, served):
 def test_the_answer_is_numbers_and_times_and_no_text_of_a_transcript(place, scene, served):
     transcript(worktree(place, "jam-jar") / "s1.jsonl", 3)
     home(place, scene)
-    answer = served.ask("/panel/usage.json")[2]
+    answer = served.ask("/panel/usage.json?project=demo")[2]
     assert task(served, "jam-jar")["known"] is True
     assert SECRET not in answer
-    assert SECRET not in served.ask("/state.json")[2]
+    assert SECRET not in served.ask("/state.json?project=demo")[2]
 
 
 def home(place, scene, started=NOW - timedelta(hours=1)):
