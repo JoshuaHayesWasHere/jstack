@@ -13,7 +13,7 @@ function dThreads(role) {
   if (!all) return h + '<div class="now e-op"><span class="tag">Not known</span><span class="big">The last pass left no list of the threads that are out.</span></div>' + note("frozen");
   h += '<div class="now e-' + (are(out, "hung") ? "op" : "ok") + '"><span class="tag">As the last pass saw them</span><span class="big">' + outSay(out) + '</span><span class="src">Out is a thread that is not settled with a turn under way, or one that waits. Quiet is a turn that has written nothing for a while, and hung is one that has for longer, or with a run queued behind it. jbus says it and interrupts nothing.</span></div>' + note("frozen");
   h += '<div class="filters" role="group" aria-label="Show the threads of">' + [["", "all"]].concat(ROLES.slice(0, 3)).map(function (r) {
-    return '<button type="button" class="fb" data-open="threads' + (r[0] ? ":" + r[0] : "") + '" aria-pressed="' + (r[0] === (role || "")) + '">' + r[1] + ' <i>' + threadsOut(r[0]).length + '</i></button>';
+    return '<button type="button" class="fb" data-open="threads' + (r[0] ? ":" + r[0] : "") + '" aria-pressed="' + (r[0] === (role || "")) + '">' + r[1] + ' <i data-gloss="count:threads">' + threadsOut(r[0]).length + '</i></button>';
   }).join("") + '</div>' + added("threads", role).map(function (a) { return '<p style="margin:10px 0 0">' + a.said + '</p>'; }).join("");
   ROLES.forEach(function (r) {
     var mine = out.filter(function (t) { return t.role === r[0]; });

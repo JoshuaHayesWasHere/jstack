@@ -632,6 +632,11 @@
     "count:held": ["Count", "How many open tasks this holder has. A tap shows only theirs on the line."],
     "count:kind": ["Count", "How many of this kind wait on you. The time after it is how long the oldest has waited."],
     "count:noticed": ["Count", "How many new Noticed lines wait for their home to mark them. They are not counted in what waits on you."],
+    "count:all": ["Count", "How many open tasks this project has. A tap shows every one on the line."],
+    "count:flow": ["Count", "How many queued rows are in this part of the queue."],
+    "count:threads": ["Count", "How many threads of this role are out."],
+    "count:question": ["Count", "The question's number: jbus numbers each question of a project, and an answer names it."],
+    "count:step": ["Count", "The step's place on the line, top to bottom."],
     "count:wave": ["Count", "The wave: how deep in the queue these rows are. Wave 0 is ready, wave 1 waits on wave 0, and so on."],
     "term:waits": ["Waits on you", "Everything only you can move: gates to answer, rows to approve, merges held for your word, and setup jbus lacks. Noticed lines stand beside it, not in it."],
     "term:noticed": ["Noticed, not counted", "A line a thread wrote under Noticed in its Result, Review or Report. Its home marks each one taken or dropped, so they wait on a home, not on you: the count of what waits on you leaves them out."],
@@ -656,10 +661,10 @@
   function hint(key, label) { return '<button type="button" class="hint" data-tip="' + esc(key) + '" aria-expanded="false" aria-label="What ' + esc(label) + ' means"></button>'; }
   function tipHtml(g) { return '<b>' + (g[2] ? '<span class="w-' + esc(g[2]) + '"><i class="sh"></i></span> ' : "") + esc(g[0]) + '</b>' + esc(g[1]); }
   /* The folded key: every shape and every mark, each with its ?, under one line of its own. */
-  function foldedKey() {
-    return '<details class="gk"><summary>Shapes and marks</summary><div class="legend">' +
+  function foldedKey(open) {
+    return '<details class="gk"' + (open ? " open" : "") + '><summary>Shapes and marks</summary><div class="legend">' +
       Object.keys(SHAPES).map(function (w) { return '<span class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + hint("who:" + w, SHAPES[w][0]) + '</span>'; }).join("") +
-      MARKS.map(function (m) { return '<span><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + esc(m[2].replace(/[:.].*$/, "")) + hint("mark:" + m[0], m[2]) + '</span>'; }).join("") + '</div></details>';
+      MARKS.map(function (m) { return '<span><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + esc(m[2].replace(/[:.].*$/, "")) + hint("mark:" + m[0], m[2].replace(/[:.].*$/, "")) + '</span>'; }).join("") + '</div></details>';
   }
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
   /* Where a scout's request stands, as its thread is: one that ended with no Report is no
@@ -714,7 +719,7 @@
       after + '</span>';
   }
   function dot(t) { return '<button type="button" class="qd w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" title="' + esc(t.slug) + '" aria-label="' + esc(waitsOn(t)) + ", in wave " + t.wave + (t.state.kind === "unapproved" ? ", not approved" : "") + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + '"></button>'; }
-  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-label="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i>' + n + '</i></button>'; }
+  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-label="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i data-gloss="count:flow">' + n + '</i></button>'; }
   function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-label="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
   function flowLine(name, rows, next) {
     var more = rows.length - CAP, few = rows.length - FEW;
@@ -775,18 +780,18 @@
   }
   function renderLine() {
     var order = ["user", "crew", "home", "rev", "ci", "bus", "dep", "unknown"], rank = { user: 0, bus: 1, dep: 2 };
-    put($("filters"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i>' + S.tasks.length + '</i></button>' +
+    put($("filters"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i data-gloss="count:all">' + S.tasks.length + '</i></button>' +
       order.map(function (w) {
         var n = S.tasks.filter(function (t) { return t.who === w; }).length;
         return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i data-gloss="count:held">' + n + '</i></button>' : "";
       }).join("") + fz() +
-      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>' + foldedKey());
+      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>' + foldedKey($("filters").querySelector("details.gk[open]")));
     /* Only a step that holds a task takes a row. The rest are folded into one line of their
        names, each still a way to its drawer. */
     var html = "", folded = [];
     lanes().forEach(function (s) {
       var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = s.key === "merged" ? S.merged.length : here.length;
-      if (!count) { folded.push('<button type="button" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ': no task. Open this step">' + esc(s.name) + '</button>'); return; }
+      if (!count) { folded.push('<button type="button" data-gloss="step:' + esc(s.key) + '" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ': no task. Open this step">' + esc(s.name) + '</button>'); return; }
       if (s.key === "queued") here.sort(function (a, b) { return rank[a.who] - rank[b.who] || a.priority - b.priority; });
       else here.sort(function (a, b) { return (ms(a.since) || NOW) - (ms(b.since) || NOW); });
       if (s.key === "merged") {
@@ -929,7 +934,7 @@
       if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
       renderTop(); put($("band"), band(PROJECT, S.threads, false)); renderYou(); renderLine();
     }
-    if (tipBtn && !tipBtn.isConnected) hideTip();
+    if (tipBtn && !tipBtn.isConnected) refind();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
 
@@ -1033,7 +1038,7 @@
   function stepList() {
     var steps = S ? S.steps.concat([S.unknown]) : STACK ? STACK.steps : [];
     if (!steps.length) return '<p class="src">Asking the server.</p>';
-    return '<dl class="gloss">' + steps.map(function (s, i) { var g = stepGloss(s.key); return '<dt><span class="n' + (s.key === "unknown" ? " zero" : "") + '">' + (s.key === "unknown" ? "?" : i + 1) + '</span>' + esc(s.name) + '</dt><dd>' + esc(g ? g[1] : "") + '</dd>'; }).join("") + '</dl>';
+    return '<dl class="gloss">' + steps.map(function (s, i) { var g = stepGloss(s.key); return '<dt><span class="n' + (s.key === "unknown" ? " zero" : "") + '" data-gloss="count:step">' + (s.key === "unknown" ? "?" : i + 1) + '</span>' + esc(s.name) + '</dt><dd>' + esc(g ? g[1] : "") + '</dd>'; }).join("") + '</dl>';
   }
   function fillSteps() { var box = $("hsteps"); if (box) put(box, stepList()); }
   var noting = false;
@@ -1168,6 +1173,15 @@
     if (y + high > window.innerHeight - 8) y = Math.max(8, b.top - high - 8);
     el.style.left = left + "px"; el.style.top = y + "px";
   }
+  /* A redraw puts a new ? in place of the old: the tip moves to the one of the same key and
+     place, and goes only where there is none. */
+  var tipAt = 0;
+  function refind() {
+    var key = tipBtn.getAttribute("data-tip"), b = document.querySelectorAll('[data-tip="' + CSS.escape(key) + '"]')[tipAt];
+    if (!b) { hideTip(); return; }
+    tipBtn = b; b.setAttribute("aria-expanded", "true"); b.setAttribute("aria-describedby", "tip");
+    place(tipEl, b);
+  }
   function hideTip() {
     if (tipEl) { tipEl.remove(); tipEl = null; }
     if (tipBtn) { tipBtn.setAttribute("aria-expanded", "false"); tipBtn.removeAttribute("aria-describedby"); tipBtn = null; }
@@ -1181,6 +1195,7 @@
     tipEl.innerHTML = tipHtml(g);
     place(tipEl, btn);
     btn.setAttribute("aria-expanded", "true"); btn.setAttribute("aria-describedby", "tip"); tipBtn = btn;
+    tipAt = Array.prototype.indexOf.call(document.querySelectorAll('[data-tip="' + CSS.escape(btn.getAttribute("data-tip")) + '"]'), btn);
   }
   function hidePeek() { if (peekEl) { peekEl.remove(); peekEl = null; } }
   function holderOf(el) {
@@ -1275,7 +1290,7 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); }
+  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); if ($("hsteps")) notes(); }
   function took(state) {
     S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;

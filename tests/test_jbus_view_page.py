@@ -2529,12 +2529,14 @@ def test_hovering_a_shape_a_mark_or_a_count_shows_what_it_means_and_so_does_a_fo
         "hover:#line .bn",
         "hover:#line .laneh .n",
         "hover:#side .sp .n",
+        'hover:#filters [data-filter="all"] i',
         "focus:#line .tok.w-crew",
         "esc",
     ]
     seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000)
     assert seen["errors"] == []
-    long, shape, behind, lane, side, focused, esc = [step["peek"] for step in seen["walked"]]
+    long, shape, behind, lane, side, every, focused, esc = [step["peek"] for step in seen["walked"]]
+    assert every.startswith("Count How many open tasks this project has")
     assert long == "Mark Over 30 minutes on its step."
     assert shape.startswith("You Drawn as a diamond, amber. Only you can move it")
     assert behind.startswith("Count How many tasks wait behind it")
@@ -2583,6 +2585,7 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
         "Every term on the page",
     )
     assert first["crumbs"] == [["All", "#/"], ["Every term on the page", "#/help"]]
+    assert "Step 2 of 12: a crewmate thread has the task" in first["said"], "notes come cold too"
     assert seen["stack"]["shown"], "the glossary is over every project"
 
 
@@ -2601,3 +2604,23 @@ def test_the_wait_band_of_every_project_says_noticed_is_not_counted_and_why(scen
     assert tapped["tip"].startswith("Noticed, not counted")
     assert "wait on a home, not on you" in tapped["tip"]
     assert seen["words"] <= EVERY, seen["words"]
+
+
+def test_an_open_toggletip_stays_open_when_a_poll_draws_its_row_again(scene, tmp_path):
+    lineup(scene, TODAY)
+    a_noticed(scene, ("tea-kettle", "new", 5, {}))
+
+    def more(nth, body):
+        body["projects"][0]["waits"] += nth
+        return body
+
+    walk = ['tap:#yrows [data-tip="term:noticed"]'] + ["look"] * 30
+    seen = look(
+        scene, tmp_path, route="#/", walk=walk, alter=more, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    opened = seen["walked"][0]
+    redrawn = [c["at"] for c in seen["changes"] if c["part"].startswith("yrows:")]
+    assert redrawn and max(redrawn) > 2500, "the row was drawn again after the tip opened"
+    assert {step["tip"] for step in seen["walked"]} == {opened["tip"]}
+    assert seen["walked"][-1]["expanded"] == ["term:noticed"]
