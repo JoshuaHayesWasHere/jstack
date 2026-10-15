@@ -322,21 +322,69 @@
   body.gone .dead, body.stopped .dead { display: block; }
   .mb.over u { background: var(--op); }
   .ghbox { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12.5px; margin-top: 12.5px; background: var(--card); }
+
+  /* every project: the machine once, one wait band, and a row for each project */
+  .top a { color: var(--msg); }
+  .vitals.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vitals.four .vit { cursor: default; }
+  .yrows { display: grid; gap: 6px; flex: 1 1 520px; min-width: 0; }
+  .yrow { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; min-width: 0; }
+  .pj { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 14.5px; font-weight: 700; border-radius: 6px; padding: 0 8px; background: var(--lane); box-shadow: inset 0 0 0 1px var(--line); color: var(--fg); text-decoration: none; white-space: nowrap; }
+  .pj:hover { box-shadow: inset 0 0 0 1.5px var(--fg); }
+  .pj .n { font-size: 12.5px; }
+  .n.op { background: var(--op); color: var(--bg); }
+  a.tok { color: inherit; text-decoration: none; }
+  .tok.sans, .tok.sans .lb { font-family: var(--sans); }
+  .tok.faint { border-style: dashed; color: var(--dim); }
+  .quiet { font-size: 14.5px; color: var(--dim); }
+  .proj { border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); padding: 8px 14px 10px; margin-top: 10px; cursor: pointer; }
+  .proj:hover { border-color: var(--dim); }
+  .pjh { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+  .pjh h2 { font-family: var(--mono); font-size: 20px; margin: 0; }
+  .pjh h2 a { color: var(--fg); text-decoration: none; }
+  .pjh h2 a:hover { text-decoration: underline; }
+  .pjh .go { margin-left: auto; color: var(--fg); text-decoration: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px 6px; margin-top: 6px; }
+  .hc { display: inline-flex; align-items: baseline; gap: 6px; border: 1.5px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 0 9px; font-size: 14.5px; background: var(--bg); max-width: 100%; }
+  .hc.e-ok { border-left-color: var(--ok); } .hc.e-op { border-left-color: var(--op); } .hc.e-msg { border-left-color: var(--msg); } .hc.e-dim { border-left-color: var(--dim); }
+  .rail { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 3px; }
+  .rcell { display: flex; align-items: baseline; gap: 6px; text-decoration: none; color: var(--fg); border-top: 4px solid var(--line); border-radius: 0 0 7px 7px; background: var(--lane); padding: 1px 9px 2px; }
+  .rcell b { font-size: 17px; font-weight: 800; }
+  .rcell span { font-size: 13.5px; font-weight: 600; }
+  .rcell.e-user { border-top-color: var(--op); background: var(--op-bg); } .rcell.e-crew { border-top-color: var(--msg); background: var(--msg-bg); } .rcell.e-rev { border-top-color: var(--rev); background: var(--rev-bg); }
+  .rcell.e-ci { border-top-color: var(--scout); background: var(--scout-bg); } .rcell.e-ok { border-top-color: var(--ok); background: var(--ok-bg); } .rcell.e-q { border-top-color: var(--dim); background: var(--card); } .rcell.e-unknown { border-top-style: dashed; border-top-color: var(--op); }
+  .empty-q { margin: 8px 0 0; color: var(--dim); font-weight: 700; display: flex; gap: 9px; align-items: center; }
+  .none { margin-top: 12.5px; border: 1.5px solid var(--line); border-left: 6px solid var(--op); border-radius: 10px; padding: 12.5px 15px; background: var(--card); }
+  .none .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
+  @media (max-width: 1100px) { .vitals.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) {
+    .vitals.four { grid-template-columns: minmax(0, 1fr); }
+    .pj, .hc, .rcell, a.tok, .pjh .go, .top a { min-height: 44px; display: inline-flex; align-items: center; }
+    .pjh .go { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
 <main>
   <div class="top">
-    <h1>jbus: the line</h1>
-    <span class="where"><code id="proj"></code> <span id="readat"></span></span>
+    <h1 id="title">jbus: the line</h1>
+    <span class="where"><span id="readat"></span></span>
     <div class="theme" role="group" aria-label="Light or dark view"><button type="button" data-theme-pick="auto">Auto</button><button type="button" data-theme-pick="light">Light</button><button type="button" data-theme-pick="dark">Dark</button></div>
   </div>
   <div class="dead" id="dead" role="alert"></div>
+  <div id="stack" hidden>
+    <div class="vitals four" id="machine" aria-label="This machine: one jbus and one room serve every project"></div>
+    <div class="you" id="waits" aria-label="Waits on you, in every project"><span class="youn" id="wtotal"></span><div class="yrows" id="yrows"></div></div>
+    <div id="rows" aria-label="Every project"></div>
+  </div>
+  <div class="none" id="none" role="alert" hidden></div>
+  <div id="one" hidden>
   <div class="vitals" id="vitals" aria-label="Is the bus alive, and what it runs on"></div>
   <div class="you frz" id="you" aria-label="Waits on you"></div>
   <div class="filters" id="filters" role="group" aria-label="Show tokens held by"></div>
   <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
   <ol class="line frz" id="line" aria-label="The line: every open task on its step"></ol>
+  </div>
 </main>
 
 <dialog class="drawer" id="drawer" aria-labelledby="dw-title">
@@ -345,17 +393,35 @@
 <script>
 (function () {
   "use strict";
-  /* The page asks its own server and nobody else: /state.json every POLL ms,
-     /task/<slug>/github when a task's drawer opens, and /panel/<name>.json when the drawer
-     of a panel that is not on the first screen does. It draws what it is given. Its one
-     write is /answer, the answer to a gate: the server decides what the answer is and
-     what is sent, and the page shows what it said. */
+  /* The page asks its own server and nobody else, one request each POLL ms: /stack.json on
+     a bare link, which is every project at once, and /state.json of one project on
+     #/<project>. It asks /task/<slug>/github when a task's drawer opens, and
+     /panel/<name>.json when the drawer of a panel that is not on the first screen does. It
+     draws what it is given, and a part whose drawing did not change is not drawn again. Its
+     one write is /answer, the answer to a gate of the project it shows: the server decides
+     what the answer is and what is sent, and the page shows what it said. */
   var POLL = 15000, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  var asked = new URLSearchParams(location.search).get("project") || "";
-  var QUERY = asked ? "?project=" + encodeURIComponent(asked) : "";
+  /* Where the page is: the hash. #/ or none is every project, #/<project> one project, and
+     what follows an & is more of the address, open=<drawer> and theme=<light|dark>. An old
+     link, ?project=<project>, is the same address as #/<project>. */
+  var STACK = null, NOSUCH = "", PROJECT = "", OPEN = "", QUERY = "", HASH = {};
+  (function () {
+    var old = new URLSearchParams(location.search).get("project"), rest = location.hash.replace(/^#/, "");
+    if (old) history.replaceState(null, "", location.pathname + "#/" + encodeURIComponent(old) + (rest && rest.charAt(0) !== "/" ? "&" + rest : ""));
+  })();
+  function where() {
+    var parts = location.hash.replace(/^#/, "").split("&"), named = parts[0].charAt(0) === "/" ? parts.shift() : "/";
+    HASH = {}; parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) HASH[p[0]] = decodeURIComponent(p.slice(1).join("=")); });
+    var was = PROJECT;
+    PROJECT = decodeURIComponent(named.slice(1).split("/")[0] || "");
+    QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
+    OPEN = HASH.open || "";
+    if (PROJECT !== was) { S = null; NOSUCH = ""; }
+  }
+  where();
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function p2(n) { return String(n).padStart(2, "0"); }
@@ -376,6 +442,16 @@
   function pct(a, b) { return b ? Math.min(100, Math.max(0, a / b * 100)) : 0; }
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
   function gap(t) { return '<span class="chip gap">' + esc(t) + '</span>'; }
+  /* A part of the page is drawn again only where its drawing changed: what a poll did not
+     change is not touched, so nothing on it moves and a focus on it stays. `keyed` draws a
+     list of parts, one element for each key, in the order given. */
+  function put(el, html) { if (el.__drawn !== html) { el.innerHTML = html; el.__drawn = html; } }
+  function say(el, text) { if (el.textContent !== text) el.textContent = text; }
+  function keyed(box, tag, cls, items) {
+    var keys = items.map(function (i) { return i.key; }).join("\n"), have = [].map.call(box.children, function (c) { return c.getAttribute("data-key"); }).join("\n");
+    if (keys !== have || box.children.length !== items.length) box.innerHTML = items.map(function (i) { return '<' + tag + ' class="' + cls + '" data-key="' + esc(i.key) + '"></' + tag + '>'; }).join("");
+    items.forEach(function (i, n) { put(box.children[n], i.html); });
+  }
 
   var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "no rule names this reason yet; its home was told" };
   var WHOSHORT = { user: "you", crew: "crew", home: "home", rev: "reviewer", ci: "runner", bus: "jbus", dep: "blocked", unknown: "unknown" };
@@ -436,27 +512,27 @@
       ws.map(function (w) { return '<span class="wv dk"><b title="wave ' + w + '">' + w + '</b>' + of(w).map(dot).join("") + '</span>'; }).join("") +
       (later.length ? plus(later.length, "ph", later.length + " later, in " + plural(ws.length, "wave", "waves"), "Later") : "") + '</div>';
   }
+  /* The bus as the view in front has it: one project's, or the machine's on every project. */
+  function jb() { return PROJECT ? S && S.jbus : STACK && STACK.machine.jbus; }
   function renderDead() {
-    var p = S ? S.jbus : { said: "" }, end = S ? ms(p.last_end) : null;
+    var p = jb() || { said: "" }, end = jb() ? ms(p.last_end) : null;
     var frozen = gone ? ["the line", "the wait band", "the bus", "Room", "CI checks", "gates", "GitHub"] : ["the line", "the wait band", "the bus"];
     var live = gone ? [] : ["Room", "CI checks", "gates", "GitHub"];
     function codes(a) { return a.map(function (x) { return '<code>' + esc(x) + '</code>'; }).join(""); }
-    $("dead").innerHTML =
+    put($("dead"),
       '<div class="dh"><b>' + (gone ? "the view server does not answer" : "jbus has not passed") + '</b>' +
       (gone ? '<span>last answer ' + (lastAnswer ? hm(lastAnswer, true) : "never") + '</span><span>' + missed + ' answers missed</span>'
         : '<span>last pass ended ' + (end == null ? "never" : day(end) + ":" + p2(new Date(end).getSeconds())) + '</span><span>' + esc(p.said) + '</span>') +
       (S ? '<button type="button" data-open="pulse">Detail</button>' : "") + '</div>' +
       '<div class="split"><div class="half fzh">' + fz() + codes(frozen) + '</div>' +
-      (live.length ? '<div class="half lvh">' + lv() + codes(live) + '</div>' : "") + '</div>';
-
+      (live.length ? '<div class="half lvh">' + lv() + codes(live) + '</div>' : "") + '</div>');
   }
   function renderTop() {
-    $("proj").textContent = S.project || "no project";
-    $("readat").textContent = hm(NOW, true); $("readat").title = "read at this time";
+    say($("readat"), hm(NOW, true)); $("readat").title = "read at this time";
     var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
-    $("vitals").innerHTML = cards.map(function (c) {
+    put($("vitals"), cards.map(function (c) {
       return '<button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>';
-    }).join("");
+    }).join(""));
   }
   function waits(kind) { return S.waiting.filter(function (w) { return w.kind === kind; }); }
   function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
@@ -472,16 +548,16 @@
       h += '<span class="yg"><button type="button" class="tok w-user" data-open="' + esc(a.said.open || a.from) + '" aria-label="' + esc(a.said.n + " " + a.said.label) + ': open it"><i class="sh"></i><b style="font-family:var(--sans)">' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button></span>';
     });
     $("you").className = "you frz" + (n ? "" : " none");
-    $("you").innerHTML = h;
+    put($("you"), h);
   }
   function renderLine() {
     var order = ["user", "crew", "home", "rev", "ci", "bus", "dep", "unknown"], rank = { user: 0, bus: 1, dep: 2 };
-    $("filters").innerHTML = '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i>' + S.tasks.length + '</i></button>' +
+    put($("filters"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i>' + S.tasks.length + '</i></button>' +
       order.map(function (w) {
         var n = S.tasks.filter(function (t) { return t.who === w; }).length;
         return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i>' + n + '</i></button>' : "";
       }).join("") + fz() +
-      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>';
+      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>');
     var html = "";
     lanes().forEach(function (s) {
       var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = here.length;
@@ -493,7 +569,7 @@
       } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
       html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (count ? "" : " empty") + (s.group ? " g" : "") + '"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '">' + count + '</span><b>' + esc(s.name) + '</b></button><div class="laneb">' + body + '</div></li>';
     });
-    $("line").innerHTML = html;
+    put($("line"), html);
     $("calm").hidden = S.tasks.length > 0;
     applyFilter();
   }
@@ -502,13 +578,89 @@
     $("line").querySelectorAll(".qd").forEach(function (d) { d.classList.toggle("off", VIEW.filter !== "all" && d.getAttribute("data-who") !== VIEW.filter); });
     $("filters").querySelectorAll("[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === VIEW.filter)); });
   }
+  /* ---------- every project: the machine once, one wait band, a row for each ---------- */
+  function on(p, more) { return "#/" + encodeURIComponent(p) + (more ? "&open=" + more : ""); }
+  function mcard(e, tag, val, tip, viz) { return '<div class="vit e-' + e + '" title="' + esc(tip) + '"><span class="tag">' + tag + '</span><span class="val">' + val + '</span>' + (viz ? '<span class="viz">' + viz + '</span>' : "") + '</div>'; }
+  function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
+  function machineRow() {
+    var m = STACK.machine, j = m.jbus, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go";
+    var us = m.runners, up = us.filter(function (u) { return u.active === "active"; }).length;
+    var load = r.load[0] == null ? null : pct(r.load[0], r.cores), tmp = r.tmp ? pct(r.tmp.used, r.tmp.total) : null;
+    function used(key, name) { var x = plan[key]; return name + " " + (x && x.used != null ? '<b>' + x.used + '%</b>' : "unknown"); }
+    var over = ["five_hour", "seven_day"].some(function (k) { return plan[k] && plan[k].used != null && plan[k].used >= l.plan; });
+    return mcard(stopped ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i><b>' + (stopped ? "stopped" : "passing") + '</b> <small>' + (end == null ? "never" : hm(end)) + '</small>',
+        stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project.") +
+      mcard(ok ? "ok" : "op", "room", ok ? "ok" : r.answer === "wait" ? "full" : "unknown", "Machine room: " + (ok ? "room to launch" : r.why) + ". Load " + (r.load[0] == null ? "unknown" : r.load[0]) + " of " + r.cores + " cores.",
+        '<span class="mbs">' + bar(load, l.load) + bar(tmp, l.slots) + '</span>') +
+      mcard(!m.runners_read || up < us.length ? "op" : "ok", "runners", m.runners_read ? up + ' <small>of ' + us.length + ' active</small>' : '<small class="bad">not known</small>',
+        m.runners_read ? "Runner units of this machine: " + (us.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", ") || "none") : "systemd did not answer",
+        us.map(function (u) { return '<i class="dot' + (u.active === "active" ? "" : " off") + '"></i>'; }).join("")) +
+      mcard(over ? "op" : "ok", "plan", used("five_hour", "5h") + " " + used("seven_day", "7d"), "The plan's use, five hours and seven days, held to " + l.plan + "%. " + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? plan[k].say : ""; }).filter(String).join(". "));
+  }
+  function waitRow(p) {
+    var h = '<a class="pj" href="' + on(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '">' + p.waits + '</span></a>', any = false;
+    KINDS.forEach(function (k) {
+      var w = p.waiting[k]; if (!w) return;
+      var age = ms(w.since) == null ? "" : short(NOW - ms(w.since)), say = p.name + ": " + w.count + " " + KIND[k][0] + (age ? ", the oldest for " + age : "");
+      any = true;
+      h += '<a class="tok sans w-user" href="' + on(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b>' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
+    });
+    if (!any) h += '<span class="quiet">nothing waits on you</span>';
+    if (p.noticed) h += '<a class="tok sans faint" href="' + on(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on nobody, so the count above leaves them out.") + '"><b>' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>';
+    return h;
+  }
+  function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
+  function projectRow(p) {
+    var h = p.health, c = h.checks, b = h.bus, held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
+    var out = '<div class="pjh"><h2><a href="' + on(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + on(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
+    out += '<div class="chips">' +
+      chip(c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + esc(c.error) : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")) +
+      chip(b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")) +
+      chip(h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? p.name + ": the last pass left no list of its threads" : p.name + ": " + plural(h.threads, "thread", "threads") + " out") +
+      chip(h.blind ? "op" : "ok", "Blind " + h.blind, p.name + ": " + plural(h.blind, "thing", "things") + " its page cannot say now") +
+      (h.unwell.length ? chip("op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (s) { return s.name + " " + s.state; }).join(", ")) : "") + '</div>';
+    var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
+    if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
+    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + on(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
+    if (!p.open) out += '<p class="empty-q"><i class="dot"></i> nothing open</p>';
+    return out;
+  }
+  function renderStack() {
+    var ps = STACK.projects, n = ps.reduce(function (t, p) { return t + p.waits; }, 0);
+    say($("readat"), hm(NOW, true)); $("readat").title = "read at this time";
+    put($("machine"), machineRow());
+    $("waits").className = "you" + (n ? "" : " none");
+    put($("wtotal"), '<b>' + n + '</b><span>wait on you</span>');
+    keyed($("yrows"), "div", "yrow", ps.map(function (p) { return { key: p.name, html: waitRow(p) }; }));
+    keyed($("rows"), "article", "proj", ps.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
+  }
+  function noSuch() {
+    return '<span class="big">No project named <code>' + esc(NOSUCH) + '</code></span><p style="margin:0">jbus looks after no project of that name: a retired project is not shown. <a href="#/">Every project</a></p>';
+  }
+  var drawnOnce = false;
   function render() {
     document.body.classList.toggle("gone", gone);
-    if (!S) { $("readat").textContent = gone ? "" : "asking the server"; document.body.classList.toggle("stopped", gone); renderDead(); return; }
-    stopped = S.jbus.stopped;
-    if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
+    /* One project's page says where it is in the title: under every project, which the
+       first two words open. */
+    if (PROJECT) put($("title"), '<a href="#/">Every project</a> &rsaquo; <code>' + esc(PROJECT) + '</code>');
+    else put($("title"), "jbus: every project");
+    var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
+    if (document.title !== named) document.title = named;
+    $("none").hidden = !NOSUCH;
+    if (NOSUCH) put($("none"), noSuch());
+    $("stack").hidden = !!PROJECT || !STACK;
+    $("one").hidden = !PROJECT || !S;
+    var J = jb();
+    if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderDead(); return; }
+    stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
-    renderDead(); renderTop(); renderYou(); renderLine();
+    renderDead();
+    if (!PROJECT) renderStack();
+    else {
+      if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
+      renderTop(); renderYou(); renderLine();
+    }
+    if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
 
   /* ---------- drawers: everything else, one click away ---------- */
@@ -629,6 +781,8 @@
     }, function () { if (mine === turn && drawer.open) $("dw").innerHTML = asking(p, "The view server did not answer."); });
   }
   document.addEventListener("click", function (e) {
+    var row = e.target.closest("#rows .proj");
+    if (row && !e.target.closest("a")) { location.hash = on(row.getAttribute("data-key")); return; }
     var b = e.target.closest("[data-open]");
     if (b) { openDrawer(b.getAttribute("data-open"), drawer.contains(b) ? null : b); return; }
     if (e.target.closest("#dw-close") || e.target === drawer) { drawer.close(); return; }
@@ -644,12 +798,14 @@
     var how = { cache: "no-store", signal: stop.signal };
     if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }
     return fetch(path, how).then(function (r) {
-      if (!r.ok && !body) throw new Error("the server answered " + r.status);
+      if (!r.ok && !body) { var said = new Error("the server answered " + r.status); said.status = r.status; throw said; }
       return r.json();
     }).finally(function () { clearTimeout(timer); });
   }
+  function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
+  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); }
   function took(state) {
-    S = state; NOW = ms(S.at) || Date.now(); lastAnswer = Date.now(); missed = 0; gone = false;
+    S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
@@ -658,16 +814,31 @@
   }
   function lost() {
     missed += 1;
-    if (missed >= MISS) { gone = true; if (S) NOW = Date.now(); render(); }
+    if (missed >= MISS) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
-  var first = true;
+  /* One request a poll, for the view in front. An answer to a view that is no longer in
+     front is dropped. A project the state directory does not have is said, and no fault. */
+  var turnOf = 0, pending = OPEN;
   function poll() {
-    return ask("/state.json" + QUERY).then(took, lost).then(function () {
-      if (first && S) { first = false; if (hash.open) openDrawer(hash.open, null); }
-    });
+    var mine = turnOf;
+    if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
+    return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
+      if (mine !== turnOf) return;
+      if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
+    }).then(function () { if (mine === turnOf && pending && S) { var o = pending; pending = ""; openDrawer(o, null); } });
   }
-  var hash = {}; location.hash.replace(/^#/, "").split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) hash[p[0]] = decodeURIComponent(p.slice(1).join("=")); });
-  if (hash.theme === "light" || hash.theme === "dark") document.documentElement.setAttribute("data-theme-hash", hash.theme);
+  /* The one handler of a new address: the view it names is drawn from what is kept, and
+     asked for at once where it is another project. */
+  window.addEventListener("hashchange", function () {
+    var was = PROJECT;
+    where();
+    pending = OPEN;
+    if (drawer.open) drawer.close();
+    if (PROJECT !== was) { turnOf += 1; render(); poll(); return; }
+    render();
+    if (pending && S) { var o = pending; pending = ""; openDrawer(o, null); }
+  });
+  if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
   render();
   poll();
   setInterval(poll, POLL);

@@ -80,6 +80,7 @@ from test_jbus_view import (
     rounded,
     row,
     said_by_him,
+    stacked,
     table,
 )
 from test_jbus_view import folder as panel
@@ -91,6 +92,7 @@ CHROMIUM = (
 LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
+EVERY = 250
 PATIENCE = 240
 LAUNCH = 60
 STOPPED = (124, 137)
@@ -240,19 +242,22 @@ def flowing(scene, sizes):
 class Proxy:
     """A door in front of the server that adds the probe to the page, and can go dark."""
 
-    def __init__(self, upstream, at, task="", pick="", gates=None, probe=True):
+    def __init__(self, upstream, at, task="", pick="", gates=None, probe=True, tap=""):
         self.upstream, self.dark, self.states = upstream, False, 0
         self.dark_after = None
+        self.asked, self.stacks = [], 0
+        self.alter = lambda nth, body: body
         self.refused = ()
         self.writes = []
         self.on_write = lambda nth: None
         asked = f"window.__task = {json.dumps(task)}; window.__pick = {json.dumps(pick)};"
-        asked += f"window.__gates = {json.dumps(gates)};"
+        asked += f"window.__gates = {json.dumps(gates)}; window.__tap = {json.dumps(tap)};"
         head = f"<script>window.__at = {at}; {asked}{PROBE}</script>"
         proxy = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
+                proxy.asked.append(self.path)
                 if self.path.startswith("/state.json"):
                     proxy.states += 1
                     if proxy.dark_after is not None and proxy.states > proxy.dark_after:
@@ -277,6 +282,9 @@ class Proxy:
                 link.close()
                 if probe and self.path.split("#")[0].split("?")[0] == "/":
                     body = body.replace(b"<head>", b"<head>" + head.encode(), 1)
+                if self.path == "/stack.json":
+                    proxy.stacks += 1
+                    body = json.dumps(proxy.alter(proxy.stacks, json.loads(body))).encode()
                 self.send_response(answer.status)
                 self.send_header("Content-Type", answer.getheader("Content-Type"))
                 self.send_header("Content-Length", str(len(body)))
@@ -403,16 +411,28 @@ def look(
     gates=None,
     on_write=None,
     port=None,
+    route=None,
+    alter=None,
+    tap="",
 ):
     """Open the page in the browser and give back what the probe found. The server is one
-    started here over the scene, or the one that listens on `port`. With `gates`, the
+    started here over the scene, or the one that listens on `port`. The page is the scene's
+    project, `#/demo`, or the `route` given, as `#/` for every project, and `fragment` is
+    more of the address after it, as `#open=task:oat-bowl`. `alter` is given the count of
+    each answer of `/stack.json` and its body, and gives back the body the page gets, and
+    `tap` selects what the probe taps 3 s after the page loads. With
+    `gates`, the
     probe answers them, and what it found has each write the page made under `writes`.
     `on_write` is called with the count of each write before it is passed on, and a write
     it answers `dark` for meets no server."""
     served = None if port else Served(scene)
-    proxy = Proxy(port or served.port, at, task, pick, gates)
+    proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap)
     proxy.on_write = on_write or proxy.on_write
+    proxy.alter = alter or proxy.alter
     proxy.dark_after = dark_after
+    fragment = (f"#/{scene.name}" if route is None else route) + (
+        "&" + fragment.lstrip("#") if fragment else ""
+    )
     url, window = address(proxy.port, screen, fragment)
     try:
         ran = browse(
@@ -428,7 +448,8 @@ def look(
             served.close()
     found = re.search(r'<pre id="probe">(.*?)</pre>', ran.stdout, re.S)
     assert found, f"the probe wrote nothing: {ran.stdout[-2000:]} {ran.stderr[-2000:]}"
-    return json.loads(html.unescape(found[1])) | {"writes": proxy.writes, "at": proxy.port}
+    said = json.loads(html.unescape(found[1]))
+    return said | {"writes": proxy.writes, "at": proxy.port, "asked": proxy.asked}
 
 
 def clean(seen, screen=DESK):
@@ -724,7 +745,7 @@ def test_the_checks_card_says_what_runs_what_waits_for_a_runner_and_what_failed(
     assert drawer["now"].startswith("NOW 2 running, 1 waiting for a runner, 1 failed A check is")
 
 
-def test_the_first_screen_of_a_day_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
+def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     seen = look(scene, tmp_path)
@@ -736,6 +757,160 @@ def test_the_first_screen_of_a_day_of_todays_size_is_no_more_than_150_words(scen
     assert len(seen["lanes"][-1]["dots"]) == 30
     assert {f"task:{slug}" for slug in open_rows} <= set(seen["first"]) <= opened
     assert len(opened) >= 28 + 30 + 12 + 6
+
+
+def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
+    lineup(scene, TODAY)
+    stacked(scene)
+    seen = look(scene, tmp_path, route="#/")
+    clean(seen)
+    assert [row["project"] for row in seen["stack"]["rows"]] == ["demo", "larder", "pantry"]
+    assert seen["words"] <= EVERY, seen["words"]
+    assert all(row["seen"] for row in seen["stack"]["rows"])
+
+
+def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
+    """The machine once, one wait band whose total is the sum of its rows, and a row for each
+    project with only the steps that hold a task. The page asks `/stack.json` and nothing
+    else, once a poll, and a poll that changed nothing draws nothing again."""
+    stacked(scene)
+    a_noticed(scene, ("tea-kettle", "new", 5, {}))
+    seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
+    assert clean(seen) == set()
+    stack = seen["stack"]
+    assert (stack["shown"], stack["title"], stack["none"]) == (True, "jbus: every project", "")
+    assert [(card["tag"].lower(), card["seen"]) for card in stack["machine"]] == [
+        ("jbus", True),
+        ("room", True),
+        ("runners", True),
+        ("plan", True),
+    ]
+    assert [card["val"] for card in stack["machine"][1:]] == [
+        "ok",
+        "3 of 3 active",
+        "5h 23% 7d 22%",
+    ]
+    assert [(row["project"], row["count"]) for row in stack["waits"]] == [
+        ("demo", 4),
+        ("larder", 0),
+        ("pantry", 1),
+    ]
+    assert stack["total"] == "5 wait on you"
+    assert int(stack["total"].split()[0]) == sum(row["count"] for row in stack["waits"])
+    waits = {row["project"]: row for row in stack["waits"]}
+    assert [token["text"] for token in waits["demo"]["tokens"]] == [
+        "1 at a gate 50m",
+        "1 need your word 12m",
+        "1 to approve 0m",
+        "1 gates 3h00",
+        "1 noticed, not counted",
+    ]
+    assert [token["href"] for token in waits["demo"]["tokens"]][-2:] == [
+        "#/demo&open=you:gate",
+        "#/demo&open=noticed",
+    ]
+    assert all(token["tip"].startswith("demo: ") for token in waits["demo"]["tokens"])
+    assert [token["tip"] for token in waits["pantry"]["tokens"]] == [
+        "pantry: 1 at a gate, the oldest for 40m"
+    ]
+    assert (waits["larder"]["tokens"], waits["larder"]["quiet"]) == ([], "nothing waits on you")
+    rows = {row["project"]: row for row in stack["rows"]}
+    assert [row["project"] for row in stack["rows"]] == ["demo", "larder", "pantry"]
+    assert all(row["seen"] and row["box"][2] >= 1300 for row in stack["rows"])
+    assert rows["demo"]["head"] == "demo acme/demo, 9 open tasks, 1 merged today Open ›"
+    assert rows["demo"]["chips"] == [
+        "CI 1 running, 0 failed",
+        "Bus 2 in outbox",
+        "Threads 0 out",
+        "Blind 1",
+    ]
+    assert [cell[0] for cell in rows["demo"]["cells"]] == [
+        "3 Queued",
+        "1 Running",
+        "1 Gate",
+        "1 Second pass",
+        "1 Check",
+        "1 Rebase",
+        "1 Needs you",
+        "1 Merged",
+    ]
+    assert rows["pantry"]["cells"] == [
+        ["1 Running", "#/pantry&open=steps:running"],
+        ["1 Gate", "#/pantry&open=steps:gate"],
+        ["1 Merged", "#/pantry&open=merged"],
+    ]
+    assert (rows["larder"]["cells"], rows["larder"]["empty"]) == ([], "nothing open")
+    assert rows["pantry"]["empty"] == ""
+    assert [row["opens"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
+    assert seen["words"] <= EVERY, seen["words"]
+    polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico")]
+    assert len(polls) == 3 and set(polls) == {"/stack.json"}
+    drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("rows:")]
+    assert drawn and [one for one in seen["changes"] if one["at"] > max(drawn) + 1000] == []
+    assert seen["marked"] == 1
+
+
+def test_a_poll_draws_again_only_the_parts_whose_data_changed(scene, tmp_path):
+    stacked(scene)
+
+    def more(nth, body):
+        if nth > 1:
+            pantry = next(one for one in body["projects"] if one["name"] == "pantry")
+            pantry["waits"] += 1
+            pantry["waiting"]["approve"] = {"count": 1, "since": None}
+        return body
+
+    seen = look(scene, tmp_path, route="#/", at=20000, budget=25000, alter=more)
+    clean(seen)
+    first = max(one["at"] for one in seen["changes"] if one["part"].startswith("rows:"))
+    later = {one["part"] for one in seen["changes"] if one["at"] > first + 1000}
+    assert later == {"wtotal", "yrows:pantry"}
+    assert seen["stack"]["total"] == "6 wait on you"
+
+
+def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
+    stacked(scene)
+    seen = look(
+        scene,
+        tmp_path,
+        route="#/",
+        tap='#rows .proj[data-key="pantry"] .chips',
+        at=6000,
+        budget=9000,
+    )
+    clean(seen)
+    assert seen["hash"] == "#/pantry"
+    assert (seen["stack"]["shown"], seen["count"]) == (False, "1 wait on you")
+    assert [lane["tokens"][0]["slug"] for lane in seen["lanes"] if lane["tokens"]] == [
+        "fig-jam",
+        "fig-tart",
+    ]
+    seen = look(scene, tmp_path, route="?project=pantry")
+    clean(seen)
+    assert (seen["hash"], seen["count"]) == ("#/pantry", "1 wait on you")
+    assert "/stack.json" not in seen["asked"]
+
+
+def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(scene, tmp_path):
+    stacked(scene)
+    seen = look(scene, tmp_path, route="#/hydra")
+    assert seen["errors"] == [] and "gone" not in seen["body"]
+    assert seen["stack"]["none"] == (
+        "No project named hydra jbus looks after no project of that name: a retired project "
+        "is not shown. Every project"
+    )
+    assert seen["first"] == [] and seen["cards"] == []
+    seen = look(scene, tmp_path, route="#/")
+    assert "hydra" not in json.dumps(seen["stack"])
+
+
+def test_on_a_phone_every_project_is_one_column_with_nothing_cut(scene, tmp_path):
+    lineup(scene, TODAY)
+    stacked(scene)
+    seen = look(scene, tmp_path, route="#/", screen=PHONE)
+    clean(seen, PHONE)
+    assert seen["cut"] == []
+    assert [row["project"] for row in seen["stack"]["rows"]] == ["demo", "larder", "pantry"]
 
 
 def test_the_new_noticed_lines_are_a_count_in_the_wait_band_that_opens_their_panel(scene, tmp_path):
@@ -1307,7 +1482,7 @@ def test_a_drawer_is_opened_by_its_name_in_the_address_under_the_servers_own_pol
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#open=task:oat-bowl",
+            f"http://127.0.0.1:{served.port}/#/demo&open=task:oat-bowl",
         )
     finally:
         served.close()
@@ -1327,7 +1502,7 @@ def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(s
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#open=words:approval:tea-cups",
+            f"http://127.0.0.1:{served.port}/#/demo&open=words:approval:tea-cups",
         )
     finally:
         served.close()
@@ -1361,7 +1536,7 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
         ran = browse(
             f"--user-data-dir={tmp_path / 'profile'}",
             "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#open=words:question:{number}",
+            f"http://127.0.0.1:{served.port}/#/demo&open=words:question:{number}",
         )
     finally:
         served.close()
@@ -1397,7 +1572,7 @@ def test_a_gate_is_opened_and_answered_each_of_the_three_ways(scene, tmp_path, s
     clean(seen, screen)
     assert seen["words"] <= WORDS, seen["words"]
     assert [(one["path"], one["kind"]) for one in seen["writes"]] == [
-        ("/answer", "application/json")
+        ("/answer?project=demo", "application/json")
     ] * 3
     assert {one["origin"] for one in seen["writes"]} == {f"http://127.0.0.1:{seen['at']}"}
     assert [one["body"] for one in seen["writes"]] == [
@@ -1594,7 +1769,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         assert "://" not in part
         for loads in ("<link", "<img", "<iframe", "<object", "<embed", " src=", "@import", "url("):
             assert loads not in part, loads
-    asks = ["/answer", "/panel/", "/state.json", "/task/"]
+    asks = ["/answer", "/panel/", "/stack.json", "/state.json", "/task/"]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
     assert "fetch(path," in page and page.count("fetch(") == 1
     assert page.count("<script") == 2 and all(script in page for script in scripts)
@@ -1616,7 +1791,7 @@ def shown(port, tmp_path, opens):
     ran = browse(
         f"--user-data-dir={tmp_path / 'profile'}",
         "--virtual-time-budget=3000",
-        f"http://127.0.0.1:{port}/#open={opens}",
+        f"http://127.0.0.1:{port}/#/demo&open={opens}",
     )
     open_ = '<dialog class="drawer" id="drawer" aria-labelledby="dw-title" open="">'
     if open_ not in ran.stdout:

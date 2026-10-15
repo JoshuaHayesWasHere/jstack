@@ -1208,7 +1208,8 @@ def stack(
     code: dict[str, Any] | None = None,
     found: tuple[panels.Panel, ...] | None = None,
 ) -> dict[str, Any]:
-    """What `/stack.json` holds: the machine once, and a summary of each project.
+    """What `/stack.json` holds: the machine once, the steps of the line, and a summary of
+    each project.
 
     The machine is what one jbus and one room serve every project with: the pass and the
     timer, the room and the plan's use, and the runner units. Each project is read as
@@ -1234,4 +1235,5 @@ def stack(
         keep(summary(Read(sources, name, now, runs, code, found, shared)), SUMMARY)
         for name in projects(sources)
     ]
-    return {"at": iso(now), "machine": machine, "projects": every}
+    line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
+    return {"at": iso(now), "machine": machine, "steps": line, "projects": every}

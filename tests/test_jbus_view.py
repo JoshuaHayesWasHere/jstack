@@ -647,6 +647,10 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     finally:
         served.close()
     assert stack["at"] == iso(NOW)
+    assert [one["key"] for one in stack["steps"]] == [
+        *(one["key"] for one in demo["steps"]),
+        "unknown",
+    ]
     assert list(stack["machine"]) == ["jbus", "room", "runners", "runners_read"]
     assert stack["machine"]["jbus"]["stopped"] is False
     assert stack["machine"]["jbus"]["status"] == {
