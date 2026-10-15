@@ -5,6 +5,7 @@ Proof:
 - <a "Done when" line, in a few words>: <the command run and what it printed, or what was looked at>
 Branch: <name>   Pull request: <url or none>
 Changed: <one or two lines on what changed>
+Playbook: <the playbook the step-3 block opened, or none>; <each of its steps in order, as <n> done or <n> skip: <reason>, with no ; in a reason>
 Unrun: at <the pushed head, in full>, no check ran   <this line only where the block of the crew skill's "The checks" says `unrun`: the pull request is not green, and a gate is parked>
 Rerun: at <the pushed head, in full>, workflow run <id> was run again whole   <this line only where the block of the crew skill's "A failed check" started one: the block writes it>
 Rebase: patch <unchanged, or changed in <files>>, before <the commit the branch was at before the rebase, in full>, head <the commit the rebase ended on, in full>   <this line only after a rebase, as the second block of the crew skill's "A conflict" prints it>

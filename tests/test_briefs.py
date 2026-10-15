@@ -196,6 +196,78 @@ def test_the_last_result_decides_the_state_and_an_earlier_one_keeps_the_pull_req
     assert brief.pull_request.url == "https://github.com/someone/demo/pull/7"
 
 
+RESULT_TEMPLATE = Path(__file__).parent.parent / "templates" / "result.md"
+
+
+def reported(line):
+    """The steps jbriefs reads from a Result that has `line` under its `Changed:` line."""
+    text = BRIEF + RESULT.replace("Changed: one file.\n", f"Changed: one file.\n{line}\n")
+    (result,) = parse.brief("alpha", text).results
+    return result.playbook
+
+
+def test_each_step_a_result_reports_is_read_as_done_or_skipped_with_its_reason():
+    said = reported("Playbook: bug-fix; 1 done; 2 skip: the brief gives the repro, as is; 3 done")
+    assert said == parse.Steps(
+        "bug-fix",
+        (
+            parse.Step(1),
+            parse.Step(2, "the brief gives the repro, as is"),
+            parse.Step(3),
+        ),
+    )
+
+
+def test_a_result_with_no_playbook_line_reports_none_and_one_that_says_none_reports_no_step():
+    assert reported("") is None
+    assert reported("Playbook: none") == parse.Steps("none")
+
+
+@pytest.mark.parametrize(
+    ("line", "fault"),
+    [
+        ("Playbook: bug-fix", "reports no step"),
+        ("Playbook: none; 1 done", "reports steps of no playbook"),
+        (
+            "Playbook: bug-fix; 1 done; 2 skipped",
+            "has `2 skipped`, not `<n> done` or `<n> skip: <reason>`",
+        ),
+        (
+            "Playbook: bug-fix; 1 done; 2 skip:",
+            "has `2 skip:`, not `<n> done` or `<n> skip: <reason>`",
+        ),
+        ("Playbook: bug-fix; 1 done; 3 done", "does not number its steps 1 to the last in order"),
+        ("Playbook: bug-fix; 2 done; 1 done", "does not number its steps 1 to the last in order"),
+        ("Playbook: ; 1 done", "names no playbook"),
+    ],
+)
+def test_a_playbook_line_out_of_the_templates_shape_is_read_with_one_line_saying_why(line, fault):
+    assert reported(line).fault == fault
+
+
+def test_the_templates_own_playbook_line_is_refused_until_it_is_filled_in():
+    (line,) = [
+        line for line in RESULT_TEMPLATE.read_text().splitlines() if line.startswith("Playbook:")
+    ]
+    assert reported(line).fault == "names no playbook"
+    filled = "Playbook: bug-fix; 1 done; 2 skip: no reason to"
+    assert reported(filled) == parse.Steps(
+        "bug-fix", (parse.Step(1), parse.Step(2, "no reason to"))
+    )
+
+
+def test_the_playbook_line_of_the_brief_itself_is_not_a_report():
+    (result,) = parse.brief("alpha", BRIEF + "Playbook: bug-fix\n" + RESULT).results
+    assert result.playbook is None
+
+
+def test_the_last_results_playbook_line_is_its_own():
+    follow = FOLLOW_UP.rstrip("\n") + "\nPlaybook: feature; 1 done\n"
+    first, last = parse.brief("alpha", BRIEF + RESULT + follow).results
+    assert first.playbook is None
+    assert last.playbook == parse.Steps("feature", (parse.Step(1),))
+
+
 def written(*, by_a_scout):
     """A brief in the template's shape with every field filled in, as a scout or a home writes it.
 

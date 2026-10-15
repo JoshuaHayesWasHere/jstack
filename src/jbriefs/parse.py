@@ -24,6 +24,8 @@ _STATUS = re.compile(r"^Status:[ \t]*(?P<status>.*)$", re.MULTILINE)
 _THREAD = re.compile(r"^Thread:[ \t]*(?P<thread>\S+)", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
+_PLAYBOOK = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
+_STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
 
 _NAMED = (
     (
@@ -85,6 +87,48 @@ class PullRequest:
 
 
 @dataclass(frozen=True)
+class Step:
+    """One step a Result's `Playbook:` line reports: `skip` is the reason it was not done,
+    and empty for a step that was."""
+
+    number: int
+    skip: str = ""
+
+
+@dataclass(frozen=True)
+class Steps:
+    """A Result's `Playbook:` line: the playbook's name, or `none`, and each step's report.
+    `fault` is why the line is not in the template's shape, and empty when it is."""
+
+    name: str
+    steps: tuple[Step, ...] = ()
+    fault: str = ""
+
+
+def steps(said: str) -> Steps:
+    """Read what a `Playbook:` line says, the label left off: the name, then `; ` and each
+    step as `<n> done` or `<n> skip: <reason>`, numbered 1 to the last in order."""
+    name, *parts = [part.strip() for part in said.split(";")]
+    if not name or name.startswith("<"):
+        return Steps(name, fault="names no playbook")
+    if name == "none":
+        return Steps(name, fault="reports steps of no playbook" if parts else "")
+    if not parts:
+        return Steps(name, fault="reports no step")
+    found = []
+    for part in parts:
+        step = _STEP.fullmatch(part)
+        if not step:
+            return Steps(
+                name, tuple(found), f"has `{part}`, not `<n> done` or `<n> skip: <reason>`"
+            )
+        found.append(Step(int(step["number"]), (step["skip"] or "").strip()))
+    if [step.number for step in found] != list(range(1, len(found) + 1)):
+        return Steps(name, tuple(found), "does not number its steps 1 to the last in order")
+    return Steps(name, tuple(found))
+
+
+@dataclass(frozen=True)
 class Result:
     """One `## Result` section a crewmate appended to its brief."""
 
@@ -108,6 +152,12 @@ class Result:
             return None
         url = _URL.search(named)
         return PullRequest(named, url[0].rstrip(".,;:*") if url else None)
+
+    @property
+    def playbook(self) -> Steps | None:
+        """The steps the `Playbook:` line reports, or None for a Result with no such line."""
+        found = _PLAYBOOK.search(self.text)
+        return steps(found["said"]) if found else None
 
 
 @dataclass(frozen=True)
