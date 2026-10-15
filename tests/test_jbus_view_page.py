@@ -930,7 +930,7 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
     items = seen["side"]["items"]
     assert [(one["name"], one["count"], one["dot"]) for one in items] == [
         ("All", "5", ""),
-        ("demo", "4", "ok"),
+        ("demo", "4", "op"),
         ("larder", "0", "op"),
         ("pantry", "1", "op"),
     ]
@@ -940,12 +940,12 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
         ("#/larder", ""),
         ("#/pantry", ""),
     ]
-    assert items[1]["tip"] == "demo: 4 wait on you"
+    assert items[1]["tip"] == "demo: 4 wait on you. Blind 1", "amber as its row's Blind chip"
     assert items[2]["tip"] == (
-        "larder: 0 wait on you. Its checks: the repo is not known. Its bus: 2 failed wakes, "
-        "last error: 500. 11 sources not read. Its threads are not known"
+        "larder: 0 wait on you. CI: the repo is not known. Bus 0 in outbox, 2 failed wakes. "
+        "Threads not known. Blind 1. 11 sources unread"
     )
-    assert items[3]["tip"] == "pantry: 1 wait on you. 6 sources not read. Its threads are not known"
+    assert items[3]["tip"] == "pantry: 1 wait on you. Threads not known. Blind 2. 6 sources unread"
     assert all(one["seen"] for one in items)
     assert len({one["box"][0] for one in items}) == 1, "one column"
     assert len({one["box"][1] for one in items}) == 4
@@ -1547,6 +1547,8 @@ def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, t
     assert set(seen["body"].split()) == {"stopped", "gone"}
     assert seen["banner"].startswith("the view server does not answer last answer ")
     assert "2 answers missed" in seen["banner"]
+    read = NOW.astimezone().strftime("%H:%M:%S")
+    assert seen["header"]["read"] == f"read {read}", "the time of the last answer, not of now"
     assert [state for state, _ in seen["halves"]] == ["frozen"]
     assert {card["state"] for card in seen["cards"] if card["state"]} == {"frozen"}
     assert {tile["state"] for tile in seen["tiles"]} == {"frozen"}

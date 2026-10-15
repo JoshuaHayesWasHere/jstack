@@ -450,7 +450,7 @@
   var POLL = 15000, EVERY = 4, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
-  var missed = 0, lastAnswer = 0, gone = false, stopped = false;
+  var missed = 0, lastAnswer = 0, gone = false, stopped = false, READ = 0;
   /* Where the page is: the hash, and nothing else. `#/` is every project, `#/<project>` one
      project, and `#/<project>/<panel>/<arg>` that project with the drawer of a panel open, as
      `#/infra/task/<slug>` or `#/infra/gate/3`: the parts after the panel are its `data-open`
@@ -643,7 +643,7 @@
      each opens its drawer; on every project it is the one /stack.json read. */
   function machineOf() {
     if (PROJECT && S) return { jbus: S.jbus, room: S.room, runners: S.checks.runners, runners_read: S.checks.runners_read, unwell: STACK ? STACK.machine.unwell : [], opens: true };
-    return STACK && !PROJECT ? STACK.machine : null;
+    return STACK ? STACK.machine : null;
   }
   function mitem(e, tag, val, tip, open) {
     var inner = '<span class="tag">' + tag + '</span><span class="val">' + val + '</span>';
@@ -666,15 +666,18 @@
       mitem(over ? "op" : "ok", "Plan", used("five_hour") + "/" + used("seven_day"),
         "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room");
   }
-  /* What is wrong with a project, as its summary has it: the reason for an amber dot. */
-  function troubles(p) {
-    var h = p.health, c = h.checks, b = h.bus, said = [];
-    if (c.error || c.failed) said.push("Its checks: " + (c.error || c.failed + " failed"));
-    if (b.failed_wakes || b.last_error) said.push("Its bus: " + plural(b.failed_wakes, "failed wake", "failed wakes") + (b.last_error ? ", last error: " + b.last_error : ""));
-    if (h.unwell.length) said.push(plural(h.unwell.length, "source", "sources") + " not read");
-    if (h.threads == null) said.push("Its threads are not known");
-    return said;
+  /* A project's health, as its summary has it: one chip for each fact, as [edge, text, tip].
+     Its row draws them, and its dot in the sidebar is amber where one of them is. */
+  function health(p) {
+    var h = p.health, c = h.checks, b = h.bus;
+    return [
+      [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
+      [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")],
+      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? p.name + ": the last pass left no list of its threads" : p.name + ": " + plural(h.threads, "thread", "threads") + " out"],
+      [h.blind ? "op" : "ok", "Blind " + h.blind, p.name + ": " + plural(h.blind, "thing", "things") + " its page cannot say now"]
+    ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
   }
+  function amber(p) { return health(p).filter(function (x) { return x[0] === "op"; }).map(function (x) { return x[1]; }); }
   /* The sidebar: All first, then each project the server lists, with what waits on you and a
      dot for its health. The project in front counts from its own read, which is the newer. */
   function renderSide() {
@@ -685,7 +688,7 @@
     function n(v) { return '<span class="n' + (v ? " op" : " zero") + '">' + v + '</span>'; }
     put($("projects"), (ps.length ? '<a class="sp" href="' + esc(href("")) + '"' + (PROJECT ? "" : ' aria-current="page"') + ' title="Every project: ' + all + ' wait on you"><span class="nm">All</span>' + n(all) + '</a>' : "") +
       ps.map(function (p) {
-        var w = waitsOf(p), bad = p.health ? troubles(p) : [];
+        var w = waitsOf(p), bad = p.health ? amber(p) : [];
         return '<a class="sp" href="' + esc(href(p.name)) + '"' + (p.name === PROJECT ? ' aria-current="page"' : "") + ' title="' + esc(p.name + ": " + w + " wait on you" + (bad.length ? ". " + bad.join(". ") : "")) + '">' + (p.health ? '<i class="hd' + (bad.length ? " op" : "") + '"></i>' : "") + '<span class="nm">' + esc(p.name) + '</span>' + n(w) + '</a>';
       }).join(""));
     var m = machineOf();
@@ -713,14 +716,9 @@
   }
   function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
-    var h = p.health, c = h.checks, b = h.bus, held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
+    var held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
     var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
-    out += '<div class="chips">' +
-      chip(c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + esc(c.error) : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")) +
-      chip(b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")) +
-      chip(h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? p.name + ": the last pass left no list of its threads" : p.name + ": " + plural(h.threads, "thread", "threads") + " out") +
-      chip(h.blind ? "op" : "ok", "Blind " + h.blind, p.name + ": " + plural(h.blind, "thing", "things") + " its page cannot say now") +
-      (h.unwell.length ? chip("op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (s) { return s.name + " " + s.state; }).join(", ")) : "") + '</div>';
+    out += '<div class="chips">' + health(p).map(function (x) { return chip(x[0], esc(x[1]), x[2]); }).join("") + '</div>';
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
     if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
@@ -749,7 +747,7 @@
     if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderSide(); renderDead(); return; }
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
-    say($("readat"), "read " + hm(NOW, true)); $("readat").title = "The time of the last read of the server";
+    say($("readat"), "read " + hm(READ, true)); $("readat").title = "The time of the last read of the server";
     renderSide();
     renderDead();
     if (!PROJECT) renderStack();
@@ -978,9 +976,9 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); }
+  function tookStack(stack) { STACK = stack; NOW = READ = ms(STACK.at) || Date.now(); heard(); render(); }
   function took(state) {
-    S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
+    S = state; NOW = READ = ms(S.at) || Date.now(); heard(); NOSUCH = "";
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
@@ -991,15 +989,17 @@
     missed += 1;
     if (missed >= MISS) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
-  /* One request a poll, for the view in front. An answer to a view that is no longer in
-     front is dropped. A project the state directory does not have is said, and no fault. */
+  /* A poll asks for the view in front: every project's /stack.json, or one project's
+     /state.json and, on its first poll and each EVERY after, /stack.json for the sidebar. An
+     answer to a view that is no longer in front is dropped. A project the state directory
+     does not have is said, and no fault. */
   var turnOf = 0, pending = "", beat = 0;
   function poll() {
     var mine = turnOf;
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
     /* The sidebar's count of every project, beside one project's page: a miss of it is no
        miss of the server, which the project's own read says. */
-    if (!STACK || beat++ % EVERY === EVERY - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; if (S) render(); } }, function () {});
+    if (!STACK || beat++ % EVERY === EVERY - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
