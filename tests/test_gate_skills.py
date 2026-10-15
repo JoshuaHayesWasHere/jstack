@@ -20,6 +20,7 @@ import pytest
 import jsettings
 import test_home_merge as merge
 import test_jmerge_rangediff as rangediff
+from jbriefs import parse
 from jbus import dispatch, stall
 from jmerge import proof, ready
 from test_briefs import TEMPLATE
@@ -623,6 +624,25 @@ def test_an_approved_row_whose_brief_has_no_design_line_is_gated_once_for_that_b
     kitchen.poll(NOW + timedelta(minutes=12))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
     assert len(gates(kitchen)) == 2
+
+
+def test_a_row_whose_brief_proves_it_by_the_agents_word_is_gated_and_one_with_no_line_launches(
+    kitchen,
+):
+    """A brief from before the `Proves it:` line has none, and launches as it did."""
+    kitchen.config(max_running=6)
+    add(kitchen, "alpha", text=brief("alpha", "Proves it: reviewed by reviewer\n"))
+    add(kitchen, "beta", priority=2)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    why = parse.proof("reviewed by reviewer").why
+    assert why.startswith("brief's Proves it: line names the reviewer, the agent's own word (")
+    assert gates(kitchen) == [f"condition alpha: {why}"]
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
+    add(kitchen, "alpha", text=brief("alpha", "Proves it: `make check` exits 0\n"))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
+    assert len(gates(kitchen)) == 1
 
 
 def test_a_brief_with_no_design_line_is_gated_before_what_it_depends_on_has_merged(kitchen):

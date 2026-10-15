@@ -25,9 +25,16 @@ from test_jbus_kitchen import FIXTURE, NOW, REPO
 def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
     source = "\n".join(path.read_text() for path in sorted((REPO / "src/jbus").rglob("*.py")))
     counted = "\n".join(path.read_text() for path in sorted((REPO / "src/jgauge").rglob("*.py")))
+    counted += "\n" + (REPO / "src/jbriefs/parse.py").read_text()
     imports = re.findall(r"^\s*(?:from|import)\s+([\w.]+)", source + counted, re.M)
     roots = {name.split(".")[0] for name in imports}
-    assert roots <= set(sys.stdlib_module_names) | {"jbus", "jmerge", "jsettings", "jgauge"}, roots
+    assert roots <= set(sys.stdlib_module_names) | {
+        "jbus",
+        "jmerge",
+        "jsettings",
+        "jgauge",
+        "jbriefs",
+    }, roots
     named = source.replace(queue.SESSION, "").replace(f'KEPT = "{usage.KEPT}"', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)
     assert set(re.findall(r"\bt3_[a-z_]+\b", source)) == {t for t in t3.TOOLS if t[:3] == "t3_"}

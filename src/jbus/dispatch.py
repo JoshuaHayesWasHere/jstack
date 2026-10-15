@@ -21,6 +21,11 @@ A brief is launched only with its design call in it: a `Design:` line in its hea
 `/architect` leaves, or `Design: none, <why>` for a task that needs none. An approved row
 whose brief has neither is a gate, once for that brief.
 
+Nor is one whose `Proves it:` line names nothing outside the agent: no test, command,
+metric, dataset, external judge or the user. A brief with no such line was written before
+the line was asked for, and is launched as it was approved: refusing it would strand every
+row approved before.
+
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
 all. The merge is where it is settled, and `jbus.rebase` tells the crew that must rebase.
@@ -35,6 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from jbriefs import parse
 from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
@@ -146,6 +152,16 @@ def designed(brief: str) -> str:
             named = not said.startswith("<") and _DESIGN.search(said)
             return "" if _NONE.match(said) or named else NO_DESIGN
     return NO_DESIGN
+
+
+def proven(brief: str) -> str:
+    """Why a brief may not be launched for what it says proves it right, or nothing.
+
+    It is the first `Proves it:` line of its head, as `jbriefs` judges it. A brief with no
+    such line is grandfathered: it says nothing, as briefs approved before the line did.
+    """
+    found = parse.proves_it(brief)
+    return found.why if found else ""
 
 
 def where(brief: str) -> set[str]:
@@ -313,10 +329,12 @@ class Turns:
                     run.gate(slug, "brief changed after approval", key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now)
                 continue
-            short = designed(brief)
+            short, kind = designed(brief), "no design"
+            if not short:
+                short, kind = proven(brief), "no proof"
             if short:
                 if not full:
-                    run.gate(slug, short, key=f"no design, brief {row['brief_sha'][:12]}")
+                    run.gate(slug, short, key=f"{kind}, brief {row['brief_sha'][:12]}")
                 else:
                     run.held.add(slug)
                 continue

@@ -6,4 +6,4 @@ A playbook is for one role, the one its `Run by:` line starts with: a crewmate, 
 
 Each file in `templates/` is the one copy of a shape, such as `brief.md`, `result.md`, `review.md` and `gates.md`. A skill reads a template at the step that names it, and finds the directory from its own symlink (`realpath ~/.claude/skills/<name>/../../templates`), so the symlinks must point into a checkout of this repo.
 
-A brief's head has a `Design:` line: the path of the design `/architect` wrote for the task, or `none, <why>`. A crewmate's Result has a `Proof:` line: for each "Done when" line, the command run and what it printed.
+A brief's head has a `Design:` line: the path of the design `/architect` wrote for the task, or `none, <why>`. Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review. A crewmate's Result has a `Proof:` line: for each "Done when" line, the command run and what it printed.

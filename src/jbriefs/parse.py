@@ -25,6 +25,38 @@ _THREAD = re.compile(r"^Thread:[ \t]*(?P<thread>\S+)", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 
+_NAMED = (
+    (
+        "a test",
+        r"\btests?/|\btest_\w+|\w+_test\b|\bpytest\b|\buv run\b"
+        r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+"
+        r"|\b(?!(crew|crewmates?|reviewers?|agents?|self|model|it|he|she|they|who|that|which"
+        r"|will|can|could|should|would|must|to|does|did|may|might)\b)[\w-]+[ -]tests\b",
+    ),
+    (
+        "an external judge",
+        r"\b(external|outside|independent|blind) judge\b|\bCI\b|\bgithub\b|\bthird[- ]party\b",
+    ),
+    ("the user", r"\bthe user\b|\buser's\b|\bthe (operator|owner)\b|\bhis (word|pick|eye)\b"),
+)
+_SELF = (
+    ("the crewmate", r"\bcrewmates?\b"),
+    ("the crew", r"\bcrew\b"),
+    ("the reviewer", r"\breviewers?\b"),
+    ("the agent", r"\bagents?\b"),
+    ("the agent itself", r"\bself\b|\bitself\b"),
+    ("the model", r"\bthe model\b|\bmodel's\b"),
+    ("a review alone", r"\breview(s|ed)?\b"),
+)
+_LOOSE = (
+    ("a test", r"\btests?\b"),
+    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*%"),
+    ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
+    ("an external judge", r"\bjudge\b"),
+)
+_SPAN = re.compile(r"`([^`\n]+)`")
+_PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
+
 
 @dataclass(frozen=True)
 class Entry:
@@ -74,6 +106,63 @@ class Result:
 
 
 @dataclass(frozen=True)
+class Proof:
+    """A brief's `Proves it:` line: what outside the agent shows the task is done.
+
+    `kind` is the first thing it names that is not the agent's own word, and `fault` is
+    why it names nothing of the sort. One of the two is set.
+    """
+
+    said: str
+    kind: str = ""
+    fault: str = ""
+
+    @property
+    def why(self) -> str:
+        """One line on why the proof does not hold, or nothing when it does."""
+        return f"brief's Proves it: line {self.fault} {_PROVES}" if self.fault else ""
+
+
+def proof(said: str) -> Proof:
+    """Judge what a `Proves it:` line says, the label left off.
+
+    Three tables are read in turn, and the first match decides. `_NAMED` is what names a
+    thing outside the agent by itself: a test's path or name, a runner, a make target, CI,
+    a named judge or the user, and so is a command in backticks that names no agent. So a
+    test the crewmate runs is still a test. `_SELF` is the agent's own word. `_LOOSE` is
+    what holds only with no agent named: "the agent tests it" is the agent's word.
+    """
+    said = said.strip()
+    if not said:
+        return Proof(said, fault="is empty")
+    if said.startswith("<"):
+        return Proof(said, fault="is the template's own text")
+    for kind, pattern in _NAMED:
+        if re.search(pattern, said, re.I):
+            return Proof(said, kind=kind)
+    for span in _SPAN.findall(said):
+        if not any(re.search(pattern, span, re.I) for _, pattern in _SELF):
+            return Proof(said, kind="a test")
+    for name, pattern in _SELF:
+        if re.search(pattern, said, re.I):
+            return Proof(said, fault=f"names {name}, the agent's own word")
+    for kind, pattern in _LOOSE:
+        if re.search(pattern, said, re.I):
+            return Proof(said, kind=kind)
+    return Proof(said, fault="names nothing outside the agent")
+
+
+def proves_it(text: str) -> Proof | None:
+    """The first `Proves it:` line of a brief's head, judged, or None for a brief with none."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith("Proves it:"):
+            return proof(line.removeprefix("Proves it:"))
+    return None
+
+
+@dataclass(frozen=True)
 class Brief:
     """One `tasks/<slug>.md`: the brief the home wrote, then the crewmate's results."""
 
@@ -93,6 +182,10 @@ class Brief:
             if result.pull_request:
                 return result.pull_request
         return None
+
+    @property
+    def proof(self) -> Proof | None:
+        return proves_it(self.body)
 
     @property
     def thread_title(self) -> str | None:
