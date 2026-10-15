@@ -112,9 +112,13 @@ def plan(config: Config, now: datetime) -> str:
         return "none: no sign-in is stored"
     if not config.projects:
         return "none: the config has no project to carry it"
-    route = _box(config).machine_route
-    top = route.top or (config.webhook[0] and (route.url, route.key) == tuple(config.webhook))
-    where = "the top-level webhook" if top else f"the webhook of {config.projects[0].name}"
+    first_project = config.projects[0]
+    if config.webhook[0]:
+        where = "the top-level webhook"
+    elif first_project.webhook_url:
+        where = f"the webhook of {first_project.name}"
+    else:
+        return f"none: no top-level webhook, and {first_project.name} has none of its own"
     stamp = config.user.stamp(expires)
     if now >= expires:
         return f"{KIND} to {where}: it ran out at {stamp}, run jbus t3 login"
