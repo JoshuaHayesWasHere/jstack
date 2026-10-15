@@ -95,7 +95,6 @@
   .vit .val { grid-column: 1; font-weight: 700; font-size: 19px; line-height: 1.25; display: flex; flex-wrap: wrap; gap: 0 7.5px; align-items: baseline; }
   .vit .val small { font-weight: 400; font-size: 14.5px; color: var(--dim); }
   .vit .val small.bad { color: var(--op); flex-basis: 100%; }
-  .vit.wide { grid-column: span 2; }
   .vit.wide .val { grid-column: 1 / -1; gap: 0 16px; font-size: 16px; }
   .vit .val b { white-space: nowrap; }
   .ck { display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; min-width: 0; }
@@ -312,7 +311,7 @@
     .vitals { gap: 0; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
     .vit { border-width: 0 0 1px 5px; border-radius: 0; min-height: 44px; padding: 5px 10px; }
     .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .vit.wide { grid-column: 1 / -1; border-bottom-width: 0; }
+    .vit.wide { border-bottom-width: 0; }
     .vit .viz { display: none; }
     .vit[data-open="bus"] .viz { display: flex; }
     .vit .val { grid-column: 1 / -1; font-size: 17px; }
@@ -329,6 +328,8 @@
     .line { gap: 5px; }
     .lane { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 8px 8px; }
     .laneh { min-height: 44px; width: 100%; font-size: 16px; }
+    .lhw { display: flex; width: 100%; }
+    .lhw > .laneh { flex: 1 1 auto; width: auto; }
     .laneb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .tw { display: flex; gap: 6px; }
     .bk { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: normal; font-size: 14px; }
@@ -414,6 +415,42 @@
   .dw-h .crumbs { font-size: 14px; color: var(--dim); }
   .back { display: block; margin: 4px 0 2px; border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--msg); font-size: 15px; font-weight: 600; text-align: left; }
   .back:hover { text-decoration: underline; }
+  /* what a thing means: a ? beside it that opens a toggletip, by click, tap or key; a peek when
+     a shape, a mark or a count is hovered, or a token takes the focus by keyboard; and the
+     glossary of every term. The ? is drawn, not written, so it costs a screen no word. */
+  .hint { flex: none; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: help; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+  .hint::before { content: "?"; width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--card); color: var(--dim); font-size: 12px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-family: var(--sans); }
+  .hint:hover::before, .hint[aria-expanded="true"]::before { border-color: var(--fg); color: var(--fg); }
+  .tip { position: fixed; z-index: 50; max-width: min(340px, calc(100vw - 20px)); background: var(--fg); color: var(--bg); border-radius: 10px; padding: 9px 12px 10px; font-size: 14.5px; line-height: 1.4; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); }
+  .tip b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .tip.peek { pointer-events: none; max-width: min(300px, calc(100vw - 20px)); font-size: 14px; }
+  .sh, .mk, .bn, .hd, .sd, [data-gloss] { cursor: help; }
+  .vw { position: relative; min-width: 0; display: flex; }
+  .vw > .vit { flex: 1 1 auto; padding-right: 34px; }
+  .vw > .hint { position: absolute; top: 5px; right: 5px; }
+  .vw.wide { grid-column: span 2; }
+  .mw { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
+  .mw > .mi { flex: 1 1 auto; }
+  .mw > .hint { align-self: center; }
+  .lhw { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+  details.gk { flex-basis: 100%; font-size: 14.5px; }
+  details.gk summary { cursor: pointer; color: var(--dim); width: max-content; max-width: 100%; }
+  .gk .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; }
+  .gk .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+  .gw { display: inline-flex; align-items: center; justify-content: center; width: 16px; }
+  dl.gloss { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; }
+  dl.gloss dt { font-weight: 700; display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  dl.gloss dt:first-child { border-top: 0; }
+  dl.gloss dd { margin: 0 0 6px; }
+  kbd { font-family: var(--mono); font-size: 0.85em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--card); }
+  .theme.help::before { content: "?"; font-weight: 800; }
+  @media (max-width: 640px) {
+    .hint { width: 44px; height: 44px; }
+    .vw > .vit { padding-right: 44px; }
+    .vw > .hint { top: 0; right: 0; }
+    .vw.wide { grid-column: 1 / -1; }
+    .theme.help { display: inline-flex; align-items: center; justify-content: center; }
+  }
   @media (max-width: 640px) {
     .pj, .hc, .rcell, a.tok, .pjh .go, .back, .folded button { min-height: 44px; display: inline-flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
@@ -426,6 +463,7 @@
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
   <span class="readat" id="readat"></span>
+  <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
   <button type="button" class="theme" id="theme">Auto</button>
 </header>
 <div class="shell">
@@ -485,12 +523,14 @@
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     /* A part that is not a name (#/%E0) is kept as it was written: no project has it. */
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    /* `#/help` is the glossary over every project: no project is called help. */
+    if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
   /* The address of a project's page, or of one of its drawers. */
   function href(project, target) {
     var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "";
-    return "#/" + (project ? encodeURIComponent(project) + t : "") + (HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "");
+    return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + (HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "");
   }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
@@ -552,6 +592,72 @@
     other: ["other", "other thread", "Other", "A thread whose title names no role, so what it works on is not known."]
   };
   var LIVESAY = { moving: "a turn is under way and it writes", quiet: "a turn is under way but it has written nothing for a while", hung: "it has written nothing for longer, or a run waits behind it", waiting: "it waits on a request", ended: "its turn ended: it is not working now", unknown: "the pass could not say" };
+  /* ---------- what each thing means ---------- */
+  /* The glossary: one entry for each term, by `<kind>:<name>`, read by the ? toggletips, by the
+     peek a hover or a keyboard's focus shows, and by the glossary drawer, `#/help`. A shape is
+     a holder's or a role's, `who:<w>`, as the class `w-<w>` draws it; a mark is one on a token,
+     `mark:<m>`; a sign is a dot of health; a count is a badge; a card's entry is given by its
+     panel, `gloss` in its call of `panel`; a step's is its note, from the state. */
+  var SHAPES = {
+    user: ["You", "a diamond, amber", "Only you can move it: a gate to answer, a row to approve, or a merge jmerge holds for your word."],
+    crew: ["Crewmate", "a dot, blue", ROLE.crew[3]],
+    home: ["Home", "a dome, blue", ROLE.home[3]],
+    rev: ["Reviewer", "a triangle, purple", ROLE.reviewer[3]],
+    ci: ["Check runner", "a square, teal", "A GitHub Actions runner: the task waits for one to take its check, then for the check to end."],
+    bus: ["jbus", "a bar, grey", "jbus itself has the next move, on its next pass, about once a minute."],
+    dep: ["Another task", "a ring, grey", "It waits for another task to merge first: what follows it names that task."],
+    ok: ["Done", "a dot, green", "Merged today."],
+    scout: ["Scout", "a hexagon, teal", ROLE.scout[3]],
+    other: ["Other thread", "a hollow square, grey", ROLE.other[3]],
+    unknown: ["Unknown", "a dashed square, amber", "The view cannot work out who holds it, and does not guess: open it to see what is known."]
+  };
+  var MARKS = [
+    ["long", "Mark", "Over 30 minutes on its step."], ["rep", "Mark", "Not its first time on this step."],
+    ["blk", "Mark", "Blocked: what follows it names what blocks it."], ["bn", "Count", "How many tasks wait behind it to merge first."],
+    ["lv-moving", "Mark", "Its thread has a turn under way and writes."], ["lv-quiet", "Mark", "Its thread has a turn under way but has written nothing for a while."],
+    ["lv-hung", "Mark", "Its thread has written nothing for longer, or a run waits behind it."]
+  ];
+  var GLOSS = {
+    "sign:hd": ["Health", "The project is well: its checks, its bus and every source were read with nothing amiss."],
+    "sign:hd-op": ["Health", "Something in this project wants a look: hover its name for what."],
+    "sign:dot": ["Health", "Well: running, passing or calm."],
+    "sign:dot-off": ["Health", "Stopped: jbus has not passed."],
+    "sign:dot-amber": ["Health", "A failed wake: a send of the bus that did not go out."],
+    "sign:sd": ["Health", "An event in the outbox, not sent yet."],
+    "count:lane": ["Count", "How many open tasks are on this step."],
+    "count:waits": ["Count", "How many things wait on you: in this project, or for All and the band of every project, in every one."],
+    "count:held": ["Count", "How many open tasks this holder has. A tap shows only theirs on the line."],
+    "count:kind": ["Count", "How many of this kind wait on you. The time after it is how long the oldest has waited."],
+    "count:noticed": ["Count", "How many new Noticed lines wait for their home to mark them. They are not counted in what waits on you."],
+    "count:wave": ["Count", "The wave: how deep in the queue these rows are. Wave 0 is ready, wave 1 waits on wave 0, and so on."],
+    "term:waits": ["Waits on you", "Everything only you can move: gates to answer, rows to approve, merges held for your word, and setup jbus lacks. Noticed lines stand beside it, not in it."],
+    "term:noticed": ["Noticed, not counted", "A line a thread wrote under Noticed in its Result, Review or Report. Its home marks each one taken or dropped, so they wait on a home, not on you: the count of what waits on you leaves them out."],
+    "term:threads": ["Threads", "Every thread the last pass saw for this project, by role, those out first. Out is a turn under way, or one that waits. Ended threads are dimmed, and each opens what it works on."],
+    "term:line": ["The line", "Every open task, each on the one step it is on, in the shape of who holds it now. A step that holds no task is folded into one line of its name."],
+    "term:live": ["Live and frozen", "Live is read by the server each time the page asks. Frozen is what jbus wrote on its last pass, and stands as it left it while jbus is stopped."],
+    "term:project": ["Project", "One repo jbus runs a queue for, with its own state. Every task, gate and outbox is one project's. A retired project is not shown."]
+  };
+  Object.keys(SHAPES).forEach(function (w) { GLOSS["who:" + w] = [SHAPES[w][0], "Drawn as " + SHAPES[w][1] + ". " + SHAPES[w][2], w]; });
+  MARKS.forEach(function (m) { GLOSS["mark:" + m[0]] = [m[1], m[2]]; });
+  /* The note of each step, kept from the last state read: every project has the same steps. */
+  var NOTES = {};
+  function stepGloss(key) {
+    var s = STEP[key] || (STACK ? STACK.steps.filter(function (x) { return x.key === key; })[0] : null), all = S ? S.steps : STACK ? STACK.steps : [];
+    if (!s) return null;
+    var at = all.map(function (x) { return x.key; }).indexOf(key), note = s.note || NOTES[key];
+    return [s.name, (at < 0 ? "Not a step of the line" : "Step " + (at + 1) + " of " + all.length) + (note ? ": " + note : "") + ". " + (s.who === "ok" ? "It is done." : s.who === "unknown" ? "Who holds it is not known." : s.who ? "Held by " + WHO[s.who] + "." : "Who holds it depends on the row: its shape says.")];
+  }
+  /* What a key means, as [name, text, shape], or null where nothing is known of it. */
+  function gloss(key) { return key.indexOf("step:") === 0 ? stepGloss(key.slice(5)) : GLOSS[key] || null; }
+  /* A ? that opens the toggletip of `key`: a button of its own, beside what it explains. */
+  function hint(key, label) { return '<button type="button" class="hint" data-tip="' + esc(key) + '" aria-expanded="false" aria-label="What ' + esc(label) + ' means"></button>'; }
+  function tipHtml(g) { return '<b>' + (g[2] ? '<span class="w-' + esc(g[2]) + '"><i class="sh"></i></span> ' : "") + esc(g[0]) + '</b>' + esc(g[1]); }
+  /* The folded key: every shape and every mark, each with its ?, under one line of its own. */
+  function foldedKey() {
+    return '<details class="gk"><summary>Shapes and marks</summary><div class="legend">' +
+      Object.keys(SHAPES).map(function (w) { return '<span class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + hint("who:" + w, SHAPES[w][0]) + '</span>'; }).join("") +
+      MARKS.map(function (m) { return '<span><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + esc(m[2].replace(/[:.].*$/, "")) + hint("mark:" + m[0], m[2]) + '</span>'; }).join("") + '</div></details>';
+  }
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
   /* Where a scout's request stands, as its thread is: one that ended with no Report is no
      longer researching, it stopped short, as a restart or a limit leaves it. */
@@ -601,7 +707,7 @@
       (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-label="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
     else if (b) after = mark(b.by, b.what, blockedBy(b), t.slug + " is " + blockedBy(b));
     return '<span class="tw' + cls + '"><button type="button" class="tok w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" aria-label="' + esc(t.slug) + ": " + esc(t.state.name) + ", waits for " + esc(t.state.waits) + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + (held ? ", " + esc(held) : "") + (t.blocks ? ", " + behind(t.blocks) : "") + (live ? ", its thread is " + live : "") + (long ? ", over 30 min here" : "") + (rep ? ", " + ord(t.visits) + " time on " + esc(st.name) : "") + '">' +
-      '<i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn" title="' + behind(t.blocks) + '">' + t.blocks + '</span>' : "") + (live ? '<i class="mk lv-' + live + '" title="its thread is ' + live + '"></i>' : "") + (long ? '<i class="mk long"></i>' : "") + (rep ? '<i class="mk rep"></i>' : "") + '</button>' +
+      '<i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn">' + t.blocks + '</span>' : "") + (live ? '<i class="mk lv-' + live + '"></i>' : "") + (long ? '<i class="mk long"></i>' : "") + (rep ? '<i class="mk rep"></i>' : "") + '</button>' +
       after + '</span>';
   }
   function dot(t) { return '<button type="button" class="qd w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" title="' + esc(t.slug) + '" aria-label="' + esc(waitsOn(t)) + ", in wave " + t.wave + (t.state.kind === "unapproved" ? ", not approved" : "") + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + '"></button>'; }
@@ -621,7 +727,7 @@
     later.forEach(function (t) { if (ws.indexOf(t.wave) < 0) ws.push(t.wave); });
     ws.sort(function (a, b) { return a - b; });
     return flowLine("Ready", of(0), false) + flowLine("Next", of(1), true) + '<div class="fl">' + flowHead("Later", later.length, " dk") +
-      ws.map(function (w) { return '<span class="wv dk"><b title="wave ' + w + '">' + w + '</b>' + of(w).map(dot).join("") + '</span>'; }).join("") +
+      ws.map(function (w) { return '<span class="wv dk"><b data-gloss="count:wave">' + w + '</b>' + of(w).map(dot).join("") + '</span>'; }).join("") +
       (later.length ? plus(later.length, "ph", later.length + " later, in " + plural(ws.length, "wave", "waves"), "Later") : "") + '</div>';
   }
   /* The bus as the view in front has it: one project's, or the machine's on every project. */
@@ -642,21 +748,24 @@
   function renderTop() {
     var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
     put($("vitals"), cards.map(function (c) {
-      return '<button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>';
+      return '<div class="vw' + (c.cls || "") + '"><button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-label="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>' + hint("card:" + c.k, c.tag) + '</div>';
     }).join(""));
   }
   function waits(kind) { return S.waiting.filter(function (w) { return w.kind === kind; }); }
   function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
   function renderYou() {
     var n = S.waiting.length;
-    var h = '<button type="button" class="youn" data-open="you" aria-label="' + n + ' things wait on you: open the lists"><b>' + n + '</b><span>wait on you</span></button>';
+    var h = '<button type="button" class="youn" data-open="you" aria-label="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b><span>wait on you</span></button>' + hint("term:waits", "Waits on you");
     KINDS.forEach(function (k) {
       var items = waits(k), age = oldest(items), live = k === "gate";
       if (!items.length && (k === "hold" || k === "config" || k === "left")) return;
-      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-label="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="opacity:.5"') + '><i class="sh"></i><b style="font-family:var(--sans)">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
+      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-label="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="opacity:.5"') + '><i class="sh"></i><b style="font-family:var(--sans)" data-gloss="count:kind">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
     });
+    /* What a panel adds beside the count, as the noticed lines, is not in it: its own words
+       say so, and its ? says why. */
     added("you").forEach(function (a) {
-      h += '<span class="yg"><button type="button" class="tok w-user" data-open="' + esc(a.said.open || a.from) + '" aria-label="' + esc(a.said.n + " " + a.said.label) + ': open it"><i class="sh"></i><b style="font-family:var(--sans)">' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button></span>';
+      var faint = !!a.said.tip;
+      h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-label="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
     });
     $("you").className = "you frz" + (n ? "" : " none");
     put($("you"), h);
@@ -666,9 +775,9 @@
     put($("filters"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i>' + S.tasks.length + '</i></button>' +
       order.map(function (w) {
         var n = S.tasks.filter(function (t) { return t.who === w; }).length;
-        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i>' + n + '</i></button>' : "";
+        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-label="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i data-gloss="count:held">' + n + '</i></button>' : "";
       }).join("") + fz() +
-      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>');
+      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>' + foldedKey());
     /* Only a step that holds a task takes a row. The rest are folded into one line of their
        names, each still a way to its drawer. */
     var html = "", folded = [];
@@ -678,9 +787,9 @@
       if (s.key === "queued") here.sort(function (a, b) { return rank[a.who] - rank[b.who] || a.priority - b.priority; });
       else here.sort(function (a, b) { return (ms(a.since) || NOW) - (ms(b.since) || NOW); });
       if (s.key === "merged") {
-        body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
+        body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md w-ok" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
       } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
-      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '">' + count + '</span><b>' + esc(s.name) + '</b></button><div class="laneb">' + body + '</div></li>';
+      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span><b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
     });
     if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
     put($("line"), html);
@@ -703,7 +812,7 @@
   }
   function mitem(e, tag, val, tip, open) {
     var inner = '<span class="tag">' + tag + '</span><span class="val">' + val + '</span>';
-    return open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>';
+    return '<span class="mw">' + (open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>') + hint("card:" + tag.toLowerCase(), tag) + '</span>';
   }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   function machineRow(m) {
@@ -742,7 +851,7 @@
     function waitsOf(p) { return here && p.name === PROJECT ? S.waiting.length : p.waits; }
     if (here && !ps.some(function (p) { return p.name === PROJECT; })) ps.push({ name: PROJECT, waits: S.waiting.length });
     var all = ps.reduce(function (t, p) { return t + waitsOf(p); }, 0);
-    function n(v) { return '<span class="n' + (v ? " op" : " zero") + '">' + v + '</span>'; }
+    function n(v) { return '<span class="n' + (v ? " op" : " zero") + '" data-gloss="count:waits">' + v + '</span>'; }
     put($("projects"), (ps.length ? '<a class="sp" href="' + esc(href("")) + '"' + (PROJECT ? "" : ' aria-current="page"') + ' title="Every project: ' + all + ' wait on you"><span class="nm">All</span>' + n(all) + '</a>' : "") +
       ps.map(function (p) {
         var w = waitsOf(p), bad = p.health ? amber(p) : [];
@@ -756,19 +865,20 @@
   function renderHeader() {
     var at = PROJECT || NOSUCH;
     put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    $("helpme").setAttribute("href", href(PROJECT, "help"));
     var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
     if (document.title !== named) document.title = named;
   }
   function waitRow(p) {
-    var h = '<a class="pj" href="' + href(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '">' + p.waits + '</span></a>', any = false;
+    var h = '<a class="pj" href="' + href(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '" data-gloss="count:waits">' + p.waits + '</span></a>', any = false;
     KINDS.forEach(function (k) {
       var w = p.waiting[k]; if (!w) return;
       var age = ms(w.since) == null ? "" : short(NOW - ms(w.since)), say = p.name + ": " + w.count + " " + KIND[k][0] + (age ? ", the oldest for " + age : "");
       any = true;
-      h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b>' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
+      h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b data-gloss="count:kind">' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
     });
     if (!any) h += '<span class="quiet">nothing waits on you</span>';
-    if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on nobody, so the count above leaves them out.") + '"><b>' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>';
+    if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" aria-label="' + esc(p.name + ": " + p.noticed + " new noticed lines, not counted: they wait on a home, not on you. Open them") + '"><b data-gloss="count:noticed">' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>' + hint("term:noticed", "noticed, not counted");
     return h;
   }
   /* The Threads band of a project, as the threads panel draws it: with links to the project's
@@ -782,14 +892,14 @@
     out += band(p.name, p.threads, true);
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
-    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
+    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b data-gloss="count:lane">' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
     if (!p.open) out += '<p class="empty-q"><i class="dot"></i> nothing open</p>';
     return out;
   }
   function renderStack() {
     var ps = STACK.projects, n = ps.reduce(function (t, p) { return t + p.waits; }, 0);
     $("waits").className = "you" + (n ? "" : " none");
-    put($("wtotal"), '<b>' + n + '</b><span>wait on you</span>');
+    put($("wtotal"), '<b data-gloss="count:waits">' + n + '</b><span>wait on you</span>');
     keyed($("yrows"), "div", "yrow", ps.map(function (p) { return { key: p.name, html: waitRow(p) }; }));
     keyed($("rows"), "article", "proj", ps.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
   }
@@ -816,6 +926,7 @@
       if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
       renderTop(); put($("band"), band(PROJECT, S.threads, false)); renderYou(); renderLine();
     }
+    if (tipBtn && !tipBtn.isConnected) hideTip();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
 
@@ -826,7 +937,7 @@
   function called(l) { return l.title || l.target.replace(/:/g, " "); }
   function head(tag, title, mono) {
     var before = LAYERS.length > 1 ? LAYERS[LAYERS.length - 2] : null;
-    return '<div class="dw-h"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; <a href="' + esc(href(PROJECT)) + '">' + esc(PROJECT) + '</a> &rsaquo; <a href="' + esc(href(PROJECT, top())) + '" aria-current="page">' + esc(title) + '</a></nav>' +
+    return '<div class="dw-h"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; ' + (PROJECT ? '<a href="' + esc(href(PROJECT)) + '">' + esc(PROJECT) + '</a> &rsaquo; ' : "") + '<a href="' + esc(href(PROJECT, top())) + '" aria-current="page">' + esc(title) + '</a></nav>' +
       (before ? '<button type="button" class="back" id="dw-back" aria-label="Back to ' + esc(called(before)) + '">&larr; ' + esc(called(before)) + '</button>' : "") +
       '<span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2></div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>';
   }
@@ -901,16 +1012,60 @@
      it adds to another panel's drawer. A panel that is not on the first screen is asked for
      when its drawer opens. A drawer with a GitHub box in it has GitHub asked once it is drawn. */
   var PANELS = {}, ORDER = [];
-  function panels(name, first) { return function (def) { def.name = name; def.first = first; PANELS[name] = def; ORDER.push(def); }; }
+  function panels(name, first) {
+    return function (def) {
+      def.name = name; def.first = first; PANELS[name] = def; ORDER.push(def);
+      Object.keys(def.gloss || {}).forEach(function (k) { GLOSS["card:" + k] = def.gloss[k]; });
+    };
+  }
   /* What the panels add to a place, each with the panel it is from. */
   function added(to, arg) {
     return ORDER.filter(function (p) { return p.adds && p.adds[to]; }).map(function (p) { return { from: p.name, said: p.adds[to](arg) }; }).filter(function (a) { return a.said; });
   }
   /*panels*/
+  /* ---------- the glossary: every term on the page, at #/help ---------- */
+  /* It needs no project, so it opens over every project too. The notes of the steps come with
+     a project's state; over every project they are asked of the first one listed, since every
+     project has the same steps, and the list is drawn again when they come. */
+  function stepList() {
+    var steps = S ? S.steps.concat([S.unknown]) : STACK ? STACK.steps : [];
+    if (!steps.length) return '<p class="src">Asking the server.</p>';
+    return '<dl class="gloss">' + steps.map(function (s, i) { var g = stepGloss(s.key); return '<dt><span class="n' + (s.key === "unknown" ? " zero" : "") + '">' + (s.key === "unknown" ? "?" : i + 1) + '</span>' + esc(s.name) + '</dt><dd>' + esc(g ? g[1] : "") + '</dd>'; }).join("") + '</dl>';
+  }
+  function fillSteps() { var box = $("hsteps"); if (box) put(box, stepList()); }
+  var noting = false;
+  function notes() {
+    if (S || NOTES.queued || noting || gone || !STACK || !STACK.projects.length) return;
+    noting = true;
+    ask("/panel/steps.json?project=" + encodeURIComponent(STACK.projects[0].name)).then(function (a) {
+      noting = false;
+      a.data.steps.concat([a.data.unknown]).forEach(function (s) { NOTES[s.key] = s.note; });
+      fillSteps();
+    }, function () { noting = false; });
+  }
+  function glossList(kind, shape) {
+    return '<dl class="gloss">' + Object.keys(GLOSS).filter(function (k) { return k.indexOf(kind + ":") === 0; }).map(function (k) { var g = GLOSS[k]; return '<dt>' + (shape ? shape(k.slice(kind.length + 1)) : "") + esc(g[0]) + '</dt><dd>' + esc(g[1]) + '</dd>'; }).join("") + '</dl>';
+  }
+  function dHelp() {
+    var h = head("Help", "Every term on the page");
+    h += '<p class="src" style="margin-top:15px">Each <span class="hint" aria-hidden="true"></span> on the page opens one of these where it stands, by a tap, Enter or Space. Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
+    h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
+    h += '<h3>Who holds a task, or what a thread is: its shape</h3><dl class="gloss">' + Object.keys(SHAPES).map(function (w) { return '<dt class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + ' <span class="src">' + esc(SHAPES[w][1]) + '</span></dt><dd>' + esc(SHAPES[w][2]) + '</dd>'; }).join("") + '</dl>';
+    h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
+    h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--dim)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
+    h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
+    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
+    return h;
+  }
+  panels("help", true)({ title: "Every term on the page", free: true, drawer: function () { var h = dHelp(); setTimeout(notes); return h; } });
+  /* A drawer that needs no project's state, as the glossary, opens before one comes. */
+  function free(target) { var p = PANELS[target.split(":")[0]]; return !!(p && p.free); }
+  function glossary() { if (top().split(":")[0] !== "help") go("help", drawer.open); }
   var drawer = $("drawer"), turn = 0, ours = 0;
   /* Draws a drawer, opening it where it is shut. `focus` is the `data-open` of a button in it to
      put the focus on, the one that opened the drawer the page came back from. */
   function show(p, html, focus) {
+    hideTip(); hidePeek();
     drawer.classList.toggle("wide", !!p.wide);
     $("dw").innerHTML = html;
     if (!drawer.open) drawer.showModal();
@@ -928,6 +1083,7 @@
   }
   /* Shuts the drawer for the page under it, and gives the focus back to what opened the first. */
   function shutDrawer(first) {
+    hideTip(); hidePeek();
     if (!drawer.open) return;
     ours += 1;
     drawer.close();
@@ -996,6 +1152,85 @@
     history[how](st, "", address);
     route(st, address);
   }
+  /* ---------- toggletips and peeks ---------- */
+  /* A ? is a toggletip: a click, a tap, Enter or Space opens what it means beside it, and the
+     same again, a click elsewhere or Esc closes it. A peek is what a hovered shape, mark or
+     count means, or the shape of a token the keyboard reached: it goes when they leave. Each is
+     put in the drawer while one is open, which is the layer in front. */
+  var tipEl = null, tipBtn = null, peekEl = null, keyHit = { at: 0, on: null };
+  function place(el, at) {
+    (drawer.open ? drawer : document.body).appendChild(el);
+    var b = at.getBoundingClientRect(), w = el.offsetWidth, high = el.offsetHeight, vw = document.documentElement.clientWidth;
+    var left = Math.max(10, Math.min(b.left + b.width / 2 - w / 2, vw - w - 10)), y = b.bottom + 8;
+    if (y + high > window.innerHeight - 8) y = Math.max(8, b.top - high - 8);
+    el.style.left = left + "px"; el.style.top = y + "px";
+  }
+  function hideTip() {
+    if (tipEl) { tipEl.remove(); tipEl = null; }
+    if (tipBtn) { tipBtn.setAttribute("aria-expanded", "false"); tipBtn.removeAttribute("aria-describedby"); tipBtn = null; }
+  }
+  function toggleTip(btn) {
+    var same = btn === tipBtn, g = gloss(btn.getAttribute("data-tip"));
+    hideTip(); hidePeek();
+    if (same || !g) return;
+    tipEl = document.createElement("div"); tipEl.className = "tip"; tipEl.id = "tip"; tipEl.setAttribute("role", "status");
+    place(tipEl, btn);
+    tipEl.innerHTML = tipHtml(g);
+    place(tipEl, btn);
+    btn.setAttribute("aria-expanded", "true"); btn.setAttribute("aria-describedby", "tip"); tipBtn = btn;
+  }
+  function hidePeek() { if (peekEl) { peekEl.remove(); peekEl = null; } }
+  function holderOf(el) {
+    for (var n = el; n && n.getAttribute; n = n.parentElement) {
+      var m = /(?:^|\s)w-([a-z]+)(?:\s|$)/.exec(n.getAttribute("class") || "");
+      if (m && SHAPES[m[1]]) return m[1];
+    }
+    return "";
+  }
+  /* The key of what an element means, by what it is drawn as. */
+  function peekKey(el) {
+    if (el.hasAttribute("data-gloss")) return el.getAttribute("data-gloss");
+    if (el.matches(".sh, .qd, .md")) { var w = holderOf(el); return w ? "who:" + w : ""; }
+    if (el.matches(".bn")) return "mark:bn";
+    if (el.matches(".mk")) { var m = MARKS.filter(function (x) { return el.classList.contains(x[0]); })[0]; return m ? "mark:" + m[0] : ""; }
+    if (el.matches(".hd")) return el.classList.contains("op") ? "sign:hd-op" : "sign:hd";
+    if (el.matches(".dot")) return el.classList.contains("off") ? "sign:dot-off" : el.classList.contains("amber") ? "sign:dot-amber" : "sign:dot";
+    return el.matches(".sd") ? "sign:sd" : "";
+  }
+  var PEEK = ".sh, .mk, .bn, .qd, .md, .hd, .dot, .sd, [data-gloss]";
+  function showPeek(el, at) {
+    var g = gloss(peekKey(el));
+    hidePeek();
+    if (!g || tipEl) return;
+    peekEl = document.createElement("div"); peekEl.className = "tip peek"; peekEl.id = "peek"; peekEl.setAttribute("role", "tooltip");
+    peekEl.innerHTML = tipHtml(g);
+    place(peekEl, at || el);
+  }
+  document.addEventListener("mouseover", function (e) { var t = e.target.closest && e.target.closest(PEEK); if (t && !t.closest(".tip")) showPeek(t); });
+  document.addEventListener("mouseout", function (e) { var t = e.target.closest && e.target.closest(PEEK); if (t && !(e.relatedTarget && t.contains(e.relatedTarget))) hidePeek(); });
+  document.addEventListener("focusin", function (e) {
+    var tok = e.target.closest && e.target.closest(".tok"), sh = tok && tok.querySelector(".sh");
+    if (sh && e.target.matches(":focus-visible")) showPeek(sh, tok); else hidePeek();
+  });
+  document.addEventListener("focusout", hidePeek);
+  window.addEventListener("scroll", function () { hidePeek(); hideTip(); }, true);
+  window.addEventListener("resize", hideTip);
+  /* A key on a ? is taken here, so the click a button makes of it does not close what it opened. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-tip]");
+    if (b) { e.stopImmediatePropagation(); if (!(e.detail === 0 && keyHit.on === b && Date.now() - keyHit.at < 1000)) toggleTip(b); return; }
+    if (tipEl && !e.target.closest(".tip")) hideTip();
+    if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && (tipEl || peekEl)) {
+      var back = tipBtn; hideTip(); hidePeek(); if (back) back.focus();
+      e.preventDefault(); e.stopImmediatePropagation(); return;
+    }
+    var b = e.target.closest && e.target.closest("[data-tip]");
+    if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); keyHit = { at: Date.now(), on: b }; toggleTip(b); return; }
+    if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "") && !e.target.isContentEditable) { e.preventDefault(); glossary(); }
+  }, true);
   document.addEventListener("click", function (e) {
     var row = e.target.closest("#rows .proj");
     if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
@@ -1037,14 +1272,15 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); }
+  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); }
   function took(state) {
     S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
     DONE = {}; S.merged.forEach(function (m) { DONE[m.slug] = m; });
-    render();
+    S.steps.concat([S.unknown]).forEach(function (s) { NOTES[s.key] = s.note; });
+    render(); fillSteps();
   }
   function lost() {
     missed += 1;
@@ -1084,13 +1320,15 @@
     if (PROJECT !== was) {
       S = null; NOSUCH = ""; turnOf += 1;
       shutDrawer(first); render();
-      pending = top(); poll();
+      pending = top();
+      if (pending && free(pending)) { pending = ""; openDrawer(top()); }
+      poll();
       return;
     }
     render();
     if (!top()) { shutDrawer(first); return; }
     var focus = LAYERS.length < deeper ? before : kept; kept = "";
-    if (S) openDrawer(top(), focus);
+    if (S || free(top())) openDrawer(top(), focus);
     else pending = top();
   }
   window.addEventListener("hashchange", function () { route(); });

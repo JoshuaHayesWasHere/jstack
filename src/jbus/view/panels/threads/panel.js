@@ -33,10 +33,10 @@ function band(v) {
     return away ? '<a class="pl" href="' + esc(href(away, target)) + '" title="' + esc(v.name + ": " + label) + '">' + esc(label) + '</a>' : '<button type="button" class="pl" data-open="' + esc(target) + '">' + esc(label) + '</button>';
   }
   var h = '<div class="thb' + (!all ? " blind" : threadsOf(all).length ? "" : " calm") + '" role="group" aria-label="Threads of ' + esc(v.name) + '"><div class="thh"><b>Threads</b>';
-  if (!all) return h + '<span>not known</span><span class="src">the last pass left no list: a blind spot, not none</span>' + fz() + '</div></div>';
+  if (!all) return h + '<span>not known</span><span class="src">the last pass left no list: a blind spot, not none</span>' + fz() + hint("term:threads", "Threads") + '</div></div>';
   var roled = all.filter(function (t) { return t.role !== "other"; }), shown = roled.filter(function (t) { return t.today; });
   var ended = shown.filter(function (t) { return !t.out; }).length, older = roled.length - shown.length, other = all.length - roled.length;
-  h += '<span>' + threadsOf(all).length + ' out</span>' + (ended ? '<span class="src">' + ended + ' ended today</span>' : "") + fz() + '</div>';
+  h += '<span>' + threadsOf(all).length + ' out</span>' + (ended ? '<span class="src">' + ended + ' ended today</span>' : "") + fz() + hint("term:threads", "Threads") + '</div>';
   ROLES.slice(0, 4).forEach(function (r) {
     var mine = shown.filter(function (t) { return t.role === r[0]; }).sort(function (a, b) { return (b.out - a.out) || ((ms(b.updated) || 0) - (ms(a.updated) || 0)); });
     if (mine.length) h += '<div class="thr"><span class="rl">' + ROLE[r[0]][2] + '</span><span class="chs">' + mine.map(function (t) { return threadChip(t, away); }).join("") + '</span></div>';
@@ -45,6 +45,7 @@ function band(v) {
   return h + '</div>';
 }
 panel({
+  gloss: { threads: ["Threads out", "Threads not settled: a turn is under way, or one waits. Quiet is a turn that has written nothing for a while, and hung one that has for longer. jbus says it and interrupts nothing."] },
   adds: { band: band },
   card: function () {
     var out = threadsOut();
