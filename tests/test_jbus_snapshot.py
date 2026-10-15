@@ -37,10 +37,20 @@ def git(tree, *args):
 
 @pytest.fixture
 def tree(kitchen, monkeypatch):
-    """The homes' state tree as a git repo with one commit, and a git that knows who commits."""
+    """The homes' state tree as a git repo with one commit, and a git that knows who commits.
+
+    On a machine with no gitleaks, as GitHub's runner is, a gitleaks that finds nothing
+    stands in for it, so a commit can be made: the secret test needs the real one.
+    """
     for name in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{name}_NAME", "t")
         monkeypatch.setenv(f"GIT_{name}_EMAIL", "t@example.com")
+    if not shutil.which("gitleaks"):
+        stand_in = kitchen.root / "gitleaks-bin"
+        stand_in.mkdir()
+        (stand_in / "gitleaks").write_text("#!/bin/sh\nexit 0\n")
+        (stand_in / "gitleaks").chmod(0o755)
+        monkeypatch.setenv("PATH", f"{stand_in}{os.pathsep}{os.environ['PATH']}")
     root = kitchen.home.parent
     git(root, "init", "-q", "-b", "main")
     (root / "demo" / "notes.md").write_text("# notes\n")
