@@ -2788,3 +2788,16 @@ def test_no_key_fires_while_typing_in_a_field_and_esc_there_leaves_it_first(scen
     assert steps[5]["title"] == steps[0]["title"], "? in a field opens no glossary"
     assert steps[6]["focus"] != "gwords", "the first Esc leaves the field and keeps the drawer"
     assert (steps[7]["hash"], steps[7]["open"]) == ("#/demo", False)
+
+
+def test_a_tick_is_no_field_so_esc_on_it_goes_back_and_g_a_goes_to_every_project(scene, tmp_path):
+    gated(scene)
+    lineup(scene, TODAY)
+    tick = "#dw [data-tick]"
+    walk = ["open:you:gate", f"key:Escape:{tick}", "open:you:gate", f"key:g:{tick}", "key:a:"]
+    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=14000)
+    assert seen["errors"] == []
+    opened, esc, _, _, keyed = seen["walked"]
+    assert (opened["hash"], opened["open"]) == ("#/demo/you/gate", True)
+    assert (esc["hash"], esc["open"]) == ("#/demo", False)
+    assert (keyed["hash"], keyed["open"]) == ("#/", False)

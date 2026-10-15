@@ -690,7 +690,7 @@
     var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = MARK[t.live] ? t.live : "", q = asked(t);
     var word = q && q !== "missing" ? q : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
     var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
-    var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + '<span class="src">' + esc(word + age) + '</span>';
+    var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + ' <span class="src">' + esc(word + age) + '</span>';
     var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
     return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</a>'
       : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
@@ -767,17 +767,17 @@
   function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
   function renderYou() {
     var n = S.waiting.length;
-    var h = '<button type="button" class="youn" data-open="you" aria-description="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b><span>wait on you</span></button>' + hint("term:waits", "Waits on you");
+    var h = '<button type="button" class="youn" data-open="you" aria-description="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b> <span>wait on you</span></button>' + hint("term:waits", "Waits on you");
     KINDS.forEach(function (k) {
       var items = waits(k), age = oldest(items), live = k === "gate";
       if (!items.length && (k === "hold" || k === "config" || k === "left")) return;
-      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-description="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="color:var(--dim)"') + '><i class="sh"></i><b style="font-family:var(--sans)" data-gloss="count:kind">' + items.length + '</b><span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
+      h += '<span class="yg' + (live && !gone ? " live" : "") + '"><button type="button" class="tok w-user" data-open="you:' + k + '" aria-description="' + items.length + " " + KIND[k][0] + (age ? ", the oldest for " + age : "") + ': open the list"' + (items.length ? "" : ' style="color:var(--dim)"') + '><i class="sh"></i><b style="font-family:var(--sans)" data-gloss="count:kind">' + items.length + '</b> <span class="lb" style="font-family:var(--sans)">' + KIND[k][0] + '</span>' + (age ? ' <span class="src">' + age + '</span>' : "") + '</button>' + (live ? lv() : fz()) + '</span>';
     });
     /* What a panel adds beside the count, as the noticed lines, is not in it: its own words
        say so, and its ? says why. */
     added("you").forEach(function (a) {
       var faint = !!a.said.tip;
-      h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b><span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
+      h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
     });
     $("you").className = "you frz" + (n ? "" : " none");
     put($("you"), h);
@@ -802,7 +802,7 @@
       if (s.key === "merged") {
         body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md w-ok" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
       } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
-      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-description="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span><b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
+      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-description="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span> <b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
     });
     if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
     put($("line"), html);
@@ -1273,7 +1273,7 @@
      this one in the sidebar, the first after the last or after every project. No key is taken
      from a field being typed in. */
   var gAt = 0, GKEY = 1500;
-  function typing(el) { return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || "") || !!el.isContentEditable; }
+  function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
     return ps.length ? ps[(ps.indexOf(PROJECT) + 1) % ps.length] : PROJECT;
