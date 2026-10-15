@@ -1025,6 +1025,7 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
 
 
 def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
+    """A follow-up with no `Fixed:` line of its own counts its rebases, and holds the third."""
     pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -1039,12 +1040,14 @@ def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_
     git(pr.work, "rebase", "--abort")
 
     brief.write_text(brief.read_text() + "\n## Result, follow-up (a steer)\nStatus: done\n")
-    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
-    assert brief.read_text().count("Rebased after fixed:") == 2
-    git(pr.work, "rebase", "--abort")
-    brief.write_text(brief.read_text() + f"Fixed: {before}\n")
-    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
-    assert brief.read_text().count("Rebased after fixed:") == 3
+    for count in (3, 4):
+        assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
+        assert brief.read_text().count("Rebased after fixed:") == count
+        git(pr.work, "rebase", "--abort")
+    (third,) = pr.run("mergeable", home).splitlines()
+    assert third.startswith("hold: no third rebase after fixed and green, the brief has the line ")
+    assert brief.read_text().count("Rebased after fixed:") == 4
+    assert not pr.rebasing()
 
 
 def covers(main, brief, head):
