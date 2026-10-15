@@ -2731,14 +2731,18 @@ def requested(scene, **files):
 
 def test_each_scouts_request_says_researching_reported_or_blocked(scene, served):
     """The one source the view reads that jbus does not write: a scout's request, for its
-    last `## Report` and the `Status:` line under it. A Report with a gate in it still has
-    its Status line, and a request that is not there is said as missing, never as none."""
+    last `## Report` and the `Status:` line under it. Only `done` is reported: a last Report
+    that says not done is said as not done, whatever an earlier one said. A Report with a gate
+    in it still has its Status line, and a request that is not there is said as missing, never
+    as none."""
     requested(
         scene,
         tea_tin=REQUEST.format(slug="tea-tin"),
         jam_tin=REPORTED.format(slug="jam-tin", status="done"),
         oat_tin=REPORTED.format(slug="oat-tin", status="blocked (the tin is welded shut)"),
         rye_tin=REPORTED.format(slug="rye-tin", status="not done") + "\n## Report\nStatus: done\n",
+        kale_tin=REPORTED.format(slug="kale-tin", status="done")
+        + "\n## Report\nStatus: not done\n",
         fig_tin=REQUEST.format(slug="fig-tin")
         + "\n## Report\nStatus: blocked\nAnswers:\n- half\n## Gate 2: open the tin?\n"
         + "Status: open\n",
@@ -2747,7 +2751,15 @@ def test_each_scouts_request_says_researching_reported_or_blocked(scene, served)
         20,
         threads=[
             out(f"scout: {slug}", "ended" if slug == "jam-tin" else "moving")
-            for slug in ("tea-tin", "jam-tin", "oat-tin", "rye-tin", "fig-tin", "no-tin")
+            for slug in (
+                "tea-tin",
+                "jam-tin",
+                "oat-tin",
+                "rye-tin",
+                "kale-tin",
+                "fig-tin",
+                "no-tin",
+            )
         ]
         + [out("crew: tea-tin")],
     )
@@ -2774,6 +2786,11 @@ def test_each_scouts_request_says_researching_reported_or_blocked(scene, served)
             "state": "reported",
             "status": "done",
             "asks": asks.format("rye-tin", "rye-tin"),
+        },
+        ("scout", "kale-tin"): {
+            "state": "not done",
+            "status": "not done",
+            "asks": asks.format("kale-tin", "kale-tin"),
         },
         ("scout", "fig-tin"): {
             "state": "blocked",

@@ -714,9 +714,10 @@ THREAD = {
 
 def request(home: Path, slug: str) -> dict[str, str]:
     """What a scout's request says of its work, from `scouts/<slug>.md` under the home, which
-    the view only reads: `researching` while it has no `## Report`, `blocked` where the
-    `Status:` of its last Report says so, `reported` for any other, and `missing` where there
-    is no request to read. `status` is that line's words and `asks` the request's title.
+    the view only reads: `researching` while it has no `## Report`, `reported` where the
+    `Status:` of its last Report is `done`, `blocked` where it says so, `not done` for any
+    other, as the scout skill holds a Report that is not done unfinished, and `missing` where
+    there is no request to read. `status` is that line's words and `asks` the request's title.
     A gate a scout wrote in its Report is part of it: its own `Status:` is not the Report's."""
     try:
         whole = (home / SCOUTS / f"{slug}.md").read_text(errors="replace")
@@ -731,7 +732,8 @@ def request(home: Path, slug: str) -> dict[str, str]:
         return {"state": "researching", "status": "", "asks": asks}
     own = re.split(r"^## ", reports[-1], maxsplit=1, flags=re.M)[0]
     status = text(mirror.field(own, "Status"), 160)
-    state = "blocked" if status.split(" ", 1)[0].rstrip(",.:;") == "blocked" else "reported"
+    word = status.split(" ", 1)[0].rstrip(",.:;")
+    state = {"done": "reported", "blocked": "blocked"}.get(word, "not done")
     return {"state": state, "status": status, "asks": asks}
 
 

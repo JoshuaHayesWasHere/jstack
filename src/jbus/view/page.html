@@ -553,12 +553,25 @@
   };
   var LIVESAY = { moving: "a turn is under way and it writes", quiet: "a turn is under way but it has written nothing for a while", hung: "it has written nothing for longer, or a run waits behind it", waiting: "it waits on a request", ended: "its turn ended: it is not working now", unknown: "the pass could not say" };
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
+  /* Where a scout's request stands, as its thread is: one that ended with no Report is no
+     longer researching, it stopped short, as a restart or a limit leaves it. */
+  function asked(t) { var q = t.request; return !q ? "" : q.state === "researching" && !t.out ? "no Report" : q.state; }
+  /* One thread as a line of a list: its liveness, `title`, its status, when it started and
+     last wrote, and what waits behind it. */
+  function threadLine(t, title) {
+    var c = ms(t.created), u = ms(t.updated), more = [];
+    if (t.queued) more.push(plural(t.queued, "run waits", "runs wait") + " behind it");
+    if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
+    if (t.page) more.push("it holds a page that waits on you");
+    return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + title + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
+      (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
+  }
   /* One thread as a token: its shape, its slug, its mark while a turn is under way, and in
      a word what it is at: a scout's request, or its liveness, and how long since it wrote. */
   function threadChip(t, project) {
-    var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = MARK[t.live] ? t.live : "", q = t.request;
-    var word = q && q.state !== "missing" ? q.state : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
-    var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q.state === "missing" ? "is not there" : q.state) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
+    var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = MARK[t.live] ? t.live : "", q = asked(t);
+    var word = q && q !== "missing" ? q : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
+    var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
     var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + '<span class="src">' + esc(word + age) + '</span>';
     var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
     return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-label="' + esc(say) + '">' + inner + '</a>'
@@ -801,8 +814,7 @@
     if (!PROJECT) renderStack();
     else {
       if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
-      /* A page whose last pass listed no thread at all has no band: its threads card says 0 out. */
-      renderTop(); put($("band"), S.threads && !S.threads.length ? "" : band(PROJECT, S.threads, false)); renderYou(); renderLine();
+      renderTop(); put($("band"), band(PROJECT, S.threads, false)); renderYou(); renderLine();
     }
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }

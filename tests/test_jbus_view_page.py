@@ -108,6 +108,7 @@ BROWSES = 5
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 pytestmark = pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)
 DESK, PHONE = (1440, 900), (390, 844)
+BAND = 45
 NARROWEST = 500
 THUMB = 44
 CARDS = ["threads", "CI checks on GitHub", "bus", "blind spots"]
@@ -803,14 +804,18 @@ def test_the_checks_card_says_what_runs_what_waits_for_a_runner_and_what_failed(
 
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
+    """The screen is a desk's and the height of the Threads band, `BAND`, which every page
+    draws, also with no thread in it: question 26 of jv-threads."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
-    seen = look(scene, tmp_path)
-    opened = clean(seen)
+    screen = (DESK[0], DESK[1] + BAND)
+    seen = look(scene, tmp_path, screen=screen)
+    opened = clean(seen, screen)
     assert seen["font"] == 17.5
     assert seen["words"] <= WORDS, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
-    assert seen["bottom"] <= DESK[1]
+    assert seen["bottom"] <= screen[1]
+    assert seen["threads"]["box"][3] + 10 <= BAND
     assert sum(len(lane["tokens"]) for lane in seen["lanes"]) == 28
     assert len(seen["lanes"][-1]["dots"]) == 30
     assert {f"task:{slug}" for slug in open_rows} <= set(seen["first"]) <= opened
@@ -1499,10 +1504,14 @@ def test_a_pass_that_left_no_list_of_threads_shows_no_count(scene, tmp_path):
 
 def a_day_of_threads(scene):
     """Every role at work: a crewmate that hung and one that ended an hour ago, a reviewer, a
-    scout researching and one that reported and ended, the home, and two to fold: a crewmate
-    that ended before the day began, and a thread of no role."""
+    scout researching, one that reported and ended and one that ended with no Report, the
+    home, and two to fold: a crewmate that ended before the day began, and a thread of no
+    role."""
     requested(
-        scene, look=REQUEST.format(slug="look"), tin=REPORTED.format(slug="tin", status="done")
+        scene,
+        look=REQUEST.format(slug="look"),
+        tin=REPORTED.format(slug="tin", status="done"),
+        cut=REQUEST.format(slug="cut"),
     )
     scene.passed(
         20,
@@ -1513,6 +1522,7 @@ def a_day_of_threads(scene):
             out("review: jam-jar"),
             out("scout: look", "waiting", minutes=90),
             out("scout: tin", "ended", "completed", minutes=30),
+            out("scout: cut", "ended", "completed", minutes=40),
             out("home: demo"),
             out("a thread he opened", "ended", "completed"),
         ],
@@ -1532,7 +1542,7 @@ def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_i
     seen = look(scene, tmp_path, budget=9000, screen=screen)
     opened = clean(seen, screen)
     band = seen["threads"]
-    assert band["seen"] and band["head"] == "Threads 4 out 2 ended today"
+    assert band["seen"] and band["head"] == "Threads 4 out 3 ended today"
     assert chips(band) == [
         (
             "CREWMATES",
@@ -1546,6 +1556,7 @@ def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_i
             [
                 ("look researching 1h30", "thread:scout:look", False),
                 ("tin reported 30m", "thread:scout:tin", True),
+                ("cut no Report 40m", "thread:scout:cut", True),
             ],
         ),
         ("REVIEWERS", [("jam-jar moving 1m", "thread:reviewer:jam-jar", False)]),
@@ -1563,6 +1574,9 @@ def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_i
     assert "researching Its request has no Report yet." in look_at["said"]
     assert "ASKS look: what is in the look tin" in look_at["said"]
     assert "STATUS done" in drawers["thread:scout:tin"]["said"]
+    assert (
+        "no Report Its thread ended with no Report written" in drawers["thread:scout:cut"]["said"]
+    )
     assert "jam-jar is on Running: " in drawers["thread:reviewer:jam-jar"]["said"]
     assert "2 runs wait behind it" in drawers["thread:crew:jam-jar"]["said"]
     assert "The home of demo: it plans the work" in drawers["thread:home:demo"]["said"]
@@ -1598,6 +1612,18 @@ def test_a_thread_is_a_link_that_opens_cold_with_the_way_back_to_its_project(sce
     ]
 
 
+def test_a_list_of_no_thread_is_a_calm_band_of_none_out_on_the_row_and_the_page(scene, tmp_path):
+    stacked(scene)
+    scene.passed(20, threads=[])
+    page = look(scene, tmp_path)
+    clean(page)
+    rows = look(scene, tmp_path, route="#/")["stack"]["rows"]
+    row = {one["project"]: one["threads"] for one in rows}
+    for band in (page["threads"], row["demo"]):
+        assert (band["head"], band["rows"]) == ("Threads 0 out", [])
+        assert "calm" in band["cls"].split() and "blind" not in band["cls"].split()
+
+
 def test_every_projects_row_has_its_threads_band_and_a_blind_one_where_no_list_was_left(
     scene, tmp_path
 ):
@@ -1606,7 +1632,7 @@ def test_every_projects_row_has_its_threads_band_and_a_blind_one_where_no_list_w
     seen = look(scene, tmp_path, route="#/")
     clean(seen)
     rows = {row["project"]: row["threads"] for row in seen["stack"]["rows"]}
-    assert rows["demo"]["head"] == "Threads 4 out 2 ended today"
+    assert rows["demo"]["head"] == "Threads 4 out 3 ended today"
     assert chips(rows["demo"])[0] == (
         "CREWMATES",
         [

@@ -5,14 +5,7 @@ function threadsOf(list, role) { return (list || []).filter(function (t) { retur
 function threadsOut(role) { return threadsOf(S.threads, role); }
 function are(list, word) { return list.filter(function (t) { return t.live === word; }).length; }
 function outSay(list) { return list.length + " out, " + are(list, "quiet") + " quiet, " + are(list, "hung") + " hung"; }
-function threadRow(t) {
-  var c = ms(t.created), u = ms(t.updated), more = [];
-  if (t.queued) more.push(plural(t.queued, "run waits", "runs wait") + " behind it");
-  if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
-  if (t.page) more.push("it holds a page that waits on you");
-  return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + (t.role !== "other" ? openBtn(threadAt(t), t.title) : '<code>' + esc(t.title) + '</code>') + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
-    (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
-}
+function threadRow(t) { return threadLine(t, t.role !== "other" ? openBtn(threadAt(t), t.title) : '<code>' + esc(t.title) + '</code>'); }
 function dThreads(role) {
   var all = S.threads, shown = (all || []).filter(function (t) { return !role || t.role === role; }), out = shown.filter(function (t) { return t.out; }), rest = shown.filter(function (t) { return !t.out; });
   var named = ROLES.filter(function (r) { return r[0] === role; })[0] || ["", "threads", "thread"];

@@ -2,22 +2,15 @@
    is on, a scout's request and what its Report says, or the home's line. A role and a slug
    can have more than one thread, as two reviewers of one pull request: each is listed. A
    task's drawer lists the threads on it. */
-var REQ = { researching: "user", reported: "ok", blocked: "user", missing: "gap" };
-var REQSAY = { researching: "Its request has no Report yet", reported: "Its Report is written", blocked: "Its Report says it could not go on" };
+var REQ = { researching: "user", reported: "ok", blocked: "user", "not done": "user", "no Report": "gap" };
+var REQSAY = { researching: "Its request has no Report yet", reported: "Its Report is written and says done", blocked: "Its Report says it could not go on", "not done": "Its Report is written and says it is not done", "no Report": "Its thread ended with no Report written: it stopped short" };
 function onIt(slug) { return (S.threads || []).filter(function (t) { return t.slug === slug && (t.role === "crew" || t.role === "reviewer"); }); }
-function about(t) {
-  var u = ms(t.updated), c = ms(t.created), more = [];
-  if (t.queued) more.push(plural(t.queued, "run waits", "runs wait") + " behind it");
-  if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
-  if (t.page) more.push("it holds a page that waits on you");
-  return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> <code>' + esc(t.title) + '</code> <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
-    (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
-}
+function about(t) { return threadLine(t, '<code>' + esc(t.title) + '</code>'); }
 function works(t) {
   var slug = t.slug, task = TASK[slug] || ENDED[slug], m = DONE[slug], q = t.request;
   if (t.role === "scout") {
     if (!q || q.state === "missing") return '<p>' + gap("not there") + ' No request <code>scouts/' + esc(slug) + '.md</code> in the home of ' + esc(PROJECT) + '.</p>';
-    return '<p><span class="chip ' + REQ[q.state] + '">' + esc(q.state) + '</span> ' + esc(REQSAY[q.state]) + '.</p><dl class="kv"><dt>request</dt><dd><code>scouts/' + esc(slug) + '.md</code></dd><dt>asks</dt><dd>' + esc(q.asks || "no title line") + '</dd>' +
+    return '<p><span class="chip ' + REQ[asked(t)] + '">' + esc(asked(t)) + '</span> ' + esc(REQSAY[asked(t)]) + '.</p><dl class="kv"><dt>request</dt><dd><code>scouts/' + esc(slug) + '.md</code></dd><dt>asks</dt><dd>' + esc(q.asks || "no title line") + '</dd>' +
       (q.status ? '<dt>Status</dt><dd>' + esc(q.status) + '</dd>' : "") + '</dl>';
   }
   if (t.role === "home") return '<p>The home of ' + esc(PROJECT) + ': it plans the work and hands out each task on the line, ' + plural(S.tasks.length, "open task", "open tasks") + ' now.</p>';
