@@ -71,7 +71,7 @@ def test_a_change_is_committed_as_a_snapshot_at_the_users_time(tree):
 
 def test_with_nothing_changed_nothing_is_committed(tree):
     before = git(tree, "rev-parse", "HEAD")
-    assert take() == (0, ["snapshot: nothing changed"])
+    assert take() == (0, ["snapshot: nothing changed, no remote to push to"])
     assert git(tree, "rev-parse", "HEAD") == before
 
 
@@ -86,7 +86,7 @@ def test_a_commit_is_pushed_to_the_origin(tree, tmp_path):
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
     git(tree, "remote", "add", "origin", str(bare))
     (tree / "demo" / "notes.md").write_text("# notes\npushed\n")
-    assert take() == (0, ["snapshot: committed and pushed"])
+    assert take() == (0, ["snapshot: committed, pushed"])
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
 
 
@@ -105,9 +105,8 @@ def test_a_commit_whose_push_failed_is_pushed_by_the_next_run_with_nothing_chang
     assert code == 1 and said.startswith("snapshot: git push failed: ")
     bare = tmp_path / "gone.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
-    assert take() == (0, ["snapshot: nothing changed, pushed what was behind"])
+    assert take() == (0, ["snapshot: nothing changed, pushed"])
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
-    assert take() == (0, ["snapshot: nothing changed"])
 
 
 @pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
@@ -167,9 +166,13 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
         command = shlex.split(unit["Service"]["ExecStart"])
         assert (Path(command[0]).name, command[1:]) == ("jbus", words)
         assert unit["Service"]["Type"] == "oneshot"
-    for unit in (service, failed, timer):
-        values = [value for section in unit.values() for value in section.values()]
-        assert values and not [value for value in values if "_exec" in value]
+    for name in UNITS:
+        options = [
+            line
+            for line in (REPO / "templates" / name).read_text().splitlines()
+            if "=" in line and not line.startswith("#")
+        ]
+        assert options and not [line for line in options if "_exec" in line]
 
 
 @pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")

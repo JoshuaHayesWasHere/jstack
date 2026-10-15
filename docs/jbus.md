@@ -188,10 +188,10 @@ To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, an
 
 The homes' state tree, `~/.local/state/home` (the config's `home_dir`), is a git repo, and `jbus-snapshot.timer` backs it up at 08:30 and 17:30 local time. It has `Persistent=true`, so a time the machine slept through runs as soon as it is up again. The timer runs `jbus-snapshot.service`, which runs `jbus snapshot`:
 
-1. It stages everything in the tree (`git add -A`). With nothing staged, it prints `snapshot: nothing changed` and ends.
+1. It stages everything in the tree (`git add -A`). With nothing staged it commits nothing, and goes on to the push.
 2. gitleaks reads what is staged (`gitleaks protect --staged`). A secret in it, or no gitleaks on the machine, unstages it all, commits nothing, and fails the snapshot.
 3. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone.
-4. It pushes to `origin` when the repo has one.
+4. It pushes to `origin` when the repo has one, whether or not it committed, so a commit whose push failed goes with the next snapshot. It prints `snapshot: committed` or `snapshot: nothing changed`, then `pushed` or `no remote to push to`.
 
 A snapshot that did not finish fails the unit, whose `OnFailure=jbus-snapshot-failed.service` runs `jbus snapshot --alarm`. The first one alerts at once ([When jbus fails](#when-jbus-fails)). `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs, and `git -C ~/.local/state/home log -1` the last one. To take one now, run `systemctl --user start jbus-snapshot.service`.
 
