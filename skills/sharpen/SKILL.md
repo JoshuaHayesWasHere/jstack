@@ -1,7 +1,7 @@
 ---
 name: sharpen
 description: "Sharpen a task before starting: the expert approach, what the user is really after, and the right level of specification. Use for /sharpen."
-tip: sharpens a task the way an expert would, then does it | sharpen this | sharpen the task | how would an expert approach | is this overspecified | is this underspecified
+tip: sharpens a task the way an expert would, then does it | sharpen this | sharpen the task | how would an expert approach | is * overspecified | is * underspecified
 disable-model-invocation: true
 card: "Settle the shape before code | 5 | Sharpens a task before starting: the expert's raw sources, methods and outside check, what the operator is really after, and the right level of specification. Then it does the work, and hands back no rewrite. | Reach for it when a task should be done, done better, and not handed back. | op: the operator"
 ---
