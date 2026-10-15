@@ -17,6 +17,25 @@ new MutationObserver(function (records) {
   });
 }).observe(document, { childList: true, subtree: true, characterData: true });
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
+/* Each band of the view in front that folds: its key, its state, what its fold button says, the
+   part that button names and whether it shows, and its hide button; the header's count of what
+   is hidden or folded, and what the browser keeps. */
+window.__folds = function () {
+  function shown(el) { return !!el && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }); }
+  var views = Array.prototype.filter.call(document.querySelectorAll("[data-fv]"), function (el) { return !el.closest("[hidden]"); });
+  return {
+    bands: views.map(function (el) {
+      var key = el.getAttribute("data-fv"), b = el.querySelector('[data-fold="' + CSS.escape(key) + '"]'), x = el.querySelector('[data-hide="' + CSS.escape(key) + '"]');
+      var body = b && document.getElementById(b.getAttribute("aria-controls")), sum = el.querySelector(".fv-sum");
+      return { key: key, name: el.getAttribute("data-fv-name"), st: el.getAttribute("data-st"), seen: shown(el), expanded: b ? b.getAttribute("aria-expanded") : "", controls: b ? b.getAttribute("aria-controls") : "", grouped: !!b && !!b.closest('[role="group"]'),
+        body: shown(body), sum: shown(sum) ? sum.innerText.trim() : "", fold: b ? [b.tagName, b.getAttribute("aria-label"), shown(b)] : null, hide: x ? [x.tagName, x.getAttribute("aria-label"), shown(x)] : null };
+    }),
+    kept: shown(document.getElementById("kept")) ? document.getElementById("kept-s").innerText.trim() : "",
+    keptBox: (function (b) { return [Math.round(b.width), Math.round(b.height)]; })(document.getElementById("kept-s").getBoundingClientRect()),
+    list: Array.prototype.map.call(document.querySelectorAll("#kept-l button"), function (b) { return b.innerText.trim(); }),
+    store: localStorage.getItem("jbus-view-fold")
+  };
+};
 window.addEventListener("unhandledrejection", function (e) {
   window.__errs.push("rejection: " + String(e.reason && e.reason.message || e.reason));
 });
@@ -60,11 +79,11 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
       var focus = document.activeElement;
       window.__walked.push({ step: w, hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "",
         back: drawer.open ? text(document.getElementById("dw-back")) : "", crumbs: Array.prototype.map.call(document.querySelectorAll(drawer.open ? "#dw .crumbs a" : "#title .crumbs a"), function (a) { return [text(a), a.getAttribute("href")]; }),
-        notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.getAttribute("data-tip") || focus.id : "",
+        notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.getAttribute("data-tip") || (focus.hasAttribute("data-fold") ? "fold:" + focus.getAttribute("data-fold") : focus.hasAttribute("data-hide") ? "hide:" + focus.getAttribute("data-hide") : "") || focus.id : "",
         said: drawer.open ? text(document.getElementById("dw")) : "", tip: text(document.getElementById("tip")), peek: text(document.getElementById("peek")),
         expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }),
         rows: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { var r = b.closest("[data-key]"); return r ? r.getAttribute("data-key") : ""; }),
-        key: !!document.querySelector("#filters details.gk[open]") });
+        key: !!document.querySelector("#filters details.gk[open]"), folds: window.__folds(), changes: window.__changes.length });
       step(n + 1);
     }, 500);
   }
@@ -125,6 +144,7 @@ window.addEventListener("load", function () { setTimeout(function () {
   var out = {
     /* The view's words, and apart from them the shell's: the header and the sidebar. */
     words: words(document.querySelector("main")),
+    folds: window.__folds(),
     shell: words(document.querySelector("header")) + words(document.getElementById("side")),
     bottom: Math.round(main.getBoundingClientRect().bottom),
     scrollWidth: document.documentElement.scrollWidth,
