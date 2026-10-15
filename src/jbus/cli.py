@@ -99,21 +99,32 @@ def expiring(config: jbus.Config, now: datetime) -> str:
     return f"T3 sign-in expires {user.day(expires)} {user.word(expires)}, run jbus t3 login"
 
 
+def _hook(config: jbus.Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
+    """What the status file says of one webhook of a project: its streak, its last error and
+    what waits in its outbox."""
+    failing = alert.streak(config.state_dir, key)
+    return {
+        "failed_wakes": failing.count if failing else 0,
+        "last_error": box.marks(route).get("last_error", ""),
+        "outbox": box.waiting(route),
+    }
+
+
 def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
     """What the status file holds: read back from what the pass left, and nothing new."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for project in config.projects:
-        box = wake.Box(config.state(project), project)
+        box = wake.Box(config.state(project), project, config.webhook)
         marks = box.marks()
-        failing = alert.streak(config.state_dir, alert.webhook(project.name))
         projects[project.name] = {
-            "failed_wakes": failing.count if failing else 0,
-            "last_error": marks.get("last_error", ""),
-            "outbox": box.waiting(),
+            **_hook(config, box, box.routes[0], alert.webhook(project.name)),
             "sign_in": expiring(config, now),
             "sweep": marks.get("sweep", ""),
         }
+        for route in box.routes[1:]:
+            key = alert.top_level(project.name)
+            projects[project.name]["top_level"] = _hook(config, box, route, key)
     return {
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,

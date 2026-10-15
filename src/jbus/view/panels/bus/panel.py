@@ -1,5 +1,9 @@
 """The bus: what the outbox and the wakes count, what was sent today by kind and loudness,
-and the last events of the log. The outbox itself is never opened."""
+and the last events of the log. The outbox itself is never opened.
+
+`top_level` is the same count for the top-level webhook, the monitor of every project, where
+the project posts to it beside its own webhook: its outbox, its failed wakes, its last error
+and its last POST. It is None where the project has one webhook."""
 
 from __future__ import annotations
 
@@ -8,7 +12,7 @@ from typing import Any
 from jbus import read_json
 from jbus.view.clean import ANY
 from jbus.view.state import EVENTS_FILE, Read, Spot, kept, text, when
-from jbus.wake import LOUDNESS
+from jbus.wake import LOUDNESS, TOP_LEVEL
 
 FIRST = True
 SHOWN = 40
@@ -25,6 +29,7 @@ SHAPE = {
         "loudness": {ANY: None},
         "today": {ANY: None},
         "events": [_EVENT],
+        "top_level": {"outbox": None, "failed_wakes": None, "last_error": None, "posted": None},
     }
 }
 NOT_KEPT = (Spot("the time each step of a pass took is not kept", 510),)
@@ -47,6 +52,7 @@ SOURCES = (
 def build(read: Read) -> dict[str, Any]:
     status = read.panel("pulse")["jbus"]["status"]
     wake, keys = read.table("wake.json") or {}, read.once(sent) or []
+    top, posts = status["top_level"], read.table(f"{TOP_LEVEL}/wake.json") or {}
     today: dict[str, int] = {}
     for one in read.events:
         if one["at"] >= read.day:
@@ -68,5 +74,12 @@ def build(read: Read) -> dict[str, Any]:
             "loudness": dict(LOUDNESS),
             "today": today,
             "events": read.events[-SHOWN:],
+            "top_level": top
+            and {
+                "outbox": top["outbox"],
+                "failed_wakes": top["failed_wakes"],
+                "last_error": text(posts.get("last_error")) or top["last_error"],
+                "posted": when(posts.get("posted")),
+            },
         }
     }

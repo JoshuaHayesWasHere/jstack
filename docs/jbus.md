@@ -172,7 +172,7 @@ To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, an
 - `--checkout` is the path of the repo's main checkout.
 - `--project-id` is the id of the repo's T3 Code project.
 
-The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook. The new project takes the default webhook at the top of the config when there is one ([Events and the webhook](#events-and-the-webhook)). With none there, jbus POSTs nothing for it.
+The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook. The new project takes the top-level webhook at the top of the config when there is one ([Events and the webhook](#events-and-the-webhook)). With none there, jbus POSTs nothing for it.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`. Each pass is a new run of `jbus poll` that loads the config, so no unit is restarted. No line it prints has a value of a key of the config.
 
@@ -358,7 +358,7 @@ A row that ended with something left is not yours while its home has it. jbus te
 
 ## Events and the webhook
 
-A project's webhook is a `webhook_url` and a `webhook_key`. The default goes at the top of `~/.config/jbus/config.toml`, above the first `[[project]]`:
+A webhook is a `webhook_url` and a `webhook_key`. The top-level pair goes at the top of `~/.config/jbus/config.toml`, above the first `[[project]]`:
 
 ```toml
 server = "http://127.0.0.1:<port>"
@@ -369,9 +369,11 @@ webhook_key = "<its key>"
 name = "<project>"
 ```
 
-It covers every project that has no pair of its own, so a new project gets events with no table to edit. A project whose own table has both keys keeps its own pair, which wins over the default. A table with only one of the two keys, or with a URL and an empty key, is refused, by name and with the key that is missing, since half a pair beside the default would post with the wrong key. A half pair at the top is refused the same way. The default URL and key are secrets like a project's: jbus takes them out of every line and log.
+The top-level webhook is the monitor of every project: jbus posts it every `user` event of every project, with no opt-in. It is also the webhook of every project that has no pair of its own, so a new project gets events with no table to edit. A project whose own table has both keys keeps its own pair as well, and jbus posts each of its `user` events twice: to its own webhook and to the top-level one. Where the two pairs are the same, it posts once. A table with only one of the two keys, or with a URL and an empty key, is refused, by name and with the key that is missing, since half a pair beside the top-level one would post with the wrong key. A half pair at the top is refused the same way. The top-level URL and key are secrets like a project's: jbus takes them out of every line and log.
 
-Everything a pass finds is an event. Each POST to a project's webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
+The two posts keep apart. Each webhook of a project has its own outbox, its own five-minute gap, its own last error and its own failure streak: the project's own in `~/.local/state/jbus/<project>/`, the top-level one's in `top-level/` inside it. One webhook that is down neither holds back nor repeats what the other is posted. The top-level webhook gets the same `user` events as the project's own, each with its `project`, and nothing quiet. With no top-level pair there is one webhook per project, as before.
+
+Everything a pass finds is an event. Each POST to a webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
 
 | `loud` | Kinds | What happens |
 |---|---|---|
@@ -387,13 +389,14 @@ A POST starts only when a `user` event waits, and it carries nothing else. jbus 
 A failure that repeats is told once, and so is its end. jbus counts three kinds of failure in a row:
 
 - `pass`, a pass that did not finish. `jbus.service` has `OnFailure=jbus-failed.service`, which runs `jbus alarm` to count it.
-- `webhook <project>`, a POST the webhook did not take.
+- `webhook <project>`, a POST the project's own webhook did not take.
+- `top-level webhook <project>`, a POST of the project's events that the top-level webhook did not take.
 - `jmerge <project>`, a `jmerge` that did not run.
 
-The alert goes out after 3 failures in a row, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. jbus raises a `pass` alert on the desktop with `notify-send`, and the other two while the project's webhook is failing.
+The alert goes out after 3 failures in a row, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing.
 
 A pass goes on past a project that raises. It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1. jbus stops a `jmerge` it runs after 300 seconds, and the unit stops a pass after five minutes (`TimeoutStartSec=5min`), so a command that hangs cannot hold every later pass. A pass that finds the lock held prints `busy` and ends.
 
-`jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, the open failure streaks, and each project's last error and the number of events in its outbox. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.
+`jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, the open failure streaks, and each project's last error and the number of events in its outbox. A project posted to the top-level webhook beside its own also has `top_level`, the same three counts for that webhook. The view's Bus card shows both outboxes. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.
 
 Beside it a pass leaves `pass.json`: when the pass started and ended, and for each project its open rows and its `threads`. `threads` is every thread T3 Code lists as not settled, a crewmate's, a reviewer's, a scout's, a home's or any other, each with its role, slug, status, `updatedAt` and its liveness: `moving`, `quiet`, `hung`, `waiting`, `ended` or `unknown`. A turn that has written no item for 10 minutes is `quiet`: jbus counts from the pass that last saw the thread's count of items change, since T3 Code moves `updatedAt` when a message is queued. It is `hung` after 20 minutes, or after 10 with a run queued behind it, and jbus reads only a quiet thread to learn that. A thread that turns `hung` is one `stall` event for that thread and that run, and one line of `hung.jsonl` in the project's state directory. A later pass adds a line there with what became of it: `wrote again`, `interrupted` or `ended`. jbus interrupts no thread and sends a hung one nothing.

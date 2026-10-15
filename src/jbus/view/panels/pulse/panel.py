@@ -48,6 +48,7 @@ SHAPE = {
             "failed_wakes": None,
             "last_error": None,
             "outbox": None,
+            "top_level": {"failed_wakes": None, "last_error": None, "outbox": None},
             "sign_in": None,
             "sweep": None,
             "streaks": {ANY: None},
@@ -103,6 +104,7 @@ def pulse(read: Read) -> dict[str, Any]:
     mine = status.get("projects", {}).get(name) if isinstance(status.get("projects"), dict) else {}
     mine = mine if isinstance(mine, dict) else {}
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
+    top = mine.get("top_level")
     said = "systemd did not answer"
     if units is not None:
         said = (
@@ -137,6 +139,13 @@ def pulse(read: Read) -> dict[str, Any]:
             "failed_wakes": count(mine.get("failed_wakes")),
             "last_error": text(mine.get("last_error")),
             "outbox": count(mine.get("outbox")),
+            "top_level": {
+                "failed_wakes": count(top.get("failed_wakes")),
+                "last_error": text(top.get("last_error")),
+                "outbox": count(top.get("outbox")),
+            }
+            if isinstance(top, dict)
+            else None,
             "sign_in": text(mine.get("sign_in")),
             "sweep": text(mine.get("sweep")),
             "streaks": {
