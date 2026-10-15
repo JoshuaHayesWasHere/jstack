@@ -96,6 +96,13 @@ window.addEventListener("load", function () { setTimeout(function () {
     }).map(function (el) { return (el.className || el.tagName) + " " + written(el).slice(0, 30); });
   }
   function tag(el) { var st = el && all(".st", el).filter(seen)[0]; return st ? (st.classList.contains("fz") ? "frozen" : "live") : ""; }
+  /* A Threads band: its head, how it is drawn, and each row of it, by role, with each way in it:
+     what it says, where it leads, whether it is dimmed and whether it is on the screen. */
+  function threads(b) {
+    return b ? { head: text(b.querySelector(".thh")), cls: b.className, seen: seen(b), box: box(b), rows: all(".thr", b).map(function (r) {
+      return [text(r.querySelector(".rl")), all(".tok, .pl", r).map(function (c) { return { text: text(c), open: c.getAttribute("data-open") || c.getAttribute("href"), ended: c.classList.contains("ended"), tip: c.title, seen: seen(c) }; })];
+    }) } : null;
+  }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
@@ -113,6 +120,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     font: parseFloat(getComputedStyle(document.body).fontSize),
     strip: box(document.getElementById("vitals")),
     band: box(document.getElementById("you")),
+    threads: threads(document.querySelector("#band .thb")),
     bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.amber", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
     meters: all("#machine .mb").filter(seen).length,
     small: small(document.body),
@@ -147,7 +155,7 @@ window.addEventListener("load", function () { setTimeout(function () {
         waits: all("#yrows .yrow").map(function (r) { return { project: r.getAttribute("data-key"), count: +text(r.querySelector(".pj .n")), seen: seen(r), quiet: text(r.querySelector(".quiet")),
           tokens: all(".tok", r).map(function (t) { return { text: text(t), href: t.getAttribute("href"), tip: t.title }; }) }; }),
         rows: all("#rows .proj").map(function (r) { return { project: r.getAttribute("data-key"), seen: seen(r), box: box(r), head: text(r.querySelector(".pjh")), opens: r.querySelector("h2 a").getAttribute("href"),
-          chips: all(".hc", r).map(text), cells: all(".rcell", r).map(function (c) { return [text(c), c.getAttribute("href")]; }), empty: text(r.querySelector(".empty-q")) }; }) };
+          threads: threads(r.querySelector(".thb")), chips: all(".hc", r).map(text), cells: all(".rcell", r).map(function (c) { return [text(c), c.getAttribute("href")]; }), empty: text(r.querySelector(".empty-q")) }; }) };
     })(),
     links: [],
     opened: []
