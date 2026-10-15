@@ -180,10 +180,6 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
     assert kitchen.lines() == []
 
 
-# The reasons `jmerge.ready` holds by name, each on its step. Two are on no step, and the
-# view shows them as Unknown: `OTHER_HOME` is a pull request of another home, which that
-# home's own view places, and `DRAFT` is one its author has not said is done, which no rule
-# of a merge's steps is about.
 STEPS = {
     "OTHER_HOME": "",
     "DRAFT": "",
@@ -226,23 +222,27 @@ STEPS = {
     "MAIN_CHANGED": "check",
     "FRESH_FAILS": "rebase",
 }
-# What `ready` names that is no reason: the check's name, the rules' path, and the words of
-# a note and of a local check's result.
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
 
 
-# What a template is filled with: a word with no space or comma, as a user, a head or a path
-# is, but for what a stale check needs, which is `ready`'s own.
 def _filled(template):
+    """A reason with each value it names filled in: a word with no space or comma, as a
+    user, a head or a path is, but for what a stale check needs, which is `ready`'s own."""
     filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
     return template.format(**{name: filled.get(name, "x1") for name in fields})
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
-    """Every reason `jmerge.ready` holds by name, each on its step. One that is added with
-    no rule, or that stops matching its rule, fails here, and so does a constant that is
-    named nowhere above."""
+    """Every reason `jmerge.ready` holds by name, each on its step (`STEPS`). One that is
+    added with no rule, or that stops matching its rule, fails here, and so does a constant
+    that is named nowhere. `WORDS` are what `ready` names that is no reason: the check's
+    name, the rules' path, and the words of a note and of a local check's result.
+
+    Two reasons are on no step, and the view shows them as Unknown and tells no home:
+    `OTHER_HOME` is a pull request of another home, which that home's own view places, and
+    `DRAFT` is one its author has not said is done, which no rule of a merge's steps is
+    about."""
     named = {
         name
         for name, value in vars(ready).items()
@@ -253,8 +253,6 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
 
 
-# What a reason may be built with besides `ready`'s constants: the empty string, the word of
-# a line, and what joins the pieces of one.
 BARE = {"", "wait", "hold", ", ", " and ", ".."}
 
 
@@ -307,7 +305,9 @@ def _returned(function):
 
 def test_every_reason_ready_returns_is_one_of_its_constants():
     """A reason written inline in a function of `ready.py` is one no test of the steps sees:
-    each string literal a function returns or formats is a constant of the module."""
+    each string literal a function returns or formats is a constant of the module. `BARE`
+    is what a reason may be built with besides: the empty string, the word of a line, and
+    what joins the pieces of one."""
     tree = ast.parse(Path(ready.__file__).read_text())
     constants = {
         value for name, value in vars(ready).items() if name.isupper() and isinstance(value, str)

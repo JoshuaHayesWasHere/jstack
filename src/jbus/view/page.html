@@ -377,7 +377,7 @@
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
   function gap(t) { return '<span class="chip gap">' + esc(t) + '</span>'; }
 
-  var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "nobody the view knows" };
+  var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "no rule names this reason yet; its home was told" };
   var WHOSHORT = { user: "you", crew: "crew", home: "home", rev: "reviewer", ci: "runner", bus: "jbus", dep: "blocked", unknown: "unknown" };
   /* A task whose state the view cannot work out is on no step of the line. It is on the
      lane the state gives as `unknown`, which is drawn only while a task is on it. */

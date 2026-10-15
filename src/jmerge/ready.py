@@ -4,6 +4,12 @@ are merged only under the stricter gate of a guarded path.
 
 This is the one copy of the rules. They are read from what GitHub lists for a pull request
 and from the brief whose Result names it; nothing here runs a command.
+
+Every reason `jmerge` writes after `wait:` or `hold:` from here is a named constant of this
+module, formatted where it names a value, and a function returns one and never a string of
+its own: the steps of the view are worked out from them (`jbus.merge.RULES`), and its tests
+name each one. A constant whose name starts with `_` is a piece of a reason or a note of a
+`ready` or `merged` line.
 """
 
 from __future__ import annotations
@@ -46,6 +52,50 @@ TIMED_OUT = "timed out"
 FRESH_QUEUED = "a fresh check is queued"
 FRESH_CONFLICT = "it conflicts with today's main"
 NO_HEAD = "its review names no head to compare its rebase with"
+
+BASE = "its base is {base}, not {default}"
+IN_STACK = "it is in the stack {stack}, which the user lands"
+IN_UNNAMED_STACK = "it is in a stack its brief does not name, which the user lands"
+REVIEW_NONE = "its brief says Review: none, so it needs the user's word"
+NO_REVIEW = "it has no review yet"
+NO_VERDICT = "its review has no verdict"
+NO_FIXED = "its findings are not handled: the Result has no Fixed line"
+NOT_PUSHED = "its findings are not handled: nothing was pushed after them"
+SECOND_UNWRITTEN = "its fix changed more than the findings named: the second pass is not written"
+FIX_UNREVIEWED = "its fix is not reviewed: the scoped review of it is not written"
+UNENDED = "its findings are not handled: {left} of {found} have no Finding line"
+FIXED_NO_COMMIT = "its Fixed line names no commit"
+REBASE_UNSAID = "its Rebase line does not say what the rebase did to the patch"
+REBASE_UNTRUE = "its Rebase line says the patch is unchanged, and the rebase changed it"
+CANNOT_CHECK = (
+    "its Rebase line cannot be checked: "
+    "the patch of {commit} cannot be worked out in the main checkout"
+)
+DROPPED = "the rebase dropped {lost} with no Dropped on rebase line at {head}"
+NOT_UPHELD = "needs {user}, the review did not uphold the drop in {refused}"
+UNRULED_DROPS = "needs {user}, the review of {head} did not rule on the drops in {files}"
+SCOPED_UNRULED = "the scoped review has not ruled on the drops in {files}"
+CONTENT_CHANGED = "the rebase changed the content after its review; scoped review of {command}"
+NOT_PASSED = f"{REQUIRED} has not passed"
+CONFLICTS = "it conflicts with its base"
+UNDECIDED = "GitHub has not decided whether it merges"
+TOUCHES = "needs {user}, touches {path}"
+RENAMES_UNSAID = "needs {user}, GitHub did not say which paths its renames left"
+UNLISTED = "needs {user}, GitHub listed {listed} of the {changed} files it changes"
+NO_START = "its check has no start time"
+GUARDED_UNENDED = "{left} of its {found} findings have no Finding line"
+NOT_SEEN = "its head is not the one its review saw"
+MAIN_CHANGED = "{default} changed {paths} after its check started at {since}; it needs {needs}"
+FRESH_CHECK = "a fresh check"
+FRESH_FAILS = "{command} fails on {head} over today's main {tip}{how}"
+
+_MAINS_LOST = "{count} of main's lines in {file}"
+_OWN_LOST = "{count} of its own in {file}"
+_REFUSED = "{file}: {why}"
+_MORE = " and {more} more"
+_TIMED_OUT = ", timed out"
+_CARRIED = "review carried over: range-diff {old} {new} clean"
+_FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
 
 
 @dataclass(frozen=True)
@@ -170,11 +220,10 @@ def held(one: PullRequest, default: str, stack: str | None, land: str | None) ->
     said to land, and it lifts the second wait only.
     """
     if one.base != default:
-        return f"its base is {one.base}, not {default}"
+        return BASE.format(base=one.base, default=default)
     if stack is None or (stack and stack == land):
         return ""
-    named = f"the stack {stack}" if stack else "a stack its brief does not name"
-    return f"it is in {named}, which the user lands"
+    return IN_STACK.format(stack=stack) if stack else IN_UNNAMED_STACK
 
 
 @dataclass
@@ -290,28 +339,28 @@ def short_of(text: str, head: str) -> str:
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     found, ended = said.found, said.ended
     if said.none:
-        return "its brief says Review: none, so it needs the user's word"
+        return REVIEW_NONE
     if not said.written:
-        return "it has no review yet"
+        return NO_REVIEW
     if verdict not in ("clean", "findings"):
-        return "its review has no verdict"
+        return NO_VERDICT
     if verdict == "findings" and not fixed:
-        return "its findings are not handled: the Result has no Fixed line"
+        return NO_FIXED
     if verdict == "findings" and fixed == reviewed:
-        return "its findings are not handled: nothing was pushed after them"
+        return NOT_PUSHED
     if said.wider and (not reviewed or said.since in ("", reviewed)):
-        return "its fix changed more than the findings named: the second pass is not written"
+        return SECOND_UNWRITTEN
     if said.owed and (not reviewed or said.asked in ("", reviewed)):
-        return "its fix is not reviewed: the scoped review of it is not written"
+        return FIX_UNREVIEWED
     if (said.wider or said.owed) and ended < found:
-        return f"its findings are not handled: {found - ended} of {found} have no Finding line"
+        return UNENDED.format(left=found - ended, found=found)
     if fixed not in ("", "none") and not _COMMIT.fullmatch(fixed):
-        return "its Fixed line names no commit"
+        return FIXED_NO_COMMIT
     if verdict == "findings" and _COMMIT.fullmatch(fixed) and head != fixed:
         if head == reviewed:
-            return "its findings are not handled: nothing was pushed after them"
+            return NOT_PUSHED
         if ended < found:
-            return f"its findings are not handled: {found - ended} of {found} have no Finding line"
+            return UNENDED.format(left=found - ended, found=found)
     return ""
 
 
@@ -432,21 +481,18 @@ def short_on_rebase(rebase: Rebase | None, patches: list[str | None]) -> str:
     if rebase is None:
         return ""
     if not rebase.did:
-        return "its Rebase line does not say what the rebase did to the patch"
+        return REBASE_UNSAID
     for commit, patch in zip(to_compare(rebase), patches, strict=True):
         if patch is None:
             return cannot_check(commit)
     if len(set(patches)) > 1:
-        return "its Rebase line says the patch is unchanged, and the rebase changed it"
+        return REBASE_UNTRUE
     return ""
 
 
 def cannot_check(commit: str) -> str:
     """The reason a `Rebase:` line that names a commit the main checkout does not have waits."""
-    return (
-        "its Rebase line cannot be checked: "
-        f"the patch of {commit} cannot be worked out in the main checkout"
-    )
+    return CANNOT_CHECK.format(commit=commit)
 
 
 def _changed(diff: str) -> tuple[Counter[str], Counter[str]]:
@@ -493,8 +539,8 @@ class Drop:
 
 def _lost(lost: tuple[Drop, ...]) -> str:
     """Each file that lost a line and whose it was, as the crew skill's block counts them."""
-    mains = [f"{one.mains} of main's lines in {one.file}" for one in lost if one.mains]
-    own = [f"{one.own} of its own in {one.file}" for one in lost if one.own]
+    mains = [_MAINS_LOST.format(count=one.mains, file=one.file) for one in lost if one.mains]
+    own = [_OWN_LOST.format(count=one.own, file=one.file) for one in lost if one.own]
     return " and ".join([*mains, *own])
 
 
@@ -576,24 +622,19 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
     lost = tuple(one for one in lost if one.mains or one.own)
     silent = unexplained(lost, text, head)
     if silent:
-        why = f"the rebase dropped {_lost(silent)} with no Dropped on rebase line at {head[:12]}"
-        return "wait", why
+        return "wait", DROPPED.format(lost=_lost(silent), head=head[:12])
     ruled = _rulings(text, head)
     kept, against = ruled or (set(), {})
-    refused = [f"{one.file}: {against[one.file]}" for one in lost if one.file in against]
+    refused = [
+        _REFUSED.format(file=one.file, why=against[one.file]) for one in lost if one.file in against
+    ]
     if refused:
-        return (
-            "hold",
-            f"needs {user.user}, the review did not uphold the drop in {' and '.join(refused)}",
-        )
+        return "hold", NOT_UPHELD.format(user=user.user, refused=" and ".join(refused))
     unruled = ", ".join(one.file for one in lost if one.file not in kept)
     if unruled and ruled:
-        return (
-            "hold",
-            f"needs {user.user}, the review of {head[:12]} did not rule on the drops in {unruled}",
-        )
+        return "hold", UNRULED_DROPS.format(user=user.user, head=head[:12], files=unruled)
     if unruled:
-        return "wait", f"the scoped review has not ruled on the drops in {unruled}"
+        return "wait", SCOPED_UNRULED.format(files=unruled)
     return "", ""
 
 
@@ -650,7 +691,7 @@ def rebase_note(verdict: Verdict | None) -> str:
     content as the review saw it, or nothing."""
     if verdict is None or not verdict.clean:
         return ""
-    return f"review carried over: range-diff {_short(verdict.old)} {_short(verdict.new)} clean"
+    return _CARRIED.format(old=_short(verdict.old), new=_short(verdict.new))
 
 
 def short_on_content(verdict: Verdict | None) -> str:
@@ -658,18 +699,18 @@ def short_on_content(verdict: Verdict | None) -> str:
     of, or nothing: one review of what the range-diff shows, which jbus asks its crew for."""
     if verdict is None or verdict.clean:
         return ""
-    return f"the rebase changed the content after its review; scoped review of {verdict.command}"
+    return CONTENT_CHANGED.format(command=verdict.command)
 
 
 def short_on_github(one: PullRequest) -> str:
     """What GitHub says the pull request is short of, or nothing."""
     if not one.passed:
-        return f"{REQUIRED} has not passed"
+        return NOT_PASSED
     if one.mergeable == "MERGEABLE":
         return ""
     if one.mergeable == "CONFLICTING":
-        return "it conflicts with its base"
-    return "GitHub has not decided whether it merges"
+        return CONFLICTS
+    return UNDECIDED
 
 
 def patterns_of(text: str) -> tuple[str, ...]:
@@ -730,12 +771,11 @@ def needs_the_user(
     """
     for path in (*one.files, *(left or ())):
         if any(_protects(pattern, path) for pattern in patterns):
-            return f"needs {user.user}, touches {path}"
+            return TOUCHES.format(user=user.user, path=path)
     if left is None:
-        return f"needs {user.user}, GitHub did not say which paths its renames left"
+        return RENAMES_UNSAID.format(user=user.user)
     if len(one.files) < one.changed:
-        listed = f"{len(one.files)} of the {one.changed} files it changes"
-        return f"needs {user.user}, GitHub listed {listed}"
+        return UNLISTED.format(user=user.user, listed=len(one.files), changed=one.changed)
     return ""
 
 
@@ -772,15 +812,15 @@ def short_of_guarded(one: PullRequest, text: str, rebase: Rebase | None, carried
     over to. `carried` is `rebase_note`'s: a rebase that left the content as it was.
     """
     if one.started is None:
-        return "its check has no start time"
+        return NO_START
     said = said_of(text)
     if said.verdict == "findings" and said.ended < said.found:
-        return f"{said.found - said.ended} of its {said.found} findings have no Finding line"
+        return GUARDED_UNENDED.format(left=said.found - said.ended, found=said.found)
     if carried or one.head in (said.reviewed, said.fixed):
         return ""
     if rebase is not None and rebase.did == "unchanged" and rebase.head == one.head:
         return ""
-    return "its head is not the one its review saw"
+    return NOT_SEEN
 
 
 def stale_paths(
@@ -810,7 +850,7 @@ def short_on_main(
     stale: tuple[str, ...],
     since: datetime,
     default: str = "main",
-    needs: str = "a fresh check",
+    needs: str = FRESH_CHECK,
     *,
     user: Settings,
 ) -> str:
@@ -818,16 +858,14 @@ def short_on_main(
     `needs` is what lifts it: a fresh check, or for a guarded path a rebase alone."""
     if not stale:
         return ""
-    more = f" and {len(stale) - 5} more" if len(stale) > 5 else ""
-    return (
-        f"{default} changed {' '.join(stale[:5])}{more} after its check started at "
-        f"{user.clock(since)}; it needs {needs}"
-    )
+    more = _MORE.format(more=len(stale) - 5) if len(stale) > 5 else ""
+    paths = " ".join(stale[:5]) + more
+    return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since), needs=needs)
 
 
 def fresh_note(command: str, head: str, tip: str) -> str:
     """What a `ready` or `merged` line says of a local check that stood in for a stale one."""
-    return f"fresh: {command} {PASSED} on {head[:12]} over {tip[:12]}"
+    return _FRESH_NOTE.format(command=command, passed=PASSED, head=head[:12], tip=tip[:12])
 
 
 def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
@@ -835,5 +873,5 @@ def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
     reads the head from it, and tells the crewmate to rebase."""
     if result == PASSED:
         return ""
-    how = ", timed out" if result == TIMED_OUT else ""
-    return f"{command} fails on {head[:12]} over today's main {tip[:12]}{how}"
+    how = _TIMED_OUT if result == TIMED_OUT else ""
+    return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12], how=how)

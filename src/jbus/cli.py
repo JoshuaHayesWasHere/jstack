@@ -69,6 +69,7 @@ from jbus import (
     waiting,
     wake,
     watch,
+    word,
     work,
 )
 
@@ -243,6 +244,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
             run.box.send("", "queue", line, queue.changes(changed))
         leftover.tell(run, client, world, rows, half.out)
         stall.unclosed(run, world, rows)
+        unplaced(half, client, rows, states)
     if states is not None:
         keep_work(half, rows or [], states)
     users = half.said.crews(half.crews)
@@ -308,6 +310,21 @@ def judged(half: Half, client: t3.Client | None) -> watch.Judging:
     last = work.last(run.state)
     seen = watch.Seen(half.out, half.gone, said, watch.final(run, world, rows), answered(half))
     return watch.Judging(run, world, seen, last)
+
+
+def unplaced(half: Half, client: t3.Client, rows: list[queue.Row], states: watch.Judging) -> None:
+    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`),
+    by what `jmerge` said of it in this pass."""
+    run, world = half.run, half.seen.world
+    for row in rows:
+        slug = row["slug"]
+        pull = (world.open if world else {}).get(slug)
+        if pull is None:
+            continue
+        number = str(pull.get("number", ""))
+        said = states.seen.said.get(number, "")
+        home = leftover.home_of(run.home, watch.brief_of(run, slug))
+        merge.unplaced(run, client, slug, number, said, word.home(home))
 
 
 def keep_work(half: Half, rows: list[queue.Row], states: watch.Judging) -> None:

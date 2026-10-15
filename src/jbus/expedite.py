@@ -63,6 +63,7 @@ from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.wake import Pass
 from jbus.watch import LIVE, World
+from jmerge import ready
 
 EVENTS = {"expedite": "quiet"}
 EXPEDITE = "expedite"
@@ -123,7 +124,7 @@ TABLE = (
     Short(
         "unfixed",
         "wait",
-        re.compile(r"its findings are not handled: the Result has no Fixed line"),
+        re.compile(re.escape(ready.NO_FIXED)),
         f"Write one line in the Result for each finding, {_FINDING}, and then the `Fixed:` "
         "line: `Fixed: <the head you pushed>` where you pushed a fix, or `Fixed: none needed, "
         "<reason>` when every finding is declined. Push nothing for a `Fixed: none needed`.",
@@ -131,7 +132,7 @@ TABLE = (
     Short(
         "unpushed",
         "wait",
-        re.compile(r"its findings are not handled: nothing was pushed after them"),
+        re.compile(re.escape(ready.NOT_PUSHED)),
         "The `Fixed:` line names the head the review saw, so no fix is at the head. Push the "
         "fix and set `Fixed:` to the head you pushed. Or, when every finding is declined, write "
         f"{_FINDING} for each and `Fixed: none needed, <reason>`, and push nothing for that.",
@@ -139,7 +140,9 @@ TABLE = (
     Short(
         "unended",
         "wait",
-        re.compile(r"its findings are not handled: \d+ of \d+ have no Finding line"),
+        re.compile(
+            re.escape(ready.UNENDED).replace(r"\{left\}", r"\d+").replace(r"\{found\}", r"\d+")
+        ),
         f"Write the lines that are missing, one for each finding of both passes, {_FINDING}. "
         "Set `Fixed:` to the head you pushed where you push for them, and push nothing where "
         "you decline them.",
@@ -147,7 +150,7 @@ TABLE = (
     Short(
         "second",
         "wait",
-        re.compile(r"its fix changed more than the findings named: the second pass is not written"),
+        re.compile(re.escape(ready.SECOND_UNWRITTEN)),
         'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
         "the message `/pr-review run {slug} again`, and add `Second reviewer: <threadId>` to the "
         "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
@@ -157,7 +160,7 @@ TABLE = (
     Short(
         "fix",
         "wait",
-        re.compile(r"its fix is not reviewed: the scoped review of it is not written"),
+        re.compile(re.escape(ready.FIX_UNREVIEWED)),
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
         '"The review" launches a reviewer, with the message `/pr-review run {slug} scoped {old} '
         "{new}`, and add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
@@ -179,7 +182,7 @@ TABLE = (
     Short(
         "unreviewed",
         "wait",
-        re.compile(r"it has no review yet"),
+        re.compile(re.escape(ready.NO_REVIEW)),
         "No thread titled `review: {slug}` is at work, and the brief has no `## Review`. Run "
         'the block of the crew skill\'s "The checks" and then the blocks of "The review", and '
         "do what they print. Where they say `launch a reviewer`, launch it and add `Reviewer: "
