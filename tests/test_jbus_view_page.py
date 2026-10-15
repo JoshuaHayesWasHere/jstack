@@ -272,6 +272,7 @@ class Proxy:
         self.dark_after = None
         self.asked, self.stacks = [], 0
         self.alter = lambda nth, body: body
+        self.alter_state = lambda nth, body: body
         self.refused = ()
         self.writes = []
         self.on_write = lambda nth: None
@@ -311,6 +312,8 @@ class Proxy:
                 if self.path == "/stack.json":
                     proxy.stacks += 1
                     body = json.dumps(proxy.alter(proxy.stacks, json.loads(body))).encode()
+                if self.path.startswith("/state.json"):
+                    body = json.dumps(proxy.alter_state(proxy.states, json.loads(body))).encode()
                 self.send_response(answer.status)
                 self.send_header("Content-Type", answer.getheader("Content-Type"))
                 self.send_header("Content-Length", str(len(body)))
@@ -441,12 +444,14 @@ def look(
     alter=None,
     tap="",
     walk=None,
+    alter_state=None,
 ):
     """Open the page in the browser and give back what the probe found. The server is one
     started here over the scene, or the one that listens on `port`. The page is the scene's
     project, `#/demo`, or the `route` given, as `#/` for every project, and `fragment` is
     more of the address after it, as `theme=dark`. `alter` is given the count of
-    each answer of `/stack.json` and its body, and gives back the body the page gets, and
+    each answer of `/stack.json` and its body, and gives back the body the page gets,
+    `alter_state` the same for `/state.json`, and
     `tap` selects what the probe taps 3 s after the page loads, and `walk` is the steps the
     probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. With
     `gates`, the
@@ -457,6 +462,7 @@ def look(
     proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk)
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
+    proxy.alter_state = alter_state or proxy.alter_state
     proxy.dark_after = dark_after
     fragment = (f"#/{scene.name}" if route is None else route) + (
         "&" + fragment.lstrip("#") if fragment else ""
@@ -2624,3 +2630,47 @@ def test_an_open_toggletip_stays_open_when_a_poll_draws_its_row_again(scene, tmp
     assert redrawn and max(redrawn) > 2500, "the row was drawn again after the tip opened"
     assert {step["tip"] for step in seen["walked"]} == {opened["tip"]}
     assert seen["walked"][-1]["expanded"] == ["term:noticed"]
+
+
+def test_an_open_toggletip_stays_on_its_own_row_when_a_row_above_gains_one(scene, tmp_path):
+    """Each project's noticed ? has the same key: the tip stays with pantry's, by its row,
+    and keeps the focus a key put on it, when demo's row above gains one."""
+    lineup(scene, TODAY)
+    stacked(scene)
+
+    def more(nth, body):
+        for project in body["projects"]:
+            if project["name"] == "demo":
+                project["noticed"] = 0 if nth < 2 else 3
+            if project["name"] == "pantry":
+                project["noticed"], project["waits"] = 1, project["waits"] + nth
+        return body
+
+    walk = ['key:Enter:#yrows [data-key="pantry"] [data-tip="term:noticed"]'] + ["look"] * 30
+    seen = look(
+        scene, tmp_path, route="#/", walk=walk, alter=more, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    first, last = seen["walked"][0], seen["walked"][-1]
+    assert (first["rows"], first["tip"][:20]) == (["pantry"], "Noticed, not counted")
+    assert [t["text"] for t in seen["stack"]["waits"][0]["tokens"]][-1] == "3 noticed, not counted"
+    assert (last["rows"], last["tip"], last["focus"]) == (["pantry"], first["tip"], "term:noticed")
+
+
+def test_the_folded_key_stays_open_with_its_focus_when_a_poll_redraws_the_filters(scene, tmp_path):
+    lineup(scene, TODAY)
+
+    def fewer(nth, body):
+        body["tasks"] = body["tasks"][: len(body["tasks"]) - (nth > 1)]
+        return body
+
+    walk = ["tap:#filters details.gk summary", 'focus:#filters [data-tip="who:crew"]']
+    walk += ["look"] * 30
+    seen = look(
+        scene, tmp_path, walk=walk, alter_state=fewer, at=4000 + 500 * len(walk), budget=24000
+    )
+    assert seen["errors"] == []
+    redrawn = [c["at"] for c in seen["changes"] if c["part"] == "fbs"]
+    assert redrawn and max(redrawn) > 3000, "the filters were drawn again after the key opened"
+    assert all(step["key"] for step in seen["walked"])
+    assert seen["walked"][-1]["focus"] == "who:crew"

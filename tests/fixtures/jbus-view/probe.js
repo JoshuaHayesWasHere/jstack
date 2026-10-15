@@ -62,7 +62,9 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
         back: drawer.open ? text(document.getElementById("dw-back")) : "", crumbs: Array.prototype.map.call(document.querySelectorAll(drawer.open ? "#dw .crumbs a" : "#title .crumbs a"), function (a) { return [text(a), a.getAttribute("href")]; }),
         notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.getAttribute("data-tip") || focus.id : "",
         said: drawer.open ? text(document.getElementById("dw")) : "", tip: text(document.getElementById("tip")), peek: text(document.getElementById("peek")),
-        expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }) });
+        expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }),
+        rows: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { var r = b.closest("[data-key]"); return r ? r.getAttribute("data-key") : ""; }),
+        key: !!document.querySelector("#filters details.gk[open]") });
       step(n + 1);
     }, 500);
   }
