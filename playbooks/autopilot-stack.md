@@ -30,4 +30,4 @@ Never done here, and who does it:
 - **A stack under any other playbook.** Nobody does: there a dependent entry waits for the merge.
 - **GitHub's auto-merge, or Graphite.** Nobody does: `jmerge` merges at an exact head.
 
-**Hand over:** in this thread, to the user, when the top link is fixed and green and when asked: catch the user up per `skills/ketchup/SKILL.md`, with the stack's name, the bottom and the top pull request, one line a link with its verdict, what is parked or left out and why, and the open gates.
+**Hand over:** in this thread, to the user, when the top link is fixed and green and when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: the stack's name, the bottom and the top pull request, one line a link with its verdict, what is parked or left out and why, and the open gates.
