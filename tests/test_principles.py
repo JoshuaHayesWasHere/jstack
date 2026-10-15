@@ -8,7 +8,7 @@ from jdrift.explained import COMMENT as CARD
 REPO = Path(__file__).parent.parent
 PRINCIPLES = REPO / "principles"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
-PSTACK_COMMIT = "1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def"
+PSTACK_COMMIT = "e5136d82418d2db3165ea1050d17577cd618cc05"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(PRINCIPLES.glob("*.md"))
 
