@@ -833,7 +833,7 @@
   function go(target, inside, inPlace) {
     if (target === top()) { openDrawer(target); return; }
     /* A toggle in a drawer, as the role filter of the threads, redraws that drawer in place. */
-    if (inside && inPlace) { enter("replaceState", { layers: LAYERS.slice(0, -1).concat([{ target: target }]), back: BACK }, href(PROJECT, target)); return; }
+    if (inside && inPlace) { kept = target; enter("replaceState", { layers: LAYERS.slice(0, -1).concat([{ target: target }]), back: BACK }, href(PROJECT, target)); return; }
     var at = -1;
     LAYERS.forEach(function (l, n) { if (l.target === target) at = n; });
     var layers = !inside ? [{ target: target }] : at >= 0 ? LAYERS.slice(0, at + 1) : LAYERS.concat([{ target: target }]);
@@ -842,7 +842,7 @@
   /* One layer back, by the browser's own back where the entry before is that layer, and in
      place where it is not, as for a drawer a pasted link opened. The entry before may have been
      rewritten since, by Esc or Close on it: `route` then puts that layer back. */
-  var EXPECT = null;
+  var EXPECT = null, kept = "";
   function up() {
     if (!LAYERS.length) return;
     if (BACK) { EXPECT = LAYERS.slice(0, -1); history.back(); return; }
@@ -876,7 +876,14 @@
     escaped = true; setTimeout(function () { escaped = false; });
     up();
   }, true);
-  drawer.addEventListener("cancel", function (e) { e.preventDefault(); if (!escaped) up(); });
+  /* A second gesture with no tap between cannot be refused, and the browser shuts the drawer
+     itself: that close is the page's own, and `up` draws the layer it goes to. */
+  drawer.addEventListener("cancel", function (e) {
+    e.preventDefault();
+    if (escaped) return;
+    if (!e.cancelable) ours += 1;
+    up();
+  });
   drawer.addEventListener("close", function () { if (ours) ours -= 1; else if (!drawer.open && LAYERS.length) shut(); });
 
   /* ---------- asking the server ---------- */
@@ -938,7 +945,8 @@
     }
     render();
     if (!top()) { shutDrawer(first); return; }
-    if (S) openDrawer(top(), LAYERS.length < deeper ? before : "");
+    var focus = LAYERS.length < deeper ? before : kept; kept = "";
+    if (S) openDrawer(top(), focus);
     else pending = top();
   }
   window.addEventListener("hashchange", function () { route(); });

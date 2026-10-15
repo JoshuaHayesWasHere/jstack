@@ -1597,7 +1597,8 @@ def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, t
         scene,
         tmp_path,
         TEA,
-        ["look", "open:words:approval:tea-cups", "esc", "esc", "forward", "arrow", "cancel"],
+        ["look", "open:words:approval:tea-cups", "esc", "esc", "forward", "arrow", "cancel"]
+        + ["open:words:approval:tea-cups", "cancel-hard"],
     )
     seen = [(one["step"], one["hash"], one["open"]) for one in steps]
     assert seen == [
@@ -1608,6 +1609,8 @@ def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, t
         ("forward", WORDS_AT, True),
         ("arrow", TEA, True),
         ("cancel", "#/demo", False),
+        ("open:words:approval:tea-cups", WORDS_AT, True),
+        ("cancel-hard", "#/demo", False),
     ]
     assert steps[1]["focus"] == "dw-close"
     assert steps[4]["back"] == f"← {steps[0]['title']}"
@@ -1634,6 +1637,7 @@ def test_a_filter_in_a_drawer_redraws_it_in_place(scene, tmp_path):
         ("#/demo/threads/scout", True, ""),
         ("#/demo", False, ""),
     ]
+    assert [one["focus"] for one in steps[1:3]] == ["threads:crew", "threads:scout"]
 
 
 @pytest.mark.parametrize(

@@ -23,7 +23,8 @@ window.addEventListener("unhandledrejection", function (e) {
    shows after each. A step is `open:<target>`, tapped where a person would, in the drawer when
    one is open; `back` and `forward`, the browser's; `esc`; `arrow`, the drawer's back arrow;
    `close`; `crumb:<n>`, the nth link of the drawer's breadcrumbs; `hash:<address>`; `tap:<selector>`,
-   a click on what the page drew; `cancel`, the close request a phone's back gesture sends; or `look`. */
+   a click on what the page drew; `cancel`, the close request a phone's back gesture sends;
+   `cancel-hard`, the second one in a row, which cannot be refused and shuts the drawer; or `look`. */
 window.__walked = [];
 window.addEventListener("load", function () { if (window.__walk) setTimeout(function () {
   function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
@@ -42,6 +43,7 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
     else if (how === "hash") location.hash = what;
     else if (how === "tap") document.querySelector(what).click();
     else if (how === "cancel") drawer.dispatchEvent(new Event("cancel", { cancelable: true }));
+    else if (how === "cancel-hard") { drawer.dispatchEvent(new Event("cancel")); drawer.close(); }
     setTimeout(function () {
       var focus = document.activeElement;
       window.__walked.push({ step: w, hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "",
