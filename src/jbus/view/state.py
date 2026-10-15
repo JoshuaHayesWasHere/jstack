@@ -98,7 +98,7 @@ from jbus import (
     work,
 )
 from jbus.live import LIVENESS, OUT
-from jbus.threads import OTHER, ROLES
+from jbus.threads import OTHER, REPORT, ROLES
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.wake import LOG
@@ -690,29 +690,81 @@ def _live(word: Any) -> str:
     return word if word in LIVENESS else "unknown"
 
 
-def _threads(left: Any) -> list[dict[str, Any]] | None:
+SCOUTS = "scouts"
+REQUEST = {"state": None, "status": None, "asks": None}
+THREAD = {
+    key: None
+    for key in (
+        "title",
+        "role",
+        "slug",
+        "status",
+        "live",
+        "out",
+        "today",
+        "created",
+        "updated",
+        "run_started",
+        "queued",
+        "pending",
+        "page",
+    )
+} | {"request": REQUEST}
+
+
+def request(home: Path, slug: str) -> dict[str, str]:
+    """What a scout's request says of its work, from `scouts/<slug>.md` under the home, which
+    the view only reads: `researching` while it has no `## Report`, `blocked` where the
+    `Status:` of its last Report says so, `reported` for any other, and `missing` where there
+    is no request to read. `status` is that line's words and `asks` the request's title.
+    A gate a scout wrote in its Report is part of it: its own `Status:` is not the Report's."""
+    try:
+        whole = (home / SCOUTS / f"{slug}.md").read_text(errors="replace")
+    except (OSError, ValueError):
+        return {"state": "missing", "status": "", "asks": ""}
+    lines = whole.splitlines()
+    asks = text(lines[0].removeprefix("# ") if lines else "", 160)
+    reports = [
+        body for heading, body in mirror.sections(whole, gates_inside=True) if heading == REPORT
+    ]
+    if not reports:
+        return {"state": "researching", "status": "", "asks": asks}
+    own = re.split(r"^## ", reports[-1], maxsplit=1, flags=re.M)[0]
+    status = text(mirror.field(own, "Status"), 160)
+    state = "blocked" if status.split(" ", 1)[0].rstrip(",.:;") == "blocked" else "reported"
+    return {"state": state, "status": status, "asks": asks}
+
+
+def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[str, Any]] | None:
     """Every thread the last pass listed as not settled, or None where it left no list.
-    `out` is one a turn may be under way in: any but one that ended."""
+    `out` is one a turn may be under way in: any but one that ended. `today` is one that is
+    out or last wrote since `day` began, and a scout's has what its `request` says."""
     if not isinstance(left, list):
         return None
-    return [
-        {
+    found = []
+    for one in left:
+        if not isinstance(one, dict):
+            continue
+        live, updated = _live(one.get("live")), when(one.get("wrote") or one.get("updatedAt"))
+        thread = {
             "title": text(one.get("title"), 120),
             "role": one.get("role") if one.get("role") in ROLES.values() else OTHER,
             "slug": text(one.get("slug"), 80),
             "status": text(one.get("status"), 20),
-            "live": _live(one.get("live")),
-            "out": _live(one.get("live")) in OUT,
+            "live": live,
+            "out": live in OUT,
+            "today": live in OUT or bool(updated and day and updated >= day),
             "created": when(one.get("createdAt")),
-            "updated": when(one.get("wrote") or one.get("updatedAt")),
+            "updated": updated,
             "run_started": when(one.get("run_started")),
             "queued": count(one.get("queued")),
             "pending": count(one.get("pending")),
             "page": one.get("page") is True,
         }
-        for one in left
-        if isinstance(one, dict)
-    ]
+        if thread["role"] == "scout" and home is not None and _SLUG.fullmatch(thread["slug"]):
+            thread["request"] = request(home, thread["slug"])
+        found.append(thread)
+    return found
 
 
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
@@ -993,7 +1045,7 @@ class Read:
     @cached_property
     def out(self) -> list[dict[str, Any]] | None:
         """The threads the last pass listed, or None where it left no list."""
-        return _threads(self.mine.get("threads"))
+        return _threads(self.mine.get("threads"), self.home, self.day)
 
     @cached_property
     def unconfirmed(self) -> dict[str, Any] | None:
@@ -1153,6 +1205,7 @@ SUMMARY = {
     "open": None,
     "steps": {ANY: None},
     "merged": None,
+    "threads": [THREAD],
     "health": {
         "checks": {"running": None, "waiting": None, "failed": None, "error": None},
         "bus": {"outbox": None, "failed_wakes": None, "last_error": None},
@@ -1197,6 +1250,7 @@ def summary(read: Read) -> dict[str, Any]:
         "open": len(held),
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
+        "threads": read.out,
         "health": {
             "checks": {key: len(at) for key, at in checks["now"].items()}
             | {"error": checks["error"]},

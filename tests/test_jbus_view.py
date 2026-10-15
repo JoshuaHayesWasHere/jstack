@@ -674,6 +674,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "open": 0,
         "steps": {},
         "merged": 0,
+        "threads": None,
         "health": {
             "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},
             "bus": {"outbox": 0, "failed_wakes": 0, "last_error": ""},
@@ -2262,6 +2263,7 @@ def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
     assert {name for name, by in sources.items() if by == "server"} == {
         "jbus.timer",
         "gates.md",
+        "scouts/",
         "GitHub",
         "runner units",
         "the machine",
@@ -2688,6 +2690,7 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         ("crew: odd", "crew", "odd", "unknown", True),
     ]
     assert state["threads"][0] == {
+        "today": True,
         "title": "crew: jam-jar",
         "role": "crew",
         "slug": "jam-jar",
@@ -2713,6 +2716,120 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
     seen = tasks(served.json("/state.json?project=demo"))["jam-jar"]["seen"]
     assert (seen["live"], seen["wrote"], seen["queued"]) == ("", None, 0)
     assert "the threads that are out" not in json.dumps(state["blind"])
+
+
+REQUEST = "# {slug}: what is in the {slug} tin\nRequest: \"look in the tin\"\n"
+REPORTED = REQUEST + "\n## Report\nStatus: {status}\nAnswers:\n- it holds tea\n"
+
+
+def requested(scene, **files):
+    """A request under the home's `scouts/` for each slug, as its text."""
+    (scene.home / "scouts").mkdir(exist_ok=True)
+    for slug, text in files.items():
+        (scene.home / "scouts" / f"{slug.replace('_', '-')}.md").write_text(text)
+
+
+def test_each_scouts_request_says_researching_reported_or_blocked(scene, served):
+    """The one source the view reads that jbus does not write: a scout's request, for its
+    last `## Report` and the `Status:` line under it. A Report with a gate in it still has
+    its Status line, and a request that is not there is said as missing, never as none."""
+    requested(
+        scene,
+        tea_tin=REQUEST.format(slug="tea-tin"),
+        jam_tin=REPORTED.format(slug="jam-tin", status="done"),
+        oat_tin=REPORTED.format(slug="oat-tin", status="blocked (the tin is welded shut)"),
+        rye_tin=REPORTED.format(slug="rye-tin", status="not done")
+        + "\n## Report\nStatus: done\n",
+        fig_tin=REQUEST.format(slug="fig-tin")
+        + "\n## Report\nStatus: blocked\nAnswers:\n- half\n## Gate 2: open the tin?\n"
+        + "Status: open\n",
+    )
+    scene.passed(
+        20,
+        threads=[
+            out(f"scout: {slug}", "ended" if slug == "jam-tin" else "moving")
+            for slug in ("tea-tin", "jam-tin", "oat-tin", "rye-tin", "fig-tin", "no-tin")
+        ]
+        + [out("crew: tea-tin")],
+    )
+    state = served.json("/state.json?project=demo")
+    said = {(t["role"], t["slug"]): t.get("request") for t in state["threads"]}
+    asks = "{}: what is in the {} tin"
+    assert said == {
+        ("scout", "tea-tin"): {
+            "state": "researching",
+            "status": "",
+            "asks": asks.format("tea-tin", "tea-tin"),
+        },
+        ("scout", "jam-tin"): {
+            "state": "reported",
+            "status": "done",
+            "asks": asks.format("jam-tin", "jam-tin"),
+        },
+        ("scout", "oat-tin"): {
+            "state": "blocked",
+            "status": "blocked (the tin is welded shut)",
+            "asks": asks.format("oat-tin", "oat-tin"),
+        },
+        ("scout", "rye-tin"): {
+            "state": "reported",
+            "status": "done",
+            "asks": asks.format("rye-tin", "rye-tin"),
+        },
+        ("scout", "fig-tin"): {
+            "state": "blocked",
+            "status": "blocked",
+            "asks": asks.format("fig-tin", "fig-tin"),
+        },
+        ("scout", "no-tin"): {"state": "missing", "status": "", "asks": ""},
+        ("crew", "tea-tin"): None,
+    }
+    assert {"name": "scouts/", "by": "server", "state": "ok"} in [
+        {key: one[key] for key in ("name", "by", "state")} for one in state["sources"]
+    ]
+
+
+def test_a_thread_that_ended_before_the_users_day_began_is_not_of_today(scene, served):
+    """The user's day starts at midnight in the user's zone: 04:00 UTC on this day."""
+    scene.passed(
+        20,
+        threads=[
+            out("crew: jam-jar"),
+            out("crew: oat-milk", "ended", "completed", minutes=60 * 15),
+            out("crew: oat-bowl", "ended", "completed", minutes=60 * 17),
+            out("review: oat-bowl", "waiting", minutes=60 * 17),
+        ],
+    )
+    state = served.json("/state.json?project=demo")
+    assert [(t["title"], t["out"], t["today"]) for t in state["threads"]] == [
+        ("crew: jam-jar", True, True),
+        ("crew: oat-milk", False, True),
+        ("crew: oat-bowl", False, False),
+        ("review: oat-bowl", True, True),
+    ]
+
+
+def test_the_stack_has_each_projects_threads_and_none_where_its_pass_left_no_list(
+    tmp_path, monkeypatch
+):
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    requested(scene, look=REQUEST.format(slug="look"))
+    scene.passed(20, threads=[out("crew: jam-jar"), out("scout: look", "quiet", minutes=12)])
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    by = {one["name"]: one for one in stack["projects"]}
+    assert by["demo"]["threads"] == demo["threads"]
+    assert [(t["slug"], t["live"], t.get("request", {}).get("state")) for t in demo["threads"]] == [
+        ("jam-jar", "moving", None),
+        ("look", "quiet", "researching"),
+    ]
+    assert (by["larder"]["threads"], by["pantry"]["threads"]) == (None, None)
+    assert by["demo"]["health"]["threads"] == 2
 
 
 def test_a_pass_that_left_no_list_of_threads_is_a_blind_spot_and_no_count_of_none(scene, served):
