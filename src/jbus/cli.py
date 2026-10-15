@@ -62,6 +62,7 @@ from jbus import (
     queue,
     record,
     rotation,
+    signin,
     stall,
     t3,
     threads,
@@ -77,6 +78,7 @@ from jbus import (
 SNAPSHOT_DAYS = 14
 ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 LAUNCH = "the launch"
+REMINDER = "the sign-in reminder"
 RETIRED, EXEC_SENT = "exec-webhook", "exec-sent.json"
 
 
@@ -133,6 +135,7 @@ def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
     return {
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
+        "sign_in_reminder": signin.plan(config),
         "projects": projects,
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
@@ -496,6 +499,7 @@ def poll(
             say(f"wait: crews out not known ({', '.join(raised)}: the pass raised)")
         else:
             guarded(LAUNCH, lambda: share(config, halves, say))
+        guarded(REMINDER, lambda: signin.remind(config, now))
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:

@@ -36,7 +36,7 @@ GATE = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
-USER = ["alert", "gate", "stall", "waiting"]
+USER = ["alert", "gate", "sign-in", "stall", "waiting"]
 IGNORED = "[exec], exec_watch of project demo, loud of project demo"
 BEFORE, ROOTED = OLD_LEVEL, OLD_EVENT
 
@@ -58,7 +58,7 @@ def listed(kitchen):
     return json.loads((kitchen.state / "waiting-on-user.json").read_text())
 
 
-def test_the_kinds_that_start_a_post_are_these_four_and_no_level_is_between():
+def test_the_kinds_that_start_a_post_are_these_five_and_no_level_is_between():
     assert sorted(kind for kind, loud in wake.LOUDNESS.items() if loud == "user") == USER
     assert set(wake.LOUDNESS.values()) == {"user", "quiet"} == set(jbus.LEVELS)
 
