@@ -28,8 +28,11 @@ SHAPE = {
         "green": None,
         "runners": [_UNIT],
         "runners_read": None,
+        "now": {"running": [None], "waiting": [None], "failed": [None]},
     }
 }
+QUEUED = ("queued", "requested")
+FAILED = ("failure", "timed_out", "startup_failure")
 
 
 def runs(read: Read) -> dict[str, Any]:
@@ -72,14 +75,31 @@ def runners(read: Read) -> list[dict[str, str]] | None:
     ]
 
 
+def tally(runs: list[dict[str, Any]]) -> dict[str, list[int]]:
+    """Which runs run now, which wait for a runner, and which failed, each by its place in
+    `runs`: a branch once, while the newest run of one of its workflows failed, by the
+    oldest of those runs. The runs are oldest first, as `github.GitHub.runs` gives them.
+    It is the one rule: the card and its drawer draw these, and the overview counts them."""
+    newest = {(one.get("branch"), one.get("name")): at for at, one in enumerate(runs)}
+    failed: dict[Any, int] = {}
+    for at in sorted(newest.values()):
+        if runs[at].get("state") in FAILED:
+            failed.setdefault(runs[at].get("branch"), at)
+    return {
+        "running": [at for at, one in enumerate(runs) if one.get("state") == "in_progress"],
+        "waiting": [at for at, one in enumerate(runs) if one.get("state") in QUEUED],
+        "failed": sorted(failed.values()),
+    }
+
+
 def _units(read: Read) -> dict[str, Any]:
-    return {"at": iso(read.now), "read": read.once(runners) is not None}
+    return {"at": iso(read.now), "read": read.machine(runners) is not None}
 
 
 SOURCES = (
     kept("checks.json", lambda read: read.table("checks.json"), 90),
     Source("GitHub", "server", _github, 150),
-    Source("runner units", "server", _units, 160),
+    Source("runner units", "server", _units, 160, machine=True),
 )
 
 
@@ -92,7 +112,8 @@ def build(read: Read) -> dict[str, Any]:
             "error": text(asked.get("error")),
             "commits": len(kept),
             "green": sum(1 for word in kept.values() if word == "green"),
-            "runners": read.once(runners) or [],
-            "runners_read": read.once(runners) is not None,
+            "runners": read.machine(runners) or [],
+            "runners_read": read.machine(runners) is not None,
+            "now": tally(asked.get("runs", [])),
         }
     }

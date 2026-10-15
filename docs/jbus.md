@@ -107,6 +107,20 @@ A record has the slug, the section it is from, its text whole, when a pass first
 
 To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
 
+### What the bare link shows
+
+The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A project is a directory of `~/.local/state/jbus` that holds a `queue.json`. A project retired to `~/.local/state/jbus-retired` is never read, and is not shown. From the top:
+
+| Part | What it shows |
+|---|---|
+| This machine | Four cards, once for every project: jbus (whether the timer passes, and when the last pass ended), Room (the answer `jgauge room` gives), the runner units systemd lists, and the plan's use over five hours and seven days. |
+| Waits on you | The total, and one row for each project: its count, then a token for each kind of wait (gates, rows at a gate, pull requests that need your word, rows to approve), each named for its project. The new noticed lines are a token of their own, labelled "not counted": they wait on nobody, so the total leaves them out. The total is the sum of the rows. |
+| One row for each project | Its repo, open tasks and merges of today, health chips (CI, the bus outbox, threads out, blind spots, and any source that could not be read), and a count for each step of the line that holds a task. A project with an empty queue says "nothing open". |
+
+A project's row opens its page, `#/<project>`: the line, as a bare link showed it before. A token or a step count opens that project's page with its drawer open, as `#/infra&open=you:gate`. An old link, `?project=<project>`, opens `#/<project>`. A link to a project the state directory does not have, a retired one included, says there is no such project.
+
+The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one. `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once for the answer, however many projects there are, and asks GitHub for the runs of each repo, kept a minute. A part of the page whose drawing did not change is not drawn again. An answer to a gate goes to the one project whose page it is: `POST /answer?project=<project>`, and a write that names no project gets 404.
+
 ### Answer a question on the page
 
 The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked. A gate that jbus holds as a question opens from its row. A gate that lives only in a home's `gates.md` is listed, and cannot be answered on the page.

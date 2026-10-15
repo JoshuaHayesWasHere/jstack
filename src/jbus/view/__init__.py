@@ -10,15 +10,21 @@ The routes that read are `routes()`, all `GET`:
 
 - `/`: the page, which asks the server and nobody else. It is `page.html` beside this
   file with the script of each panel in it, `panels/<name>/panel.js`, joined on every
-  request (`page`);
-- `/state.json`: the state of one project (`state.Read.answer`), the first or `?project=`: the
+  request (`page`). A bare link to it shows every project at once, from `/stack.json`, and
+  `#/<project>` one project, from `/state.json`;
+- `/stack.json`: the machine once, and a summary of each project (`state.stack`). The
+  machine's checks run once for it, however many projects there are, and the runs of
+  GitHub are asked for each repo at once;
+- `/state.json?project=<project>`: the state of one project (`state.Read.answer`): the
   frame, and what each panel of the first screen builds;
-- `/panel/<name>.json`: what one panel builds, for each folder of `panels/` (`panels`);
+- `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
+  `panels/` (`panels`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
-The one write is `WRITE`, `POST /answer`, of one project, the first or `?project=`. Its
+The one write is `WRITE`, `POST /answer`, of the one project `?project=` names: a write
+that names none, or one the state directory does not have, is 404. Its
 body is JSON: `numbers`, the questions to close, and for one question alone the `option`
 picked, by its name, and the user's own `words`. Each number is closed through
 `questions.answer`, by the user of the settings, at the server's clock, in `WHERE`: who may
@@ -75,6 +81,7 @@ import threading
 import time
 import traceback
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -101,7 +108,7 @@ PAGE = Path(__file__).with_name("page.html")
 ROOT = Path(__file__).parents[2]
 STARTS = "import jbus.cli, jbus.view.state; jbus.view.state.keys()"
 MARK = "/*panels*/"
-FIXED = ("/", "/state.json", "/digest.json", "/task/<slug>/github", "/healthz")
+FIXED = ("/", "/stack.json", "/state.json", "/digest.json", "/task/<slug>/github", "/healthz")
 WRITE = "/answer"
 WHERE = "jbus view"
 BODY = 65536
@@ -338,19 +345,29 @@ class App:
         self.github = GitHub(self.clock)
 
     def _project(self, query: dict[str, list[str]]) -> str | None:
-        """The project an address asks for: the named one, the first, or None for one that
-        is not there. With no project at all it is the empty name."""
-        names = state.projects(self.sources)
+        """The project an address names with `?project=`, or None where it names none, or one
+        the state directory does not have."""
         asked = query.get("project", [""])[-1]
-        if asked:
-            return asked if asked in names else None
-        return names[0] if names else ""
+        return asked if asked and asked in state.projects(self.sources) else None
+
+    def _stack(self) -> dict[str, Any]:
+        """What `/stack.json` holds. The runs of each repo are asked at once, each in a thread
+        of its own, so no repo waits on another's `gh`: the summaries then take what is kept."""
+        names = state.projects(self.sources)
+        repos = sorted({state.repo(self.sources, name) for name in names} - {""})
+        with ThreadPoolExecutor(max_workers=max(1, len(repos))) as pool:
+            asked = dict(zip(repos, pool.map(self.github.runs, repos), strict=True))
+        runs = lambda repo: asked.get(repo) or self.github.runs(repo)  # noqa: E731
+        built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
+        return clean(built, tuple(repos))
 
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
             return Answer(200, page(self.panels), HTML)
         if path == "/healthz":
             return said(200, {"ok": True})
+        if path == "/stack.json":
+            return said(200, self._stack())
         if path == "/digest.json":
             try:
                 since = digest.since(query.get("since", [""])[-1] or None, self.sources.user)

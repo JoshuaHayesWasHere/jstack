@@ -89,6 +89,7 @@ from jbus import (
     leftover,
     merge,
     mirror,
+    noticed,
     old_names,
     questions,
     queue,
@@ -99,7 +100,7 @@ from jbus import (
 from jbus.live import LIVENESS, OUT
 from jbus.threads import OTHER, ROLES
 from jbus.view import panels
-from jbus.view.clean import HOST, keep
+from jbus.view.clean import ANY, HOST, keep
 from jbus.wake import LOG
 
 APPROVAL = 400
@@ -837,21 +838,24 @@ def _source(
 class Source:
     """One source a panel reads: its name, who writes it (`jbus`, the `server` itself or a
     `session`), and how it is now, as the arguments `_source` takes beside `now`. The list
-    of the sources is in the order of `rank`."""
+    of the sources is in the order of `rank`. A `machine` source is the same for every
+    project, so the overview says it once, on the machine row, and on no project's row."""
 
     name: str
     by: str
     seen: Callable[[Read], dict[str, Any]]
     rank: int = 1000
+    machine: bool = False
 
 
 @dataclass(frozen=True)
 class Spot:
     """One thing a panel cannot say, a line of `blind`, which opens the panel that says it.
-    The lines are in the order of `rank`."""
+    The lines are in the order of `rank`. A `machine` one is the same for every project."""
 
     line: str
     rank: int = 1000
+    machine: bool = False
 
 
 def kept(name: str, value: Callable[[Read], Any], rank: int = 1000) -> Source:
@@ -875,7 +879,7 @@ def _merges(read: Read) -> dict[str, Any]:
     return {"at": _mtime(path), "read": read.log is not None, "path": path}
 
 
-PASS_FILE = Source("pass.json", "jbus", _passed, 30)
+PASS_FILE = Source("pass.json", "jbus", _passed, 30, machine=True)
 QUEUE_FILE = kept("queue.json", lambda read: read.table_of_rows, 40)
 WAITING_FILE = kept(waiting.NAME, lambda read: read.left, 50)
 MOVES_FILE = kept("transitions.jsonl", lambda read: read.moves, 60)
@@ -900,6 +904,7 @@ class Read:
         runs: Callable[[str], dict[str, Any]],
         code: dict[str, Any] | None = None,
         found: tuple[panels.Panel, ...] | None = None,
+        shared: dict[Any, Any] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
         self.code = code or {}
@@ -907,12 +912,21 @@ class Read:
         self.state, self.home = sources.state(name), sources.home(name)
         self.panels = panels.found() if found is None else found
         self._kept: dict[Any, Any] = {}
+        self._shared: dict[Any, Any] = {} if shared is None else shared
 
     def once(self, make: Callable[[Read], Any]) -> Any:
         """What `make` gives of this, worked out the first time it is asked."""
         if make not in self._kept:
             self._kept[make] = make(self)
         return self._kept[make]
+
+    def machine(self, make: Callable[[Read], Any]) -> Any:
+        """What `make` gives of the machine, which is the same for every project: worked out
+        the first time any `Read` that shares `shared` with this one asks, as one answer of
+        `/stack.json` reads every project with one `shared`."""
+        if make not in self._shared:
+            self._shared[make] = make(self)
+        return self._shared[make]
 
     def panel(self, name: str) -> dict[str, Any]:
         """What the panel `name` builds, before it is cut to its shape."""
@@ -1127,3 +1141,121 @@ def build(
     which code answers, as the server's `Code.said` gives it: it goes under `jbus`.
     """
     return Read(sources, name, now, runs, code).answer()
+
+
+KEPT_BY_JBUS = ("last_pass", "token_expires", "streaks")
+SUMMARY = {
+    "name": None,
+    "repo": None,
+    "waits": None,
+    "waiting": {ANY: {"count": None, "since": None}},
+    "noticed": None,
+    "open": None,
+    "steps": {ANY: None},
+    "merged": None,
+    "health": {
+        "checks": {"running": None, "waiting": None, "failed": None, "error": None},
+        "bus": {"outbox": None, "failed_wakes": None, "last_error": None},
+        "threads": None,
+        "blind": None,
+        "unwell": [{"name": None, "state": None}],
+    },
+}
+
+
+def summary(read: Read) -> dict[str, Any]:
+    """One project as the overview has it: what waits on the user, by kind with the oldest
+    `since`, the new noticed lines (counted apart: they are no wait), its open tasks by step,
+    in the order of the line, what merged today, and its health. The threads are the ones
+    out, or None where the last pass left no list. Blind is what the project's page cannot
+    say now, without what it never can and without a source that could not be read, which is
+    in unwell. Unwell is each source of the project that is not ok, but for one a session
+    writes. What is the machine's, a source or a blind spot, is on no project's row."""
+    waiting = read.panel("you")["waiting"]
+    kinds: dict[str, dict[str, Any]] = {}
+    for one in waiting:
+        kind = kinds.setdefault(one["kind"], {"count": 0, "since": None})
+        kind["count"] += 1
+        if one["since"] and (kind["since"] is None or one["since"] < kind["since"]):
+            kind["since"] = one["since"]
+    held = [task["step"] for task in read.tasks]
+    steps = {key: held.count(key) for key in STEP if key in held}
+    checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
+    machine = {one.name for panel in read.panels for one in panel.sources if one.machine}
+    own = [
+        spot
+        for panel in read.panels
+        for spot in (panel.data.blind(read) if hasattr(panel.data, "blind") else [])
+        if not spot.machine
+    ]
+    return {
+        "name": read.name,
+        "repo": read.where,
+        "waits": len(waiting),
+        "waiting": kinds,
+        "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
+        "open": len(held),
+        "steps": steps,
+        "merged": len(read.panel("merged")["merged"]),
+        "health": {
+            "checks": {key: len(at) for key, at in checks["now"].items()}
+            | {"error": checks["error"]},
+            "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
+            "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
+            "blind": len(own),
+            "unwell": [
+                {"name": one["name"], "state": one["state"]}
+                for one in read.listed
+                if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
+            ],
+        },
+    }
+
+
+def stack(
+    sources: Sources,
+    now: datetime,
+    runs: Callable[[str], dict[str, Any]],
+    code: dict[str, Any] | None = None,
+    found: tuple[panels.Panel, ...] | None = None,
+    names: list[str] | None = None,
+) -> dict[str, Any]:
+    """What `/stack.json` holds: the machine once, the steps of the line, and a summary of
+    each project of `names`, or of each the state directory has.
+
+    The machine is what one jbus and one room serve every project with: the pass and the
+    timer, the room and the plan's use, and the runner units. Each project is read as
+    `/state.json` reads it, by a `Read` of its own, and every `Read` shares one `machine`, so
+    systemd, the room script and the runner units are asked once for the answer, however
+    many projects there are. `runs` is asked once for each repo, and keeps its answer.
+    The machine says each of its own sources that is not ok, but for one a session writes,
+    under `unwell`: no project's row says it.
+    """
+    found = panels.found() if found is None else found
+    keys(found)
+    shared: dict[Any, Any] = {}
+    shapes = {panel.name: panel.shape for panel in found}
+    base = Read(sources, "", now, runs, code, found, shared)
+    pulse = shapes["pulse"]["jbus"]
+    kept_by_jbus = {key: pulse["status"][key] for key in KEPT_BY_JBUS}
+    checks = base.panel("checks")["checks"]
+    machine = {
+        "jbus": keep(base.panel("pulse")["jbus"], pulse | {"status": kept_by_jbus}),
+        "room": keep(base.panel("room")["room"], shapes["room"]["room"]),
+        "runners": keep(checks["runners"], shapes["checks"]["checks"]["runners"]),
+        "runners_read": checks["runners_read"],
+        "unwell": [
+            {"name": one.name, "state": seen["state"]}
+            for panel in found
+            for one in panel.sources
+            if one.machine
+            and one.by != "session"
+            and (seen := _source(one.name, one.by, now=now, **one.seen(base)))["state"] != "ok"
+        ],
+    }
+    every = [
+        keep(summary(Read(sources, name, now, runs, code, found, shared)), SUMMARY)
+        for name in (projects(sources) if names is None else names)
+    ]
+    line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
+    return {"at": iso(now), "machine": machine, "steps": line, "projects": every}
