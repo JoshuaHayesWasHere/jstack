@@ -53,6 +53,10 @@ jobs:
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
+        env:
+          # GitHub's image has a Chromium snapshot whose virtual time now and then never starts,
+          # and the browser tests then wait out their bound. Its Google Chrome is a stable build.
+          JSTACK_TEST_BROWSER: ${{ runner.environment == 'github-hosted' && '/usr/bin/google-chrome' || '' }}
         run: make check
       # Only after the suite ran and passed. A marker that cannot be kept costs the next run
       # of this tree its skip and nothing else.
