@@ -44,7 +44,7 @@ Take the levels in this order, and take a lower one only when you can say why th
 
 1. **Structure.** Give each piece of state one owner and each task one supported way. Hide internals so the wrong import fails. Replace lists kept in step by hand with one source of truth. Delete the old way and the dead code an agent would copy (`principles/subtract-before-you-add.md`). In a skill, the same move is a rule that became a shell block the reader runs, or a script that does the step with no model.
 2. **Types.** Make the bad state one that cannot be written (`principles/type-system-discipline.md`). If the bad code still passes, add a lint or a check to the repo's check command whose error names the file, type or function to use in its place. If the pattern is already common, fail only when a change adds more.
-3. **A test.** Test the behaviour (`principles/test-behavior-not-implementation.md`). A test executes something: fix or delete any test that would still pass if every function it calls returned nothing, and any that only finds sentences in a file.
+3. **A test.** Test the behaviour (`principles/test-behavior-not-implementation.md`). A test executes something: fix or delete any test that still passes when the behavior it checks breaks, or that fails when only the internals change, and any that only finds sentences in a file.
 4. **A written rule, last, and only for a judgment call.** Nothing fails when an agent skips it.
 
 ## Where each lands in this flow
