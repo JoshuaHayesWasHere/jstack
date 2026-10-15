@@ -158,7 +158,7 @@ To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, an
 - `--checkout` is the path of the repo's main checkout.
 - `--project-id` is the id of the repo's T3 Code project.
 
-The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook, so jbus POSTs nothing for the project.
+The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook. The new project takes the default webhook at the top of the config when there is one ([Events and the webhook](#events-and-the-webhook)). With none there, jbus POSTs nothing for it.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`. Each pass is a new run of `jbus poll` that loads the config, so no unit is restarted. No line it prints has a value of a key of the config.
 
@@ -341,6 +341,19 @@ For each root jbus sends one `waiting-on-user` event: `waiting-on-user <project>
 A row that ended with something left is not yours while its home has it. jbus tells the home once (the leftover, in the table above), and the row waits on that home: it is not in `waiting-on-user.json`, and the view shows it as ended with a leftover that its home has, with the time the home was told. It becomes yours in two ways. The home asks you a question about it, which is a gate. Or the home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `src/jbus/leftover.py`): then jbus sends one `stall` event for the row, which names the home's thread, and lists the row with that reason. A row whose home has no thread in its `home-id`, or whose home's thread T3 Code does not list as not settled, or whose message did not go, is yours at once, and its line says why. A home that takes over from the one that was told is told too. `~/.local/state/jbus/<project>/leftover.json` is the record: for each such row the `Left:` text, the home's thread, when it was told and when the stall was said.
 
 ## Events and the webhook
+
+A project's webhook is a `webhook_url` and a `webhook_key`. The default goes at the top of `~/.config/jbus/config.toml`, above the first `[[project]]`:
+
+```toml
+server = "http://127.0.0.1:<port>"
+webhook_url = "<the Chef's webhook>"
+webhook_key = "<its key>"
+
+[[project]]
+name = "<project>"
+```
+
+It covers every project that has no pair of its own, so a new project gets events with no table to edit. A project whose own table has both keys keeps its own pair, which wins over the default. A table with only one of the two keys is refused, by name and with the key that is missing, since half a pair beside the default would post with the wrong key. A half pair at the top is refused the same way. The default URL and key are secrets like a project's: jbus takes them out of every line and log.
 
 Everything a pass finds is an event. Each POST to a project's webhook is `{"say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`. `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `src/jbus/wake.py`):
 

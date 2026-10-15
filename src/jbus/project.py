@@ -3,8 +3,9 @@
 The config holds a webhook's key, so no hand and no skill writes it. `add` reads the file as
 text and writes it back with one table after the last byte it had: every other table is the
 bytes it was. The file as it was is kept first, beside it, as `config.toml.<time>.bak`, and
-both stay mode 600. The table has `name`, `checkout` and `projectId` and no webhook: with no
-`webhook_url` a pass POSTs nothing for the project.
+both stay mode 600. The table has `name`, `checkout` and `projectId` and no webhook: the new
+project takes the `webhook_url` and `webhook_key` at the top of the config when it has them,
+and with none there a pass POSTs nothing for it.
 
 The file must load as a pass loads it (`jbus.load`): a config a pass refuses is refused
 here, before anything is written, with the line `jbus.load` gives.

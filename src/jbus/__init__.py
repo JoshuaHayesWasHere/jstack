@@ -15,6 +15,11 @@ level is `quiet` now, and is read so.
 one loads, and `Config.ignored` names each, so that a pass can say so until it is removed.
 A webhook URL and key in a table nothing reads are still secret while they are in the file:
 `Config.unread` keeps them, for `secrets` alone.
+
+A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the pair
+of every project that has neither key of its own. A project with both keys of its own keeps
+them whole, and one with only one of the two is refused: half a pair beside the top-level one
+would post with the wrong key. The top-level pair is secret whether a project takes it or not.
 """
 
 from __future__ import annotations
@@ -46,7 +51,8 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Project:
-    """One repo jbus looks after, and the webhook that is posted what the user must act on."""
+    """One repo jbus looks after, and the webhook that is posted what the user must act on:
+    its own pair, or the config's top-level one when it has none."""
 
     name: str
     checkout: Path
@@ -73,6 +79,7 @@ class Config:
     user: jsettings.Settings
     ignored: tuple[str, ...] = ()
     unread: tuple[Hook, ...] = ()
+    webhook: Hook = ("", "")
 
     @property
     def token_path(self) -> Path:
@@ -114,7 +121,7 @@ class Config:
 
     def hooks(self) -> list[Project | Hook]:
         """Every webhook URL and key the config file holds, read or not."""
-        return [*self.projects, *self.unread]
+        return [*self.projects, self.webhook, *self.unread]
 
     def state(self, project: Project) -> Path:
         """Where jbus keeps this project's queue, outbox, launches and what it has sent."""
@@ -183,6 +190,21 @@ def _unread(raw: dict[str, Any]) -> tuple[Hook, ...]:
     return tuple((str(url or ""), str(key or "")) for url, key in found if url or key)
 
 
+PAIR = ("webhook_url", "webhook_key")
+
+
+def _pair(table: dict[str, Any], half: str) -> Hook | None:
+    """The table's webhook URL and key, or None when it has neither. Half a pair is refused
+    with `half`, which is given the key that is missing and has no value in it."""
+    present = [key for key in PAIR if key in table]
+    if not present:
+        return None
+    if len(present) == 1:
+        (missing,) = set(PAIR) - set(present)
+        raise Refused(half.format(missing=missing))
+    return str(table["webhook_url"]), str(table["webhook_key"])
+
+
 def load(directory: Path | None = None) -> Config:
     directory = directory or config_dir()
     path = directory / "config.toml"
@@ -196,6 +218,12 @@ def load(directory: Path | None = None) -> Config:
         raw = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as error:
         raise Refused(f"refused: {path} does not parse: {error}") from error
+    top = f"refused: {path} has no top-level {{missing}} beside the other: give it both, or neither"
+    webhook = _pair(raw, top) or ("", "")
+    own = (
+        "refused: project {name} has no {{missing}} of its own beside the other: "
+        "give it both, or neither to take the top-level pair"
+    )
     try:
         projects = tuple(
             Project(
@@ -203,10 +231,11 @@ def load(directory: Path | None = None) -> Config:
                 checkout=Path(str(entry["checkout"])).expanduser(),
                 state=str(entry.get("state") or entry["name"]),
                 project_id=str(entry["projectId"]),
-                webhook_url=str(entry.get("webhook_url", "")),
-                webhook_key=str(entry.get("webhook_key", "")),
+                webhook_url=url,
+                webhook_key=key,
             )
             for entry in raw.get("project", [])
+            for url, key in [_pair(entry, own.format(name=entry["name"])) or webhook]
         )
         server = str(raw["server"]).rstrip("/")
         ignored = _ignored(raw)
@@ -233,6 +262,7 @@ def load(directory: Path | None = None) -> Config:
         user=user,
         ignored=ignored,
         unread=_unread(raw),
+        webhook=webhook,
     )
 
 

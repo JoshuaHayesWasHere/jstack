@@ -144,7 +144,10 @@ def config(run: Pass, client: Client | None, rows: list[queue.Row] | None) -> Ro
     name, project = run.project.name, run.project
     actions, unblocks = [], []
     if not (project.webhook_url and project.webhook_key):
-        actions.append(f"set webhook_url and webhook_key for {name} in ~/.config/jbus/config.toml")
+        actions.append(
+            f"set webhook_url and webhook_key for {name} in its [[project]] table, "
+            "or at the top of ~/.config/jbus/config.toml for every project"
+        )
         unblocks.append("events to the Chef")
     if client is None:
         actions.append("run jbus t3 login")
