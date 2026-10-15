@@ -306,6 +306,7 @@ A pass launches a row only when all of these hold:
 
 - the row has an `approved` value, and its brief has the sha256 that `approve` recorded;
 - the brief has a `Design:` line in its head that names a file or says `none, <why>`;
+- the brief's `Proves it:` line, where its head has one, names something outside the agent;
 - every slug in `depends` is merged;
 - no branch of its name exists, and no settled thread has its slug;
 - fewer than `max_running` crewmates are out across every project in the config;
@@ -315,6 +316,7 @@ Rows launch lowest `priority` first. A launch sends the brief in the message, as
 
 - **A brief changed after the go** is `gate <slug>: brief changed after approval`. Approve it again. A `Home:` or `Thread:` line of its head that changed is no change.
 - **A brief with no such `Design:` line** is a gate, once for that brief: `brief has no Design: line (run /architect or say none, <why>)`.
+- **A brief whose `Proves it:` line proves nothing** is a gate, once for that brief, with one line saying why: `brief's Proves it: line names the reviewer, the agent's own word (name a test, a command, a metric, a dataset, an external judge or the user)`. The line is refused when it is empty, still the template's text, or names the crew, the crewmate, the reviewer, the agent, itself, the model or a review alone, and nothing outside them. A brief with no `Proves it:` line was written before the line was asked for and launches as it did.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass. After `room_passes` passes in a row with no room, jbus sends `gate <slug>: no room for <n> passes: <why>` once.
 - **A lost reply is never launched twice.** jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks a lost reply's thread up.
 - **Overlap stops no launch.** Each crewmate has its own worktree and branch. A launch that shares a path with a brief that is out sends `overlap <slug>: shares <paths> with <holder>; whichever merges second rebases`, once per pair.
