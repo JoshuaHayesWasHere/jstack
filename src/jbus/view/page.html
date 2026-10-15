@@ -356,10 +356,19 @@
   .empty-q { margin: 8px 0 0; color: var(--dim); font-weight: 700; display: flex; gap: 9px; align-items: center; }
   .none { margin-top: 12.5px; border: 1.5px solid var(--line); border-left: 6px solid var(--op); border-radius: 10px; padding: 12.5px 15px; background: var(--card); }
   .none .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
+  /* where the page is, and the way back */
+  .crumbs { display: inline-flex; flex-wrap: wrap; gap: 0 7px; align-items: baseline; }
+  .crumbs a { color: var(--msg); text-decoration: none; }
+  .crumbs a:hover { text-decoration: underline; }
+  .crumbs a[aria-current="page"] { color: var(--fg); }
+  .dw-h .crumbs { font-size: 14px; color: var(--dim); }
+  .back { display: block; margin: 4px 0 2px; border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--msg); font-size: 15px; font-weight: 600; text-align: left; }
+  .back:hover { text-decoration: underline; }
   @media (max-width: 1100px) { .vitals.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 640px) {
     .vitals.four { grid-template-columns: minmax(0, 1fr); }
-    .pj, .hc, .rcell, a.tok, .pjh .go, .top a { min-height: 44px; display: inline-flex; align-items: center; }
+    .pj, .hc, .rcell, a.tok, .pjh .go, .top a, .back { min-height: 44px; display: inline-flex; align-items: center; }
+    .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .pjh .go { margin-left: 0; }
   }
 </style>
@@ -404,26 +413,33 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  /* Where the page is: the hash. #/ or none is every project, #/<project> one project, and
-     what follows an & is more of the address, open=<drawer> and theme=<light|dark>. An old
-     link, ?project=<project>, is the same address as #/<project>. */
-  var STACK = null, NOSUCH = "", PROJECT = "", OPEN = "", QUERY = "", HASH = {};
-  (function () {
-    var old = new URLSearchParams(location.search).get("project"), rest = location.hash.replace(/^#/, "");
-    if (old) history.replaceState(null, "", location.pathname + "#/" + encodeURIComponent(old) + (rest && rest.charAt(0) !== "/" ? "&" + rest : ""));
-  })();
-  function where() {
-    var parts = location.hash.replace(/^#/, "").split("&"), named = parts[0].charAt(0) === "/" ? parts.shift() : "/";
+  /* Where the page is: the hash, and nothing else. `#/` is every project, `#/<project>` one
+     project, and `#/<project>/<panel>/<arg>` that project with the drawer of a panel open, as
+     `#/infra/task/<slug>` or `#/infra/gate/3`: the parts after the panel are its `data-open`
+     arg, a colon in it a slash. What follows an & is more of the address, theme=<light|dark>.
+     Old links, `?project=<project>` and `#/<project>&open=<drawer>`, are rewritten to these.
+     Each entry of the browser's history holds the drawers it shows, its `layers`, from the
+     first opened to the one in front, so back closes a drawer and forward opens it again, and
+     `back` says the entry before it is the same minus its front drawer. */
+  var STACK = null, NOSUCH = "", PROJECT = null, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
+  function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
+  function parse(hash) {
+    var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
+    parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     /* A part that is not a name (#/%E0) is kept as it was written: no project has it. */
-    function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
-    HASH = {}; parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) HASH[p[0]] = name(p.slice(1).join("=")); });
-    var was = PROJECT;
-    PROJECT = name(named.slice(1).split("/")[0] || "");
-    QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
-    OPEN = HASH.open || "";
-    if (PROJECT !== was) { S = null; NOSUCH = ""; }
+    var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
-  where();
+  /* The address of a project's page, or of one of its drawers. */
+  function href(project, target) {
+    var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "";
+    return "#/" + (project ? encodeURIComponent(project) + t : "") + (HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "");
+  }
+  (function () {
+    var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
+    HASH = at.more;
+    if (old || at.more.open) history.replaceState(history.state, "", location.pathname + href(old || at.project, at.target));
+  })();
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function p2(n) { return String(n).padStart(2, "0"); }
@@ -581,7 +597,6 @@
     $("filters").querySelectorAll("[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === VIEW.filter)); });
   }
   /* ---------- every project: the machine once, one wait band, a row for each ---------- */
-  function on(p, more) { return "#/" + encodeURIComponent(p) + (more ? "&open=" + more : ""); }
   function mcard(e, tag, val, tip, viz) { return '<div class="vit e-' + e + '" title="' + esc(tip) + '"><span class="tag">' + tag + '</span><span class="val">' + val + '</span>' + (viz ? '<span class="viz">' + viz + '</span>' : "") + '</div>'; }
   function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   function machineRow() {
@@ -601,21 +616,21 @@
       mcard(over ? "op" : "ok", "plan", used("five_hour", "5h") + " " + used("seven_day", "7d"), "The plan's use, five hours and seven days, held to " + l.plan + "%. " + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? plan[k].say : ""; }).filter(String).join(". "));
   }
   function waitRow(p) {
-    var h = '<a class="pj" href="' + on(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '">' + p.waits + '</span></a>', any = false;
+    var h = '<a class="pj" href="' + href(p.name) + '" title="Open ' + esc(p.name) + '">' + esc(p.name) + ' <span class="n' + (p.waits ? " op" : " zero") + '">' + p.waits + '</span></a>', any = false;
     KINDS.forEach(function (k) {
       var w = p.waiting[k]; if (!w) return;
       var age = ms(w.since) == null ? "" : short(NOW - ms(w.since)), say = p.name + ": " + w.count + " " + KIND[k][0] + (age ? ", the oldest for " + age : "");
       any = true;
-      h += '<a class="tok sans w-user" href="' + on(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b>' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
+      h += '<a class="tok sans w-user" href="' + href(p.name, "you:" + k) + '" title="' + esc(say) + '" aria-label="' + esc(say + ". Open the list") + '"><i class="sh"></i><b>' + w.count + '</b><span class="lb">' + KIND[k][0] + '</span>' + (age ? '<span class="src">' + age + '</span>' : "") + '</a>';
     });
     if (!any) h += '<span class="quiet">nothing waits on you</span>';
-    if (p.noticed) h += '<a class="tok sans faint" href="' + on(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on nobody, so the count above leaves them out.") + '"><b>' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>';
+    if (p.noticed) h += '<a class="tok sans faint" href="' + href(p.name, "noticed") + '" title="' + esc(p.name + ": " + p.noticed + " new noticed lines, for its home to mark. They wait on nobody, so the count above leaves them out.") + '"><b>' + p.noticed + '</b><span class="lb">noticed, not counted</span></a>';
     return h;
   }
   function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
     var h = p.health, c = h.checks, b = h.bus, held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
-    var out = '<div class="pjh"><h2><a href="' + on(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + on(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
+    var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
     out += '<div class="chips">' +
       chip(c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + esc(c.error) : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", p.name + ": its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")) +
       chip(b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), p.name + ": " + b.outbox + " in the outbox, " + b.failed_wakes + " failed wakes" + (b.last_error ? ", last error: " + b.last_error : "")) +
@@ -624,7 +639,7 @@
       (h.unwell.length ? chip("op", plural(h.unwell.length, "source", "sources") + " unread", p.name + ": " + h.unwell.map(function (s) { return s.name + " " + s.state; }).join(", ")) : "") + '</div>';
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
-    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + on(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
+    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
     if (!p.open) out += '<p class="empty-q"><i class="dot"></i> nothing open</p>';
     return out;
   }
@@ -643,9 +658,8 @@
   var drawnOnce = false;
   function render() {
     document.body.classList.toggle("gone", gone);
-    /* One project's page says where it is in the title: under every project, which the
-       first two words open. */
-    if (PROJECT) put($("title"), '<a href="#/">Every project</a> &rsaquo; <code>' + esc(PROJECT) + '</code>');
+    /* One project's page says where it is in the title: All, then the project, each a link. */
+    if (PROJECT) put($("title"), '<nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; <a href="' + esc(href(PROJECT)) + '" aria-current="page"><code>' + esc(PROJECT) + '</code></a></nav>');
     else put($("title"), "jbus: every project");
     var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
     if (document.title !== named) document.title = named;
@@ -667,7 +681,22 @@
   }
 
   /* ---------- drawers: everything else, one click away ---------- */
-  function head(tag, title, mono) { return '<div class="dw-h"><div><span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2></div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>'; }
+  /* A drawer's head: where it is, All, its project and itself, each a link to that page; an
+     arrow back to the drawer it was opened from, which it names; its title; and Close. */
+  function top() { return LAYERS.length ? LAYERS[LAYERS.length - 1].target : ""; }
+  function called(l) { return l.title || l.target.replace(/:/g, " "); }
+  function head(tag, title, mono) {
+    var before = LAYERS.length > 1 ? LAYERS[LAYERS.length - 2] : null;
+    return '<div class="dw-h"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; <a href="' + esc(href(PROJECT)) + '">' + esc(PROJECT) + '</a> &rsaquo; <a href="' + esc(href(PROJECT, top())) + '" aria-current="page">' + esc(title) + '</a></nav>' +
+      (before ? '<button type="button" class="back" id="dw-back" aria-label="Back to ' + esc(called(before)) + '">&larr; ' + esc(called(before)) + '</button>' : "") +
+      '<span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2></div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>';
+  }
+  /* What a link names that is not there: which, in which project, never a blank. */
+  function missing(kind, arg) {
+    var what = !PANELS[kind] ? "No drawer called " + kind : "No " + kind + (arg ? " named " + arg.replace(/:/g, " ") : " to show");
+    return head("Not found", what) + '<div class="now e-op"><span class="big">' + esc(what) + ' in <code>' + esc(PROJECT) + '</code></span>' +
+      'It is not there now: it may have ended, or the link is old or mistyped. <a href="' + esc(href(PROJECT)) + '">Open ' + esc(PROJECT) + '</a></div>';
+  }
   function openBtn(target, label) { return '<button type="button" class="linkish" data-open="' + esc(target) + '">' + esc(label) + '</button>'; }
   function taskBtn(slug) { return known(slug) ? openBtn("task:" + slug, slug) : '<code>' + esc(slug) + '</code>'; }
   function link(url, label) { return /^https:\/\/github\.com\//.test(url || "") ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>' : esc(label); }
@@ -739,15 +768,32 @@
     return ORDER.filter(function (p) { return p.adds && p.adds[to]; }).map(function (p) { return { from: p.name, said: p.adds[to](arg) }; }).filter(function (a) { return a.said; });
   }
   /*panels*/
-  var drawer = $("drawer"), opener = null, turn = 0;
-  function show(p, html, from) {
-    if (!drawer.open) opener = from || document.activeElement;
+  var drawer = $("drawer"), turn = 0, ours = 0;
+  /* Draws a drawer, opening it where it is shut. `focus` is the `data-open` of a button in it to
+     put the focus on, the one that opened the drawer the page came back from. */
+  function show(p, html, focus) {
     drawer.classList.toggle("wide", !!p.wide);
     $("dw").innerHTML = html;
     if (!drawer.open) drawer.showModal();
     drawer.scrollTop = 0;
-    $("dw-close").focus();
+    var back = focus && $("dw").querySelector('[data-open="' + CSS.escape(focus) + '"]');
+    (back || $("dw-close")).focus();
     var hit = $("dw").querySelector(".hit"); if (hit) hit.scrollIntoView({ block: "center" });
+    titled();
+  }
+  /* The front drawer's title, kept with its layer: the entry of a drawer opened from it holds
+     it, so its arrow names it, also after a reload. */
+  function titled() {
+    var t = $("dw-title"), l = LAYERS[LAYERS.length - 1];
+    if (t && l) l.title = t.textContent;
+  }
+  /* Shuts the drawer for the page under it, and gives the focus back to what opened the first. */
+  function shutDrawer(first) {
+    if (!drawer.open) return;
+    ours += 1;
+    drawer.close();
+    var b = first && document.querySelector('main [data-open="' + CSS.escape(first) + '"]');
+    if (b) b.focus();
   }
   function github() {
     var gh = $("gh"), of = gh ? gh.getAttribute("data-slug") : "";
@@ -763,36 +809,82 @@
   function drawn(p, arg, data) {
     try { return p.drawer(arg, data); } catch (e) { setTimeout(function () { throw e; }); return asking(p, "This panel could not be drawn."); }
   }
-  function openDrawer(target, from) {
-    if (!S) return;
+  function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
-    if (!p || !p.drawer) return;
+    if (!p || !p.drawer) { show({}, missing(kind, arg)); return; }
     if (p.first) {
-      var html = drawn(p, arg);
-      if (!html) return;
-      show(p, html, from);
+      show(p, drawn(p, arg) || missing(kind, arg), focus);
       github();
       return;
     }
-    show(p, asking(p, gone ? "The view server does not answer, so it cannot be asked." : "Asking the server."), from);
+    show(p, asking(p, gone ? "The view server does not answer, so it cannot be asked." : "Asking the server."), focus);
     if (gone) return;
     ask("/panel/" + encodeURIComponent(kind) + ".json" + QUERY).then(function (a) {
       if (mine !== turn || !drawer.open) return;
-      $("dw").innerHTML = (drawn(p, arg, a.data) || asking(p, "It has nothing to show.")) + unread(a.sources);
+      $("dw").innerHTML = (drawn(p, arg, a.data) || missing(kind, arg)) + unread(a.sources);
       $("dw-close").focus();
+      titled();
       github();
     }, function () { if (mine === turn && drawer.open) $("dw").innerHTML = asking(p, "The view server did not answer."); });
   }
+  /* The ways from one drawer to another. A drawer is opened as a new entry of the history:
+     over the one in front where it is opened from a drawer, or alone from the page. One that
+     is already a layer is gone back to, and the one in front is drawn again. */
+  function go(target, inside, inPlace) {
+    if (target === top()) { openDrawer(target); return; }
+    /* A toggle in a drawer, as the role filter of the threads, redraws that drawer in place. */
+    if (inside && inPlace) { kept = target; enter("replaceState", { layers: LAYERS.slice(0, -1).concat([{ target: target }]), back: BACK }, href(PROJECT, target)); return; }
+    var at = -1;
+    LAYERS.forEach(function (l, n) { if (l.target === target) at = n; });
+    var layers = !inside ? [{ target: target }] : at >= 0 ? LAYERS.slice(0, at + 1) : LAYERS.concat([{ target: target }]);
+    enter("pushState", { layers: layers, back: (inside && at < 0) || !LAYERS.length }, href(PROJECT, target));
+  }
+  /* One layer back, by the browser's own back where the entry before is that layer, and in
+     place where it is not, as for a drawer a pasted link opened. The entry before may have been
+     rewritten since, by Esc or Close on it: `route` then puts that layer back. */
+  var EXPECT = null, kept = "";
+  function up() {
+    if (!LAYERS.length) return;
+    if (BACK) { EXPECT = LAYERS.slice(0, -1); history.back(); return; }
+    var layers = LAYERS.slice(0, -1);
+    enter("replaceState", { layers: layers, back: false }, href(PROJECT, layers.length ? layers[layers.length - 1].target : ""));
+  }
+  /* Close: the page under every drawer, in place. */
+  function shut() { enter("replaceState", { layers: [], back: false }, href(PROJECT, "")); }
+  /* An entry the page writes, and the view it names drawn from what was written: a browser
+     that drops a write, as Chromium does past 200 in 10 s, leaves the page where it was told. */
+  function enter(how, st, address) {
+    history[how](st, "", address);
+    route(st, address);
+  }
   document.addEventListener("click", function (e) {
     var row = e.target.closest("#rows .proj");
-    if (row && !e.target.closest("a")) { location.hash = on(row.getAttribute("data-key")); return; }
+    if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
     var b = e.target.closest("[data-open]");
-    if (b) { openDrawer(b.getAttribute("data-open"), drawer.contains(b) ? null : b); return; }
-    if (e.target.closest("#dw-close") || e.target === drawer) { drawer.close(); return; }
+    if (b) { go(b.getAttribute("data-open"), drawer.open && drawer.contains(b), b.hasAttribute("aria-pressed")); return; }
+    if (e.target.closest("#dw-back")) { up(); return; }
+    if (e.target.closest("#dw-close") || e.target === drawer) { shut(); return; }
     var f = e.target.closest("[data-filter]");
     if (f) { VIEW.filter = f.getAttribute("data-filter"); applyFilter(); }
   });
-  drawer.addEventListener("close", function () { if (opener && opener.isConnected && opener.focus) opener.focus(); opener = null; });
+  /* Esc goes back one layer, and so does a phone's back gesture, which asks the drawer to close.
+     A drawer the browser shut by itself is the page under it. */
+  var escaped = false;
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || !drawer.open) return;
+    e.preventDefault(); e.stopPropagation();
+    escaped = true; setTimeout(function () { escaped = false; });
+    up();
+  }, true);
+  /* A second gesture with no tap between cannot be refused, and the browser shuts the drawer
+     itself: that close is the page's own, and `up` draws the layer it goes to. */
+  drawer.addEventListener("cancel", function (e) {
+    e.preventDefault();
+    if (escaped) return;
+    if (!e.cancelable) ours += 1;
+    up();
+  });
+  drawer.addEventListener("close", function () { if (ours) ours -= 1; else if (!drawer.open && LAYERS.length) shut(); });
 
   /* ---------- asking the server ---------- */
   /* With a body it is the write, and what the server said of it is read whatever its status. */
@@ -821,29 +913,45 @@
   }
   /* One request a poll, for the view in front. An answer to a view that is no longer in
      front is dropped. A project the state directory does not have is said, and no fault. */
-  var turnOf = 0, pending = OPEN;
+  var turnOf = 0, pending = "";
   function poll() {
     var mine = turnOf;
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
-    }).then(function () { if (mine === turnOf && pending && S) { var o = pending; pending = ""; openDrawer(o, null); } });
+    }).then(function () { if (mine === turnOf && pending && S) { var o = pending; pending = ""; openDrawer(o); } });
   }
-  /* The one handler of a new address: the view it names is drawn from what is kept, and
-     asked for at once where it is another project. */
-  window.addEventListener("hashchange", function () {
-    var was = PROJECT;
-    where();
-    pending = OPEN;
-    if (drawer.open) drawer.close();
-    if (PROJECT !== was) { turnOf += 1; render(); poll(); return; }
+  /* The one handler of a new address, and what a click, Esc, Close and the arrow call after
+     they write one: the view and the drawers the entry names are drawn, from what is kept, and
+     another project is asked for at once. An entry the page did not write, a link followed or
+     an address typed, gets its layers here: the drawer it names, alone. */
+  function route(given, address) {
+    var at = parse(typeof address === "string" ? address : location.hash), st = given && given.layers ? given : history.state, was = PROJECT, before = top(), deeper = LAYERS.length, first = LAYERS.length ? LAYERS[0].target : "";
+    if (!st || !st.layers) { st = { layers: at.target ? [{ target: at.target }] : [], back: false }; history.replaceState(st, ""); }
+    var wanted = EXPECT; EXPECT = null;
+    if (wanted && !given && wanted.map(function (l) { return l.target; }).join("\n") !== st.layers.map(function (l) { return l.target; }).join("\n")) {
+      var put = href(at.project, wanted.length ? wanted[wanted.length - 1].target : "");
+      st = { layers: wanted, back: false }; history.replaceState(st, "", put); at = parse(put);
+    }
+    HASH = at.more; PROJECT = at.project; LAYERS = st.layers; BACK = !!st.back;
+    QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
+    pending = "";
+    if (PROJECT !== was) {
+      S = null; NOSUCH = ""; turnOf += 1;
+      shutDrawer(first); render();
+      pending = top(); poll();
+      return;
+    }
     render();
-    if (pending && S) { var o = pending; pending = ""; openDrawer(o, null); }
-  });
+    if (!top()) { shutDrawer(first); return; }
+    var focus = LAYERS.length < deeper ? before : kept; kept = "";
+    if (S) openDrawer(top(), focus);
+    else pending = top();
+  }
+  window.addEventListener("hashchange", function () { route(); });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
-  render();
-  poll();
+  route();
   setInterval(poll, POLL);
 })();
 </script>

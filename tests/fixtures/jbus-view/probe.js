@@ -19,6 +19,41 @@ window.addEventListener("error", function (e) { window.__errs.push(String(e.mess
 window.addEventListener("unhandledrejection", function (e) {
   window.__errs.push("rejection: " + String(e.reason && e.reason.message || e.reason));
 });
+/* A walk the test asks for, 2.5 s after the page loads: one step each 0.5 s, and what the page
+   shows after each. A step is `open:<target>`, tapped where a person would, in the drawer when
+   one is open; `back` and `forward`, the browser's; `esc`; `arrow`, the drawer's back arrow;
+   `close`; `crumb:<n>`, the nth link of the drawer's breadcrumbs; `hash:<address>`; `tap:<selector>`,
+   a click on what the page drew; `cancel`, the close request a phone's back gesture sends;
+   `cancel-hard`, the second one in a row, which cannot be refused and shuts the drawer; or `look`. */
+window.__walked = [];
+window.addEventListener("load", function () { if (window.__walk) setTimeout(function () {
+  function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
+  function step(n) {
+    if (n >= window.__walk.length) return;
+    var w = window.__walk[n], drawer = document.getElementById("drawer"), how = w.split(":")[0], what = w.slice(how.length + 1);
+    if (how === "open") {
+      var b = document.createElement("button"); b.setAttribute("data-open", what);
+      (drawer.open ? document.getElementById("dw") : document.body).appendChild(b); b.click(); b.remove();
+    } else if (how === "back") history.back();
+    else if (how === "forward") history.forward();
+    else if (how === "esc") (document.activeElement || document.body).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    else if (how === "arrow") document.getElementById("dw-back").click();
+    else if (how === "close") document.getElementById("dw-close").click();
+    else if (how === "crumb") document.querySelectorAll("#dw .crumbs a")[+what].click();
+    else if (how === "hash") location.hash = what;
+    else if (how === "tap") document.querySelector(what).click();
+    else if (how === "cancel") drawer.dispatchEvent(new Event("cancel", { cancelable: true }));
+    else if (how === "cancel-hard") { drawer.dispatchEvent(new Event("cancel")); drawer.close(); }
+    setTimeout(function () {
+      var focus = document.activeElement;
+      window.__walked.push({ step: w, hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "",
+        back: drawer.open ? text(document.getElementById("dw-back")) : "", crumbs: Array.prototype.map.call(document.querySelectorAll(drawer.open ? "#dw .crumbs a" : "#title .crumbs a"), function (a) { return [text(a), a.getAttribute("href")]; }),
+        notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.id : "" });
+      step(n + 1);
+    }, 500);
+  }
+  step(0);
+}, 2500); });
 /* A tap the test asks for, on what `__tap` selects, a moment after the page loads. */
 window.addEventListener("load", function () { if (window.__tap) setTimeout(function () { var el = document.querySelector(window.__tap); if (el) el.click(); else window.__errs.push("nothing to tap: " + window.__tap); }, 3000); });
 window.addEventListener("load", function () { setTimeout(function () {
@@ -197,6 +232,7 @@ window.addEventListener("load", function () { setTimeout(function () {
       out.errors = window.__errs;
       out.changes = window.__changes;
       out.hash = location.hash;
+      out.walked = window.__walked;
       out.marked = performance.getEntriesByName("jbus-first-render").length;
       out.nan = /NaN|undefined|\[object/.test(document.body.innerText);
       var pre = document.createElement("pre");
