@@ -2851,6 +2851,38 @@ def test_every_band_is_drawn_whole_with_a_fold_and_a_hide_button(scene, tmp_path
         assert band["fold"] == ["BUTTON", band["name"], True], band
         assert band["hide"] == ["BUTTON", f"Hide {band['name']}", True], band
     assert (seen["folds"]["kept"], seen["folds"]["store"]) == ("", None)
+    if route == "#/demo":
+        assert bands(seen)["demo/line"]["grouped"] is False, "the line's buttons are no filter"
+
+
+@pytest.mark.parametrize(
+    ("stopped", "unread", "said"),
+    [
+        (False, False, "jbus passing, all well"),
+        (False, True, "jbus passing, 1 wants a look"),
+        (True, False, "jbus stopped"),
+        (True, True, "jbus stopped, 1 wants a look"),
+    ],
+)
+def test_the_machine_folded_says_the_pass_once_and_counts_what_else_wants_a_look(
+    scene, tmp_path, stopped, unread, said
+):
+    """The machine with its room, runners and plan well: folded, its line says the pass by
+    name, and counts sources not read beside it, a stopped pass included."""
+
+    def machine(nth, body):
+        m = body["machine"]
+        m["jbus"] |= {"stopped": stopped, "why": "the timer is not active"}
+        m["room"] |= {"answer": "go", "plan": {}}
+        m |= {"runners": [{"unit": "runner.service", "active": "active"}], "runners_read": True}
+        m["unwell"] = [{"name": "room", "state": "missing"}] if unread else []
+        return body
+
+    script = remembered({"machine": "folded"}) + PROBE
+    seen = look(scene, tmp_path, route="#/", script=script, alter=machine)
+    assert seen["errors"] == []
+    assert bands(seen)["machine"]["st"] == "folded"
+    assert bands(seen)["machine"]["sum"] == said
 
 
 def test_a_band_folds_and_unfolds_by_click_and_by_key_and_nothing_else_is_drawn_again(

@@ -27,7 +27,7 @@ window.__folds = function () {
     bands: views.map(function (el) {
       var key = el.getAttribute("data-fv"), b = el.querySelector('[data-fold="' + CSS.escape(key) + '"]'), x = el.querySelector('[data-hide="' + CSS.escape(key) + '"]');
       var body = b && document.getElementById(b.getAttribute("aria-controls")), sum = el.querySelector(".fv-sum");
-      return { key: key, name: el.getAttribute("data-fv-name"), st: el.getAttribute("data-st"), seen: shown(el), expanded: b ? b.getAttribute("aria-expanded") : "", controls: b ? b.getAttribute("aria-controls") : "",
+      return { key: key, name: el.getAttribute("data-fv-name"), st: el.getAttribute("data-st"), seen: shown(el), expanded: b ? b.getAttribute("aria-expanded") : "", controls: b ? b.getAttribute("aria-controls") : "", grouped: !!b && !!b.closest('[role="group"]'),
         body: shown(body), sum: shown(sum) ? sum.innerText.trim() : "", fold: b ? [b.tagName, b.getAttribute("aria-label"), shown(b)] : null, hide: x ? [x.tagName, x.getAttribute("aria-label"), shown(x)] : null };
     }),
     kept: shown(document.getElementById("kept")) ? document.getElementById("kept-s").innerText.trim() : "",
