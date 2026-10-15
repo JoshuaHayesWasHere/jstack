@@ -288,6 +288,51 @@ def test_the_intent_is_the_brief_from_task_to_the_end_of_decisions_then_the_scop
     assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
 
 
+def applies(name):
+    """The paragraph a principle opens with, under its title, as one line."""
+    text = (REPO / "principles" / f"{name}.md").read_text()
+    return " ".join(text.split("\n\n")[1].splitlines())
+
+
+def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cites_applies(
+    reviewer,
+):
+    reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
+    cited = [
+        "laziness-protocol",
+        "fix-root-causes",
+        "test-behavior-not-implementation",
+        "attack-the-premise",
+        "prove-it-works",
+        "sequence-verifiable-units",
+    ]
+    assert all(applies(name).startswith("Apply ") for name in cited)
+    lens = "\n".join(f"- {name}: {applies(name)}" for name in cited)
+    assert intent(reviewer) == (
+        f"{INTENT}\n\nPlaybook: bug-fix, the steps the crewmate worked by.\n"
+        f"The principles it cites, and when each applies:\n{lens}\n\n{scope()}\n"
+    )
+
+
+@pytest.mark.parametrize("name", ["fix", "feature.", "../templates/brief"])
+def test_a_playbook_name_that_is_no_playbook_is_said_and_no_principle_follows(reviewer, name):
+    reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
+    said = f"Playbook: {name}, which is no playbook here: the crewmate worked with none."
+    assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
+
+
+def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(reviewer):
+    reviewer.brief.write_text(BRIEF + "Playbook: none\n")
+    assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
+
+
+def test_the_reviewers_are_asked_to_tag_each_finding_with_the_principle_it_breaks(reviewer):
+    reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
+    told = intent(reviewer)
+    assert told.index("- fix-root-causes: ") < told.index("`(principle: <name>)`")
+    assert "`(principle: none)`" in told
+
+
 def asked(text, question):
     after = text.split(f"\n{question}. ", 1)[1]
     return after.split(f"\n{question + 1}. ", 1)[0]
@@ -838,12 +883,12 @@ FINDINGS = {
     "info was.md the name a renamed file had before": False,
 }
 LEAD = {
-    "error src/a.py:3 it runs twice after a crash (both reviewers)": True,
-    "warning src/a.py:2 a branch a helper would hold, for Noticed, not this pull request": True,
-    "info new.txt:1 a name that says less than it could": True,
-    "warning - the one fact the change is safe because of is unproven: the lock is held": True,
-    "error src/a.py:3 the proof failed: two runs wrote the same row": True,
-    "error src/b.py:40 a real bug a reviewer met in code the pull request calls": False,
+    "error src/a.py:3 it runs twice after a crash (both reviewers) (principle: none)": True,
+    "warning src/a.py:2 a branch a helper would hold (principle: laziness-protocol)": True,
+    "info new.txt:1 a name that says less than it could (principle: none)": True,
+    "warning - the one safety fact is unproven (principle: prove-it-works)": True,
+    "error src/a.py:3 the proof failed: two runs wrote the same row (principle: none)": True,
+    "error src/b.py:40 a bug in code the pull request calls (principle: none)": False,
     "warning tests/test_b.py a file the reviewers opened that the change left alone": False,
 }
 
@@ -862,7 +907,12 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     labels = [line.split(":")[0] for line in template.splitlines()]
     after = labels[labels.index("Dropped") :]
     assert after[:3] == ["Dropped", "Noted", "Dismissed"]
-    review = template.replace('<what is wrong> (or the one word "none")', "it runs twice")
+    finding = '<what is wrong> (principle: <name> | none) (or the one word "none")'
+    assert finding in template
+    review = template.replace(
+        finding,
+        "it runs twice (principle: make-operations-idempotent)",
+    )
     reviewer.brief.write_text(BRIEF + "\n## Result\nStatus: done\n\n" + review)
     counts = crew.block("The review", "found++").replace("<slug>", "a-task")
     ran = subprocess.run(
