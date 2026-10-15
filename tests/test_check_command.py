@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 import time
+import tomllib
 from pathlib import Path
 
 from jgauge import slot
@@ -37,6 +38,17 @@ def test_a_passes(tmp_path):
 def test_b_fails(tmp_path):
     (tmp_path / "written").write_text("x")
     assert 1 == 2
+"""
+HANGS = """
+import time
+
+
+def test_a_hangs():
+    time.sleep(60)
+
+
+def test_b_passes():
+    pass
 """
 
 
@@ -141,10 +153,39 @@ def test_a_passed_test_leaves_no_directory_behind_and_a_failed_one_keeps_its_own
     assert kept == ["test_b_fails0"]
 
 
+def test_a_test_that_hangs_fails_by_name_inside_its_bound_and_the_run_goes_on(tmp_path):
+    """The repo's config gives every test a bound. Here it is 2 s, so a test that sleeps 60 s
+    fails with its name after 2, and the test beside it still passes."""
+    (tmp_path / "test_scratch.py").write_text(HANGS)
+    started = time.monotonic()
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-n", "2", "-p", "no:cacheprovider"]
+        + ["-c", str(REPO / "pyproject.toml"), "--rootdir", str(tmp_path), "-o", "timeout=2"]
+        + ["--basetemp", str(tmp_path / "base"), str(tmp_path / "test_scratch.py")],
+        cwd=tmp_path,
+        env=outside_a_run(),
+        capture_output=True,
+        text=True,
+    )
+    took = time.monotonic() - started
+    assert ran.returncode == 1 and "1 failed, 1 passed" in ran.stdout, ran.stdout + ran.stderr
+    assert "FAILED test_scratch.py::test_a_hangs" in ran.stdout
+    assert "Timeout (>2.0s)" in ran.stdout
+    assert took < 30
+
+
+def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():
+    """A hang fails its test, and the run reaches its summary, long before the job is cut."""
+    bound = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["pytest"]["ini_options"]
+    job = re.search(r"timeout-minutes: (\d+)", (REPO / ".github/workflows/check.yml").read_text())
+    assert 0 < int(bound["timeout"]) * 4 <= int(job[1]) * 60
+
+
 def browser_tests(tmp_path, **more):
-    """A run of the browser tests on a machine with no browser on `PATH`: how it ended, and
-    what it printed."""
-    env = {name: value for name, value in outside_a_run().items() if name != "GITHUB_ACTIONS"}
+    """A run of the browser tests on a machine with no browser on `PATH` and none named in
+    `JSTACK_TEST_BROWSER`: how it ended, and what it printed."""
+    named = ("GITHUB_ACTIONS", "JSTACK_TEST_BROWSER")
+    env = {name: value for name, value in outside_a_run().items() if name not in named}
     (tmp_path / "bin").mkdir(exist_ok=True)
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:xdist"]

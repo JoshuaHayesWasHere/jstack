@@ -859,9 +859,9 @@ default | differs)
     if ! command -v jbus > /dev/null; then
         echo "not answered: jbus is not installed here"
     elif said=$(jbus answer "$n" --by "$by" --at "$at" "--$which" -- "$ANSWER" 2>&1); then
-        echo "$said"
+        printf '%s\n' "$said"
     else
-        echo "not answered: jbus said: $said"
+        printf 'not answered: jbus said: %s\n' "$said"
     fi ;;
 *) echo "not answered: say whether the answer is the default the thread took, default, or not, differs" ;;
 esac

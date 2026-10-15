@@ -22,6 +22,7 @@ jleak = "jleak.cli:main"
 dev = [
     "jsonschema>=4.26.0",
     "pytest>=8",
+    "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.6",
 ]
@@ -44,6 +45,10 @@ testpaths = ["tests"]
 # until the run ends. A test that fails keeps its directory, and only the last run's are kept.
 tmp_path_retention_policy = "failed"
 tmp_path_retention_count = 1
+# Each test has its own bound (pytest-timeout): one that waits on a browser, a server or a
+# subprocess that never answers fails with its name after this many seconds, and the run goes
+# on. Without it a hang ran until the job's limit and the log said nothing of which test.
+timeout = 120
 
 # The repo's lint commands are `uv run ruff check .` and `uv run ruff format --check .`.
 [tool.ruff]

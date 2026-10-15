@@ -30,6 +30,7 @@ that file.
 
 from __future__ import annotations
 
+import functools
 import itertools
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -174,9 +175,10 @@ class Pattern:
     def matches(self, facts: Facts) -> bool:
         return all(getattr(facts, name) in getattr(self, name, FACETS[name]) for name in FACETS)
 
-    @property
+    @functools.cached_property
     def needs(self) -> frozenset[str]:
-        """The sources of the facets it narrows: the ones that must have answered."""
+        """The sources of the facets it narrows: the ones that must have answered. Worked out
+        once: a pass judges every row against every pattern."""
         return frozenset(
             source
             for name, source in SOURCE.items()

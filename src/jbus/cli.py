@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -535,13 +536,45 @@ DECLARED = verbs.declared(jbus.__path__)
 RANKED = verbs.ranked(jbus.__path__)
 
 
+def _words_left(args: argparse.Namespace, extra: list[str]) -> list[str]:
+    """The user's words that Python 3.12.3's argparse left over, and what is left after them.
+
+    A verb's `words` follow its number and its options. That argparse fills `words` with
+    nothing when it reads the number, and hands the words back unparsed; later 3.12 releases
+    and 3.13 read them as words. So where `words` came back empty, every plain string left
+    over is a word, and so is everything after `--`."""
+    if getattr(args, "words", None) != [] or not extra:
+        return extra
+    words: list[str] = []
+    left: list[str] = []
+    after = False
+    for given in extra:
+        if after or not given.startswith("-"):
+            words.append(given)
+        elif given == "--":
+            after = True
+        else:
+            left.append(given)
+    args.words = words
+    return left
+
+
+def _usage(parser: argparse.ArgumentParser) -> str:
+    """The parser's own usage, as Python 3.13 and later print it: 3.12 puts the ` ...` after
+    the verbs on a line of its own."""
+    usage = parser.format_usage().removeprefix("usage: ").rstrip("\n")
+    return re.sub(r"\n *\.\.\.$", " ...", usage)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jbus", description=__doc__, allow_abbrev=False)
     parser.add_argument("--project", help="the project's name in the config, when it has several")
     commands = parser.add_subparsers(dest="command", required=True)
     for verb in DECLARED.values():
         verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))
+    parser.usage = _usage(parser)
     args, extra = parser.parse_known_args(argv)
+    extra = _words_left(args, extra)
     for given in extra:
         column = given.lstrip("-").split("=")[0].replace("-", "_")
         if column in queue.DERIVED:
