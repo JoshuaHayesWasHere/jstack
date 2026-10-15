@@ -262,21 +262,16 @@ def sound(
     return code
 
 
-def recover(
-    config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]
-) -> int:
+def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]) -> None:
     """A unit outside the pass went: end its streak, and tell each project it recovered when
     the streak had alerted."""
     line = ok(config.state_dir, key, user=config.user)
     if not line:
-        return 0
+        return
     wake.notify(line)
-    code = 0
     for one in config.projects:
         try:
             deliver(wake.Pass(config, one, now, say), line, desk=False)
         except Exception as error:
             say(f"recovered failed {one.name}: {why(error, one)}")
-            code = 1
     told(config.state_dir, key)
-    return code

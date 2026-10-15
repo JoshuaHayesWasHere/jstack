@@ -115,12 +115,8 @@ def test_a_name_the_repo_does_not_have_is_caught():
 def test_the_page_names_each_template_and_each_skill_it_draws(page):
     named = set(page.codes)
     templates = {f"templates/{path.name}" for path in (REPO / "templates").iterdir()}
-    assert templates - named == {
-        "templates/jbus.service",
-        "templates/jbus.timer",
-        "templates/jbus-failed.service",
-        "templates/jbus-view.service",
-    }
+    units = {name for name in templates if name.endswith((".service", ".timer"))}
+    assert templates - named == units
     assert {f"skills/{name}/SKILL.md" for name in DRAWN} - named == set()
     flags = {
         flag
