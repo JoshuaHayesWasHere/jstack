@@ -1218,15 +1218,18 @@ def stack(
     runs: Callable[[str], dict[str, Any]],
     code: dict[str, Any] | None = None,
     found: tuple[panels.Panel, ...] | None = None,
+    names: list[str] | None = None,
 ) -> dict[str, Any]:
     """What `/stack.json` holds: the machine once, the steps of the line, and a summary of
-    each project.
+    each project of `names`, or of each the state directory has.
 
     The machine is what one jbus and one room serve every project with: the pass and the
     timer, the room and the plan's use, and the runner units. Each project is read as
     `/state.json` reads it, by a `Read` of its own, and every `Read` shares one `machine`, so
     systemd, the room script and the runner units are asked once for the answer, however
     many projects there are. `runs` is asked once for each repo, and keeps its answer.
+    The machine says each of its own sources that is not ok, but for one a session writes,
+    under `unwell`: no project's row says it.
     """
     found = panels.found() if found is None else found
     keys(found)
@@ -1241,10 +1244,18 @@ def stack(
         "room": keep(base.panel("room")["room"], shapes["room"]["room"]),
         "runners": keep(checks["runners"], shapes["checks"]["checks"]["runners"]),
         "runners_read": checks["runners_read"],
+        "unwell": [
+            {"name": one.name, "state": seen["state"]}
+            for panel in found
+            for one in panel.sources
+            if one.machine
+            and one.by != "session"
+            and (seen := _source(one.name, one.by, now=now, **one.seen(base)))["state"] != "ok"
+        ],
     }
     every = [
         keep(summary(Read(sources, name, now, runs, code, found, shared)), SUMMARY)
-        for name in projects(sources)
+        for name in (projects(sources) if names is None else names)
     ]
     line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
     return {"at": iso(now), "machine": machine, "steps": line, "projects": every}

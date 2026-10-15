@@ -590,8 +590,9 @@
     var load = r.load[0] == null ? null : pct(r.load[0], r.cores), tmp = r.tmp ? pct(r.tmp.used, r.tmp.total) : null;
     function used(key, name) { var x = plan[key]; return name + " " + (x && x.used != null ? '<b>' + x.used + '%</b>' : "unknown"); }
     var over = ["five_hour", "seven_day"].some(function (k) { return plan[k] && plan[k].used != null && plan[k].used >= l.plan; });
-    return mcard(stopped ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i><b>' + (stopped ? "stopped" : "passing") + '</b> <small>' + (end == null ? "never" : hm(end)) + '</small>',
-        stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project.") +
+    var bad = m.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ");
+    return mcard(stopped || bad ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i><b>' + (stopped ? "stopped" : "passing") + '</b> <small>' + (end == null ? "never" : hm(end)) + '</small>' + (bad ? ' <small class="bad">' + esc(bad) + '</small>' : ""),
+        (stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project.") + (bad ? " Not read, for every project: " + bad + "." : "")) +
       mcard(ok ? "ok" : "op", "room", ok ? "ok" : r.answer === "wait" ? "full" : "unknown", "Machine room: " + (ok ? "room to launch" : r.why) + ". Load " + (r.load[0] == null ? "unknown" : r.load[0]) + " of " + r.cores + " cores.",
         '<span class="mbs">' + bar(load, l.load) + bar(tmp, l.slots) + '</span>') +
       mcard(!m.runners_read || up < us.length ? "op" : "ok", "runners", m.runners_read ? up + ' <small>of ' + us.length + ' active</small>' : '<small class="bad">not known</small>',

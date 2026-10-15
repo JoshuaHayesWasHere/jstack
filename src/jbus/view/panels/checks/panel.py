@@ -77,9 +77,9 @@ def runners(read: Read) -> list[dict[str, str]] | None:
 
 def tally(runs: list[dict[str, Any]]) -> dict[str, list[int]]:
     """Which runs run now, which wait for a runner, and which failed, each by its place in
-    `runs`: a branch once, by the newest run that failed of the workflows whose newest run
-    failed. The runs are oldest first, as `github.GitHub.runs` gives them. It is the one
-    rule: the card and its drawer draw these, and the overview counts them."""
+    `runs`: a branch once, while the newest run of one of its workflows failed, by the
+    oldest of those runs. The runs are oldest first, as `github.GitHub.runs` gives them.
+    It is the one rule: the card and its drawer draw these, and the overview counts them."""
     newest = {(one.get("branch"), one.get("name")): at for at, one in enumerate(runs)}
     failed: dict[Any, int] = {}
     for at in sorted(newest.values()):

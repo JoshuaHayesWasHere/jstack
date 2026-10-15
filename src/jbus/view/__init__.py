@@ -353,13 +353,12 @@ class App:
     def _stack(self) -> dict[str, Any]:
         """What `/stack.json` holds. The runs of each repo are asked at once, each in a thread
         of its own, so no repo waits on another's `gh`: the summaries then take what is kept."""
-        repos = sorted({state.repo(self.sources, name) for name in state.projects(self.sources)})
-        repos = [repo for repo in repos if repo]
+        names = state.projects(self.sources)
+        repos = sorted({state.repo(self.sources, name) for name in names} - {""})
         with ThreadPoolExecutor(max_workers=max(1, len(repos))) as pool:
             asked = dict(zip(repos, pool.map(self.github.runs, repos), strict=True))
-        built = state.stack(
-            self.sources, self.clock(), lambda repo: asked[repo], self.code.said(), self.panels
-        )
+        runs = lambda repo: asked.get(repo) or self.github.runs(repo)  # noqa: E731
+        built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
         return clean(built, tuple(repos))
 
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:

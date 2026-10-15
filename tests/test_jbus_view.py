@@ -642,9 +642,8 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     a_noticed(scene, ("tea-kettle", "new", 5, {}), ("jam-jar", "dropped", 9, {}))
     served = Served(scene)
     try:
-        stack = served.json("/stack.json?project=demo")
+        stack = served.json("/stack.json")
         demo = served.json("/state.json?project=demo")
-        larder = served.json("/state.json?project=larder")
     finally:
         served.close()
     assert stack["at"] == iso(NOW)
@@ -652,7 +651,8 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         *(one["key"] for one in demo["steps"]),
         "unknown",
     ]
-    assert list(stack["machine"]) == ["jbus", "room", "runners", "runners_read"]
+    assert list(stack["machine"]) == ["jbus", "room", "runners", "runners_read", "unwell"]
+    assert stack["machine"]["unwell"] == []
     assert stack["machine"]["jbus"]["stopped"] is False
     assert stack["machine"]["jbus"]["status"] == {
         "last_pass": demo["jbus"]["status"]["last_pass"],
@@ -680,12 +680,21 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
             "threads": None,
             "blind": 1,
             "unwell": [
-                {"name": one["name"], "state": one["state"]}
-                for one in larder["sources"]
-                if one["state"] != "ok"
-                and one["by"] != "session"
-                and one["name"] not in ("jbus.timer", "status.json", "pass.json", "runner units")
-            ],
+                {"name": name, "state": "missing"}
+                for name in (
+                    "work.json",
+                    "waiting-on-user.json",
+                    "transitions.jsonl",
+                    "events.jsonl",
+                    "main.json",
+                    "checks.json",
+                    "stall.json",
+                    "wake.json",
+                    "sent.json",
+                    "merge.log",
+                )
+            ]
+            + [{"name": "GitHub", "state": "unreadable"}],
         },
     }
     pantry = by["pantry"]
@@ -716,6 +725,37 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert "hydra" not in json.dumps(stack)
 
 
+def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_row(
+    tmp_path, monkeypatch
+):
+    """The room check does not run and `status.json` cannot be read: the machine says both,
+    each project's page still lists them, and no row of the overview counts them."""
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    room = scene.bin / "room.sh"
+    room.write_text("LOAD=85\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\nexit 3\n")
+    monkeypatch.setattr(room_panel, "ROOM", room)
+    (scene.state_dir / "status.json").write_text("{not json")
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    assert stack["machine"]["room"]["answer"] == "unknown"
+    assert stack["machine"]["unwell"] == [{"name": "status.json", "state": "unreadable"}]
+    assert "the room check did not run" in [one["line"] for one in demo["blind"]]
+    assert {"name": "status.json", "by": "jbus"} | {"state": "unreadable"} in [
+        {key: one[key] for key in ("name", "by", "state")} for one in demo["sources"]
+    ]
+    by = {one["name"]: one["health"] for one in stack["projects"]}
+    assert (by["demo"]["blind"], by["demo"]["unwell"]) == (1, [])
+    assert by["larder"]["blind"] == 1
+    assert all(
+        "status.json" not in [one["name"] for one in health["unwell"]] for health in by.values()
+    )
+
+
 def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path, monkeypatch):
     """systemd, the room script and the runner units are asked once for an answer of
     `/stack.json`, with three projects as with one, and the runs of GitHub once for each
@@ -736,7 +776,7 @@ def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path,
     monkeypatch.setattr(room_panel, "ROOM", room)
     served = Served(scene)
     try:
-        served.json("/stack.json?project=demo")
+        served.json("/stack.json")
         assert sorted(calls.read_text().splitlines()) == [
             "room",
             "systemctl list-units",
@@ -748,7 +788,7 @@ def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path,
             "api repos/acme/pantry/actions/runs?per_page=40",
         ]
         calls.write_text("")
-        served.json("/stack.json?project=demo")
+        served.json("/stack.json")
         assert len(calls.read_text().splitlines()) == 3
         assert len([one for one in scene.asked() if "actions/runs" in one]) == 2
     finally:
