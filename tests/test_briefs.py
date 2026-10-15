@@ -243,6 +243,87 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
         assert dispatch.designed(text.replace(line + "\n", "") + RESULT + said) != ""
 
 
+PROOFS = {
+    "a test path": ("tests/test_briefs.py passes", "a test"),
+    "a test's name": ("test_a_brief_is_proven_by_what_is_outside_the_agent", "a test"),
+    "the tests": ("the parser tests above", "a test"),
+    "a command": ("`jbus --project jstack queue show` prints the row", "a test"),
+    "make": ("make check exits 0", "a test"),
+    "a metric": ("the p95 latency of a pass, from jgauge", "a metric"),
+    "a percentage": ("under 2% of passes gated", "a metric"),
+    "a dataset": ("the ten past briefs of the eval dataset", "a dataset"),
+    "an external judge": ("CI on the pull request", "an external judge"),
+    "a judge by name": ("an external judge, blind to which brief is which", "an external judge"),
+    "the user": ("the user, on the page", "the user"),
+    "the operator": ("the operator's word on the screenshot", "the user"),
+    "the owner": ("the owner of the repo signs it off", "the user"),
+    "a review by the user": ("reviewed by the user", "the user"),
+    "a test the crewmate runs": ("the crewmate runs tests/test_briefs.py", "a test"),
+}
+
+REFUSED = {
+    "an empty line": ("", "is empty"),
+    "white space": ("   ", "is empty"),
+    "the crewmate": ("reviewed by crewmate", "names the crewmate, the agent's own word"),
+    "the reviewer": ("reviewed by reviewer", "names the reviewer, the agent's own word"),
+    "the crew": ("the crew says so", "names the crew, the agent's own word"),
+    "the agent": ("the agent checks it", "names the agent, the agent's own word"),
+    "self": ("self-review", "names the agent itself, the agent's own word"),
+    "itself": ("it checks itself", "names the agent itself, the agent's own word"),
+    "the model": ("the model judges it", "names the model, the agent's own word"),
+    "a review alone": ("a careful review", "names a review alone, the agent's own word"),
+    "nothing": ("it works", "names nothing outside the agent"),
+}
+
+ASKED = "(name a test, a command, a metric, a dataset, an external judge or the user)"
+
+
+@pytest.mark.parametrize("case", PROOFS)
+def test_a_proof_that_names_something_outside_the_agent_holds(case):
+    said, kind = PROOFS[case]
+    proof = parse.proof(said)
+    assert (proof.said, proof.kind, proof.why) == (said, kind, "")
+
+
+@pytest.mark.parametrize("case", REFUSED)
+def test_a_proof_by_the_agents_own_word_is_refused_with_one_line_saying_why(case):
+    said, fault = REFUSED[case]
+    proof = parse.proof(said)
+    assert proof.kind == ""
+    assert proof.why == f"brief's Proves it: line {fault} {ASKED}"
+
+
+def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until_filled_in():
+    lines = TEMPLATE.read_text().splitlines()
+    (line,) = [line for line in lines if line.startswith("Proves it:")]
+    after = lines.index("Done when:") + 1
+    while lines[after].startswith("- "):
+        after += 1
+    assert lines[after] == line
+    text = written(by_a_scout=False)
+    assert parse.brief("alpha", text).proof.why == (
+        f"brief's Proves it: line is the template's own text {ASKED}"
+    )
+    assert dispatch.proven(text) == parse.brief("alpha", text).proof.why
+    filled = text.replace(line, "Proves it: tests/test_alpha.py passes")
+    assert parse.brief("alpha", filled).proof.kind == "a test"
+    assert dispatch.proven(filled) == ""
+
+
+def test_a_brief_with_no_proves_it_line_is_launched_as_before_and_one_under_its_head_is_not_read():
+    """Briefs queued before the line was asked for have none: they are grandfathered."""
+    assert parse.brief("alpha", BRIEF).proof is None
+    assert dispatch.proven(BRIEF) == ""
+    under = BRIEF + RESULT + "Proves it: reviewed by crewmate\n"
+    assert parse.brief("alpha", under).proof is None
+    assert dispatch.proven(under) == ""
+    first = BRIEF + "Proves it: the crewmate\nProves it: tests/test_alpha.py\n"
+    assert (
+        dispatch.proven(first)
+        == f"brief's Proves it: line names the crewmate, the agent's own word {ASKED}"
+    )
+
+
 def test_handoff_sections_are_read_by_heading():
     handoff = parse.handoff(HANDOFF)
     assert handoff.title == "demo: handoff, 2026-10-10 16:50"
