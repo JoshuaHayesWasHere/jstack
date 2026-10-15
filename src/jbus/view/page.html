@@ -184,8 +184,6 @@
   .lane.g { margin-top: 9px; }
   .lane.e-user { border-left-color: var(--op); } .lane.e-crew { border-left-color: var(--msg); } .lane.e-rev { border-left-color: var(--rev); } .lane.e-ci { border-left-color: var(--scout); } .lane.e-ok { border-left-color: var(--ok); }
   .lane.e-unknown { border-left: 5px dashed var(--op); }
-  .lane.empty { background: transparent; padding-top: 0; padding-bottom: 0; }
-  .lane.empty .laneh b { font-weight: 400; color: var(--dim); }
   .laneh { display: inline-flex; align-items: center; gap: 9px; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 1px 5px 1px 0; cursor: pointer; text-align: left; min-width: 0; font-size: 15.5px; }
   .laneb { min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
   .mdots { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -199,7 +197,7 @@
   body.stopped .frz .tw > :not(.tok), body.gone .tw > :not(.tok) { opacity: 0.6; }
   .tw.off > :not(.tok) { opacity: 0.16; }
   body.stopped .frz .yg.live .tok { border-style: solid; opacity: 1; }
-  body.stopped .line.frz .lane:not(.empty) { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
+  body.stopped .line.frz .lane { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--hold-bg) 7.5px 15px); }
   .folded { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; padding: 3px 10px 3px 15px; }
   .folded .tag { margin-right: 4px; }
   .folded button { border: 1.5px solid var(--line); border-radius: 1249px; background: transparent; padding: 0 10px; cursor: pointer; font-size: 14px; color: var(--dim); }
@@ -330,7 +328,6 @@
     .keyk, .keyk:first-of-type { margin-left: 0; }
     .line { gap: 5px; }
     .lane { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 8px 8px; }
-    .lane.empty { padding-bottom: 0; }
     .laneh { min-height: 44px; width: 100%; font-size: 16px; }
     .laneb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .tw { display: flex; gap: 6px; }
