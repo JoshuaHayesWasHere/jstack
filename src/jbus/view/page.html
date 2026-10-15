@@ -457,6 +457,54 @@
     .vw.wide { grid-column: 1 / -1; }
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
   }
+  /* each band folds to its header and one line, or is hidden from the page, and stays so: a
+     view in front holds `data-fv`, its key, and `data-st`, open, folded or hidden */
+  [data-st="hidden"] { display: none !important; }
+  [data-st="folded"] .fv-body { display: none !important; }
+  .fv-sum { display: none; color: var(--dim); font-size: 14.5px; min-width: 0; }
+  [data-st="folded"] .fv-sum { display: inline; }
+  .fv-c { display: inline-flex; gap: 2px; align-items: center; margin-left: auto; flex: none; }
+  .fv-b { position: relative; width: 24px; height: 22px; padding: 0; border: 1.5px solid transparent; border-radius: 7px; background: transparent; cursor: pointer; color: var(--dim); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .fv-b:hover { border-color: var(--line); color: var(--fg); }
+  .fv-b::before { content: ""; width: 7px; height: 7px; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
+  .fv-b[aria-expanded="false"]::before { transform: translateX(-2px) rotate(-45deg); }
+  .fv-b.x::before, .fv-b.x::after { content: ""; position: absolute; width: 12px; height: 2px; border: 0; background: currentColor; transform: rotate(45deg); }
+  .fv-b.x::after { transform: rotate(-45deg); }
+  .fv-r { display: flex; align-items: center; gap: 4px 10px; min-width: 0; }
+  /* The cards' two buttons stand in a column of their own beside them, which costs no line. */
+  #cards-w { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 4px; }
+  #cards-w > .vitals, #cards-sum { grid-column: 1; grid-row: 1; }
+  #cards-c { grid-column: 2; grid-row: 1; flex-direction: column; align-self: start; margin: 0; }
+  [data-st="folded"]#cards-w #cards-sum { display: block; align-self: center; font-size: 15.5px; color: var(--fg); border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); padding: 2px 12.5px; }
+  [data-st="folded"]#cards-w #cards-c { flex-direction: row; }
+  .mh { margin: 18px 0 4px; flex-wrap: wrap; }
+  .mh .sl { margin: 0; white-space: nowrap; }
+  .mh .fv-sum { order: 3; flex-basis: 100%; }
+  .proj .pjh .fv-c { margin-left: 0; }
+  .yb { display: flex; flex-wrap: wrap; gap: 7.5px 17.5px; align-items: center; flex: 1 1 auto; min-width: 0; }
+  .thrs { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; flex: 1 1 auto; min-width: 0; }
+  .thrs:empty { display: none; }
+  .thh .fv-c { margin-left: 8px; }
+  .you > .fv-c { align-self: flex-start; }
+  .kept { position: relative; font-size: 14.5px; }
+  .kept summary { list-style: none; cursor: pointer; font-weight: 600; color: var(--op); border: 1.5px solid var(--op); border-radius: 1249px; padding: 0 11px; white-space: nowrap; }
+  .kept summary::-webkit-details-marker { display: none; }
+  .kept-l { position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; display: grid; gap: 4px; min-width: 230px; max-width: calc(100vw - 20px); background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2); }
+  .kb { text-align: left; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg); padding: 2px 10px; cursor: pointer; font-size: 14.5px; }
+  .kb:hover { border-color: var(--fg); }
+  .kb.all { font-weight: 700; }
+  @media (max-width: 899.98px) {
+    .mh { margin: 0; display: flex; }
+    .mh .sl { display: none; }
+  }
+  @media (max-width: 640px) {
+    .fv-b { width: 44px; height: 44px; }
+    .kept summary, .kb { min-height: 44px; display: flex; align-items: center; }
+    .yb { gap: 6px; }
+    .thrs { display: block; }
+    #cards-w { display: flex; flex-direction: column; }
+    #cards-c, [data-st="folded"]#cards-w #cards-c { flex-direction: row; align-self: flex-end; }
+  }
   @media (max-width: 640px) {
     .pj, .hc, .rcell, a.tok, .pjh .go, .back, .folded button { min-height: 44px; display: inline-flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
@@ -470,29 +518,39 @@
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
   <span class="readat" id="readat"></span>
+  <details class="kept" id="kept" hidden><summary id="kept-s"></summary><div class="kept-l" id="kept-l"></div></details>
   <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
   <button type="button" class="theme" id="theme">Auto</button>
 </header>
 <div class="shell">
 <aside class="side" id="side" aria-label="Every project, and this machine">
   <nav id="projects" aria-label="Projects"></nav>
-  <div class="sl" id="mach-h">This machine</div>
-  <section class="mach" id="machine" aria-labelledby="mach-h"></section>
+  <div id="mach-w" data-fv="machine" data-fv-name="This machine">
+    <div class="fv-r mh"><span class="sl" id="mach-h">This machine</span><span class="fv-sum" id="mach-sum"></span><span class="fv-c" id="mach-c"></span></div>
+    <section class="mach fv-body" id="machine" aria-labelledby="mach-h"></section>
+  </div>
 </aside>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
   <div id="stack" hidden>
-    <div class="you" id="waits" aria-label="Waits on you, in every project"><span class="youn" id="wtotal"></span><div class="yrows" id="yrows"></div></div>
+    <div class="you" id="waits" aria-label="Waits on you, in every project" data-fv="/waits" data-fv-name="Waits on you"><span class="youn" id="wtotal"></span><div class="yrows fv-body" id="yrows"></div><span class="fv-c" id="waits-c"></span></div>
     <div id="rows" aria-label="Every project"></div>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
-  <div class="vitals" id="vitals" aria-label="This project: its threads, checks, bus and blind spots"></div>
+  <div id="cards-w">
+  <div class="vitals fv-body" id="vitals" aria-label="This project: its threads, checks, bus and blind spots"></div>
+  <span class="fv-sum" id="cards-sum"></span><span class="fv-c" id="cards-c"></span>
+  </div>
   <div id="band"></div>
   <div class="you frz" id="you" aria-label="Waits on you"></div>
-  <div class="filters" id="filters" role="group" aria-label="Show tokens held by"><span id="fbs" style="display:contents"></span></div>
+  <div id="line-w">
+  <div class="filters" id="filters" role="group" aria-label="Show tokens held by"><span id="fbs" style="display:contents"></span><span class="fv-c" id="line-c"></span></div>
+  <div class="fv-body" id="line-b">
   <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
   <ol class="line frz" id="line" aria-label="The line: every open task on its step"></ol>
+  </div>
+  </div>
   </div>
 </main>
 </div>
@@ -759,6 +817,8 @@
   }
   function renderTop() {
     var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
+    put($("cards-c"), foldCtl(PROJECT + "/cards", "This project's cards", "vitals"));
+    say($("cards-sum"), cards.map(function (c) { return c.sum; }).filter(Boolean).join(", "));
     put($("vitals"), cards.map(function (c) {
       return '<div class="vw' + (c.cls || "") + '"><button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-description="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>' + hint("card:" + c.k, c.tag) + '</div>';
     }).join(""));
@@ -767,7 +827,7 @@
   function oldest(items) { var ts = items.map(function (w) { return ms(w.since); }).filter(function (v) { return v != null; }); return ts.length ? short(NOW - Math.min.apply(null, ts)) : ""; }
   function renderYou() {
     var n = S.waiting.length;
-    var h = '<button type="button" class="youn" data-open="you" aria-description="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b> <span>wait on you</span></button>' + hint("term:waits", "Waits on you");
+    var h = '<button type="button" class="youn" data-open="you" aria-description="' + n + ' things wait on you: open the lists"><b data-gloss="count:waits">' + n + '</b> <span>wait on you</span></button>' + hint("term:waits", "Waits on you") + '<span class="yb fv-body" id="you-b">';
     KINDS.forEach(function (k) {
       var items = waits(k), age = oldest(items), live = k === "gate";
       if (!items.length && (k === "hold" || k === "config" || k === "left")) return;
@@ -780,7 +840,7 @@
       h += '<span class="yg"><button type="button" class="tok ' + (faint ? "sans faint" : "w-user") + '" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it">' + (faint ? "" : '<i class="sh"></i>') + '<b style="font-family:var(--sans)"' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb" style="font-family:var(--sans)">' + esc(a.said.label) + '</span></button>' + (faint ? hint(a.said.tip, a.said.label) : "") + '</span>';
     });
     $("you").className = "you frz" + (n ? "" : " none");
-    put($("you"), h);
+    put($("you"), h + '</span><span class="fv-c">' + foldCtl(PROJECT + "/you", "Waits on you", "you-b") + '</span>');
   }
   function renderLine() {
     var order = ["user", "crew", "home", "rev", "ci", "bus", "dep", "unknown"], rank = { user: 0, bus: 1, dep: 2 };
@@ -806,6 +866,7 @@
     });
     if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
     put($("line"), html);
+    put($("line-c"), foldCtl(PROJECT + "/line", "The line", "line-b"));
     $("calm").hidden = S.tasks.length > 0;
     applyFilter();
   }
@@ -870,9 +931,13 @@
         var w = waitsOf(p), bad = p.health ? amber(p) : [];
         return '<a class="sp" href="' + esc(href(p.name)) + '"' + (p.name === PROJECT ? ' aria-current="page"' : "") + ' title="' + esc(p.name + ": " + w + " wait on you" + (bad.length ? ". " + bad.join(". ") : "")) + '">' + (p.health ? '<i class="hd' + (bad.length ? " op" : "") + '"></i>' : "") + '<span class="nm">' + esc(p.name) + '</span>' + n(w) + '</a>';
       }).join(""));
-    var m = machineOf();
-    $("mach-h").hidden = !m;
-    put($("machine"), m ? machineRow(m) : "");
+    var m = machineOf(), row = m ? machineRow(m) : "";
+    $("mach-w").hidden = !m;
+    put($("mach-c"), foldCtl("machine", "This machine", "machine"));
+    /* Folded, it is one line: the pass, and how many of its four want a look. */
+    var looks = (row.match(/class="mi e-op"/g) || []).length;
+    say($("mach-sum"), m ? (m.jbus.stopped ? "jbus stopped" : "jbus passing") + ", " + (looks ? plural(looks, "wants", "want") + " a look" : "all well") : "");
+    put($("machine"), row);
   }
   /* The header: where the page is, All then the project, each a link, and when it was read. */
   function renderHeader() {
@@ -896,18 +961,18 @@
   }
   /* The Threads band of a project, as the threads panel draws it: with links to the project's
      page where `away`, as on the row of every project. */
-  function band(name, threads, away) { return added("band", { name: name, threads: threads, away: away }).map(function (a) { return a.said; }).join(""); }
+  function band(name, threads, away) { return added("band", { name: name, threads: threads, away: away, fold: away ? "" : name + "/threads" }).map(function (a) { return a.said; }).join(""); }
   function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
-    var held = STACK.steps.filter(function (s) { return p.steps[s.key]; });
-    var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a></div>';
-    out += '<div class="chips">' + health(p).filter(function (x) { return x[3] !== "threads"; }).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
+    var held = STACK.steps.filter(function (s) { return p.steps[s.key]; }), key = "/row/" + p.name, looks = amber(p).length;
+    var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><span class="fv-sum">' + (looks ? plural(looks, "thing wants", "things want") + " a look" : "all well") + '</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a><span class="fv-c">' + foldCtl(key, p.name) + '</span></div>';
+    out += '<div class="fv-body" id="' + fvId(key) + '"><div class="chips">' + health(p).filter(function (x) { return x[3] !== "threads"; }).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
     out += band(p.name, p.threads, true);
     var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
     if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
     if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b data-gloss="count:lane">' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
     if (!p.open) out += '<p class="empty-q"><i class="dot"></i> nothing open</p>';
-    return out;
+    return out + '</div>';
   }
   function renderStack() {
     var ps = STACK.projects, n = ps.reduce(function (t, p) { return t + p.waits; }, 0);
@@ -915,12 +980,19 @@
     put($("wtotal"), '<b data-gloss="count:waits">' + n + '</b><span>wait on you</span>');
     keyed($("yrows"), "div", "yrow", ps.map(function (p) { return { key: p.name, html: waitRow(p) }; }));
     keyed($("rows"), "article", "proj", ps.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
+    [].forEach.call($("rows").children, function (a) { setFv(a, "/row/" + a.getAttribute("data-key"), a.getAttribute("data-key")); });
+    put($("waits-c"), foldCtl("/waits", "Waits on you", "yrows"));
   }
   function noSuch() {
     return '<span class="big">No project named <code>' + esc(NOSUCH) + '</code></span><p style="margin:0">jbus looks after no project of that name: a retired project is not shown. <a href="#/">Every project</a></p>';
   }
   var drawnOnce = false;
   function render() {
+    var had = foldFocus();
+    drawAll();
+    fold(); refocus(had);
+  }
+  function drawAll() {
     document.body.classList.toggle("gone", gone);
     renderHeader();
     $("none").hidden = !NOSUCH;
@@ -938,6 +1010,8 @@
     else {
       if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
       renderTop(); put($("band"), band(PROJECT, S.threads, false)); renderYou(); renderLine();
+      setFv($("cards-w"), PROJECT + "/cards", "This project's cards"); setFv($("band"), PROJECT + "/threads", "Threads");
+      setFv($("you"), PROJECT + "/you", "Waits on you"); setFv($("line-w"), PROJECT + "/line", "The line");
     }
     if (tipBtn && !tipBtn.isConnected) refind();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
@@ -1278,6 +1352,76 @@
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
     return ps.length ? ps[(ps.indexOf(PROJECT) + 1) % ps.length] : PROJECT;
   }
+  /* ---------- folding: every band is drawn, and each can be folded or hidden ---------- */
+  /* A band is open, folded to its header and its one line, or hidden from the page. FOLD holds
+     each band that is not open, by its key, and is kept in the browser as the theme is:
+     `machine` is the sidebar's on every view, `/waits` and `/row/<project>` are on every
+     project's view, and `<project>/<band>` on a project's page. A view in front holds its key in
+     `data-fv`, and `fold` sets its `data-st` and its button's `aria-expanded` from FOLD after
+     each drawing: a fold draws nothing again and asks nothing. Show all forgets every one. */
+  var FOLDKEY = "jbus-view-fold", FOLD = {}, foldHit = { at: 0, on: null };
+  function loadFold() {
+    try { var v = JSON.parse(localStorage.getItem(FOLDKEY) || "{}"); FOLD = v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { FOLD = {}; }
+  }
+  function saveFold() { try { if (Object.keys(FOLD).length) localStorage.setItem(FOLDKEY, JSON.stringify(FOLD)); else localStorage.removeItem(FOLDKEY); } catch (e) {} }
+  function stOf(key) { var v = FOLD[key]; return v === "folded" || v === "hidden" ? v : "open"; }
+  /* The id of a band's body: its key, with what an id cannot hold written as a code. */
+  function fvId(key) { return "fv-" + key.replace(/[^A-Za-z0-9_-]/g, function (c) { return "_" + c.charCodeAt(0).toString(16); }); }
+  /* A band's two buttons: fold, which says whether the band is whole, and hide. */
+  function foldCtl(key, title, body) {
+    return '<button type="button" class="fv-b" data-fold="' + esc(key) + '" aria-expanded="true" aria-controls="' + esc(body || fvId(key)) + '" aria-label="' + esc(title) + '" title="Fold to one line"></button>' +
+      '<button type="button" class="fv-b x" data-hide="' + esc(key) + '" aria-label="Hide ' + esc(title) + '" title="Hide it: the header brings it back"></button>';
+  }
+  function setFv(el, key, title) {
+    if (el.getAttribute("data-fv") !== key) el.setAttribute("data-fv", key);
+    if (el.getAttribute("data-fv-name") !== title) el.setAttribute("data-fv-name", title);
+  }
+  function views() { return [].filter.call(document.querySelectorAll("[data-fv]"), function (el) { return !el.closest("[hidden]"); }); }
+  function fold() {
+    document.querySelectorAll("[data-fv]").forEach(function (el) { var s = stOf(el.getAttribute("data-fv")); if (el.getAttribute("data-st") !== s) el.setAttribute("data-st", s); });
+    document.querySelectorAll("[data-fold]").forEach(function (b) {
+      var whole = stOf(b.getAttribute("data-fold")) !== "folded", t = whole ? "Fold to one line" : "Unfold it whole";
+      if (b.getAttribute("aria-expanded") !== String(whole)) b.setAttribute("aria-expanded", String(whole));
+      if (b.title !== t) b.title = t;
+    });
+    /* The header says how many bands of the view in front are hidden or folded, and lists the
+       hidden ones, each a way back, and Show all. */
+    var vs = views(), hid = vs.filter(function (el) { return el.getAttribute("data-st") === "hidden"; }), n = vs.length - hid.length - vs.filter(function (el) { return el.getAttribute("data-st") === "open"; }).length;
+    $("kept").hidden = !hid.length && !n;
+    if ($("kept").hidden) $("kept").open = false;
+    say($("kept-s"), [hid.length ? hid.length + " hidden" : "", n ? n + " folded" : ""].filter(Boolean).join(", "));
+    put($("kept-l"), hid.map(function (el) { return '<button type="button" class="kb" data-show="' + esc(el.getAttribute("data-fv")) + '">Show ' + esc(el.getAttribute("data-fv-name")) + '</button>'; }).join("") + '<button type="button" class="kb all" data-showall="">Show all</button>');
+  }
+  function setFold(key, s) { if (s === "open") delete FOLD[key]; else FOLD[key] = s; saveFold(); fold(); }
+  function foldBtn(key, kind) { return document.querySelector("[data-" + kind + '="' + CSS.escape(key) + '"]'); }
+  /* A redraw may put a new button in place of the one that had the focus: it goes to the new. */
+  function foldFocus() { var a = document.activeElement, k = a && a.closest && a.closest("[data-fold], [data-hide]"); return k ? [k.hasAttribute("data-fold") ? "fold" : "hide", k.getAttribute("data-fold") || k.getAttribute("data-hide")] : null; }
+  function refocus(had) { if (had && (!document.activeElement || document.activeElement === document.body)) { var b = foldBtn(had[1], had[0]); if (b) b.focus(); } }
+  function act(b) {
+    var key;
+    if (b.hasAttribute("data-fold")) { key = b.getAttribute("data-fold"); setFold(key, stOf(key) === "folded" ? "open" : "folded"); }
+    else if (b.hasAttribute("data-hide")) { setFold(b.getAttribute("data-hide"), "hidden"); $("kept-s").focus(); }
+    else if (b.hasAttribute("data-show")) {
+      key = b.getAttribute("data-show"); setFold(key, "open");
+      if (!views().some(function (el) { return el.getAttribute("data-st") === "hidden"; })) $("kept").open = false;
+      (foldBtn(key, "fold") || $("main")).focus();
+    } else { FOLD = {}; saveFold(); fold(); $("kept").open = false; $("main").focus(); }
+  }
+  var FOLDS = "[data-fold], [data-hide], [data-show], [data-showall]";
+  /* Taken before a row's own click, which opens its project. A key is taken on its way down,
+     so the click a button makes of it does not undo it. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(FOLDS);
+    if (!b) return;
+    e.stopImmediatePropagation();
+    if (!(e.detail === 0 && foldHit.on === b && Date.now() - foldHit.at < 1000)) act(b);
+  });
+  document.addEventListener("keydown", function (e) {
+    var b = e.target.closest && e.target.closest(FOLDS);
+    if (!b || (e.key !== "Enter" && e.key !== " ") || e.ctrlKey || e.metaKey || e.altKey) return;
+    e.preventDefault(); e.stopImmediatePropagation(); foldHit = { at: Date.now(), on: b }; act(b);
+  }, true);
+  window.addEventListener("storage", function (e) { if (e.key === FOLDKEY) { loadFold(); fold(); } });
   /* The skip link puts the focus on the view and writes no address: a hash is a route here. */
   document.addEventListener("click", function (e) {
     if (!e.target.closest || !e.target.closest(".skip")) return;
@@ -1387,6 +1531,7 @@
   }
   window.addEventListener("hashchange", function () { route(); });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
+  loadFold();
   route();
   setInterval(poll, POLL);
 })();

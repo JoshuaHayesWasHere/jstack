@@ -26,30 +26,32 @@ function dThreads(role) {
 /* The band: the threads of today by role, those out first, each with its liveness and when it
    last wrote, and one that ended today dimmed. Those that ended before today, and those of no
    role, are folded into one way to the drawer. A pass that left no list is said as a blind
-   spot, never as none. `v.away` is a row of every project, whose ways lead to the project's page. */
+   spot, never as none. `v.away` is a row of every project, whose ways lead to the project's page.
+   On the project's own page it folds and hides by `v.fold`, its key: folded, it is its head. */
 function band(v) {
   var all = v.threads, away = v.away ? v.name : "";
   function more(target, label) {
     return away ? '<a class="pl" href="' + esc(href(away, target)) + '" title="' + esc(v.name + ": " + label) + '">' + esc(label) + '</a>' : '<button type="button" class="pl" data-open="' + esc(target) + '">' + esc(label) + '</button>';
   }
+  var ctl = v.fold ? '<span class="fv-c">' + foldCtl(v.fold, "Threads") + '</span>' : "", body = v.fold ? '<div class="thrs fv-body" id="' + fvId(v.fold) + '">' : "", end = v.fold ? '</div>' : "";
   var h = '<div class="thb' + (!all ? " blind" : threadsOf(all).length ? "" : " calm") + '" role="group" aria-label="Threads of ' + esc(v.name) + '"><div class="thh"><b>Threads</b>';
-  if (!all) return h + '<span>not known</span><span class="src">the last pass left no list: a blind spot, not none</span>' + fz() + hint("term:threads", "Threads") + '</div></div>';
+  if (!all) return h + '<span>not known</span><span class="src">the last pass left no list: a blind spot, not none</span>' + fz() + hint("term:threads", "Threads") + ctl + '</div>' + body + end + '</div>';
   var roled = all.filter(function (t) { return t.role !== "other"; }), shown = roled.filter(function (t) { return t.today; });
   var ended = shown.filter(function (t) { return !t.out; }).length, older = roled.length - shown.length, other = all.length - roled.length;
-  h += '<span>' + threadsOf(all).length + ' out</span>' + (ended ? '<span class="src">' + ended + ' ended today</span>' : "") + fz() + hint("term:threads", "Threads") + '</div>';
+  h += '<span>' + threadsOf(all).length + ' out</span>' + (ended ? '<span class="src">' + ended + ' ended today</span>' : "") + fz() + hint("term:threads", "Threads") + ctl + '</div>' + body;
   ROLES.slice(0, 4).forEach(function (r) {
     var mine = shown.filter(function (t) { return t.role === r[0]; }).sort(function (a, b) { return (b.out - a.out) || ((ms(b.updated) || 0) - (ms(a.updated) || 0)); });
     if (mine.length) h += '<div class="thr"><span class="rl">' + ROLE[r[0]][2] + '</span><span class="chs">' + mine.map(function (t) { return threadChip(t, away); }).join("") + '</span></div>';
   });
   if (older || other) h += '<div class="thr"><span class="rl">Folded</span><span class="chs">' + more("threads", (older ? older + " ended before today" : "") + (older && other ? ", " : "") + (other ? other + " of no role" : "")) + '</span></div>';
-  return h + '</div>';
+  return h + end + '</div>';
 }
 panel({
   gloss: { threads: ["Threads out", "Threads not settled: a turn is under way, or one waits. Quiet is a turn that has written nothing for a while, and hung one that has for longer. jbus says it and interrupts nothing."] },
   adds: { band: band },
   card: function () {
     var out = threadsOut();
-    return { at: 30, e: !S.threads || are(out, "hung") ? "op" : are(out, "quiet") ? "msg" : "ok", tag: "threads", st: fz(), frz: true,
+    return { at: 30, sum: S.threads ? plural(out.length, "thread", "threads") + " out" : "threads not known", e: !S.threads || are(out, "hung") ? "op" : are(out, "quiet") ? "msg" : "ok", tag: "threads", st: fz(), frz: true,
       val: S.threads ? '<b>' + out.length + ' out</b>' + ["quiet", "hung"].map(function (w) { return are(out, w) ? ' <small class="bad" style="flex-basis:auto">' + are(out, w) + " " + w + '</small>' : ""; }).join("") : '<small class="bad">not known</small>', viz: "",
       label: "Threads: " + (S.threads ? outSay(out) : "the last pass left no list of them") };
   },

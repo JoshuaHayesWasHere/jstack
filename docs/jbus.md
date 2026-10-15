@@ -132,6 +132,8 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 
 `&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
 
+Every band is always drawn, an empty one as its calm line. Each one has a fold button and a hide button in its header: the machine, the wait band, each project's row, and on a project's page the cards, the Threads band, the wait band and the line. Folded, a band shows its header and one line, its count or its health. A hidden band is listed under "n hidden" in the header, which brings it back, and Show all there unfolds and unhides everything. The browser keeps the choice, per band and per project, as it keeps the theme.
+
 A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
 
 A link to a project the state directory does not have, a retired one included, says there is no such project. A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
