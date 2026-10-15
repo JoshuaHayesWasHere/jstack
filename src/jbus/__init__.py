@@ -13,6 +13,8 @@ level is `quiet` now, and is read so.
 
 `IGNORED` is the keys of a project's table that nothing reads any more. A config that still
 has one loads, and `Config.ignored` names each, so that a pass can say so until it is removed.
+A webhook URL and key in any top-level table, one jbus reads or one nothing reads any more,
+are secret while they are in the file: `Config.tabled` keeps them, for `secrets` alone.
 
 A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
 top-level webhook: the monitor of every project, posted each event for the user of each one,
@@ -85,6 +87,7 @@ class Config:
     home_dir: Path
     user: jsettings.Settings
     ignored: tuple[str, ...] = ()
+    tabled: tuple[Hook, ...] = ()
     webhook: Hook = ("", "")
     blocking: Hook = ("", "")
 
@@ -127,8 +130,8 @@ class Config:
         return secrets(*self.hooks(), *strings)
 
     def hooks(self) -> list[Project | Hook]:
-        """Every webhook URL and key the config file holds, taken by a project or not."""
-        return [*self.projects, self.webhook, self.blocking]
+        """Every webhook URL and key the config file holds, read or not."""
+        return [*self.projects, self.webhook, self.blocking, *self.tabled]
 
     def state(self, project: Project) -> Path:
         """Where jbus keeps this project's queue, outbox, launches and what it has sent."""
@@ -186,6 +189,13 @@ def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
     """Each key of `IGNORED` a project still has, by name, whatever its value is."""
     found = ((key, one["name"]) for one in raw.get("project", []) for key in IGNORED if key in one)
     return tuple(f"{key} of project {name}" for key, name in found)
+
+
+def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
+    """The webhook URL and key of each top-level table that has one: secret, read or not."""
+    tables = (table for table in raw.values() if isinstance(table, dict))
+    found = ((table.get("webhook_url"), table.get("webhook_key")) for table in tables)
+    return tuple((str(url or ""), str(key or "")) for url, key in found if url or key)
 
 
 PAIR = ("webhook_url", "webhook_key")
@@ -277,6 +287,7 @@ def load(directory: Path | None = None) -> Config:
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
         user=user,
         ignored=ignored,
+        tabled=_tabled(raw),
         webhook=webhook,
         blocking=blocking,
     )

@@ -471,6 +471,16 @@ def test_a_stale_line_of_a_home_that_merges_is_no_hold_while_t3_code_cannot_be_a
     assert kitchen.lines("waiting") == []
 
 
+def test_the_url_and_key_of_a_table_nobody_reads_are_still_taken_out(kitchen, hook):
+    path = kitchen.config_dir / "config.toml"
+    table = f'[retired]\nwebhook_url = "{hook.url}/retired"\nwebhook_key = "another-key"\n'
+    kitchen.write(path, path.read_text() + table)
+    config = jbus.load()
+    assert config.tabled == ((f"{hook.url}/retired", "another-key"),)
+    said = f"post to {hook.url}/retired with another-key"
+    assert jbus.redact(said, config.secrets()) == "post to [redacted] with [redacted]"
+
+
 def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kitchen):
     for slug in ("one", "two", "three"):
         assert (
