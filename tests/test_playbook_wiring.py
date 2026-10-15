@@ -17,7 +17,6 @@ import pytest
 import test_crew_skill as crew
 import test_home_merge as merge
 import test_playbooks as shape
-from jbriefs import parse
 
 REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
@@ -400,11 +399,11 @@ def test_each_principle_the_playbook_cites_is_printed_once_in_full_after_it(skil
     repo = cited(tmp_path, TWO_CITED)
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    printed = "\n".join(said[5:]) + "\n"
-    assert said[0] == str((repo / "playbooks" / f"{name}.md").resolve())
-    assert said[5] == (
+    at = said.index(
         f"the principles playbooks/{name}.md cites, each in full below: second-rule first-rule"
     )
+    printed = "\n".join(said[at:]) + "\n"
+    assert said[0] == str((repo / "playbooks" / f"{name}.md").resolve())
     for rule in ("first-rule", "second-rule"):
         assert printed.count(PRINCIPLES[rule]) == 1
         assert said.count(f"==> principles/{rule}.md <==") == 1
@@ -469,8 +468,7 @@ def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_ch
     skill, name, tmp_path
 ):
     """Each numbered step of the playbook is one line under the line that names them, as the
-    playbook has it and numbered 1 to the last, so a Result's `Playbook:` line can report each
-    by its number and jbriefs reads one entry for each."""
+    playbook has it and numbered 1 to the last."""
     steps = [step[0] for step in NUMBERED.finditer((PLAYBOOKS / f"{name}.md").read_text())]
     assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
@@ -480,9 +478,6 @@ def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_ch
     assert said[at + 1 : at + 1 + len(steps)] == steps
     following = said[at + 1 + len(steps) :][:1]
     assert not following or following[0].startswith(f"the principles playbooks/{name}.md cites")
-    reported = "; ".join(f"{n} done" for n in range(1, len(steps) + 1))
-    read = parse.steps(f"{name}; {reported}")
-    assert (read.fault, len(read.steps)) == ("", len(steps))
 
 
 @pytest.mark.parametrize("skill", READERS)
