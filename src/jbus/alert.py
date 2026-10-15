@@ -1,11 +1,12 @@
 """A failure that repeats is told once, and so is its end. This is the only place a streak lives.
 
 A streak is the failures in a row of one thing, under a key: `pass` for a pass that did not
-finish, `webhook <project>` for a POST the webhook did not take, `jmerge <project>` for a
-`jmerge` that did not run. `failed` counts one and gives the alert line once the count
-has reached the threshold. `ok` ends the streak, and gives the recovered line when it had
-alerted. Everything else is silence: the failures before the threshold, the ones after
-the alert, and a success with no alert before it.
+finish, `webhook <project>` for a POST the project's own webhook did not take, `top-level
+webhook <project>` for a POST of the project's that the top-level webhook did not take,
+`jmerge <project>` for a `jmerge` that did not run. `failed` counts one and gives the alert
+line once the count has reached the threshold. `ok` ends the streak, and gives the recovered
+line when it had alerted. Everything else is silence: the failures before the threshold, the
+ones after the alert, and a success with no alert before it.
 
 A line is owed until `told` says it is queued, and only then is the streak marked: a
 caller that raises, or is killed, between the line and the queue gets the line again on
@@ -43,6 +44,10 @@ class Streak:
 
 def webhook(project: str) -> str:
     return f"webhook {project}"
+
+
+def top_level(project: str) -> str:
+    return f"{wake.TOP_LEVEL} webhook {project}"
 
 
 def jmerge(project: str) -> str:
@@ -163,15 +168,26 @@ def tell(run: wake.Pass, key: str, line: str | None) -> None:
 
 
 def flush(run: wake.Pass) -> int:
-    """Post what waits for the project, and keep its webhook's streak by how that went."""
-    state, key = run.config.state_dir, webhook(run.project.name)
-    went: list[str] = []
-    sent = run.box.flush(run.now, run.say, went=went.append)
-    for why in went:
-        said = (
-            failed(state, key, why, now=run.now, user=run.user)
-            if why
-            else ok(state, key, user=run.user)
-        )
-        tell(run, key, said)
+    """Post what waits for the project to each of its webhooks, and keep each webhook's streak
+    by how that went. The answer is how many the project's own webhook took.
+
+    The own webhook goes first, so an alert it gives is posted to the top-level one in the
+    same pass. A project with no top-level route any more ends that streak, with no line.
+    """
+    state, name = run.config.state_dir, run.project.name
+    sent = 0
+    for route in run.box.routes:
+        key = top_level(name) if route.top else webhook(name)
+        went: list[str] = []
+        took = run.box.flush(run.now, run.say, route=route, went=went.append)
+        sent = sent if route.top else took
+        for why in went:
+            said = (
+                failed(state, key, why, now=run.now, user=run.user)
+                if why
+                else ok(state, key, user=run.user)
+            )
+            tell(run, key, said)
+    if not any(route.top for route in run.box.routes):
+        retire(state, top_level(name))
     return sent

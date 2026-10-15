@@ -98,7 +98,7 @@ def test_a_flush_carries_the_key_in_both_headers_and_is_taken(tmp_path, webhook)
 def test_a_post_names_jbus_as_its_user_agent_and_not_urllib(tmp_path, webhook):
     made = box(tmp_path, webhook)
     made.send("alpha", "gate", "gate alpha: which?")
-    assert wake._post(made.project, waiting(made)) == ""
+    assert wake._post(made.routes[0], waiting(made)) == ""
     (seen,) = webhook.seen
     assert seen["user-agent"] == wake.AGENT and "jbus" in wake.AGENT
     assert not seen["user-agent"].startswith("Python-urllib")
@@ -172,7 +172,7 @@ def test_the_key_never_shows(tmp_path, capsys, takes):
     try:
         made = box(tmp_path, webhook)
         made.send("alpha", "gate", "gate alpha: which?", "the text", key="gate|alpha|which")
-        answer = wake._post(made.project, waiting(made))
+        answer = wake._post(made.routes[0], waiting(made))
         went = []
         took = made.flush(NOW, went.append, went=went.append)
     finally:
@@ -190,7 +190,7 @@ def test_a_403_is_a_failed_post_that_shows_no_url_and_no_key(tmp_path, webhook, 
     webhook.fail, webhook.refusal = {1, 2}, 403
     made = box(tmp_path, webhook)
     made.send("alpha", "gate", "one")
-    assert wake._post(made.project, waiting(made)) == "the webhook answered 403"
+    assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 403"
     assert flush(made) == (0, ["wake failed demo: the webhook answered 403"])
     shown = [made.marks()["last_error"], *capsys.readouterr()]
     shown += [(made.state / name).read_text() for name in ("outbox.json", "wake.json")]
@@ -203,7 +203,7 @@ def test_a_key_no_header_can_carry_is_a_failed_post_that_does_not_show_it(
     key = KEY + "\nX-Other: 1"
     made = box(tmp_path, webhook, key)
     made.send("alpha", "gate", "one")
-    assert wake._post(made.project, waiting(made)) == "the webhook could not be reached"
+    assert wake._post(made.routes[0], waiting(made)) == "the webhook could not be reached"
     assert flush(made) == (0, ["wake failed demo: the webhook could not be reached"])
     assert webhook.seen == []
     shown = [made.marks()["last_error"], *capsys.readouterr()]
@@ -254,7 +254,7 @@ def test_a_flush_stopped_in_its_first_post_still_waits_the_gap(tmp_path, webhook
     class Stopped(BaseException):
         pass
 
-    def stopped(project, events):
+    def stopped(route, events):
         raise Stopped
 
     made = box(tmp_path, webhook)
