@@ -219,7 +219,10 @@ def test_with_no_second_pair_nothing_is_posted_beyond_the_events(kitchen):
     assert "blocking" not in kitchen.status()["projects"]["demo"]
 
 
-@pytest.mark.parametrize("given", [{"blocking_url": "https://relay.test"}, {"blocking_key": KEY}])
+HALVES = [{"blocking_url": "https://example.test/relay"}, {"blocking_key": KEY}]
+
+
+@pytest.mark.parametrize("given", HALVES)
 def test_half_the_second_pair_is_refused(kitchen, given):
     kitchen.config(**given)
     with pytest.raises(jbus.Refused, match="top-level blocking_"):

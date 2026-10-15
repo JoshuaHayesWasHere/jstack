@@ -10,9 +10,7 @@ the settle), tells a crew whose pull request `jmerge` calls stale or conflicting
 and one whose pull request is short of something it can fix what to do (`expedite`),
 launches the rows of the queue that were approved, rewrites the table's derived columns
 (with why each row waits, and a line for each change of status), says what waits on the user
-(`stall`), again each hour, and rewrites the one list of it (`waiting`), and of what
-blocks in it posts to the second target what opened, a reminder and the hourly refresh
-(`waiting.cadence`).
+(`stall`), again each hour, and rewrites the one list of it (`waiting`).
 A row that ended with something left is sent to its home to close, once (`leftover`): it
 waits on that home, and on the user only where it has no home or the home did not close it.
 The launches come after every project was asked what is out: `max_running` caps the crews
