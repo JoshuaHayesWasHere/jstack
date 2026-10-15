@@ -21,7 +21,6 @@ from test_tool_calls import SKILLS, Call, errors
 NEW = "release"
 PREFIX = "rl-"
 OWNS = 'how a release is cut, in the user\'s words: "one command, and a tag"'
-TODAY = date.today().isoformat()
 MAKES = "launch: "
 STATUS = "open plan entries"
 CLAIMS = "jmerge --claims\n"
@@ -44,18 +43,26 @@ def make(homes, thread=ROOT, scope=NEW, prefix=PREFIX, owns=OWNS):
 
 
 def test_the_root_home_makes_a_scope_with_its_plan_and_its_section_of_the_shared_notes(homes):
+    """The block dates the plan and the notes with the day it runs on, which may be the next
+    one by the time it runs."""
     before = homes.state()
+    first = date.today().isoformat()
     made, launch = make(homes)
+    (today,) = {first, date.today().isoformat()} & {
+        line.partition("(")[2].partition(",")[0]
+        for line in (homes.home_dir / NEW / "plan.md").read_text().splitlines()
+        if line.startswith("Goal (")
+    }
     assert made.startswith(f"made: scope {NEW}")
     assert launch.startswith(MAKES)
     assert homes.changed(before) == ["notes.md", f"{NEW}/plan.md"]
     assert (homes.home_dir / NEW / "plan.md").read_text() == (
-        f"# {NAME}, {NEW}: plan\n\nGoal ({TODAY}, the user): {OWNS}\n"
+        f"# {NAME}, {NEW}: plan\n\nGoal ({today}, the user): {OWNS}\n"
     )
     notes = (homes.home_dir / "notes.md").read_text()
     assert notes.startswith(before["notes.md"].decode())
     heading, *section = notes.removeprefix(before["notes.md"].decode()).strip().splitlines()
-    assert heading == f"## Scoped home: {NEW}, {TODAY}"
+    assert heading == f"## Scoped home: {NEW}, {today}"
     said = "\n".join(section)
     assert OWNS in said
     assert f"`{PREFIX}*.md`" in said and f"`/home {NEW}`" in said and f"`{NEW}/`" in said
