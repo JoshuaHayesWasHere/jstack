@@ -6,7 +6,7 @@ Reviewers: 2, <how many findings each gave, as "A 3, B 1", or "no answer" for on
 Meets the brief: yes | no, and then each `Done when` line a finding says is not met
 In flight: none | <each pull request or brief that shares a file, and the files>
 Findings:
-- <severity> <file>:<line> <what is wrong> (or the one word "none")
+- <severity> <file>:<line> <what is wrong> (principle: <name> | none) (or the one word "none")
 Dropped: <how many findings were outside the diff: the number only>
 Noted: <how many findings the lead judged true and not worth acting on: the number only>
 Dismissed: <how many findings the lead dismissed, and under this line one line for each, or none>
