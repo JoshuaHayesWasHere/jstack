@@ -86,6 +86,27 @@ F="$H/reports/grill-<slug>.html"
    ```
 
 5. Read what the poll returned in full: one line per question, and under `Context data:` the same answers as JSON (`id`, `option`, `label`, `left_as_recommended`, `note`). If it says the user ended the session, the grill goes on as text. If it says `status: browser_disconnected`, the user closed the tab and sent nothing: ask, as text, whether to go on on the page, and hold the next poll only when they say so. On a no, end the session with the block of step 7, and the grill goes on as text.
+
+   Where the answer is the user's go for rows of the queue, the go is the send itself, and jbus reads it from Lavish's state file: the poll's text is the agent's report of it, and approves nothing. This prints the send's reference, `<session key>/<entry id>`, the last entry of the page's session whose role is `user`:
+
+   ```sh
+   S="${LAVISH_AXI_STATE_DIR:-$HOME/.lavish-axi}/state.json"
+   at=$(realpath "$F" 2> /dev/null || echo "$F")
+   if ! jq -e . "$S" > /dev/null 2>&1; then
+       echo "no entry: Lavish's state at $S could not be read"
+   else
+       jq -r --arg file "$F" --arg at "$at" '
+           ([.sessions // {} | to_entries[] | select(.value.file == $file or .value.file == $at)] | last) as $page
+           | if $page == null then "no entry: Lavish keeps no session of this page"
+             else ([$page.value.chat[]? | select(.role == "user")] | last) as $sent
+             | if $sent == null then "no entry: the page has no send by the user"
+               elif ($sent.id // "") == "" then "no entry: Lavish kept the send with no id, so no approval can name it"
+               else "\($page.key)/\($sent.id)" end
+             end' "$S"
+   fi
+   ```
+
+   Approve each row the answer gives its go with `jbus --project <project> queue approve <slug> --sha <sha12> --page <the line it printed>`, the sha being that of the brief the page showed. On `no entry`, the page's answer is no approval jbus can read: ask the user for their word another way.
 6. Recompute the frontier and write the next round into the same file: move each answered question into `settled`, put the new frontier in `questions`, and raise `round`. The open page reloads by itself, so go back to step 4. When the frontier is empty, the last round is one question that asks the user to confirm the shared understanding.
 7. On that confirmation, write the Decisions as "In a home" says. Each line carries the date, the question's `id`, the option's label and the note, word for word. An answer with no note is a picked choice: say so, and do not pass the label off as the user's wording. Then end the session. The file stays.
 
