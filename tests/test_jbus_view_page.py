@@ -2030,7 +2030,7 @@ def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(s
     finally:
         served.close()
     assert "Approval on your word, said " in task
-    assert "by Exec" in task.partition("Approval on your word")[2]
+    assert "by the elsewhere home" in task.partition("Approval on your word")[2]
     assert "Approval no record: approved before the record was kept" in before
     assert "The questions you answered, in Your words" in you
     drawer = ran.stdout.partition('id="drawer"')[2].partition("</dialog>")[0]
@@ -2332,7 +2332,7 @@ def shown(port, tmp_path, opens):
 
 
 def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scene, tmp_path):
-    by = {"session": "s-1", "directory": f"/made/up/{queue.EXEC}"}
+    by = {"session": "s-1", "directory": "/made/up/elsewhere"}
     page = "/made/up/reports/grill-tea.html"
     made = queue.Approval(
         "page",

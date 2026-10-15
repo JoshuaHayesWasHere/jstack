@@ -152,7 +152,7 @@ def homes(kitchen):
     """The homes' state root with two homes off the bus, a party, an expert, a folder with no
     home, one whose home handed off, and a link to the project's home under an old name."""
     root = kitchen.home.parent
-    for name in ("firstmate", "LittleRamPantries", "_exec", "_poteto"):
+    for name in ("firstmate", "LittleRamPantries", "_party", "_poteto"):
         (root / name).mkdir()
         (root / name / "home-id").write_text(f"mcp:{name}\n")
     (root / "_poteto" / "CHARTER.md").write_text("an expert\n")

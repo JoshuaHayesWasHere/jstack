@@ -60,9 +60,9 @@ def test_jbus_events_prints_the_word_with_its_words_by_at_and_where_it_went(kitc
 
 
 def test_no_webhook_is_posted_the_word_and_the_post_another_event_starts_has_none_of_it(kitchen):
-    """Sent from a checkout that is no project's, as Exec's is."""
+    """Sent from a checkout that is no project's."""
     (kitchen.home / "home-id").write_text("home-1\n")
-    desk = kitchen.root / "_exec"
+    desk = kitchen.root / "elsewhere"
     kitchen.git("init", "-q", str(desk), cwd=kitchen.root)
     kitchen.monkeypatch.chdir(desk)
     assert kitchen.main("word", "--to", "demo", *SAID) == (0, f"sent: demo, to home-1, word {ID}\n")

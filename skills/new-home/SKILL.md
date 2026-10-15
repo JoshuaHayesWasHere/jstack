@@ -1,15 +1,15 @@
 ---
 name: new-home
-description: Set up a repo's first home - its state directory, its T3 Code project, its table in jbus's config, what it lacks for jbus to merge in it, its home thread, and one message to Exec. It finishes a home that was started by hand, and does only what is missing. Use for /new-home <repo>.
+description: Set up a repo's first home - its state directory, its T3 Code project, its table in jbus's config, what it lacks for jbus to merge in it, and its home thread. It finishes a home that was started by hand, and does only what is missing. Use for /new-home <repo>.
 disable-model-invocation: true
-card: "Run the pipeline | 8 | Sets up a repo's first home in six steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, its home thread, and one message to Exec. | Reach for it when a repo gets its first home, or one was started by hand. | op: the operator"
+card: "Run the pipeline | 8 | Sets up a repo's first home in five steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, and its home thread. | Reach for it when a repo gets its first home, or one was started by hand. | op: the operator"
 ---
 
 # new-home
 
 `/new-home <repo>` sets up the first home of a repo, from any thread. `<repo>` is the repo's path, or its folder name under `~/repos`. It is typed, never loaded by itself.
 
-A repo's first home needs six things, and a first home has no thread to type `/home` in until the second is there. This skill does the six in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
+A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there. This skill does the five in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
 
 This thread does not become the home. It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, and the four switches of a repo are the user's.
 
@@ -45,7 +45,7 @@ elif [ -z "$word" ]; then
 elif [ -z "$common" ] || [ "$C" = "$common" ]; then
     echo "not a git repository: $at is no checkout of one. Nothing is done."
 elif [ "${R#_}" != "$R" ]; then
-    echo "not a repo's home: a folder named $R under ${H%/*} is a party's, as Exec's is. Nothing is done."
+    echo "not a repo's home: a folder named $R under ${H%/*} is a party's, as an expert's is. Nothing is done."
 else
     printf 'repo: %s\ncheckout: %s\nstate: %s\n' "$R" "$C" "$H"
     if [ -f "$H/plan.md" ]; then
@@ -68,7 +68,7 @@ The directory is made as the home skill's first-home step makes it, with the sam
 
 Find the project whose checkout is the repo, with the `t3-code` server's `t3_project_list` (if your harness defers it, load it first), called with `{"limit": 100}`. It is the entry whose `workspaceRoot` is the `checkout:` line, and its `id` is the T3 project id of the steps below. A reply with a `nextCursor` has more: ask again with that as `cursor` until it is found or the list ends. When it is found, the line is `2 T3 project: already, <id>`.
 
-When no entry has that checkout, make one with `t3_project_create`, called with `{"title": "<repo>", "workspaceRoot": "<the checkout>"}`. The line is `2 T3 project: done, <id>`, with the `id` of the reply. In a session with neither tool, the line is `2 T3 project: needs you: add <the checkout> as a project in T3 Code, then type /new-home <repo> again`, and steps 3, 5 and 6 are not done: each needs the id.
+When no entry has that checkout, make one with `t3_project_create`, called with `{"title": "<repo>", "workspaceRoot": "<the checkout>"}`. The line is `2 T3 project: done, <id>`, with the `id` of the reply. In a session with neither tool, the line is `2 T3 project: needs you: add <the checkout> as a project in T3 Code, then type /new-home <repo> again`, and steps 3 and 5 are not done: each needs the id.
 
 ## 3. The project's table in jbus's config
 
@@ -178,38 +178,6 @@ Before this launch, run `uv run --project <the checkout that holds this skill> j
 
 The line is `5 home thread: done, [home: <repo>](t3-thread://v1/<its threadId>)`. The new thread writes its own id to `home-id` at its start: write nothing there. A launch has no retry key. If the call fails or its reply is lost, ask `t3_thread_list` again before launching again, so there are never two. In a session with no `t3_thread_launch`, the line is `5 home thread: needs you: open a new thread in the project <repo> and type /home`.
 
-## 6. One message to Exec
-
-Exec keeps the list of homes, and hears of this one once. Run this with the lines of the steps above in place of the words in angle brackets, and `done` in place of `<done or already>` when step 1, 2, 3 or 5 said `done`, or `already` when none did:
-
-```sh
-if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
-C='<the checkout>'
-P='<the T3 project id>'
-N='<the home thread id>'
-did='<done or already>'
-E=~/.local/state/home/_exec/home-id
-case $C$P$N$did in
-'' | *'<'* | *'>'*)
-    echo "not filled in: put the checkout, the T3 project id, the home's thread id, and done or already in place of the placeholders" ;;
-*)
-    R=${C##*/}
-    in_jbus="not in jbus's config yet"
-    if jbus --project "$R" queue show > /dev/null 2>&1; then in_jbus="in jbus's config"; fi
-    to=$(awk 'NF {print $(1); exit}' "$E" 2> /dev/null)
-    told="new home: $R. Checkout $C, state directory $HOME/.local/state/home/$R, T3 project $P, jbus project $R ($in_jbus), home thread $N. Set up by /new-home."
-    if [ "$did" = already ]; then
-        echo "6 Exec: already, nothing was set up in this run, so there is nothing new to tell"
-    elif [ -z "$to" ]; then
-        echo "6 Exec: needs you: no thread id is in $E, so nobody was told: $told"
-    else
-        printf 'to: %s\nmessage: %s\n' "$to" "$told"
-    fi ;;
-esac
-```
-
-On `to:` and `message:`, send that message to that thread with `t3_thread_send` (if your harness defers it, load it first), and the line is `6 Exec: done, told <the thread id>`. The id is read from Exec's `home-id` in this call and never kept from an earlier one. This skill edits no file of Exec's: Exec files what the message says.
-
 ## The end
 
-Give the user the lines, in order: step 1's, step 2's, step 3's, each of step 4's, step 5's and step 6's, then the `switches` line. Add nothing a line does not say. This thread is done: the home is the thread step 5 names.
+Give the user the lines, in order: step 1's, step 2's, step 3's, each of step 4's and step 5's, then the `switches` line. Add nothing a line does not say. This thread is done: the home is the thread step 5 names.

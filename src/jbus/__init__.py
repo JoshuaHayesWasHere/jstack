@@ -11,10 +11,10 @@ map from every old name to the one it has now: `current_level` reads a level thr
 third level, `chef`, started a POST for what asked nothing of the user: what was of that
 level is `quiet` now, and is read so.
 
-`IGNORED` is the keys of the config that nothing reads any more. A config that still has
-one loads, and `Config.ignored` names each, so that a pass can say so until it is removed.
-A webhook URL and key in a table nothing reads are still secret while they are in the file:
-`Config.unread` keeps them, for `secrets` alone.
+`IGNORED` is the keys of a project's table that nothing reads any more. A config that still
+has one loads, and `Config.ignored` names each, so that a pass can say so until it is removed.
+A webhook URL and key in any top-level table, one jbus reads or one nothing reads any more,
+are secret while they are in the file: `Config.tabled` keeps them, for `secrets` alone.
 
 A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
 top-level webhook: the monitor of every project, posted each event for the user of each one,
@@ -47,7 +47,7 @@ Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
 NAMED_AFTER = ("user", "waiting-on-user")
 WAS = {"chef": "quiet"}
-IGNORED = {"top": ("exec",), "project": ("exec_watch", "loud")}
+IGNORED = ("loud",)
 Hook = tuple[str, str]
 REDACTED = "[redacted]"
 URL_PART = 8
@@ -87,7 +87,7 @@ class Config:
     home_dir: Path
     user: jsettings.Settings
     ignored: tuple[str, ...] = ()
-    unread: tuple[Hook, ...] = ()
+    tabled: tuple[Hook, ...] = ()
     webhook: Hook = ("", "")
     blocking: Hook = ("", "")
 
@@ -131,7 +131,7 @@ class Config:
 
     def hooks(self) -> list[Project | Hook]:
         """Every webhook URL and key the config file holds, read or not."""
-        return [*self.projects, self.webhook, self.blocking, *self.unread]
+        return [*self.projects, self.webhook, self.blocking, *self.tabled]
 
     def state(self, project: Project) -> Path:
         """Where jbus keeps this project's queue, outbox, launches and what it has sent."""
@@ -186,16 +186,14 @@ def private(path: Path) -> None:
 
 
 def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
-    """Each key of `IGNORED` the config still has, by name, whatever its value is."""
-    found = [f"[{key}]" for key in IGNORED["top"] if key in raw]
-    for entry in raw.get("project", []):
-        found += [f"{key} of project {entry['name']}" for key in IGNORED["project"] if key in entry]
-    return tuple(found)
+    """Each key of `IGNORED` a project still has, by name, whatever its value is."""
+    found = ((key, one["name"]) for one in raw.get("project", []) for key in IGNORED if key in one)
+    return tuple(f"{key} of project {name}" for key, name in found)
 
 
-def _unread(raw: dict[str, Any]) -> tuple[Hook, ...]:
-    """The webhook URL and key of each ignored table that has one: secret, though unread."""
-    tables = (raw[key] for key in IGNORED["top"] if isinstance(raw.get(key), dict))
+def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
+    """The webhook URL and key of each top-level table that has one: secret, read or not."""
+    tables = (table for table in raw.values() if isinstance(table, dict))
     found = ((table.get("webhook_url"), table.get("webhook_key")) for table in tables)
     return tuple((str(url or ""), str(key or "")) for url, key in found if url or key)
 
@@ -289,7 +287,7 @@ def load(directory: Path | None = None) -> Config:
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
         user=user,
         ignored=ignored,
-        unread=_unread(raw),
+        tabled=_tabled(raw),
         webhook=webhook,
         blocking=blocking,
     )
