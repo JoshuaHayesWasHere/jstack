@@ -88,13 +88,13 @@ def parse(text: str) -> Line | None:
 
 RULES = (
     ("hold", r"^needs [^\s,]+, |needs the user's word|which the user lands|^its base is "),
-    ("hold", r"a stack its brief does not name|auto-merge is off"),
+    ("hold", r"a stack its brief does not name|auto-merge is off|held a third rebase"),
     ("proof", r"no proven safety fact"),
     ("second", r"second pass is not written|the rebase changed the (content|patch) after"),
     ("second", r"scoped review has not ruled|not the one its review saw|no head to compare"),
     ("second", r"scoped review of it is not written"),
     ("rebase", r"needs a rebase|^the rebase dropped|conflicts with (its base|today's)"),
-    ("rebase", r"fails on \S+ over today's|^its Rebase line|held a third rebase"),
+    ("rebase", r"fails on \S+ over today's|^its Rebase line"),
     ("check", r"check has not (passed|finished)|fresh check|GitHub has not decided"),
     ("check", r"its check has no start time|could not be fetched|moved while it was judged"),
     ("check", r"jmerge's (own )?rules"),

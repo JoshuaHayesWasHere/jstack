@@ -1011,7 +1011,8 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
     assert pr.run("mergeable", home).splitlines() == told
     assert pr.head() == held
     assert not pr.rebasing()
-    assert pr.run("mergeable", home).splitlines() == told
+    again = [f"held: no third rebase after fixed and green, and its gate is parked already: {stop}"]
+    assert pr.run("mergeable", home).splitlines() == again
     assert brief.read_text().count("Rebase hold:") == 1
     assert brief.read_text().count("Rebased after fixed:") == 2
     assert ready.rebase_held(brief.read_text(), held) == ready.REBASE_HELD
@@ -1020,6 +1021,29 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
     brief.write_text(brief.read_text() + "Rebase hold lifted: question 7, by the user\n")
     assert ready.rebase_held(brief.read_text(), held) == ""
     assert pr.run("mergeable", home).splitlines() == ["rebased onto origin/main"]
+    assert brief.read_text().count("Rebased after fixed:") == 3
+
+
+def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
+    pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
+    home = tmp_path / "home"
+    (home / "tasks").mkdir(parents=True)
+    brief = home / "tasks" / "alpha.md"
+    before = pr.head()
+    brief.write_text(BRIEF + f"Fixed: {before}\nRebased after fixed: {'e' * 40}\n")
+    said = pr.run("mergeable", home).splitlines()
+    assert said[0] == "the rebase stopped: resolve these, then git rebase --continue"
+    assert pr.rebasing()
+    counted = f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    assert brief.read_text().endswith(counted)
+    git(pr.work, "rebase", "--abort")
+
+    brief.write_text(brief.read_text() + "\n## Result, follow-up (a steer)\nStatus: done\n")
+    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    git(pr.work, "rebase", "--abort")
+    brief.write_text(brief.read_text() + f"Fixed: {before}\n")
+    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
     assert brief.read_text().count("Rebased after fixed:") == 3
 
 
