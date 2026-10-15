@@ -186,7 +186,7 @@ jbus does not renew the sign-in. It lasts as long as the token says, or 30 days 
 - once it has run out: `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login`;
 - after `jbus t3 login` stores a token that runs out later, once: `sign-in: jbus's T3 sign-in was renewed, and now expires <YYYY-MM-DD HH:MM zone>`, and the count starts over for the new expiry.
 
-The expiry jbus saw last is in `~/.local/state/jbus/sign-in.json`. Apart from the reminder, from `warn_days` days before the sign-in runs out the first pass of each day records a quiet `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login` and raises it on the desktop, and each project's `sign_in` in `jbus status` says the same. After that a pass sends `gate <project>: T3 Code could not be asked` once a day until you run `jbus t3 login` again.
+The expiry jbus saw last, and which of these it has said of it, are in `~/.local/state/jbus/sign-in.json`, so a project added or moved in the config says nothing again. `sign_in_reminder` in `jbus status` names the webhook it goes to and the days still ahead. Apart from the reminder, from `warn_days` days before the sign-in runs out the first pass of each day records a quiet `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login` and raises it on the desktop, and each project's `sign_in` in `jbus status` says the same. After that a pass sends `gate <project>: T3 Code could not be asked` once a day until you run `jbus t3 login` again.
 
 To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, and jbus still merges, reads and sends. To stop the passes, run `systemctl --user disable --now jbus.timer`.
 

@@ -135,7 +135,7 @@ def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
     return {
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
-        "sign_in_reminder": signin.plan(config),
+        "sign_in_reminder": signin.plan(config, now),
         "projects": projects,
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),

@@ -20,6 +20,7 @@ from test_jbus_kitchen import KEY, NOW, TOKEN, Webhook
 EXPIRES = datetime(2026, 10, 20, 21, 8, tzinfo=UTC)
 RENEWED = datetime(2026, 11, 19, 22, 8, tzinfo=UTC)
 STAMP = "2026-10-20 17:08 ET"
+TOP = "sign-in to the top-level webhook"
 
 
 @pytest.fixture
@@ -183,3 +184,55 @@ def test_status_with_no_sign_in_says_so(kitchen):
     (kitchen.config_dir / "t3.json").unlink()
     config = jbus.load()
     assert cli.status(config, NOW)["sign_in_reminder"] == "none: no sign-in is stored"
+
+
+def test_a_project_moved_to_the_top_of_the_config_says_no_mark_again(kitchen, top, machine):
+    kitchen.poll(at_et(13))
+    assert said(top) == [left("7 days left")]
+    top.said.clear()
+    config = kitchen.config_dir / "config.toml"
+    head, *tables = config.read_text().split("[[project]]")
+    config.write_text("[[project]]".join([head, tables[1], tables[0]]))
+    kitchen.poll(at_et(13, 15))
+    kitchen.poll(at_et(14))
+    assert said(top) == []
+    kitchen.poll(at_et(17))
+    assert said(top) == [left("3 days left")]
+
+
+@pytest.mark.parametrize("kept", ["[1, 2]", '{"expires": "not a time", "said": []}', "{}"])
+def test_a_sign_in_file_that_cannot_be_read_is_no_expiry_seen(kitchen, top, machine, kept):
+    kitchen.state_dir.mkdir(parents=True, exist_ok=True)
+    (kitchen.state_dir / "sign-in.json").write_text(kept)
+    kitchen.poll(at_et(13))
+    assert said(top) == [left("7 days left")]
+
+
+def test_status_names_the_project_s_own_webhook_with_no_top_level_pair(kitchen):
+    expiring(kitchen, EXPIRES)
+    kitchen.poll(at_et(12))
+    assert kitchen.status()["sign_in_reminder"] == (
+        "sign-in to the webhook of demo on 2026-10-13, each day from 2026-10-17, "
+        f"and when it runs out at {STAMP}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("day", "hour", "ahead"),
+    [
+        (
+            15,
+            9,
+            f"{TOP} each day from 2026-10-17, and when it runs out at {STAMP}",
+        ),
+        (
+            18,
+            9,
+            f"{TOP} each day to 2026-10-20, and when it runs out at {STAMP}",
+        ),
+        (20, 18, f"{TOP}: it ran out at {STAMP}, run jbus t3 login"),
+    ],
+)
+def test_status_names_only_the_days_still_ahead(kitchen, top, machine, day, hour, ahead):
+    kitchen.poll(at_et(day, hour))
+    assert kitchen.status()["sign_in_reminder"] == ahead

@@ -283,6 +283,12 @@ class Box:
             return None
         return Route(*self.second, self.state / BLOCKING, blocking=True)
 
+    @property
+    def machine_route(self) -> Route:
+        """The route an event of the machine waits in: the top-level webhook's, or the
+        project's own where that is not a route of its own."""
+        return next((route for route in self.routes if route.top), self.routes[0])
+
     @staticmethod
     def clock() -> datetime:
         """The time a line of the log is written with."""
@@ -320,11 +326,10 @@ class Box:
         """Queue one event. With a key, only the first event of that key is ever queued.
 
         One for the user waits in the outbox of each route for a POST. One of the `machine`,
-        which is told once and not once a project, waits only in the last route's: the
-        top-level webhook's, or the project's own where it has no other. A quiet one is only
-        logged, so the log is its one record: where its line cannot be written it is owed,
-        and goes into the log, before any later line, as soon as one can be written. The
-        answer is False only for a key that was sent before.
+        which is told once and not once a project, waits only in `machine_route`'s. A quiet
+        one is only logged, so the log is its one record: where its line cannot be written it
+        is owed, and goes into the log, before any later line, as soon as one can be written.
+        The answer is False only for a key that was sent before.
         """
         made = event(self.project.name, slug, kind, line, text, cap, loud, machine)
         with self._locked():
@@ -334,7 +339,7 @@ class Box:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
             if made["loud"] == "user":
-                for route in self.routes[-1:] if machine else self.routes:
+                for route in [self.machine_route] if machine else self.routes:
                     route.folder.mkdir(parents=True, exist_ok=True)
                     waiting = [*self._outbox(route), made]
                     write_json(route.folder / "outbox.json", waiting, mode=0o600)
