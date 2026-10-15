@@ -19,10 +19,8 @@ function branches(runs) {
   return names.slice(0, 2).join(", ") + (names.length > 2 ? " +" + (names.length - 2) : "");
 }
 function checksSay(rs) { return CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "); }
-/* The runner units of this machine as systemd lists them. One that is not active is said on
-   the card: the view knows it is stopped, so it is a fact and not a blind spot. */
-function stoppedRunners() { return S.checks.runners.filter(function (u) { return u.active !== "active"; }); }
-function stoppedSay(units) { return units.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", "); }
+/* The runner units of this machine as systemd lists them. They are the machine's, so the card
+   of a project's checks says none of them: the machine's row does, and the drawer lists them. */
 function runnerList() {
   var c = S.checks;
   if (!c.runners_read) return '<p class="src">systemd did not answer, so the runners of this machine are not known.</p>';
@@ -65,11 +63,10 @@ function dChecks() {
 }
 panel({
   card: function () {
-    var rs = runStats(), off = stoppedRunners();
-    return { at: 40, e: S.checks.error || rs.now.failed.length || off.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
-      val: (S.checks.error ? '<small class="bad">' + esc(S.checks.error) + '</small>' : CHECKS.map(function (c) { var runs = rs.now[c[0]]; return '<span class="ck' + (runs.length ? "" : " zero") + '"><span>' + runs.length + " " + c[1] + '</span>' + (runs.length ? ' <small>' + esc(branches(runs)) + '</small>' : "") + '</span>'; }).join(" ")) +
-        (off.length ? ' <span class="ck"><span>' + plural(off.length, "runner", "runners") + ' not active</span> <small>' + esc(stoppedSay(off)) + '</small></span>' : ""),
-      viz: "", label: "The repo's checks on GitHub: " + (S.checks.error || checksSay(rs)) + (off.length ? ", runners not active: " + stoppedSay(off) : "") };
+    var rs = runStats();
+    return { at: 40, e: S.checks.error || rs.now.failed.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
+      val: (S.checks.error ? '<small class="bad">' + esc(S.checks.error) + '</small>' : CHECKS.map(function (c) { var runs = rs.now[c[0]]; return '<span class="ck' + (runs.length ? "" : " zero") + '"><span>' + runs.length + " " + c[1] + '</span>' + (runs.length ? ' <small>' + esc(branches(runs)) + '</small>' : "") + '</span>'; }).join(" ")),
+      viz: "", label: "The repo's checks on GitHub: " + (S.checks.error || checksSay(rs)) };
   },
   drawer: dChecks
 });
