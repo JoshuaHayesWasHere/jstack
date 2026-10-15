@@ -25,14 +25,12 @@ _THREAD = re.compile(r"^Thread:[ \t]*(?P<thread>\S+)", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 
-_OUTSIDE = (
+_NAMED = (
     (
         "a test",
-        r"(?<![\w-])tests?\b|\btests?/|\btest_\w+|\w+_test\b|\bpytest\b"
-        r"|\bmake (check|test\w*|lint)\b|\buv run\b|`[^`]*(/|\.|\s-)[^`]*`",
+        r"\btests?/|\btest_\w+|\w+_test\b|\bpytest\b|\buv run\b"
+        r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+",
     ),
-    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*% of\b"),
-    ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
     (
         "an external judge",
         r"\b(external|outside|independent|blind) judge\b|\bCI\b|\bgithub\b|\bthird[- ]party\b",
@@ -48,6 +46,13 @@ _SELF = (
     ("the model", r"\bthe model\b|\bmodel's\b"),
     ("a review alone", r"\breview(s|ed)?\b"),
 )
+_LOOSE = (
+    ("a test", r"\btests?\b"),
+    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*%"),
+    ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
+    ("an external judge", r"\bjudge\b"),
+)
+_SPAN = re.compile(r"`([^`\n]+)`")
 _PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
 
 
@@ -119,20 +124,29 @@ class Proof:
 def proof(said: str) -> Proof:
     """Judge what a `Proves it:` line says, the label left off.
 
-    `_OUTSIDE` is what it may name outside the agent, and `_SELF` what it may name that is
-    the agent's own word. `_OUTSIDE` is read first: a test the crewmate runs is still a test.
+    Three tables are read in turn, and the first match decides. `_NAMED` is what names a
+    thing outside the agent by itself: a test's path or name, a runner, a make target, CI,
+    a named judge or the user, and so is a command in backticks that names no agent. So a
+    test the crewmate runs is still a test. `_SELF` is the agent's own word. `_LOOSE` is
+    what holds only with no agent named: "the agent tests it" is the agent's word.
     """
     said = said.strip()
     if not said:
         return Proof(said, fault="is empty")
     if said.startswith("<"):
         return Proof(said, fault="is the template's own text")
-    for kind, pattern in _OUTSIDE:
+    for kind, pattern in _NAMED:
         if re.search(pattern, said, re.I):
             return Proof(said, kind=kind)
+    for span in _SPAN.findall(said):
+        if not any(re.search(pattern, span, re.I) for _, pattern in _SELF):
+            return Proof(said, kind="a test")
     for name, pattern in _SELF:
         if re.search(pattern, said, re.I):
             return Proof(said, fault=f"names {name}, the agent's own word")
+    for kind, pattern in _LOOSE:
+        if re.search(pattern, said, re.I):
+            return Proof(said, kind=kind)
     return Proof(said, fault="names nothing outside the agent")
 
 

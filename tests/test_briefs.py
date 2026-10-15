@@ -259,6 +259,15 @@ PROOFS = {
     "the owner": ("the owner of the repo signs it off", "the user"),
     "a review by the user": ("reviewed by the user", "the user"),
     "a test the crewmate runs": ("the crewmate runs tests/test_briefs.py", "a test"),
+    "a command with no path": ("`jbus queue show` prints the row", "a test"),
+    "a linter": ("`ruff check src` is clean", "a test"),
+    "a make target": ("make build exits 0", "a test"),
+    "another make target": ("make e2e passes", "a test"),
+    "a hyphenated test": ("the unit-tests pass", "a test"),
+    "a smoke test": ("the smoke-test passes", "a test"),
+    "a bare percentage": ("coverage stays above 90%", "a metric"),
+    "a rate": ("error rate under 2%", "a metric"),
+    "a judge": ("a human judge scores it", "an external judge"),
 }
 
 REFUSED = {
@@ -277,7 +286,28 @@ REFUSED = {
         "the crewmate will make sure it works",
         "names the crewmate, the agent's own word",
     ),
-    "a self-test": ("a self-test by the agent", "names the agent, the agent's own word"),
+    "a self-test by the agent": (
+        "a self-test by the agent",
+        "names the agent, the agent's own word",
+    ),
+    "a self-test": ("a self-test", "names the agent itself, the agent's own word"),
+    "a self test by the agent": (
+        "a self test by the agent",
+        "names the agent, the agent's own word",
+    ),
+    "the crewmate will test it": (
+        "the crewmate will test it",
+        "names the crewmate, the agent's own word",
+    ),
+    "the agent tests it": ("the agent tests it", "names the agent, the agent's own word"),
+    "two spans in backticks": (
+        "the `crewmate` says so. The `reviewer` agrees",
+        "names the crewmate, the agent's own word",
+    ),
+    "a sentence in backticks": (
+        "`the crewmate said so.`",
+        "names the crewmate, the agent's own word",
+    ),
     "a percentage of sure": (
         "the reviewer is 100% sure",
         "names the reviewer, the agent's own word",
