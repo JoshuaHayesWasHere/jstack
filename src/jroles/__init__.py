@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-ROLES = ("crew", "scout", "review", "home", "expert", "exec")
+ROLES = ("crew", "scout", "review", "home", "expert")
 PROVIDERS = {"claudeAgent": "Claude", "codex": "Codex", "grok": "Grok"}
 INHERIT = "inherit"
 EFFORTS = ("low", "medium")
