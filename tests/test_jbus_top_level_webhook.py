@@ -9,13 +9,14 @@ webhooks of `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import jbus
 from jbus import Project, alert, wake
 from test_jbus_kitchen import KEY, NOW, RESULT, Webhook
+from test_jbus_view import Scene, Served, iso
 
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 GAINED = "waiting demo: 1 wait on user, 1 new (hold 9), 0 gone"
@@ -167,3 +168,36 @@ def test_the_top_level_post_is_logged_apart_and_the_log_reads_one_event(kitchen,
         [event["id"]]
     ]
     assert [one["line"] for one in kitchen.events("waiting")] == [GAINED]
+
+
+def test_the_view_s_bus_shows_the_top_level_webhook_beside_the_own_one(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    status = json.loads((scene.state_dir / "status.json").read_text())
+    failing = {"failed_wakes": 3, "last_error": "the webhook answered 500", "outbox": 1}
+    status["projects"]["demo"]["top_level"] = failing
+    scene.write("status.json", status, scene.state_dir)
+    (scene.state / "top-level").mkdir()
+    posted = NOW.timestamp() - 600
+    scene.write("top-level/wake.json", {"posted": posted, "last_error": failing["last_error"]})
+    served = Served(scene)
+    try:
+        bus = served.json("/state.json?project=demo")["bus"]
+    finally:
+        served.close()
+    assert (bus["outbox"], bus["failed_wakes"], bus["last_error"]) == (2, 0, "")
+    assert bus["top_level"] == {
+        "outbox": 1,
+        "failed_wakes": 3,
+        "last_error": "the webhook answered 500",
+        "posted": iso(datetime.fromtimestamp(posted, UTC)),
+    }
+
+
+def test_the_view_s_bus_has_no_top_level_part_where_the_project_has_one_webhook(
+    tmp_path, monkeypatch
+):
+    served = Served(Scene(tmp_path, monkeypatch))
+    try:
+        assert served.json("/state.json?project=demo")["bus"]["top_level"] is None
+    finally:
+        served.close()

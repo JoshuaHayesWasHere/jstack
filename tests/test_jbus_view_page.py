@@ -616,6 +616,23 @@ def hanging(tmp_path, monkeypatch, first=""):
     return child
 
 
+def test_the_bus_card_and_drawer_show_the_top_level_webhook_apart(scene, tmp_path):
+    status = json.loads((scene.state_dir / "status.json").read_text())
+    failing = {"failed_wakes": 3, "last_error": "the webhook answered 500", "outbox": 1}
+    status["projects"]["demo"]["top_level"] = failing
+    scene.write("status.json", status, scene.state_dir)
+    seen = look(scene, tmp_path)
+    clean(seen)
+    cards = {card["tag"]: card for card in seen["cards"]}
+    assert cards["bus"]["val"] == "2 in outbox + 1 top-level"
+    drawer = {one["target"]: one for one in seen["opened"]}["bus"]["said"]
+    assert "OUTBOX, OWN WEBHOOK 2 events in the outbox 0 failed wakes." in drawer
+    assert (
+        "OUTBOX, TOP-LEVEL WEBHOOK 1 event in the outbox Last error: the webhook answered 500. "
+        "3 failed wakes. Last POST never."
+    ) in drawer
+
+
 def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(scene, tmp_path):
     seen = look(scene, tmp_path, task="oat-milk")
     opened = clean(seen)
