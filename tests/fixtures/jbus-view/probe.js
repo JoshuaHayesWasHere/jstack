@@ -1,4 +1,5 @@
-/* The probe the page test adds to the page: it counts the words on the first screen, measures
+/* The probe the page test adds to the page: it counts the words on the first screen, the view's
+   and the shell's apart, measures
    what a thumb can hit and what is cut off, opens every drawer, picks a row in the drawer of the
    queue as a flow, answers the gates it is told to, one by one or as a batch, and writes what it
    found into a pre the browser prints. In a frame, which is how the test gets a screen as narrow as a phone,
@@ -63,8 +64,8 @@ window.addEventListener("load", function () { setTimeout(function () {
     var b = el.getBoundingClientRect();
     return b.width > 0 && b.height > 0 && b.top < vh && b.bottom > 0 && b.left < vw && b.right > 0;
   }
-  function words() {
-    var n = 0, walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  function words(root) {
+    var n = 0, walk = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT);
     while (walk.nextNode()) {
       var node = walk.currentNode, p = node.parentElement;
       if (!p || /^(SCRIPT|STYLE|TITLE|TEMPLATE|TEXTAREA|PRE)$/.test(p.tagName) || drawer.contains(p)) continue;
@@ -98,7 +99,9 @@ window.addEventListener("load", function () { setTimeout(function () {
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
-    words: words(),
+    /* The view's words, and apart from them the shell's: the header and the sidebar. */
+    words: words(document.querySelector("main")),
+    shell: words(document.querySelector("header")) + words(document.getElementById("side")),
     bottom: Math.round(main.getBoundingClientRect().bottom),
     scrollWidth: document.documentElement.scrollWidth,
     width: vw,
@@ -111,14 +114,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     strip: box(document.getElementById("vitals")),
     band: box(document.getElementById("you")),
     bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.amber", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
-    meters: all('#vitals [data-open="room"] .mb').filter(seen).length,
+    meters: all("#machine .mb").filter(seen).length,
     small: small(document.body),
     cut: cut(document.body),
     cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: c.getAttribute("aria-label"), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c), valbox: box(c.querySelector(".val")) }; }),
     /* The shell: the header, the sidebar of every project, and the machine, drawn once. */
     header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")) },
     side: { box: box(document.getElementById("side")), items: all("#side .sp").map(function (a) { var d = a.querySelector(".hd"); return { name: text(a.querySelector(".nm")), count: text(a.querySelector(".n")), dot: d ? d.className.replace(/^hd ?/, "") || "ok" : "", tip: a.title, href: a.getAttribute("href"), current: a.getAttribute("aria-current") || "", seen: seen(a), box: box(a) }; }) },
-    machine: all("#machine .mi").map(function (c) { return { tag: text(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, open: c.getAttribute("data-open"), seen: seen(c), box: box(c) }; }),
+    machine: all("#machine .mi").map(function (c) { return { tag: written(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, open: c.getAttribute("data-open"), seen: seen(c), box: box(c) }; }),
     folded: all("#line .folded [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open"), seen(b)]; }),
     count: text(document.querySelector("#you .youn")),
     tiles: all("#you .yg").map(function (y) { return { seen: seen(y.querySelector(".tok")), text: text(y.querySelector(".tok")), open: y.querySelector(".tok").getAttribute("data-open"), state: tag(y), border: border(y.querySelector(".tok")) }; }),
