@@ -399,16 +399,6 @@ def silent(halves: list[Half]) -> dict[str, str]:
     }
 
 
-def _why(error: Exception, *hooks: jbus.Project | jbus.Hook) -> str:
-    """An exception as one line, for the journal and the status file.
-
-    An error from a webhook URL that cannot be used quotes it, whole or in part, so what
-    is secret of each hook is taken out (`jbus.secrets`).
-    """
-    said = " ".join(f"{type(error).__name__}: {error}".split())
-    return wake.cut(jbus.redact(said, jbus.secrets(*hooks, part=2), "[webhook]"), 300)
-
-
 def heartbeat(run: wake.Pass, last: dict[str, Any]) -> None:
     """The first pass of each hour says what the status file said, once per project.
 
@@ -473,7 +463,7 @@ def poll(
             try:
                 step()
             except Exception as error:
-                say(f"pass record failed: {_why(error, *config.hooks())}")
+                say(f"pass record failed: {alert.why(error, *config.hooks())}")
 
         recorded(kept.start)
 
@@ -481,7 +471,7 @@ def poll(
             try:
                 return step()
             except Exception as error:
-                raised[name] = _why(error, *config.hooks())
+                raised[name] = alert.why(error, *config.hooks())
                 say(f"pass failed {name}: {raised[name]}")
                 return None
 
@@ -519,34 +509,12 @@ def poll(
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a pass that did not finish. The third in a row alerts every project, once.
-
-    The alert waits in the outbox like any other event, and what waits is flushed each time,
-    so one the webhook did not take goes with the next alarm or the next pass that ends.
-    The desk is told too, once: what ends a pass may be the webhook, or a project's state.
-    The streak is marked alerted after the desk and the projects were told, so an alarm
-    that is stopped before then alerts again on the next one.
-    """
+    """Count a pass that did not finish. The third in a row alerts every project, once,
+    and the desk (`alert.sound`)."""
     now = now or datetime.now(UTC)
-    line = alert.failed(config.state_dir, alert.PASS, ALARM, now=now, user=config.user)
     failing = alert.streak(config.state_dir, alert.PASS)
-    say(f"pass failed: {failing.count if failing else 1} in a row")
-    if line:
-        wake.notify(line)
-    code = 0
-    for one in config.projects:
-        try:
-            run = wake.Pass(config, one, now, say)
-            alert.deliver(run, line, desk=False)
-            alert.flush(run)
-            if line:
-                say(f"alert {'waits' if run.box.waiting() else 'sent'}: {one.name}")
-        except Exception as error:
-            say(f"alarm failed {one.name}: {_why(error, one)}")
-            code = 1
-    if line:
-        alert.told(config.state_dir, alert.PASS)
-    return code
+    say(f"pass failed: {failing.count + 1 if failing else 1} in a row")
+    return alert.sound(config, alert.PASS, ALARM, alert.AFTER, now, say)
 
 
 def _port(shown: argparse.ArgumentParser) -> None:

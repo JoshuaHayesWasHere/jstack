@@ -4,7 +4,8 @@ A streak is the failures in a row of one thing, under a key: `pass` for a pass t
 finish, `webhook <project>` for a POST the project's own webhook did not take, `top-level
 webhook <project>` for a POST of the project's that the top-level webhook did not take,
 `blocking webhook <project>` for a body of the project's that the second target did not take,
-`jmerge <project>` for a `jmerge` that did not run. `failed` counts one and gives the alert
+`jmerge <project>` for a `jmerge` that did not run, `snapshot` for a snapshot of the homes'
+state tree that did not finish. `failed` counts one and gives the alert
 line once the count has reached the threshold. `ok` ends the streak, and gives the recovered
 line when it had alerted. Everything else is silence: the failures before the threshold, the
 ones after the alert, and a success with no alert before it.
@@ -21,18 +22,20 @@ shows a copy, under `streaks`.
 from __future__ import annotations
 
 import fcntl
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import jbus
 import jsettings
 from jbus import read_json, wake, write_json
 
 EVENTS = {"alert": "user"}
 AFTER = 3
 PASS = "pass"
+SNAPSHOT = "snapshot"
 
 
 @dataclass
@@ -213,3 +216,67 @@ def _count(run: wake.Pass, key: str, went: list[str]) -> None:
             else ok(state, key, user=run.user)
         )
         tell(run, key, said)
+
+
+def why(error: Exception, *hooks: jbus.Project | jbus.Hook) -> str:
+    """An exception as one line, for the journal and the status file.
+
+    An error from a webhook URL that cannot be used quotes it, whole or in part, so what
+    is secret of each hook is taken out (`jbus.secrets`).
+    """
+    said = " ".join(f"{type(error).__name__}: {error}".split())
+    return wake.cut(jbus.redact(said, jbus.secrets(*hooks, part=2), "[webhook]"), 300)
+
+
+def sound(
+    config: jbus.Config,
+    key: str,
+    cause: str,
+    after: int,
+    now: datetime,
+    say: Callable[[str], None],
+) -> int:
+    """Count one failure of a unit that runs outside the pass, and alert once it is due.
+
+    The alert goes to the desk and waits in each project's outbox like any other event, and
+    what waits is flushed each time, so one the webhook did not take goes with the next alarm
+    or the next pass that ends. The streak is marked alerted after the desk and the projects
+    were told, so an alarm that is stopped before then alerts again on the next one.
+    """
+    line = failed(config.state_dir, key, cause, after, now=now, user=config.user)
+    if line:
+        wake.notify(line)
+    code = 0
+    for one in config.projects:
+        try:
+            run = wake.Pass(config, one, now, say)
+            deliver(run, line, desk=False)
+            flush(run)
+            if line:
+                say(f"alert {'waits' if run.box.waiting() else 'sent'}: {one.name}")
+        except Exception as error:
+            say(f"alarm failed {one.name}: {why(error, one)}")
+            code = 1
+    if line:
+        told(config.state_dir, key)
+    return code
+
+
+def recover(
+    config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]
+) -> int:
+    """A unit outside the pass went: end its streak, and tell each project it recovered when
+    the streak had alerted."""
+    line = ok(config.state_dir, key, user=config.user)
+    if not line:
+        return 0
+    wake.notify(line)
+    code = 0
+    for one in config.projects:
+        try:
+            deliver(wake.Pass(config, one, now, say), line, desk=False)
+        except Exception as error:
+            say(f"recovered failed {one.name}: {why(error, one)}")
+            code = 1
+    told(config.state_dir, key)
+    return code
