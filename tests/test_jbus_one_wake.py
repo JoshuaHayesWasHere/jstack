@@ -37,7 +37,7 @@ ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
 USER = ["alert", "gate", "sign-in", "stall", "waiting"]
-IGNORED = "[exec], exec_watch of project demo, loud of project demo"
+IGNORED = "loud of project demo"
 BEFORE, ROOTED = OLD_LEVEL, OLD_EVENT
 
 
@@ -190,13 +190,11 @@ def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(k
     ] == [f"condition stuck: {SETTLED}"]
 
 
-def unread(kitchen, hook, *, watch="true", loud='["user", "chef"]', table=None):
-    """Write the keys nothing reads into the config: `[exec]`, and two on the project."""
+def unread(kitchen, *, loud='["user", "chef"]'):
+    """Write the key nothing reads into the config: `loud` on the project."""
     path = kitchen.config_dir / "config.toml"
     named = 'name = "demo"\n'
-    text = path.read_text().replace(named, f"{named}exec_watch = {watch}\nloud = {loud}\n")
-    table = table or f'[exec]\nwebhook_url = "{hook.url}/exec"\nwebhook_key = "another-key"\n'
-    kitchen.write(path, text + table)
+    kitchen.write(path, path.read_text().replace(named, f"{named}loud = {loud}\n"))
 
 
 @pytest.fixture
@@ -210,7 +208,7 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
     kitchen, hook
 ):
     plain = (kitchen.config_dir / "config.toml").read_text()
-    unread(kitchen, hook)
+    unread(kitchen)
     assert jbus.load().ignored == tuple(IGNORED.split(", "))
     kitchen.main("gate", "alpha", stdin=GATE)
     box(kitchen).send("alpha", "result", "result alpha: done")
@@ -220,15 +218,13 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
         f"ignored: {path} still has {IGNORED}: jbus reads none of them, remove them"
     ]
     assert kitchen.webhook.said == [[f"demo: {ASKED}"]] and hook.posts == []
-    status = kitchen.status()
-    assert "exec" not in status and sorted(status["projects"]["demo"]) == [
+    assert sorted(kitchen.status()["projects"]["demo"]) == [
         "failed_wakes",
         "last_error",
         "outbox",
         "sign_in",
         "sweep",
     ]
-    assert not (kitchen.state / "exec-sent.json").exists()
     kitchen.write(path, plain)
     assert not [line for line in kitchen.poll(later(10)) if line.startswith("ignored")]
 
@@ -236,17 +232,14 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
 @pytest.mark.parametrize(
     "written",
     [
-        {"watch": '"yes"'},
         {"loud": '"user"'},
         {"loud": '["chef", "everyone"]'},
         {"loud": "[]"},
-        {"table": "exec = 3\n"},
-        {"table": '[exec]\nloud = "user"\n'},
     ],
-    ids=["watch-a-word", "loud-a-word", "loud-unknown", "loud-empty", "exec-a-number", "exec-loud"],
+    ids=["loud-a-word", "loud-unknown", "loud-empty"],
 )
 def test_a_value_of_an_ignored_key_that_was_once_refused_loads(kitchen, hook, written):
-    unread(kitchen, hook, **written)
+    unread(kitchen, **written)
     kitchen.main("gate", "alpha", stdin=GATE)
     assert len([line for line in kitchen.poll() if line.startswith("ignored")]) == 1
     assert kitchen.webhook.said == [[f"demo: {ASKED}"]] and hook.posts == []
@@ -390,7 +383,7 @@ MADE_UP = [
     ),
     post(was("gate", "delta", "gate delta: thread completed with a Result", loud="user")),
     post(was("gate", "stray", "gate stray: pull request #12 has no brief", f"{URL}/12", "user")),
-    post(was("gate", "exec-note", "gate exec-note: exec: a word", "exec: a word\nmore", "user")),
+    post(was("gate", "sous-note", "gate sous-note: sous: a word", "sous: a word\nmore", "user")),
     post(was("waiting", "", "waiting demo: 1 new", "+ approve eps: jbus queue approve", "user")),
     post(was("merged", "eps", "merged eps #13 bbbb", loud="user")),
 ]
@@ -478,21 +471,13 @@ def test_a_stale_line_of_a_home_that_merges_is_no_hold_while_t3_code_cannot_be_a
     assert kitchen.lines("waiting") == []
 
 
-def test_the_copy_to_exec_leaves_no_streak_and_no_file_behind(kitchen):
-    kitchen.state.mkdir(parents=True)
-    jbus.write_json(kitchen.state / "exec-sent.json", [[{"line": "a copy owed"}]])
-    streak = {"key": "exec-webhook", "count": 4, "since": NOW.isoformat(), "alerted": True}
-    jbus.write_json(kitchen.state_dir / "streaks.json", {"exec-webhook": streak})
-    kitchen.poll()
-    assert kitchen.status()["streaks"] == {} and not (kitchen.state / "exec-sent.json").exists()
-    assert kitchen.webhook.posts == [] and kitchen.lines("alert") == []
-
-
-def test_the_url_and_key_of_an_exec_table_nobody_reads_are_still_taken_out(kitchen, hook):
-    unread(kitchen, hook)
+def test_the_url_and_key_of_a_table_nobody_reads_are_still_taken_out(kitchen, hook):
+    path = kitchen.config_dir / "config.toml"
+    table = f'[retired]\nwebhook_url = "{hook.url}/retired"\nwebhook_key = "another-key"\n'
+    kitchen.write(path, path.read_text() + table)
     config = jbus.load()
-    assert config.unread == ((f"{hook.url}/exec", "another-key"),)
-    said = f"post to {hook.url}/exec with another-key"
+    assert config.tabled == ((f"{hook.url}/retired", "another-key"),)
+    said = f"post to {hook.url}/retired with another-key"
     assert jbus.redact(said, config.secrets()) == "post to [redacted] with [redacted]"
 
 

@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from jroles import ROLES
 from jroles.cli import main
 from test_tool_calls import LAUNCHES, errors
 
@@ -49,17 +50,13 @@ def test_an_expert_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
     assert roles("crew", given) == ('{"provider": "codex", "model": "gpt-5-codex"}\n', "")
 
 
-def test_exec_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
-    assert roles("exec") == ("", "")
-    assert roles("exec", MAP) == ("", "")
-    assert roles("exec", MAP + "exec: inherit\n") == ("", "")
-    given = MAP + "home: grok grok-build\nexec: claudeAgent claude-haiku-5-5\n"
-    haiku = (
-        '{"provider": "claudeAgent", "model": "claude-haiku-5-5", '
-        '"options": [{"id": "effort", "value": "medium"}]}\n'
-    )
-    assert roles("exec", given) == (haiku, "")
-    assert roles("home") == ('{"provider": "grok", "model": "grok-build"}\n', "")
+def test_the_roles_are_the_four_threads_and_an_expert_and_no_other(roles):
+    """A line for a role that is gone refuses the map, and the role cannot be asked for."""
+    assert ROLES == ("crew", "scout", "review", "home", "expert")
+    line = "orchestrator: claudeAgent claude-haiku-5-5"
+    assert roles("crew", MAP + line + "\n") == ("", f"bad line 6: {line}\n")
+    with pytest.raises(SystemExit):
+        main(["orchestrator"])
 
 
 def test_inherit_is_the_same_as_no_line(roles):

@@ -1,8 +1,8 @@
 """The user's word, down to a home: one record, written by `jbus word` and sent by jbus.
 
 It is for an approval or an instruction that answers no open question, said where the user
-was, which is most often Exec. `words.json` in a project's state directory is a list of
-`Word`:
+was, which is most often to Sous Chef. `words.json` in a project's state directory is a list
+of `Word`:
 
 - `id`: the first 12 of a hash of the project, the words, `by` and `at`, and of `ref` where
   there is one, so the same word for the same project is the same record however often the
@@ -25,10 +25,10 @@ its id there. The retry key is `word|<project>|<id>|<thread>`, and `sent_at` is 
 only after T3 Code said yes.
 
 Nothing of a word is an event. It is in no outbox, so no POST to a project's webhook or to
-Exec's carries it, and whoever ran the command hears nothing back. The log has a line for
-it all the same (`wake.Box.record`), which `jbus events` prints: the words, `by`, `at`, and
-`to`, the thread it went to or nothing while it waits. A word T3 Code refuses is such a line
-too, and waits like any other.
+the top-level one carries it, and whoever ran the command hears nothing back. The log has a
+line for it all the same (`wake.Box.record`), which `jbus events` prints: the words, `by`,
+`at`, and `to`, the thread it went to or nothing while it waits. A word T3 Code refuses is
+such a line too, and waits like any other.
 
 The command holds no lock of the pass, so a pass and the command can hold the same unsent
 word. What became of one is written to the record as it is in the file then, under

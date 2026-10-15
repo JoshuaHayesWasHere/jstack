@@ -324,7 +324,7 @@ HANDOFF = [
     (T3_CODE + "delete_scheduled_task", {"scheduledTaskId": "t1"}),
     (T3_CODE + "t3_thread_launch", {"title": "home: demo", "message": "/home carry on"}),
     (T3_CODE + "t3_thread_launch", {"title": "home: demo", "message": "/home"}),
-    (T3_CODE + "t3_thread_launch", {"title": "home: exec", "message": "You are the next thread"}),
+    (T3_CODE + "t3_thread_launch", {"title": "home: party", "message": "You are the next thread"}),
     ("mcp__t3_code__t3_thread_launch", {"title": "home: demo", "message": "/home scope\nseed"}),
     (T3_CODE + "t3_thread_list", {"titleContains": "home: demo"}),
     (T3_CODE + "t3_thread_send", {"threadId": "t", "message": "the home of demo is another now"}),

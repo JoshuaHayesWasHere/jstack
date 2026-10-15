@@ -260,8 +260,8 @@ def test_the_log_is_read_under_the_new_names_and_an_old_level_in_the_config_is_i
     path = kitchen.config_dir / "config.toml"
     named = 'name = "demo"\n'
     text = path.read_text().replace(named, f'{named}loud = ["{OLD_LEVEL}"]\n')
-    kitchen.write(path, text + f'[exec]\nloud = ["{OLD_LEVEL}", "chef"]\n')
-    assert jbus.load().ignored == ("[exec]", "loud of project demo")
+    kitchen.write(path, text)
+    assert jbus.load().ignored == ("loud of project demo",)
 
 
 def test_the_list_under_the_old_name_is_read_once_and_written_under_the_new(kitchen, jstack_config):
