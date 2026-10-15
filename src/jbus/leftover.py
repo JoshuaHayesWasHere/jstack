@@ -34,6 +34,10 @@ it reads has `told` or `why`.
 
 A pass that could not list the threads that are out judges no home's thread: a row whose
 home was told stays as it was, and any other is the user's until a pass can.
+
+The timers of what blocks (`waiting.cadence`) sit here beside `CLOSE_MINUTES`: an item that
+still blocks `REMIND_MINUTES` after it opened is reminded of once, and every
+`REFRESH_MINUTES` the list of what blocks is posted whole.
 """
 
 from __future__ import annotations
@@ -54,6 +58,8 @@ EVENTS = {"leftover": "quiet"}
 KIND = "leftover"
 NAME = "leftover.json"
 CLOSE_MINUTES = 30
+REMIND_MINUTES = 15
+REFRESH_MINUTES = 60
 NO_HOME = "it has no home: no home-id names a thread for the home of its brief"
 UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
 REFUSED = "T3 Code refused the message to its home's thread {thread}"

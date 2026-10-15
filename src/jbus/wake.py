@@ -22,6 +22,17 @@ route has its own outbox, five-minute gap and `last_error`, in its own folder: t
 state for its own webhook, `top-level/` in it for the other. So one webhook that is down
 neither holds nor repeats what the other is posted.
 
+Every body has a top-level `kind`, which jbus-relay routes on: `events` for what an outbox of
+events posts, `reminder` and `refresh` for the timers of what blocks (`waiting.cadence`).
+The second target, the config's `blocking` pair, is a route of its own beside those
+(`Box.blocking`): its outbox, in `blocking/`, holds whole bodies, not events. No event goes
+there. A pass queues it one `events` body of the items that began to block in it, with
+`items` beside `say` and `events`, and a reminder or a refresh as they fall due. Its flush
+keeps the five-minute gap for the first, and a reminder or a refresh waits on no gap: it
+takes along what waits before it, so the bodies go in order. A retry after a POST that
+failed waits on the gap, whatever it carries. A refresh that waits takes the
+place of the one before it, which is out of date.
+
 The log is `events.jsonl`. A line is added for an event as it was queued, `{"at", "id",
 "event", "slug", "loud", "line", "text"}`, and for a POST that was taken, `{"at", "posted":
 [ids]}`, and the daily prune rewrites the file without its oldest lines. Both times are the
@@ -73,6 +84,9 @@ UNLOGGED = "unlogged.json"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
 TOP_LEVEL = "top-level"
+BLOCKING = "blocking"
+EVENTS_KIND = "events"
+TIMERS = ("reminder", "refresh")
 HEADER = "X-Automation-Key"
 AGENT = "jbus"
 CONDITION = "condition"
@@ -223,6 +237,7 @@ class Route:
     key: str
     folder: Path
     top: bool = False
+    blocking: bool = False
 
 
 class Box:
@@ -239,10 +254,17 @@ class Box:
     once.
     """
 
-    def __init__(self, state: Path, project: Project, top: jbus.Hook = ("", "")) -> None:
+    def __init__(
+        self,
+        state: Path,
+        project: Project,
+        top: jbus.Hook = ("", ""),
+        second: jbus.Hook = ("", ""),
+    ) -> None:
         self.state = state
         self.project = project
         self.top = top
+        self.second = second
 
     @property
     def routes(self) -> list[Route]:
@@ -251,6 +273,13 @@ class Box:
         other = Route(*self.top, self.state / TOP_LEVEL, top=True)
         mine = (own.url, own.key)
         return [own, *([other] if self.top[0] and tuple(self.top) != mine else [])]
+
+    @property
+    def blocking(self) -> Route | None:
+        """The second target, where the config sets it: a route no event is queued to."""
+        if not self.second[0]:
+            return None
+        return Route(*self.second, self.state / BLOCKING, blocking=True)
 
     @staticmethod
     def clock() -> datetime:
@@ -433,8 +462,67 @@ class Box:
         with self._locked():
             shutil.rmtree(self.state / TOP_LEVEL, ignore_errors=True)
 
+    def drop_blocking(self) -> None:
+        """Remove the second target's outbox and marks, once the config has no such pair."""
+        with self._locked():
+            shutil.rmtree(self.state / BLOCKING, ignore_errors=True)
+
+    def post(self, made: dict[str, Any]) -> None:
+        """Queue one whole body for the second target. A refresh takes the place of a refresh
+        that still waits. With no second target nothing is queued."""
+        route = self.blocking
+        if route is None:
+            return
+        with self._locked():
+            waiting = read_json(route.folder / "outbox.json", [])
+            if made["kind"] == "refresh":
+                waiting = [one for one in waiting if one.get("kind") != "refresh"]
+            write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
+
     def waiting(self, route: Route | None = None) -> int:
+        if route is not None and route.blocking:
+            return len(read_json(route.folder / "outbox.json", []))
         return len(self._outbox(route))
+
+    def flush_blocking(
+        self, now: datetime, say=print, *, went: Callable[[str], None] = lambda _: None
+    ) -> int:
+        """Post the bodies that wait for the second target, in order: once its gap has
+        passed since its last POST, or at once when a reminder or a refresh waits and the
+        last POST did not fail: a retry waits on the gap, as every route's does. One try
+        each, and the first that fails ends the flush. The answer is how many went, and
+        `went` hears how it ended, as for `flush`."""
+        route = self.blocking
+        if route is None:
+            return 0
+        outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
+        with self._locked():
+            waiting = read_json(outbox, [])
+            marks = read_json(wakes, {})
+            if not waiting:
+                return 0
+            fresh = not marks.get("last_error")
+            timed = fresh and any(one.get("kind") in TIMERS for one in waiting)
+            if not timed and now.timestamp() - marks.get("posted", 0) < GAP:
+                return 0
+            marks = {**marks, "posted": now.timestamp()}
+            write_json(wakes, marks)
+            sent, why = 0, ""
+            for one in waiting:
+                why = _post(route, one)
+                if why:
+                    break
+                sent += 1
+                self._log(posted_blocking=one["kind"], items=len(one.get("items", [])))
+                write_json(outbox, waiting[sent:], mode=0o600)
+            write_json(wakes, {**marks, "last_error": why})
+            if why:
+                say(f"wake failed {self.project.name} {BLOCKING} webhook: {why}")
+        if sent:
+            went("")
+        if why:
+            went(why)
+        return sent
 
     def flush(
         self,
@@ -477,7 +565,7 @@ class Box:
             sent, why = 0, ""
             logged = "posted_top_level" if route.top else "posted"
             for some in _lists(waiting):
-                why = _post(route, some)
+                why = _post(route, body(some))
                 if why:
                     break
                 sent += len(some)
@@ -517,12 +605,13 @@ def _prunable(key: str, slugs: set[str]) -> bool:
 
 
 def body(events: list[dict[str, Any]]) -> dict[str, Any]:
-    """What one POST carries: the lines for the chat, as they are to be posted, and the events.
+    """What one POST carries: its `kind`, the lines for the chat, as they are to be posted,
+    and the events.
 
     An event that was queued before events had `say` is said by its line.
     """
     say = [one.get("say") or one["line"] for one in events]
-    return {"say": say, "events": events}
+    return {"kind": EVENTS_KIND, "say": say, "events": events}
 
 
 def _lists(events: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
@@ -537,15 +626,15 @@ def _lists(events: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
         yield some
 
 
-def _post(route: Route, events: list[dict[str, Any]]) -> str:
-    """Send the list to the route's webhook. The answer is why it failed, with no URL and
+def _post(route: Route, made: dict[str, Any]) -> str:
+    """Send one body to the route's webhook. The answer is why it failed, with no URL and
     no key in it, or nothing."""
     url, key = route.url, route.key
     if not url:
         return "the config has no webhook_url"
     request = urllib.request.Request(
         url,
-        data=json.dumps(body(events)).encode(),
+        data=json.dumps(made).encode(),
         headers={
             "content-type": "application/json",
             "Authorization": f"Bearer {key}",
@@ -623,7 +712,7 @@ class Pass:
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)
         self.home = self.config.home(self.project)
-        self.box = Box(self.state, self.project, self.config.webhook)
+        self.box = Box(self.state, self.project, self.config.webhook, self.config.blocking)
         self.first = not read_json(self.state / "wake.json", {}).get("began")
         self.user = self.config.user
         self.day = self.user.day(self.now)
