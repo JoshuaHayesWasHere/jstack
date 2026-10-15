@@ -41,7 +41,6 @@ No model reads anything.
 from __future__ import annotations
 
 import argparse
-import contextlib
 import fcntl
 import re
 from collections.abc import Callable
@@ -79,7 +78,6 @@ SNAPSHOT_DAYS = 14
 ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 LAUNCH = "the launch"
 REMINDER = "the sign-in reminder"
-RETIRED, EXEC_SENT = "exec-webhook", "exec-sent.json"
 
 
 def snapshot(run: wake.Pass, rows: list[queue.Row] | None) -> str:
@@ -442,9 +440,7 @@ def poll(
 
     A config that still has a key nothing reads is said in one line, on each pass until
     the key is removed. The homes that have no project in the config are said in one line
-    too, on the pass their list changes (`project.missing`). What the copy to Exec left
-    behind goes here too: its streak, which nothing else would end, and each project's list
-    of copies owed.
+    too, on the pass their list changes (`project.missing`).
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:
@@ -463,10 +459,6 @@ def poll(
                 f"ignored: {config.config_dir / 'config.toml'} still has "
                 f"{', '.join(config.ignored)}: jbus reads none of them, remove them"
             )
-        alert.retire(config.state_dir, RETIRED)
-        for one in config.projects:
-            with contextlib.suppress(OSError):
-                (config.state(one) / EXEC_SENT).unlink()
         now = now or datetime.now(UTC)
         last = jbus.read_json(config.status_path, {})
         raised: dict[str, str] = {}

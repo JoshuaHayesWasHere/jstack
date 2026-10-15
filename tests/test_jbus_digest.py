@@ -438,15 +438,14 @@ def test_no_webhook_url_no_key_and_no_token_is_in_the_list_the_digest_or_a_line(
     """A fake of each is planted in every source the list and the digest read."""
     hook = f"{kitchen.webhook.url}/hooks/s3cr3t-path-of-the-relay?sig=a-signature-for-it"
     host = kitchen.webhook.url.partition("//")[2]
-    exec_key = "short"
-    kitchen.config(url=hook, max_running=6, exec={"webhook_url": hook, "webhook_key": exec_key})
+    kitchen.config(url=hook, max_running=6)
     refresh = "a-refresh-token-for-the-test"
     kitchen.signed_in(
         timedelta(0),
         **{**FIXTURE["token_response"], "access_token": TOKEN, "refresh_token": refresh},
     )
-    secrets = [hook, KEY, TOKEN, refresh, exec_key, host, "s3cr3t-path", "a-signature"]
-    planted = f"{hook} {KEY} {TOKEN} {refresh} {exec_key} as a Bearer with orchestration:read"
+    secrets = [hook, KEY, TOKEN, refresh, host, "s3cr3t-path", "a-signature"]
+    planted = f"{hook} {KEY} {TOKEN} {refresh} as a Bearer with orchestration:read"
     (kitchen.home / "gates.md").write_text(gate(4, f"post to {planted}?"))
     add(kitchen, "unsaid", approve=False)
     add(kitchen, "alpha")

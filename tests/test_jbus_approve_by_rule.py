@@ -195,15 +195,16 @@ def test_a_rule_is_read_from_the_homes_standing_rules_up_to_the_next_rule_or_hea
     )
 
 
-def test_exec_and_a_home_are_named_as_who_ran_it(kitchen):
+def test_the_home_of_the_folder_it_ran_in_is_named_as_who_ran_it(kitchen):
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
-    desk = kitchen.root / "_exec"
+    desk = kitchen.root / "elsewhere"
     desk.mkdir()
     kitchen.monkeypatch.chdir(desk)
     argv = ("--project", "demo", "queue", "approve", "beta", "--rule", "6", "--follows", "alpha")
     assert kitchen.main(*argv, "--sha", sha12(brief("beta")))[0] == 0
-    assert rows(kitchen)["beta"]["approved"] == BY_RULE.replace("the demo home", "Exec")
+    named = BY_RULE.replace("the demo home", "the elsewhere home")
+    assert rows(kitchen)["beta"]["approved"] == named
 
 
 def test_the_views_row_says_the_same_line_and_is_marked_as_a_rule_approval(kitchen):

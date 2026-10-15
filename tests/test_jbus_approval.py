@@ -221,15 +221,15 @@ def test_a_hold_takes_the_record_back_with_the_go(kitchen):
     assert cell(kitchen, "alpha") == ""
 
 
-def test_the_line_names_exec_a_home_or_a_shell_by_where_and_whether_a_session_ran_it(kitchen):
+def test_the_line_names_a_home_or_a_shell_by_where_and_whether_a_session_ran_it(kitchen):
     add(kitchen, "alpha", approve=False)
-    desk = kitchen.root / "_exec"
+    desk = kitchen.root / "elsewhere"
     desk.mkdir()
     kitchen.monkeypatch.chdir(desk)
     argv = ("--project", "demo", "queue", "approve", "alpha", "--word", kitchen.word())
     assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
     typed = f"his word, {SAID_AT} (time typed); run {RAN} by"
-    assert rows(kitchen)["alpha"]["approved"] == f"{typed} Exec"
+    assert rows(kitchen)["alpha"]["approved"] == f"{typed} the elsewhere home"
     kitchen.monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
     assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
     row = rows(kitchen)["alpha"]
@@ -277,22 +277,22 @@ def test_a_row_with_no_approval_is_listed_with_the_command_and_its_three_bases(k
 
 def test_a_word_given_as_a_message_is_kept_with_the_messages_own_words_and_time(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
-    kitchen.t3.says("mcp:exec", MESSAGE, "launch\nalpha and beta", title="Exec")
-    code, said = kitchen.main("word", "--to", "demo", "--message", f"mcp:exec/{MESSAGE}")
+    kitchen.t3.says("mcp:sous", MESSAGE, "launch\nalpha and beta", title="Sous Chef")
+    code, said = kitchen.main("word", "--to", "demo", "--message", f"mcp:sous/{MESSAGE}")
     (kept,) = word.load(kitchen.state)
     assert (code, said) == (0, f"sent: demo, to home-1, word {kept.id}\n")
     assert (kept.words, kept.by, kept.at, kept.ref, kept.said_in, kept.checked) == (
         "launch alpha and beta",
         "user",
         HEARD_AT,
-        f"mcp:exec/{MESSAGE}",
-        "Exec",
+        f"mcp:sous/{MESSAGE}",
+        "Sous Chef",
         True,
     )
     add(kitchen, "alpha", approve=False)
     assert go(kitchen, "alpha", "--word", kept.id)[0] == 0
     row = rows(kitchen)["alpha"]
-    assert row["approved"] == f"his word, {HEARD_AT}, in Exec; run {RAN} by the demo home"
+    assert row["approved"] == f"his word, {HEARD_AT}, in Sous Chef; run {RAN} by the demo home"
     assert (row["approval"]["basis"], row["approval"]["checked"]) == ("word", True)
 
 

@@ -94,7 +94,7 @@ Each `[[project]]` table is one repo:
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. A table with only one of the two is refused. |
 
-To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus.md#add-a-project) says what it writes. A table that still has `exec_watch` or `loud` loads, `jbus` reads neither key, and each pass says to remove it.
+To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus.md#add-a-project) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
 
 `jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](jbus.md#set-up-jbus) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
 

@@ -23,7 +23,7 @@ project and no unit is restarted.
 home's `home-id` and is the home of no project of the config. A home adds its repo at its
 start, and one started before that rule, or whose add was refused, is named here: the pass
 says the list when it changes, and `jbus status` and the view's machine row show it. A
-party's folder, `_<name>` (Exec's, an expert's), is no repo's home and is never named, and a
+party's folder, `_<name>` (an expert's), is no repo's home and is never named, and a
 folder that is a link to a project's home is that home.
 """
 
