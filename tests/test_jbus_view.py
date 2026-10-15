@@ -1584,6 +1584,16 @@ def test_a_task_that_is_merged_or_finished_is_not_on_the_line_and_a_lost_one_is(
     assert open_work["fig-leaf"]["who"] == "dep" and open_work["fig-jam"]["who"] == "bus"
 
 
+def test_a_fix_whose_scoped_review_is_not_written_is_on_the_second_pass(scene, served):
+    """jv-work-state's case of 2026-10-14: its pull request sat in the Unknown lane on this
+    reason, which `jmerge` gave and no rule named."""
+    why = "wait: its fix is not reviewed: the scoped review of it is not written"
+    scene.queue([row("jv-work-state", "pr", pr="#431", checks="passed", why=why)])
+    task = tasks(served.json("/state.json"))["jv-work-state"]
+    assert (task["step"], task["who"]) == ("second", "rev")
+    assert task["state"]["say"] == why.removeprefix("wait: ")
+
+
 def test_a_reason_of_jmerge_that_no_pattern_matches_is_unknown_and_on_a_lane_of_its_own(
     scene, served
 ):

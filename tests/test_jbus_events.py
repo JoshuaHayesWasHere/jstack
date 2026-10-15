@@ -292,6 +292,7 @@ TABLE = {
     "overlap": "quiet",
     "note": "quiet",
     "leftover": "quiet",
+    "unplaced": "quiet",
 }
 
 
