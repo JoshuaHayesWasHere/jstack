@@ -108,12 +108,6 @@ def test_imports_are_every_module_a_file_loads_relative_ones_read_from_its_packa
         "jmerge",
         "jmerge.cli",
         "jmerge.ready",
-        "jmerge.sweep",
-        "jmerge.proof",
-        "jmerge.proof.x",
-        "sweep",
-        "proof",
-        "proof.x",
         "src",
         "src.jmerge",
         "src.jmerge.sweep",
@@ -122,6 +116,12 @@ def test_imports_are_every_module_a_file_loads_relative_ones_read_from_its_packa
     }
     assert ready.imports("src/jmerge/claims.py", "def (:") == set()
     assert ready.imports("docs/x.md", "import os") == set()
+    ours = {"app2/models.py": "X = 1\n"}
+    theirs = {
+        "app1/views.py": "from .models import X\n",
+        "app2/views.py": "from .models import X\n",
+    }
+    assert ready.callers_and_dependencies(ours, theirs) == ("app2/views.py",)
 
 
 def test_callers_and_dependencies_go_both_ways_and_skip_the_rest():

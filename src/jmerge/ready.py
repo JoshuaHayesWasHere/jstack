@@ -884,7 +884,9 @@ def modules(path: str) -> tuple[str, ...]:
 def imports(path: str, text: str) -> set[str]:
     """Every module a Python file's imports load: each dotted prefix of `import a.b`, and
     for `from a import b` both `a` and `a.b`, a relative one read from the file's own
-    package. Nothing for a file that is not Python or does not parse."""
+    package, by its full dotted path alone: a tail of it would make `from .models import x`
+    in one directory a caller of `models.py` in every other. Nothing for a file that is not
+    Python or does not parse."""
     if not path.endswith(".py"):
         return set()
     try:
@@ -892,7 +894,8 @@ def imports(path: str, text: str) -> set[str]:
     except (SyntaxError, ValueError):
         return set()
     package = path.endswith("/__init__.py") or path == "__init__.py"
-    homes = [name.split(".") if package else name.split(".")[:-1] for name in modules(path)]
+    full = modules(path)[:1]
+    homes = [name.split(".") if package else name.split(".")[:-1] for name in full]
     loaded = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
