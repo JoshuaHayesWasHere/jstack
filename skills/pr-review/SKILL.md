@@ -249,6 +249,7 @@ Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
 Report a finding only when it is about a changed line, or about something a changed line breaks. Give every finding the file and line of the changed line, and when the damage is elsewhere, say where in the text.
 For a finding about a removed line, give the line that now sits just before or just after where it was. For a finding about what the change as a whole lacks (a "Done when" line it does not meet, a test it does not have), give no file and say so.
+End every finding with the principle it breaks, `(principle: <name>)`, a name from the principles listed above, or `(principle: none)` when it breaks none of them or none is listed.
 Do not report and do not fix a bug or weakness in code this pull request did not change, however real: those are handled elsewhere.
 Do not ask for work beyond what the task above needed.
 Read the changed code the way a tech lead would, and answer these about it:
@@ -277,6 +278,29 @@ SCOPE
 )
 INTENT=$(
   sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!p}' "$BRIEF"
+  play=$(awk '/^Playbook:/ {print $(2); exit}' "$BRIEF")
+  P="$T/../playbooks/$play.md"
+  case $play in
+  "" | none) ;;
+  *)
+    if [ "${play#*/}" != "$play" ] || [ ! -f "$P" ]; then
+      printf '\nPlaybook: %s, which is no playbook here: the crewmate worked with none.\n' "$play"
+    elif by=$(sed -n 's/^Run by: //p' "$P" | head -n 1) && [ "${by%%,*}" != "a crewmate" ]; then
+      printf '\nPlaybook: %s, which is for %s and not a crewmate: the crewmate worked with none.\n' "$play" "${by%%,*}"
+    else
+      cited=$(grep -o 'principles/[a-z0-9-]*\.md' "$P" | awk '!seen[$(0)]++' | while read -r file; do
+        [ -f "$T/../$file" ] || continue
+        name=${file#principles/}
+        awk -v name="${name%.md}" '
+          /^# / {head = 1; next}
+          head && NF {printf "%s%s", (on++ ? " " : "- " name ": "), $(0); next}
+          on {exit}
+          END {if (on) print ""}' "$T/../$file"
+      done)
+      printf '\nPlaybook: %s, the steps the crewmate worked by.\n' "$play"
+      if [ -n "$cited" ]; then printf 'The principles it cites, and when each applies:\n%s\n' "$cited"; fi
+    fi ;;
+  esac
   printf '\n%s\n' "$SCOPE"
 )
 I="$T/../skills/interrogate/references"
@@ -318,7 +342,7 @@ echo "$D/prompt.md"
 - The wait for room is this call, and nothing else. With `--wait 540` the check looks again every 15 seconds until it says `go` or nine minutes have passed. On `go` the block goes on by itself. So send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. When the nine minutes pass with no room, the block prints the last `wait: ` line, builds nothing and exits 75: start no reviewer, and send the same block again at once, in this same turn. A call that was cut off before it printed anything is sent again the same way. A check that did not run is a `wait` too, and exits 75 at once.
 - Never end the turn to wait for room, and never leave a check, a loop or a timer in the background to wait in your place: nothing wakes a reviewer when the machine has room, and the pull request would wait for a review that nobody runs. The block counts its own sends for this slug and head, in a file beside the directories it builds, a send that was cut off included, and forgets them on `go`. The sixth send with no room, about an hour in, prints the last answer and exits 69: give up as "No room" below says, and send the block no more.
 - A brief with `Review: none` gets exit code 78 and nothing built: say that its brief asks for no review, and stop.
-- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask. The scope is the pull request's diff, `gh pr diff <url>`. The intent is the brief from `Task:` to the end of `Decisions:`, word for word, and after it the `SCOPE` text. That text is how the scope rule and the seven questions reach the two reviewers, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
+- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask. The scope is the pull request's diff, `gh pr diff <url>`. The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text. That text is how the scope rule and the seven questions reach the two reviewers, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
 - Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff reaches the reviewers as GitHub sent it, not retyped by this thread. Keep the path: the reviewers are given it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which. Nothing was reviewed: send the block once more, and if it fails again, write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
 
@@ -340,7 +364,7 @@ echo "$D/prompt.md"
 
 **4. Lead judgment.** Read steps 4 and 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. You have what the reviewers did not: the brief, its decisions, and the repo to check a claim against.
 
-- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong>`, in the forms "Outside the diff" gives. The severity is `error`, `warning` or `info`: a reviewer's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request. A finding both reviewers raised says so at its end: `(both reviewers)`.
+- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in the forms "Outside the diff" gives. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`: take the reviewers' tag, and where they differ or gave none, judge it yourself. The severity is `error`, `warning` or `info`: a reviewer's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request. A finding both reviewers raised says so before its tag: `(both reviewers)`.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there with the reason: it is what lets the user overrule the lead. Neither goes to the crewmate.
 - The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding: fixed`, or `Finding: not fixed` with a reason (the crew skill, "The review").
 
@@ -502,7 +526,7 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
 
    On `nobody`, send no message, to the crewmate or to anyone, and write `Sent to: not sent, clean` in the section. It is printed only for a second or scoped pass whose verdict is `clean`, on a pull request `jmerge` can merge with no further line from the crewmate: the `Fixed:` line is written and stays as it is, jbus merges, GitHub says `MERGEABLE`, no check is red, and jbus has asked for no rebase at this head. A message there would wake a thread that has nothing to push and nothing to launch. `jmerge` reads the section from the brief, and jbus's relay passes on no section whose verdict is `clean`. The lines for work in flight and a head that moved under the review are then in the section alone. A clean first review is still sent, and so is a clean later pass that leaves the crewmate something to do. On `not filled in`, nothing was decided: fill in the verdict and run it again.
 
-   On `crewmate`, send them to that thread with `t3_thread_send`: `threadId` is the id it printed, whole. That is so with a home and with none: the findings go to the `Thread:` line. On `home`, send them to the thread "Telling the home" finds. If that finds none, there is no home: do not send, say so, and write `Sent to: not sent, no home` in the section. jbus reads that line, and passes the findings on to the thread a `Thread:` line names by then, or parks them as a gate. A send that failed is written the same way, `Sent to: not sent, <why>`, and is passed on the same way. One message: the pull request, the head reviewed, then each finding on its own line with its severity, its file and line, and what is wrong. Then the `Proof:` line, one line for each overlap with work in flight, and the count dropped, as a number and nothing more. What the lead noted or dismissed is not in it. End with: "One review pass. Fix what you agree with, say why for the rest, and the pull request's checks decide." In a review started with `again`, the message begins "Second pass, and the last full one. On a guarded pull request a fix for these findings still gets its one scoped pass: run the block of the crew skill's 'A second pass' after the push." in place of "One review pass." If there are no findings and no overlap, send one line saying the review is clean, and the `Proof:` line.
+   On `crewmate`, send them to that thread with `t3_thread_send`: `threadId` is the id it printed, whole. That is so with a home and with none: the findings go to the `Thread:` line. On `home`, send them to the thread "Telling the home" finds. If that finds none, there is no home: do not send, say so, and write `Sent to: not sent, no home` in the section. jbus reads that line, and passes the findings on to the thread a `Thread:` line names by then, or parks them as a gate. A send that failed is written the same way, `Sent to: not sent, <why>`, and is passed on the same way. One message: the pull request, the head reviewed, then each finding on its own line with its severity, its file and line, what is wrong, and its principle tag. Then the `Proof:` line, one line for each overlap with work in flight, and the count dropped, as a number and nothing more. What the lead noted or dismissed is not in it. End with: "One review pass. Fix what you agree with, say why for the rest, and the pull request's checks decide." In a review started with `again`, the message begins "Second pass, and the last full one. On a guarded pull request a fix for these findings still gets its one scoped pass: run the block of the crew skill's 'A second pass' after the push." in place of "One review pass." If there are no findings and no overlap, send one line saying the review is clean, and the `Proof:` line.
 5. Read `$T/review.md` now. Append it, filled in, to `$H/tasks/<slug>.md`. Where step 4 printed `nobody`, run its block once more now that the section is on disk: the crewmate's thread puts a rebase off while a review's section is not written, and one may have come since step 4. If it no longer prints `nobody`, send the thread it names one line saying the review is clean, and the `Proof:` line. The section stays as it is.
 6. Send nothing more, to a home or to anyone. The crewmate has the findings, jbus passes them on, or the pass was clean and asked for no message, and the section is on disk. A home hears of this pull request once, from the crewmate, when it is fixed and green, and only while it is the one that merges. While jbus merges, with a home or with none, nobody is sent that: `jmerge` reads the brief, run by jbus.
 7. Say the same in this thread in at most five lines. A reviewer does not review the fixes: the scoped pass of a fix is another reviewer's, launched by the crewmate when its fix changed a file outside `tests/`.
@@ -510,7 +534,7 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
 
 ### Outside the diff
 
-Write the lead's findings, the **Act on** and **Consider** ones of step 4 with what step 5 added, one to a line, each as `<severity> <file>:<line> <what is wrong>`, in place of the middle line of this block. A finding about a file as a whole has no `:<line>`. A finding about what the change as a whole lacks (a `Done when` line it does not meet, a test it does not have) has `-` in place of the file and line: that form is for what the pull request leaves out, never for code it did not touch. A finding about something a changed line breaks is written against that changed line before it goes in: if no changed line can be named for it, it goes in as it came, and the block drops it.
+Write the lead's findings, the **Act on** and **Consider** ones of step 4 with what step 5 added, one to a line, each as `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in place of the middle line of this block. A finding about a file as a whole has no `:<line>`. A finding about what the change as a whole lacks (a `Done when` line it does not meet, a test it does not have) has `-` in place of the file and line: that form is for what the pull request leaves out, never for code it did not touch. A finding about something a changed line breaks is written against that changed line before it goes in: if no changed line can be named for it, it goes in as it came, and the block drops it.
 
 ```sh
 gh pr diff <url> | awk '
