@@ -100,13 +100,52 @@ Proceed on reversible work without asking: do it, then say what you did and why.
   ```
 
   The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one. A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once. The check command is never run in the short lane.
-- Once every **Done when** line holds, run the repo's check command (`notes.md` names it) in full, once, under a test slot. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets:
+- Once every **Done when** line holds, run the repo's check command (`notes.md` names it) in full, once, under a test slot. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets. Every run of the check command this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot -- <check command>
+  G=$(git rev-parse --path-format=absolute --git-dir)
+  C="$G/crew-check"
+  limit=540
+  index="$G/crew-check.index"
+  rm -f "$index"
+  cp "$(git rev-parse --path-format=absolute --git-path index)" "$index" 2> /dev/null
+  tree=$(GIT_INDEX_FILE="$index" git add -A && GIT_INDEX_FILE="$index" git write-tree)
+  rm -f "$index"
+  running() { [ -f "$C/pid" ] && ! [ -f "$C/exit" ] && kill -0 "$(cat "$C/pid")" 2> /dev/null; }
+  if running; then
+      if [ "$(cat "$C/tree")" = "$tree" ]; then
+          echo "joined: the check an earlier call started on this worktree still runs, so it is waited on and not started again"
+      else
+          echo "joined: a check an earlier call started still runs, on the worktree as it was then: it is waited on and not started again, and once it is done this block is run again for the worktree as it is now"
+      fi
+  elif [ -f "$C/exit" ] && [ "$(cat "$C/tree" 2> /dev/null)" = "$tree" ]; then
+      echo "checked: the check of this worktree as it is now ran already, and this is what it said"
+  else
+      rm -rf "$C" && mkdir -p "$C" && echo "$tree" > "$C/tree"
+      cat > "$C/run" << 'THE_CHECK_ENDS_HERE'
+  <check command>
+  THE_CHECK_ENDS_HERE
+      setsid sh -c 'echo $$ > "${1}/pid"; uv run --project "${2}" jgauge test-slot -- sh "${1}/run" > "${1}/out" 2>&1; echo $? > "${1}/exit"' check "$C" "$T/.." < /dev/null > /dev/null 2>&1 &
+      for second in 1 2 3 4 5 6 7 8 9 10; do [ -f "$C/pid" ] && break; sleep 1; done
+      echo "started: the check runs on this worktree as it is now, and this call waits on it"
+  fi
+  waited=0
+  while ! [ -f "$C/exit" ] && running && [ "$waited" -lt "$limit" ]; do
+      sleep 1
+      waited=$((waited + 1))
+  done
+  if [ -f "$C/exit" ]; then
+      tail -n 20 "$C/out"
+      echo "done: the check exited $(cat "$C/exit")"
+      (exit "$(cat "$C/exit")")
+  elif running; then
+      echo "running: $(tail -n 1 "$C/out" 2> /dev/null). Run this block again now, in this turn, and again until it prints done: never end your turn while it runs"
+  else
+      echo "lost: the check stopped with no exit code: run this block again, and it starts the check afresh"
+  fi
   ```
 
-  It runs the command while holding one of 2 machine-wide test slots, and ends with the command's exit code. When all are held it prints `test-slot: waiting for one of 2 slots` and waits: give the call a long time limit and let it wait, never run the command a second way to get past it. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found, and put its last line on `Proof:`.
+  It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. A check waits for a slot, often 10 to 20 minutes, and then runs, so one call is seldom enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that already ran on the worktree as it is now gives what it said (`checked`). On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one full run, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself. While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite. The reviewer never runs it, whatever the brief's `Review:` line or the repo's `notes.md` says. A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
@@ -338,13 +377,7 @@ checks
 Its first word is one of four answers:
 
 - `passed`: every check passed. The pull request is green.
-- `failed`: a check ran and failed. Run the check command in this worktree (`notes.md` names it) under a test slot, as "Do the task" does, with the block at the top:
-
-  ```sh
-  uv run --project "$T/.." jgauge test-slot -- <check command>
-  ```
-
-  Then run the block of "A failed check" below, and do what its first word says.
+- `failed`: a check ran and failed. Run the check command in this worktree (`notes.md` names it) with the block of "Do the task" that runs it, until it prints `done`, in this turn. Then run the block of "A failed check" below, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked. End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
