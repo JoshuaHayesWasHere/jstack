@@ -49,7 +49,7 @@ def a_gate(question=ASKED, slug="alpha", **changed):
         **changed,
     }
     lines = []
-    for line in TEMPLATE.read_text().splitlines():
+    for line in TEMPLATE.read_text().split("\n\n")[0].splitlines():
         label = line.split(":")[0]
         if line.startswith("## "):
             line = f"{label}: {question}"

@@ -20,23 +20,40 @@ answer`, and by nothing else.
   an `Option`: its short `name`, what `follows` from it, whether it is the `default` that
   was taken, and whether it is the one the thread `recommended`. A record written before a
   gate had options has none;
+- `holds` and `fail_safe`: the case of `HOLDS` the gate's `Holds:` line names, for a default
+  that is irreversible or slow to revert, and the fail-safe its `Fail-safe:` line names. Both
+  are empty for a gate whose thread acted on its default at once, and for a record written
+  before gates had them;
 - `proposed`: when a pass asked the thread of a question with no options to pipe them, or
   found that T3 Code no longer lists that thread. Nothing for a question never asked so;
 - `asked_at`: when `jbus gate` took it;
 - `answer`: nothing while it is open. Once closed, an `Answer`: `closed_by`, which is
-  `jbus answer` or a home's `gates.md`; the user's `words`, `by` and `at`, `where` the
+  `jbus answer`, a home's `gates.md`, or `silence`; the user's `words`, `by` and `at`, `where` the
   command was run, and `keeps` for an answer that is the default; `told`, when a differing
   answer went to the asker; and `ref`, `said_in` and `checked`, which for an answer given as
   `--message` are the `<thread id>/<message id>` jbus read from T3 Code, that thread's
   title, and true, and for one typed with `--by` and `--at` are empty and false. One a home
   closed in its file has the file's
   `Status:` line as its `words`, the file as `where`, and no `by` and no `at`: jbus knows
-  neither.
+  neither. One closed by silence has the words `default`, `by` jbus, `at` the pass that
+  closed it, `where` "no answer in 2 hours", and `keeps`: it is not the user's word.
 
-A record is open until `jbus answer` closes it, and it is closed once: a second answer is
-refused with the first one in the refusal. While homes still keep a `gates.md`, one more
-thing closes a record: a pass that finds the same gate in such a file with `Status:
-answered` (`closed_in_files`), since that home took the answer and carried it.
+A gate is act-unless-stopped: the thread acts on its default at once, and the question is
+the user's chance to stop it. A record is open until `jbus answer` closes it, and it is
+closed once: a second answer is refused with the first one in the refusal. One thing more
+closes it: a pass that finds it open 2 hours (`QUIET`) with no `Holds:` line closes it by
+silence, with its default (`silent`). An answer of the user's still replaces that close,
+as the one answer the record has, and one that differs is carried as any other.
+
+A gate whose default is irreversible or slow to revert holds: its thread does not act, and
+the question waits for the user. Its `Holds:` line names the case, one of `HOLDS`, and its
+`Fail-safe:` line the dry-run, plan or bundle the user answers on. Such a gate is never
+closed by silence. A `Holds:` line with no filled `Fail-safe:` line is refused, and so is an
+unknown case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
+
+While homes still keep a `gates.md`, one more thing closes a record: a pass that finds the
+same gate in such a file with `Status: answered` (`closed_in_files`), since that home took
+the answer and carried it.
 
 A file that does not parse, or holds a record that is not one, is refused by every verb
 that would write it (`Unparsable`): written back, it would lose the questions and give
@@ -48,7 +65,8 @@ or closed. Asked again while it is open, the record takes the new default, undo 
 built-on lines, its context and its options: a thread parks the same gate again at a later
 head.
 
-A gate proposes two options or more, one of them the default that was taken (`_proposed`).
+A gate proposes two options or more, one of them the default that was taken and the one
+the thread recommends (`_proposed`).
 One that does not is refused with `not sent` and the form of an `Option:` line whole, so a
 thread whose skill is older than the options can mend its lines from the refusal alone. A
 question that is open with no options was asked before that rule. A pass asks its thread,
@@ -77,7 +95,7 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -101,12 +119,22 @@ MESSAGE = (
 )
 _THREAD = re.compile(r"\bthread (\S+)")
 _GROUP = re.compile(r"\([^()]*\)$")
-COMMAND, HOME = "jbus answer", "gates.md"
+COMMAND, HOME, SILENCE = "jbus answer", "gates.md", "silence"
+QUIET = timedelta(hours=2)
+UNANSWERED = "no answer in 2 hours"
+HOLDS = (
+    "deletes data",
+    "rewrites history",
+    "spends money",
+    "touches prod or real users",
+    "changes access or secrets",
+    "publishes",
+)
 REFUSED = "T3 Code refused the answer to question {number}, so its thread was not told"
 FORM = (
     'each option you weighed is one line, the default you took among them: "Option: <short '
-    'name> (default, recommended): <what follows from it>", with (default) on the one that '
-    "was taken, (recommended) on the one you would pick, and no mark on the rest"
+    'name> (default, recommended): <what follows from it>", with both marks on the one that '
+    "was taken, which is the one you recommend, and no mark on the rest"
 )
 NOT_SENT = "not sent: {what}. Write the options and pipe the gate again: " + FORM + "."
 PROPOSE = (
@@ -140,6 +168,8 @@ class Answer:
     def line(self) -> str:
         if self.closed_by == HOME:
             return f'closed by its home in {self.where}, "{self.words}"'
+        if self.closed_by == SILENCE:
+            return f"closed with its default by {self.by}, {self.at}: {self.where}"
         kind = "the default stands" if self.keeps else "not the default"
         return f'"{self.words}", by {self.by}, {self.at}, in {self.where} ({kind})'
 
@@ -166,6 +196,8 @@ class Question:
     context: str = ""
     options: tuple[Option, ...] = ()
     proposed: str = ""
+    holds: str = ""
+    fail_safe: str = ""
 
     @property
     def key(self) -> str:
@@ -253,7 +285,8 @@ def _proposed(lines: str) -> tuple[Option, ...]:
     The user picks among what the thread weighed, so a gate has two options or more, each
     under a name of its own. One of them is the default that was taken, and at most one is
     the thread's pick. A name that ends in parentheses is a mark that was not spelled as one,
-    and kept as a name it would be an option with no mark.
+    and kept as a name it would be an option with no mark. The default that was taken is
+    the one the thread recommends: a pass may close the question with it by silence.
     """
     read, unread = mirror.options(lines)
     found = tuple(
@@ -281,9 +314,52 @@ def _proposed(lines: str) -> tuple[Option, ...]:
         what = f"{marked} marked (default), and one is the default that was taken"
     elif picked > 1:
         what = f"{_count(picked, 'option')} are marked (recommended), and one is the pick"
+    elif not picked:
+        what = (
+            "no option is marked (recommended), and the default that was taken is the one "
+            "recommended"
+        )
+    elif (pick := next(one for one in found if one.recommended)) and not pick.default:
+        taken_name = next(one.name for one in found if one.default)
+        what = (
+            f"the option marked (recommended) is {pick.name}, and the default that was taken "
+            f"is {taken_name}: mark the default (default, recommended)"
+        )
     else:
         return found
     raise Refused(NOT_SENT.format(what=what))
+
+
+def _held(lines: str) -> tuple[str, str]:
+    """The case a gate's `Holds:` line names and the fail-safe of its `Fail-safe:` line, both
+    empty for a gate that acts at once, or `Refused` with what is wrong with them."""
+    said = {
+        name: [
+            line[len(name) + 1 :].strip()
+            for line in lines.splitlines()
+            if line.startswith(f"{name}:")
+        ]
+        for name in ("Holds", "Fail-safe")
+    }
+    holds, safe = said["Holds"], said["Fail-safe"]
+    cases = " | ".join(HOLDS)
+    if len(holds) > 1 or len(safe) > 1:
+        what = f"the gate has two {'Holds' if len(holds) > 1 else 'Fail-safe'}: lines"
+    elif holds and holds[0] not in HOLDS:
+        what = f'the Holds: line says "{holds[0]}", and a gate that holds names one of: {cases}'
+    elif holds and (not safe or not safe[0] or safe[0].startswith("<")):
+        what = (
+            f"the gate holds ({holds[0]}) and has no Fail-safe: line, which names the dry-run, "
+            "plan or bundle the user answers on"
+        )
+    elif safe and not holds:
+        what = (
+            f"the gate has a Fail-safe: line and no Holds: line: add Holds: <{cases}>, or take "
+            "the Fail-safe: line out of a gate whose default acts at once"
+        )
+    else:
+        return (holds[0], safe[0]) if holds else ("", "")
+    raise Refused(f"not sent: {what}.")
 
 
 def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[Question, bool]:
@@ -291,12 +367,14 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
 
     Lines with no `Default:` line that is filled in are refused: a question with no default
     is a thread that waits, and no record says what an answer would undo. So are lines that
-    do not propose two options with the default among them (`_proposed`).
+    do not propose two options with the default among them as the one recommended
+    (`_proposed`), and a `Holds:` line that is wrong (`_held`).
     """
     asked, default = mirror.question(lines), mirror.field(lines, "Default")
     if not default or default.startswith("<"):
         raise Refused(NO_DEFAULT)
     options = _proposed(lines)
+    holds, fail_safe = _held(lines)
     named = _THREAD.search(mirror.field(lines, "Asked by"))
     with _locked(state):
         count, records = _kept(state)
@@ -308,6 +386,8 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
             "undo": mirror.field(lines, "Undo"),
             "context": mirror.context(lines),
             "options": options,
+            "holds": holds,
+            "fail_safe": fail_safe,
         }
         for one in records:
             if one.key == key:
@@ -334,7 +414,8 @@ def answer(
     user: jsettings.Settings,
     heard: queue.Said | None = None,
 ) -> Question:
-    """Close a question with the user's answer. A second answer is refused, with the first.
+    """Close a question with the user's answer. A second answer is refused, with the first,
+    but for a close by silence: that is no answer of the user's, and theirs replaces it.
 
     `keeps` says the answer is the default. Only the one who heard the answer knows: words
     such as "yes" do not say it. `heard` is the message jbus read the words and the time
@@ -353,7 +434,7 @@ def answer(
             numbers = ", ".join(str(one.number) for one in records if one.answer is None)
             raise Refused(f"refused: no question {number}, open: {numbers or 'none'}")
         (one,) = found
-        if one.answer:
+        if one.answer and one.answer.closed_by != SILENCE:
             raise Refused(f"refused: question {number} was answered already: {one.answer.line()}")
         given = Answer(" ".join(words.split()), by, at, where, keeps)
         if heard:
@@ -397,20 +478,20 @@ def closed_in_files(run: Pass) -> None:
 
     Until the skills read jbus, a home that takes an answer in its own thread writes it in
     its `gates.md` and carries it itself. So the record closes with the words of that
-    `Status:` line, and nothing is sent.
+    `Status:` line, and nothing is sent. Those words replace a close by silence.
     """
     answered = {
         key: (mirror.field(body, "Status"), file)
         for file, _, _, body, key in mirror.home_gates(run.home)
         if mirror.field(body, "Status").startswith("answered")
     }
-    if not answered or not any(one.answer is None for one in load(run.state)):
+    if not answered or not any(_open(one) for one in load(run.state)):
         return
     with _locked(run.state):
         count, records = _kept(run.state)
         closed = []
         for one in records:
-            if one.answer is None and one.key in answered:
+            if _open(one) and one.key in answered:
                 status, file = answered[one.key]
                 given = Answer(status, "", "", str(file), False, closed_by=HOME)
                 one = replace(one, answer=given)
@@ -419,8 +500,48 @@ def closed_in_files(run: Pass) -> None:
             _write(run.state, count, closed)
 
 
+def _open(one: Question) -> bool:
+    """Whether a record waits for an answer: open, or closed by silence alone."""
+    return one.answer is None or one.answer.closed_by == SILENCE
+
+
+def silent(run: Pass) -> None:
+    """Close by silence each open question with no `Holds:` line that has been open 2 hours
+    or more (`QUIET`), with its default: its thread acted on it when it asked, so nothing is
+    sent. A quiet `note` event says so, once for the question."""
+    if not path(run.state).exists():
+        return
+    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
+    with _locked(run.state):
+        try:
+            count, records = _kept(run.state)
+        except Unparsable:
+            return
+        closed = [replace(one, answer=given) if _quiet(one, run.now) else one for one in records]
+        if closed == records:
+            return
+        _write(run.state, count, closed)
+    for was, one in zip(records, closed, strict=True):
+        if was is not one:
+            line = f"{NOTE} {one.slug}: question {one.number} closed with its default, {UNANSWERED}"
+            run.find(one.slug, NOTE, line, key=f"silence {one.number}")
+            run.say(line)
+
+
+def _quiet(one: Question, now: datetime) -> bool:
+    if one.answer or one.holds:
+        return False
+    try:
+        asked = datetime.fromisoformat(one.asked_at)
+    except ValueError:
+        return False
+    return asked.tzinfo is not None and now - asked >= QUIET
+
+
 def item(one: Question) -> dict[str, Any]:
-    """An open question as the list of what waits on the user has a gate."""
+    """An open question as the list of what waits on the user has a gate: `acted` where its
+    thread acted on the default at once, and the case and fail-safe of one that holds."""
     return {
         "kind": "gate",
         "key": f"gate:q{one.number}",
@@ -432,6 +553,9 @@ def item(one: Question) -> dict[str, Any]:
         "home": "",
         "slug": one.slug,
         "since": one.asked_at,
+        "acted": not one.holds,
+        "holds": one.holds,
+        "fail_safe": one.fail_safe,
     }
 
 
@@ -682,6 +806,7 @@ STEPS = (
     verbs.Step(
         "before-watch", 20, "questions.closed_in_files", lambda half: closed_in_files(half.run)
     ),
+    verbs.Step("before-watch", 30, "questions.silent", lambda half: silent(half.run)),
     verbs.Step(
         "tellers",
         20,

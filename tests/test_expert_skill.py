@@ -49,7 +49,7 @@ Asked by: expert-sage-no-rollback, thread mcp:thread-one
 Default: nothing was changed
 Built on it: nothing
 Undo: nothing to undo
-Option: leave it (default): the workflow stays as it is
+Option: leave it (default, recommended): the workflow stays as it is
 Option: add the step: a release can be rolled back
 """
 

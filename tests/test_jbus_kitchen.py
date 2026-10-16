@@ -795,7 +795,9 @@ def test_a_fake_a_test_wrote_over_or_took_off_path_is_started_as_a_command(kitch
 
 
 RESULT = "\n## Result\nStatus: done\nBranch: alpha   Pull request: none\nLeft: none\n"
-OPTIONS = "Option: the first (default): nothing changes\nOption: the other: one thing more\n"
+OPTIONS = (
+    "Option: the first (default, recommended): nothing changes\nOption: the other: one thing more\n"
+)
 ASK = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
 
 
@@ -818,7 +820,7 @@ GATE = textwrap.dedent("""\
     Default: the first one
     Built on it: nothing
     Undo: pick the other
-    Option: the first one (default): nothing changes
+    Option: the first one (default, recommended): nothing changes
     Option: the other: one more cup
     """)
 
