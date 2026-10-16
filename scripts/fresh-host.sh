@@ -1,12 +1,4 @@
 #!/bin/sh
-# A fresh host for `install.sh --setup`: a throwaway archlinux container with this checkout's
-# HEAD cloned in, `uv`, `git` and `jq` installed, and stand-ins for what needs an account or a
-# desktop: `t3` (a nightly version), `claude`, `gh` (auth token exits 0), `lavish-axi`, and
-# `systemctl` (the sandbox's, which links and enables without a user manager). It runs
-# --setup, the doctor, and --setup again, and fails unless the doctor says ok, the second
-# run writes nothing, and every `needs you` line left is one the user does by hand.
-#
-#   flock ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh
 set -eu
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
 work=$(mktemp -d)
