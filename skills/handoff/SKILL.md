@@ -9,8 +9,6 @@ card: "Run the pipeline | 6 | Closes a home. It writes a note of ten lines at mo
 
 # handoff
 
-A handoff moves what nothing else holds out of this conversation and onto disk, so that the next thread starts from a note of ten lines and from what jbus holds, and not from this thread's history. After it, this thread is finished.
-
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
@@ -401,11 +399,3 @@ Then tell the sender. A thread is told with `t3_thread_send`, to its own id:
 ```
 
 The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`. Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on. Then settle this thread again.
-
-A crewmate thread (`/crew <slug>`) never runs this skill. It ends by writing its `## Result`, as the `crew` skill says.
-
-## What not to carry over
-
-- The story of how this thread got here.
-- Tool output, diffs, file contents.
-- Anything that is true of every repo; that belongs in the user's global instructions, not here.

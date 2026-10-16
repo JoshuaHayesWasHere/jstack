@@ -8,10 +8,6 @@ card: "Run the pipeline | 2 | Makes a thread a crewmate. It does the one task of
 
 # crew
 
-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
-
-This thread is a **crewmate**. It has one task, written by the repo's home in a brief. It does that task start to finish, where the user can watch and steer it, and writes the result into the brief. With no pull request it ends there; with one, it stays on it and fixes what comes back. It does not plan the repo and does not hand work on.
-
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
@@ -234,7 +230,7 @@ With a pull request open, the thread is not finished: it stays on the pull reque
 
 ## Stay on the pull request
 
-The crewmate that made the change is the one that fixes it: it already holds the context. So once the pull request is open:
+Once the pull request is open:
 
 1. Link it to this thread with the `t3-code` server's `link_pull_request` (if your harness defers it, load it first): `{"url": "<the pull request's url>"}`.
 2. Do the three steps of "End": write the Result, run its check of whether the home is told, say it here. With a pull request the check says `send nothing`, and nothing is sent.

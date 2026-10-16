@@ -19,13 +19,7 @@ GONE = ("no-mistakes", "review+test", "full run: reviewer")
 
 CODE = ("src", "tests", "pyproject.toml")
 
-ALLOWED = [
-    (
-        "skills/pr-review/SKILL.md",
-        "What it replaced, for comparison:",
-        "history: what a review cost when it was a no-mistakes run, kept to compare with",
-    ),
-]
+ALLOWED = []
 
 
 def named(repo=REPO):

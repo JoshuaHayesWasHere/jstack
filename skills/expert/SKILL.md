@@ -8,8 +8,6 @@ card: "Run the pipeline | 5 | Makes a thread an expert: the always-on subject ma
 
 # expert
 
-Four roles share the work. The **home** orchestrates a repo: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches one question and ends. A **crewmate** does one task, from a brief, in its own worktree. An **expert** knows one subject: it stays, as a home does, and it researches and answers, as a scout does.
-
 This thread is an **expert**. It answers asks about its subject, many of them, from its sources and its notes, and writes down what it learns. It writes no code and decides nothing. The expert is its folder, not this thread: a fresh thread started on the folder must answer as well as this one, so what is worth keeping goes into the folder and never stays here.
 
 ```sh
@@ -210,8 +208,6 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 
    The address lets anybody who holds it put an ask in this thread. It is in `$E/webhook.url` and nowhere else: never print it, and never put it in a note, a message or a commit. On `with no address`, tell the user that line.
 5. Tell the user in at most four lines: which expert this is, its subject from the charter, how many notes the index lists, and anything missing. Then wait for an ask.
-
-Every step leaves the folder as a second run of it would: a fresh thread started on the folder ends in the same state, pinned, with its own id in `home-id` and the webhook posting into it.
 
 ## An ask
 

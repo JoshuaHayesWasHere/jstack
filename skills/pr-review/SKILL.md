@@ -13,8 +13,6 @@ A pull request is reviewed by a **reviewer**: a new thread that knows the brief 
 
 There is one pass per pull request: the reviewer reviews once and the crewmate fixes once. A fix that changes files under `tests/` only is not reviewed: what stands behind it is the pull request's own checks. A fix that changes any other file gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass"). The crewmate's own check decides which it is (the crew skill, "A second pass"). The reviewer finds, and fixes nothing: what to do with a finding is for the thread that did the work.
 
-The scope of a review is the pull request's diff and nothing else. See "What a review covers".
-
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
@@ -226,7 +224,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
 
 The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
 
-This thread does both, and starts no subagent: pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
+pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
 
 **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
 
@@ -695,13 +693,3 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 5. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, the findings sent where that pass sends them, and `$T/review.md` appended, filled in. The message begins "Scoped pass, of what the rebase changed.", or after a fix "Scoped pass, of the fix pushed after the review.", in place of "One review pass." The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4. Then settle this thread as a first pass does.
 
 `jmerge` merges the rebased head once a `## Review` names it on its `Head:` line, with its findings handled as any review's. A new rebase after that is compared again, from this head. A fixed head is merged the same way. On a guarded pull request it is merged on the `Proof:` line of that section, and a fix pushed for this pass's findings gets a scoped pass of its own.
-
-## What a review costs
-
-A review is one thread and no subagent. It reads the prompt, which holds the whole diff, whatever code around it that it opens, the brief and the files it checks a finding against, and runs one proof.
-
-All of it is in one transcript, so `jgauge session <the reviewer thread's transcript>` counts the whole review in the thread's own row. Nothing runs as a process `jgauge` cannot see.
-
-It has not been measured yet. The first reviews under this section give the figures: write them here, per row, with the size of the diff they reviewed.
-
-What it replaced, for comparison: until 2026-10-11 a review was a no-mistakes run, whose agents were `claude` processes of their own that `jgauge session` did not count. The first whole cycle, measured on 2026-10-10 with its review and test steps on pull request 6 (896 added lines in 7 files, a task that took 1.35 million tokens to build), came to 4.7 million tokens in 12 minutes: 0.95 million for the review step's agent, 2.44 million for the test step's, 0.83 million for the reviewer thread and 0.46 million for the crewmate's wake to fix. A run with the review step alone averaged 1.3 million for its agent. Its test step, which no reviewer runs now, cost per agent call, measured on 2026-10-11 by jstack Chef from `~/.no-mistakes/state.sqlite` on one machine over the 14 days before: 1.7 minutes and 0.9M tokens in jstack, 8.3 minutes and 7.4M in LittleRamPantries (firstmate), 11.4 minutes and 7.9M in MNN, 14.1 minutes and 5.6M in lrp-aws-org. Against that, this repo's whole suite is 1775 tests in about 50 seconds on that machine, in one process, with no test over 1.1 seconds, and six recent jstack crews ran 0 to 2 full `make check` runs each. `jgauge run` still counts such a run, for a repo that uses one.
