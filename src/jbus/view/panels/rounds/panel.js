@@ -1,4 +1,3 @@
-/* The rounds of a task: each review of its brief, and what woke its crewmate. */
 function roundsOf(slug) { return (S.rounds || []).filter(function (r) { return r.slug === slug; })[0] || null; }
 function roundsSay(r) { return plural(r.reviews.length, "review", "reviews") + ", " + plural(r.rebases, "rebase", "rebases") + ", " + plural(r.woke, "wake", "wakes"); }
 function yesNo(b) { return b ? "needed" : "not needed"; }

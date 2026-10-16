@@ -1,6 +1,3 @@
-/* Your words: the questions you answered, each word sent down by `jbus word`, and each
-   approval of a row with what it rests on. `words:<kind>` opens it at a list, and
-   `words:<key>` at one entry. */
 var WORDKIND = { answer: "questions you answered", word: "words sent down", approval: "approvals of a row" };
 function wordsOf(kind) { return S.words.filter(function (w) { return w.kind === kind; }); }
 function wordEntry(key) { return S.words.filter(function (w) { return w.key === key; })[0] || null; }

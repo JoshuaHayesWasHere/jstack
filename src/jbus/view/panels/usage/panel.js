@@ -1,6 +1,3 @@
-/* What the threads cost: a task's worktree, each home's session, as `jgauge session` counts them.
-   The server reads the transcripts only when this is asked for, so the lines it adds to the
-   task and threads drawers ask for it and fill in when it comes. */
 var USAGE = null;
 function mt(n) { return n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : num(n); }
 function usageSay(u) {

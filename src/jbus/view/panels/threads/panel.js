@@ -1,5 +1,3 @@
-/* The threads that are out: its card of counts, the drawer that lists each by role, and the
-   Threads band of a project's row and page. */
 var ROLES = [["crew", "crews", "crew"], ["scout", "scouts", "scout"], ["reviewer", "reviewers", "reviewer"], ["home", "homes", "home"], ["other", "other threads", "other thread"]];
 function threadsOf(list, role) { return (list || []).filter(function (t) { return t.out && (!role || t.role === role); }); }
 function threadsOut(role) { return threadsOf(S.threads, role); }
@@ -23,11 +21,6 @@ function dThreads(role) {
   if (rest.length) h += '<h3>' + rest.length + ' not settled, with no turn under way</h3><ul class="clean rows">' + rest.map(threadRow).join("") + '</ul>';
   return h;
 }
-/* The band: the threads of today by role, those out first, each with its liveness and when it
-   last wrote, and one that ended today dimmed. Those that ended before today, and those of no
-   role, are folded into one way to the drawer. A pass that left no list is said as a blind
-   spot, never as none. `v.away` is a row of every project, whose ways lead to the project's page.
-   On the project's own page it folds and hides by `v.fold`, its key: folded, it is its head. */
 function band(v) {
   var all = v.threads, away = v.away ? v.name : "";
   function more(target, label) {

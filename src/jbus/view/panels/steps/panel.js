@@ -1,4 +1,3 @@
-/* The steps of the line, top to bottom: the drawer a lane's name opens. */
 function dSteps(hit) {
   var h = head("The line", "The steps, top to bottom");
   h += '<p class="src" style="margin-top:15px">Top to bottom is the path of a task. The shape and colour of a token say who holds it. ' + S.queue.total + ' rows in <code>queue.json</code>: ' + Object.keys(S.queue.by_status).map(function (k) { return S.queue.by_status[k] + " " + esc(k); }).join(", ") + '.</p>' + note("frozen");
