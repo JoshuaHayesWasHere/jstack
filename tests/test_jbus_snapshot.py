@@ -189,7 +189,39 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
         assert options and not [line for line in options if "_exec" in line]
 
 
+def systemd_manager_answers(env=None):
+    """A systemd manager is reachable: the system bus has its socket and the user manager says
+    what state it is in. A CI job container runs neither."""
+    if not (shutil.which("systemctl") and Path("/run/dbus/system_bus_socket").exists()):
+        return False
+    try:
+        said = subprocess.run(
+            ["systemctl", "--user", "is-system-running"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    return said.stdout.strip() not in ("", "offline", "unknown")
+
+
+@pytest.mark.skipif(not shutil.which("systemctl"), reason="no systemctl")
+def test_a_user_manager_out_of_reach_does_not_answer():
+    away = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")
+    }
+    assert not systemd_manager_answers(away)
+
+
 @pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
+@pytest.mark.skipif(
+    not systemd_manager_answers(),
+    reason="host-only: needs a systemd manager, which a CI job container does not run",
+)
 def test_systemd_reads_the_units_with_no_complaint(tmp_path):
     jbus_bin = tmp_path / ".local" / "bin" / "jbus"
     jbus_bin.parent.mkdir(parents=True)
