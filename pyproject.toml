@@ -38,6 +38,7 @@ packages = ["src/jgauge", "src/jbriefs", "src/jmerge", "src/jbus", "src/jdrift",
 # `make check` runs it with `-n`, on the workers the Makefile counts.
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 # A run writes about 170,000 files under the temporary directory, and by default pytest
 # keeps the last three runs. `/tmp` holds a million files and is shared by every runner and
 # crew. With "failed" a test's directory goes as soon as the test passes, so a run in which
@@ -57,4 +58,4 @@ line-length = 100
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
+select = ["E", "F", "W", "I", "B", "UP", "RUF100", "PGH004"]

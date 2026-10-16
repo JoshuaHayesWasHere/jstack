@@ -430,7 +430,10 @@ def test_a_launched_row_whose_thread_t3_no_longer_lists_and_that_wrote_nothing_i
     kitchen.brief("beta", "\n## Result\nStatus: done\nBranch: beta\nLeft: none\n")
     kitchen.t3.thread("gamma", "completed", settled=True)
     kitchen.poll()
-    gone = lambda: {slug: row["gone"] for slug, row in written(kitchen, "rows").items()}  # noqa: E731
+
+    def gone():
+        return {slug: row["gone"] for slug, row in written(kitchen, "rows").items()}
+
     assert gone() == {"alpha": True, "beta": False, "gamma": False}
     kitchen.t3.thread("alpha", "running")
     kitchen.t3.thread("alpha", "running")

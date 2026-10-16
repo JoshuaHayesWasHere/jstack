@@ -7,10 +7,9 @@ The command is run against `test_home_merge`'s fake `gh` and real origin."""
 import json
 
 import test_home_merge as merge
-from test_home_merge import home, merged  # noqa: F401
 
 
-def test_a_wait_is_logged_once_and_again_when_its_reason_changes(merged):  # noqa: F811
+def test_a_wait_is_logged_once_and_again_when_its_reason_changes(merged):
     waits = f"wait 7 {merge.URL}: {merge.NOT_PASSED}"
     merged.home.open_pull_request(merged.head, checks=(merge.PASSED, merge.FAILED))
     assert merged.run() == [waits] and merged.run() == [waits]

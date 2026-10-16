@@ -12,7 +12,6 @@ from datetime import date
 
 import pytest
 
-import test_home_merge as merge
 import test_scout as scout
 from jbus import mirror
 from test_home_merge import NAME, git
@@ -167,9 +166,6 @@ class Scene:
 @pytest.fixture
 def scene(home, tmp_path):
     return Scene(home, tmp_path)
-
-
-home = merge.home
 
 
 def removable(branch, *what):

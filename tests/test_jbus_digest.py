@@ -353,7 +353,8 @@ def test_the_digest_is_each_project_s_rows_merges_pulls_and_waiting_list_then_th
     assert [one["line"] for one in demo["waiting"]] == [approval("unsaid")]
     assert demo["sweep"] == "2026-10-12: 0 to remove"
     assert said["status"] == json.loads(kitchen.main("status")[1])
-    assert said["token_expires"] == kitchen.status()["token_expires"] != None  # noqa: E711
+    assert said["token_expires"] == kitchen.status()["token_expires"]
+    assert said["token_expires"] is not None
     assert (len(kitchen.log("jmerge")), len(kitchen.log("gh"))) == asked
 
 

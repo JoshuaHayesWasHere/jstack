@@ -488,8 +488,6 @@ def opened(tmp_path, path, fix=None):
 INFO = ["info a.py:9 a name could say more", "info b.py:1 a comment says the code again"]
 NONE_FIXED = "write Fixed: none needed, <reason>: 2 findings, none fixed"
 ALL_INFO = "Fixed: none needed, every finding is info and left for a follow-up\n"
-merged = guarded.merged
-rules = guarded.rules
 
 
 def declined(findings=INFO):
@@ -524,9 +522,9 @@ def test_a_warning_fixed_beside_info_findings_declined_gets_the_review_of_its_fi
 
 
 def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased_head(
-    merged, rules
+    proven_merged, rules
 ):
-    rebased = rebases.Rebased(merged, {11: "theirs 11"}, rebases.BOTH)
+    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
     listed = "".join(f"- {finding}\n" for finding in INFO)
     section = guarded.proven("findings", rebased.head).replace(
         "Verdict: findings\n", f"Verdict: findings\nScope: range-diff {rebased.command()[26:]}\n"
@@ -534,11 +532,15 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
     section = re.sub(r"(?m)^- .*\n", listed, section)
     reviews = guarded.proven("clean", rebased.before) + section
     rebased.brief(reviews, declined())
-    state, brief = merged.home.state, (merged.home.tasks / "alpha.md").read_text()
+    state, brief = proven_merged.home.state, (proven_merged.home.tasks / "alpha.md").read_text()
     assert said(state, "The review", "Finding:", brief) == [NONE_FIXED]
-    assert said(state, "The review", "Second pass:", brief, cwd=merged.tree) == [NOTHING_PUSHED]
+    assert said(state, "The review", "Second pass:", brief, cwd=proven_merged.tree) == [
+        NOTHING_PUSHED
+    ]
     rebased.brief(reviews, declined() + ALL_INFO)
-    assert guarded.jmerge(merged, rules, "--check") == [f"ready 7 {rebased.head} alpha alpha"]
+    assert guarded.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha"
+    ]
 
 
 GUARDED = "skills/crew/SKILL.md"
