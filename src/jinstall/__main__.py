@@ -98,14 +98,14 @@ def setup(machine: Machine) -> Report:
         if found.state is State.OK:
             lines.append(f"already {need.name}")
             continue
-        mend = None
-        if isinstance(kind, Seeded) and found.state is State.MISSING:
-            mend = lambda kind=kind: machine.seed(kind.path, kind.text(machine), kind.mode)  # noqa: E731
-        elif isinstance(kind, Carried) and found.replaceable:
-            mend = lambda kind=kind: kind.put(machine)  # noqa: E731
-        if mend is not None:
+        seeds = isinstance(kind, Seeded) and found.state is State.MISSING
+        puts = isinstance(kind, Carried) and found.replaceable
+        if seeds or puts:
             try:
-                mend()
+                if seeds:
+                    machine.seed(kind.path, kind.text(machine), kind.mode)
+                else:
+                    kind.put(machine)
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")
             found = kind.probe(machine)
