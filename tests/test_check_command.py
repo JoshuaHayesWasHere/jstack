@@ -91,9 +91,8 @@ def collected():
 
 
 def test_make_check_runs_the_tests_on_a_number_of_workers_set_in_one_place():
-    (tests,) = [line.split() for line in check() if " pytest" in line]
-    assert tests[:4] == ["uv", "run", "pytest", "-n"] and tests[4].isdigit() and len(tests) == 5
-    assert int(tests[4]) > 1
+    (tests,) = [line.split() for line in check("CORES=12") if " pytest" in line]
+    assert tests == ["uv", "run", "pytest", "-n", "4"]
     assert "uv run pytest -n 2" in check("TEST_WORKERS=2")
 
 
@@ -103,9 +102,12 @@ def workers(*args, **more):
     return int(tests[tests.index("-n") + 1])
 
 
-def test_the_workers_are_counted_from_the_processors_of_the_machine_the_run_is_on():
-    cores = os.cpu_count()
-    assert (workers(), workers(GITHUB_ACTIONS="true")) == (max(2, cores // 3), max(2, cores // 6))
+def test_the_workers_are_counted_from_the_processors_of_the_machine_the_run_is_on(tmp_path):
+    """The machine's processors are what `getconf` says, here one on `PATH` that says 30."""
+    (tmp_path / "getconf").write_text('#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] && echo 30\n')
+    (tmp_path / "getconf").chmod(0o755)
+    path = f"{tmp_path}:{os.environ['PATH']}"
+    assert (workers(PATH=path), workers(PATH=path, GITHUB_ACTIONS="true")) == (10, 5)
 
 
 def test_a_runner_runs_the_tests_on_fewer_workers_than_a_desk_and_neither_on_under_two():
