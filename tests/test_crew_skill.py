@@ -733,9 +733,10 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
     ]
 
 
-def checked(tmp_path, command, limit=60, heading="Do the task"):
+def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
     """The check block of "Do the task" run once in a worktree of its own, as an agent runs
-    it, waiting `limit` seconds at most: what it printed, its exit code and how long it took."""
+    it, waiting `limit` seconds at most: what it printed, its exit code and how long it took.
+    `then` is called once the block has printed its first line, while it still waits."""
     repo, home, stub = tmp_path / "repo", tmp_path / "home", tmp_path / "stub"
     if not repo.exists():
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -745,10 +746,11 @@ def checked(tmp_path, command, limit=60, heading="Do the task"):
     script = block(heading, "<check command>").replace("<check command>", command)
     script = script.replace("limit=540", f"limit={limit}")
     began = time.monotonic()
-    ran = subprocess.run(
+    ran = subprocess.Popen(
         ["sh", "-c", script],
         cwd=repo,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         text=True,
         env={
             **os.environ,
@@ -757,7 +759,11 @@ def checked(tmp_path, command, limit=60, heading="Do the task"):
             "T": str(SKILL.parent.parent.parent / "templates"),
         },
     )
-    return ran.stdout.splitlines(), ran.returncode, time.monotonic() - began
+    first = ran.stdout.readline()
+    if then:
+        then()
+    rest, _ = ran.communicate()
+    return (first + rest).splitlines(), ran.returncode, time.monotonic() - began
 
 
 def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_exit_code(
@@ -777,7 +783,7 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
 def ended(tmp_path):
     """Wait, as a turn between two calls would, for the check to end with nobody calling."""
     found = tmp_path / "repo" / ".git" / "crew-check" / "exit"
-    for _ in range(100):
+    for _ in range(600):
         if found.exists():
             return
         time.sleep(0.1)
@@ -787,8 +793,8 @@ def ended(tmp_path):
 def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
     """A check longer than one call: each call waits its whole limit and says to call again,
     a second call joins the check the first started, and the last one has its exit code."""
-    runs = tmp_path / "runs"
-    command = f"echo ran >> {runs}; sleep 3; echo all passed"
+    runs, go = tmp_path / "runs", tmp_path / "go"
+    command = f"echo ran >> {runs}; while ! [ -f {go} ]; do sleep 0.1; done; echo all passed"
 
     said, code, took = checked(tmp_path, command, limit=1)
     assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
@@ -799,6 +805,7 @@ def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
     assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
     assert took >= 1
 
+    go.touch()
     said, code, took = checked(tmp_path, command, limit=30)
     assert (said[-2:], code) == (["all passed", "done: the check exited 0"], 0)
     assert took < 30
@@ -825,14 +832,14 @@ def test_a_check_that_ended_between_calls_is_told_once_and_then_runs_afresh(tmp_
 
 
 def test_a_check_of_files_that_changed_while_it_ran_is_no_proof_and_runs_again(tmp_path):
-    runs = tmp_path / "runs"
-    command = f"echo ran >> {runs}; sleep 1"
+    runs, go = tmp_path / "runs", tmp_path / "go"
+    command = f"echo ran >> {runs}; while ! [ -f {go} ]; do sleep 0.1; done"
 
     said, code, _ = checked(tmp_path, command, limit=0)
     assert said[-1].split(":")[0] == "running"
     (tmp_path / "repo" / "file").write_text("two\n")
 
-    said, code, _ = checked(tmp_path, command)
+    said, code, _ = checked(tmp_path, command, then=go.touch)
     assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("joined", "stale", 75)
     assert "done" not in [line.split(":")[0] for line in said]
 
