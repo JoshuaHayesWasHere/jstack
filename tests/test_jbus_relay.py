@@ -35,13 +35,14 @@ def free_port() -> int:
 
 
 class Webhook:
-    """A webhook that records each POST it takes. `answer` is the status it gives, and
-    `delay` how long it waits first."""
+    """A webhook that records each POST it takes. `answer` is the status it gives, `delay`
+    how long it waits first, and `hold` how long it waits between taking a POST and answering
+    it. `tried` counts every POST, answered 200 or not."""
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
         self.paths: list[str] = []
-        self.answer, self.delay = 200, 0.0
+        self.answer, self.delay, self.hold, self.tried = 200, 0.0, 0.0, 0
         hook = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -49,9 +50,11 @@ class Webhook:
                 time.sleep(hook.delay)
                 data = self.rfile.read(int(self.headers["Content-Length"]))
                 code = hook.answer
+                hook.tried += 1
                 if code == 200:
                     hook.posts.append((dict(self.headers), json.loads(data)))
                     hook.paths.append(self.path)
+                    time.sleep(hook.hold)
                 self.send_response(code)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -531,6 +534,7 @@ def test_an_item_open_at_45_minutes_pages_once_and_not_twice(relay, hooks):
 
 def test_the_page_is_sent_once_also_after_a_restart(hooks, tmp_path):
     _, _, pager = hooks
+    pager.hold = 0.5
     first = Relay(env_for(hooks), tmp_path / "state").up()
     first.send(second("reminder", 15, item()))
     first.send(second("refresh", 50, item()))

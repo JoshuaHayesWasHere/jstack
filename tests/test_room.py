@@ -404,6 +404,50 @@ def waited(env, limit, every="0.05"):
     return ran.stdout.splitlines(), ran.returncode
 
 
+def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_path):
+    """A wait looks while a timer writes the machine anew, as the tests below do."""
+    machine(tmp_path, **IDLE)
+    stub, stop, seen = tmp_path / "stub", threading.Event(), []
+
+    def look():
+        while not stop.is_set():
+            try:
+                df = subprocess.run(
+                    [str(stub / "df"), "-Pi", str(stub / "tmp")], capture_output=True, text=True
+                )
+                seen.append(len(df.stdout.splitlines()) == 2 or df.stdout)
+            except OSError as error:
+                seen.append(error)
+
+    lookers = [threading.Thread(target=look) for _ in range(4)]
+    for one in lookers:
+        one.start()
+    errors, end, n = [], time.monotonic() + 1, 0
+    try:
+        while time.monotonic() < end:
+            n += 1
+            try:
+                machine(tmp_path, **{**IDLE, "load": f"{n % 20}.00"}, slots=(1048576, n))
+            except OSError as error:
+                errors.append(error)
+    finally:
+        stop.set()
+        for one in lookers:
+            one.join()
+    assert errors == [] and seen and set(seen) == {True}
+
+
+def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path):
+    machine(tmp_path, **IDLE)
+    names = ("stub/df", "stub/nproc", "stub/tmp/df", "proc/loadavg", "limits")
+    before = {name: (tmp_path / name).stat() for name in names}
+    machine(tmp_path, **IDLE)
+    after = {name: (tmp_path / name).stat() for name in names}
+    assert {name: (one.st_ino, one.st_mtime_ns) for name, one in after.items()} == {
+        name: (one.st_ino, one.st_mtime_ns) for name, one in before.items()
+    }
+
+
 def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
     env = machine(tmp_path, **{**IDLE, "load": "11.00"})
     room = threading.Timer(0.4, machine, [tmp_path], IDLE)
