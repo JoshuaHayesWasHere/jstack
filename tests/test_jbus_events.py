@@ -304,6 +304,7 @@ TABLE = {
     "item.held": "quiet",
     "item.done": "quiet",
     "item.dropped": "quiet",
+    "pack": "quiet",
 }
 
 
