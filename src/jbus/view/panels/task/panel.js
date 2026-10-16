@@ -1,4 +1,3 @@
-/* One task: the drawer of its one state, where its time went and what the last pass saw. */
 function silence(word, updated, started, queued) {
   var u = ms(updated), s = ms(started);
   return "Its thread is " + word + ": it has written nothing " + (u == null ? "for a time that was not kept" : "since " + day(u) + ", " + dur(NOW - u) + " ago") + (s == null ? "" : ", its turn started " + day(s)) + (queued ? ", and " + plural(queued, "run waits", "runs wait") + " behind it" : "") + ".";

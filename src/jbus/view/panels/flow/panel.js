@@ -1,12 +1,9 @@
-/* The queue as a flow: a drawer of the full width, and a row picked in it marks its way. */
 function standsAt(slug) {
   var t = TASK[slug] || ENDED[slug];
   if (!t) return slug + " (not in the queue)";
   if (t.who !== "user") return slug + " (" + t.state.name + ")";
   return "your " + ({ asking: "gate on ", unapproved: "approval of " }[t.state.kind] || "word on ") + slug;
 }
-/* Every queued row and every row that is out, a column for each wave. `pick` is the row
-   whose way is marked: what it waits on, back to the rows that are out, and what waits on it. */
 function dFlow(pick) {
   var rows = S.tasks.filter(function (t) { return t.step === "queued"; }), out = S.tasks.filter(function (t) { return t.step !== "queued"; });
   var p = TASK[pick], up = {}, down = {}, look = p ? p.blockers.slice() : [];

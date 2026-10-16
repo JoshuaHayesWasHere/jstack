@@ -1,8 +1,3 @@
-/* The repo's checks on GitHub: its card of what runs, waits and failed, and the drawer of runs. */
-/* A check is one run of the repo's workflow on GitHub. What runs, waits for a runner and
-   failed is the server's to say (`tally` in panel.py): `S.checks.now` names the runs. These
-   are the words GitHub has for a run that ended badly. */
-var FAILED = { failure: 1, timed_out: 1, startup_failure: 1 };
 var CHECKS = [["running", "running"], ["waiting", "waiting for a runner"], ["failed", "failed"]];
 function runStats() {
   var by = {}, waited = [], runs = S.checks.runs, now = {};
@@ -12,15 +7,13 @@ function runStats() {
   });
   CHECKS.forEach(function (c) { now[c[0]] = (S.checks.now[c[0]] || []).map(function (at) { return runs[at]; }).filter(Boolean); });
   var worst = waited.slice().sort(function (a, b) { return (ms(b.started) - ms(b.created)) - (ms(a.started) - ms(a.created)); })[0] || null;
-  return { by: by, waited: waited, worst: worst, now: now, ended: Object.keys(FAILED).reduce(function (n, k) { return n + (by[k] || 0); }, 0) };
+  return { by: by, waited: waited, worst: worst, now: now, ended: S.checks.ended };
 }
 function branches(runs) {
   var seen = {}, names = runs.map(function (r) { return r.branch || "no branch"; }).filter(function (n) { return seen[n] ? false : (seen[n] = true); });
   return names.slice(0, 2).join(", ") + (names.length > 2 ? " +" + (names.length - 2) : "");
 }
 function checksSay(rs) { return CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "); }
-/* The runner units of this machine as systemd lists them. They are the machine's, so the card
-   of a project's checks says none of them: the machine's row does, and the drawer lists them. */
 function runnerList() {
   var c = S.checks;
   if (!c.runners_read) return '<p class="src">systemd did not answer, so the runners of this machine are not known.</p>';

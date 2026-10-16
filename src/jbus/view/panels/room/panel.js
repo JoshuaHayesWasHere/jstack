@@ -1,5 +1,3 @@
-/* The machine room: the drawer of meters. The room is the machine's, so it has no card of a
-   project: the machine's row in the sidebar opens this drawer. */
 function meter(label, val, p, lim, text) {
   return '<div class="meter"><div class="lbl"><span>' + esc(label) + '</span><span class="mono">' + esc(val) + '</span></div>' + (p == null ? "" : '<div class="bar"><i style="width:' + Math.min(100, p).toFixed(0) + '%"></i>' + (lim != null ? '<u style="left:' + lim + '%"></u>' : "") + '</div>') + '<div class="src">' + esc(text) + '</div></div>';
 }

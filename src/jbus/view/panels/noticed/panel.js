@@ -1,5 +1,3 @@
-/* What the threads noticed: each Noticed line of a Result, a Review or a Report, newest first,
-   with its mark. The wait band counts the new ones and opens it. */
 var NOTICEMARK = { "new": "user", taken: "ok", dropped: "plain" };
 function noticedNew() { return (S.noticed || []).filter(function (r) { return r.mark === "new"; }); }
 function noticedRow(r) {

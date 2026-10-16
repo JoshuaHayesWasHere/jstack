@@ -1,7 +1,3 @@
-/* One thread, followed to what it works on: a crewmate's or a reviewer's task and the step it
-   is on, a scout's request and what its Report says, or the home's line. A role and a slug
-   can have more than one thread, as two reviewers of one pull request: each is listed. A
-   task's drawer lists the threads on it. */
 var REQ = { researching: "user", reported: "ok", blocked: "user", "not done": "user", "no Report": "gap" };
 var REQSAY = { researching: "Its request has no Report yet", reported: "Its Report is written and says done", blocked: "Its Report says it could not go on", "not done": "Its Report is written and says it is not done", "no Report": "Its thread ended with no Report written: it stopped short" };
 function onIt(slug) { return (S.threads || []).filter(function (t) { return t.slug === slug && (t.role === "crew" || t.role === "reviewer"); }); }

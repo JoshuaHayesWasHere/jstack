@@ -3065,3 +3065,58 @@ def test_axe_finds_no_serious_issue_with_bands_folded_hidden_and_listed(
     seen = look(scene, tmp_path, route=route, fragment=f"theme={theme}", script=script, **when)
     assert seen["theme"] == theme
     assert (seen["errors"], seen["violations"], seen["rings"]) == ([], [], [])
+
+
+@pytest.mark.parametrize(
+    ("route", "hash", "title", "crumbs", "notice", "tap"),
+    [
+        ("#/", "#/", "", [["All projects", "#/"]], "", "#title .crumbs a[aria-current]"),
+        (
+            "#/demo",
+            "#/demo",
+            "",
+            [["All", "#/"], ["demo", "#/demo"]],
+            "",
+            "#title .crumbs a[aria-current]",
+        ),
+        (
+            "#/help",
+            "#/help",
+            "Every term on the page",
+            [["All", "#/"], ["Every term on the page", "#/help"]],
+            "",
+            "#dw .crumbs a[aria-current]",
+        ),
+        (
+            "#/%E0",
+            "#/%E0",
+            "",
+            [["All", "#/"], ["%E0", "#/%25E0"]],
+            "No project named %E0",
+            "#title .crumbs a[aria-current]",
+        ),
+        (
+            "?project=demo",
+            "#/demo",
+            "",
+            [["All", "#/"], ["demo", "#/demo"]],
+            "",
+            "#title .crumbs a[aria-current]",
+        ),
+    ],
+)
+def test_an_address_read_and_written_again_names_the_same_view(
+    scene, tmp_path, route, hash, title, crumbs, notice, tap
+):
+    """The page reads where it is from the address alone, and writes each link it draws from
+    what it read: `#/` is every project, `#/<project>` one, `#/help` the glossary over every
+    project, a part that is no name (`%E0`) a project kept as it was written, and an old
+    `?project=` link is rewritten to its route. Followed, the link to where the page is
+    names the same view again."""
+    said_by_him(scene)
+    first, again = walked(scene, tmp_path, route, ["look", f"tap:{tap}"])
+    assert (first["hash"], first["title"], first["crumbs"]) == (hash, title, crumbs)
+    assert first["notice"].startswith(notice), first["notice"]
+    assert again["hash"] == crumbs[-1][1]
+    assert (again["title"], again["crumbs"]) == (title, crumbs)
+    assert again["notice"].startswith(notice), again["notice"]
