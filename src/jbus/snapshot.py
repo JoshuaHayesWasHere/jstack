@@ -3,13 +3,15 @@
 The tree is the config's `home_dir`, `~/.local/state/home`, a git repo. A snapshot stages
 everything (`git add -A`). With something staged, gitleaks reads it, and one secret in it
 unstages it all and commits nothing; otherwise it commits `snapshot <YYYY-MM-DD HH:MM ET>`,
-in the user's zone. Then it pushes to `origin` when the repo has one, whether or not it
-committed, so a push that failed is made again by the next run.
+in the user's zone, followed by `: <why>` when `--why` says what changed. Then it pushes to
+`origin` when the repo has one, whether or not it committed, so a push that failed is made
+again by the next run.
 
-`jbus-snapshot.timer` runs it at 08:30 and 17:30. A snapshot that did not finish fails
-`jbus-snapshot.service`, whose `OnFailure=` runs `jbus snapshot --alarm`: the first failure
-alerts the desk and every project, once, and the next snapshot that goes says it recovered
-(`alert.sound`, `alert.recover`).
+`jbus-snapshot.timer` runs it at 08:30 and 17:30, and a home runs it with `--why` right after
+each edit to a `standing.md`, so that edit is a commit of its own and can be undone. A
+snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
+`jbus snapshot --alarm`: the first failure alerts the desk and every project, once, and the
+next snapshot that goes says it recovered (`alert.sound`, `alert.recover`).
 """
 
 from __future__ import annotations
@@ -46,14 +48,14 @@ def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:
         raise Failed(f"{what} failed: {said or f'exit {ran.returncode}'}")
 
 
-def take(tree: Path, now: datetime, user: jsettings.Settings) -> str:
+def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = None) -> str:
     """Snapshot the tree, and say what was done in one line. `Failed` when it could not."""
     if _git(tree, "rev-parse", "--git-dir").returncode:
         raise Failed(f"{tree} is not a git repo")
     _must(_git(tree, "add", "-A"), "git add")
     staged = _git(tree, "diff", "--cached", "--quiet").returncode != 0
     if staged:
-        _commit(tree, now, user)
+        _commit(tree, f"snapshot {user.stamp(now)}" + (f": {why}" if why else ""))
     done = "committed" if staged else "nothing changed"
     if _git(tree, "remote", "get-url", "origin").returncode:
         return f"snapshot: {done}, no remote to push to"
@@ -61,7 +63,7 @@ def take(tree: Path, now: datetime, user: jsettings.Settings) -> str:
     return f"snapshot: {done}, pushed"
 
 
-def _commit(tree: Path, now: datetime, user: jsettings.Settings) -> None:
+def _commit(tree: Path, message: str) -> None:
     """Commit what is staged, unless gitleaks finds a secret in it or is not there to read it."""
     gitleaks = shutil.which("gitleaks")
     scanned = (
@@ -78,17 +80,20 @@ def _commit(tree: Path, now: datetime, user: jsettings.Settings) -> None:
         if scanned is None:
             raise Failed("no gitleaks to read the changes, nothing committed")
         raise Failed("gitleaks found a secret in the changes, nothing committed")
-    _must(_git(tree, "commit", "-q", "-m", f"snapshot {user.stamp(now)}"), "git commit")
+    _must(_git(tree, "commit", "-q", "-m", message), "git commit")
 
 
 def snapshot(
-    config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
+    config: jbus.Config,
+    now: datetime | None = None,
+    say: Callable[[str], None] = print,
+    why: str | None = None,
 ) -> int:
     """Take a snapshot of `config.home_dir`. One that went ends a streak of failed ones, and
     exits 0 even where a project could not be told so: the snapshot is what the unit runs."""
     now = now or datetime.now(UTC)
     try:
-        say(take(config.home_dir, now, config.user))
+        say(take(config.home_dir, now, config.user, why))
     except Failed as error:
         say(f"snapshot: {error}")
         return 1
@@ -105,17 +110,19 @@ def alarm(
     return alert.sound(config, alert.SNAPSHOT, ALARM, AFTER, now, say)
 
 
-def _alarm(shown: argparse.ArgumentParser) -> None:
-    shown.add_argument(
+def _arguments(shown: argparse.ArgumentParser) -> None:
+    either = shown.add_mutually_exclusive_group()
+    either.add_argument(
         "--alarm", action="store_true", help="count a snapshot that did not finish, and alert"
     )
+    either.add_argument("--why", help="what changed, put in the commit message after the time")
 
 
 VERBS = (
     verbs.Verb(
         "snapshot",
         "commit and push the homes' state tree",
-        _alarm,
-        lambda args, config: (alarm if args.alarm else snapshot)(config),
+        _arguments,
+        lambda args, config: alarm(config) if args.alarm else snapshot(config, why=args.why),
     ),
 )
