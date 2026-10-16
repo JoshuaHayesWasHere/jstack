@@ -240,6 +240,7 @@ def test_a_scout_a_reviewer_and_a_home_out_are_judged_beside_the_rows(kitchen):
     add(kitchen, "alpha")
     review = "\n## Review\nVerdict: clean\nHead: abc\n"
     kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}") + review)
+    kitchen.set("open.json", [kitchen.opened("alpha", 9)])
     kitchen.t3.thread("alpha", "completed")
     scout = kitchen.t3.thread("look", "running", title="scout: look")
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")

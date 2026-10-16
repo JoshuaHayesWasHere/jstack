@@ -3,7 +3,8 @@
 `link` gives an open pull request to the thread jbus launched for its branch, so T3 Code
 shows it there. `relay` sends a review's findings to the crewmate when the reviewer could
 not. `settle` puts away the threads of a slug that is finished, and the subagent threads
-under them. `resume` tells a crewmate whose thread ended with no Result to carry on, twice
+under them, and archives the review threads of a pull request that merged or closed.
+`resume` tells a crewmate whose thread ended with no Result to carry on, twice
 at most, and then leaves it to the Chef. `merged` tells a crewmate whose pull request
 merged, and whose Result leaves work for after the merge, to carry on, once. `out` is every
 thread that is not settled, whatever its title, with the role its title gives it (`ROLES`)
@@ -21,7 +22,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs
+from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs, watch, work
 from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
@@ -38,6 +39,7 @@ ROLES = {"crew: ": "crew", "review: ": "reviewer", SCOUT: "scout", "home: ": "ho
 OTHER = "other"
 RUNS = 20
 SECOND = ", second pass"
+SCOPED = ", scoped"
 REVIEW = "## Review"
 CARRY_ON = (
     "jbus: this thread ended ({status}) before writing its Result. Carry on with your brief "
@@ -159,14 +161,32 @@ def _scouts(run: Pass) -> dict[str, str]:
     return {slug: _waits(run, slug, page, sessions) for slug, page in pages.items()}
 
 
+def shut(world: World, briefs: dict[str, str]) -> set[str]:
+    """The slugs whose pull request merged or closed, as `watch.pull` has it, and never one
+    whose last Result names a pull request that is open: `watch.pull` knows an open one
+    under the one slug `tied` gives it, and another brief naming it would read as closed."""
+    open_at = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
+    found = set(world.merged) - set(world.open)
+    for slug, text in briefs.items():
+        result = mirror.last_result(text)
+        if watch.named(result)[0].rstrip("/") in open_at:
+            found.discard(slug)
+        elif watch.pull(world, slug, result, "") in {work.Pull.MERGED, work.Pull.CLOSED}:
+            found.add(slug)
+    return found
+
+
 def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> dict[str, set[str]]:
-    """The slugs whose threads may be put away, by the title such a thread starts with.
+    """The slugs whose threads may be put away, by the title such a thread starts with, and
+    under `archive` those whose review threads are archived too.
 
     A task is over when its pull request merged, or when its last Result says `Status:
     done` and `Left: none` and names no pull request: the crew skill keeps a thread with
-    something left where the user sees it. A reviewer is over only when its task is and
-    the brief's last Review has a verdict: one that stopped early stays. A scout is over
-    when its Report is written, and the page its last Report names, if any, waits on nobody.
+    something left where the user sees it. A reviewer is over when its pull request merged
+    or closed, or its task is over, and the brief's last Review has a verdict: one that
+    stopped early stays. It is archived when its pull request merged or closed. A scout is
+    over when its Report is written, and the page its last Report names, if any, waits on
+    nobody.
     """
     briefs = _briefs(run)
     tasks = set(world.merged) - set(world.open)
@@ -174,8 +194,9 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
         result = mirror.last_result(text)
         if result and not unfinished(result) and slug not in world.open:
             tasks.add(slug)
+    ended = shut(world, briefs)
     reviewed = set()
-    for slug in tasks & set(briefs):
+    for slug in (tasks | ended) & set(briefs):
         whole = mirror.sections(briefs[slug], gates_inside=True)
         verdicts = [mirror.field(body, "Verdict") for heading, body in whole if heading == REVIEW]
         if verdicts and verdicts[-1] in ("clean", "findings"):
@@ -185,6 +206,7 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
         "crew: ": tasks,
         "review: ": reviewed,
         "scout: ": {slug for slug, why in held.items() if not why},
+        "archive": reviewed & ended,
     }
 
 
@@ -205,7 +227,7 @@ def _listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any
 def slug_in(title: str, prefix: str) -> str | None:
     if not title.startswith(prefix):
         return None
-    return title.removeprefix(prefix).removesuffix(SECOND).strip()
+    return title.removeprefix(prefix).removesuffix(SECOND).removesuffix(SCOPED).strip()
 
 
 def role_of(title: str) -> tuple[str, str]:
@@ -320,7 +342,8 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
 
 
 def settle(run: Pass, client: Client, world: World) -> None:
-    """Settle the threads of each finished slug and the subagent threads under them, once each.
+    """Settle the threads of each finished slug and the subagent threads under them, once each,
+    and archive a review thread whose pull request merged or closed, with what is under it.
 
     A thread that is still at work is left, with what is under it, for the next pass.
     """
@@ -328,6 +351,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     over = finished(run, world, held)
     unseen = {slug for slug, why in held.items() if why == UNSEEN.format(lavish.path())}
     slug_of: dict[str, str] = {}
+    shelve: set[str] = set()
     waiting: list[dict[str, Any]] = []
     try:
         for prefix in PREFIXES:
@@ -338,6 +362,8 @@ def settle(run: Pass, client: Client, world: World) -> None:
                 if slug in over[prefix]:
                     slug_of[thread["threadId"]] = slug
                     waiting.append(thread)
+                    if prefix == "review: " and slug in over["archive"]:
+                        shelve.add(thread["threadId"])
                 elif prefix == SCOUT and slug in unseen and not thread.get("settled"):
                     run.say(f"wait {slug}: {held[slug]}")
                     unseen.discard(slug)
@@ -357,25 +383,30 @@ def settle(run: Pass, client: Client, world: World) -> None:
             if thread["threadId"] in slug_of or parent not in slug_of:
                 continue
             slug_of[thread["threadId"]] = slug_of[parent]
+            if parent in shelve:
+                shelve.add(thread["threadId"])
             if parent in busy or thread["status"] in LIVE:
                 busy.add(thread["threadId"])
             waiting.append(thread)
             grew = True
     for thread in waiting:
         at, slug = thread["threadId"], slug_of[thread["threadId"]]
-        key = f"settled|{slug}|{at}"
-        if at in busy or _done(run, key):
+        if at in busy:
             continue
-        if thread.get("settled"):
+        for action in ("settle", "archive") if at in shelve else ("settle",):
+            key = f"{action}d|{slug}|{at}"
+            if _done(run, key):
+                continue
+            if action == "settle" and thread.get("settled"):
+                run.box.mark(key)
+                continue
+            try:
+                client.call("t3_thread_organize", {"action": action, "threadId": at})
+            except T3Error as error:
+                run.say(f"wait {slug}: thread {at} could not be {action}d ({error})")
+                break
             run.box.mark(key)
-            continue
-        try:
-            client.call("t3_thread_organize", {"action": "settle", "threadId": at})
-        except T3Error as error:
-            run.say(f"wait {slug}: thread {at} could not be settled ({error})")
-            continue
-        run.box.mark(key)
-        run.say(f"settled {slug}: {thread.get('title') or 'a thread'} {at}")
+            run.say(f"{action}d {slug}: {thread.get('title') or 'a thread'} {at}")
 
 
 def resume(run: Pass, client: Client, world: World) -> None:
