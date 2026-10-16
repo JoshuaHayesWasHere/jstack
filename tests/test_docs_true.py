@@ -216,7 +216,16 @@ def trees():
 
 
 def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_a_value(trees):
-    assert sorted(trees) == ["jbriefs", "jbus", "jdrift", "jgauge", "jleak", "jmerge", "jroles"]
+    assert sorted(trees) == [
+        "jbriefs",
+        "jbus",
+        "jdrift",
+        "jgauge",
+        "jleak",
+        "jmerge",
+        "jpack",
+        "jroles",
+    ]
     bus = trees["jbus"]
     assert bus.flags == {"--project": True}
     assert "poll" in bus.verbs and "view" in bus.verbs

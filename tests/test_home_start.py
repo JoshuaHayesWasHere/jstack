@@ -408,3 +408,22 @@ def test_a_start_with_no_jbus_reads_the_plan_whole_and_says_why_it_has_no_queue(
     assert said["merged"] == []
     (line,) = said["to read"]
     assert line.startswith("no mark yet: 0 headings")
+
+
+def test_a_start_reads_the_repos_context_pack_index_after_the_rules_and_the_note(bus):
+    (bus.dir / "standing.md").write_text("1. A standing rule.\n")
+    (bus.dir / "handoff.md").write_text("Next: the queue\n")
+    before = [f"read whole: {bus.shown_dir}/{name}" for name in ("standing.md", "handoff.md")]
+    assert parts(bus.home(START))[""] == before
+    index = bus.main / "docs" / "context" / "INDEX.md"
+    index.parent.mkdir(parents=True)
+    index.write_text("`retries.md`: How many retries? (checked at `3f9c2ab`)\n")
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=bus.main,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert parts(bus.home(START))[""] == [*before, f"read whole: {top}/docs/context/INDEX.md"]
+    assert parts(bus.home(START, cwd=bus.worktree))[""] == before

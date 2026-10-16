@@ -13,7 +13,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 
 [How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
-Seven commands do the routine work with no model: `jmerge` merges, `jbus` does a home's routine work from a timer, `jgauge` counts tokens and checks for room, `jbriefs` shows every brief on one page, `jroles` picks a model for a role, `jdrift` lists what changed upstream in the files taken from pstack, and `jleak` finds what must not leave the machine.
+Eight commands do the routine work with no model: `jmerge` merges, `jbus` does a home's routine work from a timer, `jgauge` counts tokens and checks for room, `jbriefs` shows every brief on one page, `jroles` picks a model for a role, `jdrift` lists what changed upstream in the files taken from pstack, `jleak` finds what must not leave the machine, and `jpack` checks a repo's context pack.
 
 What lasts is on disk, in a state directory outside the repo. A thread can end at any time, and the next one starts from those files.
 
@@ -28,7 +28,7 @@ jstack does not run without a **hard** need. `sh install.sh --doctor` checks eac
 | Linux | hard | The only platform. |
 | T3 Code, the nightly build | hard | Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.0.46-nightly.20261010.2935`. |
 | Claude Code | hard | The `claude` command on `PATH`. |
-| `uv` | hard | It installs the seven commands and `tzdata`, the one package they need. The commands read your time zone from `tzdata` where the system has no zone files, and refuse a `timezone` they cannot find. They run on Python 3.12 or newer. `uv` uses one that it finds on the machine. When it finds none it downloads one: 3.12 for `install.sh`, and the newest it knows for a `uv run` or a `make check` in a checkout. |
+| `uv` | hard | It installs the eight commands and `tzdata`, the one package they need. The commands read your time zone from `tzdata` where the system has no zone files, and refuse a `timezone` they cannot find. They run on Python 3.12 or newer. `uv` uses one that it finds on the machine. When it finds none it downloads one: 3.12 for `install.sh`, and the newest it knows for a `uv run` or a `make check` in a checkout. |
 | `git` | hard | 2.31 or newer. |
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
@@ -52,7 +52,7 @@ These steps take a new machine from a clone to one merged pull request.
 	cd jstack
 	```
 
-2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.claude/skills` and `~/.agents/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the seven commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
+2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.claude/skills` and `~/.agents/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the eight commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
 
 	```sh
 	sh install.sh --setup
@@ -120,6 +120,7 @@ Each command has one page.
 | `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
 | `jdrift` | [docs/jdrift.md](docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
+| `jpack` | [docs/jpack.md](docs/jpack.md) | Lints a context pack, verifies its citations, and lists its stale notes. |
 
 `install.sh` puts the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
 
@@ -130,6 +131,7 @@ Each command has one page.
 | [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
 | [Hooks](docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
 | [State](docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
+| [Context packs](docs/context.md) | Find where a repo's context pack lives, who writes it, and how it is verified and pruned. |
 | [Playbooks, principles and templates](docs/playbooks.md) | Give a task numbered steps. |
 
 ## Skills
@@ -158,7 +160,7 @@ The other 26 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `playbooks/` | The numbered steps for one kind of task. |
 | `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
 | `hooks/` | `home-start.sh`, `skill-tips.sh`, `limits.sh`, and the two hooks of `jleak`: `pre-push.sh` and `outbound-command.sh`. |
-| `src/` | The seven commands, one package each, and the code `install.sh` runs. |
+| `src/` | The eight commands, one package each, and the code `install.sh` runs. |
 | `install.sh` | Installs, checks and removes jstack on a machine. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
