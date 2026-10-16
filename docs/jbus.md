@@ -506,7 +506,7 @@ Everything a pass finds is an event. Each POST to a webhook is `{"kind": "events
 | `loud` | Kinds | What happens |
 |---|---|---|
 | `user` | `gate`, `waiting`, `alert`, `stall`, `sign-in` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
-| `quiet` | `waiting-on-user`, `condition`, `merged`, `gate answered`, `result`, `review`, `report`, `stale`, `rebase`, `rereview`, `drops`, `proof`, `failed`, `conflict`, `refailed`, `green`, `mainmoved`, `resume`, `retro`, `snapshot`, `jmerge`, `expedite`, `heartbeat`, `queue`, `sweep`, `relayed`, `overlap`, `note`, `leftover`, `unplaced` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
+| `quiet` | `waiting-on-user`, `condition`, `merged`, `gate answered`, `result`, `review`, `report`, `stale`, `rebase`, `rereview`, `drops`, `proof`, `failed`, `conflict`, `refailed`, `green`, `mainmoved`, `resume`, `retro`, `snapshot`, `jmerge`, `expedite`, `heartbeat`, `queue`, `sweep`, `relayed`, `overlap`, `note`, `leftover`, `unplaced`, `item.proposed`, `item.linked`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
 
 A `gate` is a question a thread asked. A `waiting` event is `user` only when the list of what waits on you gained a hold, an approval, a config item or a gate of a home's `gates.md`, and `quiet` for any other change. A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 
