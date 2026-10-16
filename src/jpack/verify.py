@@ -11,7 +11,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from jpack import Citation, citations, notes, said
+from jpack import Citation, citations, notes, said, uncited
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -41,9 +41,12 @@ def fault(repo: Path, cited: Citation) -> str:
 
 
 def faults(pack: Path, repo: Path) -> list[str]:
-    """One line per citation that does not hold, note by note."""
+    """One line per citation that does not hold, and per source pinned to a commit that cites
+    no line, note by note."""
     found = []
     for name, text in notes(pack).items():
+        for item in uncited(text):
+            found.append(f"{name}: a source names a commit and cites no `path:line` at it: {item}")
         for cited in citations(name, text):
             wrong = fault(repo, cited)
             if wrong:

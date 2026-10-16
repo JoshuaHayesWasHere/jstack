@@ -31,9 +31,10 @@ def _repo(args: argparse.Namespace) -> Path:
 
 def _lint(args: argparse.Namespace) -> list[str]:
     done = subprocess.run(["sh", str(LINT), args.pack], capture_output=True, text=True)
-    if done.returncode == 2:
-        raise Refused(done.stderr.strip())
-    return done.stdout.splitlines()
+    lines = done.stdout.splitlines()
+    if done.returncode not in (0, 1) or (done.returncode == 1 and not lines):
+        raise Refused(done.stderr.strip() or f"jpack: the lint exited {done.returncode}")
+    return lines
 
 
 def _verify(args: argparse.Namespace) -> list[str]:
