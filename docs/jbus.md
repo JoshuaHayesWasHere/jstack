@@ -37,12 +37,13 @@ The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empt
 | `jbus project add <name> --checkout <path> --project-id <id>` | Adds one project's table to the config. [Add a project](#add-a-project) has the rest. |
 | `jbus t3 login [--wait <seconds>]` | Signs jbus in to the T3 Code server. `--wait` is how long it waits for your approval, 600 seconds with none. |
 | `jbus t3 launch-test` | Starts one thread in the project and prints its id. |
+| `jbus relay` | Takes what jbus posts on 127.0.0.1:4390 and sends it on to Sous Chef, spooled. `jbus-relay.service` runs it. [The relay](#the-relay) has the rest. |
 | `jbus snapshot [--alarm \| --why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time, as a home does after each edit to a `standing.md`. `--alarm` counts a snapshot that did not finish. [Back up the homes' state](#back-up-the-homes-state) has the rest. |
 | `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for it to run. A step is declared beside its feature, as `STEPS` in its module, and a pass skips one whose needs it has not. |
 
 A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus snapshot`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+`jbus poll`, `jbus alarm`, `jbus relay`, `jbus snapshot`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
 
 ## Questions
 
@@ -486,6 +487,31 @@ These go to the second target, `blocking_url` and `blocking_key` at the top of t
 | `refresh` | The second target | The same, with every open item, oldest first, or none, and `say` is `<project>: nothing blocks`. It waits on no gap, and a newer refresh takes the place of one still in the outbox. |
 
 An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}`, with `slug`, `number`, `url`, `question` and `default` where it has them. `case` is the letter above and `why` says it in words. A body that fails stays in the outbox and goes again, in order, once the five-minute gap has passed: a retry waits on the gap whatever it carries. With no second target, jbus judges nothing and writes no `blocking.json`, so the first pass that has the pair reminds of what is already 15 minutes old. The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
+
+## The relay
+
+`jbus relay` is a server, not a pass. It listens on `127.0.0.1`, on `RELAY_PORT` (4390), and sends each body it is posted on to Sous Chef, the webhook `GROK_WEBHOOK_URL` with the key `GROK_WEBHOOK_KEY`. Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads. `sh install.sh` links `templates/jbus-relay.service`, and `systemctl --user enable --now jbus-relay.service` starts it. A hand-made `jbus-relay.service` that differs is not replaced: remove it first, and `install.sh --check` says when it is gone.
+
+| Key | What it is |
+|---|---|
+| `RELAY_INBOUND_KEY` | The key a POST to the relay gives in `X-Automation-Key`. Any other is refused with 401. |
+| `GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY` | Sous Chef's webhook and its key, sent in `Authorization: Bearer` and `X-Automation-Key`. |
+| `RELAY_PORT` | The port, 4390 with none. |
+| `RELAY_STATE` | Where the spool is, `~/.local/state/jbus-relay` with none. |
+| `RELAY_TIMEOUT_SECONDS`, `RELAY_RETRY_SECONDS` | How long a POST may take, 15 seconds, and how long a route waits after one that failed, 300 seconds. |
+
+A key that is missing, empty or `REPLACE_ME` stops the relay at start: it prints `relay: refused to start: <each such key and why>`, never a value, and exits 2, which the unit does not restart. `systemctl --user status jbus-relay` then shows it failed. The `GATEKEEPER_WEBHOOK_URL` and `GATEKEEPER_WEBHOOK_KEY` of an older env file are read by nothing: Gatekeeper is no target.
+
+The relay sends two routes, both to Sous Chef, and each POST says which in `relay: {"id", "route"}` beside the body's keys:
+
+| Route | What it sends |
+|---|---|
+| `everything` | Every body as it came. |
+| `blocking` | What blocks: a `reminder` or a `refresh` whole, an `events` body of the second target whole when it has `items` ([What blocks](#what-blocks)), and of any other body the events whose `loud` is `user` or whose kind is `gate`, `stall`, `alert`, `waiting` or `waiting-on-user`, with `say` cut to theirs. A body with none of these is not sent on this route. |
+
+Each body the relay takes has an id: its own `id` when that is a short name of letters, digits, `.`, `_` and `-`, else a hash of the body, so the same body posted twice has one id. Each route writes what it sends to `spool/<route>/` before the relay answers 202 with `{"id"}`. A thread for each route posts its spool in order, off the request path, so a webhook that is slow or down never holds back the next body. A body that went is added to `sent/<route>` and leaves the spool. One that failed stays, and the journal says `relay: POST to sous-chef (<route>) failed for event <id>: <why>`; it goes again after `RELAY_RETRY_SECONDS`, or when the next body comes. An id that a route sent or holds is not spooled again, and the journal says `not sent again`. A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
+
+Who posts to the relay is the config: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](#events-and-the-webhook)), with `RELAY_INBOUND_KEY` as its key. As of 2026-10-15 nothing does: the top-level `webhook_url` is another address, no project has its own, and no `blocking_url` is set, so the relay is posted nothing until one of them names it. `blocking_url` is the one that sends it what blocks (`waiting.blocking`).
 
 ## When jbus fails
 
