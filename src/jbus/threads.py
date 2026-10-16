@@ -162,11 +162,16 @@ def _scouts(run: Pass) -> dict[str, str]:
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
-    """The slugs whose pull request merged or closed, as `watch.pull` has it."""
-    ended = {work.Pull.MERGED, work.Pull.CLOSED}
-    found = {slug for slug in world.merged if watch.pull(world, slug, "", "") in ended}
+    """The slugs whose pull request merged or closed, as `watch.pull` has it, and never one
+    whose last Result names a pull request that is open: `watch.pull` knows an open one
+    under the one slug `tied` gives it, and another brief naming it would read as closed."""
+    open_at = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
+    found = set(world.merged) - set(world.open)
     for slug, text in briefs.items():
-        if watch.pull(world, slug, mirror.last_result(text), "") in ended:
+        result = mirror.last_result(text)
+        if watch.named(result)[0].rstrip("/") in open_at:
+            found.discard(slug)
+        elif watch.pull(world, slug, result, "") in {work.Pull.MERGED, work.Pull.CLOSED}:
             found.add(slug)
     return found
 
