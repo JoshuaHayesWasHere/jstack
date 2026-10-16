@@ -84,8 +84,9 @@ def regex_end(text, at):
 
 
 def comment_end(text, at):
-    end = text.find("*/", at + 2) + 2 if text[at + 1] == "*" else text.find("\n", at)
-    return len(text) if end < at else end
+    closing = "*/" if text[at + 1] == "*" else "\n"
+    end = text.find(closing, at + 2)
+    return len(text) if end < 0 else end + len(closing.strip())
 
 
 def script_comments(text):
@@ -179,6 +180,9 @@ def test_a_swept_file_holds_no_plain_comment(name):
         ("after_a_string.js", 'say("a"); // why\n', ["after_a_string.js:1: // why"]),
         ("after_a_regex.js", "x.replace(/a/g, b); // why\n", ["after_a_regex.js:1: // why"]),
         ("unclosed.js", "x();\n/* why", ["unclosed.js:2: /* why"]),
+        ("unclosed_first.js", "/* why", ["unclosed_first.js:1: /* why"]),
+        ("unclosed_second.js", "x/* why", ["unclosed_second.js:1: /* why"]),
+        ("unclosed.html", "<script>\n/* why</script>\n", ["unclosed.html:2: /* why"]),
         (
             "page.html",
             "<p>it's</p>\n<style>\n  a { b: c; } /* why */\n</style>\n"
