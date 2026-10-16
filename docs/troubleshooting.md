@@ -8,6 +8,8 @@ sh install.sh --doctor
 
 Each line is `<state> <level> <name>[ -> <detail>]`. The state is `ok`, `missing` or `old`. The level is `hard` or `optional`. `sh install.sh --check` prints the same lines for the parts the install puts, and the entries below serve both.
 
+`sh install.sh --setup` walks the same needs once, in order, and mends what it can. It prints `done <name>` for what it wrote, `already <name>` for what was there, and `needs you <name> -> <command>` for what only you can do: run that command, then `--setup` again. [Setup](#setup) has its lines.
+
 Find your line in the tables. A word in angle brackets stands for a value on your machine. `<home>` is your home directory and `<checkout>` is the path of the jstack checkout.
 
 ## The last line and the exit code
@@ -24,8 +26,9 @@ Find your line in the tables. A word in angle brackets stands for a value on you
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing hard python -> 3.12 or newer, or uv, which brings one` | The script found no Python 3.12 and no `uv`, so it ran nothing. | Install `uv`. |
-| `usage: install.sh [--check \| --uninstall \| --doctor]` | The argument is not one of the three. The script exits 2. | Run it with one argument or none. |
+| `usage: install.sh [--check \| --uninstall \| --doctor \| --setup]` | The argument is not one of the four. The script exits 2. | Run it with one argument or none. |
 | `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. Nothing was written. | Run `sh install.sh` in the main checkout. |
+| `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | The same, for `--setup`. Nothing was written. | Run `sh install.sh --setup` in the main checkout. |
 | `install.sh: <name>: <error>` | On stderr. The install could not put the part `<name>`. The part's own line says what is there now. | Find the part's line in the tables below. |
 
 ## The platform and the programs
@@ -96,6 +99,9 @@ A status line of your own gets no line. [Configuration](configuration.md#the-lim
 | `missing optional config <path> -> defaults are used: user, timezone, timezone_label` | You have no jstack config. Nothing is wrong. | Nothing, or write the file as [Configuration](configuration.md#jstack) shows. |
 | `old optional config <path> -> <why>` | The file is there and the commands refuse it. `<why>` names the key, or says the file does not parse. `jmerge` and `jbus` stop on the same line. | Correct what `<why>` names. |
 | `missing optional patterns <path>` | You have no private patterns file. `jleak` checks only its built-in patterns, and both of its hooks refuse every push and every pull request command. | Run `sh install.sh`. It makes the file. Then fill in the names, as [jleak](jleak.md#the-private-patterns) shows. |
+| `missing optional roles <path> -> every role inherits the model of the thread that launches it` | You have no role map. Nothing is wrong. | Nothing, or run `sh install.sh --setup`, which writes one where every role is `inherit`. |
+| `old optional roles <path> -> it cannot be read` | The path is a directory, or you cannot read it. | Remove it, or make it readable. |
+| `old optional roles <path> -> bad line <n>: <line>` | `jroles` refuses the map, so every launch inherits. Each bad line is named, joined by `;`. | Correct each line as [jroles](jroles.md) shows. |
 | `missing optional jbus config <path> -> jbus does not run without it` | `jbus` is not set up. No timer runs. A home thread launches and settles, and you run `jmerge` or hand the merge to a home. | Nothing, or follow [Set up jbus](jbus.md#set-up-jbus). |
 | `old optional jbus config <path> -> <path> is mode <mode>, readable by others: chmod 600 it` | The file holds a key, and group or others can read it. | Run `chmod 600 <path>`. |
 | `old optional jbus config <path> -> <why>` | `jbus` refuses the file. `<why>` is its own line: the file does not parse, lacks a key, or has a `loud` it cannot use. | Correct what `<why>` names. [Configuration](configuration.md#jbus) has every key. |
@@ -108,6 +114,22 @@ A status line of your own gets no line. [Configuration](configuration.md#the-lim
 | `old optional limits <path> -> it cannot be read` | The path is a directory, or you cannot read it. | Remove it. `hooks/limits.sh` writes it again. |
 | `old optional limits <path> -> it gives no limit` | No row of the file is a limit. | Remove it. `hooks/limits.sh` writes it again. |
 | `old optional limits <path> -> every reset in it is past, nothing writes it now` | The file is stale. No Claude Code session ran since the last reset, or the status line no longer runs `hooks/limits.sh`. | Start one Claude Code session and run the doctor again. If the line stays, run `sh install.sh --check` and read its `statusline` line. With a status line of your own there is no such line: see [Configuration](configuration.md#the-limits-file). |
+
+## Setup
+
+`sh install.sh --setup` prints one line for each need the doctor lists, in the same order, and exits 1 while a `hard` need is left to you. A second run writes nothing.
+
+| Line | Meaning | Do this |
+|---|---|---|
+| `done <name>` | This run wrote it: a config that was not there, or a part the install puts. | Nothing. |
+| `already <name>` | It was there and `ok`. | Nothing. |
+| `needs you <program> -> yay -S <package>` | The program is missing or too old. On a machine with no `pacman` the command is the program's name. | Install it, then run `--setup` again. |
+| `needs you gh sign-in -> gh auth login` | `gh` is not signed in. | Run `gh auth login`. |
+| `needs you jbus sign-in <path> -> jbus t3 login` | `jbus` has its config and no sign-in. | Run `jbus t3 login`, as [Set up jbus](jbus.md#set-up-jbus) says. |
+| `needs you limits <path> -> claude` | Only Claude Code's status line writes the limits file. | Start one Claude Code session. |
+| `needs you <name> -> <why>` | A file is there and its loader refuses it, or a part the install puts could not be put. Setup never writes over a file. | Find the doctor's line for `<name>` above and do what it says. |
+
+Setup writes three configs, each only where no file is: `~/.config/jstack/config.toml`, with `user` from the first word of `git config user.name` and `timezone` from the machine, `~/.config/jstack/roles` with every role `inherit`, and `~/.config/jbus/config.toml`, mode 600, with `server` from the T3 sign-in beside it, else `http://127.0.0.1:3773`, and `dispatch = false`. The units are linked in the same run, since the jbus config is then there. `--uninstall` removes each of the three only while its bytes are the ones setup wrote, and says `kept <name> -> yours, it is not as setup wrote it` for one you changed.
 
 ## The jbus units
 

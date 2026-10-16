@@ -3,14 +3,16 @@ whose doctor says ok. Each test runs the script under a temporary `HOME`, with t
 `test_doctor` for every program the doctor asks, and a `git` that knows a name."""
 
 import os
+import re
 import stat
+import subprocess
 import tomllib
 
 import pytest
 
 from jinstall.__main__ import setup as run_setup
 from test_doctor import NIGHTLY, Doctored
-from test_install import UNITS, line_for, machine, worktree
+from test_install import REPO, SCRUBBED, UNITS, line_for, machine, worktree
 
 GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; esac'
 SERVER = "http://127.0.0.1:3773"
@@ -205,3 +207,33 @@ def test_usage_names_setup(user):
     assert (code, said) == (2, [])
     assert err == "usage: install.sh [--check | --uninstall | --doctor | --setup]\n"
     assert os.listdir(user.home) == []
+
+
+def skill_block():
+    text = (REPO / "skills" / "setup-pstack" / "SKILL.md").read_text()
+    (found,) = re.findall(r"^```sh\n(.*?)^```$", text, re.M | re.S)
+    return found
+
+
+def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(user):
+    user.setup()
+    env = {k: v for k, v in os.environ.items() if not k.startswith(SCRUBBED)}
+    env |= {
+        "HOME": str(user.home),
+        "PATH": f"{user.stub}:{user.bin}:{os.environ['PATH']}",
+        "UV_TOOL_DIR": str(user.tools),
+        "UV_LOG": str(user.uv_log),
+        "FAKE_SYSTEMCTL_LOG": str(user.systemctl_log),
+        "JBUS_CONFIG_DIR": str(user.jbus),
+    }
+    before = user.snapshot()
+    done = subprocess.run(
+        ["sh", "-c", skill_block()], env=env, cwd=user.home, capture_output=True, text=True
+    )
+    said = done.stdout.splitlines()
+    assert (done.returncode, done.stderr) == (0, "")
+    assert said[0] == f"checkout: {REPO}"
+    probed, units, left = 14, 1, 2
+    count = probed + len(user.parts()) + units - left
+    assert said[-2:] == [f"setup: 0 done, {count} already, 2 needs you, exit 0", "doctor: ok"]
+    assert user.snapshot() == before

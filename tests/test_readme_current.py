@@ -65,7 +65,7 @@ OPTIONAL = {
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "`lavish-axi`": ("lavish-axi",),
 }
-NO_REQUIREMENT = ("config", "patterns")
+NO_REQUIREMENT = ("config", "roles", "patterns")
 NAMED = (
     "ci-paths.txt",
     "fresh-check",
@@ -370,7 +370,7 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     typed = [line for block in blocks(said, "sh") for line in block]
     assert typed[:2] == ["git clone <the URL of this repo> jstack", "cd jstack"]
     assert typed[2:] == [
-        "sh install.sh",
+        "sh install.sh --setup",
         "sh install.sh --check",
         "sh install.sh --doctor",
         "jmerge",
@@ -386,7 +386,10 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     for line in typed[2:5]:
         code, printed, err = user.run_with_stderr(*line.split()[2:])
         assert (code, err) == (0, ""), line
-        assert all(each.startswith(("ok ", "missing optional ")) for each in printed[:-1]), line
+        ends = ("ok ", "missing optional ")
+        if "--setup" in line:
+            ends = ("done ", "already ", "needs you ")
+        assert all(each.startswith(ends) for each in printed[:-1]), line
     assert printed[-1] == "doctor: ok"
 
 
