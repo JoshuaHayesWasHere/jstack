@@ -320,7 +320,7 @@ def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
 
 def test_each_command_has_its_page_and_the_readme_links_it():
     said = README.read_text()
-    assert len(COMMANDS) == 7
+    assert len(COMMANDS) == 8
     for command in COMMANDS:
         assert page(f"{command}.md").startswith(f"# {command}\n")
         assert f"(docs/{command}.md)" in said
