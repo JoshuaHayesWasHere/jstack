@@ -27,8 +27,9 @@ when it ends (`alert`).
 all, and sends it to the thread in each home's `home-id` as a queued message, at once and
 then on each pass until it went (`word`). It is no event, so no webhook is posted it.
 Once a day it asks `jmerge` what a sweep would remove, and again on each pass until
-`jmerge` has run, and runs the stale check of a project's context pack (`packs`). Each pass ends by rewriting the status file, which `jbus status` prints:
-what a webhook that is down cannot say.
+`jmerge` has run, and runs the stale check of a project's context pack (`packs`). Each
+pass ends by rewriting the status file, which `jbus status` prints: what a webhook that is
+down cannot say.
 `jbus view` is no pass: it is a server that shows what the passes left, and it reads no
 config (`jbus.view`).
 `jbus project add` is no pass either: it adds one project's table to the config, and the
