@@ -17,8 +17,6 @@ from test_home_merge import FENCED, git, review
 
 SKILL = reviews.SKILL
 
-rules = guarded.rules
-merged = guarded.merged
 
 SECTION = SKILL.read_text().split("\n### A scoped pass\n")[1].split("\n## ")[0]
 MESSAGE = re.compile(r"`(/pr-review run (\S+) scoped (\S+) (\S+))`")
@@ -116,24 +114,26 @@ def test_ranges_git_cannot_compare_stop_the_pass(tmp_path):
     assert first == "stop: git range-diff could not compare the two ranges"
 
 
-def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(merged, rules):
-    rebased = rebases.Rebased(merged, {11: "theirs 11"}, rebases.BOTH)
-    (waits,) = guarded.jmerge(merged, rules, "--check")
+def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven_merged, rules):
+    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
+    (waits,) = guarded.jmerge(proven_merged, rules, "--check")
     assert waits == rebased.waits()
     _, slug, old, new = asked(7, waits.split("scoped review of ")[1]).groups()
-    scope, head, *_ = scoped(merged.tree, old, new)
+    scope, head, *_ = scoped(proven_merged.tree, old, new)
     section = (
         f"## Review\nVerdict: clean\n{scope}\n{head}   Unchanged by the run: yes\nFindings:\nnone\n"
     )
     rebased.brief(review("clean", rebased.before) + section)
-    assert guarded.jmerge(merged, rules, "--check") == [f"ready 7 {rebased.head} {slug} alpha"]
+    assert guarded.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} {slug} alpha"
+    ]
 
 
-def test_a_scoped_review_with_a_finding_waits_for_it_to_be_handled(merged, rules):
-    rebased = rebases.Rebased(merged, {11: "theirs 11"}, rebases.BOTH)
+def test_a_scoped_review_with_a_finding_waits_for_it_to_be_handled(proven_merged, rules):
+    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
     section = review("findings", rebased.head).replace(
         "Verdict: findings\n", f"Verdict: findings\nScope: range-diff {rebased.command()[28:]}\n"
     )
     rebased.brief(review("clean", rebased.before) + section)
-    (said,) = guarded.jmerge(merged, rules, "--check")
+    (said,) = guarded.jmerge(proven_merged, rules, "--check")
     assert said.endswith(": its findings are not handled: the Result has no Fixed line")

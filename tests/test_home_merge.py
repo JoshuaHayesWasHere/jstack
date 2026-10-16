@@ -259,11 +259,6 @@ class Home:
         return said
 
 
-@pytest.fixture
-def home(tmp_path):
-    return Home(tmp_path)
-
-
 def pushed_on(home):
     """Three commits git has, one on the other from where the branch left main, which say
     what a text says of `REVIEWED`, `PUSHED` and `LATER`: a fix sits on the reviewed head."""
@@ -820,11 +815,6 @@ class Merged:
             and self.branches() == (["alpha", "main"], ["alpha", "main"])
             and self.plan.read_text() == PLAN
         )
-
-
-@pytest.fixture
-def merged(home, tmp_path):
-    return Merged(home, tmp_path)
 
 
 def test_a_ready_pull_request_is_merged_pulled_and_cleared_up_and_the_plan_is_left(merged):

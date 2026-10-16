@@ -365,7 +365,10 @@ class App:
         repos = sorted({state.repo(self.sources, name) for name in names} - {""})
         with ThreadPoolExecutor(max_workers=max(1, len(repos))) as pool:
             asked = dict(zip(repos, pool.map(self.github.runs, repos), strict=True))
-        runs = lambda repo: asked.get(repo) or self.github.runs(repo)  # noqa: E731
+
+        def runs(repo: str):
+            return asked.get(repo) or self.github.runs(repo)
+
         built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
         return clean(built, tuple(repos))
 

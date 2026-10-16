@@ -684,7 +684,9 @@ def test_a_ref_whose_commit_cannot_be_read_runs_the_suite(tmp_path):
 
 
 def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tmp_path):
-    marked = lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}  # noqa: E731
+    def marked(tree):
+        return {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
+
     for at, env in enumerate(
         ({"GITHUB_EVENT_NAME": "workflow_dispatch"}, {"GITHUB_RUN_ATTEMPT": "2"})
     ):

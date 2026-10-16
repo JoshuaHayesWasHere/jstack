@@ -14,6 +14,13 @@ writes what it was asked to `$SYSTEMD_RUN_CALLS` where that is set.
 
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
 one project.
+
+A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`;
+one of a guarded path asks for `rules`, the package with a list that guards five paths, and
+`proven_merged`, a pull request whose review proved the one safety fact at its head, from
+`test_jmerge_guarded`. Each imports its module when it is asked for: `test_home_merge` runs
+`uv cache dir` as it loads, and a run with no `uv` on PATH that asks for none of them still
+loads this file.
 """
 
 import os
@@ -80,3 +87,34 @@ def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     yield made
     made.close()
+
+
+@pytest.fixture
+def home(tmp_path):
+    import test_home_merge as merge
+
+    return merge.Home(tmp_path)
+
+
+@pytest.fixture
+def merged(home, tmp_path):
+    import test_home_merge as merge
+
+    return merge.Merged(home, tmp_path)
+
+
+@pytest.fixture
+def rules(tmp_path):
+    import test_jmerge_guarded as guarded
+
+    return guarded.checkout(tmp_path, guarded.LISTED)
+
+
+@pytest.fixture
+def proven_merged(home, tmp_path):
+    import test_home_merge as merge
+    import test_jmerge_guarded as guarded
+
+    made = merge.Merged(home, tmp_path)
+    (made.home.tasks / "alpha.md").write_text(merge.brief(guarded.proven("clean", made.head)))
+    return made

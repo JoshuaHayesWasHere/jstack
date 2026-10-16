@@ -26,7 +26,7 @@ from jmerge import proof, ready
 from test_briefs import TEMPLATE
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, brief, gates, go, queued_before
-from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, merged, proven, rules  # noqa: F401
+from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
 
 HEAD = merge.PUSHED
 SECRET = "secrets/x.json"
@@ -347,204 +347,214 @@ def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused
         assert bool(filled(plain, command=f"sh -c 'run || {named}'")) is stands
 
 
-def test_a_guarded_pull_request_with_its_fact_proven_at_the_head_is_merged(merged, rules):  # noqa: F811
-    merged.home.open_pull_request(merged.head, checks=(STARTED,), files=[SKILL])
-    (said,) = jmerge(merged, rules)
+def test_a_guarded_pull_request_with_its_fact_proven_at_the_head_is_merged(proven_merged, rules):
+    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
+    (said,) = jmerge(proven_merged, rules)
     assert said.startswith("merged 7 alpha ")
 
 
 @pytest.mark.parametrize("case", ["unproven", "an older head", "none"])
-def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(merged, rules, case):  # noqa: F811
+def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_merged, rules, case):
     review = {
-        "unproven": merge.review("clean", merged.head) + UNPROVEN,
-        "an older head": proven("findings", merged.start)
-        + f"Fixed: {merged.head}\nFinding: fixed, it\n",
-        "none": merge.review("clean", merged.head),
+        "unproven": merge.review("clean", proven_merged.head) + UNPROVEN,
+        "an older head": proven("findings", proven_merged.start)
+        + f"Fixed: {proven_merged.head}\nFinding: fixed, it\n",
+        "none": merge.review("clean", proven_merged.head),
     }[case]
-    (merged.home.tasks / "alpha.md").write_text(merge.brief(review))
-    merged.home.open_pull_request(merged.head, checks=(STARTED,), files=["a.txt"])
-    assert jmerge(merged, rules, "--check") == [f"ready 7 {merged.head} alpha alpha"]
-    merged.home.open_pull_request(merged.head, checks=(STARTED,), files=[SKILL])
-    assert jmerge(merged, rules) == guarded(no_fact(merged.head))
-    assert merged.untouched()
+    (proven_merged.home.tasks / "alpha.md").write_text(merge.brief(review))
+    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=["a.txt"])
+    assert jmerge(proven_merged, rules, "--check") == [f"ready 7 {proven_merged.head} alpha alpha"]
+    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
+    assert jmerge(proven_merged, rules) == guarded(no_fact(proven_merged.head))
+    assert proven_merged.untouched()
 
 
-def held(merged):  # noqa: F811
+def held(proven_merged):
     """A pull request `jmerge` holds for the user, said in a pass of its own."""
-    merged.home.open_pull_request(merged.head, files=["a.txt", SECRET])
-    assert merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
-    assert merged.untouched()
+    proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
+    assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
+    assert proven_merged.untouched()
 
 
-def accept(merged, flags=ACCEPT):  # noqa: F811
-    said = merged.home.run(flags)
-    return merged.home.code, said
+def accept(proven_merged, flags=ACCEPT):
+    said = proven_merged.home.run(flags)
+    return proven_merged.home.code, said
 
 
-def test_accept_merges_a_held_pull_request_whose_fact_is_proven_and_logs_who_and_when(merged):  # noqa: F811
-    held(merged)
-    code, (accepted, said) = accept(merged)
-    commit, pulled = merged.on_main()
+def test_accept_merges_a_held_pull_request_whose_fact_is_proven_and_logs_who_and_when(
+    proven_merged,
+):
+    held(proven_merged)
+    code, (accepted, said) = accept(proven_merged)
+    commit, pulled = proven_merged.on_main()
     assert accepted == (
-        f"accepted 7 {merge.URL}: {HOLD}, lifted at {merged.head[:12]} by user at {AT}, "
-        f"safe because 3 passed (proven at {merged.head[:12]})"
+        f"accepted 7 {merge.URL}: {HOLD}, lifted at {proven_merged.head[:12]} by user at {AT}, "
+        f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
     assert (code, said, pulled) == (0, merge.merged_line(commit), commit)
-    assert [line[17:] for line in merged.log()][-2:] == [accepted, said]
-    assert merged.plan.read_text() == merge.PLAN
+    assert [line[17:] for line in proven_merged.log()][-2:] == [accepted, said]
+    assert proven_merged.plan.read_text() == merge.PLAN
 
 
 @pytest.mark.parametrize("review", ["unproven", "none"])
-def test_accept_refuses_a_held_pull_request_with_no_proven_fact(merged, review):  # noqa: F811
-    text = merge.review("clean", merged.head) + (UNPROVEN if review == "unproven" else "")
-    (merged.home.tasks / "alpha.md").write_text(merge.brief(text))
-    held(merged)
-    assert accept(merged) == (1, [f"refused 7 {merge.URL}: {no_fact(merged.head)}"])
-    assert merged.untouched()
+def test_accept_refuses_a_held_pull_request_with_no_proven_fact(proven_merged, review):
+    text = merge.review("clean", proven_merged.head) + (UNPROVEN if review == "unproven" else "")
+    (proven_merged.home.tasks / "alpha.md").write_text(merge.brief(text))
+    held(proven_merged)
+    assert accept(proven_merged) == (1, [f"refused 7 {merge.URL}: {no_fact(proven_merged.head)}"])
+    assert proven_merged.untouched()
 
 
-def test_accept_refuses_at_a_head_other_than_the_one_the_hold_was_at(merged):  # noqa: F811
-    held(merged)
-    was = merged.head
-    (merged.tree / "a.txt").write_text("the task, and more\n")
-    merge.git(merged.tree, "commit", "-q", "-am", "more")
-    merge.git(merged.tree, "push", "-q")
-    head = merge.git(merged.tree, "rev-parse", "HEAD")
-    (merged.home.tasks / "alpha.md").write_text(merge.brief(proven("clean", head)))
-    merged.home.open_pull_request(head, files=["a.txt", SECRET])
+def test_accept_refuses_at_a_head_other_than_the_one_the_hold_was_at(proven_merged):
+    held(proven_merged)
+    was = proven_merged.head
+    (proven_merged.tree / "a.txt").write_text("the task, and more\n")
+    merge.git(proven_merged.tree, "commit", "-q", "-am", "more")
+    merge.git(proven_merged.tree, "push", "-q")
+    head = merge.git(proven_merged.tree, "rev-parse", "HEAD")
+    (proven_merged.home.tasks / "alpha.md").write_text(merge.brief(proven("clean", head)))
+    proven_merged.home.open_pull_request(head, files=["a.txt", SECRET])
     refused = f"refused 7 {merge.URL}: its hold was at {was[:12]}, and its head is {head[:12]}"
-    assert accept(merged) == (1, [refused])
-    assert merge.git(merged.origin, "rev-parse", "main") == merged.start
-    assert merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
-    code, said = accept(merged)
+    assert accept(proven_merged) == (1, [refused])
+    assert merge.git(proven_merged.origin, "rev-parse", "main") == proven_merged.start
+    assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
+    code, said = accept(proven_merged)
     assert code == 0 and said[1].startswith("merged 7 alpha ")
 
 
-def test_a_proof_carries_over_a_rebase_jmerge_compared_and_found_clean(merged):  # noqa: F811
-    rebased = rangediff.Rebased(merged, {8: "theirs 8"}, files=(rangediff.FILE, SECRET))
-    assert merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
-    code, said = accept(merged)
+def test_a_proof_carries_over_a_rebase_jmerge_compared_and_found_clean(proven_merged):
+    rebased = rangediff.Rebased(proven_merged, {8: "theirs 8"}, files=(rangediff.FILE, SECRET))
+    assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
+    code, said = accept(proven_merged)
     assert code == 0 and f"safe because 3 passed (proven at {rebased.before[:12]})" in said[0]
     assert said[1].startswith("merged 7 alpha ")
 
 
-def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_head(merged):  # noqa: F811
+def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_head(proven_merged):
     """A drop is held once a review of the rebased head did not rule on it. That head is
     compared with no other, so the proof of the commit before the rebase does not carry."""
-    rebased = rangediff.Rebased(merged, {11: "theirs 11"}, {11: "the task 11"})
+    rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"})
     ack = (
         f"Dropped on rebase: {rangediff.FILE}, 1 of main's, 0 of its own, "
         f"at {rebased.head[:12]}: the task replaces it\n"
     )
     before = proven("clean", rebased.before)
     rebased.brief(before + merge.review("clean", rebased.head), ack)
-    (hold,) = merged.run()
+    (hold,) = proven_merged.run()
     assert hold.startswith(f"hold 7 {merge.URL}: needs user, the review of {rebased.head[:12]} ")
-    assert accept(merged) == (1, [f"refused 7 {merge.URL}: {no_fact(rebased.head)}"])
-    assert merge.git(merged.origin, "rev-parse", "main") == rebased.tip
+    assert accept(proven_merged) == (1, [f"refused 7 {merge.URL}: {no_fact(rebased.head)}"])
+    assert merge.git(proven_merged.origin, "rev-parse", "main") == rebased.tip
     rebased.brief(before + proven("clean", rebased.head), ack)
-    code, said = accept(merged)
+    code, said = accept(proven_merged)
     assert code == 0 and f"(proven at {rebased.head[:12]})" in said[0]
     assert said[1].startswith("merged 7 alpha ")
 
 
-def test_accept_says_and_logs_every_hold_it_lifts(merged):  # noqa: F811
+def test_accept_says_and_logs_every_hold_it_lifts(proven_merged):
     """A drop the review did not rule on, on a pull request that also changes a protected
     path: `jmerge` shows the first hold, and the accept names both."""
     files = (rangediff.FILE, SECRET)
-    rebased = rangediff.Rebased(merged, {11: "theirs 11"}, {11: "the task 11"}, files=files)
+    rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"}, files=files)
     ack = (
         f"Dropped on rebase: {rangediff.FILE}, 1 of main's, 0 of its own, "
         f"at {rebased.head[:12]}: the task replaces it\n"
     )
     rebased.brief(proven("clean", rebased.before) + proven("clean", rebased.head), ack)
     drop = f"needs user, the review of {rebased.head[:12]} did not rule on the drops in f.txt"
-    assert merged.run() == [f"hold 7 {merge.URL}: {drop}"]
+    assert proven_merged.run() == [f"hold 7 {merge.URL}: {drop}"]
     both = f"{drop} and {HOLD}"
-    assert accept(merged, "--accept 7 --check")[1][0].split(", accepted: ")[1].startswith(both)
-    code, said = accept(merged)
+    assert (
+        accept(proven_merged, "--accept 7 --check")[1][0].split(", accepted: ")[1].startswith(both)
+    )
+    code, said = accept(proven_merged)
     assert code == 0 and said[0].startswith(f"accepted 7 {merge.URL}: {both}, lifted at ")
-    assert merged.log()[-2].endswith(said[0])
+    assert proven_merged.log()[-2].endswith(said[0])
 
 
-def test_a_merged_hold_is_taken_off_the_record_and_the_others_stay(merged):  # noqa: F811
-    held(merged)
-    record = merged.home.state / "holds.json"
+def test_a_merged_hold_is_taken_off_the_record_and_the_others_stay(proven_merged):
+    held(proven_merged)
+    record = proven_merged.home.state / "holds.json"
     record.write_text(json.dumps({**json.loads(record.read_text()), "9": "d" * 40}))
-    assert accept(merged)[0] == 0
+    assert accept(proven_merged)[0] == 0
     assert json.loads(record.read_text()) == {"9": "d" * 40}
 
 
-def test_the_waiting_line_is_read_off_what_jmerge_itself_prints(merged):  # noqa: F811
+def test_the_waiting_line_is_read_off_what_jmerge_itself_prints(proven_merged):
     """`stall.hand_merge` is given the real `jmerge --accept 7 --check`, not a stub of it."""
-    held(merged)
+    held(proven_merged)
 
     def asked(*command):
-        said = merged.home.run(*command[1:])
-        return SimpleNamespace(stdout="\n".join(said), returncode=merged.home.code)
+        said = proven_merged.home.run(*command[1:])
+        return SimpleNamespace(stdout="\n".join(said), returncode=proven_merged.home.code)
 
     run = SimpleNamespace(run=asked, user=jsettings.Settings(label="ET"))
     line = f"hand-merge #7 {merge.URL}: {HOLD}; "
     assert stall.hand_merge(run, 7, merge.URL, HOLD) == (
-        f"{line}safe because 3 passed (proven at {merged.head[:12]}); "
+        f"{line}safe because 3 passed (proven at {proven_merged.head[:12]}); "
         'jmerge --accept 7 --by user --at "<YYYY-MM-DD HH:MM ET>"'
     )
-    (merged.home.tasks / "alpha.md").write_text(merge.brief(merge.review("clean", merged.head)))
-    assert stall.hand_merge(run, 7, merge.URL, HOLD) == f"{line}not yet, {no_fact(merged.head)}"
-    (merged.home.state / "holds.json").unlink()
+    (proven_merged.home.tasks / "alpha.md").write_text(
+        merge.brief(merge.review("clean", proven_merged.head))
+    )
+    assert (
+        stall.hand_merge(run, 7, merge.URL, HOLD) == f"{line}not yet, {no_fact(proven_merged.head)}"
+    )
+    (proven_merged.home.state / "holds.json").unlink()
     assert stall.hand_merge(run, 7, merge.URL, HOLD) == (
         f"{line}not yet, its hold is not on record, run jmerge first, "
-        f"and its head is {merged.head[:12]}"
+        f"and its head is {proven_merged.head[:12]}"
     )
-    assert merged.untouched()
+    assert proven_merged.untouched()
 
 
-def test_accept_refuses_a_hold_no_pass_has_said(merged):  # noqa: F811
-    merged.home.open_pull_request(merged.head, files=["a.txt", SECRET])
-    assert merged.home.ready() == [f"hold 7 {merge.URL}: {HOLD}"]
+def test_accept_refuses_a_hold_no_pass_has_said(proven_merged):
+    proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
+    assert proven_merged.home.ready() == [f"hold 7 {merge.URL}: {HOLD}"]
     refused = (
         f"refused 7 {merge.URL}: its hold is not on record, run jmerge first, "
-        f"and its head is {merged.head[:12]}"
+        f"and its head is {proven_merged.head[:12]}"
     )
-    assert accept(merged) == (1, [refused])
-    assert merged.untouched()
+    assert accept(proven_merged) == (1, [refused])
+    assert proven_merged.untouched()
 
 
-def test_accept_lifts_nothing_but_a_hold(merged):  # noqa: F811
-    held(merged)
-    merged.home.open_pull_request(merged.head, checks=(merge.FAILED,), files=["a.txt", SECRET])
+def test_accept_lifts_nothing_but_a_hold(proven_merged):
+    held(proven_merged)
+    proven_merged.home.open_pull_request(
+        proven_merged.head, checks=(merge.FAILED,), files=["a.txt", SECRET]
+    )
     refused = f"refused 7 {merge.URL}: it is not held, it waits: {merge.NOT_PASSED}"
-    assert accept(merged) == (1, [refused])
-    merged.home.open_pull_request(merged.head)
+    assert accept(proven_merged) == (1, [refused])
+    proven_merged.home.open_pull_request(proven_merged.head)
     refused = f"refused 7 {merge.URL}: it is not held, jmerge merges it by itself"
-    assert accept(merged) == (1, [refused])
-    assert accept(merged, ACCEPT.replace("7", "8")) == (
+    assert accept(proven_merged) == (1, [refused])
+    assert accept(proven_merged, ACCEPT.replace("7", "8")) == (
         1,
         ["refused 8: no open pull request has that number"],
     )
-    assert merged.untouched()
+    assert proven_merged.untouched()
 
 
-def test_accept_with_check_says_what_it_would_merge_and_merges_nothing(merged):  # noqa: F811
-    held(merged)
-    log = merged.log()
-    safe = f"safe because 3 passed (proven at {merged.head[:12]})"
+def test_accept_with_check_says_what_it_would_merge_and_merges_nothing(proven_merged):
+    held(proven_merged)
+    log = proven_merged.log()
+    safe = f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     assert (
-        accept(merged, "--accept 7 --check")
-        == accept(merged, f"{ACCEPT} --check")
+        accept(proven_merged, "--accept 7 --check")
+        == accept(proven_merged, f"{ACCEPT} --check")
         == (
             0,
-            [f"ready 7 {merged.head} alpha alpha, accepted: {HOLD}, {safe}"],
+            [f"ready 7 {proven_merged.head} alpha alpha, accepted: {HOLD}, {safe}"],
         )
     )
-    assert merged.untouched() and merged.log() == log
+    assert proven_merged.untouched() and proven_merged.log() == log
 
 
-def test_a_merge_that_is_off_is_not_lifted_by_accept(merged):  # noqa: F811
-    held(merged)
-    (merged.home.state / "merge-off").write_text("")
-    assert accept(merged) == (1, [f"wait 7 {merge.URL}: {ready.MERGE_OFF}"])
-    assert merged.untouched()
+def test_a_merge_that_is_off_is_not_lifted_by_accept(proven_merged):
+    held(proven_merged)
+    (proven_merged.home.state / "merge-off").write_text("")
+    assert accept(proven_merged) == (1, [f"wait 7 {merge.URL}: {ready.MERGE_OFF}"])
+    assert proven_merged.untouched()
 
 
 @pytest.mark.parametrize(
@@ -557,11 +567,11 @@ def test_a_merge_that_is_off_is_not_lifted_by_accept(merged):  # noqa: F811
         ("--accept alpha --check", "--accept takes a pull request's number, not alpha"),
     ],
 )
-def test_accept_takes_the_users_word_and_the_time_they_said_it_at(merged, flags, said):  # noqa: F811
-    held(merged)
-    assert accept(merged, flags) == (1, [])
-    assert merged.home.stderr.strip().splitlines()[-1] == f"jmerge: {said}"
-    assert merged.untouched()
+def test_accept_takes_the_users_word_and_the_time_they_said_it_at(proven_merged, flags, said):
+    held(proven_merged)
+    assert accept(proven_merged, flags) == (1, [])
+    assert proven_merged.home.stderr.strip().splitlines()[-1] == f"jmerge: {said}"
+    assert proven_merged.untouched()
 
 
 @pytest.fixture
@@ -724,44 +734,46 @@ def test_a_brief_with_no_design_line_is_gated_before_what_it_depends_on_has_merg
     assert kitchen.t3.launches == []
 
 
-def test_with_no_config_accept_takes_user_at_a_time_of_the_machines_zone(merged, jstack_config):  # noqa: F811
+def test_with_no_config_accept_takes_user_at_a_time_of_the_machines_zone(
+    proven_merged, jstack_config
+):
     jstack_config.unlink()
-    held(merged)
+    held(proven_merged)
     at = f"2026-10-12 09:30 {datetime(2026, 10, 12, 9, 30).astimezone().tzname()}"
-    assert accept(merged, "--accept 7 --by user --at '2026-10-12 09:30 Nowhere'") == (1, [])
-    assert merged.home.stderr.strip() == f'jmerge: --at is "<YYYY-MM-DD HH:MM {at[17:]}>"'
-    code, (accepted, said) = accept(merged, f"--accept 7 --by user --at '{at}'")
-    commit, _ = merged.on_main()
+    assert accept(proven_merged, "--accept 7 --by user --at '2026-10-12 09:30 Nowhere'") == (1, [])
+    assert proven_merged.home.stderr.strip() == f'jmerge: --at is "<YYYY-MM-DD HH:MM {at[17:]}>"'
+    code, (accepted, said) = accept(proven_merged, f"--accept 7 --by user --at '{at}'")
+    commit, _ = proven_merged.on_main()
     assert accepted == (
-        f"accepted 7 {merge.URL}: {HOLD}, lifted at {merged.head[:12]} by user at {at}, "
-        f"safe because 3 passed (proven at {merged.head[:12]})"
+        f"accepted 7 {merge.URL}: {HOLD}, lifted at {proven_merged.head[:12]} by user at {at}, "
+        f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
     assert (code, said) == (0, merge.merged_line(commit))
     assert not jstack_config.exists()
 
 
-def test_a_config_that_names_robin_is_whom_jmerge_prints_and_takes(merged, jstack_config):  # noqa: F811
+def test_a_config_that_names_robin_is_whom_jmerge_prints_and_takes(proven_merged, jstack_config):
     jstack_config.write_text(
         'user = "Robin"\ntimezone = "America/New_York"\ntimezone_label = "ET"\n'
     )
     hold = f"needs Robin, touches {SECRET}"
-    merged.home.open_pull_request(merged.head, files=["a.txt", SECRET])
-    assert merged.run() == [f"hold 7 {merge.URL}: {hold}"]
-    assert accept(merged) == (1, [])
-    assert merged.home.stderr.strip() == "jmerge: only Robin accepts a hold, not user"
-    code, (accepted, said) = accept(merged, f"--accept 7 --by Robin --at '{AT}'")
-    commit, _ = merged.on_main()
+    proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
+    assert proven_merged.run() == [f"hold 7 {merge.URL}: {hold}"]
+    assert accept(proven_merged) == (1, [])
+    assert proven_merged.home.stderr.strip() == "jmerge: only Robin accepts a hold, not user"
+    code, (accepted, said) = accept(proven_merged, f"--accept 7 --by Robin --at '{AT}'")
+    commit, _ = proven_merged.on_main()
     assert accepted == (
-        f"accepted 7 {merge.URL}: {hold}, lifted at {merged.head[:12]} by Robin at {AT}, "
-        f"safe because 3 passed (proven at {merged.head[:12]})"
+        f"accepted 7 {merge.URL}: {hold}, lifted at {proven_merged.head[:12]} by Robin at {AT}, "
+        f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
     assert (code, said) == (0, merge.merged_line(commit))
 
 
-def test_a_config_jmerge_cannot_use_stops_it_before_it_judges(merged, jstack_config):  # noqa: F811
+def test_a_config_jmerge_cannot_use_stops_it_before_it_judges(proven_merged, jstack_config):
     jstack_config.write_text('timezone = "Mars/Olympus"\n')
-    merged.home.open_pull_request(merged.head, files=["a.txt"])
-    assert merged.home.run() == []
+    proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt"])
+    assert proven_merged.home.run() == []
     said = f"jmerge: {jstack_config} has the timezone Mars/Olympus, not an IANA name"
-    assert (merged.home.code, merged.home.stderr.strip()) == (1, said)
-    assert merged.untouched()
+    assert (proven_merged.home.code, proven_merged.home.stderr.strip()) == (1, said)
+    assert proven_merged.untouched()
