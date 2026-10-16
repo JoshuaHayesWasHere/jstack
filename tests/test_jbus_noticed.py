@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import noticed
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, Kitchen, complete
 
 AT = "2026-10-12 10:58 ET"
 WORD = ("--by", "home", "--at", AT)
@@ -150,7 +150,10 @@ def test_a_line_is_taken_by_a_queue_row_or_a_plan_entry_and_marked_once(kitchen)
     kitchen.brief("alpha", RESULT + LISTED)
     kitchen.poll()
     first, second, docs, third = (one["key"] for one in kept(kitchen))
-    assert kitchen.main("queue", "add", "fix-view", "--priority", "1", stdin="# fix-view\n")[0] == 0
+    assert (
+        kitchen.main("queue", "add", "fix-view", "--priority", "1", stdin=complete("fix-view"))[0]
+        == 0
+    )
     (kitchen.home / "plan.md").write_text(
         "# plan\n\n## a-lock: a lock for jmerge\nStage: planned\n"
     )

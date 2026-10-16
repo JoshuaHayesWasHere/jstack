@@ -19,7 +19,7 @@ import pytest
 
 import jbus
 from jbus import record
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, complete
 
 STARTED = "2026-10-12T15:00:00Z"
 ROLLUP = [
@@ -103,7 +103,7 @@ def written(kitchen):
 def three_rows(kitchen):
     """A row with a thread and an open pull request, one with neither, and one merged."""
     for slug in ("alpha", "beta", "gamma"):
-        text = f"# {slug}: a task\nWhere: `src/{slug}/`\n"
+        text = complete(slug)
         assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     kitchen.t3.thread("alpha", "running", idle=timedelta(minutes=2))
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "statusCheckRollup": ROLLUP}])

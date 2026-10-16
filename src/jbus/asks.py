@@ -10,9 +10,11 @@ which is built on the queue. So the verb is declared here, above them all, and n
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import jbus
@@ -96,9 +98,14 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         asks = _asks(config, project)
         print("\n".join(queue.apply(state, sys.stdin.read(), config.user, asks)))
         return 0
+    if args.verb == "verify":
+        return _verify(state, args.slug, args.brief)
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
-        queue.add(state, args.slug, args.priority, depends, sys.stdin.read(), args.entry or "")
+        text = sys.stdin.read()
+        said = queue.add(state, args.slug, args.priority, depends, text, args.entry or "")
+        if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
+            print(said)
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
         queue.approve(state, args.slug, rests, args.sha, config.user, _asks(config, project))
@@ -119,6 +126,28 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(f"refused: {error}")
         return 1
     return 0
+
+
+def _verify(state: Path, slug: str, given: str | None) -> int:
+    """Print, as JSON, the row's approval record and the brief checked against it: the
+    stored brief, or the file `--brief` names. It exits 0 when the go holds for that brief."""
+    try:
+        row = next((row for row in queue.load(state) if row["slug"] == slug), None)
+    except queue.Unparsable as error:
+        print(f"refused: {error}")
+        return 1
+    if row is None:
+        said = queue.was_removed(state, slug)
+        print(f"refused: the queue has no row {slug}" + (f": {said}" if said else ""))
+        return 1
+    where = Path(given) if given else queue.brief_path(state, slug)
+    try:
+        text: str | None = where.read_text()
+    except OSError:
+        text = None
+    found = queue.verify(row, text, str(where))
+    print(json.dumps(found, indent=2))
+    return 0 if found["holds"] else 1
 
 
 def _table(table: argparse.ArgumentParser) -> None:
@@ -161,6 +190,13 @@ def _table(table: argparse.ArgumentParser) -> None:
     remove.add_argument("--by", required=True)
     remove.add_argument("--at", required=True, help="as approve takes it")
     table_verbs.add_parser("apply", help="a batch of the four verbs on stdin, all or none")
+    verify = table_verbs.add_parser(
+        "verify",
+        help="the row's approval record and whether it holds for a brief, as JSON",
+        allow_abbrev=False,
+    )
+    verify.add_argument("slug")
+    verify.add_argument("--brief", metavar="PATH", help="the brief to check, not the stored one")
 
 
 VERBS = (verbs.Verb("queue", "the queue table and the Chef's four verbs", _table, _queue),)

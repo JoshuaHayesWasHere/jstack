@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from test_jbus_kitchen import NOW, REPO, RESULT, approved, go, queued, review, sends
+from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
 FULL = "load 30.00 is at or over 85% of 12 cores"
@@ -194,7 +194,7 @@ def where_the_findings_go(kitchen, slug):
 def test_a_launched_or_adopted_thread_is_the_one_thread_line_in_the_head_of_the_brief(
     kitchen, lost, had, result
 ):
-    approved = f"# alpha: a task\n{had}Design: none, a test\nWhere: `src/alpha/`\nDecisions: none\n"
+    approved = complete("alpha", "Decisions: none\n").replace("\n", f"\n{had}", 1)
     queued(kitchen, "alpha", approved)
     brief = kitchen.home / "tasks/alpha.md"
     kitchen.t3.lose = lost

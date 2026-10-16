@@ -186,7 +186,7 @@ def test_a_green_pull_request_whose_crew_wrote_its_reviewer_none_line_is_told_no
     launched,
 ):
     brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "Review: none\n")
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     result(launched, "Reviewer: none, the brief says Review: none\n")
     launched.set("jmerge.txt", "")
     launched.set("open.json", [pull(launched)])
@@ -196,7 +196,7 @@ def test_a_green_pull_request_whose_crew_wrote_its_reviewer_none_line_is_told_no
 
 def test_a_green_pull_request_whose_brief_asks_for_no_review_is_told_once_for_a_head(launched):
     brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "Review: none\n")
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     launched.set("jmerge.txt", "")
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
@@ -218,7 +218,7 @@ def test_a_fixed_green_pull_request_is_told_once_while_a_home_merges(launched):
 
 def test_a_pending_pull_request_that_owes_a_line_on_green_is_told_nothing_yet(launched):
     brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "Review: none\n")
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     launched.set("jmerge.txt", "")
     running = [{"status": "IN_PROGRESS", "conclusion": ""}]
     launched.set("open.json", [pull(launched, running)])
@@ -261,7 +261,7 @@ def test_a_fixed_pull_request_whose_scoped_reviewer_is_out_is_told_green_once_it
 def test_a_gated_line_of_an_old_head_does_not_hold_back_green_at_a_new_one(launched):
     old = "Stale base: at " + "b" * 40 + ", check\n"
     brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "Review: none\n")
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     result(launched, old)
     launched.set("jmerge.txt", "")
     launched.set("open.json", [pull(launched)])
@@ -272,7 +272,7 @@ def test_a_gated_line_of_an_old_head_does_not_hold_back_green_at_a_new_one(launc
 def test_a_gated_line_of_this_head_holds_back_green(launched):
     here = f"Stale base: at {HEAD}, check\n"
     brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "Review: none\n")
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     result(launched, here)
     launched.set("jmerge.txt", "")
     launched.set("open.json", [pull(launched)])

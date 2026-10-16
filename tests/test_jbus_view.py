@@ -39,7 +39,7 @@ from jbus.view.state import waves
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
 from test_jbus_kitchen import NOW as POLLED
-from test_jbus_kitchen import Kitchen
+from test_jbus_kitchen import Kitchen, complete
 
 REPO = Path(__file__).parent.parent
 NOW = datetime(2026, 10, 12, 20, 0, tzinfo=UTC)
@@ -1997,7 +1997,7 @@ def test_a_pass_that_could_not_ask_says_which_source_and_the_view_says_it_of_eve
     kitchen = Kitchen(tmp_path, monkeypatch)
     try:
         for slug in ("alpha", "beta"):
-            text = f"# {slug}: a task\nWhere: `src/{slug}/`\n"
+            text = complete(slug)
             assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
         kitchen.t3.thread("alpha", "running", idle=timedelta(minutes=2))
         sources = view.Sources(

@@ -11,7 +11,7 @@ import json
 import pytest
 
 from test_jbus_approval import cell, go, viewed
-from test_jbus_kitchen import RAN, SESSION
+from test_jbus_kitchen import RAN, SESSION, bound
 from test_jbus_queue import add, brief, rows, sha12
 
 KEY, ENTRY = "27362329dd06edc4", "send-3"
@@ -63,6 +63,7 @@ def test_an_approval_by_a_pick_holds_what_jbus_read_from_lavish(kitchen):
         "checked": True,
         "ran_by": {"session": SESSION, "directory": str(kitchen.checkout)},
         "ran_at": RAN,
+        **bound(kitchen, "alpha"),
     }
     assert (row["approved"], cell(kitchen, "alpha")) == (PICKED, PICKED)
     (task,) = viewed(kitchen)["tasks"]
