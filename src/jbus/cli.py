@@ -53,6 +53,7 @@ from jbus import (
     alert,
     dispatch,
     expedite,
+    item,
     leftover,
     merge,
     mirror,
@@ -265,6 +266,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
         unplaced(half, client, rows, states)
     if states is not None:
         keep_work(half, rows or [], states)
+        item.follow(run, rows or [])
     users = half.said.crews(half.crews)
     roots = stall.tell(run, client, world, rows, users)
     listed = None

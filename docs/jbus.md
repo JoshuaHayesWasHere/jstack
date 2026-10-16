@@ -29,6 +29,7 @@ The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empt
 | `jbus view [--port <port>]` | Serves the bus as a page. The page reads, and writes one thing: your answer to a question. [The view](#the-view) has the rest. |
 | `jbus word --to <project> --message <thread id>/<message id>` | Sends your word to a project's home, or with `--all` in place of `--to` to every home. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types it. [Your word to a home](#your-word-to-a-home) has the rest. |
 | `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](#the-queue) has each verb. |
+| `jbus item propose\|approve\|drop\|show\|list` | Proposes, approves or drops a work item, or prints one or every one. [Work items](#work-items) has each verb. |
 | `jbus plan [--scope <scope>]`, `jbus plan close <entry>` | Prints each entry of a home's `plan.md` with its status, or moves a finished entry out. [The plan](#the-plan) has the rest. |
 | `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number. |
 | `jbus answer <number> --message <thread id>/<message id> --default` | Closes a question with your answer. `--default` says the answer is the default the thread took, and `--differs` in its place says it is not. One of the two is required. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types the answer. |
@@ -256,7 +257,7 @@ The queue table is `~/.local/state/jbus/<project>/queue.json`, and `jbus queue s
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `approved`, `approval`, `brief_sha`, `entry` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry`. |
+| `slug`, `priority`, `depends`, `approved`, `approval`, `brief_sha`, `entry`, `item` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry` and `item`. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line. Under each `add` comes its brief, between two marker lines:
@@ -290,7 +291,7 @@ refused: alpha's brief has 2 faults, and nothing is queued
 
 In a batch it is `refused: line <n>: <slug>'s brief has <k> faults, and nothing is queued, and nothing in the batch was applied`, with the same lines under it. A launch makes the same checks again, as a backstop for a row queued before `add` made them. When the row had a go and its brief changed, `add` prints a line above the table, `added <slug>: priority <n>, brief <sha12>`, that ends `, its go holds` or `, its go does not hold for it: approve it again` (see [What an approval is bound to](#what-an-approval-is-bound-to)).
 
-`--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge first. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority` and `--depends` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `hold` takes a row's approval back.
+`--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge first. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority` and `--depends` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `jbus queue add <slug> --item <id>` links the row to the work item `--item` names, and with no `--item` a new row gets an item of its own, with source `cli` ([Work items](#work-items)). An item that is not there, or that is another row's, is refused, and nothing is queued. A row keeps its item: an `add` that names another is refused. `hold` takes a row's approval back.
 
 An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
 
@@ -373,6 +374,35 @@ The removal is one line of `transitions.jsonl`, with the row as it was, and one 
 A thread that ended or was settled stops no removal.
 
 If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse: every `queue` verb is refused until you mend the file, and a pass sends `gate <project>: removed.json does not parse`. Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request but through `jmerge`, and leaves `waiting-on-user.json` as it was.
+
+## Work items
+
+Every piece of work is a work item: one id, a source, an owner and one state, whatever it started from, chat, the view or a command. An item is named `w<n>`, from the project's counter, and no id is given twice. It has a slug once a row of the queue is linked to it, and none before: an item proposed in chat has no row yet.
+
+The record is `~/.local/state/jbus/<project>/items.jsonl`. It is only ever appended to, and never trimmed: `events.jsonl` keeps 14 days, and an item's history is kept whole. One line is one move, `{id, item, at, by, where, line, verb, ...}`: `id` names the line, as `w3.2` for the second line of `w3`, `where` is `chat`, `view`, `cli` or `pass`, and `line` says what happened. An item's state is what its lines come to, by one table of moves:
+
+| State | Entered by |
+|---|---|
+| `proposed` | A proposal: `jbus item propose`, a new row, or a pass that finds a row with no item. |
+| `approved` | Your go: `jbus item approve`, or the row's approval in the queue. |
+| `queued` | A pass that finds its row approved and waiting to launch. |
+| `running` | A pass that finds its row launched, at work, or with a pull request on its way. |
+| `waiting_on_you` | A pass that finds a gate, a thread's request or a merge `jmerge` holds, from `queued` or `running`. It goes back to the state it came from. |
+| `held` | A pass that finds a queued row's go taken back. A new go approves it again. |
+| `done` | A pass that finds its row merged or done. |
+| `dropped` | `jbus item drop`, or a pass that finds its row removed. |
+
+A move the table does not have is refused in one sentence, and nothing is written. Each line is also a quiet event of the kind `item.<verb>` (`item.proposed`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped`, and `item.linked` for a row linked to an item there was), so `jbus events` and the view's feed show it. A pass writes a line only when the state its row comes to changes: a pass with nothing new writes none.
+
+An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an open gate with a `Holds:` line or whose words name a secret or the config, and `routine` for anything else. `jbus item show` prints it.
+
+| Verb | What it does |
+|---|---|
+| `jbus item propose --title <title> --by <name> [--where chat\|view\|cli] [--owner <owner>]` | Proposes an item with no row, and prints its id. `--where` is where it was said, `cli` with none, and is the item's source. `--owner` is who will do it, `home` with none. |
+| `jbus item approve <id> --by <user> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Your go for an item. `--by` is refused for anyone but you. `--words` keeps what you said, as you said it. `--seen` names the item's last line as the writer saw it, and a move is refused where the item has moved since. |
+| `jbus item drop <id> --by <name> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Drops an item that will not be done. |
+| `jbus item show <id>` | Prints the item, its state, its slug, its source, its owner, its risk, its last line, and each of its lines. |
+| `jbus item list` | Prints every item, one line each: its id, state, risk, slug and title. |
 
 ## The plan
 
@@ -476,7 +506,7 @@ Everything a pass finds is an event. Each POST to a webhook is `{"kind": "events
 | `loud` | Kinds | What happens |
 |---|---|---|
 | `user` | `gate`, `waiting`, `alert`, `stall`, `sign-in` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
-| `quiet` | `waiting-on-user`, `condition`, `merged`, `gate answered`, `result`, `review`, `report`, `stale`, `rebase`, `rereview`, `drops`, `proof`, `failed`, `conflict`, `refailed`, `green`, `mainmoved`, `resume`, `retro`, `snapshot`, `jmerge`, `expedite`, `heartbeat`, `queue`, `sweep`, `relayed`, `overlap`, `note`, `leftover`, `unplaced` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
+| `quiet` | `waiting-on-user`, `condition`, `merged`, `gate answered`, `result`, `review`, `report`, `stale`, `rebase`, `rereview`, `drops`, `proof`, `failed`, `conflict`, `refailed`, `green`, `mainmoved`, `resume`, `retro`, `snapshot`, `jmerge`, `expedite`, `heartbeat`, `queue`, `sweep`, `relayed`, `overlap`, `note`, `leftover`, `unplaced`, `item.proposed`, `item.linked`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
 
 A `gate` is a question a thread asked. A `waiting` event is `user` only when the list of what waits on you gained a hold, an approval, a config item or a gate of a home's `gates.md`, and `quiet` for any other change. A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 

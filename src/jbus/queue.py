@@ -52,6 +52,9 @@ work for, where that is not the row's own slug. An entry is often several briefs
 `jbus plan` counts an entry's status from the rows that name it (`jbus.plan`). A row that
 holds none is its own entry (`entry`).
 
+`item` is the other column only `add` writes: the id of the work item the row is
+(`jbus.item`). Once a row has one, an `add` that names another is refused.
+
 The verbs are run as a batch, every one or none (`apply`): each is done to the table and
 the briefs in memory, and the files are written once the last one is done. A verb typed
 alone is a batch of one.
@@ -178,6 +181,15 @@ def runner() -> dict[str, str]:
     return {"session": os.environ.get(SESSION, ""), "directory": str(Path.cwd())}
 
 
+def who(ran_by: dict[str, str]) -> str:
+    """Who ran a command, as `runner` found it: the home of the directory it was run in, or a
+    shell where no session ran it."""
+    directory = ran_by.get("directory", "")
+    if not ran_by.get("session"):
+        return f"a shell in {directory}"
+    return f"the {Path(directory).name} home"
+
+
 @dataclass(frozen=True)
 class Said:
     """Words of the user's as whatever keeps them has them: when and where they were said,
@@ -222,11 +234,7 @@ class Approval:
     meaning: list[Any] = field(default_factory=list)
 
     def who(self) -> str:
-        """The home of the directory it was run in, or a shell where no session ran it."""
-        directory = self.ran_by.get("directory", "")
-        if not self.ran_by.get("session"):
-            return f"a shell in {directory}"
-        return f"the {Path(directory).name} home"
+        return who(self.ran_by)
 
     def line(self) -> str:
         if self.basis == RULE:
@@ -373,6 +381,7 @@ def _well_formed(row: Any) -> bool:
         and isinstance(row.get("approved", ""), str)
         and isinstance(row.get("approval", {}), dict)
         and isinstance(row.get("brief_sha", ""), str)
+        and isinstance(row.get("item", ""), str)
     )
 
 
@@ -465,6 +474,7 @@ class Add:
     depends: list[str]
     text: str
     entry: str = ""
+    item: str = ""
 
 
 @dataclass(frozen=True)
@@ -679,7 +689,11 @@ def _do(
         row = (
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
         )
+        if verb.item and row.get("item", verb.item) != verb.item:
+            raise Refused(f"refused: {verb.slug} is linked to {row['item']}, not {verb.item}")
         row.update(priority=verb.priority, depends=verb.depends)
+        if verb.item:
+            row["item"] = verb.item
         if verb.entry == verb.slug:
             row.pop("entry", None)
         elif verb.entry:
@@ -855,10 +869,17 @@ def _run(
 
 
 def add(
-    state: Path, slug: str, priority: int, depends: list[str], text: str, entry: str = ""
+    state: Path,
+    slug: str,
+    priority: int,
+    depends: list[str],
+    text: str,
+    entry: str = "",
+    item: str = "",
 ) -> str:
-    """Add the row, or its brief again. The answer is the line that says what was added."""
-    return _run(state, [(0, Add(slug, priority, depends, text, entry))])[0]
+    """Add the row, or its brief again, linked to the work item `item` where that is given.
+    The answer is the line that says what was added."""
+    return _run(state, [(0, Add(slug, priority, depends, text, entry, item))])[0]
 
 
 def approve(

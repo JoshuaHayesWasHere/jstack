@@ -2,7 +2,9 @@
 
 The hourly heartbeat is an event on the first pass of each hour, so it would be one more
 line in every test that pins what a pass sends. It is off everywhere but in
-`test_jbus_alive.py`, which is where it is tested.
+`test_jbus_alive.py`, which is where it is tested. So are the events of work items, one
+for each line of `items.jsonl`: they are off everywhere but in `test_item.py`, and the lines
+are written all the same.
 
 Every test runs with a config of jstack's own in a directory of its own, never the machine's:
 it names no user, so the name is the default, and it fixes the zone and its label, so a time
@@ -27,7 +29,7 @@ import os
 
 import pytest
 
-from jbus import cli
+from jbus import cli, item
 from test_jbus_kitchen import Kitchen
 
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
@@ -63,6 +65,12 @@ def no_user_units(tmp_path_factory, monkeypatch):
 def no_heartbeat(request, monkeypatch):
     if request.module.__name__ != "test_jbus_alive":
         monkeypatch.setattr(cli, "heartbeat", lambda run, last: None)
+
+
+@pytest.fixture(autouse=True)
+def no_item_events(request, monkeypatch):
+    if request.module.__name__ != "test_item":
+        monkeypatch.setattr(item, "told", lambda box, made: None)
 
 
 @pytest.fixture(autouse=True)
