@@ -146,3 +146,5 @@ All in `.cursor/skills/verify-jstack/scripts/`, which `$VERIFY_JSTACK_SCRIPTS` n
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
 
 When jstack changes, the map in `features/` is what goes stale first: `/maintain-verification-skill` keeps it honest.
+
+Each feature file also has a `Paths:` line, the paths it owns, and a `Tests:` line, its test files, and `features/README.md` a `Cross-cutting:` line: `scripts/select_tests.py <base> <head>` reads them to name the tests a diff needs, and `tests/test_select_tests.py` fails on a test file or a path the map leaves out.
