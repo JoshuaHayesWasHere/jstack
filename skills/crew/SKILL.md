@@ -121,8 +121,8 @@ Proceed on reversible work without asking: do it, then say what you did and why.
       else
           echo "joined: a check an earlier call started still runs, on the worktree as it was then: it is waited on and not started again, and once it is done this block is run again for the worktree as it is now"
       fi
-  elif [ -f "$C/exit" ] && [ "$(cat "$C/tree" 2> /dev/null)" = "$tree" ]; then
-      echo "checked: the check of this worktree as it is now ran already, and this is what it said"
+  elif [ -f "$C/exit" ] && ! [ -f "$C/told" ] && [ "$(cat "$C/tree" 2> /dev/null)" = "$tree" ]; then
+      echo "checked: the check of this worktree as it is now ended after the last call, and this is what it said"
   else
       rm -rf "$C" && mkdir -p "$C" && echo "$tree" > "$C/tree"
       cat > "$C/run" << 'THE_CHECK_ENDS_HERE'
@@ -137,7 +137,12 @@ Proceed on reversible work without asking: do it, then say what you did and why.
       sleep 1
       waited=$((waited + 1))
   done
-  if [ -f "$C/exit" ]; then
+  if [ -f "$C/exit" ] && [ "$(cat "$C/tree")" != "$tree" ]; then
+      touch "$C/told"
+      echo "stale: the check exited $(cat "$C/exit") on the worktree as it was when it started, which has changed since: run this block again, and it checks the worktree as it is now"
+      (exit 75)
+  elif [ -f "$C/exit" ]; then
+      touch "$C/told"
       tail -n 20 "$C/out"
       echo "done: the check exited $(cat "$C/exit")"
       (exit "$(cat "$C/exit")")
@@ -148,7 +153,7 @@ Proceed on reversible work without asking: do it, then say what you did and why.
   fi
   ```
 
-  It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. A check waits for a slot, often 10 to 20 minutes, and then runs, so one call is seldom enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that already ran on the worktree as it is now gives what it said (`checked`). On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found.
+  It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. A check waits for a slot, often 10 to 20 minutes, and then runs, so one call is seldom enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that ended after the last call gives what it said (`checked`). A check whose answer a call already gave runs afresh on the next call, so a failure that was not the change's (a flake, a full `/tmp`) is run again by running the block again. On `stale`, the check ran on files that have changed since, and its answer is no proof: run the block again. On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one full run, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself. While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite. The reviewer never runs it, whatever the brief's `Review:` line or the repo's `notes.md` says. A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
