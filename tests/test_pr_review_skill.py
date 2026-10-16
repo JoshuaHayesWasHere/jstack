@@ -299,12 +299,12 @@ def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cite
 ):
     reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
     cited = [
-        "laziness-protocol",
-        "fix-root-causes",
-        "test-behavior-not-implementation",
-        "attack-the-premise",
-        "prove-it-works",
-        "sequence-verifiable-units",
+        "principle-laziness-protocol",
+        "principle-fix-root-causes",
+        "principle-test-behavior-not-implementation",
+        "principle-attack-the-premise",
+        "principle-prove-it-works",
+        "principle-sequence-verifiable-units",
     ]
     assert all(applies(name).startswith("Apply ") for name in cited)
     lens = "\n".join(f"- {name}: {applies(name)}" for name in cited)
@@ -338,7 +338,7 @@ def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(revi
 def test_the_reviewers_are_asked_to_tag_each_finding_with_the_principle_it_breaks(reviewer):
     reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
     told = intent(reviewer)
-    assert told.index("- fix-root-causes: ") < told.index("`(principle: <name>)`")
+    assert told.index("- principle-fix-root-causes: ") < told.index("`(principle: <name>)`")
     assert "`(principle: none)`" in told
 
 
@@ -889,9 +889,9 @@ FINDINGS = {
 }
 LEAD = {
     "error src/a.py:3 it runs twice after a crash (both reviewers) (principle: none)": True,
-    "warning src/a.py:2 a branch a helper would hold (principle: laziness-protocol)": True,
+    "warning src/a.py:2 a branch a helper would hold (principle: principle-laziness-protocol)": True,
     "info new.txt:1 a name that says less than it could (principle: none)": True,
-    "warning - the one safety fact is unproven (principle: prove-it-works)": True,
+    "warning - the one safety fact is unproven (principle: principle-prove-it-works)": True,
     "error src/a.py:3 the proof failed: two runs wrote the same row (principle: none)": True,
     "error src/b.py:40 a bug in code the pull request calls (principle: none)": False,
     "warning tests/test_b.py a file the reviewers opened that the change left alone": False,
@@ -916,7 +916,7 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     assert finding in template
     review = template.replace(
         finding,
-        "it runs twice (principle: make-operations-idempotent)",
+        "it runs twice (principle: principle-make-operations-idempotent)",
     )
     reviewer.brief.write_text(BRIEF + "\n## Result\nStatus: done\n\n" + review)
     counts = crew.block("The review", "found++").replace("<slug>", "a-task")

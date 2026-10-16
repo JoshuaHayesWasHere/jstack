@@ -6,10 +6,16 @@ resolve (`parse.CHECKS`), the crew and scout skills load the files it names (`jb
 --skills`), and `jmerge` holds a pull request whose Results leave a named skill with no
 artifact (`jmerge.ready.short_of`).
 
-A name is a skill, `skills/<name>/SKILL.md`, or a principle, `principles/<name>.md`, of the
-repo this module lives in, a skill first. Its canonical form is that bare name. pstack
-spells a principle `principle-<name>`, and that is read as the principle `<name>`. Any
-other spelling, a path, a `/` in front or a capital letter, is no name.
+The names are pstack's, so that a name in a brief resolves the same way in Grok Bot, which
+pstack drives, and in T3, which jstack drives. A name is a skill, `skills/<name>/SKILL.md`,
+or a principle, `principles/principle-<name>.md`, of the repo this module lives in, and its
+canonical form is the directory's or the file's name: `architect`, `principle-model-the-
+domain`. The one list of names is those two directories: there is no table to keep beside
+them. Two kinds of alias are read from the same list. A principle's name before it took
+pstack's prefix, `model-the-domain`, is that principle. A pstack skill that jstack keeps as
+a playbook (`PLAYBOOKS`) is `playbooks/<name>.md`. Any other spelling, a path, a `/` in
+front or a capital letter, is no name, and so is a pstack skill jstack did not take
+(`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
 
 `templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
 one item, `- <name>: <the artifact>`, its further lines indented.
@@ -24,6 +30,8 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 SKILLS = ROOT / "skills"
 PRINCIPLES = ROOT / "principles"
+PLAYBOOK_DIR = ROOT / "playbooks"
+PLAYBOOKS = ("arena", "swarm")
 ARTIFACTS = ROOT / "templates" / "skill-artifacts.md"
 ALIAS = "principle-"
 DEFAULT = "default"
@@ -47,7 +55,8 @@ class Named:
 
     @property
     def name(self) -> str:
-        """The canonical name: the skill's directory or the principle's file, without `.md`."""
+        """The canonical name: the skill's directory, or the principle's or playbook's file
+        without `.md`."""
         if self.path is None:
             return self.said
         return self.path.parent.name if self.path.name == "SKILL.md" else self.path.stem
@@ -56,7 +65,9 @@ class Named:
     def kind(self) -> str:
         if self.path is None:
             return "unknown"
-        return "skill" if self.path.name == "SKILL.md" else "principle"
+        if self.path.name == "SKILL.md":
+            return "skill"
+        return self.path.parent.name.removesuffix("s")
 
     @property
     def relative(self) -> str:
@@ -64,19 +75,22 @@ class Named:
 
 
 def resolve(said: str) -> Named:
-    """The file a name loads: `skills/<name>/SKILL.md`, else `principles/<name>.md`, and a
-    `principle-<name>` is the principle alone."""
+    """The file a name loads: `skills/<name>/SKILL.md`; for `principle-<name>`,
+    `principles/principle-<name>.md` alone; for an old principle name, the principle that
+    took the prefix; for a pstack skill kept as a playbook, the playbook."""
     if not _NAME.fullmatch(said):
         return Named(said, None)
     if said.startswith(ALIAS):
-        bare = said.removeprefix(ALIAS)
-        principle = PRINCIPLES / f"{bare}.md"
-        return Named(said, principle if bare and principle.is_file() else None)
-    skill = SKILLS / said / "SKILL.md"
-    if skill.is_file():
-        return Named(said, skill)
-    principle = PRINCIPLES / f"{said}.md"
-    return Named(said, principle if principle.is_file() else None)
+        principle = PRINCIPLES / f"{said}.md"
+        return Named(said, principle if principle.is_file() else None)
+    for path in (
+        SKILLS / said / "SKILL.md",
+        PRINCIPLES / f"{ALIAS}{said}.md",
+        PLAYBOOK_DIR / f"{said}.md" if said in PLAYBOOKS else None,
+    ):
+        if path is not None and path.is_file():
+            return Named(said, path)
+    return Named(said, None)
 
 
 def _head(text: str) -> str | None:
@@ -199,8 +213,8 @@ def load(text: str) -> str:
     for one in names:
         if one.path is None:
             out.append(
-                f"unknown skill: {one.said} is no skills/{one.said}/SKILL.md "
-                f"and no principles/{one.said.removeprefix(ALIAS)}.md, so nothing is loaded for it"
+                f"unknown skill: {one.said} is no skill of skills/ and no principle of "
+                "principles/, so nothing is loaded for it"
             )
     known = [one for one in names if one.path is not None]
     if known:

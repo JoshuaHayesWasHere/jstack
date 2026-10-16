@@ -30,30 +30,30 @@ The files in `principles/` are adapted from the principle skills of pstack, by L
 
 Files:
 
-- `principles/attack-the-premise.md`
-- `principles/boundary-discipline.md`
-- `principles/build-the-lever.md`
-- `principles/encode-lessons-in-structure.md`
-- `principles/exhaust-the-design-space.md`
-- `principles/experience-first.md`
-- `principles/explain-the-number.md`
-- `principles/fix-root-causes.md`
-- `principles/foundational-thinking.md`
-- `principles/guard-the-context-window.md`
-- `principles/laziness-protocol.md`
-- `principles/make-operations-idempotent.md`
-- `principles/migrate-callers-then-delete-legacy-apis.md`
-- `principles/minimize-reader-load.md`
-- `principles/model-the-domain.md`
-- `principles/never-block-on-the-human.md`
-- `principles/outcome-oriented-execution.md`
-- `principles/prove-it-works.md`
-- `principles/redesign-from-first-principles.md`
-- `principles/separate-before-serializing-shared-state.md`
-- `principles/sequence-verifiable-units.md`
-- `principles/subtract-before-you-add.md`
-- `principles/test-behavior-not-implementation.md`
-- `principles/type-system-discipline.md`
+- `principles/principle-attack-the-premise.md`
+- `principles/principle-boundary-discipline.md`
+- `principles/principle-build-the-lever.md`
+- `principles/principle-encode-lessons-in-structure.md`
+- `principles/principle-exhaust-the-design-space.md`
+- `principles/principle-experience-first.md`
+- `principles/principle-explain-the-number.md`
+- `principles/principle-fix-root-causes.md`
+- `principles/principle-foundational-thinking.md`
+- `principles/principle-guard-the-context-window.md`
+- `principles/principle-laziness-protocol.md`
+- `principles/principle-make-operations-idempotent.md`
+- `principles/principle-migrate-callers-then-delete-legacy-apis.md`
+- `principles/principle-minimize-reader-load.md`
+- `principles/principle-model-the-domain.md`
+- `principles/principle-never-block-on-the-human.md`
+- `principles/principle-outcome-oriented-execution.md`
+- `principles/principle-prove-it-works.md`
+- `principles/principle-redesign-from-first-principles.md`
+- `principles/principle-separate-before-serializing-shared-state.md`
+- `principles/principle-sequence-verifiable-units.md`
+- `principles/principle-subtract-before-you-add.md`
+- `principles/principle-test-behavior-not-implementation.md`
+- `principles/principle-type-system-discipline.md`
 
 Upstream map:
 
@@ -83,30 +83,30 @@ playbooks/shipping.md <- pstack/skills/poteto-mode/playbooks/shipping.md
 playbooks/swarm.md <- pstack/skills/swarm/SKILL.md
 playbooks/trace-forensics.md <- pstack/skills/poteto-mode/playbooks/trace-forensics.md
 playbooks/visual-parity.md <- pstack/skills/poteto-mode/playbooks/visual-parity.md
-principles/attack-the-premise.md <- pstack/skills/principle-attack-the-premise/SKILL.md
-principles/boundary-discipline.md <- pstack/skills/principle-boundary-discipline/SKILL.md
-principles/build-the-lever.md <- pstack/skills/principle-build-the-lever/SKILL.md
-principles/encode-lessons-in-structure.md <- pstack/skills/principle-encode-lessons-in-structure/SKILL.md
-principles/exhaust-the-design-space.md <- pstack/skills/principle-exhaust-the-design-space/SKILL.md
-principles/experience-first.md <- pstack/skills/principle-experience-first/SKILL.md
-principles/explain-the-number.md <- pstack/skills/principle-explain-the-number/SKILL.md
-principles/fix-root-causes.md <- pstack/skills/principle-fix-root-causes/SKILL.md
-principles/foundational-thinking.md <- pstack/skills/principle-foundational-thinking/SKILL.md
-principles/guard-the-context-window.md <- pstack/skills/principle-guard-the-context-window/SKILL.md
-principles/laziness-protocol.md <- pstack/skills/principle-laziness-protocol/SKILL.md
-principles/make-operations-idempotent.md <- pstack/skills/principle-make-operations-idempotent/SKILL.md
-principles/migrate-callers-then-delete-legacy-apis.md <- pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md
-principles/minimize-reader-load.md <- pstack/skills/principle-minimize-reader-load/SKILL.md
-principles/model-the-domain.md <- pstack/skills/principle-model-the-domain/SKILL.md
-principles/never-block-on-the-human.md <- pstack/skills/principle-never-block-on-the-human/SKILL.md
-principles/outcome-oriented-execution.md <- pstack/skills/principle-outcome-oriented-execution/SKILL.md
-principles/prove-it-works.md <- pstack/skills/principle-prove-it-works/SKILL.md
-principles/redesign-from-first-principles.md <- pstack/skills/principle-redesign-from-first-principles/SKILL.md
-principles/separate-before-serializing-shared-state.md <- pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md
-principles/sequence-verifiable-units.md <- pstack/skills/principle-sequence-verifiable-units/SKILL.md
-principles/subtract-before-you-add.md <- pstack/skills/principle-subtract-before-you-add/SKILL.md
-principles/test-behavior-not-implementation.md <- pstack/skills/principle-test-behavior-not-implementation/SKILL.md
-principles/type-system-discipline.md <- pstack/skills/principle-type-system-discipline/SKILL.md
+principles/principle-attack-the-premise.md <- pstack/skills/principle-attack-the-premise/SKILL.md
+principles/principle-boundary-discipline.md <- pstack/skills/principle-boundary-discipline/SKILL.md
+principles/principle-build-the-lever.md <- pstack/skills/principle-build-the-lever/SKILL.md
+principles/principle-encode-lessons-in-structure.md <- pstack/skills/principle-encode-lessons-in-structure/SKILL.md
+principles/principle-exhaust-the-design-space.md <- pstack/skills/principle-exhaust-the-design-space/SKILL.md
+principles/principle-experience-first.md <- pstack/skills/principle-experience-first/SKILL.md
+principles/principle-explain-the-number.md <- pstack/skills/principle-explain-the-number/SKILL.md
+principles/principle-fix-root-causes.md <- pstack/skills/principle-fix-root-causes/SKILL.md
+principles/principle-foundational-thinking.md <- pstack/skills/principle-foundational-thinking/SKILL.md
+principles/principle-guard-the-context-window.md <- pstack/skills/principle-guard-the-context-window/SKILL.md
+principles/principle-laziness-protocol.md <- pstack/skills/principle-laziness-protocol/SKILL.md
+principles/principle-make-operations-idempotent.md <- pstack/skills/principle-make-operations-idempotent/SKILL.md
+principles/principle-migrate-callers-then-delete-legacy-apis.md <- pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md
+principles/principle-minimize-reader-load.md <- pstack/skills/principle-minimize-reader-load/SKILL.md
+principles/principle-model-the-domain.md <- pstack/skills/principle-model-the-domain/SKILL.md
+principles/principle-never-block-on-the-human.md <- pstack/skills/principle-never-block-on-the-human/SKILL.md
+principles/principle-outcome-oriented-execution.md <- pstack/skills/principle-outcome-oriented-execution/SKILL.md
+principles/principle-prove-it-works.md <- pstack/skills/principle-prove-it-works/SKILL.md
+principles/principle-redesign-from-first-principles.md <- pstack/skills/principle-redesign-from-first-principles/SKILL.md
+principles/principle-separate-before-serializing-shared-state.md <- pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md
+principles/principle-sequence-verifiable-units.md <- pstack/skills/principle-sequence-verifiable-units/SKILL.md
+principles/principle-subtract-before-you-add.md <- pstack/skills/principle-subtract-before-you-add/SKILL.md
+principles/principle-test-behavior-not-implementation.md <- pstack/skills/principle-test-behavior-not-implementation/SKILL.md
+principles/principle-type-system-discipline.md <- pstack/skills/principle-type-system-discipline/SKILL.md
 skills/architect/SKILL.md <- pstack/skills/architect/SKILL.md
 skills/architect/references/design-red-flags.md <- pstack/skills/architect/references/design-red-flags.md
 skills/architect/references/rationale-template.md <- pstack/skills/architect/references/rationale-template.md
@@ -161,9 +161,9 @@ skills/why/references/synthesizer-prompt.md <- pstack/skills/why/references/synt
 
 Each line is a file here and the upstream paths it was written from, at the commit above. A file added from pstack gets a line, and a move of the `Commit:` line follows a read of what changed.
 
-jstack's own: `principles/depth-over-breadth.md`, `skills/poteto-help/SKILL.md`
+jstack's own: `principles/principle-depth-over-breadth.md`, `skills/poteto-help/SKILL.md`
 
-The files on that line sit beside the ones taken and are jstack's own: no upstream path fed them, so `jdrift` prints each as `own` and compares nothing for it. `principles/depth-over-breadth.md` is from the Felix Rieseberg section below. `skills/poteto-help/SKILL.md` is jstack's own skill, written after the upstream file `pstack/skills/poteto-help/SKILL.md`: it keeps that file's name and its help-only answer, and takes none of its text, so the upstream path stays on the `Not taken:` line below. Its pick comes from `jbriefs pick`, not from a hand-kept table, and it points at the home, crew, scout and expert skills, never at a mode.
+The files on that line sit beside the ones taken and are jstack's own: no upstream path fed them, so `jdrift` prints each as `own` and compares nothing for it. `principles/principle-depth-over-breadth.md` is from the Felix Rieseberg section below. `skills/poteto-help/SKILL.md` is jstack's own skill, written after the upstream file `pstack/skills/poteto-help/SKILL.md`: it keeps that file's name and its help-only answer, and takes none of its text, so the upstream path stays on the `Not taken:` line below. Its pick comes from `jbriefs pick`, not from a hand-kept table, and it points at the home, crew, scout and expert skills, never at a mode.
 
 Not taken: `pstack/skills/create-verification-skill`, `pstack/skills/maintain-verification-skill`, `pstack/skills/make-bot-ui`, `pstack/skills/poteto-help`, `pstack/skills/setup-pstack`, `pstack/skills/poteto-mode/playbooks/babysit.md`, `pstack/skills/poteto-mode/playbooks/worktree-cleanup.md`
 
@@ -246,7 +246,7 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 - Source: https://github.com/forrestchang/andrej-karpathy-skills
 - Commit: 2c60614
 - Taken from: `skills/karpathy-guidelines/SKILL.md`, section 3, "Surgical Changes": "Every changed line should trace directly to the user's request", and the rule that a change removes what it orphaned and only mentions dead code that was there before
-- Changed here: reworded as two things a reviewer looks for in the changed lines. The rest of the file is not taken: its other three sections are covered by `principles/`, and "If uncertain, ask" is against `principles/never-block-on-the-human.md`.
+- Changed here: reworded as two things a reviewer looks for in the changed lines. The rest of the file is not taken: its other three sections are covered by `principles/`, and "If uncertain, ask" is against `principles/principle-never-block-on-the-human.md`.
 - License: the skill's frontmatter and the README say MIT. The repo has no license file, so there is no notice text to copy.
 
 ## axe-core
@@ -260,7 +260,7 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 
 ## Felix Rieseberg
 
-`skills/deeper/SKILL.md` and `principles/depth-over-breadth.md` are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).
+`skills/deeper/SKILL.md` and `principles/principle-depth-over-breadth.md` are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).
 
 - Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with models", 2026-10-13: https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/
 - Taken from: the prompt the post gives for Depth, quoted whole in `skills/deeper/SKILL.md` as its four questions, and the Depth moves the principle names: the instruments the best in the field use, reproducing a number from the raw data, an ambitious target said to be reasonable, and an outside judge in place of the model judging itself.

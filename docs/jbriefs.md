@@ -6,6 +6,7 @@
 |---|---|
 | `state` | The directory that holds one home per repo. Defaults to `~/.local/state/home`. |
 | `--out <path>` | Where to write the page. Defaults to `$XDG_CACHE_HOME/jbriefs/briefs.html`, or `~/.cache/jbriefs/briefs.html`. |
+| `--skills <brief>` | Writes no page. Prints in full each skill or principle the brief's `Skills:` line names, under a line `loaded: <names>`, then the artifact each owes under `Skills run:` in the Result (`templates/skill-artifacts.md`). A name it does not resolve gets a line `unknown skill: <name> ...`. The crew and scout skills run it at their start. |
 
 ## `jbriefs pick`
 
@@ -25,3 +26,7 @@ The lines after the role line:
 - `unknown <name>: ...`: a name from a `Playbook:` line, a `/<name>` or a `skills/<name>` that is no file here. It is printed, never dropped.
 
 Every path it prints is from the root of the jstack checkout.
+
+## Skills a brief names
+
+A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in a Grok Bot brief, which pstack drives, and in T3, which jstack drives. The canonical form of a skill is its directory under `skills/`, `architect`; of a principle, its file under `principles/` without `.md`, `principle-model-the-domain`. Two aliases resolve too: a principle's name from before it took pstack's prefix, `model-the-domain`, and `arena` and `swarm`, pstack skills that jstack keeps as playbooks. A pstack skill jstack did not take, `poteto-mode` and the `Not taken:` line of `THIRD_PARTY.md`, is no name. `src/jbriefs/skills.py` is the one resolver: `jbus queue add` refuses a brief that names anything else, the launch gates one queued before, `jbriefs --skills` loads the files, and `jmerge` waits on a pull request whose Results leave a named skill with no artifact.
