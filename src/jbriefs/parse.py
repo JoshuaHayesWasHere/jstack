@@ -345,25 +345,29 @@ def fields(text: str) -> list[tuple[str, list[str]]]:
 
 
 _MARKER = re.compile(r"""^[\s"'“‘*+-]+""")
+_PLACEHOLDER = re.compile(r"""<[^<>]*>[\s"'”’.,;:]*""")
 _CHOICES = ("Pull request", "Review")
 
 
 def _filled(text: str, label: str) -> str:
     """Why the brief's `<label>:` field is not filled in, in one line, or nothing.
 
-    A line of it that is the template's own text (`<...>` once its quote or list marker is
-    left off), or a field of `_CHOICES` still offering its choices (`review | none`), is not
-    filled in.
+    Its first line, or an item of a list under it, that is still the template's whole
+    placeholder (`<...>`, its quote or list marker left off), or a field of `_CHOICES` still
+    offering its choices (`review | none`), is not filled in. A line that only starts with
+    `<` (`<200 ms`) is filled in, and so is a field with the template's notes left under it.
     """
     held = [lines for name, lines in fields(text) if name == label]
     if not held:
         return f"brief has no {label}: line"
-    lines = [_MARKER.sub("", line).strip() for line in held[0]]
+    first, *rest = held[0]
+    lines = [first] + [line for line in rest if _MARKER.match(line) and line.strip()[:1] in "-*+"]
+    lines = [_MARKER.sub("", line).strip() for line in lines]
     lines = [line for line in lines if line]
     if not lines:
         return f"brief's {label}: line is empty"
-    if any(line.startswith("<") for line in lines) or (
-        label in _CHOICES and any("|" in line for line in lines)
+    if any(_PLACEHOLDER.fullmatch(line) for line in lines) or (
+        label in _CHOICES and "|" in lines[0]
     ):
         return f"brief's {label}: line is the template's own text"
     return ""
@@ -379,22 +383,34 @@ def proven(text: str) -> str:
     return found.why if found else ""
 
 
-LAUNCH = (("no design", designed), ("no proof", proven))
-SHAPE = (("no size", sized), ("no playbook", playbook))
-CHECKS = LAUNCH + SHAPE
-_CHECKED = ("Size",)
+CHECKS = (
+    ("Design", "no design", designed),
+    ("Proves it", "no proof", proven),
+    ("Size", "no size", sized),
+    ("Playbook", "no playbook", playbook),
+)
+LAUNCH = CHECKS[:2]
+SHAPE = CHECKS[2:]
+_SAYS_MISSING = ("Design", "Size")
 
 
 def faults(text: str) -> list[str]:
-    """Every reason a brief may not be queued, one line each.
+    """Every reason a brief may not be queued, one line for each field at fault.
 
-    It is each field `REQUIRED` filled in, then every check a launch makes (`CHECKS`), which
-    `jbus.dispatch` runs from the same table. `Size` is left to `sized`, which says when the
-    line is missing. A brief with none is complete.
+    It is each field `REQUIRED` filled in, then, for a field that is, every check a launch
+    makes of it (`CHECKS`), which `jbus.dispatch` runs from the same table. `Design` and
+    `Size` are left to their checks, which say when the line is missing. A brief with none
+    is complete.
     """
-    found = [_filled(text, label) for label in REQUIRED if label not in _CHECKED]
-    found += [check(text) for _, check in CHECKS]
-    return [fault for fault in found if fault]
+    checks = {label: check for label, _, check in CHECKS}
+    found = []
+    for label in (*REQUIRED, *(label for label in checks if label not in REQUIRED)):
+        fault = "" if label in _SAYS_MISSING else _filled(text, label)
+        if not fault and label in checks:
+            fault = checks[label](text)
+        if fault:
+            found.append(fault)
+    return found
 
 
 @dataclass(frozen=True)

@@ -177,7 +177,7 @@ def short_of(brief: str, shaped: bool) -> tuple[str, str]:
     The size and the playbook are asked of it only where `shaped`: its go was run since the
     rule.
     """
-    for kind, check in parse.LAUNCH + (parse.SHAPE if shaped else ()):
+    for _, kind, check in parse.LAUNCH + (parse.SHAPE if shaped else ()):
         why = check(brief)
         if why:
             return why, kind

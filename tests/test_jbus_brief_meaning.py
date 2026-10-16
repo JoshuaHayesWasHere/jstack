@@ -165,12 +165,12 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "refused: alpha's brief has 6 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
-        "- brief has no Design: line (run /architect or say none, <why>)",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M, L or XL)",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
+        "- brief has no Design: line (run /architect or say none, <why>)",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
 
@@ -180,9 +180,29 @@ def test_queue_add_refuses_the_template_as_it_stands_with_a_fault_for_each_field
     code, said = add(kitchen, template)
     assert code == 1
     faults = said.splitlines()[1:]
-    for label in parse.REQUIRED:
-        assert any(f" {label}: line" in fault for fault in faults), (label, said)
+    assert (
+        said.splitlines()[0]
+        == f"refused: alpha's brief has {len(faults)} faults, and nothing is queued"
+    )
+    named = [
+        label
+        for label in (*parse.REQUIRED, "Design")
+        for fault in faults
+        if f" {label}: line" in fault
+    ]
+    assert named == [*parse.REQUIRED, "Design"], said
     assert not queue.brief_path(kitchen.state, "alpha").exists()
+
+
+def test_a_line_that_starts_with_a_less_than_sign_is_filled_in():
+    text = APPROVED.replace(
+        "- `make check` exits 0", "- <200 ms p95 on the bench\n- `make check` exits 0"
+    )
+    assert parse.faults(text) == []
+    noted = APPROVED.replace(
+        "Playbook: feature\n", "Playbook: feature\n<The line below is a note.>\n"
+    )
+    assert parse.faults(noted) == []
 
 
 def test_a_negation_made_by_a_contraction_asks_again(kitchen):
