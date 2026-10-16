@@ -17,7 +17,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, cli, wake
+from jbus import alert, cli, item, wake
 from test_jbus_kitchen import NOW, OPTIONS
 
 SRC = pathlib.Path(jbus.__file__).parent
@@ -89,15 +89,17 @@ PASSED_AS = {
     ("rebase.py", "ask.kind"): (("Ask", 0), ("_asked", 0)),
     ("mirror.py", "what"): (("_found", 0), ("_gates", 1)),
     ("wake.py", "kind"): (),
+    ("item.py", "kind(verb)"): (),
 }
 
 
 def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
     """Every kind a file of jbus sends, by how the call that sends it names it.
 
-    A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)` or
-    `event(project, slug, kind, ...)`. A kind is a string, a name the module sets to one, or
-    a name `PASSED_AS` knows. Any other is refused: nothing here could say what it is.
+    A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)`,
+    `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a
+    name the module sets to one, or a name `PASSED_AS` knows. Any other is refused: nothing
+    here could say what it is.
     """
     tree = ast.parse(source.read_text())
     constants = {
@@ -125,7 +127,9 @@ def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
         if not isinstance(node, ast.Call):
             continue
         name = getattr(node.func, "attr", getattr(node.func, "id", ""))
-        at = {"find": 1, "send": 1, "event": 2}.get(name)
+        at = {"find": 1, "send": 1, "event": 2, "record": 0}.get(name)
+        if name == "record" and not ast.unparse(getattr(node.func, "value", node)).endswith("box"):
+            continue
         named = [word.value for word in node.keywords if word.arg == "kind"]
         if at is None or (len(node.args) <= at and not named):
             continue
@@ -156,6 +160,8 @@ def unknown(directory: pathlib.Path) -> set[str]:
 
 
 def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
+    """The one kind sent that the table lacks is `word`, which `word.py` logs by
+    `Box.record`, and `record` does not hold to the table."""
     sent = sent_in(SRC)
     assert sent[("stall.py", "EVENT")] == {"waiting-on-user"}
     assert sent[("waiting.py", "EVENT")] == {"waiting"}
@@ -176,8 +182,9 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("wake.py", "kind")] == set()
     assert sent[("wake.py", "CONDITION")] == {"condition"}
     assert sent[("cli.py", "'heartbeat'")] == {"heartbeat"}
-    every = set().union(*sent.values())
-    assert unknown(SRC) == set()
+    assert sent[("item.py", "kind(verb)")] == set()
+    every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
+    assert unknown(SRC) == {"word"}
     assert set(wake.LOUDNESS) - every == set()
 
 

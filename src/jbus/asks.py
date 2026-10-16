@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import dispatch, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
+from jbus import dispatch, item, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
 
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
@@ -103,9 +103,15 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = sys.stdin.read()
-        said = queue.add(state, args.slug, args.priority, depends, text, args.entry or "")
+        named = _item(state, args.slug, args.item or "")
+        said = queue.add(state, args.slug, args.priority, depends, text, args.entry or "", named)
         if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
             print(said)
+        row = queue.fresh(state, args.slug)
+        if row is not None:
+            by = queue.who(queue.runner())
+            box = wake.Box(state, project)
+            item.link(state, box, row, args.item or "", by, config.user.user)
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
         queue.approve(state, args.slug, rests, args.sha, config.user, _asks(config, project))
@@ -126,6 +132,21 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(f"refused: {error}")
         return 1
     return 0
+
+
+def _item(state: Path, slug: str, given: str) -> str:
+    """The work item a row that is added is linked to: the one `--item` names, which must be
+    one it can be linked to, the one the row has, the one a pass linked to its slug, or one
+    reserved for it now (`jbus.item`)."""
+    if given:
+        item.linkable(state, given, slug)
+        return given
+    try:
+        row = next((row for row in queue.load(state) if row["slug"] == slug), None)
+    except queue.Unparsable:
+        row = None
+    linked = item.by_slug(item.items(state)).get(slug)
+    return (row or {}).get("item") or (linked.id if linked else "") or item.reserve(state)
 
 
 def _verify(state: Path, slug: str, given: str | None) -> int:
@@ -161,6 +182,7 @@ def _table(table: argparse.ArgumentParser) -> None:
     add.add_argument("--priority", type=int, required=True, help="an integer, lower first")
     add.add_argument("--depends", help="slugs that must be merged first, with commas")
     add.add_argument("--entry", help="the plan entry the row is work for, when not its own slug")
+    add.add_argument("--item", help="the work item the row is, by its id; with none, one is made")
     approve = table_verbs.add_parser(
         "approve", help="record the go for the brief the user was shown", allow_abbrev=False
     )

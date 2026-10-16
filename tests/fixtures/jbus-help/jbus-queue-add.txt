@@ -1,5 +1,5 @@
 usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
-                      [--entry ENTRY]
+                      [--entry ENTRY] [--item ITEM]
                       slug
 
 positional arguments:
@@ -11,3 +11,5 @@ options:
   --depends DEPENDS    slugs that must be merged first, with commas
   --entry ENTRY        the plan entry the row is work for, when not its own
                        slug
+  --item ITEM          the work item the row is, by its id; with none, one is
+                       made
