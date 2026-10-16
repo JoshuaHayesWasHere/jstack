@@ -3,6 +3,7 @@ a made-up pack in a temporary git repo, the template's own example note among th
 day's stale check of a jbus pass on a project whose checkout has a pack."""
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ NO_REVISION = (
     "a source with no revision, in it or above the four parts"
     " (a commit id in backticks or after at, or a date as YYYY-MM-DD)"
 )
+UNCITED = "a source names a commit and cites no `path:line` at it"
 NOTE = """\
 # {question}
 
@@ -91,7 +93,9 @@ def pack(repo, notes):
     for name, question, sources in notes:
         text = NOTE.format(question=question, answer="Three.", sources=sources)
         (folder / "notes" / name).write_text(text)
-        index.append(f"`{name}`: {question} (checked at `{sources.split('`')[3]}`)")
+        index.append(
+            f"`{name}`: {question} (checked at `{re.search(r'[0-9a-f]{7,40}', sources)[0]}`)"
+        )
     (folder / "INDEX.md").write_text("\n".join(index) + "\n")
     return folder
 
@@ -141,6 +145,31 @@ def test_a_good_citation_passes_and_each_wrong_one_fails_with_its_line(subject):
         f'quote.md: `src/upload.py:12` at {short}: the line does not say "RETRIES = 5"',
     ]
     assert jpack("lint", "docs/context", cwd=repo) == (0, [], "")
+
+
+def test_a_source_pinned_to_a_commit_with_no_citation_to_check_fails_and_a_dated_one_passes(
+    subject,
+):
+    repo, sha = subject
+    short = sha[:7]
+    pack(
+        repo,
+        [
+            ("bare.md", "How many?", f'- src/upload.py:12 at {short}: "RETRIES = 5"'),
+            ("file.md", "Where?", f"- `src/upload.py` at `{short}`"),
+            (
+                "dated.md",
+                "Who?",
+                f'- `src/upload.py:12` at `{short}`: "RETRIES = 3"\n- the owner, asked 2026-10-15',
+            ),
+        ],
+    )
+    code, said, _ = jpack("verify", "docs/context", cwd=repo)
+    assert code == 1
+    assert said == [
+        f'bare.md: {UNCITED}: src/upload.py:12 at {short}: "RETRIES = 5"',
+        f"file.md: {UNCITED}: `src/upload.py` at `{short}`",
+    ]
 
 
 def test_a_shallow_checkout_says_so_where_a_cited_commit_is_not_in_it(subject, tmp_path):

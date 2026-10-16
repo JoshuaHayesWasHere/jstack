@@ -9,9 +9,10 @@ lines that carry it on, up to the next blank line, item or heading, as the lint
 `lint-notes.sh` reads them. A citation in a source is written `` `path:line` at <sha> ``, or
 `` `path:first-last` at <sha> ``, with the commit in backticks or bare, and at most one word
 between `at` and it, as in `` at Winnifred `3f9c2ab` ``. The first double-quoted fragment
-after a citation, before the next one, is what the cited lines say. A source that cites no
-line at a commit (a date, a link, a command that was run) has no citation: the lint holds it
-to a revision, and nothing here reads it.
+after a citation, before the next one, is what the cited lines say. A source dated and not
+pinned to a commit (a doc, a link, a command that was run) has no citation: the lint holds it
+to a revision, and nothing here reads it. A source that names a commit and has no citation is
+a fault of `verify`: nothing could check what it claims.
 
 The lint is the one shell copy, `lint-notes.sh` beside this file, for an expert's folder and
 for a pack. Every note has a line in the index, lists at least one source, and each source
@@ -39,6 +40,7 @@ _CITED = re.compile(
     r"(?:[^\s`]+ )?`?(?P<sha>[0-9a-f]{7,40})(?![0-9A-Za-z])`?"
 )
 _QUOTE = re.compile(r'"([^"]+)"')
+_COMMIT = re.compile(r"(?:`|\bat )(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}(?![0-9A-Za-z])")
 
 
 class Refused(Exception):
@@ -116,6 +118,12 @@ def citations(note: str, text: str) -> list[Citation]:
                 )
             )
     return found
+
+
+def uncited(text: str) -> list[str]:
+    """The sources that name a commit and cite no line the verifier can check: a claim pinned
+    to a commit that nothing reads."""
+    return [item for item in sources(text) if _COMMIT.search(item) and not _CITED.search(item)]
 
 
 def notes(pack: Path) -> dict[str, str]:

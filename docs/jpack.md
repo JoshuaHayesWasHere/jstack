@@ -5,7 +5,7 @@
 | Verb | What it does |
 |---|---|
 | `jpack lint <pack>` | Every note in `notes/` has a line in the index, lists a source, and each source names a revision. A pack's `INDEX.md` is at most 40 lines that are not blank. |
-| `jpack verify <pack>` | Each citation `` `path:line` at <sha> `` is there: the commit, the path at it, the line, and the quoted words on the line. |
+| `jpack verify <pack>` | Each citation `` `path:line` at <sha> `` is there: the commit, the path at it, the line, and the quoted words on the line. A source that names a commit and cites no line is named too. |
 | `jpack stale <pack>` | Each note citing a path changed since its commit, as `stale <note>: <path> changed since <sha>`, and `prune <note>` for one stale more than 14 days. |
 
 | Flag | What it does |
