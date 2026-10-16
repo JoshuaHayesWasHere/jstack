@@ -294,6 +294,16 @@ TABLE = {
     "note": "quiet",
     "leftover": "quiet",
     "unplaced": "quiet",
+    "item.proposed": "quiet",
+    "item.linked": "quiet",
+    "item.approved": "quiet",
+    "item.queued": "quiet",
+    "item.launched": "quiet",
+    "item.waiting": "quiet",
+    "item.resumed": "quiet",
+    "item.held": "quiet",
+    "item.done": "quiet",
+    "item.dropped": "quiet",
 }
 
 

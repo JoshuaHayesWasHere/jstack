@@ -100,6 +100,7 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
         "depends": ["alpha", "gamma"],
         "approved": "",
         "brief_sha": "",
+        "item": "w1",
         "status": "queued",
         "thread": "",
         "pr": "",
