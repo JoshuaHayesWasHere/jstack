@@ -229,13 +229,20 @@ def tipped(text: str, found: dict[str, Skill]) -> list[tuple[str, str]]:
 
 def named(text: str) -> list[str]:
     """Each name the text gives as `/name` or as `skills/<name>`, once, in order. A path such
-    as `/tmp/x` or `~/.local/state/home` names no skill."""
+    as `/tmp/x` or `~/.local/state/home` names nothing. A lone `/tmp` reads as a name, and is
+    printed as unknown with the rest."""
     seen: dict[str, None] = {}
     for found in sorted(
         [*_SLASH.finditer(text), *_DIRECTORY.finditer(text)], key=lambda m: m.start()
     ):
         seen.setdefault(found.group(1))
     return list(seen)
+
+
+def _own_text(job: Work) -> str:
+    """What the work's author wrote: a brief's or a request's head, with no Result or Review
+    under it, and the whole of anything else."""
+    return job.text if job.role is HOME else "\n".join(head(job.text))
 
 
 def _tip_text(job: Work) -> str:
@@ -258,7 +265,7 @@ def pick(job: Work, root: Path = ROOT) -> list[Line]:
     for name, phrase in tips:
         lines.append(Line("tip", name, f'/{name} (skills/{name}/SKILL.md), its tip "{phrase}"'))
     given = {role.skill, *(name for name, _ in tips)}
-    for name in named(job.text):
+    for name in named(_own_text(job)):
         if name in given:
             continue
         given.add(name)

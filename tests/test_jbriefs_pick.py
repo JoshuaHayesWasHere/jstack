@@ -97,6 +97,14 @@ def test_each_name_the_brief_gives_is_printed_and_an_unknown_one_is_not_dropped(
     ]
 
 
+def test_names_under_the_result_are_not_the_briefs(tmp_path):
+    brief = tmp_path / "tasks" / "done.md"
+    brief.parent.mkdir()
+    brief.write_text(BRIEF + "\n## Result\nPlaybook: feature; see /handoff and /not-the-briefs\n")
+    said = jbriefs(str(brief))
+    assert not [line for line in said if "handoff" in line or "not-the-briefs" in line]
+
+
 def test_a_playbook_line_that_names_no_file_is_printed_as_unknown(tmp_path):
     brief = tmp_path / "tasks" / "odd.md"
     brief.parent.mkdir()
