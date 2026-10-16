@@ -51,8 +51,8 @@ jobs:
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-      # The browser is declared, not assumed: a runner without it fails here, naming the path,
-      # and not later in a browser test that waits out its bound.
+      # The browser is declared, not assumed: a runner without it fails here with one error
+      # naming the path, before the suite, and not as one failure for each browser test.
       - name: test browser
         if: steps.tree.outputs.marker != 'green'
         env:
