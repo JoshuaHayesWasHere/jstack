@@ -72,6 +72,8 @@ case "$1 $2" in
         [ "$5" = ".[] | .previous_filename // empty" ] || exit 64
         echo "$GH_REPO" > "$STUB/asked-about"
         cat "$STUB/left" ;;
+    "api repos/"*"/check-runs")
+        cat "$STUB/main-check-runs.json" ;;
     "pr merge")
         [ "$4 $5" = "--squash --match-head-commit" ] || exit 64
         cp "$LOG" "$STUB/log-at-merge" 2> /dev/null
@@ -336,6 +338,14 @@ NOT_PASSED = "check has not passed"
 def test_a_pull_request_is_green_when_the_check_named_check_passed(home, checks):
     (home.tasks / "alpha.md").write_text(brief(review("clean", PUSHED)))
     home.open_pull_request(PUSHED, checks=checks)
+    assert home.ready() == [f"ready 7 {PUSHED} alpha alpha"]
+
+
+def test_a_red_main_holds_no_pull_request_whose_check_passed(home):
+    failed = {"name": "full", "status": "completed", "conclusion": "failure"}
+    (home.stub / "main-check-runs.json").write_text(json.dumps({"check_runs": [failed]}))
+    (home.tasks / "alpha.md").write_text(brief(review("clean", PUSHED)))
+    home.open_pull_request(PUSHED, checks=(PASSED,))
     assert home.ready() == [f"ready 7 {PUSHED} alpha alpha"]
 
 

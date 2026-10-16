@@ -39,6 +39,8 @@ ln -s "$here/fake-systemctl" "$S/stub/systemctl"
 printf '#!/bin/sh\necho "$*" >> "%s/notify.log"\n' "$S" >"$S/stub/notify-send"
 chmod +x "$S/stub/notify-send"
 for name in open merged commits; do echo "[]" >"$S/gh/$name.json"; done
+echo "{}" >"$S/gh/checks.json"
+mkdir "$S/gh/logs"
 
 # A machine with room, and a plan that is under its limits: what `jgauge room` reads.
 echo "0.10 0.10 0.10 1/100 1" >"$S/machine/proc/loadavg"

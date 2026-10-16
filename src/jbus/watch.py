@@ -31,7 +31,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
-from jbus import merge, queue, read_json, verbs, work, write_json
+from jbus import Refused, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
@@ -47,6 +47,8 @@ KNOWN = (*LIVE, *ENDED, "completed")
 TIMEBOX_HOURS = 4.0
 WAITING_MINUTES = 30
 RETRO = timedelta(hours=24)
+NOT_RED = ("success", "neutral", "skipped", "cancelled")
+_FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
 MERGED = "number,url,title,headRefName,mergeCommit,mergedAt"
@@ -738,7 +740,7 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     ended = [r.get("conclusion") for r in runs if r.get("status") == "completed"]
     if len(ended) < len(runs):
         return "pending"
-    bad = any(c not in ("success", "neutral", "skipped", "cancelled") for c in ended)
+    bad = any(c not in NOT_RED for c in ended)
     if bad or (runs and "cancelled" not in ended):
         known[sha] = "failed" if bad else "green"
         return known[sha]
@@ -756,11 +758,100 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     return known.get(sha, "pending")
 
 
+def _failed_tests(run: Pass, job: object) -> list[str]:
+    """The ids of the tests a job's log says failed, from pytest's summary, in order."""
+    log = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs")
+    return list(dict.fromkeys(_FAILED_TEST.findall(log.stdout))) if log.returncode == 0 else []
+
+
+def red_brief(
+    slug: str,
+    sha: str,
+    jobs: list[tuple[str, str, list[str]]],
+    red: list[dict],
+    changed: list[str],
+) -> str:
+    """The brief for the fix of a red main at `sha`, in `templates/brief.md`'s shape. `jobs`
+    is each failed check run's name, URL and failed tests, `red` the commits from `sha`
+    down to the last green one, that one left out, and `changed` the files they changed."""
+    tests = [test for _, _, failed in jobs for test in failed]
+    files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
+    where = (
+        ", ".join(f"`{file}`" for file in files) or "what the merges since the last green changed"
+    )
+    read = [
+        f"- the job `{name}`, {url or 'with no URL'}: "
+        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
+        for name, url, failed in jobs
+    ]
+    read += [
+        f"- the merge {commit['sha'][:12]} {commit['commit']['message'].splitlines()[0]}"
+        for commit in red
+    ]
+    return "\n".join(
+        [
+            f"# main-red-{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
+            f'Task: "main check failed at {sha[:12]}, {len(red)} merges since the last green" '
+            f"(jbus, the retro of {slug})",
+            "Done when:",
+            "- each failed test named under Read passes on main, and the failed job passes at "
+            "the commit that merges the fix",
+            "- the Result names the cause: the merge that broke main, or a flake with its evidence",
+            "Proves it: CI's check on main passes at the commit that merges the fix",
+            "Size: S",
+            f"Where: {where}",
+            "Do not touch: .github/workflows/, the ruleset",
+            "Decisions: none, jbus filed this from a red main and the user has not seen it",
+            "Design: none, a fix to what the failed run names",
+            "Pull request: open one when done",
+            "Review: review",
+            "Playbook: bug-fix",
+            "Read:",
+            *read,
+            "",
+        ]
+    )
+
+
+def _changed(run: Pass, red: list[dict]) -> list[str]:
+    """The files the commits changed, as GitHub lists them for each."""
+    files = []
+    for commit in red:
+        said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{commit['sha']}")
+        listed = said.get("files") if isinstance(said, dict) else None
+        files += [one.get("filename", "") for one in listed or []]
+    return [file for file in dict.fromkeys(files) if file]
+
+
+def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
+    """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
+    go: the user approves it as any other row. It is filed while the queue has no row of it,
+    so a pass that stopped before the row was added files it again. A queue that refuses it
+    is a condition."""
+    name = f"main-red-{sha[:12]}"
+    if name in run.removed or queue.fresh(run.state, name) is not None:
+        return
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    jobs = [
+        (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
+        for r in (said if isinstance(said, dict) else {}).get("check_runs") or []
+        if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
+    ]
+    text = red_brief(slug, sha, jobs, red, _changed(run, red))
+    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+    (run.home / "tasks" / f"{name}.md").write_text(text)
+    try:
+        queue.add(run.state, name, 0, [], text)
+    except Refused as refused:
+        run.condition(name, f"its brief was not queued: {refused}")
+
+
 def _retro(run: Pass, world: World) -> None:
     """A red main within a day of a merge, and a revert of one. Both name the merged slug.
 
     A main whose run was cancelled is not red: its run is asked for again, and what is said
-    is a second cancelled one, or a run GitHub would not start again.
+    is a second cancelled one, or a run GitHub would not start again. A red main is said
+    once a commit, and the brief for its fix is filed and queued once a commit (`_file`).
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
@@ -806,6 +897,8 @@ def _retro(run: Pass, world: World) -> None:
             since += 1
         line = f"retro {slug}: main check failed at {sha[:12]}, {since} merges since the last green"
         run.find(slug, "retro", line, key=f"red {sha}", past=True)
+        if not run.first and slug not in run.removed:
+            _file(run, slug, sha, commits[place : place + since])
     write_json(run.state / "checks.json", known)
 
 
