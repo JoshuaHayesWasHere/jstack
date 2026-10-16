@@ -28,7 +28,7 @@ The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empt
 | `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` is the time the merges are counted from, a day back with none. |
 | `jbus view [--port <port>]` | Serves the bus as a page. The page reads, and writes one thing: your answer to a question. [The view](#the-view) has the rest. |
 | `jbus word --to <project> --message <thread id>/<message id>` | Sends your word to a project's home, or with `--all` in place of `--to` to every home. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types it. [Your word to a home](#your-word-to-a-home) has the rest. |
-| `jbus queue show\|add\|approve\|hold\|remove\|apply` | Prints or changes the queue table. [The queue](#the-queue) has each verb. |
+| `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](#the-queue) has each verb. |
 | `jbus plan [--scope <scope>]`, `jbus plan close <entry>` | Prints each entry of a home's `plan.md` with its status, or moves a finished entry out. [The plan](#the-plan) has the rest. |
 | `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number. |
 | `jbus answer <number> --message <thread id>/<message id> --default` | Closes a question with your answer. `--default` says the answer is the default the thread took, and `--differs` in its place says it is not. One of the two is required. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types the answer. |
@@ -259,6 +259,16 @@ jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
 
+`add` checks the brief before it queues it, with every check a launch makes, so a brief that could not launch is never put to you for a go. The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them. Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`. A brief short of any of these is refused with one line for each fault, and nothing is queued:
+
+```text
+refused: alpha's brief has 2 faults, and nothing is queued
+- brief has no Size: line (S, M, L or XL)
+- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a file in playbooks/, without its .md, or none)
+```
+
+In a batch it is `refused: line <n>: <slug>'s brief has <k> faults, and nothing is queued, and nothing in the batch was applied`, with the same lines under it. A launch makes the same checks again, as a backstop for a row queued before `add` made them. When the row had a go and its brief changed, `add` prints a line above the table, `added <slug>: priority <n>, brief <sha12>`, that ends `, its go holds` or `, its go does not hold for it: approve it again` (see [What an approval is bound to](#what-an-approval-is-bound-to)).
+
 `--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge first. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority` and `--depends` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `hold` takes a row's approval back.
 
 An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
@@ -294,10 +304,33 @@ The row's `approval` is the record of it:
 | `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. By rule it is `true`: jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
+| `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
+| `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |
 
 `jbus queue show` prints it in the `approved` column as `his word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false. `<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it. The view's row says the same line. A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; he did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark. `jbus queue hold <parent>` takes the go of its queued follow-ups back with the parent's, and prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`; so does `jbus queue remove` of a parent that did not merge. `jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`: the length of that list is the count of rows that launched without your word for them. A row approved before this holds only the typed string: it keeps its go and still launches, and prints `<the string> (typed, not checked)`. No time is read out of such a string, so the view gives no time from approval to merge for it.
 
-The sha leaves out the `Home:` and `Thread:` lines of the brief's head, the lines above its first `## `. They say whom the brief is sent to, not what it asks for, so a brief queued again under another home, or with its thread written in, is the brief you approved and keeps its approval. A change to any other line is another brief. The stored brief is kept whole, those lines included. A row approved before the sha left the two lines out keeps its approval while its stored brief is the text it was approved with, line for line. Queued again, such a row is taken over to the new sha of that text, so another `Home:` line on it is no change either. A launch sends the brief without the two lines, and jbus writes the launch's own `Thread:` line.
+The sha leaves out the `Home:` and `Thread:` lines of the brief's head, the lines above its first `## `. They say whom the brief is sent to, not what it asks for. The stored brief is kept whole, those lines included. A launch sends the brief without the two lines, and jbus writes the launch's own `Thread:` line.
+
+### What an approval is bound to
+
+A go is bound to what the brief asks for, not to its wording: a typo fixed, a line re-wrapped or a Task said again keeps it, and a change to the scope asks you again. `approve` records the brief's meaning fingerprint (`src/jbriefs/meaning.py`), and a later brief keeps the go when its fingerprint is the same. It is deterministic and asks no model.
+
+The fingerprint reads the fields that carry scope and risk: `Done when`, `Proves it`, `Size`, `Where`, `Do not touch`, `Pull request`, `Review`, `Playbook` and `Stack`, and any other field the template does not name (an eval's `Candidates:` or `Judge:`), and anything under a `## ` in the brief. It leaves out the title and `Task`, `Decisions`, `Design`, `Read`, `Change`, `Rests on`, `Sources` and `Ruled out`, which say why and how, and `Home` and `Thread`. A field starts at a line `<Label>: ` of the head, and runs to the next one. Each field is normalised in these steps:
+
+1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
+2. Kept exact, as written: every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit, which is a path, a file name or a number.
+3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
+4. The words and exact tokens of a line are sorted, and so are the lines of a field.
+5. The values of `Size`, `Playbook`, `Review`, `Pull request` and `Stack` are kept exact whole, lowercased and with their white space collapsed.
+6. The fields go in a fixed order: the nine above as listed, then any other by its label.
+
+Two fingerprints mean the same when they have the same fields, each with as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same. A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go. So a typo, a change of formatting, punctuation or case, lines or fields put in another order, and an edit only to the fields it leaves out keep the go. A Done-when line added, taken out or changed, a path, a number or a value changed, or a field added, ask you again.
+
+Its limit: it compares words, not meaning. A reword that swaps one content word for another, `must` for `may` or `all` for `any`, asks you again, by design: a check with no model cannot tell a harmless synonym from a change of intent. And two long words within two edits of each other (`files` and `fixes`) count as one, which is the price of keeping a fixed typo's go.
+
+A row approved before the fingerprint has no `meaning` in its record, and keeps its go while its stored brief has the sha its row holds, line for line, as before: the `brief_sha` of the text, or for a row approved before the sha left the two lines out, the sha256 of the whole text. Queued again with the same text, such a row is taken over to that text's `brief_sha`.
+
+`jbus queue verify <slug>` prints, as JSON, what another reader needs to check that the brief it holds is the one you approved: the row's `approval` record (its basis, its reference and your words, the `brief_sha` and the `meaning` and `scope` at the go), and the brief checked, with its `brief_sha`, `meaning`, `scope` and whether the go `holds` for it. The brief checked is the stored one, or the file `--brief <path>` names. It exits 0 when the go holds, and 1 when it does not or there is no such row.
 
 `jbus queue remove` takes a row out of the queue for good, and a batch takes the same line without `jbus queue`. It is your word, so `--by` is your name.
 
@@ -346,7 +379,7 @@ jbus plan close <entry>
 
 A pass launches a row only when all of these hold:
 
-- the row has an `approved` value, and its brief has the sha256 that `approve` recorded;
+- the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](#what-an-approval-is-bound-to));
 - the brief has a `Design:` line in its head that names a file or says `none, <why>`;
 - the brief's `Proves it:` line, where its head has one, names something outside the agent;
 - every slug in `depends` is merged;
@@ -356,7 +389,7 @@ A pass launches a row only when all of these hold:
 
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
 
-- **A brief changed after the go** is `gate <slug>: brief changed after approval`. Approve it again. A `Home:` or `Thread:` line of its head that changed is no change.
+- **A brief whose scope changed after the go** is `gate <slug>: brief changed after approval`. Approve it again. An edit that keeps its meaning fingerprint is no change.
 - **A brief with no such `Design:` line** is a gate, once for that brief: `brief has no Design: line (run /architect or say none, <why>)`.
 - **A brief whose `Proves it:` line proves nothing** is a gate, once for that brief, with one line saying why: `brief's Proves it: line names the reviewer, the agent's own word (name a test, a command, a metric, a dataset, an external judge or the user)`. The line is refused when it is empty, still the template's text, or names the crew, the crewmate, the reviewer, the agent, itself, the model or a review alone, and nothing outside them. A brief with no `Proves it:` line was written before the line was asked for and launches as it did.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass. After `room_passes` passes in a row with no room, jbus sends `gate <slug>: no room for <n> passes: <why>` once.
