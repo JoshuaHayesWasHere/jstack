@@ -6,7 +6,10 @@ not by the command, so it is free again when the command ends or when this proce
 There are two lanes. The full lane is for a whole suite and has N slots. The short lane is
 for a run of a second or a minute, a reviewer's proof or a crewmate's targeted tests: it has
 slots of its own, `test-slot-short.<n>.lock`, so it never waits behind a full suite, and a
-command in it is stopped at its time limit, so a full suite cannot sit there.
+command in it is stopped at its time limit, so a full suite cannot sit there. A short command
+runs in a process group of its own, and the stop and every signal go to the whole group: a
+`sh -c` wrapper does not leave its pytest running once the slot is free. Out of the terminal's
+group, an interrupt reaches it only through this process, which passes it on.
 """
 
 from __future__ import annotations
@@ -85,18 +88,30 @@ def take(lane: Lane) -> int:
     return held
 
 
-def _stop(child: subprocess.Popen, limit: float) -> int:
+def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
+    """Tell the command, and in the short lane every process it started, which is its group."""
+    if lane.limit is None:
+        child.send_signal(number)
+        return
+    try:
+        os.killpg(child.pid, number)
+    except ProcessLookupError:
+        pass
+
+
+def _stop(child: subprocess.Popen, lane: Lane) -> int:
     print(
-        f"test-slot: stopped {child.args[0]} at {limit:g} s, the short lane's limit",
+        f"test-slot: stopped {child.args[0]} at {lane.limit:g} s, the short lane's limit",
         file=sys.stderr,
         flush=True,
     )
-    child.terminate()
+    _signal(child, signal.SIGTERM, lane)
     try:
         child.wait(timeout=STOP_GRACE_SECONDS)
     except subprocess.TimeoutExpired:
-        child.kill()
-        child.wait()
+        pass
+    _signal(child, signal.SIGKILL, lane)
+    child.wait()
     return TIMED_OUT
 
 
@@ -109,23 +124,23 @@ def run(command: list[str], lane: Lane) -> int:
         if child is None:
             early.append(number)
         else:
-            child.send_signal(number)
+            _signal(child, number, lane)
 
     for told in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(told, pass_on)
     try:
-        child = subprocess.Popen(command)
+        child = subprocess.Popen(command, process_group=None if lane.limit is None else 0)
     except OSError as error:
         print(f"test-slot: {command[0]}: {error.strerror}", file=sys.stderr)
         return 126 if isinstance(error, PermissionError) else 127
     else:
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN if lane.limit is None else pass_on)
         for number in early:
-            child.send_signal(number)
+            _signal(child, number, lane)
         try:
             code = child.wait(timeout=lane.limit)
         except subprocess.TimeoutExpired:
-            return _stop(child, lane.limit)
+            return _stop(child, lane)
         return code if code >= 0 else 128 - code
     finally:
         os.close(held)

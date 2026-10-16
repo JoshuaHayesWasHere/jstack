@@ -5,6 +5,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -65,7 +66,7 @@ def slots(tmp_path):
             os.close(taken.pop())
 
     start.waits, start.started, start.release = waits, started, release
-    start.hold, start.free, start.locks = hold, free, locks
+    start.hold, start.free, start.locks, start.state = hold, free, locks, state
     yield start
     free()
     for name in "abc":
@@ -278,3 +279,40 @@ def test_short_and_a_number_of_slots_together_run_nothing(slots):
     out, err = ran.communicate(timeout=5)
     assert (ran.returncode, out) == (2, "")
     assert "--short" in err
+
+
+def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path):
+    limited = (
+        "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
+        " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
+    )
+    started = 'sh -c "trap \\"\\" TERM; echo \\$\\$ > \\"$D/pid\\"; exec sleep 30" & wait'
+    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    ran = subprocess.run(
+        [sys.executable, "-c", limited, "test-slot", "--short", "--", "sh", "-c", started],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert ran.returncode == slot.TIMED_OUT
+    left = int((tmp_path / "pid").read_text())
+    deadline = time.monotonic() + 5
+    while Path(f"/proc/{left}").exists() and time.monotonic() < deadline:
+        if Path(f"/proc/{left}/stat").read_text().split()[2] == "Z":
+            break
+        time.sleep(0.02)
+    gone = not Path(f"/proc/{left}").exists() or (
+        Path(f"/proc/{left}/stat").read_text().split()[2] == "Z"
+    )
+    assert gone, f"process {left}, started by the short job, still runs after the stop"
+
+
+def test_a_short_holder_told_to_stop_stops_what_its_command_started(slots):
+    started = f"sh -c 'echo $$ > \"$D/pid\"; {RUNS_UNTIL_RELEASED}' sh a & wait"
+    holder = slots("--short", command=["sh", "-c", started])
+    assert slots.waits(lambda: slots.started() == ["a"])
+    holder.terminate()
+    holder.wait(timeout=5)
+    pid = int((slots.state / "pid").read_text())
+    assert slots.waits(lambda: not Path(f"/proc/{pid}").exists())
