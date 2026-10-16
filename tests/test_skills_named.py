@@ -94,18 +94,13 @@ UNKNOWN = "Skills: architect, poteto-mode, principle-made-up\n"
 
 
 def test_an_unknown_skill_name_is_refused_at_queue_time_and_nothing_is_queued(kitchen):
-    code, said = kitchen.main(
-        "--project", "demo", "queue", "add", "alpha", "--priority", "1",
-        stdin=brief("alpha", UNKNOWN),
-    )  # fmt: skip
+    argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
+    code, said = kitchen.main(*argv, stdin=brief("alpha", UNKNOWN))
     assert code != 0
     assert "refused: alpha's brief has 1 fault, and nothing is queued" in said
     assert "Skills: line names poteto-mode, principle-made-up, which are no skill" in said
     assert not (kitchen.state / "briefs" / "alpha.md").exists()
-    assert kitchen.main(
-        "--project", "demo", "queue", "add", "alpha", "--priority", "1",
-        stdin=brief("alpha", NAMED),
-    )[0] == 0  # fmt: skip
+    assert kitchen.main(*argv, stdin=brief("alpha", NAMED))[0] == 0
 
 
 def test_a_row_queued_before_with_an_unknown_name_is_a_gate_that_names_it(kitchen):
