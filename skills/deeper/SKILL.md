@@ -10,7 +10,7 @@ card: "Settle the shape before code | 4 | Asks for the deeper version of a task,
 
 Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with models" (2026-10-13), the Depth type of his four types of ambition. `THIRD_PARTY.md` credits it.
 
-The rule behind it is `principles/depth-over-breadth.md`: in research, perf, analysis and outcome work, go one level deeper, not wider. It is not for a mechanical fix, a rename, or a task whose "Done when" already names its data, its instruments and its outside judge: say so in one line and stop.
+The rule behind it is `principles/principle-depth-over-breadth.md`: in research, perf, analysis and outcome work, go one level deeper, not wider. It is not for a mechanical fix, a rename, or a task whose "Done when" already names its data, its instruments and its outside judge: say so in one line and stop.
 
 To have the task sharpened and then done, with no rewrite handed back, use `/sharpen` (`skills/sharpen/SKILL.md`) in place of this.
 

@@ -15,7 +15,7 @@ The source's frontmatter has `paths:` for `**/*.ts` and `**/*.tsx`, which loads 
 Run this first:
 
 ```sh
-if R=$(realpath ~/.claude/skills/typescript-best-practices/../.. 2> /dev/null) && [ -f "$R/principles/type-system-discipline.md" ]; then
+if R=$(realpath ~/.claude/skills/typescript-best-practices/../.. 2> /dev/null) && [ -f "$R/principles/principle-type-system-discipline.md" ]; then
     echo "$R"
 else
     echo "no root: ~/.claude/skills/typescript-best-practices is not a link into the repo this skill lives in"
@@ -24,7 +24,7 @@ fi
 
 It prints the root of the repo this skill lives in. Every path below that starts with `playbooks/`, `principles/` or `skills/` is from that root, and a path that starts with `references/` is beside this file. On `no root` the skill was loaded from somewhere else: the root is two directories above the real place of this file, not of a link to it.
 
-Apply `principles/type-system-discipline.md` first: read it in full.
+Apply `principles/principle-type-system-discipline.md` first: read it in full.
 
 | Rule | Summary |
 |------|---------|
@@ -39,7 +39,7 @@ Apply `principles/type-system-discipline.md` first: read it in full.
 | Type guards | Must verify the claim. A lying guard is worse than `as` because the bug hides behind a name that says it's safe. Name them `isX` or `hasX`. |
 | Exhaustiveness | Inline `const _exhaustive: never = x;` in default arms so the compiler errors when a new variant is added. |
 | `satisfies` over `as` | Validates the value without widening literal types. |
-| Boundary validation | Parse where data crosses in, into a named domain type. `Record<string, unknown>` (however spelled) stops at that parse. Trust types inside. See `principles/boundary-discipline.md`. |
+| Boundary validation | Parse where data crosses in, into a named domain type. `Record<string, unknown>` (however spelled) stops at that parse. Trust types inside. See `principles/principle-boundary-discipline.md`. |
 | Schema-derived types | Reach for `Pick`/`Omit`/`Parameters`/`ReturnType`/`Awaited`/`typeof` before declaring a new interface. |
 | Object args | Pass objects, not positional, so argument order is self-documenting. Skip on hot paths (per-frame render, tokenizers, parsers). |
 | Real tests | Don't mock what you can run. Prefer the framework's real test primitives with leak/disposable checks, and verify UI in a running build. Mock only what you can't run locally. |

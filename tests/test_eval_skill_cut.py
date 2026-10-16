@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from jbriefs import skills
+
 REPO = Path(__file__).parent.parent
 EVAL = REPO / "evals" / "skill-cut"
 
@@ -74,7 +76,8 @@ def test_a_steps_answer_near_the_key_is_unsettled_and_the_judge_settles_it():
 def test_every_case_is_whole_and_every_key_names_a_finding_of_its_case():
     for case in run.steps_cases():
         assert set(case) >= {"id", "file", "state", "expect", "must", "near"}
-        assert (REPO / case["file"]).is_file()
+        named = Path(case["file"])
+        assert (REPO / named).is_file() or skills.resolve(named.stem).kind == "principle"
         for shape in [*case["must"], case["near"]]:
             re.compile(shape)
     files = {case["file"] for case in run.steps_cases()}
@@ -192,3 +195,15 @@ def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeyp
     steps.write_text(steps.read_text().replace("Stale base: at", "Stale base:"))
     with pytest.raises(SystemExit, match="answered against cases"):
         run.main(["--run", "run-1"])
+
+
+def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
+    """A case names `principles/type-system-discipline.md`, its name before pstack's prefix,
+    and a revision after the rename gives the renamed file for it, as for its own name."""
+    path = "principles/type-system-discipline.md"
+    renamed = "HEAD:principles/principle-type-system-discipline.md"
+    now = subprocess.run(
+        ["git", "-C", str(REPO), "show", renamed], capture_output=True, text=True, check=True
+    ).stdout
+    assert run.show("HEAD", path) == now
+    assert run.show("HEAD", "principles/principle-type-system-discipline.md") == now

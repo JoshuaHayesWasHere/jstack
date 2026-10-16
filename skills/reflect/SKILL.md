@@ -144,7 +144,7 @@ Then run step 3's block with `when=after` once more, and take what it prints the
 
 ## 5. Structure before text
 
-Read the proposed edits once more yourself. Any that a check, a test, a shell block or a script would enforce better than a sentence moves to the proposed plan entries (`principles/encode-lessons-in-structure.md`, from the root of the repo this skill lives in). The order of remedies is the one in the `correct` skill: structure, then types, then a test, then a written rule.
+Read the proposed edits once more yourself. Any that a check, a test, a shell block or a script would enforce better than a sentence moves to the proposed plan entries (`principles/principle-encode-lessons-in-structure.md`, from the root of the repo this skill lives in). The order of remedies is the one in the `correct` skill: structure, then types, then a test, then a written rule.
 
 ## 6. End in proposals
 

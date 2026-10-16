@@ -222,6 +222,7 @@ STEPS = {
     "MAIN_CHANGED": "check",
     "FRESH_FAILS": "rebase",
     "REBASE_HELD": "hold",
+    "SKILLS_UNRUN": "result",
 }
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
 

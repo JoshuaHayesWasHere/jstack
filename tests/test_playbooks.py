@@ -116,8 +116,8 @@ def uncited(root):
 
 
 PRINCIPLES_OF_TESTS_AND_CODE = (
-    "principles/test-behavior-not-implementation.md",
-    "principles/sequence-verifiable-units.md",
+    "principles/principle-test-behavior-not-implementation.md",
+    "principles/principle-sequence-verifiable-units.md",
 )
 
 
@@ -338,7 +338,7 @@ DESIGN = (
     "1. For a task of size M and up, start one read-only subagent (`Explore`)."
     " A brief with no size counts as S.\n"
 )
-BUILD = "2. Build it in small units (`principles/sequence-verifiable-units.md`).\n"
+BUILD = "2. Build it in small units (`principles/principle-sequence-verifiable-units.md`).\n"
 
 
 def test_a_design_step_before_the_code_has_no_problem():
