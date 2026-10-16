@@ -300,7 +300,8 @@ def fake_gh(stub, args, cwd):
     `repo.json`, GitHub does not say), the commits, and a pull request's comments, line
     comments and reviews by the end of the path: asked for every page (`--paginate
     --slurp`), a list of pages, here two. A job is its own in `jobs.json`, by its id, and
-    one step at the first attempt where it has none there.
+    one step at the first attempt where it has none there, and its log is its own in
+    `logs.json`, by its id, or not found.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -348,6 +349,12 @@ def fake_gh(stub, args, cwd):
             return 1, "", ""
         said = (json.loads(kept.read_text()) if kept.exists() else {}).get(name, [])
         said = json.dumps([said[:1], said[1:]] if "--slurp" in args else said)
+    elif args[0] == "api" and args[1].endswith("/logs"):
+        kept = stub / "logs.json"
+        logs = json.loads(kept.read_text()) if kept.exists() else {}
+        if args[1].split("/")[-2] not in logs:
+            return 1, "", "gh: Not Found (HTTP 404)\n"
+        said = logs[args[1].split("/")[-2]]
     elif args[0] == "api" and "/actions/jobs/" in args[1]:
         kept = stub / "jobs.json"
         job = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1].split("/")[-1])
