@@ -8,14 +8,18 @@ body posted twice has one id. Each route of `ROUTES` picks what it sends of the 
 picked body, with `relay: {"id", "route"}` beside its keys, is written to the route's spool
 before the relay answers 202. A route's sender thread posts its spool in order, off the
 request path and with a timeout, so a webhook that is slow or down never holds back the next
-body. A body it posted is put in the route's `sent` file and taken out of the spool; one that
+body. A body it posted is put in the route's `sent` file, with the time, and taken out of the
+spool; one that
 failed stays, the journal gets `relay: POST to <target> (<route>) failed for event <id>: <why>`,
 and it goes again after `RELAY_RETRY_SECONDS` or when the next body comes. One the target
-refuses as a request (a 4xx but 408 and 429) would never go: it moves to `dead/<route>/`, with
-a line, so the bodies behind it go on. An id a route
-already sent or holds is not spooled again. A POST taken and not yet in `sent` when the relay
-stops goes once more after its start: the relay sends at least once, and never twice for an id
-it wrote as sent.
+refuses for what the body is (`BAD_BODY`) would never go: it moves to `dead/<route>/`, with a
+line, so the bodies behind it go on. A refused key or address (401, 403, 404) is the target's
+setting, and the body stays to go once it is mended. An id a route holds, or sent in the last
+`RELAY_DEDUP_SECONDS` (900), is not spooled again: that is jbus posting again a body whose
+answer it lost. jbus's bodies carry no time, so an id is a hash of what the body says, and the
+same alert said again later is a new event: the window is what lets it go. A POST taken and
+not yet in `sent` when the relay stops goes once more after its start: the relay sends at
+least once.
 
 Both routes go to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`):
 `everything`, every body as it came, and `blocking`, what blocks (`blocking`). A target whose
@@ -27,7 +31,7 @@ relay names each such key in the journal, never its value, and exits 2, which
 
 from __future__ import annotations
 
-import argparse
+import contextlib
 import functools
 import hashlib
 import hmac
@@ -55,6 +59,7 @@ LIMIT = 1_000_000
 PLACEHOLDER = "REPLACE_ME"
 BLOCKING = {"gate", "stall", "alert", "waiting", "waiting-on-user"}
 PASS = {"reminder", "refresh"}
+BAD_BODY = {400, 413, 415, 422}
 NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 
 
@@ -110,6 +115,7 @@ class Settings:
     state: Path
     timeout: float
     retry: float
+    dedup: float
 
 
 def _unusable(env: Mapping[str, str], key: str) -> str | None:
@@ -144,9 +150,10 @@ def settings(env: Mapping[str, str]) -> Settings:
             state=Path(env.get("RELAY_STATE", "~/.local/state/jbus-relay")).expanduser(),
             timeout=float(env.get("RELAY_TIMEOUT_SECONDS", "15")),
             retry=float(env.get("RELAY_RETRY_SECONDS", "300")),
+            dedup=float(env.get("RELAY_DEDUP_SECONDS", "900")),
         )
     except ValueError as error:
-        numbers = "RELAY_PORT, RELAY_TIMEOUT_SECONDS or RELAY_RETRY_SECONDS"
+        numbers = "RELAY_PORT or a RELAY_*_SECONDS"
         raise Refused(f"{numbers}: {error}") from None
 
 
@@ -184,8 +191,7 @@ def post(target: Target, data: bytes, timeout: float) -> None:
             if not 200 <= answer.status < 300:
                 raise Failed(f"HTTP {answer.status}")
     except urllib.error.HTTPError as error:
-        final = 400 <= error.code < 500 and error.code not in (408, 429)
-        raise Failed(f"HTTP {error.code}", final) from None
+        raise Failed(f"HTTP {error.code}", error.code in BAD_BODY) from None
     except Exception as error:
         why = str(getattr(error, "reason", error)) or type(error).__name__
         raise Failed(why.replace(target.url, "<url>").replace(target.key, "<key>")) from None
@@ -211,7 +217,8 @@ class Lane:
         self.dead = config.state / "dead" / route.name
         self.record = config.state / "sent" / route.name
         self.record.parent.mkdir(parents=True, exist_ok=True)
-        self.sent = set(self.record.read_text().split()) if self.record.exists() else set()
+        self.sent = self._recent()
+        self.record.write_text("".join(f"{id} {at}\n" for id, at in self.sent.items()))
         waiting = self._waiting()
         self.held = {self._id(path) for path in waiting}
         self.last = max((int(path.stem.split("-")[0]) for path in waiting), default=0)
@@ -222,18 +229,32 @@ class Lane:
     def _id(path: Path) -> str:
         return path.stem.split("-", 1)[-1]
 
+    def _recent(self) -> dict[str, float]:
+        """The ids sent within the dedup window, from `sent/<route>`, each with its time."""
+        lines = self.record.read_text().splitlines() if self.record.exists() else []
+        sent = {}
+        for line in lines:
+            id, _, at = line.partition(" ")
+            with contextlib.suppress(ValueError):
+                sent[id] = float(at)
+        return {id: at for id, at in sent.items() if self._fresh(at)}
+
+    def _fresh(self, at: float) -> bool:
+        return time.time() - at < self.config.dedup
+
     def _waiting(self) -> list[Path]:
         return sorted(self.spool.glob("*.json"))
 
     def _done(self, path: Path, id: str) -> None:
         """Write the id as sent, durably, before its file leaves the spool."""
         with self.lock:
-            if id not in self.sent:
+            if not self._fresh(self.sent.get(id, 0.0)):
+                at = time.time()
                 with self.record.open("a") as file:
-                    file.write(f"{id}\n")
+                    file.write(f"{id} {at}\n")
                     file.flush()
                     os.fsync(file.fileno())
-                self.sent.add(id)
+                self.sent[id] = at
             self.held.discard(id)
             path.unlink()
 
@@ -243,7 +264,7 @@ class Lane:
         if picked is None:
             return False
         with self.lock:
-            if id in self.sent or id in self.held:
+            if id in self.held or self._fresh(self.sent.get(id, 0.0)):
                 self.say(f"relay: {self.route.name} has event {id} already, not sent again")
                 return False
             data = json.dumps({**picked, "relay": {"id": id, "route": self.route.name}})
@@ -264,7 +285,7 @@ class Lane:
         """Post the spool in order. False at the first POST that failed, which stays."""
         for path in self._waiting():
             id = self._id(path)
-            if id in self.sent:
+            if self._fresh(self.sent.get(id, 0.0)):
                 self._done(path, id)
                 continue
             try:
@@ -378,15 +399,11 @@ def relay(env: Mapping[str, str] = os.environ, say: Say | None = None) -> int:
     return 0
 
 
-def _arguments(shown: argparse.ArgumentParser) -> None:
-    pass
-
-
 VERBS = (
     verbs.Verb(
         "relay",
         "send what jbus posts on 127.0.0.1 on to Sous Chef, spooled",
-        _arguments,
+        verbs.nothing,
         lambda args, config: relay(),
         config=False,
     ),

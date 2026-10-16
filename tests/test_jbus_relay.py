@@ -330,3 +330,35 @@ def test_a_target_url_that_is_not_http_fails_the_start(hooks, tmp_path):
 
     assert started.process.wait(timeout=10) == 2
     assert "GROK_WEBHOOK_URL is not an http or https URL" in started.process.stdout.read()
+
+
+def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
+    sous_chef, _ = hooks
+    alert = body(event("alert", "user"))
+    running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}, tmp_path / "state").up()
+
+    running.send(alert)
+    until(lambda: len(sous_chef.bodies("blocking")) == 1)
+    time.sleep(1.2)
+    running.send(alert)
+
+    until(lambda: len(sous_chef.bodies("blocking")) == 2)
+    assert len(sous_chef.bodies("everything")) == 2
+    running.stop()
+
+
+@pytest.mark.parametrize("answer", [401, 403, 404])
+def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_again(
+    relay, hooks, answer
+):
+    sous_chef, _ = hooks
+    sous_chef.answer = answer
+
+    code, said = relay.send(body(event("gate", "user")))
+    assert code == 202
+    time.sleep(0.5)
+    assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"]]
+
+    sous_chef.answer = 200
+    until(lambda: sous_chef.bodies("blocking"))
+    assert not (relay.state / "dead").exists()
