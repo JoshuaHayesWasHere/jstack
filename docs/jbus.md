@@ -37,7 +37,7 @@ The home is off when `~/.local/state/home/<repo>/home-thread` is missing or empt
 | `jbus project add <name> --checkout <path> --project-id <id>` | Adds one project's table to the config. [Add a project](#add-a-project) has the rest. |
 | `jbus t3 login [--wait <seconds>]` | Signs jbus in to the T3 Code server. `--wait` is how long it waits for your approval, 600 seconds with none. |
 | `jbus t3 launch-test` | Starts one thread in the project and prints its id. |
-| `jbus snapshot [--alarm]` | Commits the homes' state tree and pushes it. `--alarm` counts a snapshot that did not finish. [Back up the homes' state](#back-up-the-homes-state) has the rest. |
+| `jbus snapshot [--alarm \| --why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time, as a home does after each edit to a `standing.md`. `--alarm` counts a snapshot that did not finish. [Back up the homes' state](#back-up-the-homes-state) has the rest. |
 | `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for it to run. A step is declared beside its feature, as `STEPS` in its module, and a pass skips one whose needs it has not. |
 
 A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
@@ -198,7 +198,7 @@ The homes' state tree, `~/.local/state/home` (the config's `home_dir`), is a git
 
 1. It stages everything in the tree (`git add -A`). With nothing staged it commits nothing, and goes on to the push.
 2. gitleaks reads what is staged (`gitleaks protect --staged`). A secret in it, or no gitleaks on the machine, unstages it all, commits nothing, and fails the snapshot.
-3. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone.
+3. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone, followed by `: <text>` when `--why <text>` is given. A home runs `jbus snapshot --why` right after each edit to a `standing.md`, so each edit is a commit of its own: "Undo an edit to standing.md" in [state.md](state.md) undoes one.
 4. It pushes to `origin` when the repo has one, whether or not it committed, so a commit whose push failed goes with the next snapshot. It prints `snapshot: committed` or `snapshot: nothing changed`, then `pushed` or `no remote to push to`.
 
 A snapshot that did not finish fails the unit, whose `OnFailure=jbus-snapshot-failed.service` runs `jbus snapshot --alarm`. The first one alerts at once ([When jbus fails](#when-jbus-fails)). `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs, and `git -C ~/.local/state/home log -1` the last one. To take one now, run `systemctl --user start jbus-snapshot.service`.
