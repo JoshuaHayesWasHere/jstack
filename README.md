@@ -13,7 +13,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 
 [How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
-Eight commands do the routine work with no model: `jmerge` merges, `jbus` does a home's routine work from a timer, `jgauge` counts tokens and checks for room, `jbriefs` shows every brief on one page, `jroles` picks a model for a role, `jdrift` lists what changed upstream in the files taken from pstack, `jleak` finds what must not leave the machine, and `jpack` checks a repo's context pack.
+Eight commands do the routine work with no model: `jmerge` merges, `jbus` runs a home's routine from a timer, `jgauge` counts tokens and checks for room, `jbriefs` shows every brief on one page, `jroles` picks a model for a role, `jdrift` lists what pstack changed upstream, `jleak` finds what must not leave the machine, and `jpack` checks packs.
 
 What lasts is on disk, in a state directory outside the repo. A thread can end at any time, and the next one starts from those files.
 
@@ -120,7 +120,7 @@ Each command has one page.
 | `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
 | `jdrift` | [docs/jdrift.md](docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
-| `jpack` | [docs/jpack.md](docs/jpack.md) | Lints a context pack, verifies its citations, and lists its stale notes. |
+| `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
 
 `install.sh` puts the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
 
@@ -131,7 +131,6 @@ Each command has one page.
 | [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
 | [Hooks](docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
 | [State](docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
-| [Context packs](docs/context.md) | Find where a repo's context pack lives, who writes it, and how it is verified and pruned. |
 | [Playbooks, principles and templates](docs/playbooks.md) | Give a task numbered steps. |
 
 ## Skills
