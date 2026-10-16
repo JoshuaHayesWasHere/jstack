@@ -30,6 +30,7 @@ ROOTS = (".claude/skills", ".agents/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 UNITS = [
     "jbus-failed.service",
+    "jbus-relay.service",
     "jbus-snapshot-failed.service",
     "jbus-snapshot.service",
     "jbus-snapshot.timer",
