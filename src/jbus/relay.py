@@ -9,15 +9,15 @@ picked body, with `relay: {"id", "route"}` beside its keys, is written to the ro
 before the relay answers 202. A route's sender thread posts its spool in order, off the
 request path and with a timeout, so a webhook that is slow or down never holds back the next
 body. A body it posted is put in the route's `sent` file, with the time, and taken out of the
-spool; one that
-failed stays, the journal gets `relay: POST to <target> (<route>) failed for event <id>: <why>`,
-and it goes again after `RELAY_RETRY_SECONDS` or when the next body comes. One the target
-refuses for what the body is (`BAD_BODY`) would never go: it moves to `dead/<route>/`, with a
-line, so the bodies behind it go on. A refused key or address (401, 403, 404) is the target's
-setting, and the body stays to go once it is mended. An id a route holds, or sent in the last
-`RELAY_DEDUP_SECONDS` (900), is not spooled again: that is jbus posting again a body whose
-answer it lost. jbus's bodies carry no time, so an id is a hash of what the body says, and the
-same alert said again later is a new event: the window is what lets it go. A POST taken and
+spool; one that failed stays, the journal gets `relay: POST to <target> (<route>) failed for
+event <id>: <why>`, and it goes again after `RELAY_RETRY_SECONDS` or when the next body comes.
+A 4xx would never go, so the body moves to `dead/<route>/`, with a line, and the bodies behind
+it go on; but for `AGAIN`, a key or an address the target refuses (401, 403, 404, 407), which
+is its setting, and 408 and 429, which pass: those stay to go again. An own id a route sent is
+never spooled again. A hashed id is not spooled again while the route holds it or sent it in
+the last `RELAY_DEDUP_SECONDS` (900): that is jbus posting again a body whose answer it lost.
+jbus's bodies carry no time, so a hashed id says only what the body says, and the same alert
+said again later is a new event: the window is what lets it go. A POST taken and
 not yet in `sent` when the relay stops goes once more after its start: the relay sends at
 least once.
 
@@ -37,6 +37,7 @@ import hashlib
 import hmac
 import http.server
 import json
+import math
 import os
 import re
 import threading
@@ -59,7 +60,7 @@ LIMIT = 1_000_000
 PLACEHOLDER = "REPLACE_ME"
 BLOCKING = {"gate", "stall", "alert", "waiting", "waiting-on-user"}
 PASS = {"reminder", "refresh"}
-BAD_BODY = {400, 413, 415, 422}
+AGAIN = {401, 403, 404, 407, 408, 429}
 NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 
 
@@ -191,7 +192,8 @@ def post(target: Target, data: bytes, timeout: float) -> None:
             if not 200 <= answer.status < 300:
                 raise Failed(f"HTTP {answer.status}")
     except urllib.error.HTTPError as error:
-        raise Failed(f"HTTP {error.code}", error.code in BAD_BODY) from None
+        final = 400 <= error.code < 500 and error.code not in AGAIN
+        raise Failed(f"HTTP {error.code}", final) from None
     except Exception as error:
         why = str(getattr(error, "reason", error)) or type(error).__name__
         raise Failed(why.replace(target.url, "<url>").replace(target.key, "<key>")) from None
@@ -218,7 +220,13 @@ class Lane:
         self.record = config.state / "sent" / route.name
         self.record.parent.mkdir(parents=True, exist_ok=True)
         self.sent = self._recent()
-        self.record.write_text("".join(f"{id} {at}\n" for id, at in self.sent.items()))
+        part = self.record.with_suffix(".part")
+        with part.open("w") as file:
+            file.write("".join(f"{id} {at}\n" for id, at in self.sent.items()))
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(part, self.record)
+        _sync(self.record.parent)
         waiting = self._waiting()
         self.held = {self._id(path) for path in waiting}
         self.last = max((int(path.stem.split("-")[0]) for path in waiting), default=0)
@@ -245,11 +253,11 @@ class Lane:
     def _waiting(self) -> list[Path]:
         return sorted(self.spool.glob("*.json"))
 
-    def _done(self, path: Path, id: str) -> None:
+    def _done(self, path: Path, id: str, own: bool = False) -> None:
         """Write the id as sent, durably, before its file leaves the spool."""
         with self.lock:
             if not self._fresh(self.sent.get(id, 0.0)):
-                at = time.time()
+                at = math.inf if own else time.time()
                 with self.record.open("a") as file:
                     file.write(f"{id} {at}\n")
                     file.flush()
@@ -289,7 +297,8 @@ class Lane:
                 self._done(path, id)
                 continue
             try:
-                post(self.target, path.read_bytes(), self.config.timeout)
+                data = path.read_bytes()
+                post(self.target, data, self.config.timeout)
             except Failed as error:
                 said = f"relay: POST to {self.target.name} ({self.route.name}) failed"
                 said = f"{said} for event {id}"
@@ -302,7 +311,7 @@ class Lane:
                     self.held.discard(id)
                 self.say(f"{said}: {error}, refused for good, kept in {self.dead / path.name}")
                 continue
-            self._done(path, id)
+            self._done(path, id, own=json.loads(data).get("id") == id)
             self.say(f"relay: sent event {id} to {self.target.name} ({self.route.name})")
         return True
 

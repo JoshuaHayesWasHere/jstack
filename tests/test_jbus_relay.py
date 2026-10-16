@@ -362,3 +362,35 @@ def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_aga
     sous_chef.answer = 200
     until(lambda: sous_chef.bodies("blocking"))
     assert not (relay.state / "dead").exists()
+
+
+def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_path):
+    sous_chef, _ = hooks
+    env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}
+    first = Relay(env, tmp_path / "state").up()
+    first.send({**body(event("merged", "quiet")), "id": "evt-1"})
+    until(lambda: sous_chef.bodies("everything"))
+    first.stop()
+    time.sleep(1.2)
+
+    again = Relay(env, tmp_path / "state").up()
+    again.send({**body(event("merged", "quiet")), "id": "evt-1"})
+    time.sleep(0.5)
+    said = again.stop()
+
+    assert len(sous_chef.bodies("everything")) == 1
+    assert "evt-1 already, not sent again" in said
+
+
+def test_a_4xx_not_about_the_target_is_kept_aside_and_the_next_goes(relay, hooks):
+    sous_chef, _ = hooks
+    sous_chef.answer = 409
+    relay.send({**body(event("gate", "user")), "id": "conflict-1"})
+    dead = relay.state / "dead" / "blocking"
+    until(lambda: dead.is_dir() and list(dead.glob("*-conflict-1.json")))
+
+    sous_chef.answer = 200
+    code, later = relay.send(body(event("stall", "user", "beta")))
+
+    until(lambda: sous_chef.bodies("blocking"))
+    assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [later["id"]]
