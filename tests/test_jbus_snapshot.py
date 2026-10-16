@@ -8,12 +8,14 @@ units are read as systemd reads them, and by `systemd-analyze verify` where the 
 """
 
 import configparser
+import fcntl
 import os
 import random
 import shlex
 import shutil
 import string
 import subprocess
+import threading
 from pathlib import Path
 
 import pytest
@@ -303,3 +305,46 @@ def test_the_documented_undo_brings_back_the_text_before_a_bad_edit(kitchen, tre
     assert kitchen.main(*words[1:]) == (0, "snapshot: committed, pushed\n")
     assert git(tree, "log", "-1", "--format=%s").endswith(f": demo standing.md, {bad} undone")
     assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/standing.md"
+
+
+def test_the_documented_undo_of_a_commit_that_is_not_there_writes_nothing(kitchen, tree, tmp_path):
+    with_origin(tree, tmp_path)
+    standing = tree / "demo" / "standing.md"
+    standing.write_text("1. the first rule\n")
+    assert kitchen.main("snapshot", "--why", "demo standing rule 1 added")[0] == 0
+    _, restore, _ = undo_section()
+    for commit in ("0123abc", git(tree, "rev-list", "--max-parents=0", "HEAD")):
+        line = restore.replace("~/.local/state/home", shlex.quote(str(tree)))
+        line = line.replace("<repo>", "demo").replace("<commit>", commit)
+        assert subprocess.run(line, shell=True, capture_output=True).returncode != 0
+        assert standing.read_text() == "1. the first rule\n"
+
+
+def test_the_documented_undo_of_the_edit_that_made_the_file_removes_it(kitchen, tree, tmp_path):
+    with_origin(tree, tmp_path)
+    standing = tree / "demo" / "standing.md"
+    standing.write_text("1. the first rule\n")
+    assert kitchen.main("snapshot", "--why", "demo standing rule 1 added")[0] == 0
+    made = git(tree, "rev-parse", "HEAD")
+    _, restore, _ = undo_section()
+    line = restore.replace("~/.local/state/home", shlex.quote(str(tree)))
+    line = line.replace("<repo>", "demo").replace("<commit>", made)
+    subprocess.run(line, shell=True, check=True)
+    assert not standing.exists()
+    assert kitchen.main("snapshot", "--why", "undone") == (0, "snapshot: committed, pushed\n")
+    assert git(tree, "show", "--name-status", "--format=", "HEAD") == "D\tdemo/standing.md"
+
+
+def test_a_snapshot_waits_for_one_that_is_running(tree):
+    """Each home snapshots after an edit, beside the timer: a second run waits, never collides."""
+    (tree / "demo" / "standing.md").write_text("1. a rule\n")
+    lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
+    said = []
+    with lock.open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        second = threading.Thread(target=lambda: said.append(take()))
+        second.start()
+        second.join(1)
+        assert second.is_alive() and said == []
+    second.join(10)
+    assert said == [(0, ["snapshot: committed, no remote to push to"])]

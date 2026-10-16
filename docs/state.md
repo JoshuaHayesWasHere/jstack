@@ -36,8 +36,8 @@ A home runs `jbus snapshot --why "<what changed>"` right after each edit to a `s
 
 ```sh
 git -C ~/.local/state/home log -p -- <repo>/standing.md
-git -C ~/.local/state/home show <commit>^:<repo>/standing.md > ~/.local/state/home/<repo>/standing.md
+git -C ~/.local/state/home restore --source=<commit>^ -- <repo>/standing.md
 jbus snapshot --why "<repo> standing.md, <commit> undone"
 ```
 
-The first line lists every edit with its diff, the newest first, and `<commit>` is the one to undo. The second writes the file as it stood in the commit before it, which undoes that edit and every later one. The undo is itself a commit, so it can be undone the same way.
+The first line lists every edit with its diff, the newest first, and `<commit>` is the one to undo. The second writes the file as it stood in the commit before it, which undoes that edit and every later one. Undoing the commit that made the file removes it. A commit that is not there, or the tree's first commit, makes it fail, and it writes nothing. The undo is itself a commit, so it can be undone the same way.
