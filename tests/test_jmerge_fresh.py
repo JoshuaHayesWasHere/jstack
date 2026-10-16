@@ -898,10 +898,16 @@ def test_the_check_is_a_transient_user_unit_with_the_runs_environment(kitchen, m
 
 
 def test_where_systemd_cannot_start_a_unit_the_check_is_a_process_of_its_own(
-    kitchen, no_user_units
+    kitchen, no_user_units, monkeypatch
 ):
+    """Outside a unit, that is. Inside one, such as a pass, a process would end with it."""
     (no_user_units / "systemd-run").write_text("#!/bin/sh\necho no user manager >&2\nexit 1\n")
     checked = Checked(kitchen, f"sleep 1; {BOTH}")
+    monkeypatch.setenv("INVOCATION_ID", "the pass's own")
+    could_not = f"wait 7 {url(7)}: a fresh check could not be run (no user manager)"
+    assert kitchen.run() == [could_not]
+    assert kitchen.run() == [could_not] and checked.ran() == []
+    monkeypatch.delenv("INVOCATION_ID")
     (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
     assert len(checked.ran()) == 1

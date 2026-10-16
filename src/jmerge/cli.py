@@ -257,7 +257,8 @@ class Fresh:
     def start(self, number: int, head: str, tip: str, tree: str) -> str:
         """Start the check of the merge's tree on its own, and return. Nothing, or why it
         could not be started. Under systemd it is a transient unit, since a pass's unit
-        kills what is left in it when it ends."""
+        kills what is left in it when it ends: inside a unit, one that could not be started
+        is said, and outside one the check is a process of its own."""
         arguments = [str(self.main), str(self.state), str(number), head, tip, tree]
         arguments += [self.command, f"{self.timeout:g}"]
         check = [sys.executable, "-c", self.CHECK, *arguments]
@@ -265,8 +266,12 @@ class Fresh:
         names = sorted(set(os.environ) - self.UNIT_OWN)
         launch = ["systemd-run", "--user", "--quiet", "--collect", f"--unit={unit}"]
         launch += [f"--setenv={name}" for name in names] + ["--", *check]
-        if shutil.which("systemd-run") and not _run(self.main, *launch).returncode:
-            return ""
+        if shutil.which("systemd-run"):
+            started = _run(self.main, *launch)
+            if not started.returncode:
+                return ""
+            if "INVOCATION_ID" in os.environ:
+                return self._not_run(started)
         try:
             subprocess.Popen(
                 check,
