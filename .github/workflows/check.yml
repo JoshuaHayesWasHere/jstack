@@ -51,6 +51,13 @@ jobs:
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+      # The browser is declared, not assumed: a runner without it fails here, naming the path,
+      # and not later in a browser test that waits out its bound.
+      - name: test browser
+        if: steps.tree.outputs.marker != 'green'
+        env:
+          JSTACK_TEST_BROWSER: /usr/bin/google-chrome
+        run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
