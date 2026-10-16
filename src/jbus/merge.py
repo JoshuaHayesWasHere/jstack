@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 from jbus import alert
 from jbus.t3 import Client, T3Error
-from jbus.wake import Pass
+from jbus.wake import JMERGE_TIMEOUT, Pass
 from jmerge import ready
 
 EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
@@ -162,7 +162,7 @@ def merge(run: Pass) -> Said:
     if home:
         run.say(f"skipped {run.project.name}: the home {home} merges")
         return Said()
-    ran = run.run("jmerge")
+    ran = run.run("jmerge", timeout=JMERGE_TIMEOUT)
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)

@@ -137,7 +137,9 @@ def test_jbus_sends_a_hold_line_and_the_other_lines_as_they_were(tmp_path):
         user=ET,
         project=SimpleNamespace(name="demo"),
         say=sent.append,
-        run=lambda *command: SimpleNamespace(stdout=f"{done}\n{wait}\n{hold}\n", returncode=0),
+        run=lambda *command, timeout=None: SimpleNamespace(
+            stdout=f"{done}\n{wait}\n{hold}\n", returncode=0
+        ),
         find=lambda slug, kind, line, text="", *, key="": sent.append((slug, kind, line, key)),
     )
     assert jbus_merge.merge(run) == [done, wait, hold]
