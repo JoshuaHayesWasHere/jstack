@@ -307,9 +307,11 @@ class Lane:
             path.unlink()
 
     def has(self, id: str) -> bool:
-        """Whether the route holds the id or sent it, so taking it again would spool nothing."""
+        """Whether the route holds the id, sent it, or had it refused for good."""
         with self.lock:
-            return id in self.held or self._fresh(self.sent.get(id, 0.0))
+            if id in self.held or self._fresh(self.sent.get(id, 0.0)):
+                return True
+        return any(self.dead.glob(f"*-{id}.json"))
 
     def _silent(self, paths: list[Path]) -> None:
         """Tell `unheard` of each body that a failed POST leaves unsent."""
@@ -517,7 +519,7 @@ class Pager:
         if self.lane.has(id) or not self.lane.take(id, {"id": id, "page": line}):
             return
         self.say(f"relay: paged {id}")
-        notify(line, self.say)
+        threading.Thread(target=notify, args=(line, self.say), daemon=True).start()
 
     def unheard(self, id: str, body: Body) -> None:
         """(a): Sous Chef did not take a body that blocks."""

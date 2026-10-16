@@ -618,3 +618,18 @@ def test_a_down_pager_keeps_the_page_to_send_again(relay, hooks):
 
     until(lambda: pager.posts)
     assert len(pager.posts) == 1 and len(relay.notified()) == 1
+
+
+def test_a_page_home_assistant_refuses_for_good_is_not_paged_again(relay, hooks):
+    _, _, pager = hooks
+    pager.answer = 400
+
+    relay.send(second("refresh", 50, item()))
+    dead = relay.state / "dead" / "page"
+    until(lambda: dead.is_dir() and list(dead.glob("*.json")))
+    relay.send(second("refresh", 110, item()))
+    relay.send(second("reminder", 111, item()))
+    time.sleep(0.5)
+
+    assert len(list(dead.glob("*.json"))) == 1
+    assert len(relay.notified()) == 1
