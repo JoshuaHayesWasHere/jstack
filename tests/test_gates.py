@@ -36,7 +36,11 @@ AT = "2026-10-12 11:30 ET"
 POLLED = "<what the poll printed>"
 READS = "OPEN="
 ASKED = "tea or coffee?"
-REST = "default: tea\nbuilt on it: the cups in pull request 7\nundo: pour it out: one revert"
+ACTED = " Its default is acted on already, and stands unless you stop it."
+REST = (
+    "default: tea\nbuilt on it: the cups in pull request 7\nundo: pour it out: one revert\n"
+    "acted on already: the default stands unless the user stops it"
+)
 
 
 def a_gate(question=ASKED, slug="alpha", **changed):
@@ -49,7 +53,7 @@ def a_gate(question=ASKED, slug="alpha", **changed):
         **changed,
     }
     lines = []
-    for line in TEMPLATE.read_text().splitlines():
+    for line in TEMPLATE.read_text().split("\n\n")[0].splitlines():
         label = line.split(":")[0]
         if line.startswith("## "):
             line = f"{label}: {question}"
@@ -338,7 +342,7 @@ def test_a_question_is_shown_to_the_home_of_the_brief_that_asked(home):
         code, _ = home.kitchen.main("gate", slug, stdin=whole(f"from {slug}?", slug))
         assert code == 0
     home.kitchen.poll()
-    lines = home.shown().splitlines()[::4]
+    lines = home.shown().splitlines()[::5]
     assert lines == [
         "question 1, from alpha: from alpha?",
         "question 3, from gamma: from gamma?",
@@ -533,12 +537,15 @@ def test_a_gate_an_older_home_left_in_a_file_is_moved_to_jbus_and_listed_once(ho
         ("alpha", "an old one?"),
         (own, "the home's own?"),
     ]
-    assert home.shown(thread).splitlines()[::4][-1] == f"question 5, from {own}: the home's own?"
+    assert home.shown(thread).splitlines()[::5][-1] == f"question 5, from {own}: the home's own?"
     home.kitchen.poll()
-    assert gates_listed(home) == ["question 4: an old one?", "question 5: the home's own?"]
+    assert gates_listed(home) == [
+        f"question 4: an old one?{ACTED}",
+        f"question 5: the home's own?{ACTED}",
+    ]
     assert home.closes(5, "keep it", "default", thread=thread).startswith("answered: question 5: ")
     home.kitchen.poll()
-    assert gates_listed(home) == ["question 4: an old one?"]
+    assert gates_listed(home) == [f"question 4: an old one?{ACTED}"]
     assert home.moves(thread) == "nothing to move: this home has no gates.md"
 
 
@@ -595,7 +602,7 @@ def test_a_question_closed_since_the_last_pass_is_not_shown_as_open(home):
         assert home.kitchen.main("gate", "alpha", stdin=whole(question))[0] == 0
     home.kitchen.poll()
     home.closes(2, "yes", "default")
-    assert home.shown().splitlines()[::4] == [
+    assert home.shown().splitlines()[::5] == [
         "question 1, from alpha: one?",
         "question 3, from alpha: three?",
     ]
