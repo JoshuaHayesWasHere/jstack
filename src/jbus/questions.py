@@ -101,7 +101,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Config, Refused, dispatch, mirror, queue, verbs, write_json
+from jbus import END_TURN, Config, Refused, dispatch, mirror, queue, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused, typed
 from jbus.wake import Pass
 
@@ -116,20 +116,20 @@ GO = (
     "jbus: {user} answered question {number} ({question}) with the default ({default}), which "
     'held for the answer ({holds}). The words, {at}: "{words}". Fail-safe: {fail_safe}. Go '
     "ahead with the default now, and add one line to the last Result or Report saying what "
-    "you did. Then end your turn."
+    "you did. " + END_TURN
 )
 HELD = (
     "jbus: {user} answered question {number} ({question}), which held for the answer "
     '({holds}), and the answer is not the default ({default}). The words, {at}: "{words}". Do '
     "not take the default: do what the answer says, and add one line to the last Result or "
-    "Report saying what you did. Then end your turn."
+    "Report saying what you did. " + END_TURN
 )
 LINK = "has a conflict, and it is a link of a stack"
 MESSAGE = (
     "jbus: {user} answered question {number} ({question}), and the answer is not the default "
     'you took ({default}). The words, {at}: "{words}". Undo: {undo}. Built on the default: '
     "{built_on}. Take the default back, do what the answer says, and add one line to the last "
-    "Result or Report saying what you changed. Then end your turn."
+    "Result or Report saying what you changed. " + END_TURN
 )
 _THREAD = re.compile(r"\bthread (\S+)")
 _GROUP = re.compile(r"\([^()]*\)$")
@@ -155,8 +155,11 @@ PROPOSE = (
     "jbus: question {number} is open and shows the user no options. Pipe its gate again to "
     "`jbus gate {slug}`: the lines below as they are, which are the ones jbus holds, so that "
     "it stays question {number}, and two things more under them. One line `Context: <what "
-    "the user needs to know to answer, with the links to it>`. And " + FORM + ". Then end "
-    "your turn.\n\n"
+    "the user needs to know to answer, with the links to it>`. And "
+    + FORM
+    + ". "
+    + END_TURN
+    + "\n\n"
     "## Gate <n>: {question}\nStatus: open\nAsked by: {slug}, thread {thread}\n"
     "Default: {default}\nBuilt on it: {built_on}\nUndo: {undo}"
 )

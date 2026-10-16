@@ -29,6 +29,10 @@ second target: the webhook of what blocks (`waiting.blocking`), which jbus-relay
 It is posted no event, only each item that blocks as it opens, each reminder and each
 refresh (`wake.Box.blocking`). Half of that pair is refused as half of the other is, and
 both are secret.
+
+`END_TURN` is how every message to a crew or a scout ends. A turn ended while its own check
+runs is never woken when the check ends, so the push, the Result and the pull request it was
+to make never come: the message says to wait for that check in the turn, whenever it started.
 """
 
 from __future__ import annotations
@@ -52,6 +56,10 @@ Hook = tuple[str, str]
 REDACTED = "[redacted]"
 URL_PART = 8
 CREDENTIALS = ("access_token", "refresh_token", "id_token")
+END_TURN = (
+    "End your turn only once no check you started runs in your worktree: wait for one that "
+    "runs, in this turn."
+)
 
 
 class Refused(Exception):
