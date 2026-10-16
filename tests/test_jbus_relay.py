@@ -536,12 +536,13 @@ def test_an_item_open_at_45_minutes_pages_once_and_not_twice(relay, hooks):
 
 
 def test_the_page_is_sent_once_also_after_a_restart(hooks, tmp_path):
+    """A page is spooled before the relay answers 202, and leaves the spool once it is sent:
+    a relay stopped with it still spooled sends it again when it starts."""
     _, _, pager = hooks
     pager.hold = 0.5
     first = Relay(env_for(hooks), tmp_path / "state").up()
     first.send(second("reminder", 15, item()))
     first.send(second("refresh", 50, item()))
-    # A page is spooled before the relay answers 202, and leaves the spool once it is sent.
     until(lambda: pager.posts and first.spooled("page") == [])
     first.stop()
 

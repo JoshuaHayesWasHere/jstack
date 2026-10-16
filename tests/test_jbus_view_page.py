@@ -372,8 +372,10 @@ def browser_lock():
     return Path(os.environ["HOME"]) / ".local" / "state" / "locks" / "browser.lock"
 
 
-def own_locks(tmp_path, monkeypatch):
-    """A home of the test's own, with a locks directory, so its lock is nobody else's."""
+@pytest.fixture
+def own_home(tmp_path, monkeypatch):
+    """A home of the test's own, with a locks directory, so its lock is nobody else's and it
+    waits on no lock of the machine's."""
     locks = tmp_path / "home" / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -527,8 +529,12 @@ def unreached(seen, names):
 
 
 @pytest.fixture(autouse=True)
-def one_browser_at_a_time():
-    """The browser lock, held for the whole test: one wait for it, whatever it browses."""
+def one_browser_at_a_time(request):
+    """The browser lock, held for the whole test: one wait for it, whatever it browses. A test
+    with a home of its own starts no real browser and takes its own lock."""
+    if "own_home" in request.fixturenames:
+        yield
+        return
     with heavy():
         yield
 
@@ -561,18 +567,17 @@ def test_a_long_temporary_directory_does_not_fail_the_browser(scene, tmp_path, m
     assert look(scene, tmp_path)["errors"] == []
 
 
-def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(tmp_path, monkeypatch):
+def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(own_home, monkeypatch):
     """The user's rule runs a suite of several workers under `flock` on the heavy-suite lock.
     The two locks are files of their own names in one directory, here a made-up one."""
-    locks = own_locks(tmp_path, monkeypatch)
     monkeypatch.setattr("test_jbus_view_page.PATIENCE", 1)
-    with open(locks / "heavy-suite.lock", "a") as outer:
+    with open(own_home / "heavy-suite.lock", "a") as outer:
         fcntl.flock(outer, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with heavy():
             pass
 
 
-def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
+def test_two_runs_at_once_never_have_a_browser_each(own_home, monkeypatch):
     """Each thread opens the lock's file anew, as each run of this file does."""
     inside, most, start = [], [], threading.Barrier(2)
 
@@ -599,7 +604,6 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
         with heavy():
             browse()
 
-    own_locks(tmp_path, monkeypatch)
     monkeypatch.setattr(subprocess, "Popen", Browser)
     monkeypatch.setattr(os, "killpg", lambda group, sent: None)
     runs = [threading.Thread(target=run) for _ in range(2)]
@@ -611,7 +615,7 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
 
 
 def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
-    tmp_path, monkeypatch
+    own_home, tmp_path, monkeypatch
 ):
     """A browser that hangs, and a process it started that would outlive it, are both gone
     once the launch's bound is up: a hang costs the test that bound and no more, and leaves
@@ -626,7 +630,7 @@ def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
     assert not Path(f"/proc/{child.read_text().strip()}").exists()
 
 
-def test_a_browser_that_ignores_term_is_killed_and_named_too(tmp_path, monkeypatch):
+def test_a_browser_that_ignores_term_is_killed_and_named_too(own_home, tmp_path, monkeypatch):
     """`timeout` then kills its whole group, itself with it, and the run ends on a signal."""
     child = hanging(tmp_path, monkeypatch, "trap '' TERM\n")
     monkeypatch.setattr("test_jbus_view_page.LAUNCH", 2)
@@ -638,7 +642,9 @@ def test_a_browser_that_ignores_term_is_killed_and_named_too(tmp_path, monkeypat
     assert not Path(f"/proc/{child.read_text().strip()}").exists()
 
 
-def test_a_browser_stopped_from_outside_leaves_no_process_it_started(tmp_path, monkeypatch):
+def test_a_browser_stopped_from_outside_leaves_no_process_it_started(
+    own_home, tmp_path, monkeypatch
+):
     """pytest-timeout stops a test with a signal: the browser and what it started go too."""
     child = hanging(tmp_path, monkeypatch)
 
@@ -667,7 +673,6 @@ def hanging(tmp_path, monkeypatch, first=""):
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")
     hangs.chmod(0o755)
     monkeypatch.setattr("test_jbus_view_page.CHROMIUM", str(hangs))
-    own_locks(tmp_path, monkeypatch)
     return child
 
 
