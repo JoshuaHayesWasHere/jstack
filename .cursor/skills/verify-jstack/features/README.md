@@ -32,7 +32,14 @@ This directory is the maintained source for verifying what a user of jstack can 
 
 ## Feature entry contract
 
-Each feature file starts with an H1 title and one paragraph on what the user sees. It then has exactly four H2 sections, in this order.
+Each feature file starts with an H1 title and one paragraph on what the user sees. Under that paragraph come two lines, before the first H2 section:
+
+- `Paths:` the repo paths the feature owns, each in backticks, in the pattern syntax of `src/jmerge/ci-paths.txt` (`src/jgauge/` a directory, `hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part). A feature owns its own code and the code that code imports, so a change to either runs its tests. A path may be owned by more than one feature.
+- `Tests:` the test files that test it, each in backticks, `tests/test_<name>.py`.
+
+`scripts/select_tests.py <base> <head>` reads the two lines of every file, and the `Cross-cutting:` line below, to name the tests a diff needs. `tests/test_select_tests.py` fails when a test file is in no `Tests:` line and not cross-cutting, when a path under `src/`, `skills/`, `playbooks/`, `principles/`, `templates/`, `hooks/`, `docs/`, `scripts/`, `evals/` or `.cursor/`, or `install.sh`, is owned by no feature, and when a `Tests:` line names a file that is not there. A feature that no recipe drives yet has the two lines and its H1 paragraph, and each of its four sections says `Not driven yet.`, with `Needs: \`home\`` under the third, which every sandbox has, so that Doctor passes it.
+
+Then the file has exactly four H2 sections, in this order.
 
 1. `Sub-features` lists short IDs with one line for each behavior.
 2. `How to get to it (user POV)` lists every entry point a user has.
@@ -50,4 +57,35 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [A red main files the brief for its fix](./main-red.md) covers the `retro` line for a failed check on main, the `main-red-<sha12>` brief and its unapproved row, filed once a commit.
 - [Installing jstack](./install-skills.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
 
-No feature file covers these: `jgauge session`, `jgauge run` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.
+These have their `Paths:` and `Tests:` lines and no recipe yet:
+
+- [The check CI runs](./ci-check.md), not driven yet.
+- [A crewmate does one task](./crew-skill.md), not driven yet.
+- [The pages under docs](./docs-pages.md), not driven yet.
+- [The evals](./evals.md), not driven yet.
+- [An expert answers asks](./expert-skill.md), not driven yet.
+- [Grilling the user](./grilling-skill.md), not driven yet.
+- [A home and its handoff](./home-skills.md), not driven yet.
+- [jbriefs reads a brief](./jbriefs.md), not driven yet.
+- [A jbus pass](./jbus-pass.md), not driven yet.
+- [jbus view](./jbus-view.md), not driven yet.
+- [jdrift lists what changed upstream](./jdrift.md), not driven yet.
+- [jgauge meters a session](./jgauge-meter.md), not driven yet.
+- [jleak stops a leak](./jleak.md), not driven yet.
+- [jroles names a model](./jroles.md), not driven yet.
+- [Lessons from a thread](./lessons-skills.md), not driven yet.
+- [Playbooks and principles](./playbooks-and-principles.md), not driven yet.
+- [A pull request is reviewed](./pr-review-skill.md), not driven yet.
+- [A scout answers one question](./scout-skill.md), not driven yet.
+- [The skill library](./skill-library.md), not driven yet.
+- [The skills a user types](./understanding-skills.md), not driven yet.
+- [The verify-jstack harness](./verify-jstack-harness.md), not driven yet.
+- [Writing for a reader](./writing-skills.md), not driven yet.
+
+No recipe drives these yet: `jgauge session`, `jgauge run` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.
+
+## Cross-cutting tests
+
+A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
+
+Cross-cutting: `tests/test_check_command.py`, `tests/test_docs_true.py`, `tests/test_home_merge_guard.py`, `tests/test_jstack_explained.py`, `tests/test_no_comments.py`, `tests/test_no_mistakes_gone.py`, `tests/test_playbook_wiring.py`, `tests/test_readme_current.py`, `tests/test_run_not_read.py`, `tests/test_select_tests.py`, `tests/test_tool_calls.py`, `tests/test_workflows.py`
