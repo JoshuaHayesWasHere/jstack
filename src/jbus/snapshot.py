@@ -20,15 +20,18 @@ import argparse
 import fcntl
 import shutil
 import subprocess
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import IO
 
 import jbus
 import jsettings
 from jbus import alert, verbs
 
 AFTER = 1
+WAIT = 60.0
 ALARM = (
     "the last snapshot of the homes' state tree did not finish "
     "(see journalctl --user -u jbus-snapshot)"
@@ -53,13 +56,28 @@ def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = 
     """Snapshot the tree, and say what was done in one line. `Failed` when it could not.
 
     A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push, so the
-    homes' runs and the timer's wait for each other and never share an index."""
+    homes' runs and the timer's wait for each other and never share an index. A run that waits
+    `WAIT` seconds fails, so a push that hangs holds up no edit's snapshot unseen."""
     found = _git(tree, "rev-parse", "--absolute-git-dir")
     if found.returncode:
         raise Failed(f"{tree} is not a git repo")
     with (Path(found.stdout.strip()) / "jbus-snapshot.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        _hold(lock)
         return _take(tree, now, user, why)
+
+
+def _hold(lock: IO[str]) -> None:
+    deadline = time.monotonic() + WAIT
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                raise Failed(
+                    f"another snapshot has run for {WAIT:g} s and holds the lock, nothing committed"
+                ) from None
+            time.sleep(0.1)
 
 
 def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) -> str:

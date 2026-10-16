@@ -338,6 +338,7 @@ def test_the_documented_undo_of_the_edit_that_made_the_file_removes_it(kitchen, 
 def test_a_snapshot_waits_for_one_that_is_running(tree):
     """Each home snapshots after an edit, beside the timer: a second run waits, never collides."""
     (tree / "demo" / "standing.md").write_text("1. a rule\n")
+    before = git(tree, "rev-parse", "HEAD")
     lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
     said = []
     with lock.open("a") as held:
@@ -346,5 +347,23 @@ def test_a_snapshot_waits_for_one_that_is_running(tree):
         second.start()
         second.join(1)
         assert second.is_alive() and said == []
+        assert git(tree, "rev-parse", "HEAD") == before
+        assert git(tree, "diff", "--cached", "--name-only") == ""
     second.join(10)
     assert said == [(0, ["snapshot: committed, no remote to push to"])]
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/standing.md"
+
+
+def test_a_snapshot_that_waits_too_long_for_another_fails_and_commits_nothing(tree, monkeypatch):
+    monkeypatch.setattr(snapshot, "WAIT", 0.3)
+    (tree / "demo" / "standing.md").write_text("1. a rule\n")
+    before = git(tree, "rev-parse", "HEAD")
+    lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
+    with lock.open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        assert take() == (
+            1,
+            ["snapshot: another snapshot has run for 0.3 s and holds the lock, nothing committed"],
+        )
+    assert git(tree, "rev-parse", "HEAD") == before
+    assert git(tree, "diff", "--cached", "--name-only") == ""
