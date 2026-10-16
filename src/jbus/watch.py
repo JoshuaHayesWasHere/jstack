@@ -764,12 +764,18 @@ def _failed_tests(run: Pass, job: object) -> list[str]:
     return list(dict.fromkeys(_FAILED_TEST.findall(log.stdout))) if log.returncode == 0 else []
 
 
-def red_brief(slug: str, sha: str, jobs: list[tuple[str, str, list[str]]], red: list[dict]) -> str:
+def red_brief(
+    slug: str,
+    sha: str,
+    jobs: list[tuple[str, str, list[str]]],
+    red: list[dict],
+    changed: list[str],
+) -> str:
     """The brief for the fix of a red main at `sha`, in `templates/brief.md`'s shape. `jobs`
-    is each failed check run's name, URL and failed tests, and `red` the commits from `sha`
-    down to the last green one, that one left out."""
+    is each failed check run's name, URL and failed tests, `red` the commits from `sha`
+    down to the last green one, that one left out, and `changed` the files they changed."""
     tests = [test for _, _, failed in jobs for test in failed]
-    files = list(dict.fromkeys(test.split("::")[0] for test in tests))
+    files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
         ", ".join(f"`{file}`" for file in files) or "what the merges since the last green changed"
     )
@@ -807,16 +813,31 @@ def red_brief(slug: str, sha: str, jobs: list[tuple[str, str, list[str]]], red: 
     )
 
 
+def _changed(run: Pass, red: list[dict]) -> list[str]:
+    """The files the commits changed, as GitHub lists them for each."""
+    files = []
+    for commit in red:
+        said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{commit['sha']}")
+        listed = said.get("files") if isinstance(said, dict) else None
+        files += [one.get("filename", "") for one in listed or []]
+    return [file for file in dict.fromkeys(files) if file]
+
+
 def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
-    go: the user approves it as any other row. A queue that refuses it is a condition."""
+    go: the user approves it as any other row. It is filed while the queue has no row of it,
+    so a pass that stopped before the row was added files it again. A queue that refuses it
+    is a condition."""
+    name = f"main-red-{sha[:12]}"
+    if name in run.removed or queue.fresh(run.state, name) is not None:
+        return
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     jobs = [
         (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
-        for r in (said or {}).get("check_runs") or []
+        for r in (said if isinstance(said, dict) else {}).get("check_runs") or []
         if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
     ]
-    name, text = f"main-red-{sha[:12]}", red_brief(slug, sha, jobs, red)
+    text = red_brief(slug, sha, jobs, red, _changed(run, red))
     (run.home / "tasks").mkdir(parents=True, exist_ok=True)
     (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
@@ -830,7 +851,7 @@ def _retro(run: Pass, world: World) -> None:
 
     A main whose run was cancelled is not red: its run is asked for again, and what is said
     is a second cancelled one, or a run GitHub would not start again. A red main is said
-    once a commit, and that once its fix's brief is filed and queued (`_file`).
+    once a commit, and the brief for its fix is filed and queued once a commit (`_file`).
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
@@ -875,8 +896,8 @@ def _retro(run: Pass, world: World) -> None:
                 break
             since += 1
         line = f"retro {slug}: main check failed at {sha[:12]}, {since} merges since the last green"
-        if run.find(slug, "retro", line, key=f"red {sha}", past=True):
-            _file(run, slug, sha, commits[place : place + since])
+        run.find(slug, "retro", line, key=f"red {sha}", past=True)
+        _file(run, slug, sha, commits[place : place + since])
     write_json(run.state / "checks.json", known)
 
 

@@ -9,6 +9,7 @@ from datetime import timedelta
 import pytest
 
 import jbus.queue
+from jbus import cli
 from test_jbus_kitchen import NOW, RESULT, TOKEN
 
 
@@ -158,6 +159,7 @@ def main_after_alpha(kitchen, conclusion):
         "2026-10-16T15:01:03.0000000Z ===== 2 failed, 3000 passed in 120.00s =====\n"
     )
     kitchen.set("logs.json", {"901": summary})
+    kitchen.set("commit-files.json", {red: ["src/alpha/a.py"], green: ["src/older.py"]})
 
 
 def main_red(kitchen):
@@ -174,6 +176,7 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
         "tests/test_a.py::test_one",
         "tests/test_b.py::test_two[x]",
         "dddddddddddd feat: alpha (#7)",
+        "\nWhere: `src/alpha/a.py`, `tests/test_a.py`, `tests/test_b.py`\n",
         "\nPlaybook: bug-fix\n",
         "\nSize: S\n",
     ):
@@ -191,6 +194,36 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
     assert len(main_red(kitchen)) == 1
     line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
     assert kitchen.lines("retro") == [line]
+
+
+def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitchen):
+    main_after_alpha(kitchen, "failure")
+    tasks = kitchen.home / "tasks"
+    tasks.chmod(0o500)
+    kitchen.t3.write(NOW)
+    said = []
+    try:
+        assert cli.poll(jbus.load(), NOW, said.append) == 1
+    finally:
+        tasks.chmod(0o700)
+    assert "pass failed demo: PermissionError" in said[0]
+    assert main_red(kitchen) == []
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert (tasks / "main-red-dddddddddddd.md").exists()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
+    assert kitchen.lines("retro") == [line]
+
+
+def test_a_removed_row_is_not_filed_again(kitchen):
+    main_after_alpha(kitchen, "failure")
+    kitchen.poll()
+    removed = ["queue", "remove", "main-red-dddddddddddd", "--by", "user"]
+    assert kitchen.main(*removed, "--at", "2026-10-12 11:00 ET")[0] == 0
+    (kitchen.home / "tasks" / "main-red-dddddddddddd.md").unlink()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not (kitchen.home / "tasks" / "main-red-dddddddddddd.md").exists()
+    assert main_red(kitchen) == []
 
 
 def test_a_green_main_files_no_brief(kitchen):

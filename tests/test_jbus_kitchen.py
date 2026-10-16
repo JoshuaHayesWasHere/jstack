@@ -301,7 +301,8 @@ def fake_gh(stub, args, cwd):
     comments and reviews by the end of the path: asked for every page (`--paginate
     --slurp`), a list of pages, here two. A job is its own in `jobs.json`, by its id, and
     one step at the first attempt where it has none there, and its log is its own in
-    `logs.json`, by its id, or not found.
+    `logs.json`, by its id, or not found. A commit asked for by its sha lists the files it
+    changed, from `commit-files.json`.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -349,6 +350,10 @@ def fake_gh(stub, args, cwd):
             return 1, "", ""
         said = (json.loads(kept.read_text()) if kept.exists() else {}).get(name, [])
         said = json.dumps([said[:1], said[1:]] if "--slurp" in args else said)
+    elif args[0] == "api" and args[1].split("/")[-2] == "commits" and "?" not in args[1]:
+        kept = stub / "commit-files.json"
+        files = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1][-40:], [])
+        said = json.dumps({"files": [{"filename": name} for name in files]})
     elif args[0] == "api" and args[1].endswith("/logs"):
         kept = stub / "logs.json"
         logs = json.loads(kept.read_text()) if kept.exists() else {}

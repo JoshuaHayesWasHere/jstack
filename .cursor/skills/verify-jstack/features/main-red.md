@@ -5,7 +5,7 @@ When main's check fails at a commit within a day of a merge, a pass says `retro 
 ## Sub-features
 
 - `red-retro` says the red main once, naming the merged slug and the merges since the last green.
-- `red-brief` writes `tasks/main-red-<sha12>.md` with the failed job's URL, the failed test ids its log names, the merges since the last green, `Playbook: bug-fix` and `Size: S`.
+- `red-brief` writes `tasks/main-red-<sha12>.md` with the failed job's URL, the failed test ids its log names, the merges since the last green and the files they changed, `Playbook: bug-fix` and `Size: S`.
 - `red-row` queues the brief unapproved, so `jbus queue show` lists the row with `approved` empty.
 - `red-once` files nothing more for the same commit on a later pass, and leaves an edited brief as it is.
 
@@ -47,4 +47,5 @@ Preconditions:
 - The first pass in a sandbox files nothing for a red main it finds: run one pass before the merge is written.
 - A commit older than a day, or one with no merge in the day before it, is not looked at. Write the dates from `date`, not by hand.
 - `gh/checks.json` is keyed by the full sha. A commit with no key has no check runs, which reads as pending, not green.
-- jbus asks GitHub for the brief only on the pass that first says the retro line: a brief deleted after that is not written again.
+- jbus files the brief while the queue has no `main-red-<sha12>` row: a brief deleted while its row stays is not written again, and neither is one whose row was removed.
+- The stand-in `gh` lists no changed files for a commit, so `Where:` names only the failed tests' files in a sandbox.
