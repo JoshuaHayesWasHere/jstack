@@ -67,6 +67,27 @@ def test_a_result_missing_an_artifact_waits_and_names_the_skill(home, case):
     assert home.ready() == [f"wait 7 {merge.URL}: {reason}"]
 
 
+@pytest.mark.parametrize(
+    ("named", "ran"),
+    [
+        ("build-the-lever", "principle-build-the-lever"),
+        ("principle-build-the-lever", "build-the-lever"),
+    ],
+)
+def test_a_principle_s_bare_and_prefixed_names_are_one_name_at_the_merge(home, named, ran):
+    """Winnifred's briefs write `build-the-lever`: the brief's spelling and the Result's
+    need not agree, and the wait names the skill as the brief wrote it."""
+    line = f"Skills: {named}\n"
+    (home.tasks / "alpha.md").write_text(
+        merge.brief(merge.review("clean"), f"Skills run:\n- {ran}: one script, run twice\n", line)
+    )
+    home.open_pull_request(merge.REVIEWED)
+    assert home.ready() == [f"ready 7 {merge.REVIEWED} alpha alpha"]
+    (home.tasks / "alpha.md").write_text(merge.brief(merge.review("clean"), "Skills run:\n", line))
+    reason = ready.SKILLS_UNRUN.format(names=named)
+    assert home.ready() == [f"wait 7 {merge.URL}: {reason}"]
+
+
 def test_a_later_result_can_write_the_artifact_an_earlier_one_left_out(home):
     first = ARTIFACTS.replace("  42 passed\n", "").replace(
         "uv run pytest tests/test_skills_named.py", "<later>"
