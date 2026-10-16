@@ -247,11 +247,22 @@ def sized(text: str) -> str:
     return f"{fault} {_SIZES}"
 
 
+def crewmates(name: str) -> bool:
+    """Whether `playbooks/<name>.md` is one a brief may name: its `Run by:` line says a
+    crewmate runs it, and not the one that is never picked for a brief."""
+    try:
+        text = (PLAYBOOKS / f"{name}.md").read_text()
+    except OSError:
+        return False
+    by = next((line for line in text.splitlines() if line.startswith("Run by: ")), "")
+    return by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by
+
+
 def playbook(text: str) -> str:
     """Why a brief's `Playbook:` line names no playbook, in one line, or nothing.
 
-    The name is the line's first word, as the crew skill reads it, and it is a file of
-    `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
+    The name is the line's first word, as the crew skill reads it, and it is a crewmate's
+    file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
     """
     said = _head(text, "Playbook:")
     name = said.split()[0] if said else ""
@@ -263,9 +274,143 @@ def playbook(text: str) -> str:
         fault = "is the template's own text"
     elif "/" in name or not (PLAYBOOKS / f"{name}.md").is_file():
         fault = f"names {name}, which is no file in playbooks/"
+    elif not crewmates(name):
+        fault = f"names {name}, which is not a crewmate's playbook"
     else:
         return ""
     return f"brief's Playbook: line {fault} {_PLAYBOOK}"
+
+
+NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
+_NONE = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
+_DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
+
+
+def designed(text: str) -> str:
+    """Why a brief has no design call, or nothing.
+
+    The first `Design:` line of its head says it: the path of the design it was written
+    from, a file with its extension, or `none, <why>`. A `none` with no reason says
+    nothing, and neither does a word that names no file (`TBD`, `n/a`) or the template's
+    own line, left as it was.
+    """
+    said = _head(text, "Design:")
+    if said is None:
+        return NO_DESIGN
+    named = not said.startswith("<") and _DESIGN.search(said)
+    return "" if _NONE.match(said) or named else NO_DESIGN
+
+
+TITLE = "title"
+REST = "the rest"
+_LABEL = re.compile(r"(?P<label>[A-Z][A-Za-z]*(?: [A-Za-z]+){0,3}):(?:[ \t]|$)")
+REQUIRED = (
+    "Task",
+    "Done when",
+    "Proves it",
+    "Size",
+    "Where",
+    "Pull request",
+    "Review",
+    "Playbook",
+)
+
+
+def fields(text: str) -> list[tuple[str, list[str]]]:
+    """A brief as its fields, in order: each label with the lines it holds.
+
+    A line of the head (the lines above the first `## `) that starts `<Label>: ` starts a
+    field, and the text after the label is its first line. Every other line goes on with
+    the field above it, so a `Done when:` list and a re-wrapped line are one field. The
+    `# <slug>: <title>` line is `TITLE`, text above any label is the label `""`, and the
+    first `## ` and all under it are `REST`.
+    """
+    found: list[tuple[str, list[str]]] = []
+    head = True
+    for line in text.splitlines():
+        if head and line.startswith("## "):
+            head = False
+            found.append((REST, [line]))
+        elif not head:
+            found[-1][1].append(line)
+        elif not found and line.startswith("# "):
+            found.append((TITLE, [line.removeprefix("# ")]))
+        elif label := _LABEL.match(line):
+            found.append((label["label"], [line[label.end() :]]))
+        elif found:
+            found[-1][1].append(line)
+        elif line.strip():
+            found.append(("", [line]))
+    return found
+
+
+_MARKER = re.compile(r"""^[\s"'“‘*+-]+""")
+_PLACEHOLDER = re.compile(r"""<[^<>]*>[\s"'”’.,;:]*""")
+_CHOICES = ("Pull request", "Review")
+
+
+def _filled(text: str, label: str) -> str:
+    """Why the brief's `<label>:` field is not filled in, in one line, or nothing.
+
+    Its first line, or an item of a list under it, that is still the template's whole
+    placeholder (`<...>`, its quote or list marker left off), or a field of `_CHOICES` still
+    offering its choices (`review | none`), is not filled in. A line that only starts with
+    `<` (`<200 ms`) is filled in, and so is a field with the template's notes left under it.
+    """
+    held = [lines for name, lines in fields(text) if name == label]
+    if not held:
+        return f"brief has no {label}: line"
+    first, *rest = held[0]
+    lines = [first] + [line for line in rest if _MARKER.match(line) and line.strip()[:1] in "-*+"]
+    lines = [_MARKER.sub("", line).strip() for line in lines]
+    lines = [line for line in lines if line]
+    if not lines:
+        return f"brief's {label}: line is empty"
+    if any(_PLACEHOLDER.fullmatch(line) for line in lines) or (
+        label in _CHOICES and "|" in lines[0]
+    ):
+        return f"brief's {label}: line is the template's own text"
+    return ""
+
+
+def proven(text: str) -> str:
+    """Why a brief's `Proves it:` line proves nothing, in one line, or nothing.
+
+    A brief with no such line says nothing here: at a launch it was written before the line
+    was asked for, and `faults` says it is missing.
+    """
+    found = proves_it(text)
+    return found.why if found else ""
+
+
+CHECKS = (
+    ("Design", "no design", designed),
+    ("Proves it", "no proof", proven),
+    ("Size", "no size", sized),
+    ("Playbook", "no playbook", playbook),
+)
+LAUNCH = CHECKS[:2]
+SHAPE = CHECKS[2:]
+_SAYS_MISSING = ("Design", "Size")
+
+
+def faults(text: str) -> list[str]:
+    """Every reason a brief may not be queued, one line for each field at fault.
+
+    It is each field `REQUIRED` filled in, then, for a field that is, every check a launch
+    makes of it (`CHECKS`), which `jbus.dispatch` runs from the same table. `Design` and
+    `Size` are left to their checks, which say when the line is missing. A brief with none
+    is complete.
+    """
+    checks = {label: check for label, _, check in CHECKS}
+    found = []
+    for label in (*REQUIRED, *(label for label in checks if label not in REQUIRED)):
+        fault = "" if label in _SAYS_MISSING else _filled(text, label)
+        if not fault and label in checks:
+            fault = checks[label](text)
+        if fault:
+            found.append(fault)
+    return found
 
 
 @dataclass(frozen=True)

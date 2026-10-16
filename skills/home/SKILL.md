@@ -519,9 +519,9 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
 1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first. Its `Home:` line names this home and never a thread. A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes no such line. The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off. A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
-   Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. jbus launches no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty: it is a gate that says why.
+   Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty, and a launch checks it again.
 
-   Its `Size:` line is the task's t-shirt size, `S`, `M`, `L` or `XL`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. jbus launches no brief with no such line, or with any other word on it: it is a gate that says why.
+   Its `Size:` line is the task's t-shirt size, `S`, `M`, `L` or `XL`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. `jbus queue add` queues no brief with no such line, or with any other word on it.
 
    Its `Review:` line says how much review the pull request gets. It is fixed now, when the brief is written, and the crewmate and the reviewer both go by it:
 
@@ -531,6 +531,8 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 
    A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one full run is the crewmate's.
+
+   A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; and a `Design:` line. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
 
    Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`. Run this with the block at the top. It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`:
 
@@ -627,13 +629,17 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
    ```sh
    if command -v jbus > /dev/null && jbus plan > /dev/null 2>&1; then
-       jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < "$H/tasks/<slug>.md" > /dev/null && echo "added: the row <slug>, of the entry <entry>"
+       if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < "$H/tasks/<slug>.md" 2>&1); then
+           echo "added: the row <slug>, of the entry <entry>"
+       else
+           printf '%s\n' "$said"
+       fi
    else
        echo "no row: jbus has no plan for this repo, so nothing is added to its queue"
    fi
    ```
 
-   `jbus plan` answers only for the repo it is run in, and `jbus queue add` with no project takes the config's only project whatever the repo: so the row is added only where `jbus plan` answered, and on `no row` none is, since it would be another repo's row. A row with no approval is never launched again. Then give the user the link: `[<slug>](t3-thread://v1/<threadId>)`.
+   `jbus plan` answers only for the repo it is run in, and `jbus queue add` with no project takes the config's only project whatever the repo: so the row is added only where `jbus plan` answered, and on `no row` none is, since it would be another repo's row. On `refused:`, nothing is queued: mend the brief as the lines under it say, and run it again. A row with no approval is never launched again. Then give the user the link: `[<slug>](t3-thread://v1/<threadId>)`.
 
 No fixed count limits the threads out, crewmates and durable scouts together. Two things do: only tasks that do not touch the same files are out together, and the machine has to have room.
 

@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test_jbus_kitchen import complete
+
 REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "home-start.sh"
 NAME = "demo"
@@ -265,7 +267,7 @@ def rows(bus, *made):
     """Rows of the queue, each `(slug, status, pr, why)`, added by the real verb, then given
     the columns a pass would have derived."""
     for slug, *_ in made:
-        added = bus.kitchen.main("queue", "add", slug, "--priority", "1", stdin=f"# {slug}\n")
+        added = bus.kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
         assert added[0] == 0, added
     table = bus.kitchen.state / "queue.json"
     listed = {row["slug"]: row for row in json.loads(table.read_text())}

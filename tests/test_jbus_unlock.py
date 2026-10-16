@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from test_jbus_kitchen import NOW, sends
+from test_jbus_kitchen import NOW, complete, sends
 from test_jbus_queue import add, gates
 
 URL = "https://example.test/pull/7"
@@ -17,7 +17,7 @@ CHANGED = "main changed src/jbus/cli.py after its check started"
 
 def task(slug, *paths):
     named = ", ".join(f"`{path}`" for path in paths)
-    return f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: {named}\n"
+    return complete(slug).replace(f"Where: `src/{slug}/`", f"Where: {named}")
 
 
 def claim(slug, *paths, state="out"):

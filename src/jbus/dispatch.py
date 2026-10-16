@@ -32,6 +32,9 @@ writes its time in `shaped.json` (`shaped_since`). A row whose go was run before
 or that holds only a typed go, was approved before the two were asked for, and is launched
 as it was approved.
 
+`jbus queue add` makes the same checks before a row is queued (`jbriefs.parse.faults`), so
+these are a backstop for a row queued before it did.
+
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
 all. The merge is where it is settled, and `jbus.rebase` tells the crew that must rebase.
@@ -56,9 +59,6 @@ from jbus.watch import TITLE, End, World, crew_threads, ended
 EVENTS = {"overlap": "quiet"}
 _PATH = re.compile(r"`([^`\s]+)`")
 OVERLAP_PATHS = 5
-NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
-_NONE = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
-_DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
 SHAPED = "shaped.json"
 
 
@@ -144,34 +144,6 @@ def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
     return made
 
 
-def designed(brief: str) -> str:
-    """Why a brief may not be launched for want of a design call, or nothing.
-
-    The first `Design:` line of its head says it: the path of the design it was written
-    from, a file with its extension, or `none, <why>`. A `none` with no reason says
-    nothing, and neither does a word that names no file (`TBD`, `n/a`) or the template's
-    own line, left as it was.
-    """
-    for line in brief.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("Design:"):
-            said = line.removeprefix("Design:").strip()
-            named = not said.startswith("<") and _DESIGN.search(said)
-            return "" if _NONE.match(said) or named else NO_DESIGN
-    return NO_DESIGN
-
-
-def proven(brief: str) -> str:
-    """Why a brief may not be launched for what it says proves it right, or nothing.
-
-    It is the first `Proves it:` line of its head, as `jbriefs` judges it. A brief with no
-    such line is grandfathered: it says nothing, as briefs approved before the line did.
-    """
-    found = parse.proves_it(brief)
-    return found.why if found else ""
-
-
 def shaped_since(run: Pass) -> datetime:
     """When a brief was first asked for its size and a real playbook: the first pass that
     asked, which wrote its time in `shaped.json` beside the queue and is read from it since.
@@ -199,17 +171,13 @@ def approved_at(run: Pass, row: queue.Row) -> datetime | None:
     return run.user.local(at)
 
 
-CHECKS = (("no design", designed), ("no proof", proven))
-ASKED = (("no size", parse.sized), ("no playbook", parse.playbook))
-
-
 def short_of(brief: str, shaped: bool) -> tuple[str, str]:
     """The first reason a brief may not be launched, in one line, and its kind, or two blanks.
 
     The size and the playbook are asked of it only where `shaped`: its go was run since the
     rule.
     """
-    for kind, check in CHECKS + (ASKED if shaped else ()):
+    for _, kind, check in parse.LAUNCH + (parse.SHAPE if shaped else ()):
         why = check(brief)
         if why:
             return why, kind
@@ -386,7 +354,7 @@ class Turns:
             short, kind = short_of(brief, at is not None and at > self.since)
             if short:
                 if not full:
-                    run.gate(slug, short, key=f"{kind}, brief {row['brief_sha'][:12]}")
+                    run.gate(slug, short, key=f"{kind}, brief {queue.brief_sha(brief)[:12]}")
                 else:
                     run.held.add(slug)
                 continue

@@ -15,7 +15,7 @@ import pytest
 import jbus
 from jbus import digest, queue
 from jbus.view import state as view_state
-from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen
+from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12
 
 RULE = "Follow-ups to approved work need no new approval. New work needs his go."
@@ -91,6 +91,7 @@ def test_an_approval_by_rule_is_a_record_of_the_rule_and_the_parent_and_the_row_
         "follows": "alpha",
         "ran_by": {"session": SESSION, "directory": str(kitchen.checkout)},
         "ran_at": RAN,
+        **bound(kitchen, "beta"),
     }
     assert row["approved"] == BY_RULE
     assert "follows" not in rows(kitchen)["alpha"]["approval"]
