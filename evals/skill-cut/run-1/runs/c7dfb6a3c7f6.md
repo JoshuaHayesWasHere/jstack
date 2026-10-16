@@ -1,6 +1,0 @@
-1. **Answer the question first**, since "When to roll over" says to finish the ask in hand before rolling over. I start with step 1 of "An ask": with the block at the top, I run its check with `ME='<my threadId>'` and `name='question'`. That confirms `home-id` still holds this thread and opens `playbooks/expert-answer.md`.
-2. Then I follow steps 2–4: check the indexed notes against the source at its current revision, and answer in the four parts of `$T/expert-answer.md`. Whatever was new goes into `$E` as notes with their `notes/INDEX.md` lines, cases, or `unknowns.md` lines.
-3. **Then roll over**, because the context is past 300,000 tokens. With the block at the top, I run the "When to roll over" check (`ME='<my threadId>'`). It prints `launch:` and `rename:` lines.
-4. I call `t3_thread_launch` with `{"title": "expert: <name>", "workspaceStrategy": {"type": "root"}, "message": "/expert <name>"}`. If the call fails, I use `t3_thread_list` before retrying.
-5. I tell the user in two lines that this expert rolled over, with the link `[expert: <name>](t3-thread://v1/<new threadId>)`.
-6. Last, I call `t3_thread_update` with `{"action": "rename", "title": "expert: <name> (rolled over 2026-10-16)"}`. I delete nothing and leave the thread open.

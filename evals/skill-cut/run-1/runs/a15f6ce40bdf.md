@@ -1,5 +1,0 @@
-1. **First, the check before step 1.** Call `t3_thread_configuration` with no arguments to get `threadId`. Then run the "see which home this is" block, together with the block at the top, with that id in place of `<threadId>`. It should print `root` or `scope <name>` and a `write:` path.
-2. **Step 1, stop what runs in the background.** Find the poll's process ID with `pgrep -af 'lavish-axi poll'`, then stop it with `kill <pid>`, so nothing can wake this finished thread.
-3. **Record the poll for the next home.** In the note at the `write:` path, add a line under `Out, not on the bus:`, for example `lavish-axi poll (pid <pid>, stopped): waited on the user's answers to <page>; start again`.
-4. **Still in step 1:** run `git status --short` and `git log --oneline @{upstream}..` in each worktree this thread used, and fill in `Uncommitted:`.
-5. **Then steps 2 to 5:** finish the note in the shape of `$T/handoff.md`, run the step 3 close block, launch the next home, then rename and settle this thread.

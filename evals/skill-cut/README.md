@@ -15,7 +15,7 @@ The files under test are read from the two revisions with `git show <rev>:<path>
 
 ## Blind scoring
 
-Each answer is saved as `run-<n>/runs/<random id>.md`. Which case it answers is in `run-<n>/which.json`, and which arm and trial wrote it only in `run-<n>/key.json`. `score.py` scores an answer from its text and its case's key alone: it never sees the arm, and it is a script, not a model.
+Each answer is saved in `run-<n>/answers.json` under a random id. Which case it answers is in `run-<n>/which.json`, and which arm and trial wrote it only in `run-<n>/key.json`. `score.py` scores an answer from its text and its case's key alone: it never sees the arm, and it is a script, not a model.
 
 - `lead`: the answer ends with a `BUCKETS` block, one line per finding id. A finding scores 1 when the answer sends it (Act on, Consider) and the shipped review sent it, or holds it back (Noted, Dismissed) and the shipped review held it back; else 0. The answer's score is the mean over the case's scored findings.
 - `steps`: 1 when every `must` expression matches the answer, else 0.
@@ -75,6 +75,6 @@ See each run's `results.md`. Run 1 (2026-10-16) is main (`c228ac6`) against main
 What limits these numbers:
 
 - **`lead` agrees with the shipped review on about three findings in four, in every arm.** It is bounded by what the model is not given: the shipped lead had the code and the conversation, and this one has the intent and the findings. The gap between arms (variant 0.010 above base) is half the gap between the two base arms (0.019), and single cases move up to 0.62 between trials of one arm (`ci-self-hosted`), so the run cannot tell the cut from no cut on this family. It would show a drop of more than about 0.02 on the mean, or a loss on most cases.
-- **`steps` is at its ceiling.** 26 of 27 scenarios scored 1 in every trial of every arm, the variant's cut principles included: with the "illegal states", "exhaustive matching" and "Rule" bullets gone, the answers still wrote a sum type, a `never` check and deleted the old API (read in `run-1/runs/`, not inferred from the score). So this family shows a regression only as a fall from 1, and says nothing finer.
+- **`steps` is at its ceiling.** 26 of 27 scenarios scored 1 in every trial of every arm, the variant's cut principles included: with the "illegal states", "exhaustive matching" and "Rule" bullets gone, the answers still wrote a sum type, a `never` check and deleted the old API (read in `run-1/answers.json`, not inferred from the score). So this family shows a regression only as a fall from 1, and says nothing finer.
 - **One case is a dud.** `scout-no-launch` scored 0 in all nine trials. Every answer went straight to "End" and started no crewmate, which is what the skill asks, but did not say in words that the home starts it, and the judge held the answer to the `expect` text. It is the same in each arm, so it moves no comparison. It is kept as it was fixed before the run.
 - In run 1 the `steps` files of the six own skills are the same at both revisions: those scenarios are the baseline that skill-cut-own's run compares against.

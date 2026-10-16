@@ -151,3 +151,18 @@ def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, mon
         assert (tmp_path / "run-1" / name).read_bytes() == (EVAL / "run-1" / name).read_bytes()
     key = json.loads((EVAL / "run-1" / "key.json").read_text())
     assert {one["arm"] for one in key.values()} == set(run.ARMS)
+
+
+def test_a_whole_write_adds_one_run_of_a_few_files_whatever_the_number_of_answers(
+    tmp_path, monkeypatch
+):
+    shutil.copytree(EVAL / "cases", tmp_path / "cases")
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "_private", lambda: ())
+    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
+    monkeypatch.setattr(run, "claude", lambda prompt, model=run.MODEL: "BUCKETS\n")
+    run.write("HEAD", "HEAD")
+    made = sorted(path.name for path in (tmp_path / "run-1").iterdir())
+    assert made == ["answers.json", "key.json", "run.json", "variant.patch", "which.json"]
+    answers = json.loads((tmp_path / "run-1" / "answers.json").read_text())
+    assert len(answers) == len(run.case_ids()) * len(run.ARMS) * run.TRIALS

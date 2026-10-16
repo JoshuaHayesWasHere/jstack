@@ -1,4 +1,0 @@
-First, I find every place that reads `Task`, so the change can be checked against all of them. I follow the opening rule, "make illegal states unrepresentable": the optional `doneAt` already allows bad states like `open` with a `doneAt`, and adding `cancelledAt?` would make that worse. So I replace the type with a discriminated union:
-`type Task = { status: 'open' } | { status: 'done'; doneAt: Date } | { status: 'cancelled'; cancelledAt: Date };`
-Then I add an exhaustive `switch` with a `const _exhaustive: never = task` default (the "exhaust variants" rule). That way `tsc --noEmit` points to every handler that is missing the new case.
-If `Task` comes from a schema or DB migration, I change the schema first and derive the type from it, following the "derive from authoritative schemas" bullet.

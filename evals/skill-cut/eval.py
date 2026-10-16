@@ -8,7 +8,7 @@ It reads every file under test from the two revisions with `git show <rev>:<path
 from the working tree, and runs each case of `cases/` three times in each of three arms: base,
 base again (the noise floor) and variant. Then:
 
-- `write`: each answer goes to `run-<n>/runs/<random id>.md`, which case it answers to
+- `write`: each answer goes to `run-<n>/answers.json` under a random id, which case it answers to
   `run-<n>/which.json`, and which arm and trial wrote it only to `run-<n>/key.json`. What a
   model wrote has the private patterns of `jleak` taken out, as the cases have.
 - `score`: runs `score.py` over each answer with its case's key and no arm, and writes
@@ -321,17 +321,19 @@ def write(base: str, variant: str) -> None:
     random.shuffle(jobs)
     fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
     try:
-        (fresh / "runs").mkdir()
-        key, which = {}, {}
+        key, which, answers = {}, {}, {}
         with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool:
             done = pool.map(lambda job: (job, claude(prompt(job[0], text[job[1]]))), jobs)
             for (case, arm, trial), answer in done:
                 name = secrets.token_hex(6)
-                (fresh / "runs" / f"{name}.md").write_text(_redact(answer, patterns) + "\n")
+                answers[name] = _redact(answer, patterns) + "\n"
                 key[name] = {"case": case, "arm": arm, "trial": trial}
                 which[name] = case
                 print(f"write: {len(key)} of {len(jobs)}", flush=True)
         shuffled = sorted(key)
+        (fresh / "answers.json").write_text(
+            json.dumps({n: answers[n] for n in shuffled}, indent=2, ensure_ascii=False) + "\n"
+        )
         (fresh / "key.json").write_text(json.dumps({n: key[n] for n in shuffled}, indent=2) + "\n")
         (fresh / "which.json").write_text(
             json.dumps({n: which[n] for n in shuffled}, indent=2) + "\n"
@@ -358,7 +360,13 @@ def write(base: str, variant: str) -> None:
     finally:
         shutil.rmtree(fresh, ignore_errors=True)
     RUN = made
-    print(f"write: {len(key)} answers in {made.name}/runs/, the key in {made.name}/key.json")
+    print(f"write: {len(key)} answers in {made.name}/answers.json, the key in {made.name}/key.json")
+
+
+def _answers() -> dict[str, str]:
+    """Every answer of the run, by its random id: one file, so a run adds four files to a pull
+    request and not one per answer."""
+    return json.loads((RUN / "answers.json").read_text())
 
 
 def _judged() -> dict:
@@ -366,22 +374,24 @@ def _judged() -> dict:
     return json.loads(path.read_text()) if path.is_file() else {}
 
 
-def score_one(name: str, case: str, judged: dict) -> dict:
+def score_one(text: str, case: str, judged: object) -> dict:
     """The blind step for one answer: its text, its case's key, and what the judge said of it."""
-    text = (RUN / "runs" / f"{name}.md").read_text()
     family, slug = case.split("/", 1)
     if family == "lead":
-        said = score_lead(text, lead_key(slug), judged.get(name))
+        said = score_lead(text, lead_key(slug), judged)
     else:
         found = next(one for one in steps_cases() if one["id"] == slug)
-        said = score_steps(text, found, judged.get(name))
+        said = score_steps(text, found, judged)
     return {"value": said.value, "unsettled": said.unsettled, **said.detail}
 
 
 def score_all() -> None:
     """Score each answer from its text and its case, never its arm: `which.json` holds no arm."""
     which, judged = json.loads((RUN / "which.json").read_text()), _judged()
-    scores = {name: score_one(name, which[name], judged) for name in sorted(which)}
+    answers = _answers()
+    scores = {
+        name: score_one(answers[name], which[name], judged.get(name)) for name in sorted(which)
+    }
     (RUN / "scores.json").write_text(json.dumps(scores, indent=2) + "\n")
     left = sum(1 for one in scores.values() if one["value"] is None)
     print(f"score: {len(scores)} answers scored, {left} the key cannot settle")
@@ -401,8 +411,10 @@ def judge() -> None:
     if not shutil.which("claude"):
         raise SystemExit("eval.py: judge: no claude on PATH, the unsettled answers stay so")
 
+    answers = _answers()
+
     def ask(name: str) -> tuple[str, object]:
-        text = (RUN / "runs" / f"{name}.md").read_text()
+        text = answers[name]
         family, slug = which[name].split("/", 1)
         if family == "lead":
             ids = scores[name]["unsettled"]
