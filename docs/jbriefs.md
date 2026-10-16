@@ -6,6 +6,7 @@
 |---|---|
 | `state` | The directory that holds one home per repo. Defaults to `~/.local/state/home`. |
 | `--out <path>` | Where to write the page. Defaults to `$XDG_CACHE_HOME/jbriefs/briefs.html`, or `~/.cache/jbriefs/briefs.html`. |
+| `--skills-run <brief>` | Writes no page. Prints the artifact the brief's Results hold under `Skills run:` for each skill its `Skills:` line names, as `jmerge` reads it, or `- <name>: no artifact`. The reviewer's intent has it. |
 | `--skills <brief>` | Writes no page. Prints in full each skill or principle the brief's `Skills:` line names, under a line `loaded: <names>`, then the artifact each owes under `Skills run:` in the Result (`templates/skill-artifacts.md`). A name it does not resolve gets a line `unknown skill: <name> ...`. The crew and scout skills run it at their start. |
 
 ## `jbriefs pick`

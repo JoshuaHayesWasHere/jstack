@@ -67,8 +67,20 @@ def main(argv: list[str] | None = None) -> int:
         help="print in full each skill or principle the brief's Skills: line names, and the "
         "artifact each owes; write no page",
     )
+    parser.add_argument(
+        "--skills-run",
+        type=Path,
+        metavar="BRIEF",
+        help="print the artifact the brief's Results hold for each skill its Skills: line "
+        "names, or that it has none; write no page",
+    )
     args = parser.parse_args(argv)
 
+    if args.skills_run:
+        said = skills.shown(args.skills_run.expanduser().read_text())
+        if said:
+            print(said)
+        return 0
     if args.skills:
         said = skills.load(args.skills.expanduser().read_text())
         if said:

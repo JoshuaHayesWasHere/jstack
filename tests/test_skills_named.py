@@ -15,6 +15,7 @@ from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
+from test_pr_review_skill import BRIEF, intent, reviewer  # noqa: F401
 
 REPO = Path(__file__).parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -223,3 +224,53 @@ def test_every_name_the_map_gives_an_artifact_resolves_and_it_has_a_default():
     for name in ("in-your-own-words", "sharpen", "architect", "blast-radius"):
         assert name in table
     assert {"principle-model-the-domain", "principle-prove-it-works"} <= set(table)
+
+
+def test_an_artifact_may_hold_a_line_that_looks_like_a_field_and_the_next_item_still_counts():
+    result = (
+        "Skills run:\n"
+        "- architect: two shapes\n"
+        "Candidate A: a check in jmerge\n"
+        "Candidate B: the reviewer's verdict\n"
+        "- in-your-own-words: the goal\n"
+        "- prove-it-works: make check, exit 0\n"
+        "Branch: alpha\n"
+        "Noticed: - principle-model-the-domain: this is not an artifact\n"
+    )
+    text = merge.brief("", result, "Skills: architect, in-your-own-words, prove-it-works\n")
+    have = skills.run(text)
+    assert have["architect"] == (
+        "two shapes\nCandidate A: a check in jmerge\nCandidate B: the reviewer's verdict"
+    )
+    assert skills.missing(text) == ()
+    assert "principle-model-the-domain" not in have
+
+
+def test_a_name_that_resolves_to_nothing_owes_no_artifact_at_the_merge():
+    """The queue refuses it and the launch gates it: the merge does not say it again."""
+    text = merge.brief("", "Skills run:\n- architect: A or B\n", "Skills: architect, then\n")
+    assert skills.missing(text) == ()
+
+
+def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve():
+    line = "Skills: in-your-own-words, then sharpen; before done, prove-it-works against the app\n"
+    why = skills.unknown(line)
+    assert "names then, before, done, against, the and 1 more, which are no skill" in why
+
+
+def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it(reviewer):  # noqa: F811
+    text = BRIEF.replace("Pull request:", f"Design: none, small\n{NAMED}Pull request:")
+    result = ARTIFACTS.replace("  42 passed\n", "").replace(
+        "uv run pytest tests/test_skills_named.py", "<the command>"
+    )
+    reviewer.brief.write_text(f"{text}\n## Result\nStatus: done\n{result}")
+    told = intent(reviewer)
+    skills_line = NAMED.removeprefix("Skills: ").strip()
+    assert f"\nSkills: {skills_line}. The crewmate loaded each in full" in told
+    assert told.count("Skills: in-your-own-words") == 1
+    assert (
+        "What the Results hold under Skills run:, as jmerge reads it:\n"
+        "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
+        "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
+        "- principle-prove-it-works: no artifact\n"
+    ) in told

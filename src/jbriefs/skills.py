@@ -40,7 +40,8 @@ RUN = "Skills run:"
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _SPLIT = re.compile(r"[,\s]+")
 _ITEM = re.compile(r"^[-*] +`?(?P<name>[^`:\s]+)`?:[ \t]*(?P<artifact>.*)$")
-_FIELD = re.compile(r"^(?:[A-Z][A-Za-z]*(?: [A-Za-z]+){0,3}:(?:[ \t]|$)|## )")
+_LABEL = re.compile(r"^(?P<label>[A-Z][A-Za-z]*(?: [A-Za-z]+)*):")
+SHOWN = 5
 _PLACEHOLDER = re.compile(r"<[^<>]*>[\s.]*")
 _HOLLOW = frozenset(("none", "n/a", "na", "tbd", "todo", "tba", "-", "--", "...", "…"))
 
@@ -135,7 +136,9 @@ def unknown(text: str) -> str:
         bad = [one.said for one in named(text) if one.path is None]
         if not bad:
             return ""
-        listed = ", ".join(bad)
+        listed = ", ".join(bad[:SHOWN])
+        if len(bad) > SHOWN:
+            listed += f" and {len(bad) - SHOWN} more"
         which = "which is" if len(bad) == 1 else "which are"
         fault = f"names {listed}, {which} no skill in skills/ and no principle in principles/"
     return f"brief's Skills: line {fault} {_NAMES}"
@@ -157,12 +160,27 @@ def owed(name: str, table: dict[str, str] | None = None) -> str:
     return table.get(name) or table[DEFAULT]
 
 
+def _ends() -> frozenset[str]:
+    """The labels that end a `Skills run:` section: every other field of the Result and of
+    the scout's report, read from their templates, so an artifact may hold a line such as
+    `Candidate A: ...` of its own."""
+    templates = ROOT / "templates"
+    return frozenset(
+        found["label"]
+        for name in ("result.md", "scout-report.md")
+        for line in (templates / name).read_text().splitlines()
+        if (found := _LABEL.match(line)) and f"{found['label']}:" != RUN
+    )
+
+
 def run(text: str) -> dict[str, str]:
     """Every artifact the `Skills run:` sections of a brief's Results hold, by canonical
-    name. A later Result's item for a name takes the place of an earlier one's."""
+    name. A section ends at a `## ` heading or at another field of the Result (`_ends`). A
+    later Result's item for a name takes the place of an earlier one's."""
     found: dict[str, str] = {}
     inside = False
     current = ""
+    ends = _ends()
     for line in text.splitlines():
         if line.startswith(RUN):
             inside, current = True, ""
@@ -173,7 +191,9 @@ def run(text: str) -> dict[str, str]:
                 continue
         elif not inside:
             continue
-        elif _FIELD.match(line):
+        elif line.startswith("## ") or (
+            (label := _LABEL.match(line)) is not None and label["label"] in ends
+        ):
             inside = False
             continue
         item = _ITEM.match(line)
@@ -198,9 +218,30 @@ def hollow(artifact: str) -> bool:
 
 def missing(text: str) -> tuple[str, ...]:
     """The names on the brief's `Skills:` line its Results leave with no artifact, an empty
-    one or a placeholder, by canonical name and in the line's order."""
+    one or a placeholder, by canonical name and in the line's order. A name that resolves to
+    no file is the queue's and the launch's to refuse (`unknown`), and owes nothing here."""
     have = run(text)
-    return tuple(one.name for one in named(text) if hollow(have.get(one.name, "")))
+    return tuple(
+        one.name for one in named(text) if one.path is not None and hollow(have.get(one.name, ""))
+    )
+
+
+def shown(text: str) -> str:
+    """What the reviewer reads of the artifacts: each named skill's, as `run` reads it, or
+    that it has none. Nothing where the brief names none."""
+    have = run(text)
+    out = []
+    for one in named(text):
+        if one.path is None:
+            continue
+        artifact = have.get(one.name, "")
+        if hollow(artifact):
+            out.append(f"- {one.name}: no artifact")
+        else:
+            first, *rest = artifact.splitlines()
+            out.append(f"- {one.name}: {first}")
+            out.extend(f"  {line}" for line in rest)
+    return "\n".join(out)
 
 
 def load(text: str) -> str:
