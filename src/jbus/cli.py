@@ -27,7 +27,7 @@ when it ends (`alert`).
 all, and sends it to the thread in each home's `home-id` as a queued message, at once and
 then on each pass until it went (`word`). It is no event, so no webhook is posted it.
 Once a day it asks `jmerge` what a sweep would remove, and again on each pass until
-`jmerge` has run. Each pass ends by rewriting the status file, which `jbus status` prints:
+`jmerge` has run, and runs the stale check of a project's context pack (`packs`). Each pass ends by rewriting the status file, which `jbus status` prints:
 what a webhook that is down cannot say.
 `jbus view` is no pass: it is a server that shows what the passes left, and it reads no
 config (`jbus.view`).
@@ -58,6 +58,7 @@ from jbus import (
     leftover,
     merge,
     mirror,
+    packs,
     project,
     questions,
     queue,
@@ -300,6 +301,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
         if not ran:
             run.say(f"wait {name}: {how}")
         run.box.swept(how, ran)
+    packs.check(run)
     sent = alert.flush(run)
     if sent:
         run.say(f"woke {name}: {sent} events")
