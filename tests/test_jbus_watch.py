@@ -8,6 +8,8 @@ from datetime import timedelta
 
 import pytest
 
+import jbus.queue
+from jbus import cli
 from test_jbus_kitchen import NOW, RESULT, TOKEN
 
 
@@ -126,6 +128,121 @@ def test_a_failed_check_on_main_after_a_merge_names_the_slug_and_the_merges_sinc
     assert kitchen.lines("retro") == [line]
 
 
+FULL_JOB = "https://example.test/o/r/actions/runs/77/job/901"
+
+
+def main_after_alpha(kitchen, conclusion):
+    """Alpha merged at a commit on main whose `full` job ended `conclusion`, over a green one,
+    and the log of that job, with two failed tests in pytest's summary."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    red, green, done = "d" * 40, "f" * 40, {"status": "completed"}
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, red, ago=timedelta(minutes=30))])
+    kitchen.set(
+        "commits.json",
+        [
+            kitchen.commit(red, "feat: alpha (#7)", ago=timedelta(minutes=30)),
+            kitchen.commit(green, "feat: older (#6)", ago=timedelta(hours=2)),
+        ],
+    )
+    full = {**done, "conclusion": conclusion, "name": "full", "id": 901, "html_url": FULL_JOB}
+    kitchen.set(
+        "check-runs.json",
+        {
+            red: [{**done, "conclusion": "success", "name": "check", "id": 900}, full],
+            green: [{**done, "conclusion": "success", "name": "full", "id": 800}],
+        },
+    )
+    summary = (
+        "2026-10-16T15:01:02.0000000Z FAILED tests/test_a.py::test_one - AssertionError\n"
+        "2026-10-16T15:01:02.0000000Z FAILED tests/test_b.py::test_two[x] - KeyError: 'k'\n"
+        "2026-10-16T15:01:03.0000000Z ===== 2 failed, 3000 passed in 120.00s =====\n"
+    )
+    kitchen.set("logs.json", {"901": summary})
+    kitchen.set("commit-files.json", {red: ["src/alpha/a.py"], green: ["src/older.py"]})
+
+
+def main_red(kitchen):
+    return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("main-red-")]
+
+
+def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitchen):
+    main_after_alpha(kitchen, "failure")
+    kitchen.poll()
+    brief = kitchen.home / "tasks" / "main-red-dddddddddddd.md"
+    text = brief.read_text()
+    for said in (
+        FULL_JOB,
+        "tests/test_a.py::test_one",
+        "tests/test_b.py::test_two[x]",
+        "dddddddddddd feat: alpha (#7)",
+        "\nWhere: `src/alpha/a.py`, `tests/test_a.py`, `tests/test_b.py`\n",
+        "\nPlaybook: bug-fix\n",
+        "\nSize: S\n",
+    ):
+        assert said in text
+    assert "feat: older (#6)" not in text
+    assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
+        (kitchen.state / "briefs" / "main-red-dddddddddddd.md").read_text()
+    )
+    assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [
+        ("main-red-dddddddddddd", "")
+    ]
+    brief.write_text(text + "Noticed: the home edited it\n")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert len(main_red(kitchen)) == 1
+    line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
+    assert kitchen.lines("retro") == [line]
+
+
+def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitchen):
+    main_after_alpha(kitchen, "failure")
+    tasks = kitchen.home / "tasks"
+    tasks.chmod(0o500)
+    kitchen.t3.write(NOW)
+    said = []
+    try:
+        assert cli.poll(jbus.load(), NOW, said.append) == 1
+    finally:
+        tasks.chmod(0o700)
+    assert "pass failed demo: PermissionError" in said[0]
+    assert main_red(kitchen) == []
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert (tasks / "main-red-dddddddddddd.md").exists()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
+    assert kitchen.lines("retro") == [line]
+
+
+def test_a_removed_row_is_not_filed_again(kitchen):
+    main_after_alpha(kitchen, "failure")
+    kitchen.poll()
+    removed = ["queue", "remove", "main-red-dddddddddddd", "--by", "user"]
+    assert kitchen.main(*removed, "--at", "2026-10-12 11:00 ET")[0] == 0
+    (kitchen.home / "tasks" / "main-red-dddddddddddd.md").unlink()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not (kitchen.home / "tasks" / "main-red-dddddddddddd.md").exists()
+    assert main_red(kitchen) == []
+
+
+def test_a_first_pass_over_a_red_main_files_no_brief(kitchen):
+    main_after_alpha(kitchen, "failure")
+    (kitchen.state / "wake.json").unlink()
+    kitchen.poll()
+    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
+    assert main_red(kitchen) == []
+    assert kitchen.lines("retro") == []
+
+
+def test_a_green_main_files_no_brief(kitchen):
+    main_after_alpha(kitchen, "success")
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
+    assert main_red(kitchen) == []
+
+
 @pytest.mark.parametrize("conclusion", ["failure", "timed_out"])
 def test_a_check_on_main_that_failed_beside_a_cancelled_one_is_a_failed_check(kitchen, conclusion):
     kitchen.brief("alpha", RESULT)
@@ -241,7 +358,9 @@ def test_a_second_pass_repeats_no_finding(kitchen):
         "retro",
         "stale",
         "stale",
+        "waiting",
     ]
+    assert "(approve main-red-111111111111)" in kitchen.lines("waiting")[0]
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(hours=1))
     assert kitchen.lines() == first

@@ -47,6 +47,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [A gate wakes the Chef](./gate-wake.md) covers `jbus gate`, `jbus done`, the outbox, the POST to the webhook and `jbus status`.
 - [jmerge says ready, wait or hold](./jmerge-decision.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
 - [jgauge room](./jgauge-room.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
+- [A red main files the brief for its fix](./main-red.md) covers the `retro` line for a failed check on main, the `main-red-<sha12>` brief and its unapproved row, filed once a commit.
 - [Installing jstack](./install-skills.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
 
 No feature file covers these: `jgauge session`, `jgauge run` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.

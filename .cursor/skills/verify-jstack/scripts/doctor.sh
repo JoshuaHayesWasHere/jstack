@@ -46,14 +46,17 @@ is "the evidence directory is outside the sandbox ($VERIFY_JSTACK_EVIDENCE)" \
 # cannot support that journey, which is then reported as failed and never driven around it.
 # A recipe edits the seed (it empties machine/limits, rewrites gh/open.json), and a drive
 # ends with this check, so each test is of what every such edit keeps: that the file is
-# there, and for JSON that it is still a list. It exits 64 for a name it has no check for.
+# there, and for JSON that it is still a list (`gh/checks.json` an object). It exits 64 for
+# a name it has no check for.
 seed() {
   case $1 in
   demo) git -C "$S/demo" rev-parse -q --verify origin/main ;;
   config) grep -q '^name = "demo"$' "$S/config/config.toml" && [ -s "$S/config/t3.json" ] ;;
   tasks) [ -d "$S/home/.local/state/home/demo/tasks" ] ;;
   home) [ -d "$S/home" ] ;;
-  gh/open.json | gh/merged.json | t3/threads.json) jq -e 'type == "array"' "$S/$1" ;;
+  gh/open.json | gh/merged.json | gh/commits.json | t3/threads.json) jq -e 'type == "array"' "$S/$1" ;;
+  gh/checks.json) jq -e 'type == "object"' "$S/$1" ;;
+  gh/logs) [ -d "$S/$1" ] ;;
   machine/proc)
     [ -s "$S/$1/loadavg" ] && [ -s "$S/$1/meminfo" ] && [ -s "$S/$1/pressure/memory" ]
     ;;

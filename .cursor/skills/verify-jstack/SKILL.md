@@ -17,7 +17,7 @@ Run every command below from the root of this checkout unless it says otherwise.
 
 A sandbox is a stand-in for the machine jstack runs on. Each line below is a setup step that `launch.sh` or a stand-in did, and that the real machine does another way. A drive proves what the commands do after these steps, never the steps. They stay unverified until a run on the real machine covers them.
 
-- `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, no pull request for `pr list --base`, nothing for `api --paginate`, no check runs. The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
+- `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`. The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
 - `fake_t3.py` is the webhook too, and answers 200 to every POST to `/wake`. On the real machine the POST goes to the Chef's webhook, which can be down or refuse the key.
@@ -79,7 +79,7 @@ What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 
 | Path | What it is | A drive |
 |---|---|---|
-| `gh/open.json`, `gh/merged.json`, `gh/commits.json` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
+| `gh/open.json`, `gh/merged.json`, `gh/commits.json`, `gh/checks.json`, `gh/logs/` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
 | `gh/calls.log` | every `gh` call jbus and jmerge made | reads it |
 | `t3/threads.json` | the threads T3 Code has | edits a thread's `status` or `settled` between passes |
 | `t3/calls.jsonl` | every tool call jbus made, with its arguments | reads it |
