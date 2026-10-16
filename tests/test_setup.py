@@ -237,3 +237,12 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     count = probed + len(user.parts()) + units - left
     assert said[-2:] == [f"setup: 0 done, {count} already, 2 needs you, exit 0", "doctor: ok"]
     assert user.snapshot() == before
+
+
+@pytest.mark.parametrize("zone", ["Nowhere/Fake", "UTC0", "/etc/passwd"])
+def test_a_zone_the_loader_would_not_take_is_left_out_and_the_pass_goes_on(user, monkeypatch, zone):
+    monkeypatch.setenv("TZ", zone)
+    code, said = user.setup()
+    assert code == 0
+    assert tomllib.loads(user.config.read_text()) == {"user": "Sam"}
+    assert said[-1] == f"done units {user.units}"

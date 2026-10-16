@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Protocol, runtime_checkable
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import jbus
 import jleak
@@ -891,7 +891,7 @@ class JstackConfig:
         zone = machine.zone()
         try:
             known = zone is not None and str(ZoneInfo(zone)) == zone
-        except (ValueError, OSError):
+        except (ZoneInfoNotFoundError, ValueError, OSError):
             known = False
         if known:
             lines.append(f"timezone = {json.dumps(zone)}\n")

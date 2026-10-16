@@ -31,12 +31,14 @@ tail -n 1 /tmp/doctor
 find "$HOME" -path "$HOME/.cache" -prune -o -print | sort > /tmp/before
 record=$(cat "$HOME/.local/state/jstack/created" "$HOME/.local/state/jstack/seeded" | sha256sum)
 echo "== sh install.sh --setup, again"
-sh install.sh --setup > /tmp/second
+second=0
+sh install.sh --setup > /tmp/second || second=$?
 grep -v '^already ' /tmp/second
 find "$HOME" -path "$HOME/.cache" -prune -o -print | sort > /tmp/after
 
 fail=
 [ "$code" = 0 ] || fail="$fail; the first --setup exited $code"
+[ "$second" = 0 ] || fail="$fail; the second --setup exited $second"
 [ "$(tail -n 1 /tmp/doctor)" = "doctor: ok" ] || fail="$fail; the doctor is not ok"
 grep -v '^already \|^needs you ' /tmp/second && fail="$fail; the second run wrote something"
 diff /tmp/before /tmp/after || fail="$fail; the second run changed the files under HOME"
