@@ -226,6 +226,15 @@ def test_a_removed_row_is_not_filed_again(kitchen):
     assert main_red(kitchen) == []
 
 
+def test_a_first_pass_over_a_red_main_files_no_brief(kitchen):
+    main_after_alpha(kitchen, "failure")
+    (kitchen.state / "wake.json").unlink()
+    kitchen.poll()
+    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
+    assert main_red(kitchen) == []
+    assert kitchen.lines("retro") == []
+
+
 def test_a_green_main_files_no_brief(kitchen):
     main_after_alpha(kitchen, "success")
     kitchen.poll()

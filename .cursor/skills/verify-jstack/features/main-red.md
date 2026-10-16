@@ -44,7 +44,7 @@ Preconditions:
 
 ## Gotchas
 
-- The first pass in a sandbox files nothing for a red main it finds: run one pass before the merge is written.
+- The first pass in a sandbox files nothing for a red main it finds, and the next pass files it: run one pass before the merge is written.
 - A commit older than a day, or one with no merge in the day before it, is not looked at. Write the dates from `date`, not by hand.
 - `gh/checks.json` is keyed by the full sha. A commit with no key has no check runs, which reads as pending, not green.
 - jbus files the brief while the queue has no `main-red-<sha12>` row: a brief deleted while its row stays is not written again, and neither is one whose row was removed.

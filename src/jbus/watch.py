@@ -897,7 +897,8 @@ def _retro(run: Pass, world: World) -> None:
             since += 1
         line = f"retro {slug}: main check failed at {sha[:12]}, {since} merges since the last green"
         run.find(slug, "retro", line, key=f"red {sha}", past=True)
-        _file(run, slug, sha, commits[place : place + since])
+        if not run.first and slug not in run.removed:
+            _file(run, slug, sha, commits[place : place + since])
     write_json(run.state / "checks.json", known)
 
 
