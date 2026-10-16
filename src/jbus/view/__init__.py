@@ -42,7 +42,7 @@ Anything else is 404, another method 405, and a request whose `Host` header is n
 the server's own names is 403: the two addresses, `localhost`, and each name in
 `JBUS_VIEW_NAMES`, at the server's port, and the host of each origin in `JBUS_VIEW_ORIGINS`,
 with the scheme's default port or none. That is a proxy's origin, as
-`https://jbus.home.jhayes.lol`, for a proxy that passes the `Host` header on: an origin
+`https://<host name>`, for a proxy that passes the `Host` header on: an origin
 that is not `http://` or `https://`, a host and an optional port is refused at the start
 (`origin`). A write is 403 too unless its `Origin` header is the server's own address, the
 one its `Host` header names, `http://<Host>`, or for the host of an origin that origin

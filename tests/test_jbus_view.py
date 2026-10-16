@@ -922,11 +922,16 @@ def test_a_write_is_held_to_the_host_check_and_takes_the_origin_of_each_name(sce
         served.close()
 
 
-PROXIED = "jbus.home.example.test"
+PROXIED, PANTRY, EVIL, IPV6 = (
+    "jbus.home.example.test",
+    "pantry.example.test",
+    "evil.example.test",
+    "[::1]",
+)
 
 
 def test_a_host_is_known_by_an_origin_with_or_without_its_default_port(scene, served):
-    behind = Served(scene, origins=(f"https://{PROXIED}", "http://pantry.example.test:8080"))
+    behind = Served(scene, origins=(f"https://{PROXIED}", f"http://{PANTRY}:8080"))
     try:
         for host in (PROXIED, f"{PROXIED}:443", "pantry.example.test:8080"):
             assert behind.ask("/healthz", host=host)[0] == 200, host
@@ -949,7 +954,7 @@ def test_a_write_behind_a_proxy_takes_exactly_the_origin_that_names_its_host(sce
         for origin in (
             f"http://{PROXIED}",
             f"https://{PROXIED}:443",
-            "https://evil.example.test",
+            f"https://{EVIL}",
             "",
         ):
             status, said = behind.write({"numbers": [number]}, origin=origin, host=PROXIED)
@@ -1558,12 +1563,12 @@ def test_jbus_view_reads_its_address_and_names_from_the_environment(scene, monke
 
 
 def test_jbus_view_reads_its_origins_from_the_environment(scene, monkeypatch):
-    monkeypatch.setenv("JBUS_VIEW_ORIGINS", f"HTTPS://{PROXIED}:443, ,http://[::1]:8080")
+    monkeypatch.setenv("JBUS_VIEW_ORIGINS", f"HTTPS://{PROXIED}:443, ,http://{IPV6}:8080")
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     monkeypatch.setenv("JBUS_HOME_DIR", str(scene.home_dir))
     doors = view.doors(free_port())
     try:
-        assert doors.origins == (f"https://{PROXIED}", "http://[::1]:8080")
+        assert doors.origins == (f"https://{PROXIED}", f"http://{IPV6}:8080")
     finally:
         doors.close()
 
@@ -1581,11 +1586,11 @@ def test_jbus_view_reads_its_origins_from_the_environment(scene, monkeypatch):
         f"https://{PROXIED}:65536",
         f"https://{PROXIED}:",
         "https://",
-        "https://*.example.test",
+        f"https://*.{PANTRY}",
     ],
 )
 def test_an_origin_that_is_not_one_refuses_the_start(scene, monkeypatch, origin):
-    monkeypatch.setenv("JBUS_VIEW_ORIGINS", f"https://pantry.example.test,{origin}")
+    monkeypatch.setenv("JBUS_VIEW_ORIGINS", f"https://{PANTRY},{origin}")
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     monkeypatch.setenv("JBUS_HOME_DIR", str(scene.home_dir))
     with pytest.raises(view.Refused, match="JBUS_VIEW_ORIGINS"):
