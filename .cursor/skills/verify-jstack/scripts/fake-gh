@@ -5,6 +5,8 @@
 #   open.json    the open pull requests, as `gh pr list --json` gives them
 #   merged.json  the merged ones
 #   commits.json what `gh api` gives for the default branch's commits
+#   checks.json  each commit's check runs, by its sha: `{}` gives every commit none
+#   logs/<id>    the log of the job whose id is <id>, which is not found when the file is not
 # Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
 # and anything else it does not know exit 64.
 G=${VERIFY_JSTACK_SANDBOX:?source the sandbox env.sh first}/gh
@@ -38,7 +40,17 @@ case "$1 $2" in
 "api --paginate") ;;
 api\ *)
   case $2 in
-  */check-runs) echo '{"check_runs": []}' ;;
+  */check-runs)
+    sha=${2%/check-runs}
+    jq -c --arg sha "${sha##*/}" '{check_runs: (.[$sha] // [])}' "$G/checks.json"
+    ;;
+  */actions/jobs/*/logs)
+    job=${2%/logs}
+    cat "$G/logs/${job##*/}" 2>/dev/null || {
+      echo "gh: Not Found (HTTP 404)" >&2
+      exit 1
+    }
+    ;;
   *) cat "$G/commits.json" ;;
   esac
   ;;
