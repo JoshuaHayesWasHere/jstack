@@ -22,7 +22,7 @@ from test_jbus_view import Served
 NOTE = "the docs page for the new flag, " + "section by section, " * 12 + "to its end"
 ASK = (
     "## Gate <n>: tea or coffee?\nStatus: open\nDefault: tea\n"
-    "Option: tea (default): nothing changes\nOption: coffee: one thing more\n"
+    "Option: tea (default, recommended): nothing changes\nOption: coffee: one thing more\n"
 )
 
 
