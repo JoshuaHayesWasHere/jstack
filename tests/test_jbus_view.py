@@ -1097,7 +1097,7 @@ def test_the_state_gives_each_open_question_what_its_gate_wrote_and_who_asked(sc
     (scene.home / "scouts" / "survey.md").write_text("# survey\nThread: mcp:scout-1\n")
     scene.passed(seconds_ago=20, threads=[{"id": "mcp:scout-1", "role": "home"}])
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
-    lines += "Context: the pot holds two cups\nOption: both (recommended): a second pot\n"
+    lines += "Context: the pot holds two cups\nOption: both: a second pot\n"
     number = questions.ask(scene.state, scene.home, "alpha", lines, ago(minutes=25))[0].number
     asks(scene, "milk?", slug="survey")
     asks(scene, "sugar?", slug="expert-sage")
@@ -1116,10 +1116,10 @@ def test_the_state_gives_each_open_question_what_its_gate_wrote_and_who_asked(sc
             "name": "the first one",
             "follows": "nothing changes",
             "default": True,
-            "recommended": False,
+            "recommended": True,
         },
         {"name": "the other", "follows": "one more cup", "default": False, "recommended": False},
-        {"name": "both", "follows": "a second pot", "default": False, "recommended": True},
+        {"name": "both", "follows": "a second pot", "default": False, "recommended": False},
     ]
     assert (shown["milk?"]["role"], shown["milk?"]["thread"]) == ("home", "mcp:scout-1")
     assert (shown["sugar?"]["role"], shown["sugar?"]["thread"]) == ("", "")

@@ -17,6 +17,7 @@ from jbus.view import state as view_state
 from test_jbus_kitchen import GATE, NOW, OPTIONS, Kitchen
 
 AT = "2026-10-12 11:30 ET"
+ACTED = " Its default is acted on already, and stands unless you stop it."
 SAID = ("--by", "user", "--at", AT)
 THREAD = "mcp:crew-alpha"
 
@@ -80,13 +81,15 @@ def test_a_piped_gate_is_a_record_with_a_number_and_every_field_of_its_shape(kit
         "undo": "pick the other",
         "answer": None,
         "proposed": "",
+        "holds": "",
+        "fail_safe": "",
         "context": "",
         "options": [
             {
                 "name": "the first one",
                 "follows": "nothing changes",
                 "default": True,
-                "recommended": False,
+                "recommended": True,
             },
             {
                 "name": "the other",
@@ -105,7 +108,7 @@ def test_a_question_waits_on_the_user_from_the_next_pass_with_its_default(kitche
     wanted = {
         "kind": "gate",
         "key": "gate:q1",
-        "line": "question 1: tea or coffee?",
+        "line": "question 1: tea or coffee?" + ACTED,
         "source": "jbus",
         "number": "1",
         "question": "tea or coffee?",
@@ -330,7 +333,7 @@ def test_a_question_a_gates_file_has_too_is_counted_once_as_the_record(kitchen):
     kitchen.poll()
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 2: an old one?",
-        "question 1: tea or coffee?",
+        "question 1: tea or coffee?" + ACTED,
     ]
     assert [one["number"] for one in shown(kitchen)["waiting"] if one["kind"] == "gate"] == [
         "2",
@@ -450,7 +453,7 @@ def test_a_pass_that_cannot_read_the_questions_says_so_and_keeps_what_its_list_h
     (kitchen.home / "gates.md").write_text(gate(n=3, status="answered: coffee"))
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert [one["line"] for one in listed(kitchen)] == ["question 1: tea or coffee?"]
+    assert [one["line"] for one in listed(kitchen)] == ["question 1: tea or coffee?" + ACTED]
     assert kitchen.lines("condition") == ["condition demo: questions.json does not parse"]
     assert kitchen.lines("gate answered") == []
     file.write_text(kept)
@@ -471,7 +474,7 @@ def test_a_gate_of_a_scoped_home_beside_a_question_is_still_said_to_the_chat(kit
     assert event["line"] == "waiting demo: 2 wait on user, 1 new (gate quay#1), 0 gone"
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 1: which berth?",
-        "question 1: tea or coffee?",
+        "question 1: tea or coffee?" + ACTED,
     ]
 
 
@@ -501,12 +504,13 @@ def test_a_file_that_does_not_parse_loses_no_number(kitchen):
     assert ask(kitchen, "sugar?") == (0, "queued: question 3\n")
 
 
+SHELF = "Context: the shelf\nOption: tea (default, recommended): stay\nOption: coffee: they go\n"
 BARE = "## Gate <n>: tea or coffee?\nStatus: open\nDefault: tea\nUndo: pour it out\n"
 FORM = (
     "Write the options and pipe the gate again: each option you weighed is one line, the "
     'default you took among them: "Option: <short name> (default, recommended): <what follows '
-    'from it>", with (default) on the one that was taken, (recommended) on the one you would '
-    "pick, and no mark on the rest."
+    'from it>", with both marks on the one that was taken, which is the one you recommend, '
+    "and no mark on the rest."
 )
 
 
@@ -517,21 +521,21 @@ def option(name, follows, default=False, recommended=False):
 def test_a_gate_keeps_its_context_and_every_option_in_order_with_the_two_marks(kitchen):
     lines = (
         f"{BARE}Context: the cups are in https://example.test/pull/7, and tea is on the shelf\n"
-        "Option: tea (default): the cups stay\n"
-        "Option: coffee (recommended): the cups go back: one revert\n"
+        "Option: tea (default, recommended): the cups stay\n"
+        "Option: coffee: the cups go back: one revert\n"
         "Option: water: nothing is brewed\n"
     )
     assert kitchen.main("gate", "alpha", stdin=lines) == (0, "queued: question 1\n")
     (one,) = records(kitchen)["records"]
     assert one["context"] == "the cups are in https://example.test/pull/7, and tea is on the shelf"
     assert one["options"] == [
-        option("tea", "the cups stay", default=True),
-        option("coffee", "the cups go back: one revert", recommended=True),
+        option("tea", "the cups stay", default=True, recommended=True),
+        option("coffee", "the cups go back: one revert"),
         option("water", "nothing is brewed"),
     ]
 
 
-def test_one_option_is_the_default_and_the_pick_and_a_gate_may_name_no_pick(kitchen):
+def test_one_option_is_the_default_and_the_pick(kitchen):
     both = f"{BARE}Option: tea (default, recommended): the cups stay\nOption: coffee: they go\n"
     assert kitchen.main("gate", "alpha", stdin=both)[0] == 0
     assert records(kitchen)["records"][0]["options"] == [
@@ -642,7 +646,7 @@ def test_a_file_written_before_options_still_loads_and_its_question_is_still_ans
     (one,) = questions.read(kitchen.state)
     assert (one.number, one.question, one.context, one.options) == (1, "tea or coffee?", "", ())
     kitchen.poll()
-    assert [each["line"] for each in listed(kitchen)] == ["question 1: tea or coffee?"]
+    assert [each["line"] for each in listed(kitchen)] == ["question 1: tea or coffee?" + ACTED]
     assert answer(kitchen, 1, "tea", default=True)[0] == 0
     (kept,) = records(kitchen)["records"]
     assert (kept["answer"]["words"], kept["context"], kept["options"]) == ("tea", "", [])
@@ -651,7 +655,7 @@ def test_a_file_written_before_options_still_loads_and_its_question_is_still_ans
 
 def test_an_open_question_piped_again_with_options_gains_them_and_keeps_its_number(kitchen):
     before_options(kitchen, ("alpha", "tea or coffee?"), ("alpha", "milk?"))
-    again = f"{BARE}Context: the shelf\nOption: tea (default): stay\nOption: coffee: they go\n"
+    again = BARE + SHELF
     assert kitchen.main("gate", "alpha", stdin=again) == (0, "already sent: question 1\n")
     one, other = records(kitchen)["records"]
     assert (one["number"], one["context"], one["asked_at"]) == (
@@ -659,7 +663,10 @@ def test_an_open_question_piped_again_with_options_gains_them_and_keeps_its_numb
         "the shelf",
         "2026-10-12T15:00:00+00:00",
     )
-    assert one["options"] == [option("tea", "stay", default=True), option("coffee", "they go")]
+    assert one["options"] == [
+        option("tea", "stay", default=True, recommended=True),
+        option("coffee", "they go"),
+    ]
     assert (other["number"], other.get("options", [])) == (2, [])
     assert records(kitchen)["next"] == 3
 
@@ -668,7 +675,7 @@ def test_an_answered_question_piped_again_with_options_is_not_changed(kitchen):
     file = before_options(kitchen, ("alpha", "tea or coffee?"))
     answer(kitchen, 1, "tea", default=True)
     kept = file.read_text()
-    again = f"{BARE}Context: the shelf\nOption: tea (default): stay\nOption: coffee: they go\n"
+    again = BARE + SHELF
     code, said = kitchen.main("gate", "alpha", stdin=again)
     assert (code, said.startswith('already answered: question 1: "tea", by user')) == (0, True)
     assert file.read_text() == kept
@@ -707,14 +714,14 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
         "stays question 1, and two things more under them. One line `Context: <what the user "
         "needs to know to answer, with the links to it>`. And each option you weighed is one "
         'line, the default you took among them: "Option: <short name> (default, recommended): '
-        '<what follows from it>", with (default) on the one that was taken, (recommended) on '
-        "the one you would pick, and no mark on the rest. Then end your turn."
+        '<what follows from it>", with both marks on the one that was taken, which is the one '
+        "you recommend, and no mark on the rest. Then end your turn."
     )
     assert held == (
         "## Gate <n>: tea or coffee?\nStatus: open\nAsked by: alpha, thread mcp:crew-alpha\n"
         "Default: tea\nBuilt on it: the cups\nUndo: pour it out"
     )
-    again = f"{held}\nContext: the shelf\nOption: tea (default): stay\nOption: coffee: they go\n"
+    again = f"{held}\n{SHELF}"
     assert kitchen.main("gate", "alpha", stdin=again) == (0, "already sent: question 1\n")
     (one, *_) = records(kitchen)["records"]
     assert (one["default"], one["built_on"], one["undo"]) == ("tea", "the cups", "pour it out")

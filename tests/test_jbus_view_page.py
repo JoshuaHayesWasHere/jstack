@@ -2074,11 +2074,11 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
 
 def gated(scene):
     """Three questions of one crewmate, each with its options, the first with a context and
-    an option its thread recommends. The answer is their numbers."""
+    an option more. The answer is their numbers."""
     (scene.home / "tasks").mkdir()
     (scene.home / "tasks" / "alpha.md").write_text("# alpha\nThread: mcp:crew-alpha\n")
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
-    lines += "Context: the pot holds two cups\nOption: both (recommended): a second pot\n"
+    lines += "Context: the pot holds two cups\nOption: both: a second pot\n"
     first = questions.ask(scene.state, scene.home, "alpha", lines, ago(minutes=25))[0].number
     return [first, asks(scene, "milk?"), asks(scene, "sugar?")]
 
@@ -2125,16 +2125,11 @@ def test_a_gate_is_opened_and_answered_each_of_the_three_ways(scene, tmp_path, s
         {
             "name": "the first one",
             "picked": True,
-            "marks": ["taken as default"],
+            "marks": ["taken as default", "the thread recommends"],
             "follows": "nothing changes",
         },
         {"name": "the other", "picked": False, "marks": [], "follows": "one more cup"},
-        {
-            "name": "both",
-            "picked": False,
-            "marks": ["the thread recommends"],
-            "follows": "a second pot",
-        },
+        {"name": "both", "picked": False, "marks": [], "follows": "a second pot"},
     ]
     assert opened["box"] is True
     assert opened["will"] == f"Nothing is sent. The default stands and question {tea} closes."
