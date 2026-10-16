@@ -1,0 +1,19 @@
+# jbus relay: takes what jbus posts on 127.0.0.1:4390 and sends it on to Sous Chef, spooled.
+# Install: `sh install.sh` in the checkout links this file into ~/.config/systemd/user/, and
+# `systemctl --user enable --now jbus-relay.service` starts it. Do not copy this file.
+# Its settings are in ~/.config/jbus-relay/env (docs/jbus.md, "The relay"). A target whose
+# URL or key is missing, empty or REPLACE_ME stops it at start with status 2, which is not
+# restarted: `systemctl --user status jbus-relay` shows it failed, and the journal says why.
+[Unit]
+Description=jbus relay: what jbus posts, sent on to Sous Chef (loopback only)
+
+[Service]
+EnvironmentFile=%h/.config/jbus-relay/env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus relay
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=2
+
+[Install]
+WantedBy=default.target
