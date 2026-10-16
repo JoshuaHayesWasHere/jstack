@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import textwrap
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -732,17 +733,21 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
     ]
 
 
-@pytest.mark.parametrize("heading", ["Do the task", "Stay on the pull request"])
-def test_the_full_run_of_the_check_command_holds_a_test_slot(heading, tmp_path):
-    """The one full run in "Do the task", and the run after a failed check under "The checks"."""
-    home, stub = tmp_path / "home", tmp_path / "stub"
-    stub.mkdir()
-    room.uv(stub)
-    locks = home / ".local" / "state" / "locks"
-    held = f"! flock -n {locks}/test-slot.1.lock true && echo held; exit 3"
-    script = block(heading, "<check command>").replace("<check command>", f"sh -c '{held}'")
+def checked(tmp_path, command, limit=60):
+    """The check block of "Do the task" run once in a worktree of its own, as an agent runs
+    it, waiting `limit` seconds at most: what it printed, its exit code and how long it took."""
+    repo, home, stub = tmp_path / "repo", tmp_path / "home", tmp_path / "stub"
+    if not repo.exists():
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        (repo / "file").write_text("one\n")
+        stub.mkdir()
+        room.uv(stub)
+    script = block("Do the task", "<check command>").replace("<check command>", command)
+    script = script.replace("limit=540", f"limit={limit}")
+    began = time.monotonic()
     ran = subprocess.run(
         ["sh", "-c", script],
+        cwd=repo,
         capture_output=True,
         text=True,
         env={
@@ -752,8 +757,60 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot(heading, tmp_path):
             "T": str(SKILL.parent.parent.parent / "templates"),
         },
     )
-    assert (ran.returncode, ran.stdout, ran.stderr) == (3, "held\n", "")
+    return ran.stdout.splitlines(), ran.returncode, time.monotonic() - began
+
+
+def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_exit_code(
+    tmp_path,
+):
+    locks = tmp_path / "home" / ".local" / "state" / "locks"
+    held = f"! flock -n {locks}/test-slot.1.lock true && echo held; exit 3"
+    said, code, _ = checked(tmp_path, held)
+    assert (said[0].split(":")[0], said[-2:], code) == (
+        "started",
+        ["held", "done: the check exited 3"],
+        3,
+    )
     assert [path.name for path in locks.iterdir()] == ["test-slot.1.lock"]
+
+
+def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
+    """A check longer than one call: each call waits its whole limit and says to call again,
+    a second call joins the check the first started, and the last one has its exit code."""
+    runs = tmp_path / "runs"
+    command = f"echo ran >> {runs}; sleep 3; echo all passed"
+
+    said, code, took = checked(tmp_path, command, limit=1)
+    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
+    assert "never end your turn while it runs" in said[-1]
+    assert took >= 1
+
+    said, code, took = checked(tmp_path, command, limit=1)
+    assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
+    assert took >= 1
+
+    said, code, took = checked(tmp_path, command, limit=30)
+    assert (said[-2:], code) == (["all passed", "done: the check exited 0"], 0)
+    assert took < 30
+    assert runs.read_text() == "ran\n"
+
+    said, code, _ = checked(tmp_path, command)
+    assert (said[0].split(":")[0], said[-1], code) == ("checked", "done: the check exited 0", 0)
+    assert runs.read_text() == "ran\n"
+
+    (tmp_path / "repo" / "file").write_text("two\n")
+    said, code, _ = checked(tmp_path, command)
+    assert (said[0].split(":")[0], said[-1], code) == ("started", "done: the check exited 0", 0)
+    assert runs.read_text() == "ran\nran\n"
+
+
+def test_a_failed_check_on_the_pull_request_runs_the_check_block_of_do_the_task():
+    """One check block: "The checks" sends a failed check to the block of "Do the task"."""
+    assert [
+        text
+        for text in FENCED.findall(sections()["Stay on the pull request"])
+        if "jgauge test-slot" in text
+    ] == []
 
 
 def test_no_block_of_do_the_task_asks_whose_the_full_run_is():
