@@ -3,7 +3,9 @@
 # Install: `sh install.sh` in the checkout links this file into ~/.config/systemd/user/, and
 # `systemctl --user enable --now jbus-view.service` starts it. Do not copy this file.
 # It listens on 127.0.0.1. For the tailnet address too, put JBUS_VIEW_HOST=<address> and
-# JBUS_VIEW_NAMES=<host name> in a file under ~/.config/environment.d/.
+# JBUS_VIEW_NAMES=<host name> in a file under ~/.config/environment.d/. Behind an https proxy
+# that passes the Host header on, as Caddy does, put its origin there too, as
+# JBUS_VIEW_ORIGINS=https://<host name>.
 # It ends by itself, with status 0, when the code it runs is newer on disk and starts:
 # Restart=always is what starts it again then, on the new code.
 [Unit]
