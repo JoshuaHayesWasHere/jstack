@@ -2,7 +2,8 @@
 
 A Python file is read with `tokenize`, so a `#` in a string is no comment, and a shell file
 character by character, so a `#` in quotes is none either. What a tool reads as an instruction
-is let through: a shebang, `# noqa`, `# type:` and `# pragma`.
+is let through: a shebang, `# type:` and `# pragma`. A `# noqa` is not: what it silences is
+written so that ruff has nothing to say.
 """
 
 import io
@@ -20,7 +21,7 @@ SWEPT = (
     "install.sh",
     "tests/*.py",
 )
-READ_BY_A_TOOL = ("# noqa", "# type:", "# pragma")
+READ_BY_A_TOOL = ("# type:", "# pragma")
 
 
 def swept():
@@ -94,6 +95,7 @@ def test_a_swept_file_holds_no_plain_comment(name):
             ["late_shebang.py:2: #!/usr/bin/env python"],
         ),
         ("formatter.py", "x = [1]  # fmt: skip\n", ["formatter.py:1: # fmt: skip"]),
+        ("suppressed.py", "f = lambda: 1  # noqa: E731\n", ["suppressed.py:1: # noqa: E731"]),
         ("own_line.sh", "#!/bin/sh\n# why\necho hi\n", ["own_line.sh:2: # why"]),
         ("trailing.sh", "#!/bin/sh\n  LOAD=85 # percent\n", ["trailing.sh:2: # percent"]),
         ("indented.sh", "#!/bin/sh\nrun() {\n\t# why\n}\n", ["indented.sh:3: # why"]),
@@ -109,7 +111,7 @@ def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, na
     ("name", "text"),
     [
         ("shebang.py", "#!/usr/bin/env python\nx = 1\n"),
-        ("suppressed.py", "import os  # noqa: F401\nx: int = 1  # type: ignore[assignment]\n"),
+        ("typed.py", "x: int = 1  # type: ignore[assignment]\n"),
         ("pragma.py", "if x:  # pragma: no cover\n    pass\n"),
         ("in_a_string.py", 'x = "# not a comment"\ny = """\n# nor this\n"""\n'),
         ("shebang.sh", "#!/bin/sh\necho hi\n"),
