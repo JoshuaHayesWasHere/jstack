@@ -4,10 +4,11 @@ never cancelled by the next one: each push's run is a concurrency group of its o
 The workflow file is read as YAML, by the little of it these two blocks use: mappings by
 their indentation, a scalar, and a list in brackets.
 
-Every job takes its runner from one repo variable, and GitHub's when the repo has none: the
-tree names no machine. Every workflow is given read access to the contents and no more, and
-none runs on `pull_request_target`. The check may also read the repo's artifacts, which is
-where a green run's marker is.
+Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
+`jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
+The check names Google Chrome as its test browser on every runner. Every workflow is given
+read access to the contents and no more, and none runs on `pull_request_target`. The check
+may also read the repo's artifacts, which is where a green run's marker is.
 
 A run of the check whose tree a green run already tested skips the suite, by its steps and
 never by its job or its triggers, so the check is always reported. The script that asks is
@@ -30,7 +31,7 @@ DRIFT = WORKFLOWS / "pstack-drift.yml"
 GREEN_TREE = WORKFLOWS.parent.parent / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
-    " || vars.RUNS_ON || 'ubuntu-latest' }}"
+    " || vars.RUNS_ON || 'jstack-ephemeral' }}"
 )
 
 
@@ -167,13 +168,13 @@ def picked(expression, variable):
     return eval(inner.replace("&&", " and ").replace("||", " or "), names)
 
 
-def test_the_runner_is_githubs_with_no_variable_and_a_label_or_a_list_of_them_with_one():
+def test_the_runner_is_the_local_one_with_no_variable_and_a_label_or_a_list_of_them_with_one():
     for runs_on in {
         runs_on
         for found in map(jobs, map(Path.read_text, WORKFLOWS.glob("*.yml")))
         for runs_on in found.values()
     }:
-        assert picked(runs_on, "") == "ubuntu-latest"
+        assert picked(runs_on, "") == "jstack-ephemeral"
         assert picked(runs_on, "jstack") == "jstack"
         assert picked(runs_on, '["one", "two"]') == ["one", "two"]
 
@@ -192,6 +193,40 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
         more = {"actions": "read"} if path == CHECK else {}
         assert block("permissions", path) == {"contents": "read"} | more, path.name
         assert "pull_request_target" not in path.read_text(), path.name
+
+
+CHROME = {"JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"}
+
+
+def test_the_check_names_google_chrome_on_every_runner():
+    text = CHECK.read_text()
+    assert (step_env(text, "test browser"), step_env(text, "make check")) == (CHROME, CHROME)
+
+
+def test_the_browser_is_looked_for_right_before_the_suite_and_its_absence_fails_naming_it(
+    tmp_path,
+):
+    found, _ = steps(CHECK.read_text(), "check")
+    names = [step.get("name") for step in found]
+    look = found[names.index("test browser")]
+    assert names.index("make check") == names.index("test browser") + 1
+    assert look["if"] == UNLESS_GREEN
+    browser = tmp_path / "google-chrome"
+
+    def ran():
+        return subprocess.run(
+            ["bash", "-ec", look["run"]],
+            capture_output=True,
+            text=True,
+            env={"PATH": "/usr/bin:/bin", "JSTACK_TEST_BROWSER": str(browser)},
+        )
+
+    absent = ran()
+    assert absent.returncode != 0
+    assert f"::error::no test browser at {browser}," in absent.stdout
+    browser.write_text("#!/bin/sh\n")
+    browser.chmod(0o755)
+    assert (ran().returncode, ran().stdout) == (0, "")
 
 
 def test_a_bare_hosted_label_is_read_as_it_is_written():
@@ -324,13 +359,15 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/green_tree.py",
         "astral-sh/setup-uv",
         "uv sync --locked",
+        'test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at'
+        ' $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }',
         "make check",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
         'echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload'
         ' ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"',
     ]
-    checkout, ask, setup, sync, suite, *_ = found
+    checkout, ask, setup, sync, _, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
     assert [step["if"] for step in (setup, sync, suite)] == [
@@ -349,7 +386,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
     found, keys = steps(CHECK.read_text(), "check")
-    _, _, setup, sync, suite, *_ = found
+    _, _, setup, sync, _, suite, *_ = found
     assert (sync["run"], suite["run"], "if" in keys) == ("uv sync --locked", "make check", False)
     ran = {
         (marker, by): [
