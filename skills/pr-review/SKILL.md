@@ -276,14 +276,12 @@ SCOPE
 )
 INTENT=$(
   sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p}}' "$BRIEF"
-  skills=$(awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[ \t]*/, ""); print; exit}' "$BRIEF")
-  case $skills in
-  "" | none | None) ;;
-  *)
+  run=$(uv run --project "$T/.." jbriefs --skills-run "$BRIEF")
+  if [ -n "$run" ]; then
+    skills=$(awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[ \t]*/, ""); print; exit}' "$BRIEF")
     printf '\nSkills: %s. The crewmate loaded each in full and ran it, and its Result owes one artifact for each under Skills run:, the one templates/skill-artifacts.md names. jmerge waits on one that is missing, empty or a placeholder. Judge whether each is the real one: an artifact that restates the brief, or that running the skill plainly did not produce, is a finding about the change as a whole.\n' "$skills"
-    printf 'What the Results hold under Skills run:, as jmerge reads it:\n'
-    uv run --project "$T/.." jbriefs --skills-run "$BRIEF" ;;
-  esac
+    printf 'What the Results hold under Skills run:, as jmerge reads it:\n%s\n' "$run"
+  fi
   play=$(awk '/^Playbook:/ {print $(2); exit}' "$BRIEF")
   P="$T/../playbooks/$play.md"
   case $play in

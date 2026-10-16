@@ -89,7 +89,16 @@ def test_a_brief_that_names_no_skill_owes_no_artifact_and_has_no_fault(line):
 
 def test_an_artifact_that_says_it_skipped_part_of_the_work_is_still_one():
     assert not skills.hollow("Skipped the arena; sketched A and B, picked A")
-    assert skills.hollow("skip: no time") and skills.hollow("Skipped")
+    for said in (
+        "skip: no time",
+        "Skipped",
+        "Skipped.",
+        "skip.",
+        "skip - not needed",
+        "Skipped, no UI change",
+        "Skipped (no UI)",
+    ):
+        assert skills.hollow(said), said
 
 
 UNKNOWN = "Skills: architect, poteto-mode, principle-made-up\n"
@@ -271,3 +280,9 @@ def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it
         "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
         "- principle-prove-it-works: no artifact\n"
     ) in told
+
+
+def test_the_reviewer_is_told_of_no_skill_when_the_line_names_none(reviewer):  # noqa: F811
+    text = BRIEF.replace("Pull request:", "Skills: none, docs\nPull request:")
+    reviewer.brief.write_text(text)
+    assert "loaded each in full" not in intent(reviewer)

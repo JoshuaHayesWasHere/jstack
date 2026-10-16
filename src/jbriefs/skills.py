@@ -42,7 +42,7 @@ _SPLIT = re.compile(r"[,\s]+")
 _ITEM = re.compile(r"^[-*] +`?(?P<name>[^`:\s]+)`?:[ \t]*(?P<artifact>.*)$")
 _LABEL = re.compile(r"^(?P<label>[A-Z][A-Za-z]*(?: [A-Za-z]+)*):")
 SHOWN = 5
-_SKIP = re.compile(r"skip(?:ped)?\s*(?::|$)", re.I)
+_SKIP = re.compile(r"skip(?:ped)?\s*(?:$|[:.,;(\-])", re.I)
 _PLACEHOLDER = re.compile(r"<[^<>]*>[\s.]*")
 _HOLLOW = frozenset(("none", "n/a", "na", "tbd", "todo", "tba", "-", "--", "...", "…"))
 
