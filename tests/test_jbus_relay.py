@@ -1,4 +1,5 @@
-"""`jbus relay`, run as the unit runs it, against a fake Sous Chef webhook on 127.0.0.1."""
+"""`jbus relay`, run as the unit runs it, against a fake Sous Chef webhook, a fake Home
+Assistant for the fallback pager, and a fake `notify-send`, all on 127.0.0.1."""
 
 from __future__ import annotations
 
@@ -13,12 +14,18 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 INBOUND = "inbound-key-for-the-relay"
 SOUS_CHEF_KEY = "sous-chef-key-nobody-sees"
 GATEKEEPER_KEY = "gatekeeper-key"
+HA_TOKEN = "home-assistant-token-nobody-sees"
+HA_SERVICE = "mobile_app_test_phone"
+NOTIFY_SEND = """#!/bin/sh
+printf '%s\\n' "$*" >> "$(dirname "$0")/notified"
+"""
 
 
 def free_port() -> int:
@@ -33,6 +40,7 @@ class Webhook:
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
+        self.paths: list[str] = []
         self.answer, self.delay = 200, 0.0
         hook = self
 
@@ -43,6 +51,7 @@ class Webhook:
                 code = hook.answer
                 if code == 200:
                     hook.posts.append((dict(self.headers), json.loads(data)))
+                    hook.paths.append(self.path)
                 self.send_response(code)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -52,7 +61,8 @@ class Webhook:
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.server.daemon_threads = True
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}/hook"
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+        self.url = f"{self.base}/hook"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def bodies(self, route: str) -> list[dict]:
@@ -65,7 +75,7 @@ class Webhook:
 
 @pytest.fixture
 def hooks():
-    made = [Webhook(), Webhook()]
+    made = [Webhook(), Webhook(), Webhook()]
     yield made
     for hook in made:
         hook.close()
@@ -74,8 +84,13 @@ def hooks():
 class Relay:
     def __init__(self, env: dict[str, str], state) -> None:
         self.port, self.state = free_port(), state
+        self.bin = state.parent / "bin"
+        self.bin.mkdir(parents=True, exist_ok=True)
+        (self.bin / "notify-send").write_text(NOTIFY_SEND)
+        (self.bin / "notify-send").chmod(0o755)
         self.env = {
             **{k: v for k, v in os.environ.items() if not k.startswith("RELAY_")},
+            "PATH": f"{self.bin}:{os.environ['PATH']}",
             "RELAY_PORT": str(self.port),
             "RELAY_STATE": str(state),
             "RELAY_TIMEOUT_SECONDS": "1",
@@ -113,6 +128,23 @@ class Relay:
         except urllib.error.HTTPError as error:
             return error.code, {}
 
+    def ack(self, id: str, key: str = INBOUND) -> int:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/ack",
+            data=json.dumps({"id": id}).encode(),
+            method="POST",
+            headers={"Content-Type": "application/json", "X-Automation-Key": key},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5) as answer:
+                return answer.status
+        except urllib.error.HTTPError as error:
+            return error.code
+
+    def notified(self) -> list[str]:
+        made = self.bin / "notified"
+        return made.read_text().splitlines() if made.exists() else []
+
     def spooled(self, route: str) -> list[dict]:
         held = []
         for path in sorted((self.state / "spool" / route).glob("*.json")):
@@ -127,13 +159,16 @@ class Relay:
 
 
 def env_for(hooks) -> dict[str, str]:
-    sous_chef, gatekeeper = hooks
+    sous_chef, gatekeeper, pager = hooks
     return {
         "RELAY_INBOUND_KEY": INBOUND,
         "GROK_WEBHOOK_URL": sous_chef.url,
         "GROK_WEBHOOK_KEY": SOUS_CHEF_KEY,
         "GATEKEEPER_WEBHOOK_URL": gatekeeper.url,
         "GATEKEEPER_WEBHOOK_KEY": GATEKEEPER_KEY,
+        "PAGER_HA_URL": pager.base,
+        "PAGER_HA_TOKEN": HA_TOKEN,
+        "PAGER_HA_SERVICE": HA_SERVICE,
     }
 
 
@@ -172,7 +207,7 @@ def body(*events: dict) -> dict:
 
 
 def test_a_blocking_event_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, hooks):
-    sous_chef, gatekeeper = hooks
+    sous_chef, gatekeeper, _ = hooks
     gate, quiet = event("gate", "user"), event("merged", "quiet", "beta")
 
     code, said = relay.send(body(gate, quiet))
@@ -191,7 +226,7 @@ def test_a_blocking_event_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, h
 
 @pytest.mark.parametrize("kind", ["reminder", "refresh"])
 def test_a_reminder_or_refresh_blocks_whole(relay, hooks, kind):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sent = {"kind": kind, "project": "jstack", "at": "x", "say": "jstack: 1 blocks", "items": []}
 
     relay.send(sent)
@@ -202,7 +237,7 @@ def test_a_reminder_or_refresh_blocks_whole(relay, hooks, kind):
 
 
 def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
 
     relay.send(body(event("merged", "quiet")))
 
@@ -219,6 +254,9 @@ def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks
         ("GROK_WEBHOOK_URL", "", "GROK_WEBHOOK_URL is empty"),
         ("GROK_WEBHOOK_KEY", None, "GROK_WEBHOOK_KEY is missing"),
         ("RELAY_INBOUND_KEY", None, "RELAY_INBOUND_KEY is missing"),
+        ("PAGER_HA_TOKEN", "REPLACE_ME", "PAGER_HA_TOKEN is REPLACE_ME"),
+        ("PAGER_HA_URL", None, "PAGER_HA_URL is missing"),
+        ("PAGER_HA_SERVICE", "", "PAGER_HA_SERVICE is empty"),
     ],
 )
 def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, why):
@@ -235,10 +273,11 @@ def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, w
     assert code == 2
     assert why in said
     assert SOUS_CHEF_KEY not in said and hooks[0].url not in said
+    assert HA_TOKEN not in said and hooks[2].base not in said
 
 
 def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sent = body(event("gate", "user"))
     first = Relay(env_for(hooks), tmp_path / "state").up()
 
@@ -256,7 +295,7 @@ def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
 
 
 def test_a_body_with_its_own_id_is_sent_once(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
 
     relay.send({**body(event("merged", "quiet")), "id": "evt-1"})
     relay.send({**body(event("merged", "quiet", "beta")), "id": "evt-1"})
@@ -268,7 +307,7 @@ def test_a_body_with_its_own_id_is_sent_once(relay, hooks):
 
 
 def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sous_chef.answer = 503
     gate = body(event("gate", "user"))
 
@@ -292,7 +331,7 @@ def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(rela
 
 
 def test_a_slow_webhook_does_not_hold_back_taking_the_next_event(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sous_chef.delay = 3.0
     relay.send(body(event("gate", "user")))
     time.sleep(0.1)
@@ -312,7 +351,7 @@ def test_the_wrong_inbound_key_is_refused_and_spools_nothing(relay):
 
 
 def test_a_body_the_webhook_refuses_is_kept_aside_and_the_next_goes(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sous_chef.answer = 400
     code, refused = relay.send({**body(event("merged", "quiet")), "id": "refused-1"})
     assert code == 202
@@ -337,7 +376,7 @@ def test_a_target_url_that_is_not_http_fails_the_start(hooks, tmp_path):
 
 
 def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     alert = body(event("alert", "user"))
     running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}, tmp_path / "state").up()
 
@@ -355,7 +394,7 @@ def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
 def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_again(
     relay, hooks, answer
 ):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sous_chef.answer = answer
 
     code, said = relay.send(body(event("gate", "user")))
@@ -369,7 +408,7 @@ def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_aga
 
 
 def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_path):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}
     first = Relay(env, tmp_path / "state").up()
     first.send({**body(event("merged", "quiet")), "id": "evt-1"})
@@ -387,7 +426,7 @@ def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_pa
 
 
 def test_a_4xx_not_about_the_target_is_kept_aside_and_the_next_goes(relay, hooks):
-    sous_chef, _ = hooks
+    sous_chef, _, _ = hooks
     sous_chef.answer = 409
     relay.send({**body(event("gate", "user")), "id": "conflict-1"})
     dead = relay.state / "dead" / "blocking"
@@ -398,3 +437,199 @@ def test_a_4xx_not_about_the_target_is_kept_aside_and_the_next_goes(relay, hooks
 
     until(lambda: sous_chef.bodies("blocking"))
     assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [later["id"]]
+
+
+def at(minutes: float) -> str:
+    """A time `minutes` after the item began to block, as jbus writes it."""
+    return (OPENED + timedelta(minutes=minutes)).isoformat()
+
+
+OPENED = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
+
+
+def item(key: str = "gate:q33", line: str = "gate 33: tea or coffee?") -> dict:
+    return {
+        "project": "jstack",
+        "key": key,
+        "case": "a",
+        "why": "a gate with no default",
+        "kind": "gate",
+        "line": line,
+        "since": OPENED.isoformat(),
+        "opened": OPENED.isoformat(),
+        "url": "https://example.com/pull/1?token=secret",
+    }
+
+
+def second(kind: str, minutes: float, *items: dict) -> dict:
+    """A body jbus posts its second target, `minutes` after the items began to block."""
+    return {
+        "kind": kind,
+        "project": "jstack",
+        "at": at(minutes),
+        "say": [f"jstack: {kind} {one['line']}" for one in items] or ["jstack: nothing blocks"],
+        "items": list(items),
+    }
+
+
+def pages(pager) -> list[str]:
+    return [body["message"] for _, body in pager.posts]
+
+
+def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
+    sous_chef, _, pager = hooks
+    sous_chef.answer = 503
+
+    _, first = relay.send(body(event("gate", "user")))
+    _, later = relay.send(body(event("stall", "user", "beta")))
+    until(lambda: len(pager.posts) == 2)
+    time.sleep(1.0)
+
+    assert sorted(pages(pager)) == sorted(
+        [
+            f"jstack: gate alpha: something, blocking 0 min, event {first['id']}",
+            f"jstack: stall beta: something, blocking 0 min, event {later['id']}",
+        ]
+    )
+    assert pager.paths == [f"/api/services/notify/{HA_SERVICE}"] * 2
+    assert all(h["Authorization"] == f"Bearer {HA_TOKEN}" for h, _ in pager.posts)
+    assert [set(b) for _, b in pager.posts] == [{"message"}, {"message"}]
+    assert sorted(relay.notified()) == sorted(f"-u critical jbus page {m}" for m in pages(pager))
+    assert HA_TOKEN not in relay.stop()
+
+
+def test_a_sous_chef_that_takes_the_page_pages_nothing(relay, hooks):
+    sous_chef, _, pager = hooks
+
+    relay.send(body(event("gate", "user")))
+    until(lambda: sous_chef.bodies("blocking"))
+    time.sleep(0.5)
+
+    assert pager.posts == [] and relay.notified() == []
+
+
+def test_an_item_open_at_45_minutes_pages_once_and_not_twice(relay, hooks):
+    _, _, pager = hooks
+    open_ = item()
+
+    relay.send(second("events", 0, open_))
+    relay.send(second("reminder", 15, open_))
+    relay.send(second("refresh", 44, open_))
+    time.sleep(0.5)
+    assert pager.posts == []
+    relay.send(second("refresh", 45, open_))
+    until(lambda: pager.posts)
+    relay.send(second("refresh", 105, open_))
+    relay.send(second("reminder", 106, open_))
+    time.sleep(0.5)
+
+    assert pages(pager) == ["jstack: gate 33: tea or coffee?, blocking 45 min"]
+    assert relay.notified() == [
+        "-u critical jbus page jstack: gate 33: tea or coffee?, blocking 45 min"
+    ]
+
+
+def test_the_page_is_sent_once_also_after_a_restart(hooks, tmp_path):
+    _, _, pager = hooks
+    first = Relay(env_for(hooks), tmp_path / "state").up()
+    first.send(second("reminder", 15, item()))
+    first.send(second("refresh", 50, item()))
+    until(lambda: pager.posts)
+    first.stop()
+
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    again.send(second("refresh", 110, item()))
+    time.sleep(0.5)
+    again.stop()
+
+    assert len(pager.posts) == 1
+
+
+def test_an_item_closed_at_44_minutes_pages_nothing(relay, hooks):
+    _, _, pager = hooks
+    closing, staying = item(), item("#12", "hand-merge #12: held")
+
+    relay.send(second("reminder", 15, closing, staying))
+    relay.send(second("refresh", 44, staying | {"opened": at(30), "since": at(30)}))
+    relay.send(second("refresh", 60, staying | {"opened": at(30), "since": at(30)}))
+    relay.send(second("refresh", 120))
+    time.sleep(0.5)
+
+    assert pager.posts == [] and relay.notified() == []
+
+
+def test_a_refresh_closes_only_its_own_projects_items(relay, hooks):
+    _, _, pager = hooks
+    theirs = item() | {"project": "other"}
+
+    relay.send(second("reminder", 15, theirs) | {"project": "other"})
+    relay.send(second("refresh", 40))
+    relay.send(second("refresh", 60, theirs) | {"project": "other"})
+
+    until(lambda: pager.posts)
+    assert pages(pager) == ["other: gate 33: tea or coffee?, blocking 60 min"]
+
+
+def test_an_acknowledged_item_does_not_page(relay, hooks):
+    _, _, pager = hooks
+    seen, unseen = item(), item("#12", "hand-merge #12: held")
+
+    code, reminded = relay.send(second("reminder", 15, seen))
+    assert relay.ack(reminded["id"]) == 200
+    relay.send(second("reminder", 16, unseen))
+    relay.send(second("refresh", 60, seen, unseen))
+
+    until(lambda: pager.posts)
+    time.sleep(0.5)
+    assert pages(pager) == ["jstack: hand-merge #12: held, blocking 60 min"]
+
+
+def test_an_ack_with_the_wrong_key_or_an_unknown_id_marks_nothing(relay, hooks):
+    _, _, pager = hooks
+    _, reminded = relay.send(second("reminder", 15, item()))
+
+    assert relay.ack(reminded["id"], key="wrong") == 401
+    assert relay.ack("never-sent") == 404
+    relay.send(second("refresh", 50, item()))
+
+    until(lambda: pager.posts)
+    assert len(pager.posts) == 1
+
+
+def test_a_page_line_carries_no_url_with_a_token(relay, hooks):
+    _, _, pager = hooks
+    leaky = item(line="hand-merge #1 https://example.com/x?token=abc: held")
+
+    relay.send(second("refresh", 50, leaky))
+
+    until(lambda: pager.posts)
+    (said,) = pages(pager)
+    assert said == "jstack: hand-merge #1 <url>: held, blocking 50 min"
+
+
+def test_a_down_pager_keeps_the_page_to_send_again(relay, hooks):
+    _, _, pager = hooks
+    pager.answer = 503
+
+    relay.send(second("refresh", 50, item()))
+    time.sleep(0.5)
+    assert pager.posts == [] and len(relay.notified()) == 1
+    pager.answer = 200
+
+    until(lambda: pager.posts)
+    assert len(pager.posts) == 1 and len(relay.notified()) == 1
+
+
+def test_a_page_home_assistant_refuses_for_good_is_not_paged_again(relay, hooks):
+    _, _, pager = hooks
+    pager.answer = 400
+
+    relay.send(second("refresh", 50, item()))
+    dead = relay.state / "dead" / "page"
+    until(lambda: dead.is_dir() and list(dead.glob("*.json")))
+    relay.send(second("refresh", 110, item()))
+    relay.send(second("reminder", 111, item()))
+    time.sleep(0.5)
+
+    assert len(list(dead.glob("*.json"))) == 1
+    assert len(relay.notified()) == 1
