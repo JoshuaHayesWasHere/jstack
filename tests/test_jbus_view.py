@@ -1563,12 +1563,20 @@ def test_jbus_view_reads_its_address_and_names_from_the_environment(scene, monke
 
 
 def test_jbus_view_reads_its_origins_from_the_environment(scene, monkeypatch):
-    monkeypatch.setenv("JBUS_VIEW_ORIGINS", f"HTTPS://{PROXIED}:443, ,http://{IPV6}:8080")
+    monkeypatch.setenv(
+        "JBUS_VIEW_ORIGINS",
+        f"HTTPS://{PROXIED}:443, ,http://{IPV6}:8080,https://{PANTRY}:0443,http://{EVIL}:08080",
+    )
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     monkeypatch.setenv("JBUS_HOME_DIR", str(scene.home_dir))
     doors = view.doors(free_port())
     try:
-        assert doors.origins == (f"https://{PROXIED}", f"http://{IPV6}:8080")
+        assert doors.origins == (
+            f"https://{PROXIED}",
+            f"http://{IPV6}:8080",
+            f"https://{PANTRY}",
+            f"http://{EVIL}:8080",
+        )
     finally:
         doors.close()
 

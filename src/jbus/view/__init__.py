@@ -737,11 +737,11 @@ def origin(text: str) -> str:
     """One origin of `JBUS_VIEW_ORIGINS`, as a browser sends it: `http://` or `https://`, a
     host, and a port only where it is not the scheme's default. Anything else is refused."""
     found = _ORIGIN.fullmatch(text.lower())
-    if found is None or not 0 < int(found[3] or DEFAULT[found[1]]) < 65536:
+    port = int(found[3] or DEFAULT[found[1]]) if found else 0
+    if not 0 < port < 65536:
         raise Refused(f"refused: JBUS_VIEW_ORIGINS {text!r} is not an origin, as https://<host>")
     scheme, host = found[1], found[2]
-    port = str(int(found[3] or DEFAULT[scheme]))
-    return f"{scheme}://{host}" if port == DEFAULT[scheme] else f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}" if str(port) == DEFAULT[scheme] else f"{scheme}://{host}:{port}"
 
 
 def doors(port: int = PORT) -> Doors:
