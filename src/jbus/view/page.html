@@ -1115,8 +1115,6 @@
     enter("replaceState", { layers: layers, back: false }, href(PROJECT, layers.length ? layers[layers.length - 1].target : ""));
   }
   function shut() { enter("replaceState", { layers: [], back: false }, href(PROJECT, "")); }
-  /* A browser may drop a history write, as Chromium does past 200 in 10 s, so the view is drawn
-     from what was written, not from what the browser kept: https://html.spec.whatwg.org/multipage/nav-history-apis.html#shared-history-push/replace-state-steps */
   function enter(how, st, address) {
     history[how](st, "", address);
     route(st, address);
@@ -1304,8 +1302,6 @@
     escaped = true; setTimeout(function () { escaped = false; });
     up();
   }, true);
-  /* A second close request with no user activation between is not cancelable, and the browser
-     shuts the dialog itself: https://html.spec.whatwg.org/multipage/interaction.html#close-requests-and-close-watchers */
   drawer.addEventListener("cancel", function (e) {
     e.preventDefault();
     if (escaped) return;
