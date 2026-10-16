@@ -156,17 +156,31 @@ def best(lines: list[str], role: Role, found: list[Row], root: Path = ROOT) -> L
     has, the most of them first; then one whose scope holds every path the brief changes; then
     the role's own default row."""
     mine = [row for row in found if row.runner == role.runner]
-    asked = [r for r in mine if r.asks and all(any(ln.startswith(a) for ln in lines) for a in r.asks)]
+    asked = [
+        r for r in mine if r.asks and all(any(ln.startswith(a) for ln in lines) for a in r.asks)
+    ]
     if asked:
         row = max(asked, key=lambda r: len(r.asks))
-        return Line("playbook", row.name, f"playbooks/{row.name}.md (the brief has {', '.join(row.asks)})")
+        return Line(
+            "playbook", row.name, f"playbooks/{row.name}.md (the brief has {', '.join(row.asks)})"
+        )
     paths = scoped(lines)
     for row in mine:
-        if paths and row.scope and all(any(_in_scope(p, s, root) for s in row.scope) for p in paths):
-            return Line("playbook", row.name, f"playbooks/{row.name}.md (every path it changes is {' or '.join(row.scope)})")
+        if (
+            paths
+            and row.scope
+            and all(any(_in_scope(p, s, root) for s in row.scope) for p in paths)
+        ):
+            return Line(
+                "playbook",
+                row.name,
+                f"playbooks/{row.name}.md (every path it changes is {' or '.join(row.scope)})",
+            )
     if role.default == "none":
         return Line("playbook", "none", f"(no row {role.runner} runs fits)")
-    return Line("playbook", role.default, f"playbooks/{role.default}.md ({role.runner}'s default row)")
+    return Line(
+        "playbook", role.default, f"playbooks/{role.default}.md ({role.runner}'s default row)"
+    )
 
 
 def playbook(job: Work, root: Path = ROOT) -> Line:
@@ -217,7 +231,9 @@ def named(text: str) -> list[str]:
     """Each name the text gives as `/name` or as `skills/<name>`, once, in order. A path such
     as `/tmp/x` or `~/.local/state/home` names no skill."""
     seen: dict[str, None] = {}
-    for found in sorted([*_SLASH.finditer(text), *_DIRECTORY.finditer(text)], key=lambda m: m.start()):
+    for found in sorted(
+        [*_SLASH.finditer(text), *_DIRECTORY.finditer(text)], key=lambda m: m.start()
+    ):
         seen.setdefault(found.group(1))
     return list(seen)
 

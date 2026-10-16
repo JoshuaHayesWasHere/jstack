@@ -7,7 +7,7 @@ card: "Run the pipeline | 9 | Answers a help question with the skill to type and
 
 # Poteto help
 
-Source: jstack's own, written after pstack's `pstack/skills/poteto-help/SKILL.md`.
+jstack's own skill. It keeps the name of pstack's help skill and its rule that help starts no work, and takes none of its text (`THIRD_PARTY.md`).
 
 Answer the user's question about jstack, give them the line to type, and name the file the answer came from. A help question starts no work: no brief, no thread, no edit. The user asked which way to go, and going is theirs to send.
 

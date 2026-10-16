@@ -114,7 +114,9 @@ def test_a_brief_with_no_playbook_line_takes_the_row_of_its_role_that_fits(tmp_p
     }
     for where, expected in cases.items():
         brief = tmp_path / "tasks" / "a.md"
-        brief.write_text(BRIEF.replace("Playbook: feature\n", "").replace("Where: src/jgauge/", where))
+        brief.write_text(
+            BRIEF.replace("Playbook: feature\n", "").replace("Where: src/jgauge/", where)
+        )
         assert jbriefs(str(brief))[1].startswith(f"playbook {expected}: playbooks/{expected}.md")
 
 
@@ -159,7 +161,9 @@ def user(tmp_path, home):
 def demo(tmp_path):
     made = tmp_path / "demo"
     made.mkdir()
-    subprocess.run(["git", "init", "-q", made], check=True, env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
+    subprocess.run(
+        ["git", "init", "-q", made], check=True, env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}
+    )
     return made
 
 
@@ -190,8 +194,14 @@ def hook_tip(tmp_path, prompt):
     outside = tmp_path / "outside"
     outside.mkdir(exist_ok=True)
     event = {"session_id": f"s{abs(hash(prompt))}", "cwd": str(outside), "prompt": prompt}
-    env = {"HOME": str(tmp_path), "PATH": os.environ["PATH"], "GIT_CEILING_DIRECTORIES": str(tmp_path)}
-    done = subprocess.run(["sh", str(HOOK)], input=json.dumps(event), capture_output=True, text=True, env=env)
+    env = {
+        "HOME": str(tmp_path),
+        "PATH": os.environ["PATH"],
+        "GIT_CEILING_DIRECTORIES": str(tmp_path),
+    }
+    done = subprocess.run(
+        ["sh", str(HOOK)], input=json.dumps(event), capture_output=True, text=True, env=env
+    )
     assert done.returncode == 0
     if not done.stdout:
         return None

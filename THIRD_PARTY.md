@@ -161,9 +161,9 @@ skills/why/references/synthesizer-prompt.md <- pstack/skills/why/references/synt
 
 Each line is a file here and the upstream paths it was written from, at the commit above. A file added from pstack gets a line, and a move of the `Commit:` line follows a read of what changed.
 
-jstack's own: `principles/depth-over-breadth.md`
+jstack's own: `principles/depth-over-breadth.md`, `skills/poteto-help/SKILL.md`
 
-The file on that line sits beside the ones taken and is jstack's own, from the Felix Rieseberg section below: no upstream path fed it, so `jdrift` prints it as `own` and compares nothing for it.
+The files on that line sit beside the ones taken and are jstack's own: no upstream path fed them, so `jdrift` prints each as `own` and compares nothing for it. `principles/depth-over-breadth.md` is from the Felix Rieseberg section below. `skills/poteto-help/SKILL.md` is jstack's own skill, written after the upstream file `pstack/skills/poteto-help/SKILL.md`: it keeps that file's name and its help-only answer, and takes none of its text, so the upstream path stays on the `Not taken:` line below. Its pick comes from `jbriefs pick`, not from a hand-kept table, and it points at the home, crew, scout and expert skills, never at a mode.
 
 Not taken: `pstack/skills/create-verification-skill`, `pstack/skills/maintain-verification-skill`, `pstack/skills/make-bot-ui`, `pstack/skills/poteto-help`, `pstack/skills/setup-pstack`, `pstack/skills/poteto-mode/playbooks/babysit.md`, `pstack/skills/poteto-mode/playbooks/worktree-cleanup.md`
 
