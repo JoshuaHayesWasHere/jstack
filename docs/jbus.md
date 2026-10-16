@@ -105,6 +105,7 @@ A record has the slug, the section it is from, its text whole, when a pass first
 |---|---|
 | `JBUS_VIEW_HOST` | One more address of this machine to listen on, such as its tailnet address. The view refuses an address that stands for every address, such as `0.0.0.0`. |
 | `JBUS_VIEW_NAMES` | The host names, with commas, that a request may use beside `localhost` and the two addresses. A request under any other `Host` gets 403. |
+| `JBUS_VIEW_ORIGINS` | The origins, with commas, the view is reached at through a proxy that passes the `Host` header on, such as `https://<host name>`. A request under the host of one, with the scheme's default port or none, is known, and a write under it is taken only from that exact origin. The view refuses, at its start, a value that is not `http://` or `https://`, a host and an optional port, with no path. |
 
 To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
 

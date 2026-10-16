@@ -40,10 +40,15 @@ is 200 where a question closed and 409 where none did.
 
 Anything else is 404, another method 405, and a request whose `Host` header is not one of
 the server's own names is 403: the two addresses, `localhost`, and each name in
-`JBUS_VIEW_NAMES`. A write is 403 too unless its `Origin` header is the server's own
-address, the one its `Host` header names: only the server's own page writes. No answer has
-a CORS header, and none may be stored. There is no sign-in: who reaches the port is who
-may answer, as any shell of this machine may with `jbus answer`.
+`JBUS_VIEW_NAMES`, at the server's port, and the host of each origin in `JBUS_VIEW_ORIGINS`,
+with the scheme's default port or none. That is a proxy's origin, as
+`https://<host name>`, for a proxy that passes the `Host` header on: an origin
+that is not `http://` or `https://`, a host and an optional port is refused at the start
+(`origin`). A write is 403 too unless its `Origin` header is the server's own address, the
+one its `Host` header names, `http://<Host>`, or for the host of an origin that origin
+exactly: only the server's own page writes. No answer has a CORS header, and none may be
+stored. There is no sign-in: who reaches the port is who may answer, as any shell of this
+machine may with `jbus answer`.
 
 To read, it reads no config of jbus and no secret. `reader` is the `Config` the digest is
 built with: its config directory is `os.devnull`, under which there is no file, and its
@@ -119,6 +124,8 @@ POLICY = (
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
+DEFAULT = {"http": "80", "https": "443"}
+_ORIGIN = re.compile(r"(https?)://([a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::([0-9]{1,5}))?")
 _TASK = re.compile(r"/task/([a-z0-9][a-z0-9._-]*)/github")
 _PANEL = re.compile(rf"/panel/({panels.NAME.pattern})\.json")
 _CHECK = {"name": None, "state": None, "started": None, "completed": None}
@@ -547,10 +554,21 @@ class Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(answer.body)
 
+    def _own(self) -> frozenset[str]:
+        """The origins the server's own page has under the `Host` header, none where it is
+        not the server's: `http://<Host>` for one of its names at its port, and each origin
+        of `JBUS_VIEW_ORIGINS` that is `<scheme>://<Host>`, the scheme's default port in the
+        Host or not."""
+        host = self.headers.get("Host", "").lower()
+        name, _, port = host.rpartition(":")
+        named = port == str(self.server.server_port) and name.strip("[]") in self.server.names
+        might = {f"{scheme}://{host.removesuffix(f':{at}')}" for scheme, at in DEFAULT.items()}
+        return self.server.origins & might | ({f"http://{host}"} if named else set())
+
     def _known(self) -> bool:
-        """Whether the `Host` header is one of this server's names, at its port."""
-        name, _, port = self.headers.get("Host", "").lower().rpartition(":")
-        return port == str(self.server.server_port) and name.strip("[]") in self.server.names
+        """Whether the `Host` header is one of this server's names, at its port, or the host
+        of one of its origins."""
+        return bool(self._own())
 
     def do_GET(self) -> None:
         if not self._known():
@@ -569,11 +587,10 @@ class Handler(BaseHTTPRequestHandler):
         if path != WRITE:
             self._refuse()
             return
-        host = self.headers.get("Host", "").lower()
         if not self._known():
             self._send(said(403, {"error": "this is not the server's name"}))
             return
-        if self.headers.get("Origin", "").lower() != f"http://{host}":
+        if self.headers.get("Origin", "").lower() not in self._own():
             self._send(said(403, {"error": "only the server's own page writes"}))
             return
         try:
@@ -611,6 +628,7 @@ class Door(ThreadingHTTPServer):
     allow_reuse_address = True
     app: App
     names: frozenset[str]
+    origins: frozenset[str]
 
 
 class Door6(Door):
@@ -628,11 +646,12 @@ class Doors:
         port: int = PORT,
         host: str | None = None,
         names: tuple[str, ...] = (),
+        origins: tuple[str, ...] = (),
         retry: float = RETRY,
         check: float = CHECK,
     ) -> None:
         self.app, self.port, self.host, self.names, self.retry = app, port, host, names, retry
-        self.check = check
+        self.origins, self.check = origins, check
         self._open: list[Door] = []
         self._closed = threading.Event()
         self._lock = threading.Lock()
@@ -642,6 +661,7 @@ class Doors:
         door = kind((address, self.port), Handler)
         door.app = self.app
         door.names = frozenset({LOOPBACK, "localhost", *(self.host or LOOPBACK,), *self.names})
+        door.origins = frozenset(self.origins)
         threading.Thread(target=door.serve_forever, args=(0.05,), daemon=True).start()
         return door
 
@@ -713,9 +733,20 @@ class Doors:
         return 0
 
 
+def origin(text: str) -> str:
+    """One origin of `JBUS_VIEW_ORIGINS`, as a browser sends it: `http://` or `https://`, a
+    host, and a port only where it is not the scheme's default. Anything else is refused."""
+    found = _ORIGIN.fullmatch(text.lower())
+    port = int(found[3] or DEFAULT[found[1]]) if found else 0
+    if not 0 < port < 65536:
+        raise Refused(f"refused: JBUS_VIEW_ORIGINS {text!r} is not an origin, as https://<host>")
+    scheme, host = found[1], found[2]
+    return f"{scheme}://{host}" if str(port) == DEFAULT[scheme] else f"{scheme}://{host}:{port}"
+
+
 def doors(port: int = PORT) -> Doors:
-    """The server as the environment asks for it: `JBUS_VIEW_HOST` and `JBUS_VIEW_NAMES`,
-    over the state directories `jbus` itself uses."""
+    """The server as the environment asks for it: `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and
+    `JBUS_VIEW_ORIGINS`, over the state directories `jbus` itself uses."""
     home = Path.home()
     try:
         user = jsettings.load()
@@ -727,9 +758,11 @@ def doors(port: int = PORT) -> Doors:
         user=user,
     )
     names = tuple(name.strip() for name in os.environ.get("JBUS_VIEW_NAMES", "").split(","))
+    origins = (one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(","))
     return Doors(
         App(sources),
         port,
         host=os.environ.get("JBUS_VIEW_HOST") or None,
         names=tuple(name.lower() for name in names if name),
+        origins=tuple(origin(one) for one in origins if one),
     )
