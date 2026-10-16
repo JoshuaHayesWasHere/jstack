@@ -8,9 +8,15 @@ Every test runs with a config of jstack's own in a directory of its own, never t
 it names no user, so the name is the default, and it fixes the zone and its label, so a time
 a test pins reads the same on every machine. A test of another config writes one with `user`.
 
+No test starts a unit of the machine's user manager: `systemd-run` on PATH is a fake that
+starts the command in a session of its own, as a transient unit would outlive its caller, and
+writes what it was asked to `$SYSTEMD_RUN_CALLS` where that is set.
+
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
 one project.
 """
+
+import os
 
 import pytest
 
@@ -20,6 +26,30 @@ from test_jbus_kitchen import Kitchen
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
 NAMED = f'user = "Robin"\n{ZONE}'
 OLD_LEVEL, OLD_EVENT = "robin", "waiting-on-robin"
+
+
+SYSTEMD_RUN = """\
+#!/bin/sh
+if [ -n "$SYSTEMD_RUN_CALLS" ]; then echo "$*" >> "$SYSTEMD_RUN_CALLS"; fi
+while [ $# -gt 0 ]; do
+    case $1 in
+    --) shift; break ;;
+    -*) shift ;;
+    *) break ;;
+    esac
+done
+setsid "$@" < /dev/null > /dev/null 2>&1 &
+"""
+
+
+@pytest.fixture(autouse=True)
+def no_user_units(tmp_path_factory, monkeypatch):
+    """The directory of the fake `systemd-run`, first on PATH."""
+    bin = tmp_path_factory.mktemp("units")
+    (bin / "systemd-run").write_text(SYSTEMD_RUN)
+    (bin / "systemd-run").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin}:{os.environ['PATH']}")
+    return bin
 
 
 @pytest.fixture(autouse=True)

@@ -36,7 +36,9 @@ def a_pass(tmp_path, printed, sent=None):
         user=jsettings.DEFAULTS,
         project=SimpleNamespace(name="demo"),
         say=sent.append,
-        run=lambda *command: SimpleNamespace(stdout="\n".join(printed) + "\n", returncode=0),
+        run=lambda *command, timeout=None: SimpleNamespace(
+            stdout="\n".join(printed) + "\n", returncode=0
+        ),
         find=lambda slug, kind, line, text="", *, key="": sent.append((slug, kind, line, key)),
     )
 
