@@ -39,6 +39,7 @@ SRC = frozenset(path.name.removesuffix(".py") for path in (REPO / "src").iterdir
 RUNNERS = frozenset({"subprocess", "jsonschema"})
 READS = frozenset({"read_text", "read_bytes", "open", "read", "readlines"})
 SHELL = frozenset({"system", "popen", "spawnl", "spawnv", "spawnlp", "spawnvp", "execv", "execvp"})
+LITERALS = (ast.Constant, ast.Tuple, ast.List, ast.Set, ast.Dict)
 PATH_CALLS = frozenset({"Path", "glob", "rglob", "joinpath", "relative_to", "with_name"})
 EXCEPTION = re.compile(
     r"#\s*words only:\s*(?P<reason>\S.*?)\s*\(the user[,:]\s*(?P<word>[^)]*\S)\)\s*$"
@@ -208,18 +209,39 @@ class Lint:
         module = self.modules[module_name]
         for name, node in module.tests():
             facts = self.walk(module, [node])
-            if facts.docs and facts.reads and facts.asserts and not facts.runs and phrases(node):
+            if (
+                facts.docs
+                and facts.reads
+                and facts.asserts
+                and not facts.runs
+                and phrases(module, node)
+            ):
                 yield name, node
 
 
-def phrases(test):
-    """The words a test's own body brings to match: its string literals that are no path, no
-    file name, no keyword's value and no part of an f-string."""
-    skip = set()
+def phrases(module, test):
+    """The words a test brings to match: the string literals of its body, of the values its
+    decorators give it (a parametrize list, but not its argument names), and of each literal
+    the module binds to a name that either reads. A path, a file name, a keyword's value and a
+    part of an f-string are no words."""
     body = test.body
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
         body = body[1:]
-    for node in (each for top in body for each in ast.walk(top)):
+    given = []
+    for decorator in test.decorator_list:
+        if isinstance(decorator, ast.Call):
+            parametrize = getattr(decorator.func, "attr", None) == "parametrize"
+            given += decorator.args[1:] if parametrize else decorator.args
+    named = {
+        node.id
+        for top in body + given
+        for node in ast.walk(top)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+    bound = (module.values[name] for name in sorted(named & module.values.keys()))
+    nodes = body + given + [value for value in bound if isinstance(value, LITERALS)]
+    skip = set()
+    for node in (each for top in nodes for each in ast.walk(top)):
         if isinstance(node, ast.JoinedStr):
             skip.update(id(part) for part in ast.walk(node))
         elif isinstance(node, ast.keyword):
@@ -232,7 +254,7 @@ def phrases(test):
                 skip.update(id(arg) for arg in node.args)
     return [
         node.value
-        for top in body
+        for top in nodes
         for node in ast.walk(top)
         if isinstance(node, ast.Constant)
         and isinstance(node.value, str)
@@ -455,6 +477,43 @@ def test_a_runner_in_conftest_counts_through_a_fixture_or_a_helper_of_another_mo
         assert "go" in conftest.run_block(SKILL.read_text())
     """
     assert flagged(conftest=conftest, test_fixture=by_fixture, test_import=by_import) == []
+
+
+def test_phrases_given_by_parametrize_or_a_module_constant_are_flagged():
+    parametrized = """
+    import pytest
+    from pathlib import Path
+    SKILL = Path("skills/crew/SKILL.md")
+
+    @pytest.mark.parametrize("phrase", ["Never merge", "A merge does not wake"])
+    def test_the_skill_says(phrase):
+        assert phrase in SKILL.read_text()
+    """
+    constant = """
+    from pathlib import Path
+    SKILL = Path("skills/crew/SKILL.md")
+    PHRASES = ("Never merge", "A merge does not wake")
+
+    def test_the_skill_says_each():
+        for phrase in PHRASES:
+            assert phrase in SKILL.read_text()
+    """
+    found = flagged(test_parametrized=parametrized, test_constant=constant)
+    assert found == ["test_the_skill_says", "test_the_skill_says_each"]
+
+
+def test_a_lint_parametrized_over_file_names_has_no_words_of_its_own():
+    lint = """
+    import pytest
+    from pathlib import Path
+    TEMPLATES = Path("templates")
+    NAMES = ["brief.md", "result.md"]
+
+    @pytest.mark.parametrize("name", NAMES)
+    def test_lint_each_template_has_lines(name):
+        assert (TEMPLATES / name).read_text().splitlines()
+    """
+    assert flagged(test_lint=lint) == []
 
 
 def test_a_lint_over_every_doc_with_no_words_of_its_own_passes():
