@@ -1,9 +1,9 @@
 ---
 name: pr-review
-description: Have a finished pull request reviewed in a fresh thread - one new reviewer thread per pull request runs pstack's review on it (two reviewers who do not see each other, a lead's judgment, and the one safety fact proven by running code; no fixes), sends the findings to the thread that did the work, and records them in the brief. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished.
+description: Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), sends the findings to the thread that did the work, and records them in the brief. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished.
 tip: has a finished pull request reviewed in a fresh thread | review the pull request | review the pull requests | review the pr | review this pr | review my pr
 user-invocable: true
-card: "Run the pipeline | 4 | Starts a reviewer in a fresh thread. Two reviewers who do not see each other read the pull request, a lead judges their findings, and one command proves the fact the change is safe because of. It fixes nothing. | Reach for it when a pull request opens. The crewmate does this by itself. | model: a crewmate; op: the operator | look: rev"
+card: "Run the pipeline | 4 | Starts one review thread per pull request. It reads the diff itself, judges what it found, and one command proves the fact the change is safe because of. It fixes nothing, and jbus archives it when the pull request merges or closes. | Reach for it when a pull request opens. The crewmate does this by itself. | model: a crewmate; op: the operator | look: rev"
 ---
 
 # pr-review
@@ -64,16 +64,16 @@ The questions a review answers, each about the changed code only:
 
 | The question | Answered by |
 |---|---|
-| Does it meet the brief, the `Done when` lines above all? | the two reviewers, then the lead |
-| Is it tested properly? A test must execute something: a new or changed test that only matches wording is a warning, and the remedy to name is a test that executes, not deleting it. | the two reviewers, then the lead |
-| Does it do what the user wanted, not only what the brief's words say? | the two reviewers, then the lead |
-| Is it correct? Six things to look for go with it: a change that is run twice or crashes halfway, shared state kept in step by structure or only by convention, a rule in prose that should be a check, an old path kept beside a new one, a check that reads a proxy and not the thing, a bug fix with no test. | the two reviewers, then the lead |
-| Could it be done more simply or cheaply? Five things to look for go with it: a restructuring that makes whole branches or layers disappear, a file pushed past 1,000 lines, ad-hoc branches in an existing flow, thin wrappers, logic outside its canonical layer. | the two reviewers, then the lead, and "Wider than the brief" for one whose remedy is outside `Where` |
-| Does it leave everything it did not mean to change unaffected? Two things to look for go with it: a changed line that does not trace to the task, and a removal of code the change did not orphan. | the two reviewers, then the lead |
-| Is the diff wider than the brief's `Where`? A file outside it is a finding. | the two reviewers, then the lead, and "Wider than the brief" |
-| Does it collide with work in flight? | the reviewer: "In flight" |
+| Does it meet the brief, the `Done when` lines above all? | the reviewer |
+| Is it tested properly? A test must execute something: a new or changed test that only matches wording is a warning, and the remedy to name is a test that executes, not deleting it. | the reviewer |
+| Does it do what the user wanted, not only what the brief's words say? | the reviewer |
+| Is it correct? Six things to look for go with it: a change that is run twice or crashes halfway, shared state kept in step by structure or only by convention, a rule in prose that should be a check, an old path kept beside a new one, a check that reads a proxy and not the thing, a bug fix with no test. | the reviewer |
+| Could it be done more simply or cheaply? Five things to look for go with it: a restructuring that makes whole branches or layers disappear, a file pushed past 1,000 lines, ad-hoc branches in an existing flow, thin wrappers, logic outside its canonical layer. | the reviewer, and "Wider than the brief" for one whose remedy is outside `Where` |
+| Does it leave everything it did not mean to change unaffected? Two things to look for go with it: a changed line that does not trace to the task, and a removal of code the change did not orphan. | the reviewer |
+| Is the diff wider than the brief's `Where`? A file outside it is a finding. | the reviewer, and "Wider than the brief" |
+| Does it collide with work in flight? | the reviewer, by "In flight" |
 
-The first seven go to the two reviewers at the end of the intent, and the lead judges what they answer: the `SCOPE` text in "The review" is the one copy of what they are told. The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only. The last is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
+The first seven are asked at the end of the intent, in the prompt the reviewer reads: the `SCOPE` text in "The review" is the one copy of them. The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only. The last is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
 
 ## Launching
 
@@ -209,13 +209,13 @@ It runs only on the path the user types, `/pr-review <slug>` in a home or in a c
 
 ## The reviewer
 
-This thread is a **reviewer**. It reads, runs pstack's review (two reviewers who do not see each other, its own judgment as their lead, and one proof), reports, and ends. It never edits a file, commits, pushes, or changes the pull request, and it never reads the crewmate's thread.
+This thread is a **reviewer**. It reads the diff, judges what it found, proves one fact, reports, and ends. It starts no subagent and no other thread: the review is this one thread. It never edits a file, commits, pushes, or changes the pull request, and it never reads the crewmate's thread.
 
 ### Start
 
 1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. If the brief has a `## Review` section and the message does not end in `again`, say so and stop.
    - Read the brief's `Review:` line as above. If it is `none`, say that its brief asks for no review, and stop: no review, no message to the crewmate, no section.
-2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is for the two reviewers to read. Open a file only to judge a finding, or to find and prove the safety fact.
+2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
 3. Check the ground, and stop with the reason if any line fails:
    - `git status -sb`: this checkout is on the pull request's branch and has nothing uncommitted.
    - `git rev-parse HEAD` is the pull request's `headRefOid`. Keep it: this is the head under review.
@@ -223,11 +223,9 @@ This thread is a **reviewer**. It reads, runs pstack's review (two reviewers who
 
 ### The review
 
-The review is pstack's, in two parts. One is its interrogate: two reviewers who do not see each other, and a lead who judges what they found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
+The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
 
-This thread is the lead. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: the reviewers read the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
-
-pstack draws its two reviewers from two model families. Here they are two readers on one model, neither shown the other's answer, until the role map (`jroles`) gives a model for each reviewer. That is a weaker signal: when the two agree on everything, say so in the message to the crewmate.
+This thread does both, and starts no subagent: pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
 
 **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
 
@@ -342,29 +340,15 @@ echo "$D/prompt.md"
 - The wait for room is this call, and nothing else. With `--wait 540` the check looks again every 15 seconds until it says `go` or nine minutes have passed. On `go` the block goes on by itself. So send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. When the nine minutes pass with no room, the block prints the last `wait: ` line, builds nothing and exits 75: start no reviewer, and send the same block again at once, in this same turn. A call that was cut off before it printed anything is sent again the same way. A check that did not run is a `wait` too, and exits 75 at once.
 - Never end the turn to wait for room, and never leave a check, a loop or a timer in the background to wait in your place: nothing wakes a reviewer when the machine has room, and the pull request would wait for a review that nobody runs. The block counts its own sends for this slug and head, in a file beside the directories it builds, a send that was cut off included, and forgets them on `go`. The sixth send with no room, about an hour in, prints the last answer and exits 69: give up as "No room" below says, and send the block no more.
 - A brief with `Review: none` gets exit code 78 and nothing built: say that its brief asks for no review, and stop.
-- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask. The scope is the pull request's diff, `gh pr diff <url>`. The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text. That text is how the scope rule and the seven questions reach the two reviewers, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
-- Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff reaches the reviewers as GitHub sent it, not retyped by this thread. Keep the path: the reviewers are given it, and the proof of step 5 is written beside it.
+- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask. The scope is the pull request's diff, `gh pr diff <url>`. The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text. That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
+- Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff is in it as GitHub sent it, not retyped by this thread. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which. Nothing was reviewed: send the block once more, and if it fails again, write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
 
-**3. Two reviewers.** Start both in one message, as step 3 of the interrogate skill starts its two: two calls of the `Agent` tool, the same but for the letter in `description`, with the path the block printed in place of the words in angle brackets:
+**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
-```json
-{
-  "subagent_type": "Explore",
-  "description": "pr-review reviewer A",
-  "prompt": "Read the file <the prompt file> from its first line to its last, in parts if it is long, and do what it says. It is the whole of your task: an adversarial review of one pull request's diff. This checkout is at the pull request's head: read whatever the diff calls or is called by, run nothing and change nothing. Reply with the list of findings the file asks for, or with \"no findings\".",
-  "run_in_background": false
-}
-```
+**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 
-- The type is `Explore` because it is started with no Edit, Write or NotebookEdit tool, and it runs on this session's model at this session's effort. No `model`, no `effort` and no `isolation`.
-- Each gets the same prompt, and neither is told of the other or shown its answer. Two is the count. Do not read the diff for findings of your own while they run: the lead judges what two fresh readers found.
-- With no `Agent` tool in the session, do each reading in this thread from the same prompt file, one after the other, and say so on the section's `Reviewers:` line.
-- A reviewer that fails or gives no answer is not started again: the section's `Reviewers:` line says `no answer` for it, and the review goes on with the other. With no answer from either, nothing was reviewed: write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
-
-**4. Lead judgment.** Read steps 4 and 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. You have what the reviewers did not: the brief, its decisions, and the repo to check a claim against.
-
-- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in the forms "Outside the diff" gives. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`: take the reviewers' tag, and where they differ or gave none, judge it yourself. The severity is `error`, `warning` or `info`: a reviewer's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request. A finding both reviewers raised says so before its tag: `(both reviewers)`.
+- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in the forms "Outside the diff" gives. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there with the reason: it is what lets the user overrule the lead. Neither goes to the crewmate.
 - The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding: fixed`, or `Finding: not fixed` with a reason (the crew skill, "The review").
 
@@ -591,9 +575,9 @@ printf '%s\n' "$PR" | jq -r '.files[].path' | awk -v where="$WHERE" '
   { for (i = 1; i <= n; i++) if ($(0) == w[i] || index($(0), w[i] "/") == 1) next; if (n) print }'
 ```
 
-It prints each file the pull request changes that is outside the paths the brief's `Where:` line names, or nothing. Each file printed is a finding, a warning with no line: the pull request is wider than its brief. If a reviewer already raised the same file, keep one. The block reads only the paths in backticks: a printed file that the `Where:` line's own words allow ("and the other skills only where they state a title") is not a finding. A failed `gh` ends the block with exit code 1, and then the width was not checked: say so in the section, not that the pull request is no wider. A brief whose `Where:` names no path in backticks prints nothing: say in the section that the width could not be checked.
+It prints each file the pull request changes that is outside the paths the brief's `Where:` line names, or nothing. Each file printed is a finding, a warning with no line: the pull request is wider than its brief. If the reading already raised the same file, keep one. The block reads only the paths in backticks: a printed file that the `Where:` line's own words allow ("and the other skills only where they state a title") is not a finding. A failed `gh` ends the block with exit code 1, and then the width was not checked: say so in the section, not that the pull request is no wider. A brief whose `Where:` names no path in backticks prints nothing: say in the section that the width could not be checked.
 
-A finding can be wider than the brief in a second way: it is about a changed line, and what it asks for is not in the brief's `Where`. That happens with the fifth question's things to look for (a restructuring, a file to split, a branch to move into a module of its own, a wrapper to remove, logic to move to its canonical layer), when the remedy would change a file outside `Where`. The reviewers are told to say so in the finding. Such a finding is kept, sent and recorded like any other, with these words at the end of its line: `for Noticed, not this pull request`. It asks the crewmate for no fix: the crewmate writes it in the Result under "Noticed", where the home sees it as a possible plan entry. A finding whose remedy stays inside `Where` is an ordinary finding.
+A finding can be wider than the brief in a second way: it is about a changed line, and what it asks for is not in the brief's `Where`. That happens with the fifth question's things to look for (a restructuring, a file to split, a branch to move into a module of its own, a wrapper to remove, logic to move to its canonical layer), when the remedy would change a file outside `Where`. The `SCOPE` text asks the reading to say so in the finding. Such a finding is kept, sent and recorded like any other, with these words at the end of its line: `for Noticed, not this pull request`. It asks the crewmate for no fix: the crewmate writes it in the Result under "Noticed", where the home sees it as a possible plan entry. A finding whose remedy stays inside `Where` is an ordinary finding.
 
 ### In flight
 
@@ -676,7 +660,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 
    On `stop`, say what it printed and end: no review, no section, and the thread is not settled. A head that moved is a rebase or a push made after jbus asked, and jbus asks again for the new head. Otherwise it prints the section's `Scope:` and `Head:` lines, whole, and under them the range-diff.
 2. Review only what the range-diff shows as changed. Under a pair of commits marked `!`, that is each line with two signs, `-+`, `--`, `++` or `+-`: a line the patch adds or removes on one side alone. A commit on one side alone, marked `<` or `>`, is read whole against the commits of the other side. A pair marked `=` is not read, and neither is a line that only moved: a context line, a hunk header, the metadata, the commit message.
-3. Give those lines the review of "The review", its six steps in order, with two things changed in the block of its steps 1 and 2. The first line of the `SCOPE` text reads "Review only what this range-diff shows a rebase or a fix changed in a patch that was reviewed before it: the lines with two signs, and a commit on one side alone. The rest of the patch has had its review." And the code the two reviewers are given is the range-diff: `git range-diff --no-color '<old range>' '<new range>'` in place of `gh pr diff <url>` on the line that writes `$D/code`. The two reviewers, the lead's judgment and the verdict are as they are for a first pass. The safety fact of step 5 is the one fact the rebased or fixed patch is still safe because of, proven at this head: it is never left out, since for a guarded pull request the `Proof:` line at this head is what the pass is for. A finding is about one of those lines, or about something it breaks.
+3. Give those lines the review of "The review", its six steps in order, with two things changed in the block of its steps 1 and 2. The first line of the `SCOPE` text reads "Review only what this range-diff shows a rebase or a fix changed in a patch that was reviewed before it: the lines with two signs, and a commit on one side alone. The rest of the patch has had its review." And the code the reading is given is the range-diff: `git range-diff --no-color '<old range>' '<new range>'` in place of `gh pr diff <url>` on the line that writes `$D/code`. The reading, the lead's judgment and the verdict are as they are for a first pass. The safety fact of step 5 is the one fact the rebased or fixed patch is still safe because of, proven at this head: it is never left out, since for a guarded pull request the `Proof:` line at this head is what the pass is for. A finding is about one of those lines, or about something it breaks.
 4. Rule on the lines the rebase dropped on purpose. Run this in this worktree, with the block at the top. It prints one line for each `Dropped on rebase:` line the brief has at this head, and for each the diff of that file from the head before the rebase, which the crewmate kept under `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, to this one:
 
    ```sh
@@ -707,9 +691,9 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 
 ## What a review costs
 
-A review is one thread and two subagents: the reviewer thread, which is the lead, and its two `Explore` reviewers. Each reviewer reads the prompt, which holds the whole diff, and whatever code around it that it opens. The lead reads the brief, both answers and the files it checks a finding against, and runs one proof.
+A review is one thread and no subagent. It reads the prompt, which holds the whole diff, whatever code around it that it opens, the brief and the files it checks a finding against, and runs one proof.
 
-All of it is in one transcript's reach, so `jgauge session <the reviewer thread's transcript>` counts the whole review: the thread's own row, then one `subagent` row for each reviewer. Nothing runs as a process `jgauge` cannot see.
+All of it is in one transcript, so `jgauge session <the reviewer thread's transcript>` counts the whole review in the thread's own row. Nothing runs as a process `jgauge` cannot see.
 
 It has not been measured yet. The first reviews under this section give the figures: write them here, per row, with the size of the diff they reviewed.
 

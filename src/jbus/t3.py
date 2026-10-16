@@ -4,7 +4,7 @@
 token it is given, with when it was given. `expiry` is when that token runs out. `Client`
 then calls the tools in `TOOLS` at `<server>/mcp`, and no other: a test reads this package
 for any other name. Two of the six change a thread, and `Client.call` lets each through in
-one form only (`_held`): `t3_thread_organize` to settle a thread it names, and
+one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names, and
 `t3_thread_send` as a queued message, with a retry key, to a thread a brief's `Thread:`
 line names, or to the thread in a home's `home-id`: for the user's word (`jbus.word`), and
 for a task of that home's that ended with something left (`jbus.leftover`).
@@ -279,10 +279,13 @@ class Client:
     def _held(self, tool: str, arguments: dict[str, Any]) -> str:
         """Why a call that changes a thread is not one jbus makes, or nothing."""
         if tool == "t3_thread_organize":
-            if set(arguments) != {"action", "threadId"} or arguments["action"] != "settle":
-                return "is only called to settle a thread it names"
+            if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
+                "settle",
+                "archive",
+            ):
+                return "is only called to settle or archive a thread it names"
             if not arguments["threadId"]:
-                return "names no thread to settle"
+                return "names no thread to settle or archive"
         if tool == "t3_thread_send":
             if set(arguments) != {"threadId", "message", "mode", "clientRequestId"}:
                 return "is only called with a thread, a message, a mode and a retry key"

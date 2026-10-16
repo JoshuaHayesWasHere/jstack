@@ -81,15 +81,19 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
     [
         (
             "t3_thread_organize",
-            {"action": "archive", "threadId": "mcp:crew"},
-            "only called to settle",
+            {"action": "unarchive", "threadId": "mcp:crew"},
+            "only called to settle or archive",
         ),
         (
             "t3_thread_organize",
             {"action": "unsettle", "threadId": "mcp:crew"},
             "only called to settle",
         ),
-        ("t3_thread_organize", {"action": "settle"}, "only called to settle a thread it names"),
+        (
+            "t3_thread_organize",
+            {"action": "settle"},
+            "only called to settle or archive a thread it names",
+        ),
         ("t3_thread_organize", {"action": "settle", "threadId": ""}, "names no thread"),
         (
             "t3_thread_organize",
