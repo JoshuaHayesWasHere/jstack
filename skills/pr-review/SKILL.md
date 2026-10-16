@@ -361,7 +361,7 @@ kept='<the head kept at the start>'
 G=$(git rev-parse --git-dir)
 at() { [ "$(git rev-parse HEAD)" = "$kept" ] && [ ! -d "$G/rebase-merge" ] && [ ! -d "$G/rebase-apply" ]; }
 at || { echo "unproven: this checkout is not at $kept, or a rebase is going on in it, so the proof did not run"; exit 1; }
-uv run --project "$T/.." jgauge test-slot -- <the proof> > "$D/proof.out" 2>&1
+uv run --project "$T/.." jgauge test-slot --short -- <the proof> > "$D/proof.out" 2>&1
 echo "exit $?"
 tail -n 5 "$D/proof.out"
 at || echo "unproven: the head moved under the proof"
@@ -369,7 +369,7 @@ git status --porcelain
 ```
 
 - The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.
-- `jgauge test-slot` runs it holding one of the machine's test slots, and waits for one when all are taken, printing `test-slot: waiting` into `$D/proof.out`. Give the call a long time limit and let it wait: a foreground call is stopped at 10 minutes, so where the slots may be busy send it as a background command, the kind that wakes this thread when it exits. A call cut off while it waited proved nothing: send it again.
+- `jgauge test-slot --short` runs it holding one of the slots of the short lane, which no full suite takes, so it waits only behind other short runs, printing `test-slot: waiting` into `$D/proof.out` while it does. A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and run it again. Never take the `--short` off to get past the limit. A call cut off while it waited proved nothing: send it again.
 - The crewmate's thread may rebase or push in this worktree while the review is out. The block runs the proof only at the head kept at the start with no rebase going on, and looks again after it. On a line that starts `unproven:`, whatever else it printed is not a proof of that head: the `Proof:` line is `unproven, the head moved under the proof`, with the finding below.
 - The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`. The block's own `uv run --project "$T/.."` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
 - The reviewer changes no file in the worktree. The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing. If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.

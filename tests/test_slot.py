@@ -3,6 +3,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 
 import pytest
@@ -211,3 +212,69 @@ def test_a_number_of_slots_that_is_no_number_runs_nothing(slots, args, env):
     out, err = ran.communicate(timeout=5)
     assert (ran.returncode, out) == (2, "")
     assert "slots" in err.lower()
+
+
+def test_with_every_full_slot_held_a_short_job_runs_at_once(slots):
+    slots.hold(1, 2)
+    ran = slots("--short", command=["echo", "ran"])
+    assert ran.communicate(timeout=5) == ("ran\n", "")
+    assert ran.returncode == 0
+    assert sorted(path.name for path in slots.locks.iterdir()) == [
+        "test-slot-short.1.lock",
+        "test-slot.1.lock",
+        "test-slot.2.lock",
+    ]
+
+
+def test_the_short_lane_waits_only_on_its_own_slots(slots):
+    holders = [slots("--short", name=name) for name in "abc"]
+    assert slots.waits(lambda: slots.started() == ["a", "b", "c"])
+    ran = slots("--short", command=["echo", "ran"])
+    assert (
+        ran.stderr.readline() == f"test-slot: waiting for one of {slot.SHORT_SLOTS} short slots\n"
+    )
+    assert slots("--slots", "1", command=["echo", "full"]).communicate(timeout=5) == ("full\n", "")
+    slots.release("a")
+    assert holders[0].wait(timeout=5) == 0
+    assert ran.communicate(timeout=5) == ("ran\n", "")
+
+
+def test_a_short_job_past_its_limit_is_stopped_and_says_so(slots, tmp_path):
+    limited = (
+        "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
+        " sys.exit(cli.main(sys.argv[1:]))"
+    )
+    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    began = time.monotonic()
+    ran = subprocess.run(
+        [sys.executable, "-c", limited, "test-slot", "--short", "--"]
+        + ["sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert time.monotonic() - began < 5
+    assert (tmp_path / "started.a").exists()
+    assert (ran.returncode, ran.stdout) == (slot.TIMED_OUT, "")
+    assert ran.stderr == "test-slot: stopped sh at 0.5 s, the short lane's limit\n"
+
+
+def test_a_full_suite_does_not_enter_the_short_lane(slots):
+    slots.hold(1, 2)
+    ran = slots(name="a")
+    assert ran.stderr.readline() == "test-slot: waiting for one of 2 slots\n"
+    time.sleep(2.5 * slot.LOOK_EVERY_SECONDS)
+    assert (ran.poll(), slots.started()) == (None, [])
+    assert not list(slots.locks.glob("test-slot-short.*"))
+    slots.free()
+    assert slots.waits(lambda: slots.started() == ["a"])
+    slots.release("a")
+    assert ran.wait(timeout=5) == 0
+
+
+def test_short_and_a_number_of_slots_together_run_nothing(slots):
+    ran = slots("--short", "--slots", "2", command=["echo", "ran"])
+    out, err = ran.communicate(timeout=5)
+    assert (ran.returncode, out) == (2, "")
+    assert "--short" in err

@@ -85,7 +85,13 @@ Proceed on reversible work without asking: do it, then say what you did and why.
 - The **Done when** list is the whole target. Write the tests for it first where the repo has tests.
 - The brief is trusted. Read the files it names; where it names none, read only what the task needs. Do not check its findings again, and do not explore beyond it. If a finding turns out wrong, say so in the result and read only what that needs.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
-- While you work, run only the tests that cover the files you change, never the whole suite. In a Python repo that is `uv run pytest <those test files>`.
+- While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
+
+  ```sh
+  uv run --project "$T/.." jgauge test-slot --short -- <the targeted tests>
+  ```
+
+  The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one. A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once. The check command is never run in the short lane.
 - Once every **Done when** line holds, run the repo's check command (`notes.md` names it) in full, once, under a test slot. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets:
 
   ```sh
