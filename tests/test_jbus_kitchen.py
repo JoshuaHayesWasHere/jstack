@@ -267,7 +267,10 @@ class T3(Server):
             made = {"url": given["url"], "alreadyLinked": False}
         elif tool == "t3_thread_organize":
             (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
-            thread["settled"] = given["action"] == "settle"
+            if given["action"] == "archive":
+                thread["archived"] = True
+            else:
+                thread["settled"] = given["action"] == "settle"
             made = {}
         else:
             self.launches.append(given)
@@ -872,5 +875,9 @@ def sends(kitchen):
     return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
 
-def settles(kitchen):
-    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_organize"]
+def settles(kitchen, action="settle"):
+    return [
+        given
+        for tool, given in kitchen.t3.calls
+        if tool == "t3_thread_organize" and given["action"] == action
+    ]

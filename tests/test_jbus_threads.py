@@ -360,3 +360,42 @@ def test_a_reviewer_that_stopped_early_stays_unsettled_after_the_merge(kitchen, 
     kitchen.poll(NOW + timedelta(minutes=3))
     left = sorted(t["title"] for t in kitchen.t3.threads if not t["settled"])
     assert left == kept
+
+
+def test_the_review_thread_of_a_merged_or_closed_pull_request_is_archived_and_an_open_one_kept(
+    kitchen,
+):
+    closed = RESULT.replace("Pull request: none", "https://example.test/pull/6")
+    still = RESULT.replace("Pull request: none", "https://example.test/pull/8")
+    kitchen.brief("alpha", review("clean", "mcp:crew"))
+    kitchen.brief("beta", closed + review("findings", "mcp:crew"))
+    kitchen.brief("delta", still + review("findings", "mcp:crew"))
+    kitchen.brief("eta", still + review("findings", "mcp:crew"))
+    kitchen.set("merged.json", [kitchen.merged("alpha", 5, "a" * 40)])
+    kitchen.set("open.json", [kitchen.opened("delta", 8)])
+    first = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    scoped = kitchen.t3.thread("alpha", "running", title="review: alpha, scoped")
+    kitchen.t3.thread("beta", "completed", title="review: beta")
+    kitchen.t3.thread("delta", "completed", title="review: delta")
+    kitchen.t3.thread("eta", "completed", title="review: eta")
+    said = kitchen.poll()
+    titles = {t["threadId"]: t["title"] for t in kitchen.t3.threads}
+    assert sorted(titles[given["threadId"]] for given in settles(kitchen, "archive")) == [
+        "review: alpha",
+        "review: beta",
+    ]
+    assert f"archived alpha: review: alpha {first['threadId']}" in said
+    assert [t["title"] for t in kitchen.t3.threads if t.get("archived")] == [
+        "review: alpha",
+        "review: beta",
+    ]
+    scoped["status"] = "completed"
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert [titles[given["threadId"]] for given in settles(kitchen, "archive")] == [
+        "review: alpha",
+        "review: beta",
+        "review: alpha, scoped",
+    ]
+    for kept in [t for t in kitchen.t3.threads if t["title"] in ("review: delta", "review: eta")]:
+        assert kept["settled"] is False and "archived" not in kept

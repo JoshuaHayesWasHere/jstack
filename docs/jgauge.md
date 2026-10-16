@@ -19,4 +19,4 @@ The counting rule is in `src/jgauge/transcript.py`, and `docs/meter-findings.md`
 - **Context** is the input side of the last call, which is what the next call sends again.
 - **A floor** is the output of a call that has no finished line in the transcript. `jgauge` includes it in the total as the least that call's output can be, and a note under the table says how many calls and how many tokens. It estimates nothing upward.
 
-A subagent's last call often has no finished line in its own transcript, so its output is a floor. `jgauge session` on a reviewer thread counts the whole review: the thread's row and one `subagent` row for each of its two reviewers.
+A subagent's last call often has no finished line in its own transcript, so its output is a floor. `jgauge session` on a reviewer thread counts the whole review in the thread's own row: a reviewer starts no subagent.

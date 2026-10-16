@@ -628,29 +628,25 @@ def test_each_review_builds_in_a_directory_of_its_own(reviewer):
     assert all(path.name.startswith("pr-review-a-task.") for path in reviewer.built())
 
 
-def test_a_reviewer_is_an_agent_call_like_the_interrogate_skills_own(reviewer):
-    call = json.loads(block("### The review", kind="json"))
-    theirs = [
-        json.loads(body)
-        for kind, body in FENCED.findall((INTERROGATE / "SKILL.md").read_text())
+def calls(text):
+    """Every JSON block of a skill, as an agent sends it, with its placeholders filled."""
+    return [
+        json.loads(body.replace("<model selection>", "null"))
+        for kind, body in FENCED.findall(text)
         if kind == "json"
     ]
-    (like,) = [each for each in theirs if "subagent_type" in each]
-    assert (
-        call.keys()
-        == like.keys()
-        == {
-            "subagent_type",
-            "description",
-            "prompt",
-            "run_in_background",
-        }
-    )
-    assert (call["subagent_type"], call["run_in_background"]) == ("Explore", False)
-    assert (like["subagent_type"], like["run_in_background"]) == ("Explore", False)
-    assert call["prompt"].count("<the prompt file>") == 1
-    path = str(reviewer.prompt())
-    assert Path(call["prompt"].replace("<the prompt file>", path).split()[3]).is_file()
+
+
+def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):
+    """The interrogate skill's reviewer is an `Agent` call, which this parse finds there; the
+    pr-review skill makes no such call, so a pull request has one review thread."""
+    assert [each["description"] for each in calls((INTERROGATE / "SKILL.md").read_text())] == [
+        "interrogate reviewer"
+    ]
+    made = calls(SKILL.read_text())
+    assert [each for each in made if "subagent_type" in each or "description" in each] == []
+    assert {each["message"] for each in made} == {"/pr-review run <slug>"}
+    assert reviewer.prompt().is_file()
 
 
 def test_each_text_the_review_sends_its_reader_to_is_there(reviewer):
@@ -1513,3 +1509,30 @@ def test_the_scoped_pass_a_guarded_fix_is_launched_with_reads_the_fix_alone(tmp_
         f"1: {fix.saw[:7]} = 1: {fix.saw[:7]} the task",
         f"-: ------- > 2: {fix.fixed[:7]} the fix",
     ]
+
+
+def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(tmp_path):
+    made = merge.Merged(merge.Home(tmp_path), tmp_path)
+    filled = {
+        "Verdict": "findings",
+        "Head": f"{made.head}   Unchanged by the review: yes",
+        "Patch-id": "0" * 40,
+        "Reviewers": "1, 1   Proof: uv run pytest tests/test_a.py, exit 0, 1 passed",
+        "Meets the brief": "yes",
+        "In flight": "none",
+        "Findings": "\n- warning a.txt:1 it is wrong (principle: none)",
+        "Dropped": "0",
+        "Noted": "0",
+        "Dismissed": "none",
+        "Sent to": "mcp:crew",
+    }
+    template = (REPO / "templates" / "review.md").read_text().splitlines()
+    assert template[4].startswith("Reviewers: 1, ")
+    section = "".join(
+        f"{line.split(':')[0]}: {filled[line.split(':')[0]]}\n" if ": " in line else f"{line}\n"
+        for line in template
+        if not line.startswith("- ")
+    ).replace("Findings: \n", "Findings:\n")
+    done = "Finding: not fixed, it is wrong, because it is asked\nFixed: none needed, declined\n"
+    (made.home.tasks / "alpha.md").write_text(merge.brief(section, done))
+    assert made.run("--check") == [f"ready 7 {made.head} alpha alpha"]

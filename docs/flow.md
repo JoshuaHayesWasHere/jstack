@@ -14,7 +14,7 @@ A thread is an agent with a model. A command has no model. The state directory i
 | 4. Launch | `jbus` | It launches an approved row once the rows its `depends` names are merged and `jgauge room` prints `go`. |
 | 5. The worktree | The crewmate | A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook. |
 | 6. The check | The check command | It runs once in full under a test slot, and CI runs it again on the pull request the crewmate opens. |
-| 7. The review | The reviewer | A fresh thread: two readers who do not see each other, a lead, and one safety fact proven by running code. It fixes nothing. |
+| 7. The review | The reviewer | One fresh thread per pull request: it reads the diff, judges what it found, and proves one safety fact by running code. It fixes nothing, and jbus archives it once the pull request merges or closes. |
 | 8. The findings | The crewmate | It ends every finding with a `Finding:` line, fixed or not fixed and why, then writes one `Fixed:` line. |
 | 9. `jmerge` | A command | It merges what is reviewed, fixed and green, at the head that was checked. For the rest it prints `wait` or `hold` and the reason. |
 | 10. The sweep | A command | `jmerge --sweep` removes the worktree and the branches a finished thread left, and prints what it kept and why. |

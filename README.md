@@ -95,7 +95,7 @@ jstack is one person's stack, shared as is. It is experimental, and no support i
 
 - **Who it is for.** Someone who runs agent threads in T3 Code on a Linux machine and wants to see how one setup plans, briefs, reviews and merges. Read it and fork it.
 - **What a first run needs.** Linux, the nightly build of T3 Code, Claude Code, `gh` signed in, and a repo of your own with a CI check named `check`. [Requirements](#requirements) has the rest.
-- **Every thread spends tokens.** One task is at least a crewmate thread and a reviewer thread with two reviewers under it, on your own Claude plan. `jgauge session` prints what a thread cost.
+- **Every thread spends tokens.** One task is at least a crewmate thread and one reviewer thread, on your own Claude plan. `jgauge session` prints what a thread cost.
 - **It changes.** A command, a flag, a file or a skill can change with no notice and no migration.
 
 ## How a task flows
@@ -141,7 +141,7 @@ Each command has one page.
 | `home` | `/home`, `/home <scope>` | Becomes the repo's home, or the home of one scope. It reads the handoff, the plan and the notes, plans with you, writes each brief and launches its crewmate. It does none of the work itself. |
 | `crew` | `/crew <slug>` | Becomes a crewmate. It does the task in `tasks/<slug>.md` in its own worktree, opens the pull request when the brief says so, appends its Result to the brief, and stays on the pull request. |
 | `scout` | `/scout <slug>` | Becomes a scout. It answers the questions in `scouts/<slug>.md`, appends its report, and writes a crewmate's brief or a visual page when the request asks for one. It changes nothing in the repo. |
-| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches a reviewer thread in the crewmate's worktree. Two reviewers who do not see each other read the pull request, the thread judges their findings as their lead, and one command proves the one fact the change is safe because of. It runs no test suite. |
+| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the pull request's diff itself, judges what it found, and one command proves the one fact the change is safe because of. It runs no test suite, and jbus archives it once the pull request merges or closes. |
 | `handoff` | `/handoff` | Closes a home. It updates the plan and the notes, archives the old handoff, and writes a one-page handoff for the next home. |
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
