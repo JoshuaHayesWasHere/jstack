@@ -6,9 +6,12 @@ A kind writes only through Machine, which is what lets this file hold four rules
   the rename. One install or uninstall runs at a time for a HOME: `alone` holds a lock on it.
 - systemctl is run only when the user manager reads this HOME.
 - uv is run with nothing forced: it never replaces a program that is not its own.
+- A file `--setup` seeds is written once, with the digest of its bytes in a record, and is
+  removed only while its bytes still have that digest.
 """
 
 import fcntl
+import hashlib
 import json
 import os
 import pwd
@@ -177,14 +180,15 @@ class Machine:
         with _beside(self._record()) as next_to:
             next_to.write_text("".join(f"{path}\n" for path in paths))
 
-    def _note(self, path: Path) -> None:
+    def _note(self, path: Path | None) -> None:
         """Put `path` into the record. The levels above the record that are not there are
-        made here and go into it too, since the record cannot hold them before it exists."""
+        made here and go into it too, since the record cannot hold them before it exists.
+        With `path` None only the record's directory is made."""
         record = self._record()
         above = [level for level in _levels(record.parent.parent) if not level.exists()]
         record.parent.mkdir(parents=True, exist_ok=True)
         known = self._recorded()
-        new = [each for each in dict.fromkeys((*above, path)) if each not in known]
+        new = [each for each in dict.fromkeys((*above, path)) if each and each not in known]
         if new:
             self._write_record([*known, *new])
 
@@ -249,6 +253,70 @@ class Machine:
             next_to.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
             if was.existed:
                 shutil.copymode(was.real, next_to)
+
+    def _seeds(self) -> Path:
+        return self.state_home() / "jstack" / "seeded"
+
+    def _seeded(self) -> dict[Path, str]:
+        """The record of seeded files, `<sha256> <path>` a line, as path to digest."""
+        try:
+            lines = self._seeds().read_text().splitlines()
+        except OSError:
+            return {}
+        return {Path(path): digest for digest, _, path in (line.partition(" ") for line in lines)}
+
+    def _write_seeded(self, seeded: dict[Path, str]) -> None:
+        if not seeded:
+            self._seeds().unlink(missing_ok=True)
+            return
+        self._note(None)
+        with _beside(self._seeds()) as next_to:
+            next_to.write_text("".join(f"{digest} {path}\n" for path, digest in seeded.items()))
+
+    def seed(self, path: Path, text: str, mode: int) -> None:
+        """Write a file that is not there, at `mode` from its first byte, and record the
+        digest of what was written first. Refuses a path that is there, a link to nothing
+        included: a file of the user's is never written over."""
+        if path.is_symlink() or path.exists():
+            raise Refused(f"{path} is there and is not written over")
+        data = text.encode()
+        self._write_seeded(self._seeded() | {path: hashlib.sha256(data).hexdigest()})
+        self.make_dirs(path.parent)
+        with _beside(path) as next_to:
+            next_to.touch(mode=0o600)
+            next_to.chmod(mode)
+            next_to.write_bytes(data)
+
+    def unseed(self, path: Path) -> bool | None:
+        """Remove a seeded file while its bytes are the ones `seed` wrote. True when it was
+        removed, False when it is kept, None when it is not a seeded file that is there. The
+        record forgets a file that is gone, and a file that is kept stays in it."""
+        seeded = self._seeded()
+        if path not in seeded:
+            return None
+        try:
+            same = hashlib.sha256(path.read_bytes()).hexdigest() == seeded[path]
+        except FileNotFoundError:
+            same = None
+        except OSError:
+            same = False
+        if same is False:
+            return False
+        if same:
+            path.unlink()
+        del seeded[path]
+        self._write_seeded(seeded)
+        return same
+
+    def zone(self) -> str | None:
+        """The machine's own time zone as an IANA name: $TZ, else where /etc/localtime
+        points under a zoneinfo directory. None when neither names one."""
+        named = self.env.get("TZ", "").removeprefix(":")
+        if named:
+            return named
+        local = os.path.realpath("/etc/localtime")
+        _, found, name = local.partition("/zoneinfo/")
+        return name if found else None
 
     def uv(self, *args: str) -> Ran:
         """Run uv. Before it, make through `make_dirs` each directory under HOME that uv would

@@ -52,19 +52,19 @@ These steps take a new machine from a clone to one merged pull request.
 	cd jstack
 	```
 
-2. Install. The script links each skill into `~/.claude/skills` and `~/.agents/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the seven commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. It prints one line for each part, as `<state> <level> <name>`, and exits 0 when every line starts with `ok`. A second run changes nothing.
+2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.claude/skills` and `~/.agents/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the seven commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
 
 	```sh
-	sh install.sh
+	sh install.sh --setup
 	```
 
-3. Check the install. This command prints the lines of step 2 again and writes nothing. Every line must start with `ok`.
+3. Check the install. This command prints one line for each part `--setup` put and writes nothing. Every line must start with `ok`.
 
 	```sh
 	sh install.sh --check
 	```
 
-4. Check the machine. The doctor prints one line for each requirement, then the lines of step 3. The last line must be `doctor: ok`. On a new machine some lines start with `missing optional`. They name the optional layers that you have not set up, and they do not stop you. Every other line that starts with `missing` or `old` has an entry in [Troubleshooting](docs/troubleshooting.md).
+4. Check the machine. The doctor prints one line for each requirement, then the lines of step 3, and writes nothing. The last line must be `doctor: ok`. On a new machine some lines start with `missing optional`. They name the optional layers that you have not set up, and they do not stop you. Every other line that starts with `missing` or `old` has an entry in [Troubleshooting](docs/troubleshooting.md).
 
 	```sh
 	sh install.sh --doctor
@@ -134,7 +134,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 32 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`skills/` holds 33 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -147,7 +147,7 @@ Each command has one page.
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
 | `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. For a brief, a scout's request or a plain question it runs `jbriefs pick` and names the role to type (`/crew <slug>`, `/scout <slug>` or `/home`), the playbook and the skills the words call for, each with its file. "Get set up" points at the Quickstart above. |
 
-The other 24 are loaded by name. `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/blast-radius`, `/deeper`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
+The other 25 are loaded by name. `/setup-pstack` runs `install.sh --setup` on this machine and reports what is left for you, `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/blast-radius`, `/deeper`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
 
 ## What is in the repo
 
