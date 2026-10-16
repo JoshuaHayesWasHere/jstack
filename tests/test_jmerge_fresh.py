@@ -802,3 +802,32 @@ def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
     assert said.startswith("merged 7 two ") and f", {kept}, revert: " in said
     assert git(kitchen.origin, "rev-parse", "refs/heads/two") == late != head
     assert not (kitchen.tmp / "trees" / "two").exists()
+
+
+def settled(kitchen, limit=60.0):
+    """Wait for the fresh check a run started on its own to end: it holds `fresh.lock`."""
+    end = time.monotonic() + limit
+    with (kitchen.home.state / "fresh.lock").open("w") as lock:
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return
+            except OSError:
+                assert time.monotonic() < end, "the fresh check did not end"
+                time.sleep(0.05)
+
+
+def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kitchen):
+    """The 03:26 outage: the suite outran the 300 s jbus gives jmerge, so it never recorded.
+    The run returns while the check runs on, and the check records when it ends."""
+    checked = Checked(kitchen, f"sleep 3; {BOTH}")
+    began = time.monotonic()
+    assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
+    assert time.monotonic() - began < 2.5
+    assert not (kitchen.home.state / "fresh.json").exists()
+    assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
+    settled(kitchen)
+    assert checked.known()["7"]["result"] == "passed"
+    (said,) = kitchen.run()
+    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
+    assert len(checked.ran()) == 1

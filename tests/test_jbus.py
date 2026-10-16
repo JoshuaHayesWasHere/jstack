@@ -17,8 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue, t3
+from jbus import queue, t3, wake
 from jbus.view.panels.usage import panel as usage
+from jmerge import cli
 from test_jbus_kitchen import FIXTURE, NOW, REPO
 
 
@@ -100,10 +101,20 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
         command = shlex.split(unit["Service"]["ExecStart"])
         assert (Path(command[0]).name, command[1:]) == ("jbus", [verb])
         assert unit["Service"]["Type"] == "oneshot"
-    assert service["Service"]["TimeoutStartSec"] == "5min"
     assert service["Unit"]["OnFailure"] == "jbus-failed.service"
     assert units["jbus.timer"]["Timer"]["OnUnitActiveSec"] == "1min"
     assert units["jbus.timer"]["Install"]["WantedBy"] == "timers.target"
+
+
+def test_a_fresh_check_ends_before_jbus_stops_jmerge_and_jmerge_before_systemd_stops_the_pass():
+    """The three limits, each named once: the check's own, what a pass allows `jmerge`, and
+    the unit's. A check that outran a later one was killed before it recorded (03:26 ET)."""
+    service = configparser.ConfigParser(interpolation=None)
+    service.optionxform = str
+    service.read(REPO / "templates" / "jbus.service")
+    started = service["Service"]["TimeoutStartSec"]
+    assert re.fullmatch(r"\d+min", started)
+    assert cli.Fresh.TIMEOUT < wake.JMERGE_TIMEOUT < int(started.removesuffix("min")) * 60
 
 
 def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
