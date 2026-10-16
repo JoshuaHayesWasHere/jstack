@@ -1,0 +1,1982 @@
+{
+  "00abe2a096e2": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "0191b9625945": {
+    "case": "steps/crew-outside-where",
+    "arm": "variant",
+    "trial": 3
+  },
+  "01edb418de14": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "0279ab0de3f8": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "034910c2d15d": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base",
+    "trial": 1
+  },
+  "038df97aed0b": {
+    "case": "lead/jv-shell",
+    "arm": "variant",
+    "trial": 2
+  },
+  "038e81cb642f": {
+    "case": "steps/crew-info-finding",
+    "arm": "variant",
+    "trial": 3
+  },
+  "03e34ab48a24": {
+    "case": "lead/jv-shell",
+    "arm": "variant",
+    "trial": 1
+  },
+  "06e7ced93b09": {
+    "case": "lead/ci-self-hosted",
+    "arm": "variant",
+    "trial": 2
+  },
+  "08b262a9ba4e": {
+    "case": "steps/handoff-crewmate",
+    "arm": "variant",
+    "trial": 1
+  },
+  "08ea40159931": {
+    "case": "lead/gate-silent-default",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "0a8660d46614": {
+    "case": "lead/home-on-bus",
+    "arm": "variant",
+    "trial": 1
+  },
+  "0a99f8c1173f": {
+    "case": "steps/home-not-the-work",
+    "arm": "variant",
+    "trial": 3
+  },
+  "0abe338835bc": {
+    "case": "steps/types-no-cast",
+    "arm": "base",
+    "trial": 2
+  },
+  "0cece5ed185f": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base",
+    "trial": 2
+  },
+  "0d132b702c31": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "variant",
+    "trial": 2
+  },
+  "0f69ef1168b5": {
+    "case": "steps/home-not-the-work",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "0fcb0f58efb6": {
+    "case": "steps/types-sum-type",
+    "arm": "variant",
+    "trial": 2
+  },
+  "10539e15912c": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "108ad4168844": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "115debb1faf3": {
+    "case": "steps/types-exhaustive",
+    "arm": "base",
+    "trial": 2
+  },
+  "12e6dfa27a40": {
+    "case": "steps/scout-no-runs",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "130671c202be": {
+    "case": "steps/crew-outside-where",
+    "arm": "variant",
+    "trial": 1
+  },
+  "14dd92d518ab": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base",
+    "trial": 3
+  },
+  "15e1e1bfc0ed": {
+    "case": "lead/pstack-depth-style",
+    "arm": "variant",
+    "trial": 2
+  },
+  "15f1bdf9c2ef": {
+    "case": "steps/migrate-external",
+    "arm": "base",
+    "trial": 2
+  },
+  "172e5b156521": {
+    "case": "steps/expert-roll-over",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "174ceda9ed78": {
+    "case": "steps/scout-no-launch",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "17c772b59690": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "17d3aa518b2f": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base",
+    "trial": 1
+  },
+  "17da69ae42db": {
+    "case": "steps/scout-no-runs",
+    "arm": "base",
+    "trial": 2
+  },
+  "17e8685d9af1": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "1825edc4654c": {
+    "case": "steps/migrate-external",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "18aabdb5195b": {
+    "case": "steps/home-hand-off",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "191bc7fbdbfe": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base",
+    "trial": 1
+  },
+  "1952d255b5fb": {
+    "case": "lead/one-review-thread",
+    "arm": "base",
+    "trial": 3
+  },
+  "1a2c33724c26": {
+    "case": "lead/home-on-bus",
+    "arm": "variant",
+    "trial": 2
+  },
+  "1b409f9fc39d": {
+    "case": "lead/standing-undo",
+    "arm": "variant",
+    "trial": 1
+  },
+  "1bd7c4f29836": {
+    "case": "steps/scout-not-the-task",
+    "arm": "variant",
+    "trial": 3
+  },
+  "1d7814aaa887": {
+    "case": "steps/crew-info-finding",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "1dad9272bf96": {
+    "case": "steps/types-sum-type",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "1df8dab7d80d": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "1dfa53eaf61a": {
+    "case": "steps/migrate-tests",
+    "arm": "base",
+    "trial": 3
+  },
+  "1e105aaf71ac": {
+    "case": "steps/crew-stale-base",
+    "arm": "variant",
+    "trial": 1
+  },
+  "1f53a752f345": {
+    "case": "steps/crew-stale-base",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "1f5a335e95fd": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "1fc9de181548": {
+    "case": "steps/pr-review-already",
+    "arm": "base",
+    "trial": 3
+  },
+  "21103e1e84cc": {
+    "case": "steps/expert-roll-over",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "21da199e2657": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base",
+    "trial": 1
+  },
+  "24900146c3b5": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "variant",
+    "trial": 3
+  },
+  "263aa0a58121": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "variant",
+    "trial": 1
+  },
+  "2682860005ee": {
+    "case": "lead/standing-undo",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "26f685291348": {
+    "case": "steps/expert-no-code",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "277afb8e2682": {
+    "case": "lead/standing-undo",
+    "arm": "base",
+    "trial": 2
+  },
+  "28f4ceb8ae99": {
+    "case": "lead/gate-silent-default",
+    "arm": "variant",
+    "trial": 2
+  },
+  "29fb5b3fccb4": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base",
+    "trial": 3
+  },
+  "2a150a758eef": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base",
+    "trial": 3
+  },
+  "2a1c0e711ca0": {
+    "case": "steps/home-not-the-work",
+    "arm": "variant",
+    "trial": 2
+  },
+  "2a2ad70f921f": {
+    "case": "lead/gate-silent-default",
+    "arm": "variant",
+    "trial": 1
+  },
+  "2a85688ca518": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "2acb4b7ddeeb": {
+    "case": "steps/home-message-acts",
+    "arm": "variant",
+    "trial": 2
+  },
+  "2bdbd1a95693": {
+    "case": "steps/scout-no-runs",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "2c04b63e2069": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "variant",
+    "trial": 2
+  },
+  "2c742738d301": {
+    "case": "steps/expert-correction",
+    "arm": "base",
+    "trial": 2
+  },
+  "2d085c9a0c09": {
+    "case": "lead/pstack-depth-style",
+    "arm": "variant",
+    "trial": 3
+  },
+  "2df9c5a62f8f": {
+    "case": "lead/jv-shell",
+    "arm": "base",
+    "trial": 2
+  },
+  "30c8c83d3b53": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base",
+    "trial": 2
+  },
+  "30e8719b8a70": {
+    "case": "steps/migrate-tests",
+    "arm": "variant",
+    "trial": 2
+  },
+  "311f5ac76636": {
+    "case": "lead/deeper-home-step",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "31bdd7f48750": {
+    "case": "lead/deeper-skill",
+    "arm": "base",
+    "trial": 2
+  },
+  "3370ab4e0cc0": {
+    "case": "steps/handoff-not-carried",
+    "arm": "variant",
+    "trial": 2
+  },
+  "34f2367e98c0": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "352209102fd4": {
+    "case": "steps/home-not-the-work",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "36c1207493a0": {
+    "case": "steps/home-grill-first",
+    "arm": "variant",
+    "trial": 1
+  },
+  "36ec76d750dd": {
+    "case": "steps/pr-review-already",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "37bf6d579024": {
+    "case": "steps/home-not-the-work",
+    "arm": "base",
+    "trial": 2
+  },
+  "37de8fe5161d": {
+    "case": "steps/home-hand-off",
+    "arm": "base",
+    "trial": 2
+  },
+  "39c07fd64da3": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "3bcf16177860": {
+    "case": "steps/expert-correction",
+    "arm": "variant",
+    "trial": 3
+  },
+  "3ca4c7da36c1": {
+    "case": "lead/deeper-proves-it",
+    "arm": "variant",
+    "trial": 3
+  },
+  "3e40fe3baba8": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "variant",
+    "trial": 3
+  },
+  "3f7b91930d83": {
+    "case": "lead/pstack-depth-style",
+    "arm": "variant",
+    "trial": 1
+  },
+  "4057d1bc8d67": {
+    "case": "steps/migrate-tests",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "405dac4237c7": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "variant",
+    "trial": 1
+  },
+  "41577947fc15": {
+    "case": "steps/crew-outside-where",
+    "arm": "base",
+    "trial": 3
+  },
+  "41cc751c7a4e": {
+    "case": "lead/deeper-skill",
+    "arm": "variant",
+    "trial": 3
+  },
+  "431748cb46d5": {
+    "case": "steps/scout-no-launch",
+    "arm": "variant",
+    "trial": 2
+  },
+  "432ebc889e41": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "44948fd372bb": {
+    "case": "steps/migrate-tests",
+    "arm": "base",
+    "trial": 1
+  },
+  "44db12c791ab": {
+    "case": "steps/expert-correction",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "466242ddefb4": {
+    "case": "steps/crew-link-first",
+    "arm": "variant",
+    "trial": 3
+  },
+  "46a7a7d93af2": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "46cb5e916d9f": {
+    "case": "steps/crew-info-finding",
+    "arm": "base",
+    "trial": 1
+  },
+  "472266f45428": {
+    "case": "steps/expert-roll-over",
+    "arm": "variant",
+    "trial": 3
+  },
+  "4746286a5a8f": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base",
+    "trial": 2
+  },
+  "47fce076f444": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "variant",
+    "trial": 2
+  },
+  "48ad79dffddb": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base",
+    "trial": 1
+  },
+  "48be532dd044": {
+    "case": "steps/pr-review-already",
+    "arm": "variant",
+    "trial": 1
+  },
+  "491328ef453a": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "4926d4ddd22b": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "variant",
+    "trial": 2
+  },
+  "493a7bdc55b8": {
+    "case": "lead/jv-shell",
+    "arm": "variant",
+    "trial": 3
+  },
+  "4b042a7a008b": {
+    "case": "steps/crew-info-finding",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "4b17e9c0d4e5": {
+    "case": "lead/gate-silent-default",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "4b3d2ff87066": {
+    "case": "steps/crew-outside-where",
+    "arm": "variant",
+    "trial": 2
+  },
+  "4bdceb70f19a": {
+    "case": "lead/one-review-thread",
+    "arm": "base",
+    "trial": 2
+  },
+  "4c23ac9d9074": {
+    "case": "steps/crew-info-finding",
+    "arm": "base",
+    "trial": 2
+  },
+  "4c99a6284036": {
+    "case": "steps/home-grill-first",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "4d18505b3727": {
+    "case": "steps/expert-no-code",
+    "arm": "variant",
+    "trial": 2
+  },
+  "4d86477625c1": {
+    "case": "lead/deeper-home-step",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "4db76e9d8d63": {
+    "case": "lead/deeper-proves-it",
+    "arm": "variant",
+    "trial": 2
+  },
+  "4e044c2c7584": {
+    "case": "steps/expert-no-code",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "4efc12cadc42": {
+    "case": "lead/jv-shell",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "5035e703ef1d": {
+    "case": "lead/standing-undo",
+    "arm": "base",
+    "trial": 1
+  },
+  "51326d46659b": {
+    "case": "steps/crew-info-finding",
+    "arm": "variant",
+    "trial": 2
+  },
+  "51ecdd2b5e1e": {
+    "case": "steps/expert-roll-over",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "527894e6fa0d": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base",
+    "trial": 3
+  },
+  "533a16292e55": {
+    "case": "steps/handoff-crewmate",
+    "arm": "variant",
+    "trial": 2
+  },
+  "53573070f5ad": {
+    "case": "steps/expert-no-code",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "53bf537f1620": {
+    "case": "steps/crew-stale-base",
+    "arm": "base",
+    "trial": 3
+  },
+  "53efa09630cb": {
+    "case": "lead/deeper-home-step",
+    "arm": "variant",
+    "trial": 1
+  },
+  "54535296604c": {
+    "case": "lead/deeper-home-step",
+    "arm": "base",
+    "trial": 2
+  },
+  "547af493c54a": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "variant",
+    "trial": 1
+  },
+  "5540c34b1e02": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base",
+    "trial": 3
+  },
+  "55d5ff8e00d5": {
+    "case": "steps/types-exhaustive",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "56ee1da7b3f1": {
+    "case": "lead/jv-shell",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "56ef9300e393": {
+    "case": "steps/scout-not-the-task",
+    "arm": "variant",
+    "trial": 2
+  },
+  "573e83cca730": {
+    "case": "lead/home-on-bus",
+    "arm": "base",
+    "trial": 3
+  },
+  "57e4b9f71bce": {
+    "case": "steps/handoff-not-carried",
+    "arm": "variant",
+    "trial": 3
+  },
+  "582a68c916c3": {
+    "case": "steps/scout-no-launch",
+    "arm": "base",
+    "trial": 3
+  },
+  "589b2a4ec9fa": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base",
+    "trial": 3
+  },
+  "58a2b2617d2e": {
+    "case": "steps/home-hand-off",
+    "arm": "variant",
+    "trial": 3
+  },
+  "58f5bb0eb594": {
+    "case": "steps/expert-roll-over",
+    "arm": "base",
+    "trial": 3
+  },
+  "591ed6f36e7d": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base",
+    "trial": 1
+  },
+  "5995ee3072e5": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "59c923fdf052": {
+    "case": "steps/migrate-tests",
+    "arm": "variant",
+    "trial": 1
+  },
+  "5a322a844cd3": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "variant",
+    "trial": 2
+  },
+  "5a4f7d4aae85": {
+    "case": "steps/crew-info-finding",
+    "arm": "variant",
+    "trial": 1
+  },
+  "5a90c9605e43": {
+    "case": "lead/home-on-bus",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "5ab43b7e21b7": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base",
+    "trial": 3
+  },
+  "5af97bc8a4c2": {
+    "case": "lead/deeper-home-step",
+    "arm": "base",
+    "trial": 1
+  },
+  "5c4300dfceb7": {
+    "case": "steps/scout-no-runs",
+    "arm": "variant",
+    "trial": 2
+  },
+  "5d05d9f9bead": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "5fe14bba915b": {
+    "case": "steps/types-sum-type",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "6287ab61fb94": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "variant",
+    "trial": 1
+  },
+  "62b3635b3dac": {
+    "case": "lead/jv-threads",
+    "arm": "variant",
+    "trial": 2
+  },
+  "63b24a4594de": {
+    "case": "steps/scout-no-runs",
+    "arm": "variant",
+    "trial": 3
+  },
+  "645be7f25dd9": {
+    "case": "steps/home-message-acts",
+    "arm": "variant",
+    "trial": 1
+  },
+  "64b13e1f0db0": {
+    "case": "steps/types-no-cast",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "64b89eae717f": {
+    "case": "lead/jv-threads",
+    "arm": "base",
+    "trial": 2
+  },
+  "64fd4a8a756f": {
+    "case": "lead/gate-silent-default",
+    "arm": "variant",
+    "trial": 3
+  },
+  "65b7824c91d9": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base",
+    "trial": 1
+  },
+  "665b740e22ce": {
+    "case": "steps/types-sum-type",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "6717c07eebc5": {
+    "case": "lead/jv-shell",
+    "arm": "base",
+    "trial": 1
+  },
+  "674a68a14ebf": {
+    "case": "steps/pr-review-already",
+    "arm": "variant",
+    "trial": 3
+  },
+  "67c29ab6811e": {
+    "case": "steps/migrate-external",
+    "arm": "variant",
+    "trial": 2
+  },
+  "686034882274": {
+    "case": "steps/pr-review-severity",
+    "arm": "base",
+    "trial": 1
+  },
+  "68c43b6c7a91": {
+    "case": "steps/migrate-tests",
+    "arm": "base",
+    "trial": 2
+  },
+  "68e30f5a6e23": {
+    "case": "lead/standing-undo",
+    "arm": "variant",
+    "trial": 2
+  },
+  "69612ccf403f": {
+    "case": "steps/pr-review-severity",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "6a353c3bf2fd": {
+    "case": "lead/one-review-thread",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "6ab27a406103": {
+    "case": "lead/deeper-home-step",
+    "arm": "variant",
+    "trial": 2
+  },
+  "6be5fda2da5e": {
+    "case": "steps/crew-stale-base",
+    "arm": "base",
+    "trial": 1
+  },
+  "6c3b5a68779d": {
+    "case": "steps/migrate-tests",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "6d8e55fc7ccf": {
+    "case": "steps/handoff-crewmate",
+    "arm": "variant",
+    "trial": 3
+  },
+  "6dbe92219963": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "6dc04702e926": {
+    "case": "lead/deeper-skill",
+    "arm": "base",
+    "trial": 1
+  },
+  "6de2c683cb04": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "7054d0c7d417": {
+    "case": "steps/expert-correction",
+    "arm": "variant",
+    "trial": 1
+  },
+  "708f4868ac07": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base",
+    "trial": 1
+  },
+  "71b30b7a2155": {
+    "case": "steps/scout-not-the-task",
+    "arm": "variant",
+    "trial": 1
+  },
+  "71b3f66404e6": {
+    "case": "steps/scout-no-runs",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "72d4b7d39819": {
+    "case": "steps/home-message-acts",
+    "arm": "base",
+    "trial": 2
+  },
+  "72d6ca329a46": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "741bc4bcf417": {
+    "case": "steps/pr-review-already",
+    "arm": "base",
+    "trial": 2
+  },
+  "74908fdc167f": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base",
+    "trial": 2
+  },
+  "75e7d1cd3339": {
+    "case": "steps/expert-correction",
+    "arm": "variant",
+    "trial": 2
+  },
+  "76a2cd2218bc": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base",
+    "trial": 1
+  },
+  "77ff59508a3e": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "variant",
+    "trial": 1
+  },
+  "780d648ea403": {
+    "case": "lead/jv-threads",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "797dcd263f36": {
+    "case": "steps/home-grill-first",
+    "arm": "variant",
+    "trial": 3
+  },
+  "79da995e1958": {
+    "case": "steps/pr-review-severity",
+    "arm": "base",
+    "trial": 2
+  },
+  "7a51e43a37c6": {
+    "case": "steps/pr-review-severity",
+    "arm": "variant",
+    "trial": 3
+  },
+  "7a7df02f3dcc": {
+    "case": "lead/deeper-skill",
+    "arm": "base",
+    "trial": 3
+  },
+  "7b28b961cc56": {
+    "case": "lead/ci-self-hosted",
+    "arm": "variant",
+    "trial": 3
+  },
+  "7bdef75c0824": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "7da78e3bfae1": {
+    "case": "steps/crew-link-first",
+    "arm": "variant",
+    "trial": 2
+  },
+  "7dfd543e47ae": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "7ed52c5b1ea8": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "variant",
+    "trial": 3
+  },
+  "7f3e036b5401": {
+    "case": "steps/home-hand-off",
+    "arm": "variant",
+    "trial": 1
+  },
+  "7f6cfe157504": {
+    "case": "lead/deeper-home-step",
+    "arm": "base",
+    "trial": 3
+  },
+  "7fde492c19d1": {
+    "case": "steps/pr-review-severity",
+    "arm": "variant",
+    "trial": 2
+  },
+  "81d4dbee3e49": {
+    "case": "steps/types-no-cast",
+    "arm": "base",
+    "trial": 1
+  },
+  "83046dd5d6fe": {
+    "case": "steps/types-exhaustive",
+    "arm": "variant",
+    "trial": 2
+  },
+  "8321169c3ce0": {
+    "case": "lead/one-review-thread",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "8488aa5ecc31": {
+    "case": "steps/crew-outside-where",
+    "arm": "base",
+    "trial": 1
+  },
+  "85aeb8e7370d": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base",
+    "trial": 2
+  },
+  "86f7f427a973": {
+    "case": "lead/jv-threads",
+    "arm": "base",
+    "trial": 3
+  },
+  "87242049f5ac": {
+    "case": "steps/home-hand-off",
+    "arm": "base",
+    "trial": 1
+  },
+  "873b780a2a74": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "variant",
+    "trial": 3
+  },
+  "87bd4ba3f2f5": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base",
+    "trial": 1
+  },
+  "8974b49f5f84": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "89d26e4df533": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base",
+    "trial": 3
+  },
+  "8c5a83cbcb7a": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base",
+    "trial": 2
+  },
+  "8d25c5d78ed7": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "8dd76bac1272": {
+    "case": "lead/standing-undo",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "8f04445b1d84": {
+    "case": "lead/home-on-bus",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "8f659b2922fd": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "900a52ff9d9b": {
+    "case": "steps/types-exhaustive",
+    "arm": "variant",
+    "trial": 3
+  },
+  "909790566897": {
+    "case": "steps/types-sum-type",
+    "arm": "variant",
+    "trial": 3
+  },
+  "90d5155c1c07": {
+    "case": "steps/home-grill-first",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "915aedd781b3": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "9228b62fa3c6": {
+    "case": "steps/pr-review-severity",
+    "arm": "variant",
+    "trial": 1
+  },
+  "92b522fcbb80": {
+    "case": "steps/expert-no-code",
+    "arm": "base",
+    "trial": 1
+  },
+  "93329f70da14": {
+    "case": "lead/home-on-bus",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "935a104a543b": {
+    "case": "lead/jv-threads",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "9464b9fb841c": {
+    "case": "steps/expert-no-code",
+    "arm": "base",
+    "trial": 2
+  },
+  "94bc00c92c6d": {
+    "case": "steps/crew-link-first",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "95087db2fab5": {
+    "case": "steps/crew-stale-base",
+    "arm": "variant",
+    "trial": 2
+  },
+  "954cfcbeeda1": {
+    "case": "steps/scout-no-runs",
+    "arm": "base",
+    "trial": 3
+  },
+  "95dcf58f62bf": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "9673053ff87b": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "96fa0368500a": {
+    "case": "steps/home-message-acts",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "970b72a49947": {
+    "case": "steps/migrate-external",
+    "arm": "variant",
+    "trial": 3
+  },
+  "971f269c9afc": {
+    "case": "steps/pr-review-severity",
+    "arm": "base",
+    "trial": 3
+  },
+  "9844c9b0ca1f": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "98c96dd7dc59": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "9984b50a7421": {
+    "case": "steps/home-grill-first",
+    "arm": "base",
+    "trial": 2
+  },
+  "99b2819d0030": {
+    "case": "steps/types-no-cast",
+    "arm": "variant",
+    "trial": 1
+  },
+  "99f25197f915": {
+    "case": "steps/expert-correction",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "9a24394d8dbc": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "variant",
+    "trial": 3
+  },
+  "9b39420e4241": {
+    "case": "lead/standing-undo",
+    "arm": "base",
+    "trial": 3
+  },
+  "9b4bc20f9ab5": {
+    "case": "steps/scout-no-launch",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "9b88bcf5212e": {
+    "case": "steps/types-sum-type",
+    "arm": "base",
+    "trial": 3
+  },
+  "9c5d075c6a11": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base",
+    "trial": 3
+  },
+  "9d07f577d97b": {
+    "case": "lead/one-review-thread",
+    "arm": "base",
+    "trial": 1
+  },
+  "9d5f99cdef6f": {
+    "case": "lead/deeper-home-step",
+    "arm": "variant",
+    "trial": 3
+  },
+  "9f5f9f7714ac": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base",
+    "trial": 2
+  },
+  "9f6ccf3c2d0c": {
+    "case": "steps/types-exhaustive",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "9fbc8e3bdbcb": {
+    "case": "steps/crew-link-first",
+    "arm": "base",
+    "trial": 2
+  },
+  "a012033e1a32": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "a0b90ca1779b": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "a12a2c8b07e6": {
+    "case": "steps/expert-roll-over",
+    "arm": "variant",
+    "trial": 1
+  },
+  "a15f6ce40bdf": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base",
+    "trial": 1
+  },
+  "a270033ee0f5": {
+    "case": "lead/deeper-skill",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "a2f180af8608": {
+    "case": "steps/expert-no-code",
+    "arm": "variant",
+    "trial": 1
+  },
+  "a30a74b128f9": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base",
+    "trial": 3
+  },
+  "a3d00249d0ca": {
+    "case": "lead/deeper-proves-it",
+    "arm": "variant",
+    "trial": 1
+  },
+  "a410411a55af": {
+    "case": "steps/home-grill-first",
+    "arm": "variant",
+    "trial": 2
+  },
+  "a445349e4915": {
+    "case": "lead/jv-shell",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "a4bb85f964a0": {
+    "case": "lead/one-review-thread",
+    "arm": "variant",
+    "trial": 1
+  },
+  "a584182435cc": {
+    "case": "steps/types-no-cast",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "a5ade9fda3df": {
+    "case": "lead/standing-undo",
+    "arm": "variant",
+    "trial": 3
+  },
+  "a62a363fe6d2": {
+    "case": "steps/pr-review-noticed",
+    "arm": "variant",
+    "trial": 3
+  },
+  "a690b5706be9": {
+    "case": "steps/pr-review-already",
+    "arm": "base",
+    "trial": 1
+  },
+  "a738da231f1d": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "a78bfd3e8973": {
+    "case": "steps/home-not-the-work",
+    "arm": "base",
+    "trial": 1
+  },
+  "a78dc0af7936": {
+    "case": "steps/migrate-external",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "a82acd38dc3f": {
+    "case": "steps/migrate-external",
+    "arm": "base",
+    "trial": 3
+  },
+  "a8f7fc356b91": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base",
+    "trial": 2
+  },
+  "a9210e96865c": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "aa22ab141563": {
+    "case": "steps/migrate-external",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "aaebb243e311": {
+    "case": "steps/migrate-delete-old",
+    "arm": "variant",
+    "trial": 2
+  },
+  "aaf210fab5c5": {
+    "case": "steps/crew-stale-base",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "ac5d47ca63b8": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "accb7826e17e": {
+    "case": "steps/crew-link-first",
+    "arm": "base",
+    "trial": 1
+  },
+  "adffd873c0c8": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "variant",
+    "trial": 3
+  },
+  "afd5c2c87d88": {
+    "case": "steps/expert-correction",
+    "arm": "base",
+    "trial": 3
+  },
+  "aff2c728ec68": {
+    "case": "steps/expert-no-code",
+    "arm": "variant",
+    "trial": 3
+  },
+  "b0eda28eb649": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base",
+    "trial": 2
+  },
+  "b126076d4bc6": {
+    "case": "steps/crew-outside-where",
+    "arm": "base",
+    "trial": 2
+  },
+  "b165816771d5": {
+    "case": "steps/expert-roll-over",
+    "arm": "variant",
+    "trial": 2
+  },
+  "b2e11c8275be": {
+    "case": "steps/pr-review-severity",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "b304f68a53f6": {
+    "case": "steps/types-sum-type",
+    "arm": "base",
+    "trial": 2
+  },
+  "b33be9cce78d": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "b33f62192d3c": {
+    "case": "steps/crew-info-finding",
+    "arm": "base",
+    "trial": 3
+  },
+  "b3abdcfd0194": {
+    "case": "steps/crew-link-first",
+    "arm": "base",
+    "trial": 3
+  },
+  "b3c65f12b6cb": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base",
+    "trial": 3
+  },
+  "b428d02785fd": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "base",
+    "trial": 1
+  },
+  "b42cd576399b": {
+    "case": "steps/pr-review-already",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "b43c3b2bc4e4": {
+    "case": "steps/expert-no-code",
+    "arm": "base",
+    "trial": 3
+  },
+  "b56ff92d20c6": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base",
+    "trial": 3
+  },
+  "b641b1a36ff8": {
+    "case": "lead/deeper-skill",
+    "arm": "variant",
+    "trial": 2
+  },
+  "b67b2f498c73": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "b70f76978493": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base",
+    "trial": 2
+  },
+  "b7aa62aa8655": {
+    "case": "steps/crew-outside-where",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "b930f7d4b295": {
+    "case": "steps/home-hand-off",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "bb25b9f23da5": {
+    "case": "steps/crew-stale-base",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "bbd5091eb1bb": {
+    "case": "steps/home-hand-off",
+    "arm": "variant",
+    "trial": 2
+  },
+  "bc11dbb97006": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "bc44974c6007": {
+    "case": "steps/scout-no-launch",
+    "arm": "variant",
+    "trial": 1
+  },
+  "bc5a29bd7ee7": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "bcb508ec3de7": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "base",
+    "trial": 3
+  },
+  "bd5830092c7c": {
+    "case": "steps/home-message-acts",
+    "arm": "base",
+    "trial": 1
+  },
+  "bdb6ef2b9d4d": {
+    "case": "steps/scout-no-launch",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "be72ef71dd52": {
+    "case": "lead/brief-size-and-playbook-checked",
+    "arm": "variant",
+    "trial": 2
+  },
+  "be9f027d5fe7": {
+    "case": "steps/types-no-cast",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "bf76c09516b7": {
+    "case": "steps/pr-review-already",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "c15d510f3332": {
+    "case": "steps/migrate-delete-old",
+    "arm": "variant",
+    "trial": 3
+  },
+  "c1a12d537c6b": {
+    "case": "lead/jv-threads",
+    "arm": "variant",
+    "trial": 1
+  },
+  "c43613881ef8": {
+    "case": "lead/jv-threads",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "c498214dfeb5": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "c63bb95b840c": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base",
+    "trial": 3
+  },
+  "c74a5afe0a73": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base",
+    "trial": 3
+  },
+  "c7dfb6a3c7f6": {
+    "case": "steps/expert-roll-over",
+    "arm": "base",
+    "trial": 1
+  },
+  "c84c8dc643de": {
+    "case": "steps/types-exhaustive",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "c9a7a5dec4d1": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "variant",
+    "trial": 2
+  },
+  "c9fd1c75c2d5": {
+    "case": "lead/ci-self-hosted",
+    "arm": "variant",
+    "trial": 1
+  },
+  "cabca154402f": {
+    "case": "lead/gate-silent-default",
+    "arm": "base",
+    "trial": 1
+  },
+  "cb2d1dd3aa9d": {
+    "case": "steps/home-hand-off",
+    "arm": "base",
+    "trial": 3
+  },
+  "cb8e5b4157b2": {
+    "case": "steps/pr-review-noticed",
+    "arm": "variant",
+    "trial": 2
+  },
+  "cbba2945d1c3": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "cc6b83279078": {
+    "case": "steps/pr-review-already",
+    "arm": "variant",
+    "trial": 2
+  },
+  "cdd51ecb2615": {
+    "case": "steps/crew-stale-base",
+    "arm": "variant",
+    "trial": 3
+  },
+  "ce045e5d42b5": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base",
+    "trial": 1
+  },
+  "ce364fc9897b": {
+    "case": "steps/scout-not-the-task",
+    "arm": "base",
+    "trial": 1
+  },
+  "cf6431a3d177": {
+    "case": "steps/home-not-the-work",
+    "arm": "variant",
+    "trial": 1
+  },
+  "cfebdd3b837d": {
+    "case": "steps/scout-no-launch",
+    "arm": "base",
+    "trial": 1
+  },
+  "d08029fcea5e": {
+    "case": "lead/deeper-skill",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "d0a8f90c87f9": {
+    "case": "steps/pr-review-noticed",
+    "arm": "variant",
+    "trial": 1
+  },
+  "d1986ba3f3c4": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "variant",
+    "trial": 2
+  },
+  "d23a6fae4892": {
+    "case": "steps/home-not-the-work",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "d300cea5ec1c": {
+    "case": "lead/deeper-skill",
+    "arm": "variant",
+    "trial": 1
+  },
+  "d37dc728477e": {
+    "case": "steps/handoff-crewmate",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "d4058751e056": {
+    "case": "lead/home-on-bus",
+    "arm": "base",
+    "trial": 1
+  },
+  "d555212974de": {
+    "case": "lead/ci-self-hosted",
+    "arm": "base",
+    "trial": 2
+  },
+  "d5dab10d66bc": {
+    "case": "steps/home-not-the-work",
+    "arm": "base",
+    "trial": 3
+  },
+  "d67ba63617ed": {
+    "case": "steps/types-sum-type",
+    "arm": "base",
+    "trial": 1
+  },
+  "d67ce2d48228": {
+    "case": "steps/scout-no-runs",
+    "arm": "base",
+    "trial": 1
+  },
+  "d6c06bd8ce09": {
+    "case": "steps/crew-link-first",
+    "arm": "variant",
+    "trial": 1
+  },
+  "d6d768d7dac3": {
+    "case": "lead/gate-silent-default",
+    "arm": "base",
+    "trial": 3
+  },
+  "d73ea2e96810": {
+    "case": "lead/home-on-bus",
+    "arm": "base",
+    "trial": 2
+  },
+  "d797a18201e5": {
+    "case": "lead/gate-silent-default",
+    "arm": "base",
+    "trial": 2
+  },
+  "d7d856aab743": {
+    "case": "steps/types-exhaustive",
+    "arm": "variant",
+    "trial": 1
+  },
+  "d7eaec8dca4b": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "d889324788f6": {
+    "case": "steps/crew-stale-base",
+    "arm": "base",
+    "trial": 2
+  },
+  "d93708c7ae8d": {
+    "case": "steps/pr-review-one-thread",
+    "arm": "base",
+    "trial": 2
+  },
+  "da56dcdc34af": {
+    "case": "steps/types-exhaustive",
+    "arm": "base",
+    "trial": 1
+  },
+  "da5bfd652994": {
+    "case": "steps/expert-correction",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "dd065c88a4b2": {
+    "case": "steps/crew-link-first",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "dee1b763d819": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base",
+    "trial": 2
+  },
+  "df3537718f00": {
+    "case": "lead/deeper-home-step",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "df5ac539d440": {
+    "case": "steps/scout-no-launch",
+    "arm": "base",
+    "trial": 2
+  },
+  "e0e3d442fc04": {
+    "case": "steps/pr-review-severity",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "e0f6cd8f979d": {
+    "case": "steps/home-message-acts",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "e149e90625b7": {
+    "case": "steps/home-hand-off",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "e15746578ddc": {
+    "case": "steps/types-no-cast",
+    "arm": "base",
+    "trial": 3
+  },
+  "e1b65d0b81fc": {
+    "case": "lead/pstack-trigger-effort",
+    "arm": "variant",
+    "trial": 3
+  },
+  "e1f08398c570": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base",
+    "trial": 2
+  },
+  "e23324ad2bc6": {
+    "case": "steps/migrate-external",
+    "arm": "base",
+    "trial": 1
+  },
+  "e29019a47476": {
+    "case": "lead/one-review-thread",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "e43c0e44bff3": {
+    "case": "steps/migrate-delete-old",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "e43c2952df7d": {
+    "case": "steps/migrate-external",
+    "arm": "variant",
+    "trial": 1
+  },
+  "e470d4ffff74": {
+    "case": "steps/handoff-not-carried",
+    "arm": "variant",
+    "trial": 1
+  },
+  "e486029bbb1e": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "base",
+    "trial": 1
+  },
+  "e684c5fb086e": {
+    "case": "lead/home-on-bus",
+    "arm": "variant",
+    "trial": 3
+  },
+  "e7f0fbd169cc": {
+    "case": "steps/crew-link-first",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "e8388531eaa2": {
+    "case": "steps/home-message-acts",
+    "arm": "variant",
+    "trial": 3
+  },
+  "e883e7b5a32e": {
+    "case": "steps/crew-outside-where",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "e9237d90b645": {
+    "case": "steps/home-message-acts",
+    "arm": "base",
+    "trial": 3
+  },
+  "e9650af9e5e9": {
+    "case": "lead/one-review-thread",
+    "arm": "variant",
+    "trial": 2
+  },
+  "e9818f8ec81b": {
+    "case": "lead/one-review-thread",
+    "arm": "variant",
+    "trial": 3
+  },
+  "eae9a70d0e9b": {
+    "case": "steps/types-no-cast",
+    "arm": "variant",
+    "trial": 2
+  },
+  "eaf6d38d9c7a": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "eb635f67a007": {
+    "case": "steps/types-no-cast",
+    "arm": "variant",
+    "trial": 3
+  },
+  "eb7b146f5977": {
+    "case": "steps/scout-no-runs",
+    "arm": "variant",
+    "trial": 1
+  },
+  "ebf32ee0d698": {
+    "case": "steps/pr-review-noticed",
+    "arm": "base",
+    "trial": 1
+  },
+  "ec11938fc5c5": {
+    "case": "steps/handoff-stop-poll",
+    "arm": "variant",
+    "trial": 1
+  },
+  "ec7fcd517dce": {
+    "case": "steps/scout-no-launch",
+    "arm": "variant",
+    "trial": 3
+  },
+  "ed29807d2dc8": {
+    "case": "steps/expert-roll-over",
+    "arm": "base",
+    "trial": 2
+  },
+  "ee7c135933a3": {
+    "case": "steps/migrate-tests",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "eec484cb8ceb": {
+    "case": "steps/home-grill-first",
+    "arm": "base",
+    "trial": 1
+  },
+  "f0c8e2e365e9": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base",
+    "trial": 3
+  },
+  "f1429cc86b7c": {
+    "case": "lead/pstack-autopilot-ketchup",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "f16b828a651c": {
+    "case": "lead/jv-threads",
+    "arm": "base",
+    "trial": 1
+  },
+  "f182b3d8b9a6": {
+    "case": "lead/jv-shell",
+    "arm": "base",
+    "trial": 3
+  },
+  "f1cf6f089dbc": {
+    "case": "steps/types-sum-type",
+    "arm": "variant",
+    "trial": 1
+  },
+  "f2d4ebb5494d": {
+    "case": "steps/handoff-not-carried",
+    "arm": "base",
+    "trial": 2
+  },
+  "f2e488e54f52": {
+    "case": "steps/crew-info-finding",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "f33b1ea5ad24": {
+    "case": "lead/pstack-rebase-cap",
+    "arm": "variant",
+    "trial": 3
+  },
+  "f51f0fc678c3": {
+    "case": "steps/types-exhaustive",
+    "arm": "base",
+    "trial": 3
+  },
+  "f5ac723c1933": {
+    "case": "steps/expert-correction",
+    "arm": "base",
+    "trial": 1
+  },
+  "f794f708e07a": {
+    "case": "steps/home-message-acts",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "f9901ea0555c": {
+    "case": "lead/standing-undo",
+    "arm": "base-again",
+    "trial": 3
+  },
+  "fa1c226b4230": {
+    "case": "steps/migrate-tests",
+    "arm": "variant",
+    "trial": 3
+  },
+  "fa36a222df59": {
+    "case": "steps/home-grill-first",
+    "arm": "base",
+    "trial": 3
+  },
+  "fa89ee1b532f": {
+    "case": "lead/deeper-proves-it",
+    "arm": "base",
+    "trial": 2
+  },
+  "fadda314fd1d": {
+    "case": "lead/brief-lint-approval-binding",
+    "arm": "variant",
+    "trial": 1
+  },
+  "fadfced4989a": {
+    "case": "steps/migrate-delete-old",
+    "arm": "variant",
+    "trial": 1
+  },
+  "fb83bd9c4420": {
+    "case": "lead/deeper-skill",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "fbe53f39b6ad": {
+    "case": "lead/jv-threads",
+    "arm": "variant",
+    "trial": 3
+  },
+  "fcaddf697cd2": {
+    "case": "steps/home-grill-first",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "fd5fac304ccd": {
+    "case": "lead/pstack-depth-style",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "fdc5cfe578d0": {
+    "case": "lead/gate-silent-default",
+    "arm": "base-again",
+    "trial": 2
+  },
+  "fe7a37f10c80": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "variant",
+    "trial": 1
+  },
+  "fe8a8b9179d9": {
+    "case": "lead/exec-removal-jstack",
+    "arm": "base-again",
+    "trial": 1
+  },
+  "feb214fba235": {
+    "case": "steps/crew-outside-where",
+    "arm": "base-again",
+    "trial": 2
+  }
+}
