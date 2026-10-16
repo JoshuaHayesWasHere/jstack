@@ -29,3 +29,15 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `log/` | Old handoffs, dated. |
 
 A thread messages its home only when the home has something to do. A crewmate tells it that its pull request is fixed and green, that it is green with no review to come, that its task ended with no pull request, or that its task is paused. A scout tells it that its report is written. Either sends a gate. A crewmate sends nothing when its pull request opens or when the findings are handled. A reviewer sends its findings to the crewmate's thread, and to the home only when the brief has no `Thread:` line. "Telling the home" in `skills/crew/SKILL.md` has every case. The message goes to the id in a `home-id`, read when it is sent: the root home's, or the one in `<scope>/` when the `Home:` line of the brief or request names that scope. No brief names a thread, so a home that starts rewrites none. Between a handoff and the next start there is no `home-id`, nothing is sent, and the report waits on disk.
+
+## Undo an edit to standing.md
+
+A home runs `jbus snapshot --why "<what changed>"` right after each edit to a `standing.md`, so each edit is a commit of its own in `~/.local/state/home`, pushed with the tree ("Back up the homes' state" in `docs/jbus.md`). To undo one, find its commit, write back the file as it was before it, and snapshot again:
+
+```sh
+git -C ~/.local/state/home log -p -- <repo>/standing.md
+git -C ~/.local/state/home restore --source=<commit>^ -- <repo>/standing.md
+jbus snapshot --why "<repo> standing.md, <commit> undone"
+```
+
+The first line lists every edit with its diff, the newest first, and `<commit>` is the one to undo. The second writes the file as it stood in the commit before it, which undoes that edit and every later one. Undoing the commit that made the file removes it. A commit that is not there, or the tree's first commit, makes it fail, and it writes nothing. The undo is itself a commit, so it can be undone the same way.

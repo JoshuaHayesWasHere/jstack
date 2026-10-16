@@ -76,7 +76,7 @@ Run it after the block at the top, in the same call as each block below that nam
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that while jbus merges each `merged` line is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | Old handoffs, dated. Nobody reads these at start. | Unbounded |
 | `$H/notes.md` | Facts about this repo that a new thread would otherwise relearn the hard way. Read when a step needs one of them, not whole at a start. | At most 60 lines |
-| `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. | Short |
+| `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). | Short |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
 | `$H/scouts/<slug>.md` | A scout's request, and its report, whichever home wrote it. | One page |
 | `$H/reports/` | The pages a scout or a home makes for the user. | Unbounded |

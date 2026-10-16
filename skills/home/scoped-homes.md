@@ -2,9 +2,9 @@
 
 A scoped home is a home like any other, for one goal: it plans, launches and, on `home merges`, merges its own tasks by this skill, from its own directory. On `jbus merges` nobody merges a scoped home's pull requests ("Merging a pull request that is ready"). The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
-- A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch. Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words. A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole.
+- A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch. Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words. A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
 - Nothing else is sent: not a launch, a merge, a status, or that a scope has ended. The root home is sent nothing while a scope works, and reads the scope's files when the user asks for status. A scope that ends says so in its own `handoff.md`.
-- A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. It is relayed to no home: every home reads `standing.md` whole at its start.
+- A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). It is relayed to no home: every home reads `standing.md` whole at its start.
 - No home asks another what it has out. The launch check of "When a thread sends a message" prints it.
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one its section of `$H/notes.md` names.
