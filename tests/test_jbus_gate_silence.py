@@ -215,3 +215,48 @@ def test_a_home_that_answered_in_its_gates_file_replaces_a_close_by_silence(kitc
     kitchen.poll(NOW + timedelta(hours=3))
     answer = record(kitchen)["answer"]
     assert (answer["closed_by"], answer["words"]) == ("gates.md", status)
+
+
+def test_a_gate_that_holds_answered_with_its_default_goes_to_its_thread_as_a_go_ahead(kitchen):
+    gate(kitchen, LINES + "Holds: deletes data\n" + SAFE + OPTIONS)
+    code, said = kitchen.main("answer", "1", "--by", "user", "--at", AT, "--default", "yes")
+    assert (code, said.endswith("the next pass tells alpha's thread\n")) == (0, True), said
+    kitchen.poll(NOW + timedelta(minutes=10))
+    kitchen.poll(NOW + timedelta(minutes=20))
+    (sent,) = kitchen.t3.messages.values()
+    assert (sent["threadId"], sent["clientRequestId"]) == (THREAD, "answer|alpha|1")
+    assert sent["message"].startswith(
+        "jbus: user answered question 1 (tea or coffee?) with the default (made tea), which "
+        "held for the answer (deletes data)."
+    )
+    assert "Go ahead with the default now" in sent["message"]
+
+
+def test_a_plain_gate_answered_with_its_default_sends_nothing(kitchen):
+    gate(kitchen)
+    kitchen.main("answer", "1", "--by", "user", "--at", AT, "--default", "yes")
+    kitchen.poll(NOW + timedelta(minutes=10))
+    assert kitchen.t3.messages == {}
+
+
+def test_a_links_conflict_asks_its_home_and_is_never_closed_by_silence(kitchen):
+    asked = "alpha: https://example.test/pull/7 has a conflict, and it is a link of a stack"
+    gate(kitchen, (LINES + OPTIONS).replace("tea or coffee?", asked))
+    kitchen.poll(NOW + timedelta(hours=48))
+    assert record(kitchen)["answer"] is None
+
+
+def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kitchen):
+    gate(kitchen)
+    held = LINES.replace("tea or coffee?", "drop the branches?") + "Holds: deletes data\n"
+    gate(kitchen, held + SAFE + OPTIONS)
+    kitchen.poll(NOW + timedelta(minutes=5))
+    kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
+    lines = {one["key"]: one["line"] for one in kept if one["kind"] == "gate"}
+    assert lines == {
+        "gate:q1": "question 1: tea or coffee? Its default is acted on already, and stands "
+        "unless you stop it.",
+        "gate:q2": "question 2: drop the branches? It holds (deletes data) for your answer, "
+        "with its fail-safe: dry-run lists the 3 branches that go, bundle at ~/b.bundle, then "
+        "hold.",
+    }

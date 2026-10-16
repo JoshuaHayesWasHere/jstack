@@ -17,6 +17,7 @@ from jbus.view import state as view_state
 from test_jbus_kitchen import GATE, NOW, OPTIONS, Kitchen
 
 AT = "2026-10-12 11:30 ET"
+ACTED = " Its default is acted on already, and stands unless you stop it."
 SAID = ("--by", "user", "--at", AT)
 THREAD = "mcp:crew-alpha"
 
@@ -107,7 +108,7 @@ def test_a_question_waits_on_the_user_from_the_next_pass_with_its_default(kitche
     wanted = {
         "kind": "gate",
         "key": "gate:q1",
-        "line": "question 1: tea or coffee?",
+        "line": "question 1: tea or coffee?" + ACTED,
         "source": "jbus",
         "number": "1",
         "question": "tea or coffee?",
@@ -332,7 +333,7 @@ def test_a_question_a_gates_file_has_too_is_counted_once_as_the_record(kitchen):
     kitchen.poll()
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 2: an old one?",
-        "question 1: tea or coffee?",
+        "question 1: tea or coffee?" + ACTED,
     ]
     assert [one["number"] for one in shown(kitchen)["waiting"] if one["kind"] == "gate"] == [
         "2",
@@ -452,7 +453,7 @@ def test_a_pass_that_cannot_read_the_questions_says_so_and_keeps_what_its_list_h
     (kitchen.home / "gates.md").write_text(gate(n=3, status="answered: coffee"))
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert [one["line"] for one in listed(kitchen)] == ["question 1: tea or coffee?"]
+    assert [one["line"] for one in listed(kitchen)] == ["question 1: tea or coffee?" + ACTED]
     assert kitchen.lines("condition") == ["condition demo: questions.json does not parse"]
     assert kitchen.lines("gate answered") == []
     file.write_text(kept)
@@ -473,7 +474,7 @@ def test_a_gate_of_a_scoped_home_beside_a_question_is_still_said_to_the_chat(kit
     assert event["line"] == "waiting demo: 2 wait on user, 1 new (gate quay#1), 0 gone"
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 1: which berth?",
-        "question 1: tea or coffee?",
+        "question 1: tea or coffee?" + ACTED,
     ]
 
 
@@ -645,7 +646,7 @@ def test_a_file_written_before_options_still_loads_and_its_question_is_still_ans
     (one,) = questions.read(kitchen.state)
     assert (one.number, one.question, one.context, one.options) == (1, "tea or coffee?", "", ())
     kitchen.poll()
-    assert [each["line"] for each in listed(kitchen)] == ["question 1: tea or coffee?"]
+    assert [each["line"] for each in listed(kitchen)] == ["question 1: tea or coffee?" + ACTED]
     assert answer(kitchen, 1, "tea", default=True)[0] == 0
     (kept,) = records(kitchen)["records"]
     assert (kept["answer"]["words"], kept["context"], kept["options"]) == ("tea", "", [])

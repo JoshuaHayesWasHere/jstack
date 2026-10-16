@@ -74,7 +74,8 @@ once, to pipe the same gate again with them (`propose`): to the thread on the `T
 line of the slug's brief or request, and to nobody where there is none or T3 Code no longer
 lists it.
 
-An answer that keeps the default asks nothing of anybody. One that differs is carried
+An answer that keeps the default asks nothing of anybody, but for a gate that holds: its
+thread waits, so that answer is carried as a go-ahead (`GO`). One that differs is carried
 (`carry`): one queued message to the thread on the `Thread:` line of the slug's brief or
 request, with the words and the undo line, under the retry key `answer|<slug>|<number>`. It
 is a `note`, a quiet event, so no answer starts a POST. The view sends an answer given on
@@ -111,6 +112,13 @@ NOTE = "note"
 NO_DEFAULT = (
     "refused: the gate has no Default: line, so it does not say what was done in place of an answer"
 )
+GO = (
+    "jbus: {user} answered question {number} ({question}) with the default ({default}), which "
+    'held for the answer ({holds}). The words, {at}: "{words}". Fail-safe: {fail_safe}. Go '
+    "ahead with the default now, and add one line to the last Result or Report saying what "
+    "you did. Then end your turn."
+)
+LINK = "has a conflict, and it is a link of a stack"
 MESSAGE = (
     "jbus: {user} answered question {number} ({question}), and the answer is not the default "
     'you took ({default}). The words, {at}: "{words}". Undo: {undo}. Built on the default: '
@@ -530,13 +538,26 @@ def silent(run: Pass) -> None:
 
 
 def _quiet(one: Question, now: datetime) -> bool:
-    if one.answer or one.holds:
+    """Whether silence closes the question now. A gate that holds waits for the user, and a
+    link's conflict asks its home and not the user, so neither is ever closed this way."""
+    if one.answer or one.holds or one.question.endswith(LINK):
         return False
     try:
         asked = datetime.fromisoformat(one.asked_at)
     except ValueError:
         return False
     return asked.tzinfo is not None and now - asked >= QUIET
+
+
+def _state(one: Question) -> str:
+    """What the line of a waiting question adds: that its default holds for the answer, with
+    the fail-safe, or that it was acted on already. A link's conflict, which asks its home,
+    says neither."""
+    if one.holds:
+        return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
+    if not one.question.endswith(LINK):
+        return " Its default is acted on already, and stands unless you stop it."
+    return ""
 
 
 def item(one: Question) -> dict[str, Any]:
@@ -546,7 +567,7 @@ def item(one: Question) -> dict[str, Any]:
         "kind": "gate",
         "key": f"gate:q{one.number}",
         "source": SOURCE,
-        "line": f"question {one.number}: {one.question}",
+        "line": f"question {one.number}: {one.question}{_state(one)}",
         "number": str(one.number),
         "question": one.question,
         "default": one.default,
@@ -578,7 +599,8 @@ class Carried:
 
 
 def carry(run: Pass, client: Client, one: Question) -> Carried:
-    """Send one answer that differs from its default to the thread that asked.
+    """Send one answer that differs from its default to the thread that asked, or one that
+    keeps the default of a gate that holds: that thread waits for it to go ahead (`GO`).
 
     It is one queued message to the thread on the `Thread:` line of the slug's brief or
     request, under the retry key `answer|<slug>|<number>`: the pass and the view both send
@@ -590,7 +612,8 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
     number, slug = one.number, one.slug
     if one.answer is None or slug in run.removed:
         return Carried()
-    message = MESSAGE.format(user=run.user.user, **asdict(one), **asdict(one.answer))
+    form = GO if one.answer.keeps else MESSAGE
+    message = form.format(user=run.user.user, **asdict(one), **asdict(one.answer))
     thread = thread_of(run.home, slug)
     if not thread:
         return Carried(message)
@@ -608,8 +631,8 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
 
 
 def tell(run: Pass, client: Client) -> None:
-    """Send each answer that differs from its default to the thread that asked, once
-    (`carry`).
+    """Send each answer that differs from its default, and each that keeps the default of a
+    gate that holds, to the thread that asked, once (`carry`).
 
     An answer for a slug with no `Thread:` line to send to is said in a quiet event, once.
     One T3 Code refuses was carried to nobody, so it is a gate, once. Both are tried again
@@ -619,7 +642,9 @@ def tell(run: Pass, client: Client) -> None:
     gone = run.removed
     for one in load(run.state):
         given = one.answer
-        if given is None or given.closed_by != COMMAND or given.keeps or given.told:
+        if given is None or given.closed_by != COMMAND or given.told:
+            continue
+        if given.keeps and not one.holds:
             continue
         if one.slug in gone:
             continue
@@ -756,7 +781,7 @@ def _answer(args: argparse.Namespace, config: Config) -> int:
         heard=heard,
     )
     given = closed.answer
-    if given.keeps:
+    if given.keeps and not closed.holds:
         carried = "nothing is sent"
     elif thread_of(config.home(project), closed.slug):
         carried = f"the next pass tells {closed.slug}'s thread"

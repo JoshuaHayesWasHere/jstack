@@ -748,7 +748,7 @@ elif [ -z "$P" ]; then
     WHY="no project: jbus's config names no project for $R, so it holds no question of this repo"
 elif [ ! -e "$Q" ]; then
     WHY=
-elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .question, .default, .built_on, .undo] | map(tostring) | join("\u0001")' "$Q" 2> /dev/null); then
+elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .question, .default, .built_on, .undo, (.holds // ""), (.fail_safe // "")] | map(tostring) | join("\u0001")' "$Q" 2> /dev/null); then
     WHY="jbus could not be read: $Q is not the record jbus writes"
 else
     WHY=
@@ -807,9 +807,14 @@ if [ -n "$WHY" ]; then
 elif [ -z "$OPEN$LINKS" ]; then
     echo "no open questions"
 else
-    printf '%s\n' "$OPEN" | while IFS=$SEP read -r n slug asked took built undo; do
+    printf '%s\n' "$OPEN" | while IFS=$SEP read -r n slug asked took built undo holds safe; do
         if [ -n "$n" ]; then
             printf 'question %s, from %s: %s\ndefault: %s\nbuilt on it: %s\nundo: %s\n' "$n" "$slug" "$asked" "$took" "$built" "$undo"
+            if [ -n "$holds" ]; then
+                printf 'holds (%s) for the answer, fail-safe: %s\n' "$holds" "$safe"
+            else
+                printf 'acted on already: the default stands unless the user stops it\n'
+            fi
         fi
     done
     printf '%s\n' "$LINKS" | while IFS=$SEP read -r n slug asked; do
@@ -825,7 +830,7 @@ else
 fi
 ```
 
-On `no open questions`, say nothing about gates. On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read. One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it. Ask for nothing more than the answer. A line `for this home, question <number>` is a link's conflict, which asks this home and not the user, and GitHub says which it is now. On `send its line`, do what "A link with a conflict" says for the crewmate's line. On `handled`, tell the user in one line that question <number> is theirs to close, as `default`: only their name closes a question. On `could not ask GitHub`, do neither, and say so.
+On `no open questions`, say nothing about gates. On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read. One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it. Ask for nothing more than the answer. A line `for this home, question <number>` is a link's conflict, which asks this home and not the user, and GitHub says which it is now. On `send its line`, do what "A link with a conflict" says for the crewmate's line. On `handled`, tell the user in one line that question <number> is theirs to close, as `default`: silence never closes a link's question, and only their name does. On `could not ask GitHub`, do neither, and say so.
 
 Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
 
@@ -845,7 +850,8 @@ elif [ ! -f "$F" ]; then
 else
     ROUND=$(printf '%s\n' "$OPEN" | jq -R --arg slug "$slug" '
         split("\u0001") | {
-            id: "gate-\(.[0])", title: .[2], body: "Asked by \(.[1])",
+            id: "gate-\(.[0])", title: .[2],
+            body: (if (.[6] // "") != "" then "Asked by \(.[1]). It holds (\(.[6])) for your answer, with its fail-safe: \(.[7])" else "Asked by \(.[1]). Its default is acted on already" end),
             built_on: .[4], undo: .[5],
             options: [
                 {id: "default", label: "Yes: \(.[3])", recommended: true},
@@ -853,7 +859,7 @@ else
             ]
         }' | jq -s --arg slug "$slug" '{
             slug: $slug, round: 1, title: "Open questions",
-            lead: "Each default was taken so the work did not wait. A question left alone is answered by its default.",
+            lead: "Each default was taken so the work did not wait, but for one that holds. A question left alone is answered by its default after 2 hours, but for one that holds.",
             settled: [], questions: .
         }')
     export ROUND
