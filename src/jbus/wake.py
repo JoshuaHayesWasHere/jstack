@@ -78,8 +78,6 @@ SNAPSHOT_CAP = 32_000
 GAP = 5 * 60
 TIMEOUT = 8
 COMMAND_TIMEOUT = 300
-# What a pass allows `jmerge`: over the fresh check's own limit, which runs outside the pass
-# all the same, and under the unit's TimeoutStartSec (`tests/test_jbus.py`).
 JMERGE_TIMEOUT = 17 * 60
 SNAPSHOT_AT = (17, 15)
 PRUNE_AFTER = timedelta(days=7)
@@ -735,7 +733,8 @@ class Pass:
         self, *command: str, timeout: float = COMMAND_TIMEOUT
     ) -> subprocess.CompletedProcess[str]:
         """Run a command in the project's main checkout. One that is missing, or outlasts
-        `timeout` seconds, fails like any."""
+        `timeout` seconds, fails like any. `JMERGE_TIMEOUT` is jmerge's: over the fresh
+        check's own limit and under the unit's TimeoutStartSec (`tests/test_jbus.py`)."""
         try:
             return subprocess.run(
                 command, cwd=self.project.checkout, capture_output=True, text=True, timeout=timeout
