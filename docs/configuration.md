@@ -6,9 +6,9 @@ jstack runs with none of these files. Each one changes a default or switches on 
 
 | File | Sets | Written by |
 |---|---|---|
-| `~/.config/jstack/config.toml` | Your name and time zone | You |
-| `~/.config/jstack/roles` | The model for each role | You |
-| `~/.config/jbus/config.toml` | The projects `jbus` looks after | You |
+| `~/.config/jstack/config.toml` | Your name and time zone | You, or `install.sh --setup` once |
+| `~/.config/jstack/roles` | The model for each role | You, or `install.sh --setup` once |
+| `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
 | `~/.local/state/claude/limits` | The plan's limits | `hooks/limits.sh` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
@@ -17,7 +17,7 @@ The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variabl
 
 ## jstack
 
-`~/.config/jstack/config.toml` says who jstack works for and in which time zone. `install.sh` never creates it. With no file, every key has its default.
+`~/.config/jstack/config.toml` says who jstack works for and in which time zone. A plain `install.sh` never creates it. `install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse. With no file, every key has its default.
 
 ```toml
 user = "sam"
@@ -45,11 +45,11 @@ Each value is one word with no space and no comma. A file with any other key, or
 | `home` | `inherit` | The model of the next home's thread. | `jroles`, for the `handoff` skill |
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
-`inherit` is the model of the thread that launches. [jroles](jroles.md) has the providers and an example.
+`inherit` is the model of the thread that launches. [jroles](jroles.md) has the providers and an example. `install.sh --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
 
-`~/.config/jbus/config.toml` lists the repos `jbus` looks after. `jbus` does not run without it, and nothing else needs it. The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read. `JBUS_CONFIG_DIR` names another directory for it.
+`~/.config/jbus/config.toml` lists the repos `jbus` looks after. `jbus` does not run without it, and nothing else needs it. `install.sh --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`. The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read. `JBUS_CONFIG_DIR` names another directory for it.
 
 ```toml
 server = "http://127.0.0.1:<port>"

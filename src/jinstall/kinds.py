@@ -1,10 +1,13 @@
 """The kinds of need, and what each one's answer rests on.
 
-A Kind is only probed: the doctor says what it found, and the install never writes it. The
-two configs are read through `jbus.load` and `jsettings.load`, the loaders the commands use,
-so the doctor cannot disagree with them about what is valid. A Carried kind is also put and
-dropped, and every Carried kind writes the checkout's path into what it puts, which gives the
-one ownership rule: a piece is this checkout's when the piece itself says so.
+A Kind is only probed: the doctor says what it found, and the install never writes it. One
+that `Asks` gives `--setup` the one command the user runs to mend it. The configs are read
+through `jbus.load`, `jsettings.load` and `jroles.read_map`, the loaders the commands use, so
+the doctor cannot disagree with them about what is valid. A Seeded kind is a config `--setup`
+writes once, where there is no file, and `--uninstall` removes while it is still what was
+written (`Machine.seed`). A Carried kind is also put and dropped, and every Carried kind writes
+the checkout's path into what it puts, which gives the one ownership rule: a piece is this
+checkout's when the piece itself says so.
 
     ok       exactly what this checkout puts is there, or the program meets its floor
     missing  nothing is there
@@ -12,6 +15,7 @@ one ownership rule: a piece is this checkout's when the piece itself says so.
 """
 
 import copy
+import json
 import os
 import re
 import sys
@@ -22,9 +26,11 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Protocol, runtime_checkable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import jbus
 import jleak
+import jroles
 import jsettings
 from jbus import t3
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
@@ -84,6 +90,46 @@ class Carried(Kind, Protocol):
     def drop(self, machine: Machine) -> Dropped:
         """Remove each piece that is this checkout's and leave every other."""
         ...
+
+
+@runtime_checkable
+class Asks(Kind, Protocol):
+    def ask(self, machine: Machine) -> str:
+        """The one command that mends what the probe found, for `--setup` to print."""
+        ...
+
+
+@runtime_checkable
+class Seeded(Kind, Protocol):
+    """A config `--setup` writes, once, at `path` with `mode`, only where probe says missing."""
+
+    path: Path
+    mode: int
+
+    def text(self, machine: Machine) -> str:
+        """What is written: read from the machine, every value one its loader takes."""
+        ...
+
+    def drop(self, machine: Machine) -> Dropped:
+        """Remove the file while it is what `--setup` wrote, else keep it, with why."""
+        ...
+
+
+def unseed(machine: Machine, path: Path, word: str) -> Dropped:
+    removed = machine.unseed(path)
+    if removed is None:
+        return Dropped()
+    if not removed:
+        return Dropped(kept=(f"{word} {path} -> yours, it is not as setup wrote it",))
+    return Dropped(removed=(f"{word} {path}",))
+
+
+SEEDED = "# Written once by install.sh --setup. Edit it: setup never writes over it.\n"
+
+
+def get(machine: Machine, package: str, command: str) -> str:
+    """How to get a program: `yay -S <package>` on Arch (pacman on PATH), else its name."""
+    return f"yay -S {package}" if machine.which("pacman") else command
 
 
 def points_at(path: Path, target: Path) -> bool:
@@ -648,6 +694,12 @@ class Program:
     version: tuple[str, ...] = ("--version",)
     floor: tuple[int, ...] | None = None
     hint: str = ""
+    package: str = ""
+
+    def ask(self, machine: Machine) -> str:
+        """The hint where there is one, else the Arch package, which is the command's name
+        unless `package` says otherwise."""
+        return self.hint or get(machine, self.package or self.command, self.command)
 
     def probe(self, machine: Machine) -> Found:
         if machine.which(self.command) is None:
@@ -672,6 +724,9 @@ class T3Nightly:
     floor: str | None
     hint: str = "the nightly build (on Arch: t3code-nightly-bin)"
 
+    def ask(self, machine: Machine) -> str:
+        return get(machine, "t3code-nightly-bin", "t3")
+
     def probe(self, machine: Machine) -> Found:
         written = machine.home / ".t3" / "bin" / "t3"
         command = written if os.access(written, os.X_OK) else machine.which("t3")
@@ -692,6 +747,9 @@ class T3Nightly:
 class GhSignIn:
     """missing: `gh auth token` exits non-zero. No network call, and what it prints is not
     read. Never old."""
+
+    def ask(self, machine: Machine) -> str:
+        return "gh auth login"
 
     def probe(self, machine: Machine) -> Found:
         if machine.run(["gh", "auth", "token"]).code == 0:
@@ -724,9 +782,25 @@ def _said(error: Exception) -> str:
 @dataclass(frozen=True)
 class JbusConfig:
     """jbus's config.toml, read by jbus's own loader. old: the loader refuses it, as it does
-    one that group or others can read. The install never writes it: it holds a key."""
+    one that group or others can read. The install never writes it: it holds a key.
+    Seeded, mode 600, with no project and no key: `server` as the T3 sign-in beside it names
+    it, else T3 Code's own address, and `dispatch = false`, so jbus launches nothing until
+    the user says. `jbus t3 login` reads the server from it, so it comes first."""
 
     path: Path
+    mode: int = 0o600
+    server: str = "http://127.0.0.1:3773"
+
+    def text(self, machine: Machine) -> str:
+        try:
+            named = json.loads(self.path.with_name("t3.json").read_text()).get("server")
+        except (OSError, ValueError, AttributeError):
+            named = None
+        server = named if isinstance(named, str) and named.startswith("http") else self.server
+        return f"{SEEDED}server = {json.dumps(server)}\ndispatch = false\n"
+
+    def drop(self, machine: Machine) -> Dropped:
+        return unseed(machine, self.path, "jbus config")
 
     def probe(self, machine: Machine) -> Found:
         if not self.path.is_file():
@@ -744,6 +818,9 @@ class JbusSignIn:
     past the expiry jbus reads from it, on the day the jstack config's time zone gives it."""
 
     path: Path
+
+    def ask(self, machine: Machine) -> str:
+        return "jbus t3 login"
 
     def probe(self, machine: Machine) -> Found:
         if not self.path.is_file():
@@ -772,6 +849,10 @@ class Limits:
 
     path: Path
 
+    def ask(self, machine: Machine) -> str:
+        """Claude Code's status line, hooks/limits.sh, writes it on the first session."""
+        return "claude"
+
     def probe(self, machine: Machine) -> Found:
         try:
             rows = self.path.read_text().splitlines()
@@ -794,9 +875,30 @@ class Limits:
 class JstackConfig:
     """${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml, read by the loader the commands use.
     The install never creates it. missing: no file, the commands run on their defaults
-    (the detail names each key that has one). old: the loader refuses it."""
+    (the detail names each key that has one). old: the loader refuses it.
+    Seeded with `user`, the first word of `git config user.name`, and `timezone`, the
+    machine's own zone. A value the loader would not take is left out, so its default holds."""
 
     path: Path
+    mode: int = 0o644
+
+    def text(self, machine: Machine) -> str:
+        lines = [SEEDED]
+        named = machine.run(["git", "config", "user.name"])
+        word = (named.out.split() or [""])[0].strip(",") if named.code == 0 else ""
+        if word and "," not in word:
+            lines.append(f"user = {json.dumps(word)}\n")
+        zone = machine.zone()
+        try:
+            known = zone is not None and str(ZoneInfo(zone)) == zone
+        except (ZoneInfoNotFoundError, ValueError, OSError):
+            known = False
+        if known:
+            lines.append(f"timezone = {json.dumps(zone)}\n")
+        return "".join(lines)
+
+    def drop(self, machine: Machine) -> Dropped:
+        return unseed(machine, self.path, "config")
 
     def probe(self, machine: Machine) -> Found:
         if not self.path.exists():
@@ -806,3 +908,32 @@ class JstackConfig:
         except jsettings.Invalid as error:
             return Found.old(str(error))
         return Found.ok()
+
+
+@dataclass(frozen=True)
+class Roles:
+    """${XDG_CONFIG_HOME:-~/.config}/jstack/roles, the role map `jroles` reads.
+    missing: no file, every role inherits. old: `jroles.read_map` refuses it, with its lines.
+    Seeded with every role `inherit`, which names no effort: nothing is seeded above medium."""
+
+    path: Path
+    mode: int = 0o644
+
+    def probe(self, machine: Machine) -> Found:
+        try:
+            text = self.path.read_text()
+        except FileNotFoundError:
+            return Found.missing("every role inherits the model of the thread that launches it")
+        except (OSError, UnicodeDecodeError):
+            return Found.old("it cannot be read")
+        try:
+            jroles.read_map(text, jroles.ROLES[0])
+        except jroles.Refused as error:
+            return Found.old("; ".join(str(error).splitlines()))
+        return Found.ok()
+
+    def text(self, machine: Machine) -> str:
+        return SEEDED + "".join(f"{role}: {jroles.INHERIT}\n" for role in jroles.ROLES)
+
+    def drop(self, machine: Machine) -> Dropped:
+        return unseed(machine, self.path, "roles")

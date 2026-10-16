@@ -167,6 +167,8 @@ The files on that line sit beside the ones taken and are jstack's own: no upstre
 
 Not taken: `pstack/skills/create-verification-skill`, `pstack/skills/maintain-verification-skill`, `pstack/skills/make-bot-ui`, `pstack/skills/poteto-help`, `pstack/skills/setup-pstack`, `pstack/skills/poteto-mode/playbooks/babysit.md`, `pstack/skills/poteto-mode/playbooks/worktree-cleanup.md`
 
+`skills/setup-pstack/SKILL.md` has the name of `pstack/skills/setup-pstack` and none of its text, so the upstream skill stays on that line. Upstream writes a Cursor rule of a model and a budget for each role, up to `max`. Here the skill runs `install.sh --setup`, which writes `~/.config/jstack/roles` with every role `inherit`. It keeps upstream's shape: it detects, loads what is there, and leaves a rerun idempotent.
+
 `make pstack-drift` lists what changed upstream since that commit, for the paths of the map:
 
 - It keeps a clone of the source in `${XDG_CACHE_HOME:-~/.cache}/jstack/cursor-plugins`, fetches its `main`, and needs only `git` and the network: no token.
