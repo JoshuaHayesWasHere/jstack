@@ -200,7 +200,8 @@ def test_a_drop_nobody_explained_is_told_to_its_crew_once_per_head(launched):
             "commit and push. Or, where a line is gone on purpose, add one line to the Result "
             "for each file, with the counts above: `Dropped on rebase: <file>, <n> of main's, "
             "<m> of its own, at cccccccccccc: <why>`. The scoped review rules on each one. "
-            "Then end your turn."
+            "End your turn only once no check you started runs in your "
+            "worktree: wait for one that runs, in this turn."
         ),
         "mode": "queue",
         "clientRequestId": "drops|alpha|cccccccccccc",
