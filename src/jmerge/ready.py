@@ -22,6 +22,7 @@ from datetime import datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from jbriefs import skills
 from jmerge.rangediff import Verdict
 from jsettings import Settings
 
@@ -60,6 +61,7 @@ IN_STACK = "it is in the stack {stack}, which the user lands"
 IN_UNNAMED_STACK = "it is in a stack its brief does not name, which the user lands"
 REVIEW_NONE = "its brief says Review: none, so it needs the user's word"
 NO_REVIEW = "it has no review yet"
+SKILLS_UNRUN = "its Result has no artifact under Skills run: for {names}, which its brief names"
 NO_VERDICT = "its review has no verdict"
 NO_FIXED = "its findings are not handled: the Result has no Fixed line"
 NOT_PUSHED = "its findings are not handled: nothing was pushed after them"
@@ -343,6 +345,10 @@ def _ci_fix(said: Said) -> tuple[str, str]:
 def short_of(text: str, head: str) -> str:
     """The first thing the brief says its pull request is short of, or nothing.
 
+    A skill or principle the brief's `Skills:` line names comes first: its Results owe it an
+    artifact under `Skills run:`, and one that is missing, empty or a placeholder is the
+    crew's to write before anything else is judged (`jbriefs.skills.missing`).
+
     A head that moved after the review or the `Fixed:` line is short of nothing here: the
     range-diff says whether the review covers it (`to_range_diff`). Findings a `Fixed:`
     line was written before are still not handled, and with the head off that line they
@@ -357,6 +363,9 @@ def short_of(text: str, head: str) -> str:
     said = said_of(text)
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     found, ended = said.found, said.ended
+    unrun = skills.missing(text)
+    if unrun:
+        return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.none:
         return REVIEW_NONE
     if not said.written:

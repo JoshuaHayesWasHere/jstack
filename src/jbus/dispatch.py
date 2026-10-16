@@ -26,6 +26,9 @@ metric, dataset, external judge or the user. A brief with no such line was writt
 the line was asked for, and is launched as it was approved: refusing it would strand every
 row approved before.
 
+Nor is one whose `Skills:` line names a skill or principle that jstack does not have
+(`jbriefs.skills`): the gate names it. A brief with no such line names none, and launches.
+
 Nor is one with no t-shirt size on a `Size:` line, or whose `Playbook:` line names no file
 of `playbooks/` and is not `none` (`jbriefs.parse`). The first pass that asks for the two
 writes its time in `shaped.json` (`shaped_since`). A row whose go was run before that time,

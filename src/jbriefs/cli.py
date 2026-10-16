@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import page, parse, pick
+from jbriefs import page, parse, pick, skills
 
 DEFAULT_STATE = Path.home() / ".local" / "state" / "home"
 
@@ -60,7 +60,32 @@ def main(argv: list[str] | None = None) -> int:
         "`jbriefs pick <path | ->` picks the skills for a piece of work instead",
     )
     parser.add_argument("--out", type=Path, help="where to write the page (default: the cache)")
+    parser.add_argument(
+        "--skills",
+        type=Path,
+        metavar="BRIEF",
+        help="print in full each skill or principle the brief's Skills: line names, and the "
+        "artifact each owes; write no page",
+    )
+    parser.add_argument(
+        "--skills-run",
+        type=Path,
+        metavar="BRIEF",
+        help="print the artifact the brief's Results hold for each skill its Skills: line "
+        "names, or that it has none; write no page",
+    )
     args = parser.parse_args(argv)
+
+    if args.skills_run:
+        said = skills.shown(args.skills_run.expanduser().read_text())
+        if said:
+            print(said)
+        return 0
+    if args.skills:
+        said = skills.load(args.skills.expanduser().read_text())
+        if said:
+            print(said)
+        return 0
 
     state = args.state.expanduser()
     out = (args.out or default_out()).expanduser()

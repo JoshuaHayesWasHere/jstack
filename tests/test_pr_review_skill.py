@@ -299,12 +299,12 @@ def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cite
 ):
     reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
     cited = [
-        "laziness-protocol",
-        "fix-root-causes",
-        "test-behavior-not-implementation",
-        "attack-the-premise",
-        "prove-it-works",
-        "sequence-verifiable-units",
+        "principle-laziness-protocol",
+        "principle-fix-root-causes",
+        "principle-test-behavior-not-implementation",
+        "principle-attack-the-premise",
+        "principle-prove-it-works",
+        "principle-sequence-verifiable-units",
     ]
     assert all(applies(name).startswith("Apply ") for name in cited)
     lens = "\n".join(f"- {name}: {applies(name)}" for name in cited)
@@ -338,7 +338,7 @@ def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(revi
 def test_the_reviewers_are_asked_to_tag_each_finding_with_the_principle_it_breaks(reviewer):
     reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
     told = intent(reviewer)
-    assert told.index("- fix-root-causes: ") < told.index("`(principle: <name>)`")
+    assert told.index("- principle-fix-root-causes: ") < told.index("`(principle: <name>)`")
     assert "`(principle: none)`" in told
 
 
@@ -889,9 +889,9 @@ FINDINGS = {
 }
 LEAD = {
     "error src/a.py:3 it runs twice after a crash (both reviewers) (principle: none)": True,
-    "warning src/a.py:2 a branch a helper would hold (principle: laziness-protocol)": True,
+    "warning src/a.py:2 a helper would hold it (principle: principle-laziness-protocol)": True,
     "info new.txt:1 a name that says less than it could (principle: none)": True,
-    "warning - the one safety fact is unproven (principle: prove-it-works)": True,
+    "warning - the one safety fact is unproven (principle: principle-prove-it-works)": True,
     "error src/a.py:3 the proof failed: two runs wrote the same row (principle: none)": True,
     "error src/b.py:40 a bug in code the pull request calls (principle: none)": False,
     "warning tests/test_b.py a file the reviewers opened that the change left alone": False,
@@ -916,7 +916,7 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     assert finding in template
     review = template.replace(
         finding,
-        "it runs twice (principle: make-operations-idempotent)",
+        "it runs twice (principle: principle-make-operations-idempotent)",
     )
     reviewer.brief.write_text(BRIEF + "\n## Result\nStatus: done\n\n" + review)
     counts = crew.block("The review", "found++").replace("<slug>", "a-task")
@@ -1550,3 +1550,33 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
     said = made.run("--check")
     assert (said == [f"ready 7 {made.head} alpha alpha"]) == ready_to_merge
     assert said[0].startswith("ready" if ready_to_merge else "wait")
+
+
+SKILLS = "Skills: in-your-own-words, principle-model-the-domain, prove-it-works\n"
+SKILLS_RUN = (
+    "Skills run:\n"
+    "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
+    "- model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
+    "- principle-prove-it-works: <the command>\n"
+)
+
+
+def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it(reviewer):
+    text = BRIEF.replace("Pull request:", f"Design: none, small\n{SKILLS}Pull request:")
+    reviewer.brief.write_text(f"{text}\n## Result\nStatus: done\n{SKILLS_RUN}")
+    told = intent(reviewer)
+    skills_line = SKILLS.removeprefix("Skills: ").strip()
+    assert f"\nSkills: {skills_line}. The crewmate loaded each in full" in told
+    assert told.count("Skills: in-your-own-words") == 1
+    assert (
+        "What the Results hold under Skills run:, as jmerge reads it:\n"
+        "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
+        "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
+        "- principle-prove-it-works: no artifact\n"
+    ) in told
+
+
+def test_the_reviewer_is_told_of_no_skill_when_the_line_names_none(reviewer):
+    text = BRIEF.replace("Pull request:", "Skills: none, docs\nPull request:")
+    reviewer.brief.write_text(text)
+    assert "loaded each in full" not in intent(reviewer)

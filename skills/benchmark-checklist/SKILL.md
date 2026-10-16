@@ -12,7 +12,7 @@ Use this when you produce a performance number: a pull request's before and afte
 
 For a quick ballpark the user asked for, one run is enough. Still check questions 4 and 7, and say that it is one run. Skip the rest unless that run looks wrong. A choice between options is never a ballpark.
 
-A path such as `playbooks/<name>.md` or `principles/<name>.md` is from the root of the repo this skill lives in. `principles/explain-the-number.md` is the reason behind the questions.
+A path such as `playbooks/<name>.md` or `principles/<name>.md` is from the root of the repo this skill lives in. `principles/principle-explain-the-number.md` is the reason behind the questions.
 
 ## Before you run anything
 

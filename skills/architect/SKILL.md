@@ -49,7 +49,7 @@ The sketch is made as an arena. Read `playbooks/arena.md` and copy its nine numb
 - **Step 2, the place.** A sketch is code: each runner gets a worktree.
 - **Step 3, the runners.** Two, as the playbook has them, on this session's model. There is no model per role here and no second model family, so the two differ only by what each chose.
 - **Step 6, the pick.** Assume the next contributor is an agent that sees only the files it opened, copies the nearest example, and takes the shortest path that compiles. Prefer the design where a change that looks right from one file is right for the whole repo. A rich interface can keep call chains short by concentrating capability instead of scattering it across layers.
-- **Step 7, two candidates of one shape.** The playbook calls that agreement and grafts nothing. Two runners on one model with one prompt agree often, so before you take it, write one whole-shape alternative yourself, not a point fix inside the same shape: its usage and its core types, enough to score (`principles/exhaust-the-design-space.md`). Score it against the rubric as you scored the candidates. If it scores higher, step 1 missed a shape: frame it again with that shape in the task and run the arena once more. Otherwise it goes under "Alternatives considered" with its scores.
+- **Step 7, two candidates of one shape.** The playbook calls that agreement and grafts nothing. Two runners on one model with one prompt agree often, so before you take it, write one whole-shape alternative yourself, not a point fix inside the same shape: its usage and its core types, enough to score (`principles/principle-exhaust-the-design-space.md`). Score it against the rubric as you scored the candidates. If it scores higher, step 1 missed a shape: frame it again with that shape in the task and run the arena once more. Otherwise it goes under "Alternatives considered" with its scores.
 - **Step 8, the check.** A sketch passes when the repo's check command still passes with it in the worktree, its types check where the repo has a type checker, and the usage and the type sketch agree. A body that says `not implemented` is not a failure.
 
 What comes out is one design package. The pick and each graft fill the rationale's "Synthesis decision" section.
@@ -60,7 +60,7 @@ Default: proceed directly to implementation with the synthesized design. No huma
 
 Opt in to a checkpoint when the invoker explicitly asks: "/architect with checkpoint," "stop and show me before implementing," or similar. Then surface the synthesized design and pause for sign-off.
 
-The synthesis can ship as its own commit either way, the scaffold before the feature (`principles/foundational-thinking.md`). Planned and scoped breakage during fill-in is fine (`principles/outcome-oriented-execution.md`). For adversarial pressure on the design before implementing, run the `interrogate` skill (`skills/interrogate/SKILL.md`) on the synthesized sketch.
+The synthesis can ship as its own commit either way, the scaffold before the feature (`principles/principle-foundational-thinking.md`). Planned and scoped breakage during fill-in is fine (`principles/principle-outcome-oriented-execution.md`). For adversarial pressure on the design before implementing, run the `interrogate` skill (`skills/interrogate/SKILL.md`) on the synthesized sketch.
 
 If the human pushes back on the shape (in a checkpoint or after the fact), treat that as Phase A evidence. Re-ground and re-run Phase B before writing more code.
 
@@ -70,7 +70,7 @@ Replace `not implemented` bodies with code, pseudocode with logic. The synthesiz
 
 ## Phase E: Scrap when the architecture is wrong
 
-If implementation keeps producing friction the sketch can't absorb, throw the sketch out. Don't bolt fixes onto a wrong design (`principles/redesign-from-first-principles.md`, `principles/fix-root-causes.md`).
+If implementation keeps producing friction the sketch can't absorb, throw the sketch out. Don't bolt fixes onto a wrong design (`principles/principle-redesign-from-first-principles.md`, `principles/principle-fix-root-causes.md`).
 
 The signal is a *pattern*, not single instances. Tells:
 
@@ -87,7 +87,7 @@ When you scrap:
 
 1. Re-run the `how` skill over what's been built.
 2. Redesign as if the new constraints had been day-one assumptions.
-3. Subtract before adding (`principles/subtract-before-you-add.md`). The new sketch should be smaller than the old one before it grows.
+3. Subtract before adding (`principles/principle-subtract-before-you-add.md`). The new sketch should be smaller than the old one before it grows.
 4. Return to Phase B and run the arena again.
 
 ## Outputs

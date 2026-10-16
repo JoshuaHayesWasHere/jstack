@@ -15,8 +15,8 @@ Look for the lever in all work, including the work you do by hand. A step you re
 - Applying this principle produces a file. If you cited it and there is no codemod, script, generator, or delegate skill in the diff, you didn't apply it.
 - Commit the lever when the work outlives the session.
 
-The bar is repetition, not size. A one-off is done by hand, however large, unless the direct path hits a concrete blocker. Per the [Laziness Protocol](laziness-protocol.md), build the smallest script that does or proves the job, never a framework.
+The bar is repetition, not size. A one-off is done by hand, however large, unless the direct path hits a concrete blocker. Per the [Laziness Protocol](principle-laziness-protocol.md), build the smallest script that does or proves the job, never a framework.
 
-Distinct from [Encode Lessons in Structure](encode-lessons-in-structure.md), which makes a recurring instruction a durable guardrail. This is throughput and reviewability on the work in front of you. For scripting the verification itself, see [Prove It Works](prove-it-works.md).
+Distinct from [Encode Lessons in Structure](principle-encode-lessons-in-structure.md), which makes a recurring instruction a durable guardrail. This is throughput and reviewability on the work in front of you. For scripting the verification itself, see [Prove It Works](principle-prove-it-works.md).
 
 <!-- card: Many threads, and lessons that last | 3 | The second time the same work comes up, build the tool that does it or proves it. | `autonomous-run`; `hillclimb` -->
