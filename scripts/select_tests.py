@@ -61,10 +61,11 @@ def listed(text, label):
 
 def features():
     """Each feature file's name, with its `Paths:` and its `Tests:`."""
+    texts = {path.stem: path.read_text() for path in sorted((ROOT / MAP).glob("*.md"))}
     return {
-        path.stem: (listed(path.read_text(), "Paths"), listed(path.read_text(), "Tests"))
-        for path in sorted((ROOT / MAP).glob("*.md"))
-        if path.name != "README.md"
+        name: (listed(text, "Paths"), listed(text, "Tests"))
+        for name, text in texts.items()
+        if name != "README"
     }
 
 
