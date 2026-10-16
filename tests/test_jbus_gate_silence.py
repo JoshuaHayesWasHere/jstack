@@ -260,3 +260,16 @@ def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kit
         "with its fail-safe: dry-run lists the 3 branches that go, bundle at ~/b.bundle, then "
         "hold.",
     }
+
+
+def test_a_gate_that_holds_answered_otherwise_tells_its_thread_not_to_take_the_default(kitchen):
+    gate(kitchen, LINES + "Holds: deletes data\n" + SAFE + OPTIONS)
+    kitchen.main("answer", "1", "--by", "user", "--at", AT, "--differs", "keep", "them")
+    kitchen.poll(NOW + timedelta(minutes=10))
+    (sent,) = kitchen.t3.messages.values()
+    assert sent["message"] == (
+        "jbus: user answered question 1 (tea or coffee?), which held for the answer (deletes "
+        f'data), and the answer is not the default (made tea). The words, {AT}: "keep them". '
+        "Do not take the default: do what the answer says, and add one line to the last "
+        "Result or Report saying what you did. Then end your turn."
+    )

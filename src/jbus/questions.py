@@ -118,6 +118,12 @@ GO = (
     "ahead with the default now, and add one line to the last Result or Report saying what "
     "you did. Then end your turn."
 )
+HELD = (
+    "jbus: {user} answered question {number} ({question}), which held for the answer "
+    '({holds}), and the answer is not the default ({default}). The words, {at}: "{words}". Do '
+    "not take the default: do what the answer says, and add one line to the last Result or "
+    "Report saying what you did. Then end your turn."
+)
 LINK = "has a conflict, and it is a link of a stack"
 MESSAGE = (
     "jbus: {user} answered question {number} ({question}), and the answer is not the default "
@@ -600,7 +606,8 @@ class Carried:
 
 def carry(run: Pass, client: Client, one: Question) -> Carried:
     """Send one answer that differs from its default to the thread that asked, or one that
-    keeps the default of a gate that holds: that thread waits for it to go ahead (`GO`).
+    keeps the default of a gate that holds: that thread waits for it to go ahead (`GO`), or
+    for one that differs, not to take the default (`HELD`).
 
     It is one queued message to the thread on the `Thread:` line of the slug's brief or
     request, under the retry key `answer|<slug>|<number>`: the pass and the view both send
@@ -612,7 +619,7 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
     number, slug = one.number, one.slug
     if one.answer is None or slug in run.removed:
         return Carried()
-    form = GO if one.answer.keeps else MESSAGE
+    form = (GO if one.answer.keeps else HELD) if one.holds else MESSAGE
     message = form.format(user=run.user.user, **asdict(one), **asdict(one.answer))
     thread = thread_of(run.home, slug)
     if not thread:
@@ -812,7 +819,8 @@ def _closes(closes: argparse.ArgumentParser) -> None:
         "--default",
         dest="keeps",
         action="store_true",
-        help="the answer is the default the thread took, so nothing is sent to it",
+        help="the answer is the default the thread took: nothing is sent to it, or a "
+        "go-ahead for a gate that holds",
     )
     which.add_argument(
         "--differs",
