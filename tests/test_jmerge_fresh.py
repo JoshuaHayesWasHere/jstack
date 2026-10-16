@@ -182,6 +182,15 @@ class Kitchen:
         assert (self.home.code, self.home.stderr) == (0, "")
         return said
 
+    def after_check(self, *flags):
+        """A run that starts a fresh check says it is queued and returns: the check records
+        when it ends, and the next run reads it."""
+        before = known(self)
+        queued = self.run(*flags)
+        assert any(line.endswith(ready.FRESH_QUEUED) for line in queued), queued
+        settled(self, before)
+        return self.run(*flags)
+
     def calls(self, verb="pr merge"):
         return [call for call in merge.calls(self.home) if call.startswith(verb)]
 
@@ -541,7 +550,7 @@ def test_a_stale_pull_request_whose_head_passes_over_todays_main_is_merged(kitch
     state = kitchen.home.state
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
     assert checked.ran() == [] and not (state / "fresh.json").exists()
-    (said,) = kitchen.run()
+    (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
     assert checked.ran() == [str(state / "fresh" / "7")]
     assert not (state / "fresh" / "7").exists()
@@ -561,6 +570,8 @@ def test_a_pass_is_remembered_for_that_head_over_that_main(kitchen):
     checked = Checked(kitchen, BOTH)
     (kitchen.home.state / "merge-off").write_text("")
     off = [f"wait 7 {url(7)}: auto-merge is off for this repo"]
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen)
     assert kitchen.run() == off
     assert kitchen.run() == off
     (kitchen.home.state / "merge-off").unlink()
@@ -573,7 +584,7 @@ def test_a_pass_is_remembered_for_that_head_over_that_main(kitchen):
 def test_a_head_that_fails_over_todays_main_waits_and_is_not_checked_twice(kitchen):
     checked = Checked(kitchen, "echo it broke; exit 3")
     fails = [f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"]
-    assert kitchen.run() == fails
+    assert kitchen.after_check() == fails
     assert kitchen.run() == fails
     assert kitchen.run("--check") == fails
     assert len(checked.ran()) == 1 and checked.known()["7"]["result"] == "failed"
@@ -581,7 +592,7 @@ def test_a_head_that_fails_over_todays_main_waits_and_is_not_checked_twice(kitch
     assert kitchen.calls() == []
     checked.wrote(BOTH)
     again = kitchen.on_main({"a.txt": "theirs\n"})
-    (said,) = kitchen.run()
+    (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ") and f"over {again[:12]}, revert: " in said
     assert len(checked.ran()) == 2
 
@@ -591,7 +602,11 @@ def test_a_command_that_runs_over_its_time_is_stopped_and_counts_as_a_fail(kitch
     home = kitchen.home
     fresh = cli.Fresh(home.main, home.state, timeout=0.5)
     here = repo(kitchen, monkeypatch, fresh)
-    _, verb, why, _, judged = here.waits(ready.pull_request(kitchen.pulls["two"]), "main")
+    one = ready.pull_request(kitchen.pulls["two"])
+    assert here.waits(one, "main")[1:3] == ("wait", ready.FRESH_QUEUED)
+    settled(kitchen)
+    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
+    _, verb, why, _, judged = here.waits(one, "main")
     assert (verb, why, judged) == (
         "wait",
         f"{checked.command} fails {checked.over()}, timed out",
@@ -621,14 +636,20 @@ def test_one_fresh_check_is_run_in_a_run_and_the_others_are_queued(kitchen):
     kitchen.crew("three", 8, {"a.txt": LINES + "ours\n"})
     kitchen.on_main({"a.txt": "theirs\n" + LINES})
     checked.main = kitchen.tip()
-    assert kitchen.run() == [
-        f"wait 7 {url(7)}: {checked.command} fails {checked.over()}",
+    queued = [
+        f"wait 7 {url(7)}: a fresh check is queued",
         f"wait 8 {url(8)}: a fresh check is queued",
     ]
+    assert kitchen.run() == queued
+    settled(kitchen)
     assert len(checked.ran()) == 1
     checked.wrote("true")
+    before = known(kitchen)
+    fails = f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"
+    assert kitchen.run() == [fails, f"wait 8 {url(8)}: a fresh check is queued"]
+    settled(kitchen, before)
     first, second = kitchen.run()
-    assert first == f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"
+    assert first == fails
     assert second.startswith("merged 8 three ")
     assert len(checked.ran()) == 2
 
@@ -639,7 +660,7 @@ def test_a_fresh_check_another_run_is_making_is_not_started_again(kitchen):
         fcntl.flock(lock, fcntl.LOCK_EX)
         assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
         assert checked.ran() == [] and not (kitchen.home.state / "fresh" / "7").exists()
-    (said,) = kitchen.run()
+    (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ")
 
 
@@ -649,7 +670,10 @@ def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen
     checked = Checked(kitchen, "sleep 3 > /dev/null 2>&1 &")
     home = kitchen.home
     here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
-    *_, judged = here.waits(ready.pull_request(kitchen.pulls["two"]), "main")
+    one = ready.pull_request(kitchen.pulls["two"])
+    assert here.waits(one, "main")[1:3] == ("wait", ready.FRESH_QUEUED)
+    recorded(kitchen, 7)
+    *_, judged = here.waits(one, "main")
     assert judged.fresh == checked.passed()
     other = cli.Fresh(home.main, home.state)
     assert other.of(8, checked.head, checked.main) == ("a fresh check is queued", "")
@@ -681,7 +705,7 @@ def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(ki
         )
 
     before = seen()
-    assert kitchen.run() == [f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"]
+    assert kitchen.after_check() == [f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"]
     assert seen() == before
     ran = (kitchen.home.stub / "git-calls").read_text().splitlines()
     assert any(call.startswith("merge-tree --write-tree ") for call in ran)
@@ -689,6 +713,45 @@ def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(ki
     assert [call for call in ran if "push" in call.split()] == []
     assert [call for call in ran if str(tree) in call] == []
     assert len(checked.ran()) == 1
+
+
+def settled(kitchen, before=None, limit=60.0):
+    """Wait for the fresh check a run started on its own to end: to record something new
+    over what `fresh.json` had `before`, and then to let go of `fresh.lock`, which it holds
+    until its marker is pushed."""
+    fresh = cli.Fresh(kitchen.home.main, kitchen.home.state)
+    end = time.monotonic() + limit
+    while fresh.known() == (before or {}):
+        assert time.monotonic() < end, "the fresh check recorded nothing"
+        time.sleep(0.05)
+    with (kitchen.home.state / "fresh.lock").open("w") as lock:
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return
+            except OSError:
+                assert time.monotonic() < end, "the fresh check did not end"
+                time.sleep(0.05)
+
+
+def known(kitchen):
+    return cli.Fresh(kitchen.home.main, kitchen.home.state).known()
+
+
+def recorded(kitchen, number, limit=60.0):
+    """Wait for a fresh check a run started on its own to record what it found."""
+    end = time.monotonic() + limit
+    while str(number) not in cli.Fresh(kitchen.home.main, kitchen.home.state).known():
+        assert time.monotonic() < end, "the fresh check recorded nothing"
+        time.sleep(0.05)
+
+
+def checked_of(kitchen, fresh, checked):
+    """What `Fresh.of` says of the pull request once the check it started has ended."""
+    before = known(kitchen)
+    assert fresh.of(7, checked.head, checked.main) == (ready.FRESH_QUEUED, "")
+    settled(kitchen, before)
+    return fresh.of(7, checked.head, checked.main)
 
 
 def markers(kitchen):
@@ -701,7 +764,7 @@ def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
     checked = Checked(kitchen, BOTH)
     home = kitchen.home
     assert markers(kitchen) == {}
-    said = cli.Fresh(home.main, home.state).of(7, checked.head, checked.main)
+    said = checked_of(kitchen, cli.Fresh(home.main, home.state), checked)
     ((ref, commit),) = markers(kitchen).items()
     assert said == ("", checked.passed())
     tree = git(kitchen.origin, "rev-parse", f"{commit}^{{tree}}")
@@ -722,7 +785,7 @@ def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
 def test_a_fail_or_a_timeout_marks_no_tree(kitchen, script, timeout, result):
     checked = Checked(kitchen, script)
     home = kitchen.home
-    why, note = cli.Fresh(home.main, home.state, timeout=timeout).of(7, checked.head, checked.main)
+    why, note = checked_of(kitchen, cli.Fresh(home.main, home.state, timeout=timeout), checked)
     assert (why.startswith(f"{checked.command} fails "), note) == (True, "")
     assert checked.known()["7"]["result"] == result
     assert markers(kitchen) == {}
@@ -738,7 +801,7 @@ def test_a_marker_the_origin_refuses_leaves_the_check_passed_and_the_note_says_w
     )
     hook.chmod(0o755)
     unmarked = f"{checked.passed()}, its tree is not marked (pre-receive hook declined)"
-    assert cli.Fresh(home.main, home.state).of(7, checked.head, checked.main) == ("", unmarked)
+    assert checked_of(kitchen, cli.Fresh(home.main, home.state), checked) == ("", unmarked)
     assert markers(kitchen) == {}
     record = checked.known()["7"]
     assert (record["result"], record["unmarked"]) == ("passed", "pre-receive hook declined")
@@ -804,19 +867,6 @@ def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
     assert not (kitchen.tmp / "trees" / "two").exists()
 
 
-def settled(kitchen, limit=60.0):
-    """Wait for the fresh check a run started on its own to end: it holds `fresh.lock`."""
-    end = time.monotonic() + limit
-    with (kitchen.home.state / "fresh.lock").open("w") as lock:
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return
-            except OSError:
-                assert time.monotonic() < end, "the fresh check did not end"
-                time.sleep(0.05)
-
-
 def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kitchen):
     """The 03:26 outage: the suite outran the 300 s jbus gives jmerge, so it never recorded.
     The run returns while the check runs on, and the check records when it ends."""
@@ -829,5 +879,29 @@ def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kit
     settled(kitchen)
     assert checked.known()["7"]["result"] == "passed"
     (said,) = kitchen.run()
+    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
+    assert len(checked.ran()) == 1
+
+
+def test_the_check_is_a_transient_user_unit_with_the_runs_environment(kitchen, monkeypatch):
+    checked = Checked(kitchen, BOTH)
+    calls = kitchen.tmp / "systemd-run-calls"
+    monkeypatch.setenv("SYSTEMD_RUN_CALLS", str(calls))
+    monkeypatch.setenv("INVOCATION_ID", "the pass's own")
+    (said,) = kitchen.after_check()
+    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
+    (call,) = calls.read_text().splitlines()
+    unit = f"jmerge-fresh-{kitchen.home.state.name.replace(' ', '-')}-7"
+    assert call.startswith(f"--user --quiet --collect --unit={unit} --setenv=")
+    assert " --setenv=PATH " in call and " --setenv=STUB " in call
+    assert "INVOCATION_ID" not in call
+
+
+def test_where_systemd_cannot_start_a_unit_the_check_is_a_process_of_its_own(
+    kitchen, no_user_units
+):
+    (no_user_units / "systemd-run").write_text("#!/bin/sh\necho no user manager >&2\nexit 1\n")
+    checked = Checked(kitchen, f"sleep 1; {BOTH}")
+    (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
     assert len(checked.ran()) == 1

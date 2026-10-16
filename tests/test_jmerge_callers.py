@@ -76,7 +76,7 @@ def test_the_fresh_check_runs_on_the_merge_result_and_catches_a_caller_main_adde
     head = kitchen.crew("two", 7, {"src/pkg/core.py": RENAMED})
     main = kitchen.on_main({"src/pkg/caller.py": CALLER})
     fails = f"wait 7 {url(7)}: python3 check.py fails on {head[:12]} over today's main {main[:12]}"
-    assert kitchen.run() == [fails]
+    assert kitchen.after_check() == [fails]
     assert "AttributeError" in (kitchen.home.state / "fresh" / "7.log").read_text()
 
     write(tree, {"src/pkg/core.py": RENAMED + "\nf = g\n"})
@@ -85,7 +85,7 @@ def test_the_fresh_check_runs_on_the_merge_result_and_catches_a_caller_main_adde
     head = git(tree, "rev-parse", "HEAD")
     kitchen.pulls["two"]["headRefOid"] = head
     kitchen.brief("two", head)
-    (said,) = kitchen.run()
+    (said,) = kitchen.after_check()
     assert said.startswith("merged 7 two ")
     assert f"fresh: python3 check.py passed on {head[:12]} over {main[:12]}" in said
 

@@ -45,6 +45,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import replace
@@ -184,8 +185,15 @@ class Fresh:
     The head is merged over the default branch's commit in git's object store alone, and
     the command is run in a worktree of that merge under the state. The pull request's
     branch and its crewmate's worktree are never touched. What it found is remembered in
-    `fresh.json` by pull request, for that head over that commit, and one run of the command
-    is all a run of jmerge makes.
+    `fresh.json` by pull request, for that head over that commit, and one check is all a
+    run of jmerge starts.
+
+    The check runs outside the run that starts it, which says `a fresh check is queued` and
+    goes on: a transient user unit of its own where systemd has one, and otherwise a process
+    in a session of its own. It holds `fresh.lock` for as long as it runs, jmerge never does,
+    so a jmerge stopped by jbus leaves it running to its end, and the next run reads what it
+    recorded. `TIMEOUT` is under what a jbus pass allows jmerge, which is under the unit's
+    start timeout (`tests/test_jbus.py`).
 
     A pass is the one thing pushed: the merge that passed, to the ref `sweep.marker` names
     for its tree. The merge that lands has that tree, so its run of the check skips the
@@ -199,6 +207,8 @@ class Fresh:
         "GIT_COMMITTER_NAME": "jmerge",
         "GIT_COMMITTER_EMAIL": "jmerge@localhost",
     }
+    CHECK = "import sys; from jmerge.cli import Fresh; raise SystemExit(Fresh.alone(sys.argv[1:]))"
+    UNIT_OWN = {"INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID"}
 
     def __init__(self, main: Path, state: Path, run: bool = True, timeout: float = TIMEOUT):
         self.main = main
@@ -224,23 +234,73 @@ class Fresh:
             return self._said(str(was.get("result")), head, tip, str(was.get("unmarked") or ""))
         if not self.run:
             return None
-        if self.ran:
+        if self.ran or self._held():
             return ready.FRESH_QUEUED, ""
+        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
+        if merged.returncode == 1:
+            return ready.FRESH_CONFLICT, ""
+        if merged.returncode:
+            return self._not_run(merged), ""
+        self.ran = True
+        started = self.start(number, head, tip, _first_word(merged.stdout))
+        return started or ready.FRESH_QUEUED, ""
+
+    def _held(self) -> bool:
+        """A check is running: its process holds the lock."""
         with (self.state / "fresh.lock").open("w") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError:
-                return ready.FRESH_QUEUED, ""
-            result, commit = self.check(number, head, tip, lock.fileno())
-            if result not in (ready.PASSED, ready.FAILED, ready.TIMED_OUT):
-                return result, ""
+                return True
+        return False
+
+    def start(self, number: int, head: str, tip: str, tree: str) -> str:
+        """Start the check of the merge's tree on its own, and return. Nothing, or why it
+        could not be started. Under systemd it is a transient unit, since a pass's unit
+        kills what is left in it when it ends."""
+        arguments = [str(self.main), str(self.state), str(number), head, tip, tree]
+        arguments += [self.command, f"{self.timeout:g}"]
+        check = [sys.executable, "-c", self.CHECK, *arguments]
+        unit = re.sub(r"[^A-Za-z0-9_-]", "-", f"jmerge-fresh-{self.state.name}-{number}")
+        names = sorted(set(os.environ) - self.UNIT_OWN)
+        launch = ["systemd-run", "--user", "--quiet", "--collect", f"--unit={unit}"]
+        launch += [f"--setenv={name}" for name in names] + ["--", *check]
+        if shutil.which("systemd-run") and not _run(self.main, *launch).returncode:
+            return ""
+        try:
+            subprocess.Popen(
+                check,
+                cwd=self.main,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError as error:
+            return f"a fresh check could not be run ({error})"
+        return ""
+
+    @classmethod
+    def alone(cls, arguments: list[str]) -> int:
+        """The check that `start` started: under the lock, or not at all where another
+        check holds it. It records what it found, whatever that is, and marks a pass."""
+        main, state, number, head, tip, tree, command, timeout = arguments
+        fresh = cls(Path(main), Path(state), timeout=float(timeout))
+        fresh.command = command
+        with (fresh.state / "fresh.lock").open("w") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                return 0
+            result, commit = fresh.check(int(number), head, tip, tree, lock.fileno())
             now = datetime.now().astimezone()
-            record = {**asked, "result": result, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
-            self._keep(number, record)
-            unmarked = self.mark(commit) if result == ready.PASSED else ""
+            record = {"head": head, "main": tip, "command": command, "result": result}
+            record["at"] = f"{now:%Y-%m-%dT%H:%M:%S%z}"
+            fresh._keep(int(number), record)
+            unmarked = fresh.mark(commit) if result == ready.PASSED else ""
             if unmarked:
-                self._keep(number, {**record, "unmarked": unmarked})
-        return self._said(result, head, tip, unmarked)
+                fresh._keep(int(number), {**record, "unmarked": unmarked})
+        return 0
 
     def _keep(self, number: int, record: dict) -> None:
         """Remember what a check found. A pass is kept before its marker is pushed: a run
@@ -254,6 +314,8 @@ class Fresh:
         if result == ready.PASSED:
             more = f", its tree is not marked ({unmarked})" if unmarked else ""
             return "", ready.fresh_note(self.command, head, tip) + more
+        if result not in (ready.FAILED, ready.TIMED_OUT):
+            return result, ""
         return ready.short_on_fresh(result, self.command, head, tip), ""
 
     def mark(self, commit: str) -> str:
@@ -275,17 +337,12 @@ class Fresh:
     def _not_run(ran: subprocess.CompletedProcess[str]) -> str:
         return f"a fresh check could not be run ({_said(ran)})"
 
-    def check(self, number: int, head: str, tip: str, lock: int) -> tuple[str, str]:
-        """Run the command on the head merged over the commit: passed, failed or timed out,
-        or the reason it was not run, and the merge it ran on. What it printed is kept
-        beside the worktree, in `fresh/<number>.log`."""
-        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
-        if merged.returncode == 1:
-            return ready.FRESH_CONFLICT, ""
-        if merged.returncode:
-            return self._not_run(merged), ""
+    def check(self, number: int, head: str, tip: str, tree: str, lock: int) -> tuple[str, str]:
+        """Run the command on the head merged over the commit, as the tree: passed, failed
+        or timed out, or the reason it was not run, and the merge it ran on. What it printed
+        is kept beside the worktree, in `fresh/<number>.log`."""
         commit = subprocess.run(
-            ["git", "commit-tree", _first_word(merged.stdout), "-p", tip, "-p", head]
+            ["git", "commit-tree", tree, "-p", tip, "-p", head]
             + ["-m", f"jmerge: {head} over {tip}"],
             cwd=self.main,
             capture_output=True,
@@ -301,7 +358,6 @@ class Fresh:
         added = _run(self.main, "git", "worktree", "add", "-q", "--detach", str(at), made)
         if added.returncode:
             return self._not_run(added), ""
-        self.ran = True
         env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
         try:
             with at.with_name(f"{number}.log").open("wb") as log:
