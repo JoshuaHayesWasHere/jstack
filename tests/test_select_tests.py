@@ -229,6 +229,18 @@ def test_with_no_way_to_read_a_pattern_it_selects_all(repo):
     assert "no pattern can be read" in ran.stderr
 
 
+def test_a_matcher_whose_names_moved_selects_all(repo):
+    head = repo.change(["src/alpha/a.py"])
+    ready = repo.root / "src" / "jmerge" / "ready.py"
+    ready.write_text(ready.read_text().replace("def _protects(", "def _covers("))
+
+    ran = repo.run(repo.base, head)
+
+    assert ran.returncode == 0
+    assert ran.stdout == "all\n"
+    assert "ImportError" in ran.stderr
+
+
 def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
     ran = repo.run(repo.base, "no-such-commit")
 

@@ -13,6 +13,10 @@ that changed and every test module that imports one of them, and the tests of ea
 that owns a changed path. A test module that `tests/conftest.py` imports is one every test
 loads, so a change to it is `all` too. A test file the change deleted is not printed.
 
+The diff is two-dot, so for a pull request `<base>` is where it left main (`git merge-base`)
+or the parent of its merge commit: a base main has moved past adds main's own changes, which
+selects more and never less.
+
 The map and the tests are read from the tree checked out here, so the same two commits give
 the same lines. A pattern is read as jmerge reads `ci-paths.txt`, by jmerge's own code, which
 needs no package: like `green_tree.py`, this runs before `uv sync`. Where that code cannot be
@@ -24,6 +28,7 @@ import subprocess
 import sys
 from functools import cache
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".cursor/skills/verify-jstack/features"
@@ -45,10 +50,10 @@ def ready():
     """jmerge's reading of a list of paths, from this checkout's `src/`."""
     sys.path.insert(0, str(ROOT / "src"))
     try:
-        from jmerge import ready
+        from jmerge.ready import _protects, patterns_of
     except Exception as error:
         raise Unread(f"{type(error).__name__}: {error}") from error
-    return ready
+    return SimpleNamespace(patterns_of=patterns_of, protects=_protects)
 
 
 def listed(text, label):
@@ -79,7 +84,7 @@ def everything():
 
 
 def owns(patterns, path):
-    return any(ready()._protects(pattern, path) for pattern in patterns)
+    return any(ready().protects(pattern, path) for pattern in patterns)
 
 
 def whole(path):
