@@ -889,7 +889,7 @@ FINDINGS = {
 }
 LEAD = {
     "error src/a.py:3 it runs twice after a crash (both reviewers) (principle: none)": True,
-    "warning src/a.py:2 a branch a helper would hold (principle: principle-laziness-protocol)": True,
+    "warning src/a.py:2 a helper would hold it (principle: principle-laziness-protocol)": True,
     "info new.txt:1 a name that says less than it could (principle: none)": True,
     "warning - the one safety fact is unproven (principle: principle-prove-it-works)": True,
     "error src/a.py:3 the proof failed: two runs wrote the same row (principle: none)": True,

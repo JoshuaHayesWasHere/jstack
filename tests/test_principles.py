@@ -61,7 +61,10 @@ def test_there_are_25_principles_and_the_25th_is_depth_over_breadth():
     assert PRINCIPLES / "principle-depth-over-breadth.md" in FILES
 
 
-UNSTACKED = [PRINCIPLES / "principle-build-the-lever.md", PRINCIPLES / "principle-sequence-verifiable-units.md"]
+UNSTACKED = [
+    PRINCIPLES / "principle-build-the-lever.md",
+    PRINCIPLES / "principle-sequence-verifiable-units.md",
+]
 STACKING = re.compile(r"\bstack\w*|\brebase onto\b", re.I)
 
 
