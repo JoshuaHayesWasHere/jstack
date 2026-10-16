@@ -564,15 +564,15 @@
 <script>
 (function () {
   "use strict";
-  /* The page asks its own server and nobody else, each POLL ms: /stack.json on a bare link,
+  /* The page asks its own server and nobody else, each POLL_MS ms: /stack.json on a bare link,
      which is every project at once, and /state.json of one project on #/<project>, with
-     /stack.json beside it once each EVERY polls, for the sidebar's count of every project. It
+     /stack.json beside it once each SIDEBAR_EVERY_POLLS polls, for the sidebar's count of every project. It
      asks /task/<slug>/github when a task's drawer opens, and
      /panel/<name>.json when the drawer of a panel that is not on the first screen does. It
      draws what it is given, and a part whose drawing did not change is not drawn again. Its
      one write is /answer, the answer to a gate of the project it shows: the server decides
      what the answer is and what is sent, and the page shows what it said. */
-  var POLL = 15000, EVERY = 4, WAIT = 8000, SEND = 30000, MISS = 2, LONG = 30 * 60e3, CAP = 8, FEW = 5;
+  var POLL_MS = 15000, SIDEBAR_EVERY_POLLS = 4, READ_TIMEOUT_MS = 8000, WRITE_TIMEOUT_MS = 30000, MISSED_TILL_GONE = 2, LONG_ON_STEP_MS = 30 * 60e3, DESK_LINE_TOKENS = 8, PHONE_LINE_TOKENS = 5;
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
@@ -646,8 +646,8 @@
   var KINDS = ["row", "left", "hold", "approve", "gate", "config"];
 
   /* A thread's liveness, as jbus.live names it: the chip it is drawn with. Only the three of
-     MARK are a mark on a task's token: a turn is under way. */
-  var LIVE = { moving: "ok", quiet: "user", hung: "user", waiting: "plain", ended: "plain", unknown: "gap" }, MARK = { moving: 1, quiet: 1, hung: 1 };
+     TURN_UNDER_WAY are a mark on a task's token: a turn is under way. */
+  var LIVE = { moving: "ok", quiet: "user", hung: "user", waiting: "plain", ended: "plain", unknown: "gap" }, TURN_UNDER_WAY = { moving: 1, quiet: 1, hung: 1 };
   /* A thread's role, as jbus.threads names it: its shape, its name for one and for many,
      and what it does. A thread is followed by its role and slug: `thread:<role>:<slug>`,
      `-` for a slug it has none of. On a project's page it opens a drawer; elsewhere, as on
@@ -748,7 +748,7 @@
   /* One thread as a token: its shape, its slug, its mark while a turn is under way, and in
      a word what it is at: a scout's request, or its liveness, and how long since it wrote. */
   function threadChip(t, project) {
-    var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = MARK[t.live] ? t.live : "", q = asked(t);
+    var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = TURN_UNDER_WAY[t.live] ? t.live : "", q = asked(t);
     var word = q && q !== "missing" ? q : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
     var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
     var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + ' <span class="src">' + esc(word + age) + '</span>';
@@ -774,7 +774,7 @@
      so `rows.map(token)` draws plain tokens. */
   function token(t, how) {
     var o = typeof how === "object" ? how : {}, next = o.next, cls = o.cls || "";
-    var st = STEP[t.step], age = since(t), long = age != null && age >= LONG, rep = t.visits > 1, b = t.blocked, more = t.blockers.length - 1, after = "", held = b ? blockedBy(b) : "", live = MARK[t.seen.live] ? t.seen.live : "";
+    var st = STEP[t.step], age = since(t), long = age != null && age >= LONG_ON_STEP_MS, rep = t.visits > 1, b = t.blocked, more = t.blockers.length - 1, after = "", held = b ? blockedBy(b) : "", live = TURN_UNDER_WAY[t.seen.live] ? t.seen.live : "";
     if (next && t.waits_on) held = lastOn(t);
     if (next && t.waits_on) after = mark(known(t.waits_on) ? t.waits_on : "", t.waits_on, waitsOn(t), waitsOn(t)) +
       (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-description="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
@@ -787,8 +787,8 @@
   function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-description="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i data-gloss="count:flow">' + n + '</i></button>'; }
   function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-description="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
   function flowLine(name, rows, next) {
-    var more = rows.length - CAP, few = rows.length - FEW;
-    return '<div class="fl">' + flowHead(name, rows.length, "") + rows.slice(0, CAP).map(function (t, i) { return token(t, { next: next, cls: i < FEW ? "" : " dk" }); }).join("") +
+    var more = rows.length - DESK_LINE_TOKENS, few = rows.length - PHONE_LINE_TOKENS;
+    return '<div class="fl">' + flowHead(name, rows.length, "") + rows.slice(0, DESK_LINE_TOKENS).map(function (t, i) { return token(t, { next: next, cls: i < PHONE_LINE_TOKENS ? "" : " dk" }); }).join("") +
       (more > 0 ? plus(more, "dk", "+" + more, name) : "") + (few > 0 ? plus(few, "ph", "+" + few + " more", name) : "") + '</div>';
   }
   /* The Queued lane. A queue that is short and no deeper than wave 1 is one run of tokens.
@@ -796,7 +796,7 @@
   function queuedLane(here) {
     function of(w) { return here.filter(function (t) { return t.wave === w; }); }
     var later = here.filter(function (t) { return t.wave > 1; }), ws = [];
-    if (here.length <= CAP && !later.length) return here.map(token).join("");
+    if (here.length <= DESK_LINE_TOKENS && !later.length) return here.map(token).join("");
     later.forEach(function (t) { if (ws.indexOf(t.wave) < 0) ws.push(t.wave); });
     ws.sort(function (a, b) { return a - b; });
     return flowLine("Ready", of(0), false) + flowLine("Next", of(1), true) + '<div class="fl">' + flowHead("Later", later.length, " dk") +
@@ -1076,11 +1076,11 @@
       '<p class="src" style="margin:10px 0 0">Asked ' + (ms(g.at) == null ? "now" : hm(ms(g.at), true)) + ', kept 30 s. Read-only.</p>';
   }
   /* ---------- gates: answered here ---------- */
-  /* GATE is the gate that is open, as it was drawn (`w`), with the option picked and the
-     words typed: a tap sends what the drawer shows, whatever a later read says. TICK is the
+  /* OPEN_GATE is the gate that is open, as it was drawn (`w`), with the option picked and the
+     words typed: a tap sends what the drawer shows, whatever a later read says. TICKED_GATES is the
      gates ticked for a batch, which only ever takes defaults. The gate panel draws the one
      and the you panel the other, and a write that closed clears both. */
-  var GATE = null, TICK = {}, BATCH = { busy: false, error: "" };
+  var OPEN_GATE = null, TICKED_GATES = {}, BATCH = { busy: false, error: "" };
   var UNKNOWN_END = "The view server did not answer, so it is not known whether anything closed. Read the list again before you answer.";
   function gates() { return waits("gate").filter(function (w) { return w.answerable; }); }
   function gateOf(n) { return gates().filter(function (w) { return w.number === String(n); })[0] || null; }
@@ -1101,7 +1101,7 @@
   function send(body, failed) {
     write(body).then(function (r) {
       if (!r || !r.closed) { failed(r && r.error ? "The server refused the write: " + r.error + "." : UNKNOWN_END); return; }
-      GATE = null; TICK = {}; BATCH = { busy: false, error: "" };
+      OPEN_GATE = null; TICKED_GATES = {}; BATCH = { busy: false, error: "" };
       $("dw").innerHTML = dSaid(r); $("dw-close").focus(); drawer.scrollTop = 0;
       poll();
     }, function () { failed(UNKNOWN_END); });
@@ -1127,7 +1127,7 @@
   function added(to, arg) {
     return ORDER.filter(function (p) { return p.adds && p.adds[to]; }).map(function (p) { return { from: p.name, said: p.adds[to](arg) }; }).filter(function (a) { return a.said; });
   }
-  /*panels*/
+  PANEL_SCRIPTS;
   /* ---------- the glossary: every term on the page, at #/help ---------- */
   /* It needs no project, so it opens over every project too. The notes of the steps come with
      a project's state; over every project they are asked of the first one listed, since every
@@ -1262,7 +1262,10 @@
      same again, a click elsewhere or Esc closes it. A peek is what a hovered shape, mark or
      count means, or the shape of a token the keyboard reached: it goes when they leave. Each is
      put in the drawer while one is open, which is the layer in front. */
-  var tipEl = null, tipBtn = null, peekEl = null, keyHit = { at: 0, on: null };
+  var KEY_CLICK_MS = 1000;
+  function pressed(b) { return { at: Date.now(), on: b }; }
+  function clickOfPress(e, press, b) { return e.detail === 0 && press.on === b && Date.now() - press.at < KEY_CLICK_MS; }
+  var tipEl = null, tipBtn = null, peekEl = null, tipPress = pressed(null);
   function place(el, at) {
     (drawer.open ? drawer : document.body).appendChild(el);
     var b = at.getBoundingClientRect(), w = el.offsetWidth, high = el.offsetHeight, vw = document.documentElement.clientWidth;
@@ -1286,7 +1289,7 @@
     var key = tipBtn.getAttribute("data-tip"), old = tipBtn, box = within(tipAt), b = box && box.querySelectorAll('[data-tip="' + CSS.escape(key) + '"]')[tipAt.at];
     if (!b) { hideTip(); return; }
     tipBtn = b; b.setAttribute("aria-expanded", "true"); b.setAttribute("aria-describedby", "tip");
-    if (keyHit.on === old && document.activeElement === document.body) { b.focus(); keyHit.on = b; }
+    if (tipPress.on === old && document.activeElement === document.body) { b.focus(); tipPress.on = b; }
     place(tipEl, b);
   }
   function hideTip() {
@@ -1344,7 +1347,7 @@
   /* A key on a ? is taken here, so the click a button makes of it does not close what it opened. */
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-tip]");
-    if (b) { e.stopImmediatePropagation(); if (!(e.detail === 0 && keyHit.on === b && Date.now() - keyHit.at < 1000)) toggleTip(b); return; }
+    if (b) { e.stopImmediatePropagation(); if (!clickOfPress(e, tipPress, b)) toggleTip(b); return; }
     if (tipEl && !e.target.closest(".tip")) hideTip();
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
   });
@@ -1354,17 +1357,17 @@
       e.preventDefault(); e.stopImmediatePropagation(); return;
     }
     var b = e.target.closest && e.target.closest("[data-tip]");
-    if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); keyHit = { at: Date.now(), on: b }; toggleTip(b); return; }
+    if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tipPress = pressed(b); toggleTip(b); return; }
     if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
-    var after = Date.now() - gAt < GKEY; gAt = 0;
+    var after = Date.now() - gAt < CHORD_MS; gAt = 0;
     if (e.key === "?") { e.preventDefault(); glossary(); }
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  /* Linear's keys: g then a, within GKEY ms, is every project, and g then p the project after
+  /* Linear's keys: g then a, within CHORD_MS ms, is every project, and g then p the project after
      this one in the sidebar, the first after the last or after every project. No key is taken
      from a field being typed in. */
-  var gAt = 0, GKEY = 1500;
+  var gAt = 0, CHORD_MS = 1500;
   function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
@@ -1377,7 +1380,7 @@
      project's view, and `<project>/<band>` on a project's page. A view in front holds its key in
      `data-fv`, and `fold` sets its `data-st` and its button's `aria-expanded` from FOLD after
      each drawing: a fold draws nothing again and asks nothing. Show all forgets every one. */
-  var FOLDKEY = "jbus-view-fold", FOLD = {}, foldHit = { at: 0, on: null };
+  var FOLDKEY = "jbus-view-fold", FOLD = {}, foldPress = pressed(null);
   function loadFold() {
     try { var v = JSON.parse(localStorage.getItem(FOLDKEY) || "{}"); FOLD = v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { FOLD = {}; }
   }
@@ -1432,12 +1435,12 @@
     var b = e.target.closest && e.target.closest(FOLDS);
     if (!b) return;
     e.stopImmediatePropagation();
-    if (!(e.detail === 0 && foldHit.on === b && Date.now() - foldHit.at < 1000)) act(b);
+    if (!clickOfPress(e, foldPress, b)) act(b);
   });
   document.addEventListener("keydown", function (e) {
     var b = e.target.closest && e.target.closest(FOLDS);
     if (!b || (e.key !== "Enter" && e.key !== " ") || e.ctrlKey || e.metaKey || e.altKey) return;
-    e.preventDefault(); e.stopImmediatePropagation(); foldHit = { at: Date.now(), on: b }; act(b);
+    e.preventDefault(); e.stopImmediatePropagation(); foldPress = pressed(b); act(b);
   }, true);
   window.addEventListener("storage", function (e) { if (e.key === FOLDKEY) { loadFold(); fold(); } });
   /* The skip link puts the focus on the view and writes no address: a hash is a route here. */
@@ -1479,7 +1482,7 @@
   /* ---------- asking the server ---------- */
   /* With a body it is the write, and what the server said of it is read whatever its status. */
   function ask(path, body) {
-    var stop = new AbortController(), timer = setTimeout(function () { stop.abort(); }, body ? SEND : WAIT);
+    var stop = new AbortController(), timer = setTimeout(function () { stop.abort(); }, body ? WRITE_TIMEOUT_MS : READ_TIMEOUT_MS);
     var how = { cache: "no-store", signal: stop.signal };
     if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }
     return fetch(path, how).then(function (r) {
@@ -1500,10 +1503,10 @@
   }
   function lost() {
     missed += 1;
-    if (missed >= MISS) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
+    if (missed >= MISSED_TILL_GONE) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
   /* A poll asks for the view in front: every project's /stack.json, or one project's
-     /state.json and, on its first poll and each EVERY after, /stack.json for the sidebar. An
+     /state.json and, on its first poll and each SIDEBAR_EVERY_POLLS after, /stack.json for the sidebar. An
      answer to a view that is no longer in front is dropped. A project the state directory
      does not have is said, and no fault. */
   var turnOf = 0, pending = "", beat = 0;
@@ -1512,7 +1515,7 @@
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
     /* The sidebar's count of every project, beside one project's page: a miss of it is no
        miss of the server, which the project's own read says. */
-    if (!STACK || beat++ % EVERY === EVERY - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
+    if (!STACK || beat++ % SIDEBAR_EVERY_POLLS === SIDEBAR_EVERY_POLLS - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
@@ -1551,7 +1554,7 @@
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
   loadFold();
   route();
-  setInterval(poll, POLL);
+  setInterval(poll, POLL_MS);
 })();
 </script>
 <script>

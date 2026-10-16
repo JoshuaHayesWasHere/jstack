@@ -836,6 +836,20 @@ def test_the_checks_are_told_apart_once_by_the_server_for_the_card_and_the_overv
     assert checks_panel.tally(runs) == {"running": [4], "waiting": [5, 6], "failed": [2]}
 
 
+def test_the_runs_that_ended_badly_are_counted_by_the_server_in_githubs_words(scene, served):
+    scene.github(
+        runs=[
+            ("a", "completed", "failure"),
+            ("a", "completed", "timed_out", "lint"),
+            ("b", "completed", "startup_failure"),
+            ("b", "completed", "cancelled"),
+            ("c", "completed", "success"),
+            ("c", "in_progress", None),
+        ]
+    )
+    assert served.json("/state.json?project=demo")["checks"]["ended"] == 3
+
+
 def test_a_retired_project_is_never_read_and_a_link_to_it_finds_nothing(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     retired = stacked(scene)

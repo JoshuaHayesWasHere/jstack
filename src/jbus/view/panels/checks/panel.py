@@ -28,6 +28,7 @@ SHAPE = {
         "green": None,
         "runners": [_UNIT],
         "runners_read": None,
+        "ended": None,
         "now": {"running": [None], "waiting": [None], "failed": [None]},
     }
 }
@@ -114,6 +115,7 @@ def build(read: Read) -> dict[str, Any]:
             "green": sum(1 for word in kept.values() if word == "green"),
             "runners": read.machine(runners) or [],
             "runners_read": read.machine(runners) is not None,
+            "ended": sum(1 for one in asked.get("runs", []) if one.get("state") in FAILED),
             "now": tally(asked.get("runs", [])),
         }
     }

@@ -1,6 +1,6 @@
 /* What waits on you: the drawer of the lists, where the gates jbus holds are ticked and
    closed with their defaults. The wait band of the first screen opens it. */
-function ticked() { return gates().map(function (w) { return w.number; }).filter(function (n) { return TICK[n]; }); }
+function ticked() { return gates().map(function (w) { return w.number; }).filter(function (n) { return TICKED_GATES[n]; }); }
 function batchFoot() {
   var ns = ticked(), one = ns.length === 1;
   return (ns.length ? '<div class="will none">Closes ' + (one ? "question " : "questions ") + esc(names(ns)) + ' with ' + (one ? "its default" : "their defaults") + '. Nothing is sent to any thread.</div>'
@@ -9,7 +9,7 @@ function batchFoot() {
 }
 function gateRow(w) {
   var can = w.answerable;
-  return (can ? '<label class="tick"><input type="checkbox" data-tick="' + esc(w.number) + '"' + (TICK[w.number] ? " checked" : "") + ' aria-label="Tick question ' + esc(w.number) + ' to close it with its default"></label>' : "") +
+  return (can ? '<label class="tick"><input type="checkbox" data-tick="' + esc(w.number) + '"' + (TICKED_GATES[w.number] ? " checked" : "") + ' aria-label="Tick question ' + esc(w.number) + ' to close it with its default"></label>' : "") +
     '<span class="n" data-gloss="count:question">' + esc(w.number) + '</span> <b>' + esc(w.question) + '</b>' + (w.home ? ' <span class="chip plain">' + esc(w.home) + '</span>' : "") + ' ' + ageChip(w.since, "user") +
     (w.options.length ? '<br><span class="olist">' + w.options.map(function (o) { return '<span class="oc' + (o["default"] ? " tk" : "") + '">' + esc(o.name) + (o["default"] ? " (taken)" : "") + '</span>'; }).join("") + '</span>' : '<br>') +
     '<span class="tag">If you do not answer</span> ' + esc(w["default"] || "nothing is said") + '<br>' +
@@ -46,14 +46,14 @@ function dYou(hit) {
 document.addEventListener("click", function (e) {
   if (e.target.closest("#bsend")) { sendBatch(); return; }
   if (!e.target.closest("#tickall")) return;
-  var every = gates().every(function (w) { return TICK[w.number]; });
-  gates().forEach(function (w) { TICK[w.number] = !every; });
+  var every = gates().every(function (w) { return TICKED_GATES[w.number]; });
+  gates().forEach(function (w) { TICKED_GATES[w.number] = !every; });
   $("dw").querySelectorAll("[data-tick]").forEach(function (x) { x.checked = !every; });
   $("bfoot").innerHTML = batchFoot();
 });
 document.addEventListener("change", function (e) {
   var x = e.target.closest && e.target.closest("[data-tick]"); if (!x) return;
-  TICK[x.getAttribute("data-tick")] = x.checked;
+  TICKED_GATES[x.getAttribute("data-tick")] = x.checked;
   $("bfoot").innerHTML = batchFoot();
 });
 panel({ drawer: dYou });
