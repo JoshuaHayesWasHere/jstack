@@ -1511,7 +1511,17 @@ def test_the_scoped_pass_a_guarded_fix_is_launched_with_reads_the_fix_alone(tmp_
     ]
 
 
-def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(tmp_path):
+ANSWERED = "Finding: not fixed, it is wrong, because it is asked\nFixed: none needed, declined\n"
+
+
+@pytest.mark.parametrize(
+    ("done", "ready_to_merge"),
+    [(ANSWERED, True), ("", False)],
+    ids=["its finding answered", "nothing answered"],
+)
+def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
+    tmp_path, done, ready_to_merge
+):
     made = merge.Merged(merge.Home(tmp_path), tmp_path)
     filled = {
         "Verdict": "findings",
@@ -1520,7 +1530,6 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
         "Reviewers": "1, 1   Proof: uv run pytest tests/test_a.py, exit 0, 1 passed",
         "Meets the brief": "yes",
         "In flight": "none",
-        "Findings": "\n- warning a.txt:1 it is wrong (principle: none)",
         "Dropped": "0",
         "Noted": "0",
         "Dismissed": "none",
@@ -1528,11 +1537,16 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
     }
     template = (REPO / "templates" / "review.md").read_text().splitlines()
     assert template[4].startswith("Reviewers: 1, ")
-    section = "".join(
-        f"{line.split(':')[0]}: {filled[line.split(':')[0]]}\n" if ": " in line else f"{line}\n"
-        for line in template
-        if not line.startswith("- ")
-    ).replace("Findings: \n", "Findings:\n")
-    done = "Finding: not fixed, it is wrong, because it is asked\nFixed: none needed, declined\n"
-    (made.home.tasks / "alpha.md").write_text(merge.brief(section, done))
-    assert made.run("--check") == [f"ready 7 {made.head} alpha alpha"]
+    lines = []
+    for line in template:
+        label = line.split(":")[0]
+        if line == "Findings:":
+            lines += [line, "- warning a.txt:1 it is wrong (principle: none)"]
+        elif label in filled:
+            lines.append(f"{label}: {filled[label]}")
+        elif not line.startswith("- "):
+            lines.append(line)
+    (made.home.tasks / "alpha.md").write_text(merge.brief("\n".join(lines) + "\n", done))
+    said = made.run("--check")
+    assert (said == [f"ready 7 {made.head} alpha alpha"]) == ready_to_merge
+    assert said[0].startswith("ready" if ready_to_merge else "wait")

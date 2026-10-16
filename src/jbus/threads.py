@@ -22,11 +22,11 @@ from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs
+from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs, watch, work
 from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import ENDED, LIVE, STARTING, World, after_merge, named, unfinished, when
+from jbus.watch import ENDED, LIVE, STARTING, World, after_merge, unfinished, when
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -162,16 +162,13 @@ def _scouts(run: Pass) -> dict[str, str]:
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
-    """The slugs whose pull request merged or closed, with none of theirs open. One closed
-    unmerged is the address a last Result's `Branch:` line ends on, when no open pull
-    request has it."""
-    open_at = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
-    found = set(world.merged)
+    """The slugs whose pull request merged or closed, as `watch.pull` has it."""
+    ended = {work.Pull.MERGED, work.Pull.CLOSED}
+    found = {slug for slug in world.merged if watch.pull(world, slug, "", "") in ended}
     for slug, text in briefs.items():
-        url = named(mirror.last_result(text))[0].rstrip("/")
-        if url and url not in open_at:
+        if watch.pull(world, slug, mirror.last_result(text), "") in ended:
             found.add(slug)
-    return found - set(world.open)
+    return found
 
 
 def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> dict[str, set[str]]:

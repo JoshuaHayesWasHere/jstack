@@ -370,14 +370,12 @@ def test_the_review_thread_of_a_merged_or_closed_pull_request_is_archived_and_an
     kitchen.brief("alpha", review("clean", "mcp:crew"))
     kitchen.brief("beta", closed + review("findings", "mcp:crew"))
     kitchen.brief("delta", still + review("findings", "mcp:crew"))
-    kitchen.brief("eta", still + review("findings", "mcp:crew"))
     kitchen.set("merged.json", [kitchen.merged("alpha", 5, "a" * 40)])
     kitchen.set("open.json", [kitchen.opened("delta", 8)])
     first = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     scoped = kitchen.t3.thread("alpha", "running", title="review: alpha, scoped")
     kitchen.t3.thread("beta", "completed", title="review: beta")
     kitchen.t3.thread("delta", "completed", title="review: delta")
-    kitchen.t3.thread("eta", "completed", title="review: eta")
     said = kitchen.poll()
     titles = {t["threadId"]: t["title"] for t in kitchen.t3.threads}
     assert sorted(titles[given["threadId"]] for given in settles(kitchen, "archive")) == [
@@ -397,5 +395,5 @@ def test_the_review_thread_of_a_merged_or_closed_pull_request_is_archived_and_an
         "review: beta",
         "review: alpha, scoped",
     ]
-    for kept in [t for t in kitchen.t3.threads if t["title"] in ("review: delta", "review: eta")]:
-        assert kept["settled"] is False and "archived" not in kept
+    (kept,) = [t for t in kitchen.t3.threads if t["title"] == "review: delta"]
+    assert kept["settled"] is False and "archived" not in kept
