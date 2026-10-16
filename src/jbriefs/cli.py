@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import page, parse
+from jbriefs import page, parse, pick
 
 DEFAULT_STATE = Path.home() / ".local" / "state" / "home"
 
@@ -16,7 +17,35 @@ def default_out() -> Path:
     return Path(cache) / "jbriefs" / "briefs.html"
 
 
+def pick_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="jbriefs pick",
+        description="Print the role skill, the playbook and the other skills for a brief, a "
+        "scout's request, or text with no file.",
+    )
+    parser.add_argument(
+        "work",
+        help="a brief under tasks/, a request under scouts/, or - to read text from stdin",
+    )
+    args = parser.parse_args(argv)
+    if args.work == "-":
+        job = pick.work(None, sys.stdin.read())
+    else:
+        path = Path(args.work).expanduser()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as error:
+            parser.error(f"cannot read {path}: {error.strerror}")
+        job = pick.work(path.resolve(), text)
+    for line in pick.pick(job):
+        print(line)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["pick"]:
+        return pick_main(argv[1:])
     parser = argparse.ArgumentParser(
         prog="jbriefs",
         description="Write one page of every home's handoff, open plan entries, briefs and "
@@ -27,7 +56,8 @@ def main(argv: list[str] | None = None) -> int:
         nargs="?",
         type=Path,
         default=DEFAULT_STATE,
-        help="the directory that holds one home per repo (default: %(default)s)",
+        help="the directory that holds one home per repo (default: %(default)s); "
+        "`jbriefs pick <path | ->` picks the skills for a piece of work instead",
     )
     parser.add_argument("--out", type=Path, help="where to write the page (default: the cache)")
     args = parser.parse_args(argv)

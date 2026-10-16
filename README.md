@@ -134,7 +134,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 31 skills, and seven skills run the flow. Each `SKILL.md` is the full text of what its thread does.
+`skills/` holds 32 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -145,6 +145,7 @@ Each command has one page.
 | `handoff` | `/handoff` | Closes a home. It updates the plan and the notes, archives the old handoff, and writes a one-page handoff for the next home. |
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
+| `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. For a brief, a scout's request or a plain question it runs `jbriefs pick` and names the role to type (`/crew <slug>`, `/scout <slug>` or `/home`), the playbook and the skills the words call for, each with its file. "Get set up" points at the Quickstart above. |
 
 The other 24 are loaded by name. `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/blast-radius`, `/deeper`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
 
