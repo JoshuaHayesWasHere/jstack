@@ -739,8 +739,9 @@ def origin(text: str) -> str:
     found = _ORIGIN.fullmatch(text.lower())
     if found is None or not 0 < int(found[3] or DEFAULT[found[1]]) < 65536:
         raise Refused(f"refused: JBUS_VIEW_ORIGINS {text!r} is not an origin, as https://<host>")
-    scheme, host, port = found.groups()
-    return f"{scheme}://{host}" if port in (None, DEFAULT[scheme]) else f"{scheme}://{host}:{port}"
+    scheme, host = found[1], found[2]
+    port = str(int(found[3] or DEFAULT[scheme]))
+    return f"{scheme}://{host}" if port == DEFAULT[scheme] else f"{scheme}://{host}:{port}"
 
 
 def doors(port: int = PORT) -> Doors:
