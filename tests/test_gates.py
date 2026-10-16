@@ -25,7 +25,7 @@ from test_home_thread import (
     git,
     paths,
 )
-from test_jbus_kitchen import Kitchen
+from test_jbus_kitchen import Kitchen, complete
 
 TEMPLATE = REPO / "templates" / "gates.md"
 ROOT = "mcp:the-root-home"
@@ -560,7 +560,7 @@ def test_a_gate_jbus_cannot_take_stays_in_the_file_and_is_printed_whole(home):
     file, left, mine = old_file(home, gate=whole)
     before = file.read_text()
     shown = home.shown_dir / "gates.md"
-    home.kitchen.main("queue", "add", "alpha", "--priority", "1", stdin="# alpha: a task\n")
+    home.kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=complete("alpha"))
     code, _ = home.kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", AT)
     assert code == 0
     said = home.moves()

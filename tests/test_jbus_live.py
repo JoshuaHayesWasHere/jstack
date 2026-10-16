@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import live, t3
-from test_jbus_kitchen import NOW, PROJECT, approved, iso
+from test_jbus_kitchen import NOW, PROJECT, approved, complete, iso
 
 QUIET, HUNG = 10, 20
 STATUSES = (
@@ -273,7 +273,7 @@ def test_a_call_whose_run_is_older_than_the_runs_read_stands_while_that_run_is_a
 
 def test_each_open_row_has_its_threads_liveness(kitchen):
     for slug in ("alpha", "beta"):
-        text = f"# {slug}: a task\nWhere: `src/{slug}/`\n"
+        text = complete(slug)
         assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     hanging(kitchen)
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
@@ -420,7 +420,7 @@ def test_jbus_interrupts_nothing():
 
 def test_a_launched_row_whose_thread_t3_no_longer_lists_and_that_wrote_nothing_is_gone(kitchen):
     for slug in ("alpha", "beta", "gamma"):
-        text = f"# {slug}: a task\nWhere: `src/{slug}/`\n"
+        text = complete(slug)
         assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     launches = kitchen.state_dir / "launches" / "demo"
     for slug in ("alpha", "beta", "gamma"):

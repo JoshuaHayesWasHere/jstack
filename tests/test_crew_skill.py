@@ -1889,7 +1889,10 @@ def test_a_move_that_conflicts_stops_and_says_which_files(tmp_path):
 
 def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(kitchen, tmp_path):
     """`jbus` puts the brief under the first line of its launch, and step 1 writes that down."""
-    brief = BRIEF.split("\n## Result")[0] + "Design: none, a test\nReview: review+test\n"
+    brief = BRIEF.split("\n## Result")[0] + (
+        "Done when:\n- it is done\nProves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
+        "Design: none, a test\nReview: review+test\nPlaybook: feature\n"
+    )
     assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=brief)[0] == 0
     sha = hashlib.sha256(brief.encode()).hexdigest()[:12]
     at = ["--word", kitchen.word(), "--sha", sha]

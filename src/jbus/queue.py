@@ -5,11 +5,13 @@ by the verbs here: `add`, `approve`, `hold` and `remove`. The derived columns ar
 only by a pass, from what T3 Code and GitHub say (`derive`), and no verb takes one. Two of
 them are a pair: `why` is the reason a row waits, and `since` is when that reason first held. Each
 change of a row's status is also kept, one line each, in `transitions.jsonl` beside the
-table, which is only ever appended to. The brief a row
-was added with is kept beside the table, in `briefs/<slug>.md`, and `approve` records its
-sha256: a brief that changes after the go is not the brief that was approved. `approve`
-is also given the sha of the brief the user was shown, and is refused when the stored brief
-is another.
+table, which is only ever appended to. `add` refuses a brief that a launch would refuse
+(`jbriefs.parse.faults`), so no brief that cannot launch is put to the user for a go. The
+brief a row was added with is kept beside the table, in `briefs/<slug>.md`, and `approve`
+records its sha256 and its meaning fingerprint (`jbriefs.meaning`): the go holds for a
+brief that asks for the same, whatever its wording, and not for one whose scope changed.
+`approve` is also given the sha of the brief the user was shown, and is refused when the
+stored brief is another.
 
 An approval rests on words of the user's that something else holds, and `approve` names
 them: a word `jbus word` kept, the answer that closed a question, a message of a T3 Code
@@ -31,9 +33,10 @@ The sha of a brief is `brief_sha`. It leaves out the `Home:` and `Thread:` lines
 brief's head, which say whom the brief is sent to and not what it asks for: `Thread:` is
 written in after a launch, and a brief queued again under another home is the same brief.
 The stored brief is kept whole, those lines included, and a launch sends it without them
-(`body`). A row approved before the sha left them out holds the sha256 of the whole text:
-`approved_text` still takes it, and an `add` of the row turns it into the `brief_sha` of
-the text it was approved with.
+(`body`). A row approved before the fingerprint holds its go for the text it was given
+on: its `brief_sha`, or for one approved before the sha left the two lines out, the
+sha256 of the whole text. `approved_text` still takes both, and an `add` of such a row
+turns the second into the `brief_sha` of the text it was approved with.
 
 `remove` takes a row out for good. The slug is then in `removed.json` beside the table,
 with who said so and when, and that file is how a pass decides a slug is gone: it sends no
@@ -64,12 +67,14 @@ import re
 import shlex
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import jsettings
+from jbriefs import meaning
+from jbriefs import parse as briefs
 from jbus import Refused, write_json
 
 EVENTS = {"queue": "quiet"}
@@ -102,6 +107,8 @@ RULE = "rule"
 BY_RULE = "--rule <n> with --follows <parent slug>"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
 SESSION = "CLAUDE_CODE_SESSION_ID"
+GO_HOLDS = ", its go holds"
+GO_VOID = ", its go does not hold for it: approve it again"
 
 Row = dict[str, Any]
 
@@ -194,7 +201,12 @@ class Approval:
 
     With the basis `RULE`, `ref` is the rule's number, `words` the rule's text and `follows`
     the slug of the parent row. The user said nothing of the row, so `said_at` and `said_in`
-    are empty. No other basis has a `follows`, and its record keeps none."""
+    are empty. No other basis has a `follows`, and its record keeps none.
+
+    `brief_sha` is the stored brief's at the go, `meaning` its fingerprint and `scope` the
+    sha256 of that (`jbriefs.meaning`): the go holds for a brief that means the same. An older
+    record, made before the fingerprint, has none of the three, and its row's `brief_sha` is
+    the go's."""
 
     basis: str
     ref: str
@@ -205,6 +217,9 @@ class Approval:
     ran_by: dict[str, str]
     ran_at: str
     follows: str = ""
+    brief_sha: str = ""
+    scope: str = ""
+    meaning: list[Any] = field(default_factory=list)
 
     def who(self) -> str:
         """The home of the directory it was run in, or a shell where no session ran it."""
@@ -301,13 +316,42 @@ def brief_sha(text: str) -> str:
     return sha(body(text))
 
 
-def approved_text(row: Row, text: str) -> bool:
-    """Whether `text` is the brief the row was approved with.
+def fingerprint(text: str) -> meaning.Meaning:
+    """What the brief asks for, its `Home:` and `Thread:` lines left out (`jbriefs.meaning`)."""
+    return meaning.meaning(body(text))
 
-    A row approved before the sha left the two lines out holds the sha256 of the whole text,
-    and is approved for as long as the stored brief is that text, line for line.
+
+def approved_text(row: Row, text: str) -> bool:
+    """Whether `text` is a brief the row's go holds for.
+
+    A go recorded with a fingerprint holds for every brief that means the same
+    (`meaning.same`), whatever its wording. One from before holds for the text it was given
+    on: its row's `brief_sha`, or for a row approved before the sha left the two lines out,
+    the sha256 of the whole text, line for line.
     """
+    kept = record(row)
+    if kept and kept.scope:
+        return meaning.same(kept.meaning, fingerprint(text))
     return row.get("brief_sha") in (brief_sha(text), sha(text))
+
+
+def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:
+    """What another reader needs to check a go: the row's record, and the brief at `path`
+    with its sha, its fingerprint and whether the go holds for it."""
+    kept = record(row)
+    made = held(kept) if kept else {}
+    now = {"path": path, "brief_sha": "", "scope": "", "meaning": []}
+    if text is not None:
+        mine = fingerprint(text)
+        now.update(brief_sha=brief_sha(text), scope=meaning.fingerprint(mine), meaning=mine)
+    return {
+        "slug": row["slug"],
+        "approved": approval(row),
+        "holds": bool(row.get("approved")) and text is not None and approved_text(row, text),
+        "brief_sha": row.get("brief_sha", ""),
+        "approval": made,
+        "brief": now,
+    }
 
 
 def brief(state: Path, slug: str) -> str | None:
@@ -626,6 +670,11 @@ def _do(
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():
             raise Refused("refused: no brief on stdin")
+        faults = briefs.faults(body(verb.text))
+        if faults:
+            many = "1 fault" if len(faults) == 1 else f"{len(faults)} faults"
+            lines = "".join(f"\n- {fault}" for fault in faults)
+            raise Refused(f"refused: {verb.slug}'s brief has {many}, and nothing is queued{lines}")
         found = [row for row in rows if row["slug"] == verb.slug]
         row = (
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
@@ -636,7 +685,8 @@ def _do(
         elif verb.entry:
             row["entry"] = verb.entry
         was = batch.brief(verb.slug)
-        if was is not None and approved_text(row, was):
+        kept = record(row)
+        if was is not None and not (kept and kept.scope) and approved_text(row, was):
             row["brief_sha"] = brief_sha(was)
         if not found:
             rows.append(row)
@@ -644,7 +694,11 @@ def _do(
         depends = f", depends {', '.join(verb.depends)}" if verb.depends else ""
         of = f", entry {row['entry']}" if "entry" in row else ""
         shown = brief_sha(verb.text)[:12]
-        return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}"
+        go = ""
+        if row.get("approved") and was is not None and brief_sha(was) != brief_sha(verb.text):
+            holds = approved_text(row, verb.text)
+            go = GO_HOLDS if holds else GO_VOID
+        return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}{go}"
     if isinstance(verb, Approve):
         if user is None or (verb.basis, verb.ref) not in said:
             raise Refused("refused: approve was given nothing to read the user's word with")
@@ -660,6 +714,7 @@ def _do(
             raise rests
         if verb.basis == RULE:
             _parent(batch, verb.slug, verb.follows)
+        means = fingerprint(text)
         made = Approval(
             basis=verb.basis,
             ref=verb.ref,
@@ -670,6 +725,9 @@ def _do(
             ran_by=runner(),
             ran_at=user.stamp(clock()),
             follows=verb.follows,
+            brief_sha=stored,
+            scope=meaning.fingerprint(means),
+            meaning=means,
         )
         row.update(approved=made.line(), approval=held(made), brief_sha=stored)
         return f"approved {verb.slug}: brief {stored[:12]}, {made.line()}"
@@ -723,8 +781,9 @@ def _do(
 
 
 def _none(line: int, error: Exception) -> Refused:
-    said = str(error).removeprefix("refused: ")
-    return Refused(f"refused: line {line}: {said}, and nothing in the batch was applied")
+    said, *more = str(error).removeprefix("refused: ").split("\n")
+    lines = "".join(f"\n{one}" for one in more)
+    return Refused(f"refused: line {line}: {said}, and nothing in the batch was applied{lines}")
 
 
 def _run(
@@ -797,8 +856,9 @@ def _run(
 
 def add(
     state: Path, slug: str, priority: int, depends: list[str], text: str, entry: str = ""
-) -> None:
-    _run(state, [(0, Add(slug, priority, depends, text, entry))])
+) -> str:
+    """Add the row, or its brief again. The answer is the line that says what was added."""
+    return _run(state, [(0, Add(slug, priority, depends, text, entry))])[0]
 
 
 def approve(

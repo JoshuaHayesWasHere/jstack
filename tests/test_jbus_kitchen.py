@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 import jbus
+from jbriefs import meaning
 from jbus import cli, live, queue, t3, wake, word
 from test_room import BIN, FRESH, IDLE, machine
 
@@ -799,9 +800,29 @@ OPTIONS = "Option: the first (default): nothing changes\nOption: the other: one 
 ASK = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
 
 
+def complete(slug, more=""):
+    """A brief with every field `jbus queue add` asks for, and `more` under them."""
+    return (
+        f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- it is done\n'
+        f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
+        f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{more}"
+    )
+
+
+def bound(kitchen, slug, project="demo"):
+    """What an approval record holds of the brief stored now: its sha and its fingerprint."""
+    text = (kitchen.state_dir / project / "briefs" / f"{slug}.md").read_text()
+    made = jbus.queue.fingerprint(text)
+    return {
+        "brief_sha": jbus.queue.brief_sha(text),
+        "scope": meaning.fingerprint(made),
+        "meaning": made,
+    }
+
+
 def approved(kitchen, slug, priority=1):
     """A row of the queue with its brief, and the user's go for it."""
-    text = f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: `src/{slug}/`\n"
+    text = complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", str(priority), stdin=text)[0] == 0
     assert go(kitchen, slug)[0] == 0
 
@@ -830,7 +851,7 @@ PASS = timedelta(minutes=3)
 
 def queued(kitchen, slug, text=None):
     """A row of the queue, approved, as the Chef adds one."""
-    text = text or f"# {slug}: a task\nDesign: none, a test\nSize: S\nWhere: `src/{slug}/`\n"
+    text = text or complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     sha = jbus.queue.brief_sha(text)[:12]
     go = ["queue", "approve", slug, "--word", kitchen.word(), "--sha", sha]

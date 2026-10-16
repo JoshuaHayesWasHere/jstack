@@ -14,7 +14,7 @@ import jbus
 import jsettings
 from jbus import questions, queue, word
 from jbus.view import state as view_state
-from test_jbus_kitchen import ASK, GO, NOW, RAN, SAID, SAID_AT, SESSION
+from test_jbus_kitchen import ASK, GO, NOW, RAN, SAID, SAID_AT, SESSION, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12
 
 HOME, MESSAGE = "mcp:a-home", "a-message-of-his"
@@ -55,6 +55,7 @@ def test_an_approval_by_a_word_is_a_record_of_the_word_and_of_who_ran_it(kitchen
         "checked": False,
         "ran_by": {"session": SESSION, "directory": str(kitchen.checkout)},
         "ran_at": RAN,
+        **bound(kitchen, "alpha"),
     }
     assert (row["approved"], cell(kitchen, "alpha")) == (GO, GO)
     kitchen.poll()
@@ -93,6 +94,7 @@ def test_an_approval_by_a_message_holds_what_jbus_read_from_t3_code(kitchen):
         "checked": True,
         "ran_by": {"session": SESSION, "directory": str(kitchen.checkout)},
         "ran_at": RAN,
+        **bound(kitchen, "alpha"),
     }
     assert (row["approved"], cell(kitchen, "alpha")) == (HEARD, HEARD)
     (read,) = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_read"]

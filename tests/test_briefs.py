@@ -309,10 +309,10 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
     """`jbus` reads the line where the template puts it: in the head, above any result."""
     (line,) = [line for line in TEMPLATE.read_text().splitlines() if line.startswith("Design:")]
     text = written(by_a_scout=False)
-    assert line in text and dispatch.designed(text) == dispatch.NO_DESIGN
+    assert line in text and parse.designed(text) == parse.NO_DESIGN
     for said in ("Design: scouts/alpha-design.md", "Design: none, a one-line fix"):
-        assert dispatch.designed(text.replace(line, said)) == ""
-        assert dispatch.designed(text.replace(line + "\n", "") + RESULT + said) != ""
+        assert parse.designed(text.replace(line, said)) == ""
+        assert parse.designed(text.replace(line + "\n", "") + RESULT + said) != ""
 
 
 PROOFS = {
@@ -682,8 +682,17 @@ def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_fil
     assert [one for one in entry if one.startswith("Size:")] == [line]
 
 
-def test_every_playbook_on_disk_is_a_name_the_parser_takes():
-    names = {path.stem for path in parse.PLAYBOOKS.glob("*.md")}
-    assert "feature" in names
-    for name in names:
-        assert parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {name}")) == ""
+def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other():
+    """A brief names a playbook a crewmate runs: not a scout's, a home's or an expert's, and
+    not `opening-a-pr`, which is the last step of every other one."""
+    taken = set()
+    for path in parse.PLAYBOOKS.glob("*.md"):
+        by = next(line for line in path.read_text().splitlines() if line.startswith("Run by: "))
+        said = parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {path.stem}"))
+        if by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by:
+            assert said == "", path.stem
+            taken.add(path.stem)
+        else:
+            assert "which is not a crewmate's playbook" in said, path.stem
+    assert {"feature", "bug-fix"} <= taken
+    assert {"opening-a-pr", "autopilot-full", "investigation", "expert-study"}.isdisjoint(taken)

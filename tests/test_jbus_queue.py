@@ -37,8 +37,13 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def brief(slug, more=""):
-    design = "Design: none, a test\nSize: S\n"
-    return f"# {slug}: a task\nHome: mcp:a-home\n{design}Where: `src/{slug}/`, a new test\n{more}"
+    """A brief with every field `queue add` asks for, and `more` under them."""
+    return (
+        f'# {slug}: a task\nHome: mcp:a-home\nTask: "do {slug}"\nDone when:\n- it is done\n'
+        f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
+        "Design: none, a test\nPull request: open one when done\nReview: review\n"
+        f"Playbook: feature\n{more}"
+    )
 
 
 def sha12(text):
@@ -60,6 +65,21 @@ def add(kitchen, slug, priority=1, depends="", approve=True, text=None, project=
     assert code == 0, said
     if approve:
         assert go(kitchen, slug, project=project)[0] == 0
+
+
+def queued_before(kitchen, slug, text, priority=1, depends="", approve=True):
+    """A row queued before `jbus queue add` checked a brief: its stored brief is `text`, which
+    `add` would refuse now, and where `approve`, its go is for that text, as a go was then."""
+    add(kitchen, slug, priority=priority, depends=depends, approve=approve)
+    queue.brief_path(kitchen.state, slug).write_text(text)
+    path = kitchen.state / "queue.json"
+    table = json.loads(path.read_text())
+    for row in table:
+        if row["slug"] == slug and row.get("approval"):
+            row["brief_sha"] = queue.brief_sha(text)
+            for column in ("brief_sha", "scope", "meaning"):
+                row["approval"].pop(column, None)
+    path.write_text(json.dumps(table))
 
 
 def rows(kitchen):
@@ -312,7 +332,7 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
     older = batch(adds("alpha", "--priority 3"), approves("alpha", sha12(newer)))
     assert kitchen.main("queue", "apply", stdin=older) == (
         1,
-        f"refused: line 9: alpha's brief is {sha12(brief('alpha'))}, not {sha12(newer)},"
+        f"refused: line 16: alpha's brief is {sha12(brief('alpha'))}, not {sha12(newer)},"
         " and nothing in the batch was applied\n",
     )
     assert (kitchen.state / "briefs/alpha.md").read_text() == newer
@@ -321,31 +341,31 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
 @pytest.mark.parametrize(
     "bad, says",
     [
-        ("hold nope\n", "line 10: the queue has no row nope"),
+        ("hold nope\n", "line 17: the queue has no row nope"),
         (
             approves("alpha", "0" * 12),
-            f"line 10: alpha's brief is {sha12(brief('alpha'))}, not 0000",
+            f"line 17: alpha's brief is {sha12(brief('alpha'))}, not 0000",
         ),
-        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 10: {NO_BASIS}"),
-        ("approve alpha --sha 0\n", f"line 10: {NO_BASIS}"),
-        ("approve alpha --word nope --sha 0\n", "line 10: alpha's brief is"),
-        (f"approve alpha --word {SAID}\n", "line 10: approve needs --sha"),
-        ("add gamma --priority 1\nhold alpha\n", "line 10: add gamma has no --- brief gamma"),
+        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 17: {NO_BASIS}"),
+        ("approve alpha --sha 0\n", f"line 17: {NO_BASIS}"),
+        ("approve alpha --word nope --sha 0\n", "line 17: alpha's brief is"),
+        (f"approve alpha --word {SAID}\n", "line 17: approve needs --sha"),
+        ("add gamma --priority 1\nhold alpha\n", "line 17: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
-            "line 10: gamma's brief has no --- end",
+            "line 17: gamma's brief has no --- end",
         ),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n--- brief delta\nmore\n--- end\n",
-            "line 10: gamma's brief has no --- end",
+            "line 17: gamma's brief has no --- end",
         ),
-        (adds("gamma", "--priority soon"), "line 10: --priority is an integer, not soon"),
-        (adds("gamma"), "line 10: add needs --priority"),
-        (adds("../up", "--priority 1"), "line 10: ../up is not a slug"),
-        ("hold alpha --status merged\n", "line 10: status is derived from T3 Code and GitHub"),
-        ("hold alpha --at now\n", "line 10: hold takes no --at"),
-        ("drop alpha\n", "line 10: drop is not add, approve, hold or remove"),
-        ('hold "alpha\n', "line 10: No closing quotation"),
+        (adds("gamma", "--priority soon"), "line 17: --priority is an integer, not soon"),
+        (adds("gamma"), "line 17: add needs --priority"),
+        (adds("../up", "--priority 1"), "line 17: ../up is not a slug"),
+        ("hold alpha --status merged\n", "line 17: status is derived from T3 Code and GitHub"),
+        ("hold alpha --at now\n", "line 17: hold takes no --at"),
+        ("drop alpha\n", "line 17: drop is not add, approve, hold or remove"),
+        ('hold "alpha\n', "line 17: No closing quotation"),
     ],
 )
 def test_a_batch_with_one_verb_that_cannot_be_done_writes_nothing(kitchen, bad, says):
@@ -498,7 +518,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen):
     add(kitchen, "alpha")
     said = kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = "# alpha: a task\nDesign: none, a test\nSize: S\nWhere: `src/alpha/`, a new test\n"
+    written = queue.body(brief("alpha"))
     assert given == {
         "projectId": PROJECT,
         "title": "crew: alpha",
@@ -1090,12 +1110,11 @@ def test_a_thread_line_changed_in_the_head_leaves_the_approval_standing(kitchen)
 @pytest.mark.parametrize(
     "again",
     [
-        brief("alpha").replace("# alpha: a task", "# alpha: another task"),
         brief("alpha").replace("a new test", "another test"),
         brief("alpha", "## Result\nHome: mcp:a-home\n"),
         brief("alpha").replace("Home: mcp:a-home\n", "Homes: mcp:a-home\n"),
     ],
-    ids=["title", "where", "below the head", "another label"],
+    ids=["where", "below the head", "another label"],
 )
 def test_a_change_to_any_other_line_still_voids_the_approval(kitchen, again):
     add(kitchen, "alpha")
@@ -1115,6 +1134,8 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
     table = json.loads((kitchen.state / "queue.json").read_text())
     for row in table:
         row["brief_sha"] = hashlib.sha256(brief(row["slug"]).encode()).hexdigest()
+        for column in ("brief_sha", "scope", "meaning"):
+            row["approval"].pop(column)
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     add(kitchen, "beta", approve=False, text=readdressed("beta"))
     assert rows(kitchen)["beta"]["brief_sha"] == queue.brief_sha(brief("beta"))
@@ -1131,7 +1152,7 @@ def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
     add(kitchen, "alpha", approve=False, text=unsaid)
     kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = "# alpha: a task\nDesign: none, a test\nSize: S\nWhere: `src/alpha/`, a new test\n"
+    written = queue.body(brief("alpha"))
     assert given["message"] == f"/crew alpha\n\n{written}"
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"
 
