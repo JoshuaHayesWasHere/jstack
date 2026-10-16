@@ -399,3 +399,5 @@ Then tell the sender. A thread is told with `t3_thread_send`, to its own id:
 ```
 
 The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`. Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on. Then settle this thread again.
+
+A crewmate thread (`/crew <slug>`) never runs this skill. It ends by writing its `## Result`, as the `crew` skill says.
