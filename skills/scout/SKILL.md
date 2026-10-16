@@ -81,6 +81,14 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
    ```
 
    It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the report. On `not a scout's`, the file is for a crewmate or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the request to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report. On `lacks the line`, the request stands as the home wrote it: say what it printed in the report. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
+   Then see whether the request names skills. Run this with the block at the top and `S` set to the slug:
+
+   ```sh
+   B="$H/scouts/$S.md"
+   uv run --project "$T/.." jbriefs --skills "$B"
+   ```
+
+   It prints nothing when the request has no `Skills:` line or says `none`. Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, and do what each says while you research. Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the report's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/scout-report.md` shows. A line `unknown skill: <name>` is a name jstack does not have: say it in the report, and go on with the rest.
 4. Say in two lines what you are about to find out, then start. Do not wait for a go-ahead: the request is the go-ahead.
 
 ## Carry on

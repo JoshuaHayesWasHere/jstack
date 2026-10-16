@@ -207,7 +207,16 @@ def resolve(rev: str) -> str:
 
 
 def show(rev: str, path: str) -> str:
-    """A file as it is at a revision, never from the working tree."""
+    """A file as it is at a revision, never from the working tree. A principle is read under
+    the name it has there: `principles/<name>.md` before it took pstack's prefix, and
+    `principles/principle-<name>.md` after, so a case names it either way."""
+    if path.startswith("principles/"):
+        name = path.removeprefix("principles/").removeprefix("principle-")
+        for each in (f"principles/principle-{name}", f"principles/{name}"):
+            try:
+                return git("show", f"{rev}:{each}")
+            except SystemExit:
+                continue
     return git("show", f"{rev}:{path}")
 
 

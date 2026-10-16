@@ -10,6 +10,6 @@ Order work as a sequence of small units, each ending in a state you can check, a
 
 **Delivery.** Deliver small units that each merge by themselves, in order. A unit that needs another unit's change waits for that one to merge, then starts from the default branch. Inside one pull request, put the commits in the order that proves the work. The canonical shape is the failing test first, then the fix. Other story orders are a subtraction before the reshape, a baseline capture before the treatment, the scaffold before the feature. Each commit lands on its own and the sequence reads as an argument.
 
-The sequencing complement to [Prove It Works](prove-it-works.md), which keeps each check real, and [Build the Lever](build-the-lever.md), which makes the per-unit check cheap.
+The sequencing complement to [Prove It Works](principle-prove-it-works.md), which keeps each check real, and [Build the Lever](principle-build-the-lever.md), which makes the per-unit check cheap.
 
 <!-- card: Keep moving with nobody watching | 2 | Order work as small units that each end in a state you can check, and do not advance on red. | `opening-a-pr`; `multi-phase-plan`; `autopilot-stack` -->

@@ -455,5 +455,5 @@ def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is
     assert set(pinned.own) <= {
         file.relative_to(ROOT).as_posix() for top in TOPS for file in (ROOT / top).rglob("*")
     }
-    assert "principles/depth-over-breadth.md" in pinned.own
+    assert "principles/principle-depth-over-breadth.md" in pinned.own
     assert len(principles) == 25

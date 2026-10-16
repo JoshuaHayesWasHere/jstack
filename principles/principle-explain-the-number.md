@@ -10,6 +10,6 @@ For an eval result, ask the same questions of the trials: did every run do the t
 
 You skipped this when the evidence behind a number has no run count, no spread, or no named limiter, or when the time saved is larger than the time the changed piece took.
 
-Distinct from [Prove It Works](prove-it-works.md), which checks that an output is real.
+Distinct from [Prove It Works](principle-prove-it-works.md), which checks that an output is real.
 
 <!-- card: Prove it | 5 | Before trusting a measured number, find what limits it and rule out that it measured something else. | `benchmark-checklist`; `perf-issue`; `hillclimb` -->
