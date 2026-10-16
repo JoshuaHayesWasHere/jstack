@@ -780,6 +780,12 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
     assert [path.name for path in locks.iterdir()] == ["test-slot.1.lock"]
 
 
+def held_open(go):
+    """A check that runs until the test touches `go`, and a minute at most, so a test that
+    fails before the touch leaves no detached check behind it."""
+    return f"n=0; while ! [ -f {go} ] && [ $n -lt 600 ]; do sleep 0.1; n=$((n + 1)); done"
+
+
 def ended(tmp_path):
     """Wait, as a turn between two calls would, for the check to end with nobody calling."""
     found = tmp_path / "repo" / ".git" / "crew-check" / "exit"
@@ -794,7 +800,7 @@ def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
     """A check longer than one call: each call waits its whole limit and says to call again,
     a second call joins the check the first started, and the last one has its exit code."""
     runs, go = tmp_path / "runs", tmp_path / "go"
-    command = f"echo ran >> {runs}; while ! [ -f {go} ]; do sleep 0.1; done; echo all passed"
+    command = f"echo ran >> {runs}; {held_open(go)}; echo all passed"
 
     said, code, took = checked(tmp_path, command, limit=1)
     assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
@@ -833,7 +839,7 @@ def test_a_check_that_ended_between_calls_is_told_once_and_then_runs_afresh(tmp_
 
 def test_a_check_of_files_that_changed_while_it_ran_is_no_proof_and_runs_again(tmp_path):
     runs, go = tmp_path / "runs", tmp_path / "go"
-    command = f"echo ran >> {runs}; while ! [ -f {go} ]; do sleep 0.1; done"
+    command = f"echo ran >> {runs}; {held_open(go)}"
 
     said, code, _ = checked(tmp_path, command, limit=0)
     assert said[-1].split(":")[0] == "running"
