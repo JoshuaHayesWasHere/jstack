@@ -1,0 +1,6 @@
+1. **First, "Stay on the pull request" step 1:** link the pull request to this thread with the `t3-code` server's `link_pull_request`, called as `{"url": "<the url gh pr create printed>"}`. If the harness defers the tool, load it first.
+2. **Step 2, the three steps of "End":** read `$T/result.md` and append it, filled in, to `$H/tasks/<slug>.md`, with `Branch: <the pull request url>` and every Done when line's `Proof:`. Then run the "End" step 2 awk block. It prints `send nothing: <url> is open…`, so I send the home nothing and say the same here in at most five lines.
+3. **Step 3, "The checks":** run the `checks()` block in this worktree. Then run the first block of "The review" with its first line. Right after opening, it will most likely say `wait` (launch beside the checks) or `passed`.
+4. **"The review":** run its decision block. With `Review: review`, no `## Review` and no `Reviewer:` line, it prints `review: launch a reviewer`. I launch one with `t3_thread_launch`, as `$T/../skills/pr-review/SKILL.md` "Launching" says. Then I add `Reviewer: <threadId>` to the Result.
+5. **If the checks say `failed` or `unrun`:** on `failed`, I fix and push first, then launch the reviewer on that push. On `unrun`, I add an `Unrun:` line, park the gate, and launch no reviewer.
+6. **Step 4:** end my turn. I arm no watch and do not poll; jbus or the reviewer wakes me.

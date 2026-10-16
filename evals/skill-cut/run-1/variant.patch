@@ -1,0 +1,79 @@
+diff --git a/principles/migrate-callers-then-delete-legacy-apis.md b/principles/migrate-callers-then-delete-legacy-apis.md
+index 47f82c5..bb861f7 100644
+--- a/principles/migrate-callers-then-delete-legacy-apis.md
++++ b/principles/migrate-callers-then-delete-legacy-apis.md
+@@ -2,12 +2,6 @@
+ 
+ Apply when introducing a new internal API while old callers still exist. Migrate callers and delete the old API in the same wave instead of preserving compatibility layers.
+ 
+-When we decide a new API is the right design, migrate callers and remove the old API in the same refactor wave instead of preserving compatibility layers.
+-
+-**Rule:**
+-- Do not keep legacy API paths only because internal callers still exist
+-- Inventory callers, migrate them, and delete the old API immediately
+-- Treat temporary adapters as exceptional and time-boxed, not default architecture
+ - Update tests to assert the new contract, and delete tests that only protect pre-refactor implementation details
+ 
+ **When this applies:**
+@@ -15,6 +9,4 @@ When we decide a new API is the right design, migrate callers and remove the old
+ - The project can absorb coordinated breaking changes
+ - The new API is part of a simplification or refactor initiative
+ 
+-Keeping both old and new APIs creates dual-path complexity, slows cleanup, and makes the codebase feel append-only.
+-
+ <!-- card: Keep it small | 4 | When a new API is right, move its callers and delete the old one in the same wave. | `refactoring`; `feature`; `correct` -->
+diff --git a/principles/type-system-discipline.md b/principles/type-system-discipline.md
+index 4f632bf..2857f95 100644
+--- a/principles/type-system-discipline.md
++++ b/principles/type-system-discipline.md
+@@ -1,16 +1,11 @@
+ # Type System Discipline
+ 
+-Apply when designing types, reviewing a function signature, or writing code in any statically-typed language. Make illegal states unrepresentable, brand semantic primitives, parse external data at boundaries, refuse to lie to the compiler, exhaust variants, derive from authoritative schemas.
++Apply when designing types, reviewing a function signature, or writing code in any statically-typed language. Make illegal states unrepresentable, brand semantic primitives, parse external data at boundaries, exhaust variants, derive from authoritative schemas.
+ 
+ Make the compiler reject impossible states, mismatched primitives, and unhandled variants. Prefer defining errors and special cases out of existence over proliferating handlers.
+ 
+-- **Make illegal states unrepresentable.** Model variants as sum types (discriminated unions, enums with payloads, sealed classes), not as a bag of optional fields where contradictory combinations compile. `{ completed: boolean; completedAt?: Date }` admits `completed: true` with no date. Derive the boolean from `completedAt`, or model `{ kind: 'open' } | { kind: 'done'; at: Date }`. If you can write a comment explaining when a combination of fields is valid, split it into a sum type.
+-- **Types are constructions, not restrictions.** Build the type up from the values you want instead of carving them out of a looser type with checks. A non-empty list is a head plus a rest. A valid time range is a start plus a duration. Choose the shape that cannot build the illegal value and expose the interface callers need on top.
+ - **Brand semantic primitives.** `UserId` and `OrderId` are strings underneath but should not be interchangeable. Give each its own type, such as a branded intersection in TypeScript or a newtype elsewhere. Validate once at creation, trust the type downstream. If two arguments share a primitive type but mean different things, brand them.
+ - **External data is untyped until parsed.** RPC payloads, JSON, IPC messages, CLI args, config files, environment variables, database rows. Have a parse function at every boundary that turns unstructured input into the typed model. [Boundary Discipline](boundary-discipline.md) says where to put validation.
+-- **Don't lie to the type system.** Casts, unsafe coercions, and assertion functions that bypass the compiler are latent runtime crashes. If the compiler can't prove a fact, prove it (validate, narrow, refine the model) or accept that the cast is a hazard. Trace each `any`, `as`, or `assertNotNull` to the boundary and validate there.
+-- **Exhaustive matching is the compiler's job.** A match on a sum type must fail compilation when a new variant is added without handling, so the compiler tells the next agent where to add a case. Use your language's idiom: a `never`-typed binding in TypeScript, an unannotated `match` in Rust, `-Wincomplete-patterns` in Haskell, sealed-class match exhaustiveness in Kotlin.
+ - **Derive types from authoritative schemas.** When a protocol buffer, OpenAPI spec, GraphQL schema, database migration, design-token file, or another file owns a shape, derive from it instead of hand-rolling a parallel type. See [Encode Lessons in Structure](encode-lessons-in-structure.md).
+-- **Strengthen a type only where partiality appears.** A runtime assertion, null check, or "this should never happen" throw marks the place a type is too weak. Push that check up into the type. Then stop. The type system's job is to track the cases each use site must handle, not to describe the data as precisely as possible. Prefer total functions. `sum` of an empty list is 0, so it takes the plain list. `head` of an empty list has no answer, so it demands the non-empty one. If nothing would otherwise panic, keep the plain type.
+ 
+ <!-- card: Before the code: get the shape right | 3 | Make the compiler reject impossible states, mismatched primitives and unhandled variants. | `typescript-best-practices`; `correct` -->
+diff --git a/skills/interrogate/references/lead-judgment.md b/skills/interrogate/references/lead-judgment.md
+index e185380..2c657d8 100644
+--- a/skills/interrogate/references/lead-judgment.md
++++ b/skills/interrogate/references/lead-judgment.md
+@@ -1,18 +1,5 @@
+ # Lead Judgment Framework
+ 
+-You are the lead reviewer. The reviewers have produced their findings. Apply pragmatic engineering judgment. Don't aggregate. Filter, contextualize, and decide.
+-
+-## Why This Step Matters
+-
+-Adversarial reviewers are useful because they're aggressive. But aggression without context produces noise. The reviewers only saw a slice of the codebase and a one-paragraph intent statement. They don't know:
+-
+-- What was already tried and rejected
+-- What constraints exist outside the code (timeline, dependencies, migration plans)
+-- Which parts of the code are temporary scaffolding vs. permanent architecture
+-- What another task's brief, already written, will address
+-
+-You have the full conversation context. Use it.
+-
+ ## Filtering Principles
+ 
+ ### Nitpick Gravity
+@@ -50,9 +37,3 @@ Don't dismiss findings just because they're uncomfortable. The whole point of ad
+ - You read the finding and think "...yeah, actually"
+ 
+ Be especially careful about dismissing security findings and correctness bugs. These deserve more scrutiny even when they come from a single reviewer.
+-
+-## Verdict Calibration
+-
+-A good verdict is useful, not comprehensive. The user should be able to read the "Act On" section, fix those issues, and ship with confidence. If your "Act On" list has more than 5 items, you're probably not filtering hard enough.
+-
+-The "Dismissed" section is not busywork. It's a trust mechanism. Showing the user what you rejected and why lets them override your judgment where they disagree. This is more valuable than hiding the rejected findings.

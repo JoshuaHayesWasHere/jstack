@@ -63,4 +63,18 @@ It resolves the two revisions, writes the next run, `run-<n>/`, in one rename on
 
 ## Result
 
-See each run's `results.md`. Run 1 is main (`c228ac6`) against main with #634's cuts applied to jstack's copies (`run-1/variant.patch`): `skills/interrogate/references/lead-judgment.md`, `principles/type-system-discipline.md` and `principles/migrate-callers-then-delete-legacy-apis.md`. `playbooks/swarm.md` is jstack's own rewrite and is not cut, as the pin brief says.
+See each run's `results.md`. Run 1 (2026-10-16) is main (`c228ac6`) against main with #634's cuts applied to jstack's copies (`4003f32`, a local commit kept as `refs/jstack/skill-cut-eval/variant-634`, its diff in `run-1/variant.patch`): `skills/interrogate/references/lead-judgment.md`, `principles/type-system-discipline.md` and `principles/migrate-callers-then-delete-legacy-apis.md`. `playbooks/swarm.md` is jstack's own rewrite and is not cut, as the pin brief says. 396 answers, 9 settled by the judge.
+
+**By the rule, the cut does not regress, in either family.**
+
+| Family | Base | Base again | Variant | Noise floor | Variant higher / tied / lower, p |
+|---|---|---|---|---|---|
+| `lead` (17 reviews, 223 findings) | 0.729 | 0.710 | 0.739 | 0.019 | 8 / 4 / 5, 0.581 |
+| `steps` (27 scenarios) | 0.963 | 0.963 | 0.963 | 0.000 | 0 / 27 / 0, 1.000 |
+
+What limits these numbers:
+
+- **`lead` agrees with the shipped review on about three findings in four, in every arm.** It is bounded by what the model is not given: the shipped lead had the code and the conversation, and this one has the intent and the findings. The gap between arms (variant 0.010 above base) is half the gap between the two base arms (0.019), and single cases move up to 0.62 between trials of one arm (`ci-self-hosted`), so the run cannot tell the cut from no cut on this family. It would show a drop of more than about 0.02 on the mean, or a loss on most cases.
+- **`steps` is at its ceiling.** 26 of 27 scenarios scored 1 in every trial of every arm, the variant's cut principles included: with the "illegal states", "exhaustive matching" and "Rule" bullets gone, the answers still wrote a sum type, a `never` check and deleted the old API (read in `run-1/runs/`, not inferred from the score). So this family shows a regression only as a fall from 1, and says nothing finer.
+- **One case is a dud.** `scout-no-launch` scored 0 in all nine trials. Every answer went straight to "End" and started no crewmate, which is what the skill asks, but did not say in words that the home starts it, and the judge held the answer to the `expect` text. It is the same in each arm, so it moves no comparison. It is kept as it was fixed before the run.
+- In run 1 the `steps` files of the six own skills are the same at both revisions: those scenarios are the baseline that skill-cut-own's run compares against.
