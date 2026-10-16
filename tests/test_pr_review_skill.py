@@ -1550,3 +1550,33 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
     said = made.run("--check")
     assert (said == [f"ready 7 {made.head} alpha alpha"]) == ready_to_merge
     assert said[0].startswith("ready" if ready_to_merge else "wait")
+
+
+SKILLS = "Skills: in-your-own-words, principle-model-the-domain, prove-it-works\n"
+SKILLS_RUN = (
+    "Skills run:\n"
+    "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
+    "- model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
+    "- principle-prove-it-works: <the command>\n"
+)
+
+
+def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it(reviewer):
+    text = BRIEF.replace("Pull request:", f"Design: none, small\n{SKILLS}Pull request:")
+    reviewer.brief.write_text(f"{text}\n## Result\nStatus: done\n{SKILLS_RUN}")
+    told = intent(reviewer)
+    skills_line = SKILLS.removeprefix("Skills: ").strip()
+    assert f"\nSkills: {skills_line}. The crewmate loaded each in full" in told
+    assert told.count("Skills: in-your-own-words") == 1
+    assert (
+        "What the Results hold under Skills run:, as jmerge reads it:\n"
+        "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
+        "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
+        "- principle-prove-it-works: no artifact\n"
+    ) in told
+
+
+def test_the_reviewer_is_told_of_no_skill_when_the_line_names_none(reviewer):
+    text = BRIEF.replace("Pull request:", "Skills: none, docs\nPull request:")
+    reviewer.brief.write_text(text)
+    assert "loaded each in full" not in intent(reviewer)

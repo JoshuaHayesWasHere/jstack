@@ -15,7 +15,6 @@ from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, brief, gates, queued_before
-from test_pr_review_skill import BRIEF, intent, reviewer  # noqa: F401
 
 REPO = Path(__file__).parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -265,27 +264,3 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
     line = "Skills: in-your-own-words, then sharpen; before done, prove-it-works against the app\n"
     why = skills.unknown(line)
     assert "names then, before, done, against, the and 1 more, which are no skill" in why
-
-
-def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it(reviewer):  # noqa: F811
-    text = BRIEF.replace("Pull request:", f"Design: none, small\n{NAMED}Pull request:")
-    result = ARTIFACTS.replace("  42 passed\n", "").replace(
-        "uv run pytest tests/test_skills_named.py", "<the command>"
-    )
-    reviewer.brief.write_text(f"{text}\n## Result\nStatus: done\n{result}")
-    told = intent(reviewer)
-    skills_line = NAMED.removeprefix("Skills: ").strip()
-    assert f"\nSkills: {skills_line}. The crewmate loaded each in full" in told
-    assert told.count("Skills: in-your-own-words") == 1
-    assert (
-        "What the Results hold under Skills run:, as jmerge reads it:\n"
-        "- in-your-own-words: the user wants each skill a brief names to reach the crewmate\n"
-        "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
-        "- principle-prove-it-works: no artifact\n"
-    ) in told
-
-
-def test_the_reviewer_is_told_of_no_skill_when_the_line_names_none(reviewer):  # noqa: F811
-    text = BRIEF.replace("Pull request:", "Skills: none, docs\nPull request:")
-    reviewer.brief.write_text(text)
-    assert "loaded each in full" not in intent(reviewer)
