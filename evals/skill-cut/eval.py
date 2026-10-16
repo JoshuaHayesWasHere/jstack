@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import hashlib
+import importlib.util
 import json
 import os
 import random
@@ -41,9 +42,22 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-sys.path[:0] = [str(HERE), str(REPO / "src")]
+sys.path[:0] = [str(REPO / "src")]
 
-from score import buckets, score_lead, score_steps  # noqa: E402
+
+def _scorer():
+    """`score.py` beside this file, loaded under a name of its own: `evals/deeper/` has a
+    `score` module too, and one process may load both evals."""
+    name = "skill_cut_score"
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, HERE / "score.py")
+        sys.modules[name] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sys.modules[name])
+    return sys.modules[name]
+
+
+buckets, score_lead, score_steps = _scorer().buckets, _scorer().score_lead, _scorer().score_steps
+
 
 import jleak  # noqa: E402
 
