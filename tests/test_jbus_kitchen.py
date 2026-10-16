@@ -64,8 +64,8 @@ class Server:
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        serve = lambda: self.server.serve_forever(poll_interval=0.01)  # noqa: E731
-        threading.Thread(target=serve, daemon=True).start()
+        serve, every = self.server.serve_forever, {"poll_interval": 0.01}
+        threading.Thread(target=serve, kwargs=every, daemon=True).start()
 
     def close(self):
         self.server.shutdown()

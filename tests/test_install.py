@@ -15,13 +15,12 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO / "src"))
+import jleak
+from jinstall.__main__ import install as run_install
+from jinstall.kinds import Units, rewrite
+from jinstall.machine import Machine, Moved, Ran
 
-import jleak  # noqa: E402
-from jinstall.__main__ import install as run_install  # noqa: E402
-from jinstall.kinds import Units, rewrite  # noqa: E402
-from jinstall.machine import Machine, Moved, Ran  # noqa: E402
+REPO = Path(__file__).parent.parent
 
 INSTALL = REPO / "install.sh"
 SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"

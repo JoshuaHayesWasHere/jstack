@@ -91,11 +91,15 @@ ANSWERS = [
         "note": "fine",
     },
 ]
-TEXT = """\
-Answers to round 2 of cutover:
-- links: first (Yes: links first), left as recommended
-- state: copy (Copy it, keep the old one), changed from the recommended. Note: keep it a week then delete
-- gate-3: uninstall (Yes: uninstall), left as recommended. Note: fine"""  # noqa: E501
+TEXT = "\n".join(
+    [
+        "Answers to round 2 of cutover:",
+        "- links: first (Yes: links first), left as recommended",
+        "- state: copy (Copy it, keep the old one), changed from the recommended."
+        " Note: keep it a week then delete",
+        "- gate-3: uninstall (Yes: uninstall), left as recommended. Note: fine",
+    ]
+)
 CONTEXT = {"slug": "cutover", "round": 2, "answers": ANSWERS}
 
 
