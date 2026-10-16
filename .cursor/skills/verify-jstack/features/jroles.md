@@ -3,7 +3,7 @@
 `jroles <role>` prints the model selection a launch of that role takes, from the role map in the user's config. The skills put what it prints into their launch calls.
 
 Paths: `src/jroles/`, `docs/jroles.md`
-Tests: `tests/test_handoff_next.py`, `tests/test_party_handoff.py`, `tests/test_roles.py`, `tests/test_titles.py`
+Tests: `tests/test_doctor.py`, `tests/test_handoff_next.py`, `tests/test_install.py`, `tests/test_party_handoff.py`, `tests/test_roles.py`, `tests/test_setup.py`, `tests/test_titles.py`
 
 ## Sub-features
 

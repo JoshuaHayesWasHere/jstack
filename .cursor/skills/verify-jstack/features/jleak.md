@@ -3,7 +3,7 @@
 `jleak` says whether a text names something the user's outbound patterns hold back, and its two hooks run it: git's `pre-push` on what is pushed, and the hook on an agent's commands on what a command would send out.
 
 Paths: `src/jleak/`, `hooks/pre-push.sh`, `hooks/outbound-command.sh`, `docs/jleak.md`
-Tests: `tests/test_doctor.py`, `tests/test_install.py`, `tests/test_jleak.py`, `tests/test_jleak_hooks.py`, `tests/test_pull_request_words.py`
+Tests: `tests/test_doctor.py`, `tests/test_install.py`, `tests/test_jleak.py`, `tests/test_jleak_hooks.py`, `tests/test_pull_request_words.py`, `tests/test_setup.py`
 
 ## Sub-features
 
