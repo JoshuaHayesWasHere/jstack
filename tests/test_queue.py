@@ -166,7 +166,7 @@ class Ticks:
                 "HOME": str(self.home.user),
                 "PATH": f"{self.home.stub}:{os.environ['PATH']}",
                 "STUB": str(self.home.stub),
-                "UV_CACHE_DIR": test_home_merge.UV_CACHE,
+                "UV_CACHE_DIR": test_home_merge.uv_cache(),
                 "UV_OFFLINE": "1",
             },
         )

@@ -100,7 +100,6 @@ NAMED = os.environ.get("JSTACK_TEST_BROWSER", "")
 CHROMIUM = (
     shutil.which(NAMED) if NAMED else shutil.which("chromium") or shutil.which("chromium-browser")
 )
-LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
 EVERY = 250
@@ -367,19 +366,36 @@ class Proxy:
         self.server.server_close()
 
 
+def browser_lock():
+    """The browser lock of the home the run has: read when it is taken, so a test can give
+    itself a home of its own."""
+    return Path(os.environ["HOME"]) / ".local" / "state" / "locks" / "browser.lock"
+
+
+@pytest.fixture
+def own_home(tmp_path, monkeypatch):
+    """A home of the test's own, with a locks directory, so its lock is nobody else's and it
+    waits on no lock of the machine's."""
+    locks = tmp_path / "home" / ".local" / "state" / "locks"
+    locks.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    return locks
+
+
 @contextmanager
 def heavy():
     """The machine's browser lock, held while a browser runs.
 
-    It is the file `LOCK`, which only these tests take, so one of their browsers is up at
+    It is the file `browser_lock()`, which only these tests take, so one of their browsers is up at
     a time. The run's caller may hold the heavy-suite lock: that is another file, and
     nothing here waits on it. It waits `PATIENCE` seconds for the lock and then fails the
     test with one line: a check that waits without end reads as one that hangs.
     """
-    if not LOCK.parent.is_dir():
+    held = browser_lock()
+    if not held.parent.is_dir():
         yield
         return
-    with open(LOCK, "a") as lock:
+    with open(held, "a") as lock:
         until = time.monotonic() + PATIENCE
         while True:
             try:
@@ -388,7 +404,7 @@ def heavy():
             except BlockingIOError:
                 if time.monotonic() > until:
                     pytest.fail(
-                        f"{LOCK} was held for {PATIENCE} s: other runs of these tests had "
+                        f"{held} was held for {PATIENCE} s: other runs of these tests had "
                         "a browser up all that time. Run it again."
                     )
                 time.sleep(0.2)
@@ -513,8 +529,12 @@ def unreached(seen, names):
 
 
 @pytest.fixture(autouse=True)
-def one_browser_at_a_time():
-    """The browser lock, held for the whole test: one wait for it, whatever it browses."""
+def one_browser_at_a_time(request):
+    """The browser lock, held for the whole test: one wait for it, whatever it browses. A test
+    with a home of its own starts no real browser and takes its own lock."""
+    if "own_home" in request.fixturenames:
+        yield
+        return
     with heavy():
         yield
 
@@ -547,18 +567,17 @@ def test_a_long_temporary_directory_does_not_fail_the_browser(scene, tmp_path, m
     assert look(scene, tmp_path)["errors"] == []
 
 
-def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(tmp_path, monkeypatch):
+def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(own_home, monkeypatch):
     """The user's rule runs a suite of several workers under `flock` on the heavy-suite lock.
     The two locks are files of their own names in one directory, here a made-up one."""
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
     monkeypatch.setattr("test_jbus_view_page.PATIENCE", 1)
-    with open(tmp_path / "heavy-suite.lock", "a") as outer:
+    with open(own_home / "heavy-suite.lock", "a") as outer:
         fcntl.flock(outer, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with heavy():
             pass
 
 
-def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
+def test_two_runs_at_once_never_have_a_browser_each(own_home, monkeypatch):
     """Each thread opens the lock's file anew, as each run of this file does."""
     inside, most, start = [], [], threading.Barrier(2)
 
@@ -585,7 +604,6 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
         with heavy():
             browse()
 
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
     monkeypatch.setattr(subprocess, "Popen", Browser)
     monkeypatch.setattr(os, "killpg", lambda group, sent: None)
     runs = [threading.Thread(target=run) for _ in range(2)]
@@ -597,7 +615,7 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
 
 
 def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
-    tmp_path, monkeypatch
+    own_home, tmp_path, monkeypatch
 ):
     """A browser that hangs, and a process it started that would outlive it, are both gone
     once the launch's bound is up: a hang costs the test that bound and no more, and leaves
@@ -612,7 +630,7 @@ def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
     assert not Path(f"/proc/{child.read_text().strip()}").exists()
 
 
-def test_a_browser_that_ignores_term_is_killed_and_named_too(tmp_path, monkeypatch):
+def test_a_browser_that_ignores_term_is_killed_and_named_too(own_home, tmp_path, monkeypatch):
     """`timeout` then kills its whole group, itself with it, and the run ends on a signal."""
     child = hanging(tmp_path, monkeypatch, "trap '' TERM\n")
     monkeypatch.setattr("test_jbus_view_page.LAUNCH", 2)
@@ -624,7 +642,9 @@ def test_a_browser_that_ignores_term_is_killed_and_named_too(tmp_path, monkeypat
     assert not Path(f"/proc/{child.read_text().strip()}").exists()
 
 
-def test_a_browser_stopped_from_outside_leaves_no_process_it_started(tmp_path, monkeypatch):
+def test_a_browser_stopped_from_outside_leaves_no_process_it_started(
+    own_home, tmp_path, monkeypatch
+):
     """pytest-timeout stops a test with a signal: the browser and what it started go too."""
     child = hanging(tmp_path, monkeypatch)
 
@@ -653,7 +673,6 @@ def hanging(tmp_path, monkeypatch, first=""):
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")
     hangs.chmod(0o755)
     monkeypatch.setattr("test_jbus_view_page.CHROMIUM", str(hangs))
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
     return child
 
 

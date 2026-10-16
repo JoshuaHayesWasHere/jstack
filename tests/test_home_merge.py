@@ -2,6 +2,7 @@
 the home skill tells a home to run. The line is lifted from the skill and run, against a fake
 `gh` and a temporary repo."""
 
+import functools
 import json
 import os
 import re
@@ -17,13 +18,17 @@ import pytest
 SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "a demo repo"
-UV_CACHE = subprocess.run(
-    ["uv", "cache", "dir"], check=True, capture_output=True, text=True
-).stdout.strip()
 URL = "https://example.test/pull/7"
 REVIEWED = "a" * 40
 PUSHED = "b" * 40
 TITLE = "feat: the task, done"
+
+
+@functools.cache
+def uv_cache():
+    """The uv cache of the user the tests run as, asked of `uv` once, when a test needs it."""
+    ran = subprocess.run(["uv", "cache", "dir"], check=True, capture_output=True, text=True)
+    return ran.stdout.strip()
 
 
 def run(conclusion, name="check", status="COMPLETED"):
@@ -236,7 +241,7 @@ class Home:
                 "STUB": str(self.stub),
                 "ORIGIN": str(self.origin),
                 "LOG": str(self.state / "merge.log"),
-                "UV_CACHE_DIR": UV_CACHE,
+                "UV_CACHE_DIR": uv_cache(),
                 "UV_OFFLINE": "1",
             },
         )
