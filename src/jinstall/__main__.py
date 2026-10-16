@@ -1,11 +1,12 @@
 """The verbs, as loops over needs().
 
-    python -m jinstall <checkout> [--check | --uninstall | --doctor]
+    python -m jinstall <checkout> [--check | --uninstall | --doctor | --setup]
 
 Install and --check are one function with one branch, whether `put` is called between two
 probes, so they cannot print different lines for one machine and a second install is a check. The
 doctor probes the same kinds and prints through the same `say`, so it gives --check's answer
-about every part both print.
+about every part both print. --setup walks the same list once, in order: it seeds each config
+that is not there, puts each due Carried need, and says what is left for the user.
 """
 
 import sys
@@ -14,11 +15,11 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from jinstall.kinds import Carried, Found, State
+from jinstall.kinds import Asks, Carried, Found, Seeded, State
 from jinstall.machine import Machine, Moved, Refused
 from jinstall.needs import Level, Need, needs
 
-USAGE = "usage: install.sh [--check | --uninstall | --doctor]"
+USAGE = "usage: install.sh [--check | --uninstall | --doctor | --setup]"
 
 
 class Verb(Enum):
@@ -26,6 +27,7 @@ class Verb(Enum):
     CHECK = "--check"
     UNINSTALL = "--uninstall"
     DOCTOR = "--doctor"
+    SETUP = "--setup"
 
 
 @dataclass(frozen=True)
@@ -44,15 +46,23 @@ def say(need: Need, found: Found) -> str:
     return f"{line} -> {found.detail}" if found.detail else line
 
 
+def refused(machine: Machine, verb: str) -> Report | None:
+    """A linked worktree under the account's own HOME: its links would move every live skill
+    to it, so nothing is written from one."""
+    if not machine.in_a_worktree_of_the_account():
+        return None
+    why = f"install.sh: {machine.checkout} is a linked worktree, and HOME is your own: "
+    return Report((), f"{why}{verb} from the main checkout", 1)
+
+
 def install(machine: Machine, write: bool) -> Report:
     """Each due Carried need: probe; when `write` and the answer is missing or a replaceable
     old, put and probe again; the line is the last probe's. Exit 1 when a line is not ok.
     A put that fails is caught: its reason goes to `note`, the loop goes on, and the second
     probe says what is true. With `write`, a linked worktree under the account's own HOME is
     refused before anything is probed: its links would move every live skill to it."""
-    if write and machine.in_a_worktree_of_the_account():
-        why = f"install.sh: {machine.checkout} is a linked worktree, and HOME is your own: "
-        return Report((), why + "install from the main checkout", 1)
+    if write and (refusal := refused(machine, "install")):
+        return refusal
     lines, notes, code = [], [], 0
     for need in needs(machine):
         kind = need.kind
@@ -71,12 +81,51 @@ def install(machine: Machine, write: bool) -> Report:
     return Report(tuple(lines), "\n".join(notes), code)
 
 
+def setup(machine: Machine) -> Report:
+    """Every need once, in order, one line each: `done <name>` for what this run wrote,
+    `already <name>` for what was there, `needs you <name> -> <command>` for what is the user's.
+    A Seeded need that is missing is written; a due Carried need that is not ok is put, as the
+    install puts it. The jbus config comes before the units in the list, so a run that seeds it
+    links the units too. A second run writes nothing. Exit 1 while a hard need is the user's."""
+    if refusal := refused(machine, "set up"):
+        return refusal
+    lines, notes, code = [], [], 0
+    for need in needs(machine):
+        kind = need.kind
+        if isinstance(kind, Carried) and not kind.due(machine):
+            continue
+        found = kind.probe(machine)
+        if found.state is State.OK:
+            lines.append(f"already {need.name}")
+            continue
+        mend = None
+        if isinstance(kind, Seeded) and found.state is State.MISSING:
+            mend = lambda kind=kind: machine.seed(kind.path, kind.text(machine), kind.mode)  # noqa: E731
+        elif isinstance(kind, Carried) and found.replaceable:
+            mend = lambda kind=kind: kind.put(machine)  # noqa: E731
+        if mend is not None:
+            try:
+                mend()
+            except (OSError, Moved, Refused) as error:
+                notes.append(f"install.sh: {need.name}: {error}")
+            found = kind.probe(machine)
+            if found.state is State.OK:
+                lines.append(f"done {need.name}")
+                continue
+        ask = kind.ask(machine) if isinstance(kind, Asks) else found.detail
+        code |= need.level is Level.HARD
+        lines.append(f"needs you {need.name} -> {ask or found.state.value}")
+    return Report(tuple(lines), "\n".join(notes), code)
+
+
 def uninstall(machine: Machine) -> Report:
-    """Every Carried need, due or not, backwards: drop. Then `machine.sweep()`. Lines are
+    """Every Carried and Seeded need, due or not, backwards: drop. Then `machine.sweep()`. Lines are
     `removed <piece>` and `kept <piece> -> <why>`, and nothing for what is absent. Exit 1
     only when a piece of this checkout's could not be removed. A second run prints nothing."""
     lines, notes, code = [], [], 0
-    kinds = [need.kind for need in reversed(needs(machine)) if isinstance(need.kind, Carried)]
+    kinds = [
+        need.kind for need in reversed(needs(machine)) if isinstance(need.kind, (Carried, Seeded))
+    ]
     for step in [*(lambda kind=kind: kind.drop(machine) for kind in kinds), machine.sweep]:
         try:
             dropped = step()
@@ -119,6 +168,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = install(machine, write=False)
     elif verb is Verb.DOCTOR:
         report = doctor(machine)
+    elif verb is Verb.SETUP:
+        with machine.alone():
+            report = setup(machine)
     else:
         with machine.alone():
             report = uninstall(machine) if verb is Verb.UNINSTALL else install(machine, write=True)

@@ -1,7 +1,8 @@
 """The one list of what a machine needs to run jstack. Written once, here.
 
-Adding a need is one entry in `needs()`: the doctor then prints it, and when its kind is
-Carried the install also puts, checks and removes it, with no other edit.
+Adding a need is one entry in `needs()`: the doctor then prints it, `--setup` says whether it
+is done, already there, or the user's to do, and when its kind is Carried the install also
+puts, checks and removes it, with no other edit.
 """
 
 import tomllib
@@ -26,6 +27,7 @@ from jinstall.kinds import (
     Linux,
     Patterns,
     Program,
+    Roles,
     StatusLine,
     T3Nightly,
     Units,
@@ -63,16 +65,17 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     Only probed:
       hard      linux                         Linux
       hard      t3                            T3Nightly(T3_FLOOR)
-      hard      claude                        Program("claude")
+      hard      claude                        Program("claude", package="claude-code")
       hard      uv                            Program("uv", floor=UV_FLOOR)
       hard      git                           Program("git", floor=(2, 31))
       hard      jq                            Program("jq", floor=(1, 6))
-      hard      gh                            Program("gh")
+      hard      gh                            Program("gh", package="github-cli")
       hard      gh sign-in                    GhSignIn
-      optional  jbus config <path>            JbusConfig
+      optional  jbus config <path>            JbusConfig, seeded
       optional  jbus sign-in <path>           JbusSignIn
       optional  limits <path>                 Limits
-      optional  config <path>                 JstackConfig
+      optional  config <path>                 JstackConfig, seeded
+      optional  roles <path>                  Roles, seeded
       optional  lavish-axi                    Program("lavish-axi", hint="npm install -g ...")
 
     Carried, in the order they are put. Uninstall walks them backwards:
@@ -96,14 +99,15 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     roots = (home / ".claude" / "skills", home / ".agents" / "skills")
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
+    roles = config.with_name("roles")
     found = [
         Need("linux", Level.HARD, Linux()),
         Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
-        Need("claude", Level.HARD, Program("claude")),
+        Need("claude", Level.HARD, Program("claude", package="claude-code")),
         Need("uv", Level.HARD, Program("uv", floor=UV_FLOOR)),
         Need("git", Level.HARD, Program("git", floor=(2, 31))),
         Need("jq", Level.HARD, Program("jq", floor=(1, 6))),
-        Need("gh", Level.HARD, Program("gh")),
+        Need("gh", Level.HARD, Program("gh", package="github-cli")),
         Need("gh sign-in", Level.HARD, GhSignIn()),
         Need(f"jbus config {jbus}", Level.OPTIONAL, JbusConfig(jbus)),
         Need(
@@ -113,6 +117,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         ),
         Need(f"limits {limits}", Level.OPTIONAL, Limits(limits)),
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
+        Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
     ]
     found += [
