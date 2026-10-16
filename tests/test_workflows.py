@@ -6,9 +6,9 @@ their indentation, a scalar, and a list in brackets.
 
 Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
 `jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
-The check names Google Chrome as its test browser on every runner. Every workflow is given read access to the contents and no more, and
-none runs on `pull_request_target`. The check may also read the repo's artifacts, which is
-where a green run's marker is.
+The check names Google Chrome as its test browser on every runner. Every workflow is given
+read access to the contents and no more, and none runs on `pull_request_target`. The check
+may also read the repo's artifacts, which is where a green run's marker is.
 
 A run of the check whose tree a green run already tested skips the suite, by its steps and
 never by its job or its triggers, so the check is always reported. The script that asks is
