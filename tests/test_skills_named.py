@@ -188,10 +188,13 @@ def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_tak
     """A name in a Grok Bot brief reads the same in T3: each of pstack's resolves to a file
     here, by its own name or an alias, unless jstack did not take that skill. `poteto-mode`
     and `figure-it-out` are pstack's own way of running, which jstack's home and playbooks
-    stand in for, and the rest are on the `Not taken:` line."""
+    stand in for, and the rest are on the `Not taken:` line, but for one jstack wrote a skill
+    of its own for under the same name, `poteto-help`."""
     _, names = pinned()
     refused = {name for name in names if skills.resolve(name).path is None}
-    assert refused == {"poteto-mode", "figure-it-out"} | not_taken()
+    own = {name for name in names if (REPO / "skills" / name / "SKILL.md").is_file()}
+    assert "poteto-help" in own and "poteto-mode" not in own
+    assert refused == ({"poteto-mode", "figure-it-out"} | not_taken()) - own
     for name in names:
         one = skills.resolve(name)
         if name.startswith("principle-"):
