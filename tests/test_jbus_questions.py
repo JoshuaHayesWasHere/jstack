@@ -252,7 +252,9 @@ def test_an_answer_that_differs_goes_once_to_the_askers_thread_and_starts_no_pos
         "jbus: user answered question 1 (tea or coffee?), and the answer is not the default "
         f'you took (the first one). The words, {AT}: "coffee". Undo: pick the other. Built on '
         "the default: nothing. Take the default back, do what the answer says, and add one "
-        "line to the last Result or Report saying what you changed. Then end your turn."
+        "line to the last Result or Report saying what you changed. "
+        "End your turn only once no check you started runs in your "
+        "worktree: wait for one that runs, in this turn."
     )
     sends = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
     assert len(sends) == 1
@@ -715,7 +717,9 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
         "needs to know to answer, with the links to it>`. And each option you weighed is one "
         'line, the default you took among them: "Option: <short name> (default, recommended): '
         '<what follows from it>", with both marks on the one that was taken, which is the one '
-        "you recommend, and no mark on the rest. Then end your turn."
+        "you recommend, and no mark on the rest. "
+        "End your turn only once no check you started runs in your "
+        "worktree: wait for one that runs, in this turn."
     )
     assert held == (
         "## Gate <n>: tea or coffee?\nStatus: open\nAsked by: alpha, thread mcp:crew-alpha\n"
