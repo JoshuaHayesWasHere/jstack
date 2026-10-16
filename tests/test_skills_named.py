@@ -13,7 +13,7 @@ import pytest
 import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW
 from test_jbus_queue import add, brief, gates, queued_before
 from test_pr_review_skill import BRIEF, intent, reviewer  # noqa: F401
 
@@ -28,13 +28,6 @@ ARTIFACTS = (
     "- principle-prove-it-works: uv run pytest tests/test_skills_named.py\n"
     "  42 passed\n"
 )
-
-
-@pytest.fixture
-def kitchen(tmp_path, monkeypatch):
-    made = Kitchen(tmp_path, monkeypatch)
-    yield made
-    made.close()
 
 
 @pytest.fixture
@@ -85,9 +78,18 @@ def test_a_later_result_can_write_the_artifact_an_earlier_one_left_out(home):
     assert home.ready() == [f"ready 7 {merge.REVIEWED} alpha alpha"]
 
 
-def test_a_brief_that_names_no_skill_owes_no_artifact():
-    for line in ("", "Skills: none\n"):
-        assert skills.missing(merge.brief(merge.review("clean"), "", line)) == ()
+@pytest.mark.parametrize(
+    "line", ["", "Skills: none\n", "Skills: none.\n", "Skills: None.\n", "Skills: none, docs\n"]
+)
+def test_a_brief_that_names_no_skill_owes_no_artifact_and_has_no_fault(line):
+    assert skills.missing(merge.brief(merge.review("clean"), "", line)) == ()
+    assert skills.unknown(line) == ""
+    assert parse.faults(brief("alpha", line)) == []
+
+
+def test_an_artifact_that_says_it_skipped_part_of_the_work_is_still_one():
+    assert not skills.hollow("Skipped the arena; sketched A and B, picked A")
+    assert skills.hollow("skip: no time") and skills.hollow("Skipped")
 
 
 UNKNOWN = "Skills: architect, poteto-mode, principle-made-up\n"

@@ -42,6 +42,7 @@ _SPLIT = re.compile(r"[,\s]+")
 _ITEM = re.compile(r"^[-*] +`?(?P<name>[^`:\s]+)`?:[ \t]*(?P<artifact>.*)$")
 _LABEL = re.compile(r"^(?P<label>[A-Z][A-Za-z]*(?: [A-Za-z]+)*):")
 SHOWN = 5
+_SKIP = re.compile(r"skip(?:ped)?\s*(?::|$)", re.I)
 _PLACEHOLDER = re.compile(r"<[^<>]*>[\s.]*")
 _HOLLOW = frozenset(("none", "n/a", "na", "tbd", "todo", "tba", "-", "--", "...", "…"))
 
@@ -94,6 +95,13 @@ def resolve(said: str) -> Named:
     return Named(said, None)
 
 
+def _none(line: str) -> bool:
+    """Whether a `Skills:` line names nothing: its first word is `none`, as in `none.` or
+    `none, <why>`, the form a `Design:` line takes."""
+    first = line.split(maxsplit=1)[0] if line.strip() else ""
+    return first.rstrip(".,;:").lower() == "none"
+
+
 def _head(text: str) -> str | None:
     """What the first `Skills:` line of a brief's head says, or None for a head with none."""
     for line in text.splitlines():
@@ -108,7 +116,7 @@ def named(text: str) -> tuple[Named, ...]:
     """Each name on the brief's `Skills:` line, resolved, once each and in order. A brief
     with no line, or one that says `none`, names none."""
     line = _head(text)
-    if not line or line.lower() == "none":
+    if not line or _none(line):
         return ()
     found: dict[str, Named] = {}
     for word in _SPLIT.split(line.rstrip(".;")):
@@ -126,7 +134,7 @@ def unknown(text: str) -> str:
     """Why a brief's `Skills:` line names something that is no skill or principle, in one
     line that names it, or nothing. A brief with no line names none, and passes."""
     line = _head(text)
-    if line is None or line.lower() == "none":
+    if line is None or _none(line):
         return ""
     if not line:
         fault = "is empty"
@@ -212,7 +220,7 @@ def hollow(artifact: str) -> bool:
         not said
         or bool(_PLACEHOLDER.fullmatch(said))
         or said.lower().rstrip(".") in _HOLLOW
-        or said.lower().startswith("skip")
+        or bool(_SKIP.match(said))
     )
 
 
