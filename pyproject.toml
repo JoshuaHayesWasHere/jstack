@@ -1,7 +1,7 @@
 [project]
 name = "jstack"
 version = "0.1.0"
-description = "jstack's seven commands. jgauge: what a thread cost in tokens. jbriefs: one page of every home. jmerge: merge what is ready. jbus: a home's routine work, on a timer and with no model. jdrift: what changed upstream in pstack since the pin. jroles: the model each role's thread is launched on. jleak: what must not leave the machine for a public repo, found before a push or a pull request."
+description = "jstack's eight commands. jgauge: what a thread cost in tokens. jbriefs: one page of every home. jmerge: merge what is ready. jbus: a home's routine work, on a timer and with no model. jdrift: what changed upstream in pstack since the pin. jroles: the model each role's thread is launched on. jleak: what must not leave the machine for a public repo, found before a push or a pull request. jpack: a context pack's notes linted, their citations verified, and the stale ones listed."
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,6 +17,7 @@ jbus = "jbus.cli:main"
 jdrift = "jdrift.cli:main"
 jroles = "jroles.cli:main"
 jleak = "jleak.cli:main"
+jpack = "jpack.cli:main"
 
 [dependency-groups]
 dev = [
@@ -32,7 +33,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/jgauge", "src/jbriefs", "src/jmerge", "src/jbus", "src/jdrift", "src/jroles", "src/jleak", "src/jsettings"]
+packages = ["src/jgauge", "src/jbriefs", "src/jmerge", "src/jbus", "src/jdrift", "src/jroles", "src/jleak", "src/jpack", "src/jsettings"]
 
 # The repo's test command is `uv run pytest`, which runs the tests one after another.
 # `make check` runs it with `-n`, on the workers the Makefile counts.

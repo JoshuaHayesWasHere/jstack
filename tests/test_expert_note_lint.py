@@ -1,4 +1,4 @@
-"""The note lint: `skills/expert/scripts/lint-notes.sh` is run here on a made-up expert's
+"""The note lint: `src/jpack/lint-notes.sh` is run here on a made-up expert's
 folder in a temporary directory, by itself and by the block the `expert-study` playbook gives.
 """
 
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).parent.parent
-LINT = REPO / "skills" / "expert" / "scripts" / "lint-notes.sh"
+LINT = REPO / "src" / "jpack" / "lint-notes.sh"
 PLAYBOOK = REPO / "playbooks" / "expert-study.md"
 
 CLEAN = """\
@@ -248,7 +248,10 @@ def test_a_folder_that_is_not_an_experts_is_refused(tmp_path):
 
 def test_no_folder_named_is_refused():
     done = subprocess.run(["sh", str(LINT)], capture_output=True, text=True)
-    assert (done.returncode, done.stderr) == (2, "usage: lint-notes.sh <the expert's folder>\n")
+    assert (done.returncode, done.stderr) == (
+        2,
+        "usage: lint-notes.sh <the expert's folder, or a context pack>\n",
+    )
 
 
 def step_six():
