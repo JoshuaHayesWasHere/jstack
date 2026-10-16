@@ -10,6 +10,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from jbriefs import skills
+
 NO_RESULT = "no result yet"
 DONE = "done"
 NOT_DONE = "not done"
@@ -386,21 +388,22 @@ def proven(text: str) -> str:
 CHECKS = (
     ("Design", "no design", designed),
     ("Proves it", "no proof", proven),
+    ("Skills", "unknown skill", skills.unknown),
     ("Size", "no size", sized),
     ("Playbook", "no playbook", playbook),
 )
-LAUNCH = CHECKS[:2]
-SHAPE = CHECKS[2:]
-_SAYS_MISSING = ("Design", "Size")
+LAUNCH = CHECKS[:3]
+SHAPE = CHECKS[3:]
+_SAYS_MISSING = ("Design", "Size", "Skills")
 
 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It is each field `REQUIRED` filled in, then, for a field that is, every check a launch
-    makes of it (`CHECKS`), which `jbus.dispatch` runs from the same table. `Design` and
-    `Size` are left to their checks, which say when the line is missing. A brief with none
-    is complete.
+    makes of it (`CHECKS`), which `jbus.dispatch` runs from the same table. `Design`, `Size`
+    and `Skills` are left to their checks, which say when the line is missing or, for
+    `Skills`, that a brief with none names no skill. A brief with no fault is complete.
     """
     checks = {label: check for label, _, check in CHECKS}
     found = []

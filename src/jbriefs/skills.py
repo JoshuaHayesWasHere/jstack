@@ -1,0 +1,218 @@
+"""The skills a brief names on its `Skills:` line: each name resolved to the one file it
+loads, and each held to the artifact a Result owes for it.
+
+This is the one resolver. `jbus queue add` and the launch refuse a name it does not
+resolve (`parse.CHECKS`), the crew and scout skills load the files it names (`jbriefs
+--skills`), and `jmerge` holds a pull request whose Results leave a named skill with no
+artifact (`jmerge.ready.short_of`).
+
+A name is a skill, `skills/<name>/SKILL.md`, or a principle, `principles/<name>.md`, of the
+repo this module lives in, a skill first. Its canonical form is that bare name. pstack
+spells a principle `principle-<name>`, and that is read as the principle `<name>`. Any
+other spelling, a path, a `/` in front or a capital letter, is no name.
+
+`templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
+one item, `- <name>: <the artifact>`, its further lines indented.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+ROOT = Path(__file__).parents[2]
+SKILLS = ROOT / "skills"
+PRINCIPLES = ROOT / "principles"
+ARTIFACTS = ROOT / "templates" / "skill-artifacts.md"
+ALIAS = "principle-"
+DEFAULT = "default"
+LABEL = "Skills:"
+RUN = "Skills run:"
+_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+_SPLIT = re.compile(r"[,\s]+")
+_ITEM = re.compile(r"^[-*] +`?(?P<name>[^`:\s]+)`?:[ \t]*(?P<artifact>.*)$")
+_FIELD = re.compile(r"^(?:[A-Z][A-Za-z]*(?: [A-Za-z]+){0,3}:(?:[ \t]|$)|## )")
+_PLACEHOLDER = re.compile(r"<[^<>]*>[\s.]*")
+_HOLLOW = frozenset(("none", "n/a", "na", "tbd", "todo", "tba", "-", "--", "...", "…"))
+
+
+@dataclass(frozen=True)
+class Named:
+    """One name of a `Skills:` line: as it was written, and the file it resolves to, or
+    None where it resolves to none."""
+
+    said: str
+    path: Path | None
+
+    @property
+    def name(self) -> str:
+        """The canonical name: the skill's directory or the principle's file, without `.md`."""
+        if self.path is None:
+            return self.said
+        return self.path.parent.name if self.path.name == "SKILL.md" else self.path.stem
+
+    @property
+    def kind(self) -> str:
+        if self.path is None:
+            return "unknown"
+        return "skill" if self.path.name == "SKILL.md" else "principle"
+
+    @property
+    def relative(self) -> str:
+        return str(self.path.relative_to(ROOT)) if self.path else ""
+
+
+def resolve(said: str) -> Named:
+    """The file a name loads: `skills/<name>/SKILL.md`, else `principles/<name>.md`, and a
+    `principle-<name>` is the principle alone."""
+    if not _NAME.fullmatch(said):
+        return Named(said, None)
+    if said.startswith(ALIAS):
+        bare = said.removeprefix(ALIAS)
+        principle = PRINCIPLES / f"{bare}.md"
+        return Named(said, principle if bare and principle.is_file() else None)
+    skill = SKILLS / said / "SKILL.md"
+    if skill.is_file():
+        return Named(said, skill)
+    principle = PRINCIPLES / f"{said}.md"
+    return Named(said, principle if principle.is_file() else None)
+
+
+def _head(text: str) -> str | None:
+    """What the first `Skills:` line of a brief's head says, or None for a head with none."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith(LABEL):
+            return line.removeprefix(LABEL).strip()
+    return None
+
+
+def named(text: str) -> tuple[Named, ...]:
+    """Each name on the brief's `Skills:` line, resolved, once each and in order. A brief
+    with no line, or one that says `none`, names none."""
+    line = _head(text)
+    if not line or line.lower() == "none":
+        return ()
+    found: dict[str, Named] = {}
+    for word in _SPLIT.split(line.rstrip(".;")):
+        word = word.strip("`.;")
+        if word:
+            one = resolve(word)
+            found.setdefault(one.name, one)
+    return tuple(found.values())
+
+
+_NAMES = "(name a skill of skills/ or a principle of principles/, without its path, or none)"
+
+
+def unknown(text: str) -> str:
+    """Why a brief's `Skills:` line names something that is no skill or principle, in one
+    line that names it, or nothing. A brief with no line names none, and passes."""
+    line = _head(text)
+    if line is None or line.lower() == "none":
+        return ""
+    if not line:
+        fault = "is empty"
+    elif line.startswith("<") or "|" in line:
+        fault = "is the template's own text"
+    else:
+        bad = [one.said for one in named(text) if one.path is None]
+        if not bad:
+            return ""
+        listed = ", ".join(bad)
+        which = "which is" if len(bad) == 1 else "which are"
+        fault = f"names {listed}, {which} no skill in skills/ and no principle in principles/"
+    return f"brief's Skills: line {fault} {_NAMES}"
+
+
+def artifacts(path: Path = ARTIFACTS) -> dict[str, str]:
+    """What each name leaves in a Result, from the map file: `- <name>: <the artifact>`."""
+    found: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        item = _ITEM.match(line)
+        if item:
+            found[item["name"]] = item["artifact"].strip()
+    return found
+
+
+def owed(name: str, table: dict[str, str] | None = None) -> str:
+    """The artifact a name owes: its own line of the map, else the default line."""
+    table = artifacts() if table is None else table
+    return table.get(name) or table[DEFAULT]
+
+
+def run(text: str) -> dict[str, str]:
+    """Every artifact the `Skills run:` sections of a brief's Results hold, by canonical
+    name. A later Result's item for a name takes the place of an earlier one's."""
+    found: dict[str, str] = {}
+    inside = False
+    current = ""
+    for line in text.splitlines():
+        if line.startswith(RUN):
+            inside, current = True, ""
+            first = line.removeprefix(RUN).strip()
+            if first and _ITEM.match(f"- {first}"):
+                line = f"- {first}"
+            else:
+                continue
+        elif not inside:
+            continue
+        elif _FIELD.match(line):
+            inside = False
+            continue
+        item = _ITEM.match(line)
+        if item:
+            current = resolve(item["name"]).name
+            found[current] = item["artifact"].strip()
+        elif current and line.strip():
+            found[current] = f"{found[current]}\n{line.strip()}".strip()
+    return found
+
+
+def hollow(artifact: str) -> bool:
+    """Whether an artifact says nothing: empty, a placeholder, or a word that stands for none."""
+    said = artifact.strip()
+    return (
+        not said
+        or bool(_PLACEHOLDER.fullmatch(said))
+        or said.lower().rstrip(".") in _HOLLOW
+        or said.lower().startswith("skip")
+    )
+
+
+def missing(text: str) -> tuple[str, ...]:
+    """The names on the brief's `Skills:` line its Results leave with no artifact, an empty
+    one or a placeholder, by canonical name and in the line's order."""
+    have = run(text)
+    return tuple(one.name for one in named(text) if hollow(have.get(one.name, "")))
+
+
+def load(text: str) -> str:
+    """What the crew and scout skills print at their start: each named file in full, under
+    a line that names them, then the artifact each owes. Nothing where none is named."""
+    names = named(text)
+    if not names:
+        return ""
+    out = []
+    for one in names:
+        if one.path is None:
+            out.append(
+                f"unknown skill: {one.said} is no skills/{one.said}/SKILL.md "
+                f"and no principles/{one.said.removeprefix(ALIAS)}.md, so nothing is loaded for it"
+            )
+    known = [one for one in names if one.path is not None]
+    if known:
+        listed = " ".join(one.name for one in known)
+        out.append(f"loaded: {listed}, the names on the Skills: line, each in full below")
+        for one in known:
+            out.append(f"\n==> {one.relative} <==")
+            out.append(one.path.read_text().rstrip("\n"))
+        table = artifacts()
+        out.append(
+            "\nthe artifact each owes under Skills run: in the Result, "
+            "as templates/skill-artifacts.md says:"
+        )
+        out.extend(f"- {one.name}: {owed(one.name, table)}" for one in known)
+    return "\n".join(out)
