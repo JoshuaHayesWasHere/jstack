@@ -40,32 +40,49 @@ def table(slots, used):
     )
 
 
+def put(path, text, mode=0o644):
+    """Write the file whole: beside itself first, then renamed into place, so a reader or an
+    exec of it sees the old file or the new one, never one half written or open for writing.
+    A file that already says that is left as it is."""
+    if path.exists() and path.read_text() == text:
+        return
+    part = path.with_name(f".{path.name}.part")
+    part.write_text(text)
+    part.chmod(mode)
+    part.replace(path)
+
+
 def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY):
-    """A machine made of files, as `room` reads one, and the environment that points it there."""
+    """A machine made of files, as `room` reads one, and the environment that points it there.
+    It can be written anew while `room` reads it."""
     proc, stub, tmp = where / "proc", where / "stub", where / "stub" / "tmp"
     (proc / "pressure").mkdir(parents=True, exist_ok=True)
     tmp.mkdir(parents=True, exist_ok=True)
-    (tmp / "df").unlink(missing_ok=True)
-    if slots is not None:
-        (tmp / "df").write_text(slots if isinstance(slots, str) else table(*slots))
-    (stub / "df").write_text(
+    if slots is None:
+        (tmp / "df").unlink(missing_ok=True)
+    else:
+        put(tmp / "df", slots if isinstance(slots, str) else table(*slots))
+    put(
+        stub / "df",
         '#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = -Pi ] || exit 64\n'
-        'echo "$2" > "$(dirname "$0")/asked"\ncat "$2/df"\n'
+        'echo "$2" > "$(dirname "$0")/asked"\ncat "$2/df"\n',
+        0o755,
     )
-    (stub / "df").chmod(0o755)
-    (proc / "loadavg").write_text(f"{load} 1.10 0.90 2/2647 4039610\n")
-    (proc / "meminfo").write_text(
-        f"MemTotal:       31975012 kB\nMemFree:          812340 kB\nMemAvailable:   {memory} kB\n"
+    put(proc / "loadavg", f"{load} 1.10 0.90 2/2647 4039610\n")
+    put(
+        proc / "meminfo",
+        f"MemTotal:       31975012 kB\nMemFree:          812340 kB\nMemAvailable:   {memory} kB\n",
     )
-    (proc / "pressure" / "memory").write_text(
+    put(
+        proc / "pressure" / "memory",
         f"some avg10=0.00 avg60={pressure} avg300=0.00 total=58137000\n"
-        "full avg10=0.00 avg60=77.00 avg300=0.00 total=27343911\n"
+        "full avg10=0.00 avg60=77.00 avg300=0.00 total=27343911\n",
     )
-    (stub / "nproc").write_text(f"#!/bin/sh\necho {cores}\n")
-    (stub / "nproc").chmod(0o755)
-    (where / "limits").unlink(missing_ok=True)
-    if plan is not None:
-        (where / "limits").write_text(plan if isinstance(plan, str) else limits(plan))
+    put(stub / "nproc", f"#!/bin/sh\necho {cores}\n", 0o755)
+    if plan is None:
+        (where / "limits").unlink(missing_ok=True)
+    else:
+        put(where / "limits", plan if isinstance(plan, str) else limits(plan))
     return {
         **os.environ,
         "PROC": str(proc),

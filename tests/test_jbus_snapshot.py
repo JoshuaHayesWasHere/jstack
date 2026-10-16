@@ -220,11 +220,9 @@ def test_a_user_manager_out_of_reach_does_not_answer():
 
 
 @pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
-@pytest.mark.skipif(
-    not systemd_manager_answers(),
-    reason="host-only: needs a systemd manager, which a CI job container does not run",
-)
 def test_systemd_reads_the_units_with_no_complaint(tmp_path):
+    if not systemd_manager_answers():
+        pytest.skip("host-only: needs a systemd manager, which a CI job container does not run")
     jbus_bin = tmp_path / ".local" / "bin" / "jbus"
     jbus_bin.parent.mkdir(parents=True)
     jbus_bin.write_text("#!/bin/sh\n")

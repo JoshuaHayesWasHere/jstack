@@ -100,7 +100,6 @@ NAMED = os.environ.get("JSTACK_TEST_BROWSER", "")
 CHROMIUM = (
     shutil.which(NAMED) if NAMED else shutil.which("chromium") or shutil.which("chromium-browser")
 )
-LOCK = Path.home() / ".local" / "state" / "locks" / "browser.lock"
 PAGE = Path(view.__file__).with_name("page.html")
 WORDS = 150
 EVERY = 250
@@ -367,19 +366,34 @@ class Proxy:
         self.server.server_close()
 
 
+def browser_lock():
+    """The browser lock of the home the run has: read when it is taken, so a test can give
+    itself a home of its own."""
+    return Path(os.environ["HOME"]) / ".local" / "state" / "locks" / "browser.lock"
+
+
+def own_locks(tmp_path, monkeypatch):
+    """A home of the test's own, with a locks directory, so its lock is nobody else's."""
+    locks = tmp_path / "home" / ".local" / "state" / "locks"
+    locks.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    return locks
+
+
 @contextmanager
 def heavy():
     """The machine's browser lock, held while a browser runs.
 
-    It is the file `LOCK`, which only these tests take, so one of their browsers is up at
+    It is the file `browser_lock()`, which only these tests take, so one of their browsers is up at
     a time. The run's caller may hold the heavy-suite lock: that is another file, and
     nothing here waits on it. It waits `PATIENCE` seconds for the lock and then fails the
     test with one line: a check that waits without end reads as one that hangs.
     """
-    if not LOCK.parent.is_dir():
+    held = browser_lock()
+    if not held.parent.is_dir():
         yield
         return
-    with open(LOCK, "a") as lock:
+    with open(held, "a") as lock:
         until = time.monotonic() + PATIENCE
         while True:
             try:
@@ -388,7 +402,7 @@ def heavy():
             except BlockingIOError:
                 if time.monotonic() > until:
                     pytest.fail(
-                        f"{LOCK} was held for {PATIENCE} s: other runs of these tests had "
+                        f"{held} was held for {PATIENCE} s: other runs of these tests had "
                         "a browser up all that time. Run it again."
                     )
                 time.sleep(0.2)
@@ -550,9 +564,9 @@ def test_a_long_temporary_directory_does_not_fail_the_browser(scene, tmp_path, m
 def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(tmp_path, monkeypatch):
     """The user's rule runs a suite of several workers under `flock` on the heavy-suite lock.
     The two locks are files of their own names in one directory, here a made-up one."""
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
+    locks = own_locks(tmp_path, monkeypatch)
     monkeypatch.setattr("test_jbus_view_page.PATIENCE", 1)
-    with open(tmp_path / "heavy-suite.lock", "a") as outer:
+    with open(locks / "heavy-suite.lock", "a") as outer:
         fcntl.flock(outer, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with heavy():
             pass
@@ -585,7 +599,7 @@ def test_two_runs_at_once_never_have_a_browser_each(tmp_path, monkeypatch):
         with heavy():
             browse()
 
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
+    own_locks(tmp_path, monkeypatch)
     monkeypatch.setattr(subprocess, "Popen", Browser)
     monkeypatch.setattr(os, "killpg", lambda group, sent: None)
     runs = [threading.Thread(target=run) for _ in range(2)]
@@ -653,7 +667,7 @@ def hanging(tmp_path, monkeypatch, first=""):
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")
     hangs.chmod(0o755)
     monkeypatch.setattr("test_jbus_view_page.CHROMIUM", str(hangs))
-    monkeypatch.setattr("test_jbus_view_page.LOCK", tmp_path / LOCK.name)
+    own_locks(tmp_path, monkeypatch)
     return child
 
 

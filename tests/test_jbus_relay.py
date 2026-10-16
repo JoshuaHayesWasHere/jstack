@@ -37,12 +37,13 @@ def free_port() -> int:
 class Webhook:
     """A webhook that records each POST it takes. `answer` is the status it gives, `delay`
     how long it waits first, and `hold` how long it waits between taking a POST and answering
-    it. `tried` counts every POST, answered 200 or not."""
+    it. `tried` keeps the body of every POST, answered 200 or not."""
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
         self.paths: list[str] = []
-        self.answer, self.delay, self.hold, self.tried = 200, 0.0, 0.0, 0
+        self.answer, self.delay, self.hold = 200, 0.0, 0.0
+        self.tried: list[dict] = []
         hook = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -50,7 +51,7 @@ class Webhook:
                 time.sleep(hook.delay)
                 data = self.rfile.read(int(self.headers["Content-Length"]))
                 code = hook.answer
-                hook.tried += 1
+                hook.tried.append(json.loads(data))
                 if code == 200:
                     hook.posts.append((dict(self.headers), json.loads(data)))
                     hook.paths.append(self.path)
@@ -70,6 +71,9 @@ class Webhook:
 
     def bodies(self, route: str) -> list[dict]:
         return [body for _, body in self.posts if body["relay"]["route"] == route]
+
+    def tries(self, route: str) -> int:
+        return len([body for body in self.tried if body["relay"]["route"] == route])
 
     def close(self) -> None:
         self.server.shutdown()
@@ -317,8 +321,7 @@ def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(rela
     code, said = relay.send(gate)
 
     assert code == 202
-    until(lambda: relay.spooled("blocking"))
-    time.sleep(0.4)
+    until(lambda: sous_chef.tries("blocking") >= 2)
     assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"]]
     code, later = relay.send(body(event("stall", "user", "beta")))
     assert code == 202
@@ -538,12 +541,13 @@ def test_the_page_is_sent_once_also_after_a_restart(hooks, tmp_path):
     first = Relay(env_for(hooks), tmp_path / "state").up()
     first.send(second("reminder", 15, item()))
     first.send(second("refresh", 50, item()))
-    until(lambda: pager.posts)
+    # A page is spooled before the relay answers 202, and leaves the spool once it is sent.
+    until(lambda: pager.posts and first.spooled("page") == [])
     first.stop()
 
     again = Relay(env_for(hooks), tmp_path / "state").up()
-    again.send(second("refresh", 110, item()))
-    time.sleep(0.5)
+    assert again.send(second("refresh", 110, item()))[0] == 202
+    until(lambda: again.spooled("page") == [])
     again.stop()
 
     assert len(pager.posts) == 1
