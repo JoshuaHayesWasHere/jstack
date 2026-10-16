@@ -46,6 +46,7 @@ from test_jbus_verbs import fresh
 ORDER = [
     "before-watch 10 word.deliver",
     "before-watch 20 questions.closed_in_files",
+    "before-watch 30 questions.silent",
     "tellers 10 mirror.scan (sight)",
     "tellers 15 noticed.scan (sight)",
     "tellers 20 questions.tell (sight, client)",
