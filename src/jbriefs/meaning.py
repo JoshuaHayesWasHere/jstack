@@ -13,7 +13,8 @@ Each field becomes lines, and each line its tokens (`tokens`):
 - a code span in backticks, a URL, and a word with a `/`, a `.` inside it or a digit (a
   path, a file, a number) are kept exact, as written, marked with `EXACT` in front;
 - every other word is lowercased, with the markdown, the punctuation and the white space
-  around it dropped, and a word of `FILLER` is dropped;
+  around it dropped, and a word of `FILLER` is dropped; a `n't` is a word of its own,
+  `not`, so a negation is a word more and never a typo of the word it negates;
 - the tokens of a line are sorted, so a line said in another order is the same line.
 
 A list field (`Done when:` and any other with `- ` items) is a line for each item, a
@@ -33,8 +34,9 @@ number or a value changed, re-ask.
 Its limit: it compares words, not meaning. A reword that swaps one content word for
 another ("must" for "may", "all" for "any") re-asks, by design: a check with no model
 cannot tell a harmless synonym from a change of intent. And two words of five letters or
-more within two edits of each other count as one ("files" and "fixes"), which is the price
-of keeping a fixed typo's go.
+more within two edits of each other count as one, which is the price of keeping a fixed
+typo's go: "files" and "fixes", and opposites too, "include" and "exclude", "import" and
+"export", "maximum" and "minimum", so such a swap keeps the go.
 """
 
 from __future__ import annotations
@@ -80,6 +82,7 @@ EDITS = 2
 _SPAN = re.compile(r"`([^`\n]*)`")
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 _WORD = re.compile(r"[\w./~-]+")
+_NOT = re.compile(r"n['’]t\b", re.I)
 _ITEM = re.compile(r"[ \t]*[-*+][ \t]+|[ \t]*\d+[.)][ \t]+")
 
 Line = list[str]
@@ -91,7 +94,8 @@ def tokens(line: str) -> Line:
     found = [EXACT + span.strip() for span in _SPAN.findall(line)]
     line = _SPAN.sub(" ", line)
     found += [EXACT + url.rstrip(".,;:*") for url in _URL.findall(line)]
-    line = re.sub(r"(?<=\w)['’](?=\w)", "", _URL.sub(" ", line))
+    line = _NOT.sub(" not", _URL.sub(" ", line))
+    line = re.sub(r"(?<=\w)['’](?=\w)", "", line)
     for word in _WORD.findall(line):
         word = word.strip("._~-")
         if re.search(r"\d|/|\w\.\w", word):

@@ -144,16 +144,6 @@ def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
     return made
 
 
-def proven(brief: str) -> str:
-    """Why a brief may not be launched for what it says proves it right, or nothing.
-
-    It is the first `Proves it:` line of its head, as `jbriefs` judges it. A brief with no
-    such line is grandfathered: it says nothing, as briefs approved before the line did.
-    """
-    found = parse.proves_it(brief)
-    return found.why if found else ""
-
-
 def shaped_since(run: Pass) -> datetime:
     """When a brief was first asked for its size and a real playbook: the first pass that
     asked, which wrote its time in `shaped.json` beside the queue and is read from it since.
@@ -181,17 +171,13 @@ def approved_at(run: Pass, row: queue.Row) -> datetime | None:
     return run.user.local(at)
 
 
-CHECKS = (("no design", parse.designed), ("no proof", proven))
-ASKED = (("no size", parse.sized), ("no playbook", parse.playbook))
-
-
 def short_of(brief: str, shaped: bool) -> tuple[str, str]:
     """The first reason a brief may not be launched, in one line, and its kind, or two blanks.
 
     The size and the playbook are asked of it only where `shaped`: its go was run since the
     rule.
     """
-    for kind, check in CHECKS + (ASKED if shaped else ()):
+    for kind, check in parse.LAUNCH + (parse.SHAPE if shaped else ()):
         why = check(brief)
         if why:
             return why, kind

@@ -259,7 +259,7 @@ jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
 
-`add` checks the brief before it queues it, with every check a launch makes, so a brief that could not launch is never put to you for a go. The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them. Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`. A brief short of any of these is refused with one line for each fault, and nothing is queued:
+`add` checks the brief before it queues it, with every check a launch makes, so a brief that could not launch is never put to you for a go. The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them: a line still `<...>`, quoted or as a list item, or a `Pull request:` or `Review:` line still offering its choices (`review | none`), is not filled in. Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`. A brief short of any of these is refused with one line for each fault, and nothing is queued:
 
 ```text
 refused: alpha's brief has 2 faults, and nothing is queued
@@ -319,14 +319,14 @@ The fingerprint reads the fields that carry scope and risk: `Done when`, `Proves
 
 1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
 2. Kept exact, as written: every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit, which is a path, a file name or a number.
-3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
+3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A `n't` is a word of its own, `not`, so `shouldn't` is `should` and `not` and a negation is never taken for a typo. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
 4. The words and exact tokens of a line are sorted, and so are the lines of a field.
 5. The values of `Size`, `Playbook`, `Review`, `Pull request` and `Stack` are kept exact whole, lowercased and with their white space collapsed.
 6. The fields go in a fixed order: the nine above as listed, then any other by its label.
 
 Two fingerprints mean the same when they have the same fields, each with as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same. A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go. So a typo, a change of formatting, punctuation or case, lines or fields put in another order, and an edit only to the fields it leaves out keep the go. A Done-when line added, taken out or changed, a path, a number or a value changed, or a field added, ask you again.
 
-Its limit: it compares words, not meaning. A reword that swaps one content word for another, `must` for `may` or `all` for `any`, asks you again, by design: a check with no model cannot tell a harmless synonym from a change of intent. And two long words within two edits of each other (`files` and `fixes`) count as one, which is the price of keeping a fixed typo's go.
+Its limit: it compares words, not meaning. A reword that swaps one content word for another, `must` for `may` or `all` for `any`, asks you again, by design: a check with no model cannot tell a harmless synonym from a change of intent. And two words of five letters or more within two edits of each other count as one, which is the price of keeping a fixed typo's go: `files` and `fixes`, and opposites too, `include` and `exclude`, `import` and `export`, `maximum` and `minimum`, so such a swap keeps the go.
 
 A row approved before the fingerprint has no `meaning` in its record, and keeps its go while its stored brief has the sha its row holds, line for line, as before: the `brief_sha` of the text, or for a row approved before the sha left the two lines out, the sha256 of the whole text. Queued again with the same text, such a row is taken over to that text's `brief_sha`.
 

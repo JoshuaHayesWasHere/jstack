@@ -5,7 +5,6 @@ from typing import NamedTuple
 import pytest
 
 from jbriefs import cli, page, parse
-from jbus import dispatch
 
 TEMPLATE = Path(__file__).parent.parent / "templates" / "brief.md"
 FINDINGS = ("Read:", "Change:", "Rests on:", "Sources:", "Ruled out:")
@@ -420,22 +419,22 @@ def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until
     assert parse.brief("alpha", text).proof.why == (
         f"brief's Proves it: line is the template's own text {ASKED}"
     )
-    assert dispatch.proven(text) == parse.brief("alpha", text).proof.why
+    assert parse.proven(text) == parse.brief("alpha", text).proof.why
     filled = text.replace(line, "Proves it: tests/test_alpha.py passes")
     assert parse.brief("alpha", filled).proof.kind == "a test"
-    assert dispatch.proven(filled) == ""
+    assert parse.proven(filled) == ""
 
 
 def test_a_brief_with_no_proves_it_line_is_launched_as_before_and_one_under_its_head_is_not_read():
     """Briefs queued before the line was asked for have none: they are grandfathered."""
     assert parse.brief("alpha", BRIEF).proof is None
-    assert dispatch.proven(BRIEF) == ""
+    assert parse.proven(BRIEF) == ""
     under = BRIEF + RESULT + "Proves it: reviewed by crewmate\n"
     assert parse.brief("alpha", under).proof is None
-    assert dispatch.proven(under) == ""
+    assert parse.proven(under) == ""
     first = BRIEF + "Proves it: the crewmate\nProves it: tests/test_alpha.py\n"
     assert (
-        dispatch.proven(first)
+        parse.proven(first)
         == f"brief's Proves it: line names the crewmate, the agent's own word {ASKED}"
     )
 

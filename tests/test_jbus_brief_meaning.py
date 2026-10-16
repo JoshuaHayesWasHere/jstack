@@ -3,10 +3,11 @@ to its wording. Run as `tests/test_jbus_queue.py` runs: the real command and the
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
+from pathlib import Path
 
 import pytest
 
-from jbriefs import meaning
+from jbriefs import meaning, parse
 from jbus import queue
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import gates, go, rows
@@ -164,14 +165,32 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "refused: alpha's brief has 6 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
+        "- brief has no Design: line (run /architect or say none, <why>)",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M, L or XL)",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
-        "- brief has no Design: line (run /architect or say none, <why>)",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
+
+
+def test_queue_add_refuses_the_template_as_it_stands_with_a_fault_for_each_field(kitchen):
+    template = (Path(__file__).parents[1] / "templates" / "brief.md").read_text()
+    code, said = add(kitchen, template)
+    assert code == 1
+    faults = said.splitlines()[1:]
+    for label in parse.REQUIRED:
+        assert any(f" {label}: line" in fault for fault in faults), (label, said)
+    assert not queue.brief_path(kitchen.state, "alpha").exists()
+
+
+def test_a_negation_made_by_a_contraction_asks_again(kitchen):
+    approved(kitchen)
+    again = APPROVED.replace("an approval holds", "an approval shouldn't hold")
+    swapped = APPROVED.replace("an approval holds", "an approval should hold")
+    assert not meaning.same(meaning.meaning(swapped), meaning.meaning(again))
+    assert "its go does not hold for it: approve it again" in add(kitchen, again)[1]
 
 
 def test_a_batch_whose_add_has_a_faulty_brief_applies_nothing(kitchen):

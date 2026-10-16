@@ -344,40 +344,57 @@ def fields(text: str) -> list[tuple[str, list[str]]]:
     return found
 
 
+_MARKER = re.compile(r"""^[\s"'“‘*+-]+""")
+_CHOICES = ("Pull request", "Review")
+
+
 def _filled(text: str, label: str) -> str:
-    """Why the brief's `<label>:` field is not filled in, in one line, or nothing."""
+    """Why the brief's `<label>:` field is not filled in, in one line, or nothing.
+
+    A line of it that is the template's own text (`<...>` once its quote or list marker is
+    left off), or a field of `_CHOICES` still offering its choices (`review | none`), is not
+    filled in.
+    """
     held = [lines for name, lines in fields(text) if name == label]
     if not held:
         return f"brief has no {label}: line"
-    said = " ".join(line.strip() for line in held[0]).strip()
-    if not said:
+    lines = [_MARKER.sub("", line).strip() for line in held[0]]
+    lines = [line for line in lines if line]
+    if not lines:
         return f"brief's {label}: line is empty"
-    if said.startswith("<"):
+    if any(line.startswith("<") for line in lines) or (
+        label in _CHOICES and any("|" in line for line in lines)
+    ):
         return f"brief's {label}: line is the template's own text"
     return ""
 
 
-def faults(text: str) -> list[str]:
-    """Every reason a brief may not be queued, one line each, in the template's order.
+def proven(text: str) -> str:
+    """Why a brief's `Proves it:` line proves nothing, in one line, or nothing.
 
-    It is each field `REQUIRED` filled in, then what a launch asks of the brief: the
-    `Proves it:` line judged (`proof`), a t-shirt size (`sized`), a crewmate's playbook
-    (`playbook`) and a design call (`designed`). A brief with none is complete.
+    A brief with no such line says nothing here: at a launch it was written before the line
+    was asked for, and `faults` says it is missing.
     """
-    found = []
-    for label in REQUIRED:
-        missing = _filled(text, label)
-        if label == "Size":
-            missing = sized(text)
-        elif label == "Proves it" and not missing:
-            missing = proof(_head(text, "Proves it:") or "").why
-        elif label == "Playbook" and not missing:
-            missing = playbook(text)
-        if missing:
-            found.append(missing)
-    if designed(text):
-        found.append(designed(text))
-    return found
+    found = proves_it(text)
+    return found.why if found else ""
+
+
+LAUNCH = (("no design", designed), ("no proof", proven))
+SHAPE = (("no size", sized), ("no playbook", playbook))
+CHECKS = LAUNCH + SHAPE
+_CHECKED = ("Size",)
+
+
+def faults(text: str) -> list[str]:
+    """Every reason a brief may not be queued, one line each.
+
+    It is each field `REQUIRED` filled in, then every check a launch makes (`CHECKS`), which
+    `jbus.dispatch` runs from the same table. `Size` is left to `sized`, which says when the
+    line is missing. A brief with none is complete.
+    """
+    found = [_filled(text, label) for label in REQUIRED if label not in _CHECKED]
+    found += [check(text) for _, check in CHECKS]
+    return [fault for fault in found if fault]
 
 
 @dataclass(frozen=True)
