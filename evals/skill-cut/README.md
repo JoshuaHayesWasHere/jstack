@@ -15,7 +15,7 @@ The files under test are read from the two revisions with `git show <rev>:<path>
 
 ## Blind scoring
 
-Each answer is saved in `run-<n>/answers.json` under a random id. Which case it answers is in `run-<n>/which.json`, and which arm and trial wrote it only in `run-<n>/key.json`. `score.py` scores an answer from its text and its case's key alone: it never sees the arm, and it is a script, not a model.
+Each answer is saved in `run-<name>/answers.json` under a random id. Which case it answers is in `run-<name>/which.json`, and which arm and trial wrote it only in `run-<name>/key.json`. `score.py` scores an answer from its text and its case's key alone: it never sees the arm, and it is a script, not a model.
 
 - `lead`: the answer ends with a `BUCKETS` block, one line per finding id. A finding scores 1 when the answer sends it (Act on, Consider) and the shipped review sent it, or holds it back (Noted, Dismissed) and the shipped review held it back; else 0. The answer's score is the mean over the case's scored findings.
 - `steps`: 1 when every `must` expression matches the answer, else 0.
@@ -25,7 +25,7 @@ A model judge, `claude-sonnet-5-5` at medium effort, is used only for an answer 
 - a `lead` answer that leaves a finding with no bucket line `score.py` can read: the judge reads the answer and says which bucket it gave that finding, or none;
 - a `steps` answer where a `must` expression fails while the case's `near` expression matches: the answer is about the right thing in words the expression did not foresee, and the judge says whether it does what `expect` says.
 
-What the judge said is kept in `run-<n>/judge.json`, and `results.md` counts the answers it settled. A rescore of a kept run reads that file and calls no model.
+What the judge said is kept in `run-<name>/judge.json`, and `results.md` counts the answers it settled. A rescore of a kept run reads that file and calls no model.
 
 ## The rule
 
@@ -47,9 +47,9 @@ From the root of the repo, on a machine with `claude` and the private patterns o
 uv run python evals/skill-cut/eval.py --base main --variant HEAD
 ```
 
-It resolves the two revisions, writes the next run, `run-<n>/`, in one rename once every answer and the key are written (a failed call leaves nothing, and no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 400 for the committed cases), six at a time. A cut branch commits the run it adds.
+It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (a failed call leaves nothing, and no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 400 for the committed cases), six at a time. A cut branch commits the run it adds.
 
-`uv run python evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed.
+`uv run python evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed. A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since. A change to a case is a new case set, and a new run from base.
 
 `uv run python evals/skill-cut/eval.py cases <staging dir>` rebuilds `cases/lead/` from the JSON files the extraction wrote (one per pull request, `<slug>.json`), with the private patterns taken out. The extraction itself read each reviewer thread with `t3_thread_read`, and the intent from `/tmp/pr-review-<slug>.*/intent`, which a reboot empties: the committed cases are the record.
 

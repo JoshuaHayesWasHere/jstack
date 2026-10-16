@@ -162,7 +162,33 @@ def test_a_whole_write_adds_one_run_of_a_few_files_whatever_the_number_of_answer
     monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
     monkeypatch.setattr(run, "claude", lambda prompt, model=run.MODEL: "BUCKETS\n")
     run.write("HEAD", "HEAD")
-    made = sorted(path.name for path in (tmp_path / "run-1").iterdir())
+    named = tmp_path / f"run-{run.resolve('HEAD')[:12]}"
+    made = sorted(path.name for path in named.iterdir())
     assert made == ["answers.json", "key.json", "run.json", "variant.patch", "which.json"]
-    answers = json.loads((tmp_path / "run-1" / "answers.json").read_text())
+    answers = json.loads((named / "answers.json").read_text())
     assert len(answers) == len(run.case_ids()) * len(run.ARMS) * run.TRIALS
+    assert json.loads((named / "run.json").read_text())["cases"] == run.cases_sha()
+
+
+def test_two_branches_name_their_runs_apart_and_a_kept_name_is_refused(tmp_path, monkeypatch):
+    (tmp_path / "run-1").mkdir()
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
+    calls = []
+    monkeypatch.setattr(run, "_private", lambda: calls.append(1) or ())
+    with pytest.raises(SystemExit, match="run-1 is kept already"):
+        run.write("HEAD", "HEAD", "run-1")
+    with pytest.raises(SystemExit, match="is not run-"):
+        run.write("HEAD", "HEAD", "../elsewhere")
+    assert calls == []
+    assert run.main(["--base", "HEAD", "--variant", "HEAD", "--nam", "run-x"]) == 2
+
+
+def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
+    for name in ("cases", "run-1"):
+        shutil.copytree(EVAL / name, tmp_path / name)
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    steps = tmp_path / "cases" / "steps.json"
+    steps.write_text(steps.read_text().replace("Stale base: at", "Stale base:"))
+    with pytest.raises(SystemExit, match="answered against cases"):
+        run.main(["--run", "run-1"])

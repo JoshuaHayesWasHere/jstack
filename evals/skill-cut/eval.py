@@ -8,18 +8,19 @@ It reads every file under test from the two revisions with `git show <rev>:<path
 from the working tree, and runs each case of `cases/` three times in each of three arms: base,
 base again (the noise floor) and variant. Then:
 
-- `write`: each answer goes to `run-<n>/answers.json` under a random id, which case it answers to
-  `run-<n>/which.json`, and which arm and trial wrote it only to `run-<n>/key.json`. What a
+- `write`: each answer goes to `run-<name>/answers.json` under a random id, which case it answers to
+  `run-<name>/which.json`, and which arm and trial wrote it only to `run-<name>/key.json`. What a
   model wrote has the private patterns of `jleak` taken out, as the cases have.
 - `score`: runs `score.py` over each answer with its case's key and no arm, and writes
-  `run-<n>/scores.json`, keyed by the random ids.
+  `run-<name>/scores.json`, keyed by the random ids.
 - `judge`: asks the judge model about each answer the key could not settle, and keeps what it
-  said in `run-<n>/judge.json`; `score` then runs again.
-- `report`: joins the scores with the key and writes `run-<n>/results.md`, with the rule in
+  said in `run-<name>/judge.json`; `score` then runs again.
+- `report`: joins the scores with the key and writes `run-<name>/results.md`, with the rule in
   `README.md` for whether the variant regresses.
 
-`eval.py --run run-1` rescores and reports a kept run with no model call. `eval.py cases <dir>`
-rebuilds `cases/lead/` from the extraction's JSON files.
+`eval.py --run run-1` rescores and reports a kept run with no model call, against the cases it
+was answered against: `run.json` holds their hash, and a run whose cases changed is refused.
+`eval.py cases <dir>` rebuilds `cases/lead/` from the extraction's JSON files.
 """
 
 from __future__ import annotations
@@ -298,20 +299,46 @@ def _sha(text: str) -> str:
 
 
 def runs() -> list[Path]:
-    """The kept runs, `run-<n>/`, in the order they were written."""
-    found = [path for path in HERE.glob("run-*") if path.name[4:].isdigit()]
-    return sorted(found, key=lambda path: int(path.name[4:]))
+    """The kept runs, `run-<name>/`."""
+    return sorted(path for path in HERE.glob("run-*") if path.is_dir())
 
 
-def write(base: str, variant: str) -> None:
-    """Write a new run, `run-<n>/`, next to the kept ones. It is built in a directory of its
-    own and put in place by one rename once its last answer and its key are written, so a call
-    that fails leaves no part of it and no kept run is touched."""
+def cases_sha() -> str:
+    """One hash of every file under `cases/`, its path and its bytes: what a run was answered
+    and scored against."""
+    digest = hashlib.sha256()
+    for path in sorted(p for p in (HERE / "cases").rglob("*") if p.is_file()):
+        digest.update(path.relative_to(HERE).as_posix().encode() + b"\0" + path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
+def _same_cases() -> None:
+    """A kept run is scored only against the cases it was answered against: a change to a case
+    is a new case set, and a new run from base."""
+    was = json.loads((RUN / "run.json").read_text()).get("cases")
+    if was != cases_sha():
+        raise SystemExit(
+            f"eval.py: {RUN.name} was answered against cases {was}, and cases/ is {cases_sha()} "
+            "now: write a new run, the kept one is not rescored against other cases"
+        )
+
+
+def write(base: str, variant: str, name: str | None = None) -> None:
+    """Write a new run next to the kept ones, `run-<the variant's first 12>/` or the `name`
+    given, so two branches that each add a run never pick the same directory. It is built in a
+    directory of its own and put in place by one rename once its last answer and its key are
+    written, so a call that fails leaves no part of it and no kept run is touched."""
     global RUN
     if not shutil.which("claude"):
         raise SystemExit("eval.py: write: no claude on PATH, no run is written")
-    patterns = _private()
     revs = {"base": resolve(base), "variant": resolve(variant)}
+    made = HERE / (name or f"run-{revs['variant'][:12]}")
+    if not re.fullmatch(r"run-[A-Za-z0-9._-]+", made.name):
+        raise SystemExit(f"eval.py: write: {made.name} is not run-<letters, digits, . _ ->")
+    if made.exists():
+        raise SystemExit(f"eval.py: write: {made.name} is kept already: give --name")
+    patterns = _private()
+    cases = cases_sha()
     paths = files_under_test()
     text = {arm: {p: show(rev, p) for p in paths} for arm, rev in revs.items()}
     text["base-again"] = text["base"]
@@ -345,6 +372,7 @@ def write(base: str, variant: str) -> None:
             "judge": JUDGE,
             "effort": EFFORT,
             "trials": TRIALS,
+            "cases": cases,
             "files": {
                 p: {"base": _sha(text["base"][p]), "variant": _sha(text["variant"][p])}
                 for p in paths
@@ -354,8 +382,8 @@ def write(base: str, variant: str) -> None:
         (fresh / "variant.patch").write_text(
             git("diff", revs["base"], revs["variant"], "--", *paths)
         )
-        kept = runs()
-        made = HERE / f"run-{int(kept[-1].name[4:]) + 1 if kept else 1}"
+        if cases != cases_sha():
+            raise SystemExit("eval.py: write: cases/ changed while the run was written")
         fresh.rename(made)
     finally:
         shutil.rmtree(fresh, ignore_errors=True)
@@ -387,6 +415,7 @@ def score_one(text: str, case: str, judged: object) -> dict:
 
 def score_all() -> None:
     """Score each answer from its text and its case, never its arm: `which.json` holds no arm."""
+    _same_cases()
     which, judged = json.loads((RUN / "which.json").read_text()), _judged()
     answers = _answers()
     scores = {
@@ -464,6 +493,7 @@ def verdict(base: list[float], again: list[float], variant: list[float]) -> dict
 
 
 def report() -> None:
+    _same_cases()
     key = json.loads((RUN / "key.json").read_text())
     scores = json.loads((RUN / "scores.json").read_text())
     ran = json.loads((RUN / "run.json").read_text())
@@ -574,12 +604,11 @@ RUN = HERE
 
 
 def main(argv: list[str]) -> int:
-    """`--base <rev> --variant <rev>` writes, scores, judges and reports a new run. `--run
-    <run-n> [score] [report]` scores and reports a kept run and writes none. `cases <dir>`
-    rebuilds the lead cases."""
+    """`--base <rev> --variant <rev> [--name run-<name>]` writes, scores, judges and reports a
+    new run. `--run <run-name> [score] [report]` scores and reports a kept run and writes none.
+    `cases <dir>` rebuilds the lead cases."""
     global RUN
     kept = runs()
-    RUN = kept[-1] if kept else HERE / "run-1"
     if argv[:1] == ["cases"]:
         if len(argv) != 2:
             print("eval.py: cases <the extraction's directory>", file=sys.stderr)
@@ -600,15 +629,19 @@ def main(argv: list[str]) -> int:
         for step in steps:
             {"score": score_all, "report": report}[step]()
         return 0
-    if len(argv) == 4 and argv[0] == "--base" and argv[2] == "--variant":
-        write(argv[1], argv[3])
+    if len(argv) in (4, 6) and argv[0] == "--base" and argv[2] == "--variant":
+        if len(argv) == 6 and argv[4] != "--name":
+            print("eval.py: --base <rev> --variant <rev> [--name run-<name>]", file=sys.stderr)
+            return 2
+        write(argv[1], argv[3], argv[5] if len(argv) == 6 else None)
         score_all()
         judge()
         score_all()
         report()
         return 0
     print(
-        "eval.py: --base <rev> --variant <rev>, --run <run-n> [score] [report], or cases <dir>",
+        "eval.py: --base <rev> --variant <rev> [--name run-<name>], --run <run-name> "
+        "[score] [report], or cases <dir>",
         file=sys.stderr,
     )
     return 2

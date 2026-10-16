@@ -5,6 +5,7 @@
   "judge": "claude-sonnet-5-5",
   "effort": "medium",
   "trials": 3,
+  "cases": "aa502bdfb65b",
   "files": {
     "principles/migrate-callers-then-delete-legacy-apis.md": {
       "base": "67a5df9419d3",
