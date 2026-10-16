@@ -48,7 +48,7 @@ A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15
 
 A crewmate or scout pipes a gate to `jbus gate <slug>`. jbus keeps it in `~/.local/state/jbus/<project>/questions.json` as a question with a number, sends one `gate` event, and prints `queued: question <n>`. The same question from the same slug is the same record: a second run prints `already sent: question <n>`, or `already answered: question <n>: <the answer>` once you answered it.
 
-A gate proposes every option its thread weighed. Each is one line, `Option: <short name>: <what follows from it>`, and the name ends at the first colon that a space follows. Two marks go between the name and that colon: `(default)` on the option the thread took, and `(recommended)` on the one it would pick, or `(default, recommended)` on one that is both.
+A gate proposes every option its thread weighed. Each is one line, `Option: <short name>: <what follows from it>`, and the name ends at the first colon that a space follows. The option the thread took is the one it recommends, and it carries both marks between the name and that colon, `(default, recommended)`. The other options have no mark.
 
 ```
 ## Gate <n>: tea or coffee?
@@ -58,16 +58,35 @@ Default: made tea
 Built on it: the cups in pull request 7
 Undo: pour it out, one revert
 Context: the shelf has both, and the cups are in https://example.test/demo/pull/7
-Option: tea (default): the cups stay as they are
-Option: coffee (recommended): the cups go back, one revert
+Option: tea (default, recommended): the cups stay as they are
+Option: coffee: the cups go back, one revert
 Option: water: nothing is brewed
 ```
 
-The record keeps the `Context:` line as `context` and the options, in order, as `options`: each one's `name`, what `follows` from it, and whether it is the `default` and the one `recommended`. `proposed` is when a pass asked the thread of a question with no options for them. A gate may leave out the `Context:` line. jbus refuses, with `not sent:` and the form of an `Option:` line, a gate that has fewer than two options, none or several marked `(default)`, several marked `(recommended)`, two options of one name, a name that ends in parentheses that are not one of the marks, or an `Option:` line that is not filled in. Nothing is kept of such a gate, and the thread pipes it again with its lines mended.
+The record keeps the `Context:` line as `context` and the options, in order, as `options`: each one's `name`, what `follows` from it, and whether it is the `default` and the one `recommended`. `proposed` is when a pass asked the thread of a question with no options for them. A gate may leave out the `Context:` line. jbus refuses, with `not sent:` and the form of an `Option:` line, a gate that has fewer than two options, none or several marked `(default)`, none or several marked `(recommended)`, a recommended option that is not the default, two options of one name, a name that ends in parentheses that are not one of the marks, or an `Option:` line that is not filled in. Nothing is kept of such a gate, and the thread pipes it again with its lines mended.
 
 An open question piped again by the same slug takes the new lines, its context and options included, and keeps its number. An answered one is left as it is. A question asked before gates had options has none. Each pass asks the thread on the `Thread:` line of its brief or request, once for a question, to pipe the gate again with them. The message holds the gate's lines as the record has them, for the thread to pipe as they are. A question whose slug has no such line, or whose thread T3 Code no longer lists, gets no message and stays open as it is: the log has one `note` for it.
 
-A question waits on you until `jbus answer` closes it, and it is closed once. After `--default`, jbus sends the thread nothing, because the thread already did what you chose. After `--differs`, the next pass sends your words to the thread that asked. You can also answer on the page of `jbus view`, which sends a differing answer at once: [Answer a question on the page](#answer-a-question-on-the-page).
+### Act unless stopped, and the gates that hold
+
+A gate acts unless stopped. The thread acts on its default at once and carries on, and the question is shown to you as already acted on: each one on the list of what waits on you has `acted: true`. No question parks work while it waits. If you have not answered a question in 2 hours, the next pass closes it with its default, by silence. The answer on the record is `default`, `closed_by: silence`, `by: jbus`, the time of that pass, and `where: no answer in 2 hours`. It is not your word, and no approval rests on it. The question leaves the list, the log has one `note`, and nothing is sent, since the thread already acted. You can still answer it later. Your answer replaces the close by silence, and one that differs goes to the thread as any other.
+
+A default that is irreversible or slow to revert does not act. Undoing such a default needs you, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Its gate has two more lines. `Holds: <case>` names the case, word for word from this table. `Fail-safe: <what was prepared>` names the dry-run, plan or bundle you answer on, with its path or link.
+
+| Case | Examples | Fail-safe |
+|---|---|---|
+| deletes data | removing files, folders, branches, a repo, a T3 project or thread, a database, a bucket, a cloud resource | dry-run: list exactly what goes; a backup or bundle first where one can be made; then hold for you |
+| rewrites history | force-push to a shared branch, filter-repo, deleting tags | safety bundle of the old history, verify script, then hold for you |
+| spends money | creating paid cloud resources, raising a plan or a limit, a purchase | the cost estimate or plan, then hold for you |
+| touches prod or real users | a prod deploy, a prod data or schema change, a message to a customer or anyone outside | the plan or diff (`terraform plan`, `cdk diff`, the message text), then hold for you |
+| changes access or secrets | rotating or granting a key or token, tailnet policy or DNS | the diff of the change, then hold for you (jmerge's protected paths already hold the code side) |
+| publishes | a public release, a tag, a package, a public repo or post | the exact artifact and where it goes, then hold for you |
+
+Everything else acts at once on its default: a merge (reverted by `gh pr revert`), a branch, a brief, a config edit with its backup, a launch. A gate that holds waits for your answer, and silence never closes it. The record keeps the case as `holds` and the fail-safe as `fail_safe`, and the list shows both, with `acted: false`. `jbus gate` refuses with `not sent:` a `Holds:` line with no filled `Fail-safe:` line, a case not in the table, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
+
+### Answers
+
+A question waits on you until `jbus answer` closes it or, with no `Holds:` line, until 2 hours of silence do. Your answer closes it once. After `--default`, jbus sends the thread nothing, because the thread already did what you chose. After `--differs`, the next pass sends your words to the thread that asked. You can also answer on the page of `jbus view`, which sends a differing answer at once: [Answer a question on the page](#answer-a-question-on-the-page).
 
 The answer is a message of yours or is typed, as a word is: [Your word to a home](#your-word-to-a-home) says what `--message` reads and what `checked` records.
 

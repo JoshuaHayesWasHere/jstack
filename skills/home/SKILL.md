@@ -694,7 +694,22 @@ When the user asks for status, run the merge step of "Merging a pull request tha
 
 ## Gates
 
-A gate is a question only the user can answer, asked with the default that was taken so the work did not wait for it. jbus keeps each one as a numbered question: `jbus gate` writes it, `jbus answer` closes it, once, and nothing else does either. This home keeps no file of them and no copy: it reads the open ones from jbus, and runs the one command that closes one.
+A gate is a question only the user can answer, asked with the default that was taken so the work did not wait for it. jbus keeps each one as a numbered question: `jbus gate` writes it, and `jbus answer` closes it, once. This home keeps no file of them and no copy: it reads the open ones from jbus, and runs the one command that closes one.
+
+**Every gate acts unless stopped.** The asking thread, this home included, acts on its default at once and carries on. No question parks work while it waits, and the user sees each one as already acted on. Every gate carries a default, and the default is the option the thread recommends, marked `(default, recommended)`. `jbus gate` refuses a gate with no filled `Default:` line, and one whose recommended option is not the default. If the user has not answered in 2 hours, a jbus pass closes the question with its default, by silence. The record says it was not the user's word (`by jbus`, the time, `no answer in 2 hours`). A later answer from the user still replaces that close, and one that differs goes back to the thread as any other.
+
+The one exception is a default that is **irreversible or slow to revert**: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Such a gate does not act. Its thread does the fail-safe and adds two lines under `Undo:`: `Holds: <the case>`, word for word from the table, and `Fail-safe: <what was prepared, with its path or link>`. The action then waits for the user's answer, and silence never closes it. `jbus gate` refuses a `Holds:` line with no filled `Fail-safe:` line, a case that is not in the table, and a `Fail-safe:` line with no `Holds:` line.
+
+| Case | Examples | Fail-safe |
+|---|---|---|
+| deletes data | removing files, folders, branches, a repo, a T3 project or thread, a database, a bucket, a cloud resource | dry-run: list exactly what goes; a backup or bundle first where one can be made; then hold for the user |
+| rewrites history | force-push to a shared branch, filter-repo, deleting tags | safety bundle of the old history, verify script, then hold for the user |
+| spends money | creating paid cloud resources, raising a plan or a limit, a purchase | the cost estimate or plan, then hold for the user |
+| touches prod or real users | a prod deploy, a prod data or schema change, a message to a customer or anyone outside | the plan or diff (`terraform plan`, `cdk diff`, the message text), then hold for the user |
+| changes access or secrets | rotating or granting a key or token, tailnet policy or DNS | the diff of the change, then hold for the user (jmerge's protected paths already hold the code side) |
+| publishes | a public release, a tag, a package, a public repo or post | the exact artifact and where it goes, then hold for the user |
+
+Everything else acts at once on its default: a merge (reverted by `gh pr revert`), a branch, a brief, a config edit with its backup, a launch. `$T/gates.md` has the same rule under the gate's lines, for every thread that gates.
 
 **The block that reads jbus** is run in the same call as every block of this section but the last two, after the block at the top and the block that finds this home, from the main checkout:
 
@@ -747,7 +762,7 @@ fi
 
 It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between. This block only reads it: `jbus gate` and `jbus answer` are the two that write it. `$LINKS` holds the ones that ask this home and not the user, a link's conflict, apart from `$OPEN`: no round has them. A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one. One that no brief, no request and no home asked, as an expert's finding is, is the root home's. `$WHY` says why nothing could be read.
 
-**Ask one** when the question is this home's own. Take the default, fill in `$T/gates.md` (read it first), its `<n>` left as it is, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them and marked `(default)`, and the one you would pick marked `(recommended)`. With the entry in place of the line in angle brackets, and `own` left as it is:
+**Ask one** when the question is this home's own. Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and act on it only once the user answers. Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. With the entry in place of the line in angle brackets, and `own` left as it is:
 
 ```sh
 : "${SEP:?run the block that reads jbus first}"
@@ -777,7 +792,7 @@ else
 fi
 ```
 
-On `asked: queued: question <number>`, jbus has it under this home's own slug, and nothing is written here. `asked: already sent:` is the same question still open. On `asked: already answered: question <number>:` nothing was asked: an earlier question of this home had the same words, and the line gives its answer. If that answer does not settle this one, word the question so that it says what is new, and run it again. On `not asked: the first line`, fill it in and run it again. jbus refuses a gate with no `Default:` line: fill that in the same way. On any other `not asked`, jbus holds nothing: put the question to the user in this thread, in two lines, with the default taken.
+On `asked: queued: question <number>`, jbus has it under this home's own slug, and nothing is written here. `asked: already sent:` is the same question still open. On `asked: already answered: question <number>:` nothing was asked: an earlier question of this home had the same words, and the line gives its answer. If that answer does not settle this one, word the question so that it says what is new, and run it again. On `not asked: the first line`, fill it in and run it again. On `not asked: jbus said: not sent:` or `jbus said: refused:`, jbus names what the gate lacks: a `Default:` line, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table. Mend that line and run it again. On any other `not asked`, jbus holds nothing: put the question to the user in this thread, in two lines, with the default taken.
 
 The same block hands jbus a gate another thread wrote out in full, the lines of a gate under "Noticed" in a Result or "Findings" in a Report: run it with that thread's slug in place of `own` and those lines as the entry. On `asked:`, jbus holds it, or held it already, and it asks nothing more here. On `not asked`, it is one jbus could not take: the end of this section says what to do with it.
 

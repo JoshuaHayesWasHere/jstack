@@ -117,7 +117,7 @@ Proceed on reversible work without asking: do it, then say what you did and why.
 
 The user may steer in this thread at any time. What they say here overrides the brief; record it in the result.
 
-A question only the user can answer does not wait. Take the default you judge best, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now and fill it in. Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept. A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them and marked `(default)`, and the one you would pick marked `(recommended)`. Run this in this worktree, with the block at the top and the filled-in lines in place of the line in angle brackets:
+A question only the user can answer does not wait. A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in. The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Do not act on that one. Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer. Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept. A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or closes it with its default when the user has not answered in 2 hours and it has no `Holds:` line. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. Run this in this worktree, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
 ```sh
 gate=$(cat << 'THE_GATE_ENDS_HERE'
@@ -133,7 +133,7 @@ esac
 if [ -z "$why" ] && [ "$(printf '%s\n' "$gate" | grep -c '^## ')" != 1 ]; then why="it is not one gate"; fi
 if [ -z "$why" ] && ! printf '%s\n' "$gate" | grep -qx 'Status: open'; then why="the gate has no Status: open line"; fi
 if [ -z "$why" ]; then
-    why=$(sed -n '2,$s/^\([^:]*:\).*/\1/p' "$T/gates.md" | while IFS= read -r label; do
+    why=$(sed -n '2,/^$/s/^\([^:]*:\).*/\1/p' "$T/gates.md" | while IFS= read -r label; do
         printf '%s\n' "$gate" | grep -q "^$label [^<]" || echo "the gate has no $label line that is filled in"
     done | head -n 1)
 fi
