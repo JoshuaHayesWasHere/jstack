@@ -19,13 +19,13 @@ from jpack.verify import git
 DAYS = 14
 
 
-def since(repo: Path, sha: str, rev: str, path: str) -> datetime | None:
+def since(repo: Path, sha: str, rev: str, path: str, now: datetime) -> datetime | None:
     """When `path` first changed after `sha` on the way to `rev`, or None where it did not."""
     if not git(repo, "diff", "--quiet", sha, rev, "--", path).returncode:
         return None
     logged = git(repo, "log", "--format=%ct", "--reverse", f"{sha}..{rev}", "--", path)
     first = logged.stdout.split()
-    return datetime.fromtimestamp(int(first[0]), UTC) if first else datetime.now(UTC)
+    return datetime.fromtimestamp(int(first[0]), UTC) if first else now
 
 
 def lines(
@@ -43,7 +43,7 @@ def lines(
             seen.add((cited.path, cited.sha))
             if git(repo, "cat-file", "-e", f"{cited.sha}^{{commit}}").returncode:
                 continue
-            changed = since(repo, cited.sha, rev, cited.path)
+            changed = since(repo, cited.sha, rev, cited.path, now)
             if changed is None:
                 continue
             found.append(f"stale {name}: {cited.path} changed since {cited.sha}")
