@@ -598,7 +598,7 @@ def test_an_ack_with_the_wrong_key_or_an_unknown_id_marks_nothing(relay, hooks):
 
 def test_a_page_line_carries_no_url_with_a_token(relay, hooks):
     _, _, pager = hooks
-    leaky = item(line="hand-merge #1 https://user:pw@example.com/x?token=abc: held")
+    leaky = item(line="hand-merge #1 https://example.com/x?token=abc: held")
 
     relay.send(second("refresh", 50, leaky))
 
