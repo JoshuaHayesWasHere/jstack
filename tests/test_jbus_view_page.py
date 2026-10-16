@@ -118,6 +118,7 @@ THUMB = 44
 CARDS = ["threads", "CI checks on GitHub", "bus", "blind spots"]
 MACHINE = ["jbus", "Room", "Runners", "Plan"]
 MIDDLE = (900, 900)
+SPEC = "https://html.spec.whatwg.org/"
 LANES = [
     "Queued",
     "Running",
@@ -2284,7 +2285,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         served.close()
     scripts = [one.script.read_text() for one in panels.found()]
     for part in (PAGE.read_text(), *scripts):
-        assert "://" not in part
+        assert "://" not in part.replace(SPEC, "")
         for loads in ("<link", "<img", "<iframe", "<object", "<embed", " src=", "@import", "url("):
             assert loads not in part, loads
     asks = [

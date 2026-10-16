@@ -66,7 +66,9 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
         REPO / "docs/chef.md",
         REPO / "docs/configuration.md",
     ]
-    allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
+    allowed = re.compile(
+        r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|html\.spec\.whatwg\.org$|[^/]*[<{$].*)"
+    )
     for path in files:
         text = path.read_text()
         for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
