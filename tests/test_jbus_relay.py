@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import http.server
 import json
 import os
@@ -113,8 +114,11 @@ class Relay:
             return error.code, {}
 
     def spooled(self, route: str) -> list[dict]:
-        folder = self.state / "spool" / route
-        return [json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))]
+        held = []
+        for path in sorted((self.state / "spool" / route).glob("*.json")):
+            with contextlib.suppress(FileNotFoundError):
+                held.append(json.loads(path.read_text()))
+        return held
 
     def stop(self) -> str:
         self.process.terminate()
@@ -281,7 +285,7 @@ def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(rela
     sous_chef.answer = 200
     until(lambda: len(sous_chef.bodies("blocking")) == 2)
     assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [said["id"], later["id"]]
-    assert relay.spooled("blocking") == []
+    until(lambda: relay.spooled("blocking") == [])
     log = relay.stop()
     assert f"relay: POST to sous-chef (blocking) failed for event {said['id']}: HTTP 503" in log
     assert SOUS_CHEF_KEY not in log
