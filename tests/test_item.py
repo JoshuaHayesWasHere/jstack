@@ -351,6 +351,13 @@ def test_a_row_from_before_items_gets_its_item_on_the_next_pass_with_its_go(kitc
     assert len(written(kitchen)) == 3
 
 
+def test_a_row_from_before_items_is_added_again_after_a_pass_with_the_item_it_got(kitchen):
+    test_a_row_from_before_items_gets_its_item_on_the_next_pass_with_its_go(kitchen)
+    assert add(kitchen, "alpha") == (0, kitchen.main("queue", "show")[1])
+    assert queue.load(kitchen.state)[0]["item"] == "w2"
+    assert [(one.id, one.slug) for one in item.items(kitchen.state).values()] == [("w2", "alpha")]
+
+
 def test_a_pass_proposes_the_item_queue_add_reserved_and_has_not_written_yet(kitchen):
     kitchen.config(dispatch=False)
     assert add(kitchen, "alpha")[0] == 0

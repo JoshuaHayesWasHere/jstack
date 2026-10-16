@@ -136,7 +136,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
 
 def _item(state: Path, slug: str, given: str) -> str:
     """The work item a row that is added is linked to: the one `--item` names, which must be
-    one it can be linked to, the one the row has, or one reserved for it now (`jbus.item`)."""
+    one it can be linked to, the one the row has, the one a pass linked to its slug, or one
+    reserved for it now (`jbus.item`)."""
     if given:
         item.linkable(state, given, slug)
         return given
@@ -144,7 +145,8 @@ def _item(state: Path, slug: str, given: str) -> str:
         row = next((row for row in queue.load(state) if row["slug"] == slug), None)
     except queue.Unparsable:
         row = None
-    return (row or {}).get("item") or item.reserve(state)
+    linked = item.by_slug(item.items(state)).get(slug)
+    return (row or {}).get("item") or (linked.id if linked else "") or item.reserve(state)
 
 
 def _verify(state: Path, slug: str, given: str | None) -> int:
