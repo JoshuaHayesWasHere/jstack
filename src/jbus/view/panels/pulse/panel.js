@@ -1,5 +1,3 @@
-/* Is the bus alive: the drawer with every source and its age. The bus is the machine's, so it
-   has no card of a project: the machine's row in the sidebar opens this drawer. */
 function sourceList() {
   return '<ul class="clean rows">' + S.sources.map(function (s) {
     var at = ms(s.at);

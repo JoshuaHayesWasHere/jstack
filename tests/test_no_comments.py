@@ -4,9 +4,14 @@ A Python file is read with `tokenize`, so a `#` in a string is no comment, and a
 character by character, so a `#` in quotes is none either. What a tool reads as an instruction
 is let through: a shebang, `# type:` and `# pragma`. A `# noqa` is not: what it silences is
 written so that ruff has nothing to say.
+
+A script, and the `<script>` and `<style>` of a page, is read for `/* */` and `//` past its
+strings, its regular expressions and a `://`. A comment there that holds an `https://` link
+is let through: it names a fact of the platform, with where it is written down.
 """
 
 import io
+import re
 import tokenize
 from pathlib import Path
 
@@ -16,12 +21,19 @@ REPO = Path(__file__).resolve().parents[1]
 SWEPT = (
     "src/**/*.py",
     "src/**/*.sh",
+    "src/**/*.js",
+    "src/**/*.html",
     "hooks/*.sh",
     "scripts/*.sh",
     "install.sh",
     "tests/*.py",
 )
 READ_BY_A_TOOL = ("# type:", "# pragma")
+LINKED = "https://"
+EMBEDDED = re.compile(r"<(script|style)\b[^>]*>(.*?)</\1>", re.S | re.I)
+WORD = re.compile(r"[\w$]+")
+AFTER_A_WORD_A_REGEX = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete"}
+AFTER_A_MARK_A_REGEX = {"", *"([{,;:=!&|?+-*%<>~^"}
 
 
 def swept():
@@ -51,12 +63,69 @@ def shell_comments(text):
     return found
 
 
+def quoted_end(text, at):
+    quote, at = text[at], at + 1
+    while at < len(text) and text[at] != quote and (quote == "`" or text[at] != "\n"):
+        at += 2 if text[at] == "\\" else 1
+    return at + 1
+
+
+def regex_end(text, at):
+    within, at = False, at + 1
+    while at < len(text) and text[at] != "\n":
+        if text[at] == "\\":
+            at += 1
+        elif text[at] in "[]":
+            within = text[at] == "["
+        elif text[at] == "/" and not within:
+            return at + 1
+        at += 1
+    return at
+
+
+def comment_end(text, at):
+    end = text.find("*/", at + 2) + 2 if text[at + 1] == "*" else text.find("\n", at)
+    return len(text) if end < at else end
+
+
+def script_comments(text):
+    found, before, at = [], "", 0
+    while at < len(text):
+        char, two, word = text[at], text[at : at + 2], WORD.match(text, at)
+        if char in "'\"`":
+            before, at = char, quoted_end(text, at)
+        elif two == "/*" or (two == "//" and text[at - 1 : at] != ":"):
+            end = comment_end(text, at)
+            found.append((text.count("\n", 0, at) + 1, text[at:end]))
+            at = end
+        elif char == "/" and (before in AFTER_A_WORD_A_REGEX or before in AFTER_A_MARK_A_REGEX):
+            before, at = "/", regex_end(text, at)
+        elif word:
+            before, at = word[0], word.end()
+        else:
+            before, at = before if char.isspace() else char, at + 1
+    return found
+
+
+def page_comments(text):
+    return [
+        (text.count("\n", 0, embedded.start(2)) + at, comment)
+        for embedded in EMBEDDED.finditer(text)
+        for at, comment in script_comments(embedded[2])
+    ]
+
+
+READERS = {".py": python_comments, ".js": script_comments, ".html": page_comments}
+
+
 def plain_comments(path, root=REPO):
-    read = python_comments if path.suffix == ".py" else shell_comments
+    read = READERS.get(path.suffix, shell_comments)
     return [
         f"{path.relative_to(root).as_posix()}:{at}: {comment}"
         for at, comment in read(path.read_text())
-        if not comment.startswith(READ_BY_A_TOOL) and not (at == 1 and comment.startswith("#!"))
+        if not comment.startswith(READ_BY_A_TOOL)
+        and not (at == 1 and comment.startswith("#!"))
+        and not (path.suffix in (".js", ".html") and LINKED in comment)
     ]
 
 
@@ -100,6 +169,22 @@ def test_a_swept_file_holds_no_plain_comment(name):
         ("trailing.sh", "#!/bin/sh\n  LOAD=85 # percent\n", ["trailing.sh:2: # percent"]),
         ("indented.sh", "#!/bin/sh\nrun() {\n\t# why\n}\n", ["indented.sh:3: # why"]),
         ("after_a_quote.sh", '#!/bin/sh\necho "a #1" # why\n', ["after_a_quote.sh:2: # why"]),
+        ("panel.js", "/* why */\npanel({});\n", ["panel.js:1: /* why */"]),
+        ("trailing.js", "var x = 1; // why\n", ["trailing.js:1: // why"]),
+        (
+            "block.js",
+            "var x = 1;\n  /* why,\n  and why */\n",
+            ["block.js:2: /* why,\n  and why */"],
+        ),
+        ("after_a_string.js", 'say("a"); // why\n', ["after_a_string.js:1: // why"]),
+        ("after_a_regex.js", "x.replace(/a/g, b); // why\n", ["after_a_regex.js:1: // why"]),
+        ("unclosed.js", "x();\n/* why", ["unclosed.js:2: /* why"]),
+        (
+            "page.html",
+            "<p>it's</p>\n<style>\n  a { b: c; } /* why */\n</style>\n"
+            "<script>\n// why\n</script>\n",
+            ["page.html:3: /* why */", "page.html:6: // why"],
+        ),
     ],
 )
 def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, name, text, found):
@@ -118,6 +203,15 @@ def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, na
         ("expansion.sh", '#!/bin/sh\necho "${state#"${state%% *}"}" "$#"\n'),
         ("quoted.sh", "#!/bin/sh\necho \"issue #3\" 'and #4'\nawk '\n  # in awk\n'\n"),
         ("escaped.sh", "#!/bin/sh\necho \\# \\' it\n"),
+        ("strings.js", "say(\"// no\", '/* no */', `// no\n/* no */`);\n"),
+        ("escaped.js", "say('it\\'s // no', \"a \\\" // no\");\n"),
+        ("regex.js", "var a = /\\/\\//, b = /[/]*/g;\n"),
+        ("returned.js", "function f(u) { return /^https:\\/\\/x\\//.test(u); }\n"),
+        ("divided.js", "var a = b / c / d, e = (f) / 2;\n"),
+        ("address.js", "var at = url(http://example.org/x);\n"),
+        ("linked.js", "/* Chromium drops a write past 200: https://example.org/spec */\nx();\n"),
+        ("css.html", '<style>\n  .a::before { content: "/" / ""; }\n</style>\n'),
+        ("prose.html", "<p>a // b, and /* c */ in words</p>\n"),
     ],
 )
 def test_what_a_tool_reads_and_a_hash_that_opens_no_comment_pass(tmp_path, name, text):

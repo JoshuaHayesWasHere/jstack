@@ -1,4 +1,3 @@
-/* One gate that jbus holds: the drawer that answers it, with an option or your own words. */
 var LABEL = { accept: "Accept the default", option: "Send this option", words: "Send my words" };
 function way(w) { return OPEN_GATE.words.trim() ? "words" : OPEN_GATE.opt === taken(w) ? "accept" : "option"; }
 function gateFoot(w) {

@@ -1,5 +1,3 @@
-/* What waits on you: the drawer of the lists, where the gates jbus holds are ticked and
-   closed with their defaults. The wait band of the first screen opens it. */
 function ticked() { return gates().map(function (w) { return w.number; }).filter(function (n) { return TICKED_GATES[n]; }); }
 function batchFoot() {
   var ns = ticked(), one = ns.length === 1;

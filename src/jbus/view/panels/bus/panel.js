@@ -1,6 +1,3 @@
-/* The bus: its card of the outbox, and the drawer of what was sent and the last events.
-   The top-level webhook, where the project posts to it beside its own, has its own outbox, and
-   so has the second target, the webhook of what blocks. */
 function busFails(b) { return [b, b.top_level, b.blocking].some(function (o) { return !!(o && (o.failed_wakes || o.last_error)); }); }
 function busNow(tag, o, own) {
   return '<div class="now e-' + (o.failed_wakes || o.last_error ? "op" : "ok") + '"><span class="tag">' + tag + '</span><span class="big">' + plural(o.outbox, "event", "events") + ' in the outbox</span>' +

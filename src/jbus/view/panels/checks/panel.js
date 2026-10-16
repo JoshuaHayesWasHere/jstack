@@ -1,7 +1,3 @@
-/* The repo's checks on GitHub: its card of what runs, waits and failed, and the drawer of runs. */
-/* A check is one run of the repo's workflow on GitHub. What runs, waits for a runner and
-   failed is the server's to say (`tally` in panel.py): `S.checks.now` names the runs. These
-   are the words GitHub has for a run that ended badly. */
 var CHECKS = [["running", "running"], ["waiting", "waiting for a runner"], ["failed", "failed"]];
 function runStats() {
   var by = {}, waited = [], runs = S.checks.runs, now = {};
@@ -18,8 +14,6 @@ function branches(runs) {
   return names.slice(0, 2).join(", ") + (names.length > 2 ? " +" + (names.length - 2) : "");
 }
 function checksSay(rs) { return CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "); }
-/* The runner units of this machine as systemd lists them. They are the machine's, so the card
-   of a project's checks says none of them: the machine's row does, and the drawer lists them. */
 function runnerList() {
   var c = S.checks;
   if (!c.runners_read) return '<p class="src">systemd did not answer, so the runners of this machine are not known.</p>';

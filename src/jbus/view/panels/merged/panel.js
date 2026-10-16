@@ -1,4 +1,3 @@
-/* What merged today: the drawer the Merged lane opens. */
 function dMerged() {
   var mt = S.merged.slice().reverse();
   return head("Done", mt.length + " merged today") +
