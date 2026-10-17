@@ -68,7 +68,7 @@ the module `jbus view` starts through, which loads this package too, and every p
 (`state.keys`), so a panel that does not load, or gives a key another gives, is code that
 does not start. The server loads the panels once, when it starts (`App`), and a folder
 that becomes a panel or stops being one since is code on disk that is newer. Where that
-starts it ends with status 0, for the unit to start it again. Where it does not, the server
+starts it ends with `NEWER_CODE`, for the unit to start it again. Where it does not, the server
 keeps serving, `/state.json` says so, and the trial is run again at each check: what it
 says rests on more than the files that are newer, as a module nobody has loaded yet.
 """
