@@ -10,6 +10,11 @@ command in it is stopped at its time limit, so a full suite cannot sit there. A 
 runs in a process group of its own, and the stop and every signal go to the whole group: a
 `sh -c` wrapper does not leave its pytest running once the slot is free. Out of the terminal's
 group, an interrupt reaches it only through this process, which passes it on.
+
+A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
+and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`)
+and ends 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the lane
+is free, and the thread runs its command again, which takes the slot and leaves the file.
 """
 
 from __future__ import annotations
@@ -21,7 +26,10 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+
+from jgauge import waiters
 
 DEFAULT = 2
 SHORT_SLOTS = 3
@@ -29,6 +37,7 @@ SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2
 STOP_GRACE_SECONDS = 5.0
 TIMED_OUT = 124
+WAITING = 76
 
 
 @dataclass(frozen=True)
@@ -64,6 +73,41 @@ def count(asked: str | None) -> int:
     return int(value)
 
 
+def locks_dir() -> Path:
+    return Path(os.environ.get("JGAUGE_LOCKS_DIR") or Path.home() / ".local" / "state" / "locks")
+
+
+def name(lane: Lane) -> str:
+    return "short" if lane.limit is not None else "full"
+
+
+def lane_of(kind: str, slots: int) -> Lane:
+    return short() if kind == "short" else full(slots)
+
+
+def free(lane: Lane) -> int:
+    """How many slots of the lane no one holds now. A slot is looked at and let go at once,
+    and a lock file that is not there is a slot no one has taken."""
+    locks, found = locks_dir(), 0
+    for n in range(1, lane.slots + 1):
+        try:
+            held = os.open(locks / f"{lane.lock}.{n}.lock", os.O_RDWR)
+        except FileNotFoundError:
+            found += 1
+            continue
+        except OSError:
+            continue
+        try:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            pass
+        else:
+            found += 1
+        finally:
+            os.close(held)
+    return found
+
+
 def _first_free(locks: Path, lane: Lane) -> int | None:
     for n in range(1, lane.slots + 1):
         held = os.open(locks / f"{lane.lock}.{n}.lock", os.O_RDWR | os.O_CREAT, 0o644)
@@ -76,9 +120,24 @@ def _first_free(locks: Path, lane: Lane) -> int | None:
     return None
 
 
-def take(lane: Lane) -> int:
-    locks = Path.home() / ".local" / "state" / "locks"
+def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int | None:
+    """Wait for a slot and take it. With a `thread` it waits for none: with every slot taken it
+    registers the thread as a waiter on the lane, says so in one line, and takes nothing. One
+    that takes a slot leaves the waiters."""
+    locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
+    if thread:
+        held = _first_free(locks, lane)
+        if held is not None:
+            waiters.drop(locks, thread)
+            return held
+        waiters.register(locks, thread, name(lane), lane.slots, command or [], datetime.now(UTC))
+        print(
+            f"test-slot: every one of {lane.called} is taken; {thread} is registered as a waiter"
+            " and jbus will wake it when one is free. End your turn.",
+            flush=True,
+        )
+        return None
     said = False
     while (held := _first_free(locks, lane)) is None:
         if not said:
@@ -115,8 +174,10 @@ def _stop(child: subprocess.Popen, lane: Lane) -> int:
     return TIMED_OUT
 
 
-def run(command: list[str], lane: Lane) -> int:
-    held = take(lane)
+def run(command: list[str], lane: Lane, thread: str = "") -> int:
+    held = take(lane, thread, command)
+    if held is None:
+        return WAITING
     child: subprocess.Popen | None = None
     early: list[int] = []
 

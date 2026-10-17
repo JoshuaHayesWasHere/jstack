@@ -251,7 +251,10 @@ class T3(Server):
                 )
                 made = {"thread": {"threadId": given["threadId"], "title": title}, "items": items}
                 return {"structuredContent": made, "content": []}
-            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            found = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            if not found:
+                return {"isError": True, "content": [{"type": "text", "text": "thread not found"}]}
+            (thread,) = found
             said = {k: v for k, v in thread.items() if k != "runs"}
             made = {"thread": said, "recentRuns": thread.get("runs", []), "items": []}
         elif tool == "t3_thread_send":
@@ -498,6 +501,7 @@ class Kitchen:
         monkeypatch.setenv("JBUS_CONFIG_DIR", str(self.config_dir))
         monkeypatch.setenv("JBUS_STATE_DIR", str(self.state_dir))
         monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "home"))
+        monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
         monkeypatch.setenv("LAVISH_AXI_STATE_DIR", str(tmp_path / "lavish"))
         monkeypatch.chdir(self.checkout)
         monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)

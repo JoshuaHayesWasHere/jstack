@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-from jgauge import session, slot, transcript
+from jgauge import session, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
 
 NO_ROOM = 75
@@ -76,19 +77,28 @@ def cmd_room(args: argparse.Namespace) -> int:
     return _wait_for_room(look, args.wait, args.every)
 
 
+def _list_waiters() -> int:
+    for one in waiters.read(slot.locks_dir()):
+        woken = f", woken {one.woken}" if one.woken else ""
+        print(f"{one.thread} {one.lane} since {one.since}{woken}: {shlex.join(one.command)}")
+    return 0
+
+
 def cmd_test_slot(args: argparse.Namespace) -> int:
+    if args.waiters:
+        return _list_waiters()
     command = args.argv[1:] if args.argv[:1] == ["--"] else args.argv
     if not command:
         args.usage("no command to run")
     if args.short:
         if args.slots is not None:
             args.usage("--short takes a slot of the short lane, and --slots counts the full lane")
-        return slot.run(command, slot.short())
+        return slot.run(command, slot.short(), args.thread)
     try:
         slots = slot.count(args.slots)
     except slot.BadCount as error:
         args.usage(str(error))
-    return slot.run(command, slot.full(slots))
+    return slot.run(command, slot.full(slots), args.thread)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -134,7 +144,7 @@ def parser() -> argparse.ArgumentParser:
     held = commands.add_parser(
         "test-slot",
         help="run a command while holding one of N machine-wide test slots, waiting for one",
-        usage="jgauge test-slot [--slots N | --short] -- command ...",
+        usage="jgauge test-slot [--slots N | --short] [--thread ID | --waiters] -- command ...",
     )
     held.add_argument("--slots", metavar="N", help="how many slots (default: TEST_SLOTS, else 2)")
     held.add_argument(
@@ -142,6 +152,16 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help=f"take one of the {slot.SHORT_SLOTS} slots of the short lane, which never waits on a"
         f" full suite, and stop the command at {slot.SHORT_LIMIT_SECONDS:g} s",
+    )
+    held.add_argument(
+        "--thread",
+        metavar="ID",
+        default="",
+        help="this thread's id: wait for no slot, and with every one taken register as a waiter"
+        f" jbus wakes when one is free, and end {slot.WAITING}",
+    )
+    held.add_argument(
+        "--waiters", action="store_true", help="print the threads that wait on a slot, and end"
     )
     held.add_argument("argv", nargs=argparse.REMAINDER, help="the command, after `--`")
     held.set_defaults(run=cmd_test_slot, usage=held.error)

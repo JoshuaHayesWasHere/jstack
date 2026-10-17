@@ -282,6 +282,7 @@ TABLE = {
     "green": "quiet",
     "mainmoved": "quiet",
     "resume": "quiet",
+    "slot-wake": "quiet",
     "retro": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",
