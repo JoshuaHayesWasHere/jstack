@@ -28,6 +28,10 @@ The lines after the role line:
 
 Every path it prints is from the root of the jstack checkout.
 
+## What an approval binds to
+
+A go from the user is bound to the brief's goal, scope and done-when: its title, `Task:`, `Done when:`, `Where:`, `Do not touch:` and `Size:` (`MEANING` in `src/jbriefs/meaning.py`, a fingerprint made with no model). An edit to `Skills:`, `Decisions:`, `Design:`, `Proves it:`, `Review:`, `Playbook:`, `Pull request:` or a note keeps the go (`NOT_MEANING` lists them), and a change to any of the six asks again. The checks of `jbriefs.parse.faults` run when a row is first queued; a row with a go is grandfathered, so a check added later refuses neither its brief nor its launch. [What an approval is bound to](jbus.md#what-an-approval-is-bound-to) has the rules.
+
 ## Skills a brief names
 
 A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in a Grok Bot brief, which pstack drives, and in T3, which jstack drives. The canonical form of a skill is its directory under `skills/`, `architect`; of a principle, its file under `principles/` without `.md`, `principle-model-the-domain`. Two aliases resolve too: a principle's name from before it took pstack's prefix, `model-the-domain`, and `arena` and `swarm`, pstack skills that jstack keeps as playbooks. A pstack skill jstack did not take, `poteto-mode` and the `Not taken:` line of `THIRD_PARTY.md`, is no name. `src/jbriefs/skills.py` is the one resolver: `jbus queue add` refuses a brief that names anything else, the launch gates one queued before, `jbriefs --skills` loads the files, and `jmerge` waits on a pull request whose Results leave a named skill with no artifact.

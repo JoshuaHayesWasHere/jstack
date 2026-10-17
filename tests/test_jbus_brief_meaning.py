@@ -32,23 +32,25 @@ Playbook: feature
 """
 
 REWORDED = """\
-# alpha: the brief, its title said again
+# alpha: A brief whose go is kept.
 Home: mcp:another-home
-Task: "Make the queue check every brief before it is queued, in the user's words."
+Task: "Make the queue check a brief."
 Done when:
 - An approval holds through a wording-only edit.
 - `make check` exits 0 in 3 minutes, or less
 -   `jbus queue add` refuses an *incomplete* brief:
     one line per fault
-Proves it: `make check` runs the tests above.
+Proves it: `make check` runs the tests above, and `jbus queue show` lists no re-asked row.
 Size: M
 Where: `src/jbus/queue.py`,   `src/jbriefs/`
 Do not touch: `~/.config/`
 Decisions: the user's words are under Task
-Design: none, the Done when list pins it
-Pull request: open one when done
-Review: review
-Playbook: feature
+Design: none, the Done when list pins it, and a note
+Skills: principle-model-the-domain
+Pull request: ask first
+Review: none
+Playbook: bug-fix
+Judge: the user
 """
 
 
@@ -72,15 +74,33 @@ def approved(kitchen, text=APPROVED):
 @pytest.mark.parametrize(
     "edit",
     [
-        lambda text: text.replace(
-            'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
-        ),
         lambda text: REWORDED,
         lambda text: text.replace("wording-only", "wordnig-only"),
+        lambda text: text.replace("Decisions: none yet", "Decisions: use the user's word 13bb"),
+        lambda text: text.replace("Design: none, the", "Design: none, because the"),
+        lambda text: text.replace(
+            "Proves it: `make check`", "Proves it: the user, and `make check`"
+        ),
+        lambda text: text.replace("Review: review", "Review: none"),
+        lambda text: text.replace("Playbook: feature", "Playbook: bug-fix"),
+        lambda text: text.replace("Pull request: open one when done", "Pull request: ask first"),
+        lambda text: text.replace("Decisions:", "Judge: the user\nDecisions:"),
+        lambda text: text + "\n## Note\nAn aside the crewmate may use.\n",
     ],
-    ids=["task", "done when reordered, re-wrapped and re-punctuated", "a typo"],
+    ids=[
+        "every field that is not meaning edited at once, the rest re-formatted",
+        "a typo in Done when",
+        "decisions",
+        "design",
+        "proves it",
+        "review",
+        "playbook",
+        "pull request",
+        "a field the template does not name",
+        "a note under a heading",
+    ],
 )
-def test_an_approved_brief_edited_only_in_its_wording_stays_approved_and_launches(kitchen, edit):
+def test_an_approved_brief_edited_outside_its_meaning_stays_approved_and_launches(kitchen, edit):
     approved(kitchen)
     again = edit(APPROVED)
     assert again != APPROVED
@@ -93,30 +113,48 @@ def test_an_approved_brief_edited_only_in_its_wording_stays_approved_and_launche
     assert launch["message"] == f"/crew alpha\n\n{queue.body(again)}"
 
 
+def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
+    skilled = APPROVED.replace("Decisions:", "Skills: blast-radius\nDecisions:")
+    approved(kitchen, skilled)
+    again = skilled.replace(
+        "Skills: blast-radius", "Skills: principle-attack-the-premise, principle-prove-it-works"
+    )
+    code, said = add(kitchen, again)
+    assert code == 0 and ", its go holds\n" in said, said
+    assert meaning.same(meaning.meaning(skilled), meaning.meaning(again))
+    kitchen.poll()
+    assert gates(kitchen) == []
+    assert len(kitchen.t3.launches) == 1
+
+
 @pytest.mark.parametrize(
     "edit",
     [
         lambda text: text.replace("Proves it:", "- the go is printed by verify\nProves it:"),
         lambda text: text.replace("- an approval holds through a wording-only edit\n", ""),
         lambda text: text.replace("Size: M", "Size: L"),
-        lambda text: text.replace("Review: review", "Review: none"),
         lambda text: text.replace("3 minutes", "5 minutes"),
         lambda text: text.replace("`src/jbriefs/`", "`src/jmerge/`"),
+        lambda text: text.replace("`~/.config/`", "`~/.config/`, `docs/`"),
         lambda text: text.replace("holds through", "never holds through"),
-        lambda text: text.replace("Decisions:", "Judge: the user\nDecisions:"),
+        lambda text: text.replace(
+            'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
+        ),
+        lambda text: text.replace("alpha: a brief whose go is kept", "alpha: another brief"),
     ],
     ids=[
         "a done-when line added",
         "a done-when line taken out",
         "size",
-        "review",
         "a number",
         "a path",
+        "a do-not-touch path added",
         "a content word",
-        "a field the template does not name",
+        "task, the goal",
+        "the title",
     ],
 )
-def test_an_approved_brief_whose_scope_changed_asks_again(kitchen, edit):
+def test_an_approved_brief_whose_goal_or_scope_changed_asks_again(kitchen, edit):
     approved(kitchen)
     again = edit(APPROVED)
     assert again != APPROVED
@@ -268,19 +306,109 @@ def test_a_row_approved_before_the_fingerprint_is_held_to_its_sha(kitchen):
 
 def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest():
     made = dict((label, lines) for label, lines in meaning.meaning(APPROVED))
-    assert list(made) == [
-        "Done when",
-        "Proves it",
-        "Size",
-        "Where",
-        "Do not touch",
-        "Pull request",
-        "Review",
-        "Playbook",
-    ]
+    assert list(made) == [parse.TITLE, "Task", "Done when", "Where", "Do not touch", "Size"]
     assert made["Size"] == [["=m"]]
     assert ["=0", "=3", "=make check", "exits", "less", "minutes", "or"] in made["Done when"]
     assert made == dict(meaning.meaning(REWORDED))
     assert meaning.same(meaning.meaning(APPROVED), meaning.meaning(REWORDED))
     swapped = APPROVED.replace("an approval holds", "an approval must hold")
     assert not meaning.same(meaning.meaning(APPROVED), meaning.meaning(swapped))
+
+
+def test_the_two_lists_hold_every_field_the_template_names_once():
+    template = (Path(__file__).parents[1] / "templates" / "brief.md").read_text()
+    labels = [label for label, _ in parse.fields(template) if label not in ("", parse.REST)]
+    assert labels
+    assert not set(meaning.MEANING) & set(meaning.NOT_MEANING)
+    assert set(labels) <= set(meaning.MEANING) | set(meaning.NOT_MEANING)
+    assert set(meaning.MEANING) <= set(labels)
+    assert [label for label, _ in meaning.meaning(template)] == list(meaning.MEANING)
+
+
+def test_a_go_recorded_before_the_title_and_task_were_read_holds_for_them_and_for_no_other_scope(
+    kitchen,
+):
+    approved(kitchen)
+    table = json.loads((kitchen.state / "queue.json").read_text())
+    record = table[0]["approval"]
+    legacy = [
+        [label, lines] for label, lines in record["meaning"] if label not in (parse.TITLE, "Task")
+    ]
+    legacy += [["Proves it", [["=x"]]], ["Review", [["=review"]]], ["Playbook", [["=feature"]]]]
+    record["meaning"] = legacy
+    (kitchen.state / "queue.json").write_text(json.dumps(table))
+    code, said = add(
+        kitchen, REWORDED.replace('"Make the queue check a brief."', '"Another goal."')
+    )
+    assert code == 0 and ", its go holds\n" in said, said
+    code, said = add(kitchen, APPROVED.replace("Size: M", "Size: L"))
+    assert code == 0 and "its go does not hold for it: approve it again" in said, said
+
+
+def test_a_lint_added_after_an_approval_neither_refuses_the_brief_nor_voids_its_go(
+    kitchen, monkeypatch
+):
+    approved(kitchen)
+    monkeypatch.setattr(
+        parse,
+        "CHECKS",
+        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+    )
+    assert parse.faults(APPROVED) == ["brief's Where: names a file"]
+    code, said = add(kitchen, APPROVED)
+    assert code == 0, said
+    edited = APPROVED.replace("Decisions: none yet", "Decisions: none, said again")
+    code, said = add(kitchen, edited)
+    assert code == 0 and ", its go holds\n" in said, said
+    kitchen.poll()
+    assert gates(kitchen) == []
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+
+
+def test_a_lint_added_later_still_refuses_a_brief_first_queued_after_it(kitchen, monkeypatch):
+    monkeypatch.setattr(
+        parse,
+        "CHECKS",
+        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+    )
+    code, said = add(kitchen, APPROVED)
+    assert code == 1 and "- brief's Where: names a file" in said, said
+
+
+def test_an_edit_to_an_approved_brief_is_refused_for_the_fault_it_brings_and_not_for_the_old(
+    kitchen, monkeypatch
+):
+    approved(kitchen)
+    monkeypatch.setattr(
+        parse,
+        "CHECKS",
+        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+    )
+    broken = APPROVED.replace("Design: none, the Done when list pins it", "Design: TBD")
+    code, said = add(kitchen, broken)
+    assert code == 1, said
+    assert said.splitlines()[1:] == [f"- {parse.NO_DESIGN}"], said
+
+
+def test_queue_show_says_which_rows_were_grandfathered_and_which_are_re_asked(kitchen, monkeypatch):
+    approved(kitchen)
+    assert "grandfathered" not in kitchen.main("queue", "show")[1]
+    monkeypatch.setattr(
+        parse,
+        "CHECKS",
+        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+    )
+    code, said = kitchen.main("queue", "show")
+    assert code == 0 and "re-asked" not in said
+    assert said.endswith(
+        "\ngrandfathered, approved before a lint that refuses the brief now; the go stands:\n"
+        "- alpha: brief's Where: names a file\n"
+    ), said
+    code, said = add(kitchen, APPROVED.replace("Size: M", "Size: L"))
+    assert code == 1, said
+    text = queue.brief_path(kitchen.state, "alpha")
+    text.write_text(APPROVED.replace("Size: M", "Size: L"))
+    assert (
+        "re-asked, the go does not hold for the stored brief: alpha\n"
+        in (kitchen.main("queue", "show")[1])
+    )

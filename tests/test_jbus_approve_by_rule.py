@@ -16,7 +16,7 @@ import jbus
 from jbus import digest, queue
 from jbus.view import state as view_state
 from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen, bound
-from test_jbus_queue import NO_BASIS, add, brief, rows, sha12
+from test_jbus_queue import NO_BASIS, add, brief, rows, sha12, widened
 
 RULE = "Follow-ups to approved work need no new approval. New work needs his go."
 STANDING = f"""# demo: standing rules
@@ -311,7 +311,7 @@ def test_a_removal_of_a_parent_that_did_not_merge_holds_its_follow_ups(kitchen):
 
 def test_a_parent_whose_brief_changed_after_its_go_is_not_followed(kitchen):
     add(kitchen, "alpha")
-    add(kitchen, "alpha", approve=False, text=brief("alpha", "More.\n"))
+    add(kitchen, "alpha", approve=False, text=widened("alpha", "More."))
     add(kitchen, "beta", approve=False)
     assert refusal(kitchen, "beta", "--rule", "6", "--follows", "alpha") == (
         "refused: beta cannot follow alpha: alpha's brief changed after its approval"

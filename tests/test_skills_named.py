@@ -5,7 +5,6 @@ an artifact for it. The names are pstack's, and the old principle names still re
 import hashlib
 import re
 import subprocess
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -13,7 +12,6 @@ import pytest
 import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
-from test_jbus_kitchen import NOW
 from test_jbus_queue import add, brief, gates, queued_before
 
 REPO = Path(__file__).parent.parent
@@ -113,16 +111,16 @@ def test_an_unknown_skill_name_is_refused_at_queue_time_and_nothing_is_queued(ki
     assert kitchen.main(*argv, stdin=brief("alpha", NAMED))[0] == 0
 
 
-def test_a_row_queued_before_with_an_unknown_name_is_a_gate_that_names_it(kitchen):
+def test_a_row_queued_before_with_an_unknown_name_is_grandfathered_and_launches(kitchen):
+    """A lint runs when a row is first queued: a row with a go is not gated for a name a
+    later check does not know."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", brief("alpha", UNKNOWN))
     add(kitchen, "beta", priority=2)
     kitchen.poll()
-    kitchen.poll(NOW + timedelta(minutes=3))
-    why = skills.unknown(UNKNOWN)
-    assert "poteto-mode, principle-made-up" in why
-    assert gates(kitchen) == [f"condition alpha: {why}"]
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
+    assert "poteto-mode, principle-made-up" in skills.unknown(UNKNOWN)
+    assert gates(kitchen) == []
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha", "crew: beta"]
 
 
 @pytest.mark.parametrize(
