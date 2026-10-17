@@ -206,6 +206,7 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
 
 
 CHROME = {"JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"}
+FAST_LANE_CPUS = 4
 
 
 def job_env(text, job):
@@ -226,9 +227,19 @@ def job_env(text, job):
     return found
 
 
+WORKERS = {"TEST_WORKERS": str(FAST_LANE_CPUS)}
+
+
+def test_the_fast_check_runs_one_worker_for_each_cpu_the_lane_gives_it():
+    """The container is capped at the pool's FAST_CPUS, but `nproc` in it counts the host's
+    processors, so the Makefile's count would give a runner two workers and leave the rest idle."""
+    assert job_env(CHECK.read_text(), "check")["TEST_WORKERS"] == str(FAST_LANE_CPUS)
+    assert "TEST_WORKERS" not in job_env(CHECK.read_text(), "full")
+
+
 def test_each_job_names_google_chrome_once_for_all_its_steps():
     text = CHECK.read_text()
-    assert (job_env(text, "check"), job_env(text, "full")) == (CHROME, CHROME)
+    assert (job_env(text, "check"), job_env(text, "full")) == (CHROME | WORKERS, CHROME)
     named = [step for job in ("check", "full") for step in steps(text, job)[0] if "env" in step]
     assert [step["name"] for step in named] == ["green tree", "green tree marker"]
     assert text.count("JSTACK_TEST_BROWSER: ") == 2
