@@ -4,7 +4,7 @@
 
 ## The start hook
 
-`hooks/home-start.sh` is a `SessionStart` hook. It makes a new T3 Code thread the repo's home without anyone typing `/home`. It prints `templates/hook-message.md`, which tells the thread to follow the `home` skill before its first reply. It prints nothing unless all of these hold:
+`hooks/home-start.sh` is a `SessionStart` hook. It makes a new T3 Code thread the repo's home without anyone typing `/home`. It prints `templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply. It prints nothing unless all of these hold:
 
 - the session is new, not a resume, a `/clear` or a compaction;
 - it runs inside T3 Code, where `T3_CODE_MCP_AUTHORIZATION` or `T3_MCP_BEARER_TOKEN` is set;
@@ -78,13 +78,13 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
 At the limit, and after every tool call from then on, the agent gets one line:
 
 ```
-context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then run the handoff skill. Start nothing new.
+context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <checkout>/skills/handoff/SKILL.md and do its steps. Start nothing new.
 ```
 
 That line stops nothing: the tool call has run, and the next one runs too. At the ceiling the hook denies a tool call before it runs, and the agent gets this line as the reason:
 
 ```
-context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: load the handoff skill and do its steps.
+context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <checkout>/skills/handoff/SKILL.md and do its steps.
 ```
 
 A home over its ceiling still makes the calls the `handoff` skill makes, and no other:
