@@ -713,7 +713,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
-    _retro(run, world)
+    _retro(run, world, rows)
 
 
 def _api(run: Pass, path: str) -> Any:
@@ -846,18 +846,28 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
         run.condition(name, f"its brief was not queued: {refused}")
 
 
-def _retro(run: Pass, world: World) -> None:
+def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """A red main within a day of a merge, and a revert of one. Both name the merged slug.
 
     A main whose run was cancelled is not red: its run is asked for again, and what is said
     is a second cancelled one, or a run GitHub would not start again. A red main is said
-    once a commit, and the brief for its fix is filed and queued once a commit (`_file`).
+    once a commit. The brief for its fix is filed and queued once, and only for main's tip
+    as this pass reads it (`_file`): a red commit that a later one superseded is no main to
+    fix. A filed row whose main is green again before it launched is said once, and is left
+    as it is.
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
         key=lambda s: world.merged[s]["mergedAt"],
     )
-    if not slugs:
+    unlaunched = [
+        row["slug"]
+        for row in rows
+        if row["slug"].startswith("main-red-")
+        and row.get("status") in ("queued", "gate")
+        and not row.get("thread")
+    ]
+    if not slugs and not unlaunched:
         return
     merges = [world.merged[slug] for slug in slugs]
     slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
@@ -867,6 +877,11 @@ def _retro(run: Pass, world: World) -> None:
     if not isinstance(commits, list):
         return
     known: dict[str, str] = read_json(run.state / "checks.json", {})
+    tip = commits[0]["sha"] if commits else ""
+    if unlaunched and _check(run, known, tip) == "green":
+        for name in unlaunched:
+            line = f"retro {name}: main is green again at {tip[:12]}, and its row is left as it is"
+            run.find(name, "retro", line, key=f"green {name}", past=True)
     by_commit = {(p.get("mergeCommit") or {}).get("oid"): p for p in merges}
     for place, commit in enumerate(commits):
         sha, message = commit["sha"], commit["commit"]["message"]
@@ -897,7 +912,7 @@ def _retro(run: Pass, world: World) -> None:
             since += 1
         line = f"retro {slug}: main check failed at {sha[:12]}, {since} merges since the last green"
         run.find(slug, "retro", line, key=f"red {sha}", past=True)
-        if not run.first and slug not in run.removed:
+        if place == 0 and not run.first and slug not in run.removed:
             _file(run, slug, sha, commits[place : place + since])
     write_json(run.state / "checks.json", known)
 
