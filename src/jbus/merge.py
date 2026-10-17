@@ -89,6 +89,7 @@ def parse(text: str) -> Line | None:
 RULES = (
     ("hold", r"^needs [^\s,]+, |needs the user's word|which the user lands|^its base is "),
     ("hold", r"a stack its brief does not name|auto-merge is off|held a third rebase"),
+    ("hold", r"^its queue row is held|^its queue cannot be read"),
     ("proof", r"no proven safety fact"),
     ("second", r"second pass is not written|the rebase changed the (content|patch) after"),
     ("second", r"scoped review has not ruled|not the one its review saw|no head to compare"),
@@ -98,6 +99,7 @@ RULES = (
     ("check", r"check has not (passed|finished)|fresh check|GitHub has not decided"),
     ("check", r"its check has no start time|could not be fetched|moved while it was judged"),
     ("check", r"jmerge's (own )?rules"),
+    ("check", r"^merges after \S+ \(.*\), not merged yet"),
     ("findings", r"findings are not handled|^its head moved after|^its Fixed line"),
     ("findings", r"have no Finding line"),
     ("review", r"no review yet|review has no verdict"),

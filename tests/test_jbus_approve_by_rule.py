@@ -60,7 +60,7 @@ def refusal(kitchen, slug, *basis):
 def cell(kitchen, slug):
     lines = kitchen.main("queue", "show", "--all")[1].splitlines()
     (found,) = [line for line in lines if line.startswith(f"| {slug} |")]
-    return found.split(" | ")[3]
+    return found.split(" | ")[4]
 
 
 def old_string(kitchen, slug):
@@ -79,7 +79,7 @@ def test_an_approval_by_rule_is_a_record_of_the_rule_and_the_parent_and_the_row_
     add(kitchen, "beta", approve=False)
     code, said = follow(kitchen, "beta", "alpha")
     assert (code, cell(kitchen, "beta")) == (0, BY_RULE)
-    assert said.splitlines()[-1].split(" | ")[3] == BY_RULE
+    assert said.splitlines()[-1].split(" | ")[4] == BY_RULE
     row = rows(kitchen)["beta"]
     assert row["approval"] == {
         "basis": "rule",

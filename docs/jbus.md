@@ -257,13 +257,13 @@ The queue table is `~/.local/state/jbus/<project>/queue.json`, and `jbus queue s
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `approved`, `approval`, `brief_sha`, `entry`, `item` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry` and `item`. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry`, `item` and `merge_after`; `hold` sets `held` and `approve` clears it. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line. Under each `add` comes its brief, between two marker lines:
 
 ```
-add alpha --priority 1 --depends beta,gamma
+add alpha --priority 1 --depends beta,gamma --merge-after delta
 --- brief alpha
 # alpha: the brief, as it will be launched
 --- end
@@ -275,7 +275,7 @@ hold delta
 It applies every verb or none, under one lock, and prints one result line per verb. A verb that cannot be done is `refused: line <n>: <why>, and nothing in the batch was applied`, with exit code 1. The verbs run in order, so an `approve` can name the sha of a brief added earlier in the same batch. Each of the four verbs typed alone is a batch of one, with the brief of an `add` on stdin:
 
 ```sh
-jbus queue add <slug> --priority <n> --depends <slug>,<slug> --entry <entry> < brief.md
+jbus queue add <slug> --priority <n> --depends <slug>,<slug> --merge-after <slug>,<slug> --entry <entry> < brief.md
 jbus queue approve <slug> --sha <sha12> --word <id>
 jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
@@ -291,7 +291,7 @@ refused: alpha's brief has 2 faults, and nothing is queued
 
 In a batch it is `refused: line <n>: <slug>'s brief has <k> faults, and nothing is queued, and nothing in the batch was applied`, with the same lines under it. A launch makes the same checks again, as a backstop for a row queued before `add` made them. When the row had a go and its brief changed, `add` prints a line above the table, `added <slug>: priority <n>, brief <sha12>`, that ends `, its go holds` or `, its go does not hold for it: approve it again` (see [What an approval is bound to](#what-an-approval-is-bound-to)).
 
-`--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge first. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority` and `--depends` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `jbus queue add <slug> --item <id>` links the row to the work item `--item` names, and with no `--item` a new row gets an item of its own, with source `cli` ([Work items](#work-items)). An item that is not there, or that is another row's, is refused, and nothing is queued. A row keeps its item: an `add` that names another is refused. `hold` takes a row's approval back.
+`--priority` is an integer, and the lowest launches first. `--depends` is optional: the slugs that must merge before this row launches. `--merge-after` is optional too: the slugs whose pull requests merge before this row's. It gates the merge and not the launch, so the row launches and its crew works at once, and `jmerge` leaves its pull request with `wait <number> <url>: merges after <slug> (#<n>), not merged yet` until every row it names is `merged` or `done` (`no pull request yet` stands for the `#<n>` of a row with none open). The order is a column of the row, so a home that declares one writes it here and not in a report. `add` refuses a slug that is the row itself, that has no row, that was removed, or whose row merges after this one or depends on it, since neither would ever merge; and `remove` refuses a row that another merges after, as it does one that depends on it. `--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug. An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless `--entry` is given. `--entry <the row's own slug>` makes the row its own entry again. `jbus queue add <slug> --item <id>` links the row to the work item `--item` names, and with no `--item` a new row gets an item of its own, with source `cli` ([Work items](#work-items)). An item that is not there, or that is another row's, is refused, and nothing is queued. A row keeps its item: an `add` that names another is refused. `hold` takes a row's approval back, which stops both its launch and its merge: a row that was never launched is not launched, and one whose pull request is open has it left unmerged by `jmerge`, with `wait <number> <url>: its queue row is held: approve it again to let it merge`, until `jbus queue approve` gives the row its go again. A row that was never approved is not held, and its pull request is judged as any other.
 
 An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
 

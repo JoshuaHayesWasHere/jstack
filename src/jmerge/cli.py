@@ -25,6 +25,8 @@ fact proven at the head), and otherwise printed as
 hand-merge: for that pull request, at the head the hold was said at, and only where a
 review proved its safety fact at that head. Every merge is into the commit of main it was
 judged against: a main that moved since is judged again first.
+One whose queue row `jbus queue hold` took the go from waits until the row is approved again,
+and one whose row names a row in `merge_after` that has not merged waits for it (`rows`).
 A `merge-off` file in the repo's state merges nothing. Each `merged`
 line ends in the command that opens its revert. With `--sweep` it merges nothing: it
 removes what finished threads left and each tree's marker that is more than 7 days old,
@@ -53,7 +55,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import jsettings
-from jmerge import claims, proof, rangediff, ready, sweep
+from jmerge import claims, proof, rangediff, ready, rows, sweep
 
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
@@ -427,6 +429,13 @@ class Repo:
         self.listed = _first_word(_read(state / "home-id"))
         self.mine = home or self.listed
         self.was = _was(state / "handoff.md")
+
+    @functools.cached_property
+    def queue(self) -> list[dict] | None:
+        """The rows of this repo's queue, read once for a run: the answer `rows.short` asks.
+        Nothing writes the queue during a run but jbus, so a pull request that waits on a row
+        that merges in this very run waits for the next."""
+        return rows.read(self.main)
 
     def others(self, text: str) -> bool:
         """Whether the brief was written by another home of this repo.
@@ -831,6 +840,9 @@ class Repo:
             if not short:
                 self.carried[one.number] = reviewed
             note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
+        if short:
+            return brief.stem, "wait", short, note, None
+        short = rows.short(self.queue, brief.stem)
         if short:
             return brief.stem, "wait", short, note, None
         left = self.left(one)

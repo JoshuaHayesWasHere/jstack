@@ -32,7 +32,7 @@ def cell(kitchen, slug):
     """The `approved` cell `queue show` prints for the row."""
     lines = kitchen.main("queue", "show", "--all")[1].splitlines()
     (found,) = [line for line in lines if line.startswith(f"| {slug} |")]
-    return found.split(" | ")[3]
+    return found.split(" | ")[4]
 
 
 def viewed(kitchen):
@@ -44,7 +44,7 @@ def viewed(kitchen):
 def test_an_approval_by_a_word_is_a_record_of_the_word_and_of_who_ran_it(kitchen):
     add(kitchen, "alpha", approve=False)
     code, said = go(kitchen, "alpha", "--word", kitchen.word())
-    assert (code, said.splitlines()[-1].split(" | ")[3]) == (0, GO)
+    assert (code, said.splitlines()[-1].split(" | ")[4]) == (0, GO)
     row = rows(kitchen)["alpha"]
     assert row["approval"] == {
         "basis": "word",
