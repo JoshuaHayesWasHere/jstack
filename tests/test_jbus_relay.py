@@ -7,6 +7,7 @@ import contextlib
 import http.server
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -15,6 +16,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -642,3 +644,77 @@ def test_a_page_home_assistant_refuses_for_good_is_not_paged_again(relay, hooks)
 
     assert len(list(dead.glob("*.json"))) == 1
     assert len(relay.notified()) == 1
+
+
+LEAVES = Path(__file__).with_name("relay_leaves.py")
+
+
+def alive(pid: int) -> list[str]:
+    """What `ps` lists of the relay and of everything in its process group or session: the
+    processes that are not zombies, since a zombie is gone and waits only for its reaper."""
+    listed = subprocess.run(
+        ["ps", "-eo", "pid=,pgid=,sid=,stat=,args="], capture_output=True, text=True, check=True
+    ).stdout
+    return [
+        line.strip()
+        for line in listed.splitlines()
+        if str(pid) in line.split()[:3] and not line.split()[3].startswith("Z")
+    ]
+
+
+def run_leaves(tmp_path, how: str, *more: str) -> subprocess.Popen:
+    """Start the test of `relay_leaves.py` in a pytest of its own, which writes the relay's pid
+    to a file once the relay listens."""
+    env = {**os.environ, "LEAVES_PIDFILE": str(tmp_path / "pid"), "LEAVES_HOW": how}
+    return subprocess.Popen(
+        [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-q", str(LEAVES), *more],
+        env=env,
+        cwd=LEAVES.parent.parent,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+
+
+def relay_pid(tmp_path) -> int:
+    pidfile = tmp_path / "pid"
+    until(pidfile.exists, seconds=30)
+    return int(pidfile.read_text())
+
+
+def put_away(pid: int) -> None:
+    """Whatever a red run left, so that a failure here leaves nothing either."""
+    for line in alive(pid):
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(int(line.split()[0]), signal.SIGKILL)
+
+
+@pytest.mark.parametrize(
+    ("how", "more"), [("fail", ()), ("hang", ("--timeout", "3"))], ids=["assert", "timeout"]
+)
+def test_a_test_that_fails_or_times_out_leaves_no_relay(tmp_path, how, more):
+    pytest_run = run_leaves(tmp_path, how, *more)
+    try:
+        said, _ = pytest_run.communicate(timeout=60)
+        pid = relay_pid(tmp_path)
+        assert pytest_run.returncode == 1 and "1 failed" in said
+        assert alive(pid) == []
+    finally:
+        pytest_run.kill()
+        pytest_run.communicate()
+        if (tmp_path / "pid").exists():
+            put_away(relay_pid(tmp_path))
+
+
+def test_a_pytest_killed_outright_leaves_no_relay(tmp_path):
+    pytest_run = run_leaves(tmp_path, "hang")
+    try:
+        pid = relay_pid(tmp_path)
+        assert alive(pid) != [], "ps lists the relay while its pytest lives"
+        pytest_run.kill()
+        pytest_run.wait()
+        until(lambda: alive(pid) == [])
+    finally:
+        pytest_run.kill()
+        pytest_run.communicate()
+        put_away(relay_pid(tmp_path))
