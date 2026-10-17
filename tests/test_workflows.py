@@ -207,6 +207,7 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
 
 CHROME = {"JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"}
 FAST_LANE_CPUS = 4
+WORKER_CPUS = 0.8
 
 
 def job_env(text, job):
@@ -227,13 +228,14 @@ def job_env(text, job):
     return found
 
 
-WORKERS = {"TEST_WORKERS": str(FAST_LANE_CPUS)}
+WORKERS = {"TEST_WORKERS": str(round(FAST_LANE_CPUS / WORKER_CPUS))}
 
 
-def test_the_fast_check_runs_one_worker_for_each_cpu_the_lane_gives_it():
+def test_the_fast_check_runs_enough_workers_to_use_the_cpus_the_lane_gives_it():
     """The container is capped at the pool's FAST_CPUS, but `nproc` in it counts the host's
-    processors, so the Makefile's count would give a runner two workers and leave the rest idle."""
-    assert job_env(CHECK.read_text(), "check")["TEST_WORKERS"] == str(FAST_LANE_CPUS)
+    processors, so the Makefile's count would give a runner two workers and leave the rest idle.
+    A worker uses about 0.8 of a processor (the Makefile's figure), so 4 CPUs take 5 workers."""
+    assert job_env(CHECK.read_text(), "check")["TEST_WORKERS"] == WORKERS["TEST_WORKERS"] == "5"
     assert "TEST_WORKERS" not in job_env(CHECK.read_text(), "full")
 
 

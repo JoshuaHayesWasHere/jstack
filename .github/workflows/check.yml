@@ -43,9 +43,10 @@ jobs:
       # too. A Chromium snapshot's virtual time now and then never starts, and the browser
       # tests then wait out their bound.
       JSTACK_TEST_BROWSER: /usr/bin/google-chrome
-      # One worker for each CPU the lane gives a job (FAST_CPUS=4 in infra's jstack pool). The
-      # container is capped, but nproc in it counts the host's, so the Makefile would count two.
-      TEST_WORKERS: 4
+      # Enough workers to use the CPUs the lane gives a job (FAST_CPUS=4 in infra's jstack pool),
+      # at about 0.8 of one each. The container is capped, but nproc in it counts the host's,
+      # so the Makefile would count two.
+      TEST_WORKERS: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
