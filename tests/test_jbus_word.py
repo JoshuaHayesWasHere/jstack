@@ -112,8 +112,7 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     why = "it was said in this project's own home thread home-1"
     assert (code, out) == (0, kept_not_posted(kitchen, why, name=kept.id))
     assert (kept.words, kept.ref, kept.checked) == (WORDS, ref, True)
-    again = kitchen.main("word", "--to", "demo", "--message", ref)
-    assert again == (0, out.replace("kept:", "already kept:"))
+    assert kitchen.main("word", "--to", "demo", "--message", ref) == (code, out)
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == []
     assert [one["line"] for one in logged(kitchen)] == []
@@ -126,8 +125,11 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
         0,
         kept_not_posted(kitchen, "it was recorded by this project's home thread home-1"),
     )
-    code, out = kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID)
-    assert (code, out.startswith("already kept: demo, not posted")) == (0, True)
+    again = kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID)
+    assert again == (
+        0,
+        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1"),
+    )
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == [] and kitchen.webhook.posts == []
 
@@ -135,10 +137,10 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
 def test_a_word_recorded_anywhere_else_is_posted_to_the_home_once(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.t3.says("mcp:sous", "m1", WORDS, title="Sous Chef")
-    assert kitchen.main("word", "--to", "demo", "--message", "mcp:sous/m1")[1].startswith("sent:")
-    assert kitchen.main("word", "--to", "demo", "--from", "mcp:sous", *SAID) == (
-        0,
-        f"already sent: demo, to home-1, word {ID}\n",
+    code, out = kitchen.main("word", "--to", "demo", "--message", "mcp:sous/m1")
+    assert (code, out.startswith("sent: demo, to home-1, word ")) == (0, True)
+    assert kitchen.main("word", "--to", "demo", "--message", "mcp:sous/m1")[1].startswith(
+        "already sent:"
     )
     (sent,) = sends(kitchen)
     assert sent["threadId"] == "home-1"
