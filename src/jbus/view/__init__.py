@@ -106,6 +106,7 @@ from jbus.view.state import Sources
 __all__ = ["CHECK", "PORT", "App", "Code", "Doors", "Refused", "Sources", "doors"]
 
 PORT = 4388
+NEWER_CODE = 75
 LOOPBACK = "127.0.0.1"
 RETRY = 60.0
 CHECK = 30.0
@@ -733,7 +734,8 @@ class Doors:
 
     def serve(self) -> int:
         """Open the doors and serve until the process is stopped, or until the code on disk
-        is newer than the code that serves and starts: then it ends, for a new start."""
+        is newer than the code that serves and starts: then it ends with `NEWER_CODE`, which
+        jbus-view.service starts again."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)
@@ -742,6 +744,7 @@ class Doors:
                 if self.app.code.due():
                     print("jbus view: the code on disk is newer and starts, ending", flush=True)
                     self.close()
+                    return NEWER_CODE
         except KeyboardInterrupt:
             self.close()
         return 0
