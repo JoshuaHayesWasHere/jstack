@@ -741,10 +741,10 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
     if not repo.exists():
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
         (repo / "file").write_text("one\n")
-        stub.mkdir()
+        stub.mkdir(exist_ok=True)
         room.uv(stub)
     script = block(heading, "<check command>").replace("<check command>", command)
-    script = script.replace("limit=540", f"limit={limit}")
+    script = script.replace("limit=540", f"limit={limit}").replace("<thread id>", "mcp:thread-1")
     began = time.monotonic()
     ran = subprocess.Popen(
         ["sh", "-c", script],
@@ -854,18 +854,34 @@ def test_a_check_of_files_that_changed_while_it_ran_is_no_proof_and_runs_again(t
     assert runs.read_text() == "ran\nran\n"
 
 
-def test_no_block_of_do_the_task_asks_whose_the_full_run_is():
-    """The full run is the crewmate's: the block that read the brief and the notes has gone."""
+def slot_script(text, home):
+    return subprocess.run(
+        ["sh", "-c", text.replace("<thread id>", "mcp:thread-1")],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env={
+            **os.environ,
+            "HOME": str(home),
+            "PATH": f"{home.parent / 'stub'}:{room.BIN}:{os.environ['PATH']}",
+            "T": str(SKILL.parent.parent.parent / "templates"),
+        },
+    )
+
+
+def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
+    """The full run is the crewmate's: the block that read the brief and the notes has gone.
+    The two blocks that take a slot each run their command, with a slot free."""
     blocks = FENCED.findall(sections()["Do the task"])
     assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
-    slotted = [textwrap.dedent(text) for text in blocks if "jgauge test-slot" in text]
-    assert len(slotted) == 2
-    for text in slotted:
-        ran = slot_script(
-            text.replace("<check command>", "echo ran").replace("<the targeted tests>", "echo ran"),
-            tmp_path / "home",
-        )
-        assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
+    assert len([text for text in blocks if "jgauge test-slot" in text]) == 2
+    said, code, _ = checked(tmp_path, "echo ran")
+    assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
+    ran = slot_script(
+        block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+        tmp_path / "home",
+    )
+    assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
 
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path):
@@ -882,13 +898,16 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             held.append(fd)
     try:
-        for about, command in (
-            ("test-slot --short", "the targeted tests"),
-            ("test-slot --th", "check command"),
-        ):
-            ran = slot_script(block("Do the task", about).replace(f"<{command}>", "echo ran"), home)
-            assert (ran.returncode, ran.stderr) == (76, "")
-            assert "mcp:thread-1 is registered as a waiter" in ran.stdout
+        ran = slot_script(
+            block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+            home,
+        )
+        assert (ran.returncode, ran.stderr) == (76, "")
+        assert "mcp:thread-1 is registered as a waiter" in ran.stdout
+        said, code, _ = checked(tmp_path, "echo ran")
+        assert (said[-1].split(":")[0], code) == ("waiting", 76)
+        assert "mcp:thread-1 is registered as a waiter" in "\n".join(said)
+        assert not (tmp_path / "repo" / ".git" / "crew-check").exists()
     finally:
         for fd in held:
             os.close(fd)
