@@ -663,7 +663,7 @@ def run_leaves(tmp_path, how: str, *more: str) -> subprocess.Popen:
     """Start the test of `relay_leaves.py` in a pytest of its own, which writes the relay's pid
     to a file once the relay listens."""
     env = {**os.environ, "LEAVES_PIDFILE": str(tmp_path / "pid"), "LEAVES_HOW": how}
-    return subprocess.Popen(
+    return daemons.start(
         [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-q", str(LEAVES), *more],
         env=env,
         cwd=LEAVES.parent.parent,
