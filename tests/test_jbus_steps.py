@@ -53,6 +53,7 @@ ORDER = [
     "tellers 30 questions.propose (sight, client)",
     "tellers 40 watch.watch (client, world)",
     "tellers 50 threads.tie (client, world)",
+    "tellers 55 failover.failover (client, world)",
     "tellers 60 threads.resume (client, world)",
     "tellers 70 threads.merged (client, world)",
     "tellers 80 threads.out and stall.hung (client, world)",

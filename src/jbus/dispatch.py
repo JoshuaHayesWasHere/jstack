@@ -58,6 +58,7 @@ from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
+from jroles import failover
 
 EVENTS = {"overlap": "quiet"}
 _PATH = re.compile(r"`([^`\s]+)`")
@@ -143,8 +144,18 @@ def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
     if run.config.runtime_mode:
         made["runtimeMode"] = run.config.runtime_mode
     if run.config.model_selection:
-        made["modelSelection"] = run.config.model_selection
+        made["modelSelection"] = capped(run)[1]
     return made
+
+
+def capped(run: Pass) -> tuple[failover.Choice, dict[str, Any] | None]:
+    """The model selection a launch is sent with, and the choice that made it: the config's,
+    moved to the fallback instance while the primary is capped (`jroles.failover`)."""
+    given = run.config.model_selection
+    if not given:
+        return failover.Choice(None, ""), None
+    kept = failover.load(run.config.state_dir / failover.FILE)
+    return failover.select_json(given, kept, run.now)
 
 
 def shaped_since(run: Pass) -> datetime:
@@ -405,6 +416,14 @@ class Turns:
             if not wrote and on_disk.strip() != text.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
+            choice = capped(run)[0]
+            if choice.why and choice.instance is None:
+                line = f"wait {slug}: no launch: {choice.why}"
+                until = choice.until.isoformat() if choice.until else ""
+                if run.find(slug, "capped", f"capped {slug}: {choice.why}", key=until):
+                    run.say(line)
+                run.reasons[slug] = Slot()
+                return NO_ROOM
             why, notes = room(run)
             for note in notes:
                 day = run.day
@@ -457,7 +476,8 @@ class Turns:
                 },
             )
             write_thread(run, slug, reply["threadId"])
-            run.say(f"launched {slug}: {reply['threadId']}")
+            on = f" on {choice.instance}, {choice.why}" if choice.why else ""
+            run.say(f"launched {slug}: {reply['threadId']}{on}")
             overlaps(run, slug, brief)
             return LAUNCHED
         return NOTHING

@@ -423,6 +423,8 @@ def resume(run: Pass, client: Client, world: World) -> None:
         at, status, ended = thread["threadId"], thread["status"], thread.get("latestRunId")
         if len(live) > 1 or slug in run.gated or slug in world.open or slug in world.merged:
             continue
+        if slug in run.limited:
+            continue
         if status not in ENDED or not ended or thread.get("settled") or thread.get("snoozed"):
             continue
         if not dispatch.launched(run, slug) or mirror.last_result(brief):

@@ -36,7 +36,12 @@ NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 KEY = "a-key-for-the-test"
 TOKEN = "a-token-for-the-test"
 PROJECT = "11111111-2222-3333-4444-555555555555"
-READ = ("runs", "activeRunId", "pendingRequestCount")
+READ = ("runs", "activeRunId", "pendingRequestCount", "read_items", "selection")
+SELECTION = {
+    "instanceId": "claudeAgent",
+    "model": "claude-sonnet-5-5",
+    "options": [{"id": "effort", "value": "high"}, {"id": "fastMode", "value": True}],
+}
 SAID, SAID_AT, RAN = "said-by-user", "2026-10-11 17:58 ET", "2026-10-12 11:00 ET"
 SESSION = "a-home-session"
 GO = f"his word, {SAID_AT} (time typed); run {RAN} by the demo home"
@@ -102,7 +107,7 @@ class Webhook(Server):
 
 
 class T3(Server):
-    """T3 Code's MCP endpoint and its sign-in, with the six tools jbus calls."""
+    """T3 Code's MCP endpoint and its sign-in, with the eight tools jbus calls."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
@@ -253,7 +258,11 @@ class T3(Server):
                 return {"structuredContent": made, "content": []}
             (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
             said = {k: v for k, v in thread.items() if k != "runs"}
-            made = {"thread": said, "recentRuns": thread.get("runs", []), "items": []}
+            made = {
+                "thread": said,
+                "recentRuns": thread.get("runs", []),
+                "items": thread.get("read_items", []),
+            }
         elif tool == "t3_thread_send":
             if self.lose_send:
                 return None
@@ -264,6 +273,17 @@ class T3(Server):
                 if thread["threadId"] == given["threadId"]:
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
+        elif tool == "t3_thread_configuration":
+            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            made = {
+                "threadId": given["threadId"],
+                "modelSelection": thread.get("selection") or SELECTION,
+                "runtimeMode": "full-access",
+            }
+        elif tool == "t3_thread_configure":
+            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            thread["selection"] = given["modelSelection"]
+            made = {"threadId": given["threadId"], "modelSelection": given["modelSelection"]}
         elif tool == "link_pull_request":
             made = {"url": given["url"], "alreadyLinked": False}
         elif tool == "t3_thread_organize":

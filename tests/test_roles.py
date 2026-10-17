@@ -171,3 +171,52 @@ def test_only_a_claude_line_names_an_effort_and_only_last(roles):
     assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
     line = "crew: claudeAgent claude-opus-5-5 a b effort=low"
     assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
+
+
+def test_a_capped_primary_sends_a_claude_role_to_prime_and_says_which_instance_and_why(
+    tmp_path, monkeypatch, capsys
+):
+    """`jroles` reads `capped.json` of jbus's state directory and the clock it is given."""
+    from datetime import UTC, datetime
+
+    from jroles import failover
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path / "state"))
+    (tmp_path / "config" / "jstack").mkdir(parents=True)
+    (tmp_path / "config" / "jstack" / "roles").write_text(
+        "crew: claudeAgent claude-sonnet-5-5\nscout: codex gpt-5-codex\n"
+        "review: claudeAgent claude-opus-5-5 claudeAgent effort=low\n"
+    )
+    now = datetime(2026, 10, 17, 19, 45, tzinfo=UTC)
+    weekly = "You've hit your weekly limit · resets Oct 18, 4pm (America/New_York)"
+    prime = {
+        "provider": "claudeAgent",
+        "model": "claude-sonnet-5-5",
+        "instanceId": "claudeAgent_claude_prime",
+        "options": [{"id": "effort", "value": "medium"}],
+    }
+
+    def ask(role, at):
+        assert main([role], now=at) in (0, failover.WAIT)
+        return capsys.readouterr()
+
+    assert ask("crew", now).err == ""
+    failover.mark(failover.path(), "claudeAgent", failover.read_limit(weekly, now), now)
+    why = "claudeAgent is capped until 2026-10-18T20:00:00+00:00"
+    assert ask("crew", now) == (
+        json.dumps(prime) + "\n",
+        f"jroles: crew on {prime['instanceId']}: {why}\n",
+    )
+    assert json.loads(ask("review", now).out)["instanceId"] == "claudeAgent_claude_prime"
+    assert ask("scout", now) == ('{"provider": "codex", "model": "gpt-5-codex"}\n', "")
+    assert ask("crew", datetime(2026, 10, 18, 20, 1, tzinfo=UTC)) == (
+        json.dumps({k: v for k, v in prime.items() if k != "instanceId"}) + "\n",
+        "",
+    )
+    late = "You've hit your weekly limit · resets Oct 20, 4pm (America/New_York)"
+    failover.mark(failover.path(), "claudeAgent_claude_prime", failover.read_limit(late, now), now)
+    both = (
+        "claudeAgent and claudeAgent_claude_prime are both capped until 2026-10-18T20:00:00+00:00"
+    )
+    assert ask("crew", now) == ("", f"jroles: crew waits: {both}\n")

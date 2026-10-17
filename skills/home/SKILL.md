@@ -465,7 +465,7 @@ When in doubt between the two, any one of the durable column's conditions decide
    }
    ```
 
-   Before this launch, run `uv run --project "$T/.." jroles scout` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the scout on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. Leave the project and modes out, and the model unless `jroles` printed one.
+   Before this launch, run `uv run --project "$T/.." jroles scout` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the scout on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, both Claude instances are capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints may name `claudeAgent_claude_prime` as its `instanceId`: that is the failover, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
 
    ```json
    {
@@ -580,7 +580,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
    }
    ```
 
-   Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+   Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, both Claude instances are capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints may name `claudeAgent_claude_prime` as its `instanceId`: that is the failover, and the launch is made with it as printed.
 
    ```json
    {
@@ -1168,6 +1168,8 @@ At every home's start (step 5), when a queue playbook (`autopilot-full` or `orch
 
 A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one the audit printed as `stuck`. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
 
+A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again. `jbus` does it: its pass reads the failure, keeps the reset as the instance's capped-until (`capped.json` in its state directory), puts the thread on `claudeAgent_claude_prime` with the model and options it had (`t3_thread_configure`), and sends one queued carry-on, once for the failed run. Every launch goes to prime as well while `claudeAgent` is capped (`jroles` says which instance it chose and why), and back to `claudeAgent` when the reset has passed. Where both are capped `jbus` sends one `capped` alert and waits for the earlier reset. Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configuration`, call `t3_thread_configure` with that selection and `"instanceId": "claudeAgent_claude_prime"`, then send the carry-on below. Never send a plain carry-on to a thread that failed on a limit.
+
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
 
 A new thread on the same worktree when it cannot: the send fails, the thread is archived or gone, or it was sent that message once and the next tick prints it `stuck` again. Find the worktree whose branch is the slug with `git worktree list --porcelain`, from the main checkout. With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate". Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`. The crew skill reads the brief at its start, and a brief is trusted. Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
@@ -1180,7 +1182,7 @@ A new thread on the same worktree when it cannot: the send fails, the thread is 
 }
 ```
 
-Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. Leave the project and modes out, and the model unless `jroles` printed one.
+Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, both Claude instances are capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints may name `claudeAgent_claude_prime` as its `instanceId`: that is the failover, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
 
 ```json
 {

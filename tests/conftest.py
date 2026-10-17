@@ -6,7 +6,8 @@ line in every test that pins what a pass sends. It is off everywhere but in
 for each line of `items.jsonl`: they are off everywhere but in `test_item.py`, and the lines
 are written all the same.
 
-Every test runs with a config of jstack's own in a directory of its own, never the machine's:
+Every test runs with a config of jstack's own in a directory of its own, and a jbus state
+directory of its own, never the machine's:
 it names no user, so the name is the default, and it fixes the zone and its label, so a time
 a test pins reads the same on every machine. A test of another config writes one with `user`.
 
@@ -82,6 +83,13 @@ def jstack_config(tmp_path_factory, monkeypatch):
     path.parent.mkdir()
     path.write_text(ZONE)
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_machine_state(tmp_path_factory, monkeypatch):
+    """`jroles` reads the capped instances from jbus's state directory: a test never reads the
+    machine's, and a test that runs a pass or sets the variable itself sets it again."""
+    monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path_factory.mktemp("state")))
 
 
 @pytest.fixture
