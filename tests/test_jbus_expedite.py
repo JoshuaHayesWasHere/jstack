@@ -159,7 +159,9 @@ def said_to(short, kind, reason, sentence):
         "threadId": "mcp:thread-1",
         "message": (
             "jbus: pull request #7 waits on you, and jmerge keeps saying the same of it "
-            f"({reason}). {sentence} Then end your turn."
+            f"({reason}). {sentence} "
+            f"End your turn only once no check you started runs in your "
+            "worktree: wait for one that runs, in this turn."
         ),
         "mode": "queue",
         "clientRequestId": f"{kind}|alpha|{short.head[:12]}",

@@ -57,7 +57,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbus import dispatch, merge, read_json, verbs
+from jbus import END_TURN, dispatch, merge, read_json, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, TITLE, World, checks, crew_threads
@@ -122,24 +122,24 @@ DROPPED = (
     "jbus: {reason} (pull request #{number}). Put the lines back, commit and push. Or, where "
     "a line is gone on purpose, add one line to the Result for each file, with the counts "
     "above: `Dropped on rebase: <file>, <n> of main's, <m> of its own, at {short}: <why>`. "
-    "The scoped review rules on each one. Then end your turn."
+    "The scoped review rules on each one. " + END_TURN
 )
 
 
 FAILED = (
     "jbus: {reason} on your pull request #{number} at {short}. In your own worktree, run the "
-    'block of "The checks" and do what it prints. Then end your turn.'
+    'block of "The checks" and do what it prints. ' + END_TURN
 )
 CONFLICTED = (
     "jbus: your pull request #{number} is in conflict with its base at {short}. In your own "
     'worktree, run the first block of "A conflict" as it is, and do what it prints: it does '
-    "not rebase while a review is running. Then end your turn."
+    "not rebase while a review is running. " + END_TURN
 )
 GREEN = (
     "jbus: every check of your pull request #{number} passed at {short}, and the home is owed "
     'a line on green. In your own worktree, run the block of "The checks", then do what "The '
     'review" says of a green pull request: the message of the `Reviewer: none` line, or the '
-    "`fixed and green` line. Then end your turn."
+    "`fixed and green` line. " + END_TURN
 )
 _OWED = re.compile(r"^Reviewer: none\b", re.M)
 _LAUNCHED = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): (?!none\b)\S", re.M)
