@@ -36,6 +36,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
         "jsettings",
         "jgauge",
         "jbriefs",
+        "jroles",
     }, roots
     named = source.replace(queue.SESSION, "").replace(f'KEPT = "{usage.KEPT}"', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)

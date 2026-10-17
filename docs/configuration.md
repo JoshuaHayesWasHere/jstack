@@ -36,7 +36,7 @@ Each value is one word with no space and no comma. A file with any other key, or
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`, with `#` for a comment.
+`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`, with `#` for a comment. The instance a line names, or `claudeAgent` where it names none, is the one `jroles` moves to `claudeAgent_claude_prime` while a usage limit caps it, and back when the reset has passed ([failover](jroles.md#failover)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -73,7 +73,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 |---|---|---|
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
-| `modelSelection` | None | `{ instanceId = "<provider instance>", model = "<model>" }` goes out with every launch. |
+| `modelSelection` | None | `{ instanceId = "<provider instance>", model = "<model>" }` goes out with every launch. While `claudeAgent` is capped by a usage limit, an `instanceId` of `claudeAgent` goes out as `claudeAgent_claude_prime` (see [jroles](jroles.md#failover)), and the launch line says so. While both are capped no row is launched. |
 | `dispatch` | `true` | `dispatch = false` launches nothing. |
 | `max_running` | `16` | How many crewmates may be out at once, counted across every project. A value under 1 is refused. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |

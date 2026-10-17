@@ -1,10 +1,12 @@
-"""The T3 Code server, as an outside MCP client: the sign-in, and six tools.
+"""The T3 Code server, as an outside MCP client: the sign-in, and eight tools.
 
 `login` registers jbus with the server, sends the user to its approval page, and keeps the
 token it is given, with when it was given. `expiry` is when that token runs out. `Client`
 then calls the tools in `TOOLS` at `<server>/mcp`, and no other: a test reads this package
-for any other name. Two of the six change a thread, and `Client.call` lets each through in
-one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names, and
+for any other name. Three of the eight change a thread, and `Client.call` lets each through in
+one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names,
+`t3_thread_configure` to put a thread a brief or a home names on one instance of the failover
+pair (`jroles.failover`), and
 `t3_thread_send` as a queued message, with a retry key, to a thread a brief's `Thread:`
 line names, or to the thread in a home's `home-id`: for the user's word (`jbus.word`), and
 for a task of that home's that ended with something left (`jbus.leftover`).
@@ -33,8 +35,11 @@ from pathlib import Path
 from typing import Any
 
 from jbus import Config, Refused, queue, read_json, verbs, write_json
+from jroles import failover
 
 TOOLS = (
+    "t3_thread_configuration",
+    "t3_thread_configure",
     "t3_thread_launch",
     "t3_thread_list",
     "t3_thread_read",
@@ -288,6 +293,14 @@ class Client:
                 return "is only called to settle or archive a thread it names"
             if not arguments["threadId"]:
                 return "names no thread to settle or archive"
+        if tool == "t3_thread_configure":
+            if set(arguments) != {"threadId", "modelSelection"}:
+                return "is only called with a thread and a model selection"
+            chosen = arguments["modelSelection"]
+            if not isinstance(chosen, dict) or chosen.get("instanceId") not in failover.PAIR:
+                return "is only called to put a thread on an instance of the failover pair"
+            if arguments["threadId"] not in self.recipients:
+                return f"to {arguments['threadId']}: no brief has it on a Thread: line"
         if tool == "t3_thread_send":
             if set(arguments) != {"threadId", "message", "mode", "clientRequestId"}:
                 return "is only called with a thread, a message, a mode and a retry key"

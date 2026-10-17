@@ -173,7 +173,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    }
    ```
 
-   Before this launch, run `uv run --project "$T/.." jroles review` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the reviewer on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+   Before this launch, run `uv run --project "$T/.." jroles review` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the reviewer on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, both Claude instances are capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints may name `claudeAgent_claude_prime` as its `instanceId`: that is the failover, and the launch is made with it as printed.
 
    ```json
    {
