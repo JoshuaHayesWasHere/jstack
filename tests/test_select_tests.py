@@ -218,6 +218,27 @@ def test_the_same_commits_give_the_same_lines(repo):
     assert repo.run(repo.base, head).stdout == repo.run(repo.base, head).stdout
 
 
+@pytest.mark.parametrize(
+    "path", ["src/alpha/a.py", "src/jbriefs/skills.py", "tests/test_helper.py"]
+)
+def test_a_bare_python_selects_what_the_venv_selects(repo, path):
+    head = repo.change([path])
+    script = repo.root / "scripts" / "select_tests.py"
+    bare = subprocess.run(
+        [sys.executable, "-I", "-S", script, repo.base, head],
+        cwd=repo.root,
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin"},
+    )
+    venv = subprocess.run(
+        [sys.executable, script, repo.base, head], cwd=repo.root, capture_output=True, text=True
+    )
+
+    assert (bare.stderr, venv.stderr) == ("", "")
+    assert bare.stdout == venv.stdout
+
+
 def test_with_no_way_to_read_a_pattern_it_selects_all(repo):
     head = repo.change(["src/alpha/a.py"])
     shutil.rmtree(repo.root / "src" / "jmerge")
