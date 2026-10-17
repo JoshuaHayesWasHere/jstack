@@ -9,7 +9,7 @@ reads the failure, keeps the reset as the instance's capped-until (`jroles.failo
 - the primary (`jroles.failover.PRIMARY`) once its cap has passed, the fallback (`FALLBACK`)
   while it has not. The thread is put on it with the model and the options it had (effort,
   fast mode), read from `t3_thread_configuration`, and sent one queued carry-on;
-- neither, while both are capped: one `capped` alert that names the earlier reset, and
+- neither, while both are capped: one `stall` event (user level) that names the earlier reset, and
   nothing sent. The pass that finds the earlier reset passed goes on as above.
 
 Which threads: the crews the briefs name on a `Thread:` line that still owe something, and the
@@ -32,7 +32,7 @@ from jbus.wake import Pass
 from jbus.watch import World, unfinished
 from jroles import failover as roles
 
-EVENTS = {"failover": "quiet", "capped": "user"}
+EVENTS = {"failover": "quiet"}
 ITEMS = 12
 CARRY_ON = (
     "jbus: your last turn stopped on a usage limit ({text}). This thread is now on {instance}, "
@@ -188,7 +188,7 @@ def handle(
     choice = roles.choose(roles.load(file), run.now)
     if choice.instance is None:
         line = f"capped {name}: {choice.why}; it is sent on at the earlier reset"
-        if run.find(slug or at, "capped", line, key=choice.until.isoformat()):
+        if run.find(slug or at, "stall", line, key=f"capped {choice.until.isoformat()}"):
             run.say(line)
         return
     if choice.instance != instance:
