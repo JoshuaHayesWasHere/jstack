@@ -9,9 +9,11 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 REPO = Path(__file__).parent.parent
 TEMPLATE = REPO / "templates" / "grill-page.html"
+SCHEMA = REPO / "templates" / "grill-round.schema.json"
 GRILLING = REPO / "skills" / "grilling" / "SKILL.md"
 
 HARNESS = Path(__file__).parent / "fixtures" / "grill-page" / "harness.js"
@@ -244,6 +246,59 @@ def test_the_round_the_template_ships_with_is_a_round():
         "Answers to round 1 of example:\n"
         "- first-question: yes (Yes: the recommended answer), left as recommended"
     )
+
+
+def shipped_round():
+    block = re.search(
+        r'<script type="application/json" id="round-data">(.*?)</script>',
+        TEMPLATE.read_text(),
+        re.S,
+    )
+    return json.loads(block[1])
+
+
+def against_the_schema(round_):
+    schema = json.loads(SCHEMA.read_text())
+    Draft202012Validator.check_schema(schema)
+    return [error.message for error in Draft202012Validator(schema).iter_errors(round_)]
+
+
+def test_the_round_the_template_ships_with_and_a_written_round_hold_to_the_schema():
+    assert against_the_schema(shipped_round()) == []
+    assert against_the_schema(ROUND) == []
+
+
+def without(mapping, key):
+    return {name: value for name, value in mapping.items() if name != key}
+
+
+@pytest.mark.parametrize("key", ["slug", "round", "title", "questions"])
+def test_a_round_with_a_key_missing_is_refused_by_the_schema(key):
+    assert against_the_schema(without(shipped_round(), key)) == [f"'{key}' is a required property"]
+
+
+@pytest.mark.parametrize("key", ["id", "title", "body", "options"])
+def test_a_question_with_a_key_missing_is_refused_by_the_schema(key):
+    shipped = shipped_round()
+    shipped["questions"][0] = without(shipped["questions"][0], key)
+    assert against_the_schema(shipped) == [f"'{key}' is a required property"]
+
+
+def test_a_question_with_no_recommended_option_or_two_is_refused_by_the_schema():
+    shipped = shipped_round()
+    options = shipped["questions"][0]["options"]
+    options[1]["recommended"] = True
+    assert len(against_the_schema(shipped)) == 1
+    del options[0]["recommended"], options[1]["recommended"]
+    assert len(against_the_schema(shipped)) == 1
+
+
+def test_the_page_shows_text_as_written_and_never_as_markup():
+    first = {**ROUND["questions"][0], "title": "Is <b>this</b> bold?", "body": "<i>no</i> `<b>`"}
+    drawn = page(round_={**ROUND, "questions": [first]})
+    (card,) = drawn["cards"]
+    assert "Is <b>this</b> bold?" in card
+    assert "<i>no</i> <b>" in card
 
 
 def on_a_page():
