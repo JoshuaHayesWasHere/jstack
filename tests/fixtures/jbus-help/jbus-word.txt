@@ -1,5 +1,5 @@
 usage: jbus word [-h] (--to PROJECT | --all) [--by BY] [--at AT]
-                 [--message THREAD/MESSAGE]
+                 [--message THREAD/MESSAGE] [--from THREAD]
                  [words ...]
 
 positional arguments:
@@ -15,3 +15,5 @@ options:
   --message THREAD/MESSAGE
                         the user's own message in T3 Code, in place of --by,
                         --at and the words
+  --from THREAD         the thread running this: a word recorded by a
+                        project's home is not posted to it
