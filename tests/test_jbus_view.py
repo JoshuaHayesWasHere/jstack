@@ -498,7 +498,7 @@ class Served:
             named = f"127.0.0.1:{self.port}" if host is None else host
             link.request(method, path, body=body, headers={"Host": named, **(headers or {})})
             answer = link.getresponse()
-            return answer.status, dict(answer.getheaders()), answer.read().decode()
+            return answer.status, dict(answer.getheaders()), answer.read().decode(errors="replace")
         finally:
             link.close()
 
@@ -3223,10 +3223,11 @@ PANELS = ["blind", "bus", "checks", "flow", "merged", "pulse", "room", "rounds",
 PANELS.append("threads")
 PANELS.append("you")
 POLICY = (
-    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+    "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 BEFORE = "edd7c43d"
+WIDENED = " font-src 'self';"
 SAMPLE = '''"""A sample panel: the lines of one file of its own, asked for when its drawer opens."""
 
 from jbus.view.state import kept
@@ -3351,9 +3352,10 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
 
 def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served):
     """The page has every panel's script inline, so the policy allows no script from a server.
-    `POLICY` here is the string of the commit `BEFORE`, copied, and that copy is the test. A
-    checkout with no history, as a runner's, has no more. Where git has the commit, the copy
-    is held to the file as it was there."""
+    `POLICY` here is the string of the commit `BEFORE`, copied, with the one widening since,
+    `WIDENED`: the page's font from its own server. That copy is the test. A checkout with no
+    history, as a runner's, has no more. Where git has the commit, the copy is held to the
+    file as it was there, with the widening taken out."""
     assert view.POLICY == POLICY
     assert served.ask("/")[1]["Content-Security-Policy"] == POLICY
     was = subprocess.run(
@@ -3363,7 +3365,26 @@ def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served
     )
     if was.returncode == 0:
         there = re.search(r"^POLICY = \(\n(.*?)\n\)$", was.stdout, re.S | re.M)
-        assert "".join(line.strip().strip('"') for line in there[1].splitlines()) == POLICY
+        was = "".join(line.strip().strip('"') for line in there[1].splitlines())
+        assert was == POLICY.replace(WIDENED, "", 1)
+
+
+def test_the_font_is_served_at_one_path_beside_its_licence(served):
+    """The page's one font is the server's own file, so the phone on the tailnet needs no other
+    host, and its licence, the SIL OFL 1.1, is shipped beside it."""
+    link = http.client.HTTPConnection("127.0.0.1", served.port, timeout=10)
+    try:
+        link.request("GET", "/font.woff2", headers={"Host": f"127.0.0.1:{served.port}"})
+        answer = link.getresponse()
+        status, kind, body = answer.status, answer.getheader("Content-Type"), answer.read()
+    finally:
+        link.close()
+    assert (status, kind, body[:4]) == (200, "font/woff2", b"wOF2")
+    assert body == view.FONT.read_bytes()
+    licence = view.FONT.with_name("OFL.txt").read_text()
+    assert "SIL OPEN FONT LICENSE Version 1.1" in licence
+    assert "The Atkinson Hyperlegible Next Project Authors" in licence
+    assert "/font.woff2" in view.FIXED
 
 
 def raw(process, path):

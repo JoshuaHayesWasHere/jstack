@@ -1,6 +1,6 @@
 function dSteps(hit) {
   var h = head("The line", "The steps, top to bottom");
-  h += '<p class="src" style="margin-top:15px">Top to bottom is the path of a task. The shape and colour of a token say who holds it. ' + S.queue.total + ' rows in <code>queue.json</code>: ' + Object.keys(S.queue.by_status).map(function (k) { return S.queue.by_status[k] + " " + esc(k); }).join(", ") + '.</p>' + note("frozen");
+  h += '<p class="src" style="margin-top:15px">Top to bottom is the path of a task. The shape of a token says who holds it. ' + S.queue.total + ' rows in <code>queue.json</code>: ' + Object.keys(S.queue.by_status).map(function (k) { return S.queue.by_status[k] + " " + esc(k); }).join(", ") + '.</p>' + note("frozen");
   h += '<div class="key">' + ["user", "crew", "home", "rev", "ci", "bus", "dep"].concat(lanes()[0] === UNKNOWN ? ["unknown"] : []).map(function (w) { return '<span class="w-' + w + '"><i class="sh"></i>' + WHO[w] + '</span>'; }).join("") + '<span><i class="mk long"></i>over 30 min on the step</span><span><i class="mk rep"></i>on this step again</span>' + ["moving", "quiet", "hung"].map(function (w) { return '<span><i class="mk lv-' + w + '"></i>its thread is ' + w + '</span>'; }).join("") + '</div>';
   h += '<ul class="clean rows" style="margin-top:10px">' + lanes().map(function (s) {
     var here = s.key === "merged" ? [] : S.tasks.filter(function (t) { return t.step === s.key; }), n = s.key === "merged" ? S.merged.length : here.length, extra = "";

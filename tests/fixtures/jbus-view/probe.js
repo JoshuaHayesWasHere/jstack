@@ -158,7 +158,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     strip: box(document.getElementById("vitals")),
     band: box(document.getElementById("you")),
     threads: threads(document.querySelector("#band .thb")),
-    bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.amber", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
+    bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.missed", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
     meters: all("#machine .mb").filter(seen).length,
     small: small(document.body),
     cut: cut(document.body),

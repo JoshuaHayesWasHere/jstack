@@ -112,6 +112,7 @@ FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 pytestmark = pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)
 DESK, PHONE = (1440, 900), (390, 844)
 BAND = 45
+FONT = 'src: url("/font.woff2") format("woff2");'
 NARROWEST = 500
 THUMB = 44
 CARDS = ["threads", "CI checks on GitHub", "bus", "blind spots"]
@@ -468,6 +469,7 @@ def look(
     walk=None,
     alter_state=None,
     script="",
+    system="light",
 ):
     """Open the page in the browser and give back what the probe found. The server is one
     started here over the scene, or the one that listens on `port`. The page is the scene's
@@ -476,7 +478,8 @@ def look(
     each answer of `/stack.json` and its body, and gives back the body the page gets,
     `alter_state` the same for `/state.json`, and
     `tap` selects what the probe taps 3 s after the page loads, and `walk` is the steps the
-    probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. With
+    probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. `system`
+    is the scheme the browser asks for, `light` or `dark`. With
     `gates`, the
     probe answers them, and what it found has each write the page made under `writes`.
     `on_write` is called with the count of each write before it is passed on, and a write
@@ -494,6 +497,7 @@ def look(
     try:
         ran = browse(
             "--hide-scrollbars",
+            *(["--force-dark-mode"] if system == "dark" else []),
             f"--user-data-dir={tmp_path / 'profile'}",
             f"--window-size={window[0]},{window[1]}",
             f"--virtual-time-budget={budget}",
@@ -843,7 +847,7 @@ def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(
     screen = (DESK[0], DESK[1] + BAND)
     seen = look(scene, tmp_path, screen=screen)
     opened = clean(seen, screen)
-    assert seen["font"] == 17.5
+    assert seen["font"] == 18
     assert seen["words"] <= WORDS, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
     assert seen["bottom"] <= screen[1]
@@ -927,7 +931,7 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert rows["pantry"]["empty"] == ""
     assert [row["opens"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
     assert seen["words"] <= EVERY, seen["words"]
-    polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico")]
+    polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico", "/font.woff2")]
     assert len(polls) == 3 and set(polls) == {"/stack.json"}
     drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("rows:")]
     assert drawn and [one for one in seen["changes"] if one["at"] > max(drawn) + 1000] == []
@@ -1846,11 +1850,18 @@ def test_on_a_phone_a_stopped_jbus_with_unwell_sources_and_long_checks_is_whole(
 
 @pytest.mark.parametrize("screen", [DESK, PHONE])
 @pytest.mark.parametrize(
-    ("fragment", "dark"),
-    [("#theme=light", False), ("#theme=dark", True), ("", False)],
+    ("fragment", "system", "dark"),
+    [
+        ("#theme=light", "dark", False),
+        ("#theme=dark", "light", True),
+        ("", "light", False),
+        ("", "dark", True),
+    ],
 )
-def test_the_page_is_light_dark_or_as_the_browser_asks(scene, tmp_path, screen, fragment, dark):
-    seen = look(scene, tmp_path, fragment=fragment, screen=screen)
+def test_the_page_is_light_dark_or_as_the_browser_asks(
+    scene, tmp_path, screen, fragment, system, dark
+):
+    seen = look(scene, tmp_path, fragment=fragment, screen=screen, system=system)
     red = int(re.match(r"rgb\((\d+)", seen["background"])[1])
     assert (red < 60) is dark, seen["background"]
     clean(seen, screen)
@@ -2296,16 +2307,18 @@ def test_a_write_that_is_refused_or_meets_no_server_is_said_in_the_drawer(scene,
 
 
 def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_server(scene):
+    """Nothing but its one font, from its own server."""
     served = Served(scene)
     try:
         _, headers, page = served.ask("/")
     finally:
         served.close()
     scripts = [one.script.read_text() for one in panels.found()]
-    for part in (PAGE.read_text(), *scripts):
+    for part in (PAGE.read_text().replace(FONT, "", 1), *scripts):
         assert "://" not in part
         for loads in ("<link", "<img", "<iframe", "<object", "<embed", " src=", "@import", "url("):
             assert loads not in part, loads
+    assert FONT in page
     asks = [
         "/answer",
         "/panel/",
@@ -2319,6 +2332,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
     assert page.count("<script") == 2 and all(script in page for script in scripts)
     assert "connect-src 'self'" in headers["Content-Security-Policy"]
     assert "default-src 'none'" in headers["Content-Security-Policy"]
+    assert "font-src 'self'" in headers["Content-Security-Policy"]
 
 
 def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp_path):
@@ -2569,7 +2583,7 @@ def test_hovering_a_shape_a_mark_or_a_count_shows_what_it_means_and_so_does_a_fo
     assert behind.startswith("Count How many tasks wait behind it")
     assert lane.startswith("Count How many open tasks are on this step")
     assert side.startswith("Count How many things wait on you")
-    assert focused.startswith("Crewmate Drawn as a dot, blue.")
+    assert focused.startswith("Crewmate Drawn as a dot.")
     assert esc == ""
 
 

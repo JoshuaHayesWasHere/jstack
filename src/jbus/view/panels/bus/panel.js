@@ -27,7 +27,7 @@ panel({
     var g = b.blocking, second = g ? ", second target: " + g.outbox + " bodies in its outbox, " + g.failed_wakes + " failed wakes" + (g.last_error ? ", last error: " + g.last_error : "") : "";
     var fails = b.failed_wakes + (t ? t.failed_wakes : 0) + (g ? g.failed_wakes : 0);
     return { at: 50, sum: "bus " + b.outbox + " in outbox", e: busFails(b) ? "op" : "ok", tag: "bus", st: fz(), frz: true, val: b.outbox + ' <small>in outbox</small>' + (t ? ' <small>+ ' + t.outbox + ' top-level</small>' : "") + (g ? ' <small>+ ' + g.outbox + ' second target</small>' : ""),
-      viz: new Array(Math.min(b.outbox, 12) + 1).join('<i class="sd" style="background:var(--dim)"></i>') + new Array(Math.min(fails, 6) + 1).join('<i class="dot amber"></i>'),
+      viz: new Array(Math.min(b.outbox, 12) + 1).join('<i class="sd"></i>') + new Array(Math.min(fails, 6) + 1).join('<i class="dot missed"></i>'),
       label: "The bus: " + b.outbox + " events in the outbox, " + b.failed_wakes + " failed wakes" + top + second };
   },
   drawer: dBus
