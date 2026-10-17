@@ -654,10 +654,15 @@ class Repo:
         return True
 
     def dropped(self, base: str, rebase: ready.Rebase, head: str) -> tuple[ready.Drop, ...] | str:
-        """What a rebase that changed the patch dropped: each file its `Rebase:` line names
+        """What a rebase that changed the patch dropped: each file either patch changes
         that lost a line, with how many of the default branch's and how many of its own.
-        Or the commit whose patch cannot be worked out in the main checkout. With no such
-        line the rebase is `unsaid`'s, from the commit the review covers.
+        Or the commit whose patch cannot be worked out in the main checkout. With no
+        `Rebase:` line the rebase is `unsaid`'s, from the commit the review covers.
+
+        The files are git's, never the line's: a crewmate writes that line by hand, and a
+        directory or a word in it named as a file is read as one, its lines summed against
+        no file (Winnifred #154). A head that left the default branch where the commit
+        before it did had no rebase, and dropped nothing.
 
         The default branch's lines are the ones it added between where the branch left it
         before the rebase and where it leaves it now. The pull request's are the ones its
@@ -671,9 +676,17 @@ class Repo:
                 return commit
             forks.append(fork.stdout.strip())
         old, new, _ = forks
+        if old == new:
+            return ()
         diff = ("git", "-c", "core.quotePath=false", "diff", "--no-ext-diff", "--no-renames", "-U0")
+        patches = [
+            _text(self.main, *diff, "--name-only", fork, commit)
+            for fork, commit in ((old, rebase.before), (new, rebase.head))
+        ]
+        if None in patches:
+            return rebase.before
         lost = []
-        for file in rebase.files:
+        for file in sorted({file for patch in patches if patch for file in patch.splitlines()}):
             main = _text(self.main, *diff, old, new, "--", file)
             own = _text(self.main, *diff, old, rebase.before, "--", file)
             if main is None or own is None:
