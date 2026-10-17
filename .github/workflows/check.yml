@@ -28,19 +28,25 @@ jobs:
   # requires, and jmerge's REQUIRED, so its name stays `check`.
   check:
     if: github.event_name == 'pull_request'
-    # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
-    # of them as JSON, which starts with a bracket. With none it is the local ephemeral
-    # runner, never GitHub's: every CI job runs locally, by the owner's word ("EVERYTHING CI
-    # IS DONE LOCALLY. THAT IS THE DEFAULT."). This repo is public, so a stranger's pull
-    # request reaches that runner only through GitHub's gate: the repo requires approval for
-    # all external contributors, so a fork's run waits for the owner every time.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    timeout-minutes: 15
+    # The local fast lane, labelled jstack-fast: no full suite's job takes it, so this check
+    # never queues behind one. Its unit, gh-runner-fast@jstack-1, must be live, or a job on
+    # the label waits for ever. The lane stops a container 10 minutes after its job started,
+    # so GitHub cancels first, at 9, and the run reads as timed out, not as a lost runner.
+    # The image runs the runner doctor before the first step, so no step here does. This repo
+    # is public, so a stranger's pull request reaches the runner only through GitHub's gate:
+    # the repo requires approval for all external contributors, so a fork's run waits for
+    # the owner every time.
+    runs-on: [self-hosted, jstack-fast]
+    timeout-minutes: 9
     env:
       # A stable Google Chrome, which the local runner image installs and GitHub's image has
       # too. A Chromium snapshot's virtual time now and then never starts, and the browser
       # tests then wait out their bound.
       JSTACK_TEST_BROWSER: /usr/bin/google-chrome
+      # Enough workers to use the CPUs the lane gives a job (FAST_CPUS=4 in infra's jstack pool),
+      # at about 0.8 of one each. The container is capped, but nproc in it counts the host's,
+      # so the Makefile would count two.
+      TEST_WORKERS: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,6 +65,10 @@ jobs:
   # The full suite, on each push to main, after the merge, and by hand.
   full:
     if: github.event_name != 'pull_request'
+    # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
+    # of them as JSON, which starts with a bracket. With none it is the local ephemeral
+    # runner, never GitHub's: every CI job runs locally, by the owner's word ("EVERYTHING CI
+    # IS DONE LOCALLY. THAT IS THE DEFAULT.").
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
     timeout-minutes: 15
     env:
