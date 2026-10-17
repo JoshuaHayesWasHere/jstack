@@ -64,9 +64,23 @@ def skill_file(name: str) -> Path:
     return ROOT / "skills" / name / "SKILL.md"
 
 
+READ_SKILL = (
+    " Your role's skill is not loaded in this thread and the Skill tool cannot load it: read "
+    "`{path}` from the file and follow it from where your work stands. Run `jbriefs --skills "
+    "tasks/{slug}.md` for the brief's Skills line and read what it prints."
+)
+
+
 def resume_message(template: str, title: str, **fields: Any) -> str:
-    """The text that resumes the thread titled `title`."""
-    return template.format(**fields)
+    """The text that resumes the thread titled `title`: the template filled in, and for a role
+    that has a skill (`SKILLS`) the path of its file, since a skill loads only when its slash
+    command is typed and a resumed thread, which never typed it or lost it to a compaction,
+    cannot load it through the Skill tool. A title that gives no such role gets the template."""
+    message = template.format(**fields)
+    name = SKILLS.get(role_of(title)[0])
+    if not name:
+        return message
+    return message + READ_SKILL.format(path=skill_file(name), slug=fields["slug"])
 
 
 Out = dict[str, Any]
@@ -494,9 +508,7 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
         at = dispatch.thread_of(brief) or dispatch.launched(run, slug) or listed
         if not at or _done(run, key):
             continue
-        message = resume_message(
-            MERGED, (world.thread(slug) or {}).get("title", ""), number=pull["number"], slug=slug
-        )
+        message = resume_message(MERGED, f"crew: {slug}", number=pull["number"], slug=slug)
         client.recipients = client.recipients | {at}
         asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
         try:

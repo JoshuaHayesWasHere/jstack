@@ -243,3 +243,15 @@ def test_a_carry_on_t3_code_refuses_is_a_gate_once(kitchen):
     kitchen.poll(NOW + timedelta(minutes=3))
     assert resumes(kitchen) == [] and kitchen.t3.messages == {}
     assert gates(kitchen) == ["condition alpha: T3 Code refused the carry-on"]
+
+
+def test_a_crew_told_of_its_merge_is_told_to_read_its_skill_file_too(kitchen):
+    crew(kitchen, status="completed")
+    path = kitchen.home / "tasks" / "alpha.md"
+    left = "\n## Result\nStatus: done\nBranch: alpha   Pull request: none\n"
+    path.write_text(path.read_text() + left + "Left: after the merge, run the migration\n")
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.poll()
+    (given,) = sends(kitchen)
+    assert given["threadId"] == THREAD
+    assert given["message"] == threads.MERGED.format(number=7, slug="alpha") + reads("crew")
