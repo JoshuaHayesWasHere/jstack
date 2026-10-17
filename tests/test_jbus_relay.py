@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+import daemons
+
 INBOUND = "inbound-key-for-the-relay"
 SOUS_CHEF_KEY = "sous-chef-key-nobody-sees"
 GATEKEEPER_KEY = "gatekeeper-key"
@@ -106,7 +108,7 @@ class Relay:
             "RELAY_RETRY_SECONDS": "0.3",
             **env,
         }
-        self.process = subprocess.Popen(
+        self.process = daemons.start(
             [sys.executable, "-m", "jbus", "relay"],
             env=self.env,
             stdout=subprocess.PIPE,
@@ -162,9 +164,7 @@ class Relay:
         return held
 
     def stop(self) -> str:
-        self.process.terminate()
-        said, _ = self.process.communicate(timeout=5)
-        return said
+        return daemons.stop(self.process)
 
 
 def env_for(hooks) -> dict[str, str]:
@@ -183,10 +183,7 @@ def env_for(hooks) -> dict[str, str]:
 
 @pytest.fixture
 def relay(hooks, tmp_path):
-    running = Relay(env_for(hooks), tmp_path / "state").up()
-    yield running
-    if running.process.poll() is None:
-        running.stop()
+    yield Relay(env_for(hooks), tmp_path / "state").up()
 
 
 def until(check, seconds: float = 5.0) -> None:

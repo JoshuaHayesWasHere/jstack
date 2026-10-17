@@ -14,6 +14,10 @@ No test starts a unit of the machine's user manager: `systemd-run` on PATH is a 
 starts the command in a session of its own, as a transient unit would outlive its caller, and
 writes what it was asked to `$SYSTEMD_RUN_CALLS` where that is set.
 
+No test leaves a daemon running: one starts it with `daemons.start`, and the autouse fixture
+`no_daemons_left` stops it when the test ends, also on a failed assert or a timeout. A pytest
+that is killed takes its daemons with it (`tests/daemons.py` says how).
+
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
 one project.
 
@@ -29,6 +33,7 @@ import os
 
 import pytest
 
+from daemons import no_daemons_left  # noqa: F401
 from jbus import cli, item
 from test_jbus_kitchen import Kitchen
 

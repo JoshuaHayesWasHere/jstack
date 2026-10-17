@@ -12,6 +12,7 @@ from datetime import date
 
 import pytest
 
+import daemons
 import test_scout as scout
 from jbus import mirror
 from test_home_merge import NAME, git
@@ -485,7 +486,7 @@ def test_what_is_not_finished_clean_and_safe_is_kept_with_the_first_reason(scene
 
 def test_a_worktree_a_process_is_running_in_is_kept(scene):
     tree = scene.scout("find-out")
-    running = subprocess.Popen(["sleep", "60"], cwd=tree)
+    running = daemons.start(["sleep", "60"], cwd=tree)
     try:
         before = scene.everything()
         why = f"a process is running in {tree} (pid {running.pid})"
