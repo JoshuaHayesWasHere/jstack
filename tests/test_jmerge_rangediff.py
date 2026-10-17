@@ -639,6 +639,95 @@ def test_the_dropped_lines_are_counted_under_a_ci_fix_line_too(proven_merged, ru
     ]
 
 
+STORE = tuple(f"api/pkg/store/{name}.go" for name in "abcde")
+CLIENT = tuple(f"client/{name}.ts" for name in "abcde")
+
+
+def mains(path):
+    return f"main's 20 in {path}"
+
+
+class Shaped:
+    """Winnifred #154's shape: two directories of many files, a pull request that adds a line
+    to each, a main that added one to each since, and a rebase that kept every line of both
+    but for what `edits` does to main's lines after it, a line edited in place or one gone."""
+
+    def __init__(self, proven_merged, edits):
+        main, tree = proven_merged.home.main, proven_merged.tree
+        for path in STORE + CLIENT:
+            (main / path).parent.mkdir(parents=True, exist_ok=True)
+            write(main, {}, path)
+        merge.git(main, "add", "-A")
+        merge.git(main, "commit", "-q", "-m", "the two directories")
+        merge.git(main, "push", "-q", "origin", "main")
+        merge.git(tree, "fetch", "-q", "origin")
+        merge.git(tree, "rebase", "-q", "origin/main")
+        for path in STORE + CLIENT:
+            write(tree, {5: f"line 5\nthe task in {path}"}, path)
+        merge.git(tree, "commit", "-q", "-am", "the task in both directories")
+        self.before = merge.git(tree, "rev-parse", "HEAD")
+        for path in STORE + CLIENT:
+            write(main, {20: f"line 20\n{mains(path)}"}, path)
+        merge.git(main, "commit", "-q", "-am", "main's audit trail")
+        merge.git(main, "push", "-q", "origin", "main")
+        merge.git(tree, "fetch", "-q", "origin")
+        merge.git(tree, "rebase", "-q", "origin/main")
+        for path, line in edits.items():
+            text = (tree / path).read_text().replace(f"{mains(path)}\n", line)
+            (tree / path).write_text(text)
+        merge.git(tree, "commit", "-q", "-a", "--amend", "--no-edit")
+        merge.git(tree, "push", "-q", "--force", "origin", "alpha")
+        self.head = merge.git(tree, "rev-parse", "HEAD")
+        proven_merged.home.open_pull_request(self.head, checks=(LATER,), files=[*STORE, *CLIENT])
+        self.proven_merged = proven_merged
+
+    def brief(self, told, more=""):
+        """The brief with #154's `Rebase:` line, which names directories in free text, or
+        with no `Rebase:` line."""
+        line = (
+            "Rebase: patch changed in api/pkg/store (exports now a typed read in main's audit "
+            f"trail, #146), client activity, before {self.before}, head {self.head}\n"
+        )
+        review = guarded.proven("clean", self.before)
+        result = (line if told else "") + more
+        (self.proven_merged.home.tasks / "alpha.md").write_text(merge.brief(review, result))
+
+    def dropped(self, lost):
+        return (
+            f"wait 7 {merge.URL}: the rebase dropped {lost} "
+            f"with no Dropped on rebase line at {self.head[:12]}"
+        )
+
+
+IN_PLACE = {STORE[0]: f"{mains(STORE[0])}, edited\n", CLIENT[2]: f"{mains(CLIENT[2])}, edited\n"}
+
+
+@pytest.mark.parametrize("told", [True, False], ids=["a Rebase line naming directories", "none"])
+def test_a_rebase_that_kept_mains_lines_counts_only_its_in_place_edits_each_in_its_file(
+    proven_merged, rules, told
+):
+    shaped = Shaped(proven_merged, IN_PLACE)
+    shaped.brief(told)
+    assert guarded.jmerge(proven_merged, rules) == [
+        shaped.dropped(f"1 of main's lines in {STORE[0]} and 1 of main's lines in {CLIENT[2]}")
+    ]
+
+
+def test_a_line_of_mains_the_rebase_lost_still_waits_once_the_in_place_edits_are_answered(
+    proven_merged, rules
+):
+    shaped = Shaped(proven_merged, {**IN_PLACE, CLIENT[4]: ""})
+    acked = "".join(
+        f"Dropped on rebase: {path}, 1 of main's, 0 of its own, at {shaped.head[:12]}: edited\n"
+        for path in IN_PLACE
+    )
+    shaped.brief(True, acked)
+    assert guarded.jmerge(proven_merged, rules) == [
+        shaped.dropped(f"1 of main's lines in {CLIENT[4]}")
+    ]
+    assert guarded.merges(proven_merged) == []
+
+
 REVIEWED, BEFORE, FIRST, HEAD = ("a" * 40, "b" * 40, "c" * 40, "d" * 40)
 TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
