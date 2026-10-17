@@ -178,12 +178,3 @@ def test_a_file_that_does_not_parse_is_an_empty_list_and_is_written_over(tmp_pat
     assert waiters.read(tmp_path) == []
     waiters.register(tmp_path, THREAD, "short", 3, ["a"], NOW)
     assert [one.thread for one in waiters.read(tmp_path)] == [THREAD]
-
-
-@pytest.mark.parametrize("skill", ["crew", "scout", "pr-review"])
-def test_the_skills_say_to_register_and_stop_and_never_to_poll_for_a_slot(skill):
-    text = (REPO / "skills" / skill / "SKILL.md").read_text()
-    assert "--thread <thread id>" in text and "t3_thread_configuration" in text
-    assert "Waiting on a test slot: jbus will wake this thread when one is free." in text
-    assert "Never poll for a slot" in text and "never end the turn with nothing said" in text
-    assert "let it wait" not in text

@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 import re
@@ -711,6 +712,28 @@ def test_the_proof_runs_the_real_code_and_prints_its_exit_code_and_last_lines(pr
         "the fact holds",
     ]
     assert proof.out.read_text().count("\n") == 23
+
+
+def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_prints_exit_76(
+    proof, tmp_path
+):
+    home = tmp_path / "taken"
+    locks = home / ".local" / "state" / "locks"
+    locks.mkdir(parents=True)
+    held = []
+    for n in range(1, 4):
+        fd = os.open(locks / f"test-slot-short.{n}.lock", os.O_RDWR | os.O_CREAT)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        held.append(fd)
+    try:
+        printed, code = proof.ends("echo the fact holds\n", HOME=str(home))
+    finally:
+        for fd in held:
+            os.close(fd)
+    assert code == 0 and printed[0] == "exit 76"
+    assert "mcp:thread-1 is registered as a waiter" in proof.out.read_text()
+    waiting = json.loads((locks / "test-slot-waiters.json").read_text())
+    assert [one["thread"] for one in waiting] == ["mcp:thread-1"]
 
 
 def test_a_proof_that_fails_is_loud(proof):
