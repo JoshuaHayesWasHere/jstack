@@ -8,7 +8,7 @@ card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question wi
 
 # scout
 
-A scout changes nothing in the repo. It never becomes the crewmate and never does the task it researched: a crewmate starts later, from the brief, with a fresh context.
+A scout changes nothing in the repo. It never becomes the crewmate and never does the task it researched: the home starts a crewmate later, from the brief, with a fresh context.
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")

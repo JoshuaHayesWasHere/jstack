@@ -2,24 +2,19 @@
 
 A pull request's review is pstack's (`skills/pr-review/SKILL.md`, "The review"), and no
 reviewer runs a test step. So the text an agent reads holds none of the three names of the
-old path, but for the lines listed here, each with why it is left. Each listed line has to
-be there still: one that has gone fails the test until it leaves its list. The code, the
-project file and the tests hold the first name nowhere but in this file, which has to spell
-it to look for it: `jgauge run` and the sweep of a `no-mistakes` remote are removed.
+old path. The code, the project file and the tests hold the first name nowhere but in this
+file, which has to spell it to look for it: `jgauge run` and the sweep of a `no-mistakes`
+remote are removed.
 """
 
 import subprocess
 from pathlib import Path
-
-import pytest
 
 REPO = Path(__file__).parent.parent
 READ = ("skills", "templates", "playbooks", "docs", "README.md")
 GONE = ("no-mistakes", "review+test", "full run: reviewer")
 
 CODE = ("src", "tests", "pyproject.toml")
-
-ALLOWED = []
 
 
 def named(repo=REPO):
@@ -34,12 +29,8 @@ def named(repo=REPO):
     return found
 
 
-def allowed(file, line):
-    return any(file == where and line.startswith(start) for where, start, _ in ALLOWED)
-
-
 def test_the_text_an_agent_reads_names_the_old_path_nowhere_else():
-    assert [f"{file}: {line[:90]}" for file, line in named() if not allowed(file, line)] == []
+    assert [f"{file}: {line[:90]}" for file, line in named()] == []
 
 
 def test_the_code_the_project_file_and_the_tests_do_not_name_it():
@@ -57,13 +48,6 @@ def test_the_code_the_project_file_and_the_tests_do_not_name_it():
         if GONE[0] in line.lower()
     ]
     assert found == []
-
-
-@pytest.mark.parametrize(("where", "start", "why"), ALLOWED)
-def test_a_line_that_is_let_through_is_still_there_and_has_its_reason(where, start, why):
-    """One that has gone leaves its list: nothing is let through for a line nobody has."""
-    assert why
-    assert [file for file, line in named() if file == where and line.startswith(start)] == [where]
 
 
 def test_the_search_finds_a_name_in_each_place_it_reads_and_in_no_other(tmp_path):
