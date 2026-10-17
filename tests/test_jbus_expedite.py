@@ -3,8 +3,11 @@ per reason and head, and the desk hears only when that did not work. Run as
 `tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
 `jmerge` prints, over commits that are really there."""
 
+import os
+import re
 import subprocess
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -15,7 +18,9 @@ from jmerge import ready
 from test_jbus_kitchen import NOW, OPTIONS, PROJECT
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
+from test_pr_review_skill import ASKED, block
 
+REPO = Path(__file__).parent.parent
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
 REVIEW = "\n## Review\nVerdict: findings\nHead: {saw}\nFindings:\n- minor a.py:1 a made up one\n"
@@ -131,7 +136,10 @@ SAYS = {
         "do what they print. Where they say `launch a reviewer`, launch it and add `Reviewer: "
         "<threadId>` to the Result. Where they say `launch no reviewer` because the Result has "
         "a `Reviewer:` line, that reviewer ended its turn and wrote nothing: send its thread "
-        "the one line `/pr-review run alpha` with `t3_thread_send`. Launch no second one."
+        "the one line `/pr-review run alpha again` with `t3_thread_send`, and write `Woke: "
+        "jbus, sent /pr-review run alpha again` in the Result, the line as sent. Launch no "
+        "second one. "
+        + (REPO / "templates" / "rerun.md").read_text().strip().replace("{slug}", "alpha")
     ),
 }
 
@@ -184,6 +192,8 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
     said = short.passes(1)
     assert sends(kitchen) == [said_to(short, kind, reason, SAYS[kind])]
     line = f"expedite alpha: told the crew what #7 is short of ({kind}, {short.head[:12]})"
+    if kind == "second":
+        line += ", sent `/pr-review run alpha again`"
     assert line in said
     (event,) = kitchen.events("expedite")
     assert (event["slug"], event["line"], event["loud"]) == ("alpha", line, "quiet")
@@ -253,7 +263,8 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_to_the_user_as_on
     assert sends(kitchen) == []
     said = short.passes(1)
     assert sends(kitchen) == [said_to(short, "unreviewed", NO_REVIEW, SAYS["unreviewed"])]
-    line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]})"
+    line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
+    line += "sent `/pr-review run alpha again`"
     assert line in said
     (event,) = kitchen.events("expedite")
     assert (event["line"], event["loud"]) == (line, "quiet")
@@ -273,6 +284,36 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_to_the_user_as_on
     short.passes(12)
     assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
     assert gates(kitchen) == []
+
+
+def reviewer_says(tmp_path, asked, brief):
+    """What the reviewer's Start 1 prints when `asked` starts it on a brief."""
+    (tmp_path / "tasks").mkdir(exist_ok=True)
+    (tmp_path / "tasks" / "alpha.md").write_text(brief)
+    script = block("### Start", "asked=").replace("<slug>", "alpha").replace(ASKED, asked)
+    env = {**os.environ, "H": str(tmp_path), "T": str(REPO / "templates")}
+    ran = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, check=True)
+    return ran.stdout.splitlines()
+
+
+def test_the_line_a_crew_sends_a_reviewer_that_wrote_nothing_is_one_the_reviewer_accepts(
+    short, kitchen, tmp_path
+):
+    """Pull request 69: the nudge had the crew resend the plain line and the reviewer refused
+    it, twice. The line the nudge names must work on a brief with a `## Review` and on one
+    without, and the event, the `Woke:` line the crew is told to write and the line the crew
+    sends are one text."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
+    said = short.passes(3)
+    (sent,) = sends(kitchen)
+    (to_send,) = re.findall(r"send its thread the one line `([^`]+)`", sent["message"])
+    (woke,) = re.findall(r"write `Woke: jbus, sent ([^`]+)` in the Result", sent["message"])
+    assert to_send == woke == "/pr-review run alpha again"
+    assert f"sent `{to_send}`" in " ".join(said)
+    quiet = "# alpha: a task\nReview: review\nReviewer: mcp:thread-9\n"
+    for brief in (quiet, quiet + REVIEW.format(saw="a" * 40)):
+        assert reviewer_says(tmp_path, to_send, brief)[0].startswith("go: ")
 
 
 def test_a_reviewer_that_waits_for_room_inside_its_turn_is_whom_the_pull_request_waits_for(
