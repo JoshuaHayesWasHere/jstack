@@ -60,7 +60,8 @@ def em_dashes(path):
 
 
 def problems(directory):
-    """What stops the skill in `directory` from being one that loads only when it is typed."""
+    """What is wrong with the skill in `directory` beyond what `test_skill_frontmatter.py` checks:
+    a built-in command's name, and em dashes."""
     skill = directory / "SKILL.md"
     if not skill.is_file():
         return ["has no SKILL.md"]
@@ -69,16 +70,8 @@ def problems(directory):
         return ["has no frontmatter"]
     found = []
     name = fields.get("name")
-    if name != directory.name:
-        found.append(f"is named {name}")
     if name in BUILT_IN:
         found.append(f"has the name of the built-in command /{name}")
-    if not fields.get("description"):
-        found.append("has no description")
-    if "disable-model-invocation" not in fields:
-        found.append("does not set disable-model-invocation")
-    elif fields["disable-model-invocation"] != "true":
-        found.append(f"sets disable-model-invocation to {fields['disable-model-invocation']}")
     for path in sorted(directory.rglob("*.md")):
         found += em_dashes(path)
     return found
@@ -176,7 +169,7 @@ def test_skills_were_added():
 
 
 @pytest.mark.parametrize("name", ADDED)
-def test_an_added_skill_loads_only_when_typed(name):
+def test_an_added_skill_has_no_problem(name):
     assert problems(SKILLS / name) == []
 
 
@@ -364,33 +357,10 @@ def test_a_skill_hidden_from_the_model_has_no_problem(tmp_path):
     assert check(tmp_path, GOOD) == []
 
 
-def test_a_skill_the_model_may_load_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("disable-model-invocation: true\n", "")) == [
-        "does not set disable-model-invocation"
-    ]
-
-
-@pytest.mark.parametrize(
-    "value", ["false", "", pytest.param('"true"', id="a quoted true is a string to YAML")]
-)
-def test_a_value_that_is_not_true_is_a_problem(tmp_path, value):
-    assert check(tmp_path, GOOD.replace(": true", f": {value}")) == [
-        f"sets disable-model-invocation to {value}"
-    ]
-
-
 def test_the_name_of_a_built_in_command_is_a_problem(tmp_path):
     assert check(tmp_path, GOOD.replace("a-skill", "review"), name="review") == [
         "has the name of the built-in command /review"
     ]
-
-
-def test_a_name_that_is_not_the_directory_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("a-skill", "other")) == ["is named other"]
-
-
-def test_no_description_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("Explain it.", "")) == ["has no description"]
 
 
 def test_no_frontmatter_and_no_skill_file_are_problems(tmp_path):

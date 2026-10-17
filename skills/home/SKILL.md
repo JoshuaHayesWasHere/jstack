@@ -2,6 +2,7 @@
 name: home
 description: Make this thread the home for the repo it runs in - read the repo's short handoff, plan work with the user, hand each task to a crewmate thread, and hand off to a fresh home before the context grows. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off.
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads the last home's note and what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work. | Reach for it when you start or continue work in a repo. | op: the operator; cmd: the start hook"
 ---
 
@@ -1203,13 +1204,13 @@ When the root home is asked for status, when the repo has more than one home, or
 
 ## When to hand off
 
-Run the `handoff` skill, then stop working in this thread, when any of these is true:
+Read `$T/../skills/handoff/SKILL.md` and do its steps, then stop working in this thread, when any of these is true:
 
 - The planning the user came for is done and the tasks are handed out.
 - The user moves to a different piece of work.
 - The context is past 300,000 tokens, or this thread has been compacted once. `hooks/home-gauge.sh` tells this thread its count after every tool call from then on, and at 350,000 it refuses every tool call but the ones the handoff makes: only the handoff runs.
 - The user says so.
 
-Before the `handoff` skill, end the audit of a queue, as "A queue and its hourly audit" says for a home that hands off: it posts into this thread, and the next home schedules its own.
+Before the handoff, end the audit of a queue, as "A queue and its hourly audit" says for a home that hands off: it posts into this thread, and the next home schedules its own.
 
 Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked. A home that keeps going costs more with every message, because every message re-sends everything before it.
