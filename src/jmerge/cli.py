@@ -221,7 +221,7 @@ class Fresh:
         self.state = state
         self.run = run
         self.timeout = timeout
-        self.command = "".join(_read(state / "fresh-check").strip().splitlines()[:1]).strip()
+        self.command = ready.fresh_command(_read(state / "fresh-check"))
         self.ran = False
 
     def known(self) -> dict:
@@ -236,10 +236,11 @@ class Fresh:
         a local check that passed. None where none is remembered and this run runs none."""
         was = self.known().get(str(number))
         asked = {"head": head, "main": tip, "command": self.command}
-        if isinstance(was, dict) and {key: was.get(key) for key in asked} == asked:
+        recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
+        if recorded and was.get("result") != ready.TIMED_OUT:
             return self._said(str(was.get("result")), head, tip, str(was.get("unmarked") or ""))
         if not self.run:
-            return None
+            return (ready.FRESH_QUEUED, "") if recorded else None
         if self.ran or self._held():
             return ready.FRESH_QUEUED, ""
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
@@ -325,7 +326,7 @@ class Fresh:
         if result == ready.PASSED:
             more = f", its tree is not marked ({unmarked})" if unmarked else ""
             return "", ready.fresh_note(self.command, head, tip) + more
-        if result not in (ready.FAILED, ready.TIMED_OUT):
+        if result != ready.FAILED:
             return result, ""
         return ready.short_on_fresh(result, self.command, head, tip), ""
 

@@ -92,7 +92,7 @@ GUARDED_UNENDED = "{left} of its {found} findings have no Finding line"
 NOT_SEEN = "its head is not the one its review saw"
 MAIN_CHANGED = "{default} changed {paths} after its check started at {since}; it needs {needs}"
 FRESH_CHECK = "a fresh check"
-FRESH_FAILS = "{command} fails on {head} over today's main {tip}{how}"
+FRESH_FAILS = "{command} fails on {head} over today's main {tip}"
 REBASE_HELD = "its crew held a third rebase after fixed and green, and its gate asks the user"
 ROW_HELD = "its queue row is held: approve it again to let it merge"
 MERGES_AFTER = "merges after {slug} ({open}), not merged yet"
@@ -107,7 +107,6 @@ _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
 _MORE = " and {more} more"
-_TIMED_OUT = ", timed out"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
 
@@ -1030,9 +1029,14 @@ def fresh_note(command: str, head: str, tip: str) -> str:
 
 
 def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
-    """The reason a pull request whose local check did not pass waits, or nothing. jbus
-    reads the head from it, and tells the crewmate to rebase."""
+    """The reason a pull request whose local check failed waits, or nothing. jbus reads the
+    head from it, and tells the crewmate to rebase. A check that ran over its time found
+    nothing of the tree, so it is no fail: the check is queued again."""
     if result == PASSED:
         return ""
-    how = _TIMED_OUT if result == TIMED_OUT else ""
-    return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12], how=how)
+    return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12])
+
+
+def fresh_command(text: str) -> str:
+    """The command a repo's `fresh-check` file holds: its first line."""
+    return "".join(text.strip().splitlines()[:1]).strip()

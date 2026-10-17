@@ -1,16 +1,21 @@
-"""Telling a crew that main moved: the wake a red pull request never gets by itself.
+"""Telling a crew that main was fixed: the wake a red pull request never gets by itself.
 
 A pull request that is red because main was broken has no review, so `jmerge` says only
 that it has none, and `rebase.tell` hears nothing it acts on. Its crew ended its turn, and
 fixing main wakes nobody. `tell` keeps the default branch's commit from pass to pass, and
-when it changed, sends the crew of each open pull request that is red one message. A
-conflict is not told here: only a push ends it, and `rebase.github` tells it once per head.
-The commit is the remote's own, asked for each pass: nothing in a pass is sure to fetch.
-The check state is GitHub's own, read from the pass's list of open pull requests.
+sends the crew of each open pull request that is red one message when main goes from red to
+green: a main that moved while green was no reason for a branch to move. A red tip is kept
+as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
+when it landed, or a second red one, loses nothing. The tip's check is main's own, read as
+`watch.main_check` reads it. A conflict is not told here: only a push ends it, and
+`rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
+nothing in a pass is sure to fetch. The check state of a pull request is GitHub's own, read
+from the pass's list of open pull requests.
 
 The message's key, `mainmoved|<slug>|#<number>|<main 12>`, is its retry key at T3 Code and
 its mark in `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
 pass that got no answer looks again, and the mark keeps what was told from being told twice.
+A tip whose check has not ended is looked at again each pass, whether or not it is new.
 So does a pass in which GitHub had not yet said whether a red head the rebase message went to
 still conflicts.
 
@@ -31,16 +36,17 @@ from __future__ import annotations
 from jbus import dispatch, read_json, rebase, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import World, checks
+from jbus.watch import World, checks, main_check
 
 EVENTS = {"mainmoved": "quiet"}
 RED = "red: checks failed"
 NO_THREAD = "red pull request with no thread to tell"
 REFUSED = "T3 Code refused the main-moved message"
 MERGEABLE_UNKNOWN, MERGEABLE_CONFLICTING = "UNKNOWN", "CONFLICTING"
+SETTLED = ("green", "failed")
 MESSAGE = (
-    "jbus: main moved to {main} while your pull request #{number} is {why}. If main was what "
-    "broke it, it may be fixed now. In your own worktree: run `git update-ref "
+    "jbus: main is green again at {main} while your pull request #{number} is {why}. If main "
+    "was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
     'refs/jstack/pre-rebase/{slug}/{short} {head}`, rebase onto origin/{default} as "A '
     'conflict" says, rerun the tests your change touches plus the ones that failed, and push '
     "with `git push --force-with-lease=refs/heads/{slug}:{head} origin "
@@ -56,8 +62,8 @@ def short_of(pull: dict) -> str:
 
 
 def tell(run: Pass, client: Client, world: World) -> None:
-    """Send the crew of a red pull request one message per main commit: a later commit of
-    main may fix it.
+    """Send the crew of a red pull request one message when main goes from red to green: the
+    commit that fixed it may fix them.
 
     Only a pull request that is open under a slug jbus launched: any other is not its crew.
     """
@@ -71,13 +77,18 @@ def tell(run: Pass, client: Client, world: World) -> None:
         return
     path = run.state / "main.json"
     was = read_json(path, {})
-    last, kept = was.get("main"), was.get("held", [])
-    if main == last and not kept:
+    last, kept, broken = was.get("main"), was.get("held", []), was.get("broken", "")
+    asked_before = main == last and was.get("check") in SETTLED
+    if asked_before and not kept:
         return
+    check = main_check(run, main)
+    if check == "failed":
+        broken = main
+    fixed = check == "green" and bool(broken)
     owed, held = False, []
     sent = read_json(run.state / "sent.json", [])
-    for slug, pull in world.open.items() if last else ():
-        if main == last and slug not in kept:
+    for slug, pull in world.open.items() if last and fixed else ():
+        if asked_before and slug not in kept:
             continue
         why, head, number = short_of(pull), pull.get("headRefOid", ""), pull["number"]
         key = f"mainmoved|{slug}|#{number}|{main[:12]}"
@@ -136,7 +147,12 @@ def tell(run: Pass, client: Client, world: World) -> None:
         run.say(line)
     if not owed:
         at = was.get("at") if main == last else run.now.isoformat()
-        write_json(path, {"main": main, "at": at, **({"held": held} if held else {})})
+        record = {"main": main, "at": at, "check": check}
+        if broken and (held or check != "green"):
+            record["broken"] = broken
+        if held:
+            record["held"] = held
+        write_json(path, record)
 
 
 STEPS = (
