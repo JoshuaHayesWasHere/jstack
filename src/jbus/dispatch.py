@@ -355,7 +355,7 @@ class Turns:
             if choice.why and choice.instance is None:
                 line = f"wait {slug}: no launch: {choice.why}"
                 until = choice.until.isoformat() if choice.until else ""
-                if run.find(slug, "capped", f"capped {slug}: {choice.why}", key=until):
+                if run.find(slug, "stall", f"stall {slug}: {choice.why}", key=f"capped {until}"):
                     run.say(line)
                 run.reasons[slug] = Slot()
                 return NO_ROOM

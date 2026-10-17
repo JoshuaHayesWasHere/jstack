@@ -137,7 +137,7 @@ def test_both_capped_waits_for_the_earlier_reset_and_says_so_once(kitchen):
     for minutes in (0, 3, 6, 9):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     assert sends(kitchen) == [] and configures(kitchen) == []
-    (alert,) = kitchen.lines("capped")
+    (alert,) = kitchen.lines("stall")
     assert alert == (
         f"capped alpha: claudeAgent and {PRIME} are both capped until {RESET}; "
         "it is sent on at the earlier reset"
@@ -146,7 +146,7 @@ def test_both_capped_waits_for_the_earlier_reset_and_says_so_once(kitchen):
     kitchen.poll(AFTER)
     assert len(sends(kitchen)) == 1 and len(configures(kitchen)) == 1
     assert configures(kitchen)[0]["modelSelection"]["instanceId"] == PRIME
-    assert len(kitchen.lines("capped")) == 1
+    assert len(kitchen.lines("stall")) == 1
 
 
 def test_a_home_thread_is_moved_and_told_to_carry_on_from_its_handoff(kitchen):
@@ -231,7 +231,7 @@ def test_a_launch_with_both_capped_waits_and_says_so_once(kitchen):
     assert [line for line in first if line.startswith("wait alpha")] == [
         f"wait alpha: no launch: claudeAgent and {PRIME} are both capped until {RESET}"
     ]
-    assert len(kitchen.lines("capped")) == 1
+    assert len(kitchen.lines("stall")) == 1
     kitchen.poll(AFTER)
     assert [given["modelSelection"]["instanceId"] for given in kitchen.t3.launches] == [
         "claudeAgent"
