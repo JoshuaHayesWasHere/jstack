@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+import daemons
 import jbus
 import jsettings
 from jbus import cli, leftover, merge, noticed, questions, queue, record, view, word, work
@@ -3082,7 +3083,7 @@ class Process:
         self.run = None
 
     def start(self):
-        self.run = subprocess.Popen(
+        self.run = daemons.start(
             [sys.executable, "-c", STARTS, str(self.port)],
             env=self.env,
             stdout=subprocess.DEVNULL,
@@ -3108,9 +3109,8 @@ class Process:
             time.sleep(0.05)
 
     def stop(self):
-        if self.run and self.run.poll() is None:
-            self.run.kill()
-            self.run.wait()
+        if self.run:
+            daemons.stop(self.run)
 
 
 @pytest.fixture

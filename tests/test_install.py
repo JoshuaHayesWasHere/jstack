@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+import daemons
 import jleak
 from jinstall.__main__ import install as run_install
 from jinstall.kinds import Units, rewrite
@@ -120,7 +121,7 @@ class User:
             "FAKE_SYSTEMCTL_LOG": str(self.systemctl_log),
             "JBUS_CONFIG_DIR": str(self.jbus),
         }
-        return subprocess.Popen(
+        return daemons.start(
             ["/bin/sh", str(checkout / "install.sh"), *args],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
