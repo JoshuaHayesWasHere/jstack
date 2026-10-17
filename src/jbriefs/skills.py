@@ -226,11 +226,13 @@ def hollow(artifact: str) -> bool:
 
 def missing(text: str) -> tuple[str, ...]:
     """The names on the brief's `Skills:` line its Results leave with no artifact, an empty
-    one or a placeholder, by canonical name and in the line's order. A name that resolves to
-    no file is the queue's and the launch's to refuse (`unknown`), and owes nothing here."""
+    one or a placeholder, as the brief spells them and in the line's order. The match is by
+    canonical name, so `build-the-lever` in the brief and `principle-build-the-lever` under
+    `Skills run:` are one name. A name that resolves to no file is the queue's and the
+    launch's to refuse (`unknown`), and owes nothing here."""
     have = run(text)
     return tuple(
-        one.name for one in named(text) if one.path is not None and hollow(have.get(one.name, ""))
+        one.said for one in named(text) if one.path is not None and hollow(have.get(one.name, ""))
     )
 
 

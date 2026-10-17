@@ -63,7 +63,7 @@ def test_a_result_missing_an_artifact_waits_and_names_the_skill(home, case):
     )
     (home.tasks / "alpha.md").write_text(reviewed(result))
     home.open_pull_request(merge.REVIEWED)
-    reason = ready.SKILLS_UNRUN.format(names="principle-prove-it-works")
+    reason = ready.SKILLS_UNRUN.format(names="prove-it-works")
     assert home.ready() == [f"wait 7 {merge.URL}: {reason}"]
 
 
