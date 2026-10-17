@@ -110,10 +110,19 @@ RETRY = 60.0
 CHECK = 30.0
 TRIAL = 60
 PAGE = Path(__file__).with_name("page.html")
+FONT = Path(__file__).with_name("font.woff2")
 ROOT = Path(__file__).parents[2]
 STARTS = "import jbus.cli, jbus.view.state; jbus.view.state.keys()"
 MARK = "PANEL_SCRIPTS;"
-FIXED = ("/", "/stack.json", "/state.json", "/digest.json", "/task/<slug>/github", "/healthz")
+FIXED = (
+    "/",
+    "/font.woff2",
+    "/stack.json",
+    "/state.json",
+    "/digest.json",
+    "/task/<slug>/github",
+    "/healthz",
+)
 WRITE = "/answer"
 WHERE = "jbus view"
 BODY = 65536
@@ -121,7 +130,7 @@ BATCH = 200
 SEND = 15.0
 HTML, JSON = "text/html; charset=utf-8", "application/json"
 POLICY = (
-    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+    "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 DEFAULT = {"http": "80", "https": "443"}
@@ -375,6 +384,8 @@ class App:
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
             return Answer(200, page(self.panels), HTML)
+        if path == "/font.woff2":
+            return Answer(200, FONT.read_bytes(), "font/woff2")
         if path == "/healthz":
             return said(200, {"ok": True})
         if path == "/stack.json":
