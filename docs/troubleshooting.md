@@ -212,6 +212,15 @@ A restart of T3 Code cancels every turn that is running, and nothing starts them
 
 The work is not lost. The brief, the branch and the worktree are on disk, and the thread reads them again.
 
+## `make check-fast` stopped before the tests
+
+`make check-fast BASE=<rev>` runs the lint and the tests `scripts/select_tests.py` names for the diff from `<rev>` to `HEAD`, or `make check` where the script prints `all`. A pull request's CI runs it with `BASE=HEAD^1`. A desk takes `origin/main` by default.
+
+| Line | Meaning | Do this |
+|---|---|---|
+| `select_tests.py: git diff failed: fatal: ambiguous argument '<rev>': unknown revision or path not in the working tree.` | `<rev>` is no commit of this checkout. No lint and no test ran. | Run `git fetch origin`, or name the commit: `make check-fast BASE=$(git merge-base origin/main HEAD)`. |
+| `select_tests.py: no pattern can be read (<error>), so all` | The script could not load jmerge's reading of a pattern from `src/`, so it runs the whole suite. | Read the error: an import that `src/jmerge` added needs no package beyond the standard library and `src/`. |
+
 ## A test of `make check` failed on a bound
 
 | Line | Meaning | Do this |
