@@ -741,6 +741,7 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot(heading, tmp_path):
     locks = home / ".local" / "state" / "locks"
     held = f"! flock -n {locks}/test-slot.1.lock true && echo held; exit 3"
     script = block(heading, "<check command>").replace("<check command>", f"sh -c '{held}'")
+    script = script.replace("<thread id>", "mcp:thread-1")
     ran = subprocess.run(
         ["sh", "-c", script],
         capture_output=True,
@@ -760,8 +761,10 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is():
     """The full run is the crewmate's: the block that read the brief and the notes has gone."""
     blocks = FENCED.findall(sections()["Do the task"])
     assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
-    assert len([text for text in blocks if "jgauge test-slot -- " in text]) == 1
-    assert len([text for text in blocks if "jgauge test-slot --short --" in text]) == 1
+    full = "jgauge test-slot --thread <thread id> -- "
+    assert len([text for text in blocks if full in text]) == 1
+    short = "jgauge test-slot --short --thread <thread id> -- "
+    assert len([text for text in blocks if short in text]) == 1
 
 
 def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp_path):
@@ -779,6 +782,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
     script = block("Do the task", "test-slot --short").replace(
         "<the targeted tests>", f"sh -c '{took}'"
     )
+    script = script.replace("<thread id>", "mcp:thread-1")
     try:
         ran = subprocess.run(
             ["sh", "-c", script],

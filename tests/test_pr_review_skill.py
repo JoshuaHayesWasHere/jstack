@@ -687,6 +687,7 @@ def proof(reviewer):
             "<the directory of the prompt file>": str(beside),
             "<the head kept at the start>": kept,
             "<the proof>": 'sh "$D/proof.sh"',
+            "<thread id>": "mcp:thread-1",
         }
         return reviewer("### The review", "test-slot", fill=fill, **env)
 
