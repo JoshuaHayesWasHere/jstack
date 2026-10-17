@@ -101,7 +101,8 @@ RULES = (
     ("findings", r"findings are not handled|^its head moved after|^its Fixed line"),
     ("findings", r"have no Finding line"),
     ("review", r"no review yet|review has no verdict"),
-    ("result", r"^no brief has a Result that names it|^its Result has no artifact under Skills"),
+    ("result", r"^no brief has a Result that names it"),
+    ("result", "^" + re.escape(ready.SKILLS_UNRUN).replace(r"\{names\}", ".+")),
 )
 _RULES = tuple((step, re.compile(pattern)) for step, pattern in RULES)
 _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")

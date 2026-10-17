@@ -255,6 +255,19 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
 
 
+@pytest.mark.parametrize(
+    "names",
+    [
+        "principle-build-the-lever, principle-sequence-verifiable-units",
+        "principle-model-the-domain, principle-type-system-discipline",
+    ],
+)
+def test_a_wait_on_skills_artifacts_is_on_the_crew_s_result_step_whatever_it_lists(names):
+    """Winnifred #150 and #151: the one rule places the wait whatever skills it names."""
+    said = f"wait: {ready.SKILLS_UNRUN.format(names=names)}"
+    assert merge.step(said) == "result"
+
+
 BARE = {"", "wait", "hold", ", ", " and ", ".."}
 
 
