@@ -402,10 +402,14 @@ EVENTS = ("pull_request", "push", "workflow_dispatch")
 
 def ran_on(job):
     """The events a job of the check runs on, worked out from its `if`."""
-    (when,) = [line for line in CHECK.read_text().splitlines() if line.startswith("    if: ")][
-        ("check", "full").index(job) : ("check", "full").index(job) + 1
-    ]
-    return [e for e in EVENTS if worked(when.partition(": ")[2], {"github.event_name": e})]
+    inside, when = False, None
+    for line in CHECK.read_text().splitlines():
+        indent = len(line) - len(line.lstrip())
+        if indent <= 2 and line.strip() and not line.lstrip().startswith("#"):
+            inside = indent == 2 and line.strip() == f"{job}:"
+        elif inside and indent == 4 and line.startswith("    if: "):
+            when = line.partition(": ")[2]
+    return [e for e in EVENTS if worked(when, {"github.event_name": e})]
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():

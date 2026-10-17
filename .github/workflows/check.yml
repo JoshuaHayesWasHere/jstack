@@ -70,9 +70,10 @@ jobs:
       # A run that ends green leaves a marker named by the tree it checked out, and a run whose
       # tree has one skips the suite: it would test the same files again. The skip is on the
       # steps, and the job's `if` is the event's alone, so a push to main always reports
-      # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact, or a ref the desk
-      # pushed after jmerge's fresh check of the same tree passed. That check ran in an
-      # environment nobody locked, so a run skipped on the desk's marker still proves the lock.
+      # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact, or a
+      # ref the desk pushed after jmerge's fresh check of the same tree passed. That check ran
+      # in an environment nobody locked, so a run skipped on the desk's marker still proves
+      # the lock.
       - name: green tree
         id: tree
         continue-on-error: true
