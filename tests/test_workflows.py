@@ -6,8 +6,11 @@ and a push to main and a manual run get the job `full`, the whole suite.
 The workflow file is read as YAML, by the little of it these two blocks use: mappings by
 their indentation, a scalar, and a list in brackets.
 
-Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
-`jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
+Every job but the pull request's `check` takes its runner from one repo variable, and the
+repo's local ephemeral runner, `jstack-ephemeral`, when the repo has none: never GitHub's,
+since every CI job runs locally. The `check` runs on the local fast lane, the runner labelled
+`jstack-fast`, which takes no full suite's job and so never queues behind one; the lane stops
+a job at 10 minutes, so the `check` is cancelled by GitHub at 9, before the lane stops it.
 The check names Google Chrome as its test browser on every runner. Every workflow is given
 read access to the contents and no more, and none runs on `pull_request_target`. The check
 may also read the repo's artifacts, which is where a green run's marker is.
@@ -36,6 +39,7 @@ PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
     " || vars.RUNS_ON || 'jstack-ephemeral' }}"
 )
+FAST = "[self-hosted, jstack-fast]"
 
 
 def scalar(text):
@@ -146,9 +150,9 @@ def jobs(text):
     return found
 
 
-def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_none():
+def test_every_job_but_the_fast_check_takes_its_runner_from_the_repos_variable():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
-        "check.yml": {"check": PICK, "full": PICK},
+        "check.yml": {"check": FAST, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
     }
 
@@ -176,19 +180,22 @@ def test_the_runner_is_the_local_one_with_no_variable_and_a_label_or_a_list_of_t
         runs_on
         for found in map(jobs, map(Path.read_text, WORKFLOWS.glob("*.yml")))
         for runs_on in found.values()
+        if runs_on != FAST
     }:
         assert picked(runs_on, "") == "jstack-ephemeral"
         assert picked(runs_on, "jstack") == "jstack"
         assert picked(runs_on, '["one", "two"]') == ["one", "two"]
 
 
-def test_no_file_under_github_names_a_runner_of_its_own():
+def test_no_file_under_github_names_a_runner_of_its_own_but_the_checks_fast_lane():
     named = [
-        path.name
+        (path.name, line.strip())
         for path in sorted(WORKFLOWS.parent.rglob("*"))
-        if path.is_file() and "self-hosted" in path.read_text()
+        if path.is_file()
+        for line in path.read_text().splitlines()
+        if "self-hosted" in line
     ]
-    assert named == []
+    assert named == [("check.yml", f"runs-on: {FAST}")]
 
 
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
@@ -386,11 +393,11 @@ def cap(text, job):
     return None
 
 
-def test_each_job_is_cancelled_after_fifteen_minutes_and_a_job_that_names_no_cap_has_none():
+def test_the_fast_check_is_cancelled_before_the_lane_stops_it_and_full_after_fifteen_minutes():
     text = "jobs:\n  other:\n    steps:\n      - timeout-minutes: 1\n  check:\n"
-    text += "    timeout-minutes: 15\n"
-    assert (cap(text, "check"), cap(text, "other")) == ("15", None)
-    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("15", "15")
+    text += "    timeout-minutes: 9\n"
+    assert (cap(text, "check"), cap(text, "other")) == ("9", None)
+    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("9", "15")
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
@@ -413,7 +420,7 @@ def ran_on(job):
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
-    assert jobs(CHECK.read_text()) == {"check": PICK, "full": PICK}
+    assert jobs(CHECK.read_text()) == {"check": FAST, "full": PICK}
     assert (ran_on("check"), ran_on("full")) == (["pull_request"], ["push", "workflow_dispatch"])
 
 
