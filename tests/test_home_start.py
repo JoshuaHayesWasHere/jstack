@@ -25,7 +25,7 @@ FIRST, USUAL, *REST = (REPO / "templates" / "hook-message.md").read_text().split
 
 def filled(text, **values):
     """A template's text with its variables filled in, each once, as the hook fills them."""
-    return re.sub(r"\$(repo|home_dir)", lambda found: values[found.group(1)], text)
+    return re.sub(r"\$(repo|home_dir|skills)", lambda found: values[found.group(1)], text)
 
 
 def blocks(skill):
@@ -87,7 +87,12 @@ class Scene:
 
     def said(self, first):
         line = FIRST.removeprefix(MARK) if first else USUAL
-        return filled(line + "".join(REST), repo=self.main.name, home_dir=str(self.home_dir))
+        return filled(
+            line + "".join(REST),
+            repo=self.main.name,
+            home_dir=str(self.home_dir),
+            skills=str(REPO / "skills"),
+        )
 
 
 @pytest.fixture

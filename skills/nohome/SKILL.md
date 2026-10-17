@@ -3,6 +3,7 @@ name: nohome
 description: Opt out of the automatic home - make this thread an ordinary thread, or switch the automatic home off or back on for the whole repo, or switch the repo's automatic merge off or back on. Use when the user invokes /nohome or $nohome, or says this thread should not be a home, should just do the work itself, or should stop planning and handing out.
 tip: makes this thread an ordinary one that does the work itself | not be a home | not a home | stop planning | do the work yourself | stop handing out
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 7 | Opts this thread, or every new thread in the repo, out of the automatic home. With `merge` it switches the repo's automatic merge off or on. | Reach for it when a thread should just do the work itself, or merges should wait. | op: the operator"
 ---
 

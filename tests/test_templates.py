@@ -30,7 +30,7 @@ HOOK_PRINTED = "\n".join(
     [
         "[home] This thread opened in the main checkout of {repo}, which has a home at {home_dir}.",
         "This thread is that repo's home. Before replying to the user's first message,"
-        " invoke the home skill and follow it.",
+        f" read {REPO / 'skills' / 'home' / 'SKILL.md'} and follow it.",
         "The first message is the user's opening request, not a command:"
         " give the skill's short status, then take the message as the start of planning.",
         "A first message that starts with /home is that command and not a request:"
@@ -266,6 +266,12 @@ def test_the_hook_prints_nothing_with_no_template_beside_it(tmp_path):
 def test_the_hook_prints_what_it_printed_before_the_move(tmp_path, repo):
     user, home_dir, checkout = a_home(tmp_path, repo)
     assert start_hook(user, checkout) == HOOK_PRINTED.format(repo=repo, home_dir=home_dir)
+
+
+def test_the_hook_names_a_home_skill_file_that_is_there(tmp_path):
+    user, home_dir, checkout = a_home(tmp_path, "demo")
+    named = re.findall(r"read (\S+) and follow it", start_hook(user, checkout))
+    assert [Path(path).is_file() for path in named] == [True]
 
 
 def test_the_hook_finds_its_template_when_run_by_a_relative_path(tmp_path):

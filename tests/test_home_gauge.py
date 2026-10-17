@@ -4,6 +4,7 @@ runs the hook on a made-up transcript."""
 
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -14,15 +15,16 @@ from jgauge import cli
 
 REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "home-gauge.sh"
+HANDOFF = REPO.resolve() / "skills" / "handoff" / "SKILL.md"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "22222222-2222-4222-8222-222222222222"
 OVER = (
     "context: {count} tokens, over this home's limit of {limit}."
-    " Finish the step in hand, then run the handoff skill. Start nothing new."
+    f" Finish the step in hand, then read {HANDOFF} and do its steps. Start nothing new."
 )
 REFUSED = (
     "context: {count} tokens, over this home's ceiling of {ceiling}."
-    " Only the handoff runs now: load the handoff skill and do its steps."
+    f" Only the handoff runs now: read {HANDOFF} and do its steps."
 )
 T3_CODE = "mcp__t3-code__"
 
@@ -272,6 +274,13 @@ def test_a_home_at_the_ceiling_of_350000_is_refused_a_tool_call_with_one_line(sc
     said = refused(scene.before("Read", file_path=str(scene.main / "README.md")))
     assert said == REFUSED.format(count=350000, ceiling=350000)
     assert scene.record().split()[:3] == ["350000", "300000", SESSION]
+
+
+def test_each_line_names_a_skill_file_that_is_there(scene):
+    scene.fill(350000)
+    lines = [told(scene.gauge()), refused(scene.before("Agent"))]
+    named = [Path(path) for line in lines for path in re.findall(r"read (\S+) and", line)]
+    assert [path.name for path in named if path.is_file()] == ["SKILL.md", "SKILL.md"]
 
 
 def test_a_home_under_the_ceiling_is_refused_nothing(scene):

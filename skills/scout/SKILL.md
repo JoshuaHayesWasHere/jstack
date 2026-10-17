@@ -2,6 +2,7 @@
 name: scout
 description: Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual page when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>.
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual page when asked. | Reach for it when a question has to be answered before a task can be briefed. | model: a home | look: scout"
 ---
 

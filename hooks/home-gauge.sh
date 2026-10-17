@@ -113,7 +113,7 @@ fi
 if [ "$event" = PreToolUse ]; then
   [ "$count" -ge "$ceiling" ] && [ "$handoff" != true ] || exit 0
   line="context: $count tokens, over this home's ceiling of $ceiling."
-  line="$line Only the handoff runs now: load the handoff skill and do its steps."
+  line="$line Only the handoff runs now: read $checkout/skills/handoff/SKILL.md and do its steps."
   jq -cn --arg event "$event" --arg line "$line" '{hookSpecificOutput: {
     hookEventName: $event, permissionDecision: "deny", permissionDecisionReason: $line}}' 2>/dev/null
   exit 0
@@ -121,7 +121,7 @@ fi
 
 [ "$count" -ge "$limit" ] || exit 0
 line="context: $count tokens, over this home's limit of $limit."
-line="$line Finish the step in hand, then run the handoff skill. Start nothing new."
+line="$line Finish the step in hand, then read $checkout/skills/handoff/SKILL.md and do its steps. Start nothing new."
 jq -cn --arg event "$event" --arg line "$line" \
   '{hookSpecificOutput: {hookEventName: $event, additionalContext: $line}}' 2>/dev/null
 exit 0
