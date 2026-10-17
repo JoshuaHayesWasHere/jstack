@@ -128,6 +128,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         if listed:
             print(f"waiting on {config.user.user}:", *(one["line"] for one in listed), "", sep="\n")
         print(table, end="")
+        if args.verb == "show":
+            print(queue.noted(state, queue.load(state)), end="")
     except queue.Unparsable as error:
         print(f"refused: {error}")
         return 1

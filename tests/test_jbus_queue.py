@@ -46,6 +46,11 @@ def brief(slug, more=""):
     )
 
 
+def widened(slug, line="One more line."):
+    """The brief with a `Done when:` item more: a change to what it asks for."""
+    return brief(slug).replace("- it is done\n", f"- it is done\n- {line}\n")
+
+
 def sha12(text):
     return queue.brief_sha(text)[:12]
 
@@ -587,8 +592,8 @@ def test_a_hold_that_lands_while_a_pass_runs_stops_the_launch(kitchen):
 
 def test_a_brief_changed_again_after_a_second_go_is_a_gate_again(kitchen):
     add(kitchen, "alpha")
-    for more in ("One.\n", "Two.\n"):
-        add(kitchen, "alpha", approve=False, text=brief("alpha", more))
+    for line in ("One.", "Two."):
+        add(kitchen, "alpha", approve=False, text=widened("alpha", line))
         kitchen.poll()
         kitchen.main("queue", "hold", "alpha")
         go(kitchen, "alpha")
@@ -630,7 +635,7 @@ def test_a_row_with_no_approval_is_never_launched(kitchen):
 
 def test_a_brief_changed_after_the_go_is_a_gate_until_it_is_approved_again(kitchen):
     add(kitchen, "alpha")
-    add(kitchen, "alpha", approve=False, text=brief("alpha", "One more line.\n"))
+    add(kitchen, "alpha", approve=False, text=widened("alpha"))
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert gates(kitchen) == ["condition alpha: brief changed after approval"]
@@ -861,7 +866,7 @@ def test_a_row_that_is_launched_has_no_reason_and_one_never_approved_has_none(ki
 
 def test_a_changed_brief_is_recorded_with_the_sha_it_has_now(kitchen):
     add(kitchen, "alpha")
-    changed = brief("alpha", "One more line.\n")
+    changed = widened("alpha")
     add(kitchen, "alpha", approve=False, text=changed)
     assert reasons(kitchen) == {"alpha": wake.Changed(sha12(changed))}
 
@@ -1112,12 +1117,13 @@ def test_a_thread_line_changed_in_the_head_leaves_the_approval_standing(kitchen)
     "again",
     [
         brief("alpha").replace("a new test", "another test"),
-        brief("alpha", "## Result\nHome: mcp:a-home\n"),
-        brief("alpha").replace("Home: mcp:a-home\n", "Homes: mcp:a-home\n"),
+        widened("alpha"),
+        brief("alpha").replace("Size: S", "Size: L"),
+        brief("alpha").replace('Task: "do alpha"', 'Task: "do alpha twice"'),
     ],
-    ids=["where", "below the head", "another label"],
+    ids=["where", "done when", "size", "task"],
 )
-def test_a_change_to_any_other_line_still_voids_the_approval(kitchen, again):
+def test_a_change_to_the_goal_or_the_scope_still_voids_the_approval(kitchen, again):
     add(kitchen, "alpha")
     add(kitchen, "alpha", approve=False, text=again)
     kitchen.poll()
@@ -1186,4 +1192,5 @@ def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_sho
     assert go(kitchen, "alpha", shown)[0] == 0
     assert rows(kitchen)["alpha"]["brief_sha"] == queue.brief_sha(text)
     assert queue.approved_text(rows(kitchen)["alpha"], brief("alpha"))
-    assert not queue.approved_text(rows(kitchen)["alpha"], brief("alpha", "More.\n"))
+    assert not queue.approved_text(rows(kitchen)["alpha"], widened("alpha", "More."))
+    assert queue.approved_text(rows(kitchen)["alpha"], brief("alpha", "More.\n"))

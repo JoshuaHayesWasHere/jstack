@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 from test_jbus_kitchen import KEY, NOW, OPTIONS, RESULT, Kitchen
-from test_jbus_queue import add, brief, go, sha12
+from test_jbus_queue import add, brief, go, sha12, widened
 
 URL = "https://example.test/pull/286"
 WHY = "needs user, touches skills/crew/SKILL.md"
@@ -118,7 +118,7 @@ def test_a_chain_that_ends_at_a_row_with_no_approval_is_one_root_to_approve_it(k
 
 def test_a_brief_changed_after_the_go_is_a_root_to_approve_it_again(kitchen):
     add(kitchen, "alpha")
-    changed = brief("alpha", "One more line.\n")
+    changed = widened("alpha")
     add(kitchen, "alpha", approve=False, text=changed)
     add(kitchen, "beta", depends="alpha")
     kitchen.poll()
@@ -176,7 +176,7 @@ def test_a_row_that_takes_the_last_slot_does_not_hide_the_chain_behind_it(kitche
     kitchen.poll()
     kitchen.config(max_running=1)
     add(kitchen, "ready", priority=0)
-    changed = brief("jbus-d", "One more line.\n")
+    changed = widened("jbus-d")
     add(kitchen, "jbus-d", priority=4, depends="ps-agnostic", approve=False, text=changed)
     said = kitchen.poll(later(3))
     assert "max_running is 1 across all projects: ready waits" in said
@@ -213,7 +213,7 @@ def test_a_root_the_user_dealt_with_while_the_stop_file_stands_is_cleared(kitche
         add(kitchen, "gamma", approve=False)
     else:
         add(kitchen, "alpha")
-        add(kitchen, "alpha", approve=False, text=brief("alpha", "One more line.\n"))
+        add(kitchen, "alpha", approve=False, text=widened("alpha"))
     kitchen.poll()
     assert [one["key"] for one in shown(kitchen)] == [root]
     (kitchen.state_dir / "stop").touch()
