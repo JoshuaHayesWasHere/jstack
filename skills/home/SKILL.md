@@ -8,10 +8,6 @@ card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads the la
 
 # home
 
-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
-
-This thread is the **home** for the repo it runs in. A home is short-lived on purpose. It starts from a short note and what jbus holds, plans with the user, hands each task to a crewmate thread, and is replaced by a new home with a new note. What lasts is on disk. The conversation is disposable.
-
 There are no review loops here and no subagents doing the work. Each task is one ordinary thread. The repo's own checks and its CI decide whether the work is good.
 
 ## Where a home's state lives
@@ -677,7 +673,7 @@ One more comes from jbus, whoever merges: `jbus: <slug> ended with something lef
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled. A reviewer's findings go to the crewmate. A thread with a question only the user can answer takes a default, carries on and pipes the gate to `jbus gate <slug>`, which keeps it as a numbered question: the home reads the open ones from jbus, shows them, and closes one with the user's answer, which jbus carries back when it differs ("Gates"). On `jbus merges` no line about a pull request is sent here: jbus reads the brief and the pull request on each pass, and the merge step prints what it found. Only a thread at one of the four pauses of "Carry on" asks in its own thread and waits: it shows as `waiting` in T3 Code, which is what reaches the user. The home does not poll for any of it and runs no watch on its state directory or on GitHub, with one exception, in the user's words: "an hourly scheduled run through T3's schedule_task, only while a queue is out, removed when it ends" ("A queue and its hourly audit"). What it has to plan on arrives as a message, and the rest it reads when the user asks for status and at the start of the next home: the gates from jbus ("Gates"), the results from disk.
 
-On each message, do this without waiting for a word from the user. The user is not watching the other threads, and should not have to steer this one for work to land.
+On each message, do this without waiting for a word from the user.
 
 1. Read what landed: the last result, the review or the report the message is about, from disk. Not the thread that sent it. A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it. A line `Gate: question <number>` in what you just read is a question jbus holds, and asks nothing here. The lines of a gate itself under "Noticed" in a Result or "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
 2. Run the merge step of "Merging a pull request that is ready", after its block "Who merges". On `home merges` it runs `jmerge`, which merges what is ready and writes no plan. On `jbus merges` it runs none, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
@@ -1213,4 +1209,4 @@ Read `$T/../skills/handoff/SKILL.md` and do its steps, then stop working in this
 
 Before the handoff, end the audit of a queue, as "A queue and its hourly audit" says for a home that hands off: it posts into this thread, and the next home schedules its own.
 
-Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked. A home that keeps going costs more with every message, because every message re-sends everything before it.
+Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked.
