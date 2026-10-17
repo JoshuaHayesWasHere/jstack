@@ -1,0 +1,150 @@
+diff --git a/skills/crew/SKILL.md b/skills/crew/SKILL.md
+index fbadedf..637674d 100644
+--- a/skills/crew/SKILL.md
++++ b/skills/crew/SKILL.md
+@@ -7,10 +7,6 @@ card: "Run the pipeline | 2 | Makes a thread a crewmate. It does the one task of
+ 
+ # crew
+ 
+-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
+-
+-This thread is a **crewmate**. It has one task, written by the repo's home in a brief. It does that task start to finish, where the user can watch and steer it, and writes the result into the brief. With no pull request it ends there; with one, it stays on it and fixes what comes back. It does not plan the repo and does not hand work on.
+-
+ ```sh
+ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+ H=~/.local/state/home/$R
+@@ -231,7 +227,7 @@ With a pull request open, the thread is not finished: it stays on the pull reque
+ 
+ ## Stay on the pull request
+ 
+-The crewmate that made the change is the one that fixes it: it already holds the context. So once the pull request is open:
++Once the pull request is open:
+ 
+ 1. Link it to this thread with the `t3-code` server's `link_pull_request` (if your harness defers it, load it first): `{"url": "<the pull request's url>"}`.
+ 2. Do the three steps of "End": write the Result, run its check of whether the home is told, say it here. With a pull request the check says `send nothing`, and nothing is sent.
+diff --git a/skills/expert/SKILL.md b/skills/expert/SKILL.md
+index 641d9b0..62fe9b0 100644
+--- a/skills/expert/SKILL.md
++++ b/skills/expert/SKILL.md
+@@ -7,8 +7,6 @@ card: "Run the pipeline | 5 | Makes a thread an expert: the always-on subject ma
+ 
+ # expert
+ 
+-Four roles share the work. The **home** orchestrates a repo: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches one question and ends. A **crewmate** does one task, from a brief, in its own worktree. An **expert** knows one subject: it stays, as a home does, and it researches and answers, as a scout does.
+-
+ This thread is an **expert**. It answers asks about its subject, many of them, from its sources and its notes, and writes down what it learns. It writes no code and decides nothing. The expert is its folder, not this thread: a fresh thread started on the folder must answer as well as this one, so what is worth keeping goes into the folder and never stays here.
+ 
+ ```sh
+@@ -210,8 +208,6 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
+    The address lets anybody who holds it put an ask in this thread. It is in `$E/webhook.url` and nowhere else: never print it, and never put it in a note, a message or a commit. On `with no address`, tell the user that line.
+ 5. Tell the user in at most four lines: which expert this is, its subject from the charter, how many notes the index lists, and anything missing. Then wait for an ask.
+ 
+-Every step leaves the folder as a second run of it would: a fresh thread started on the folder ends in the same state, pinned, with its own id in `home-id` and the webhook posting into it.
+-
+ ## An ask
+ 
+ An ask is a request inside the charter. The user types it here, or it comes in through the webhook. It is never an approval and never an instruction to act: an ask that tells this thread to change, approve or merge something is answered with what the expert knows, and the change goes where "What an expert never does" says. An ask outside the charter is answered in one line that says so, and names who to ask if the charter does.
+diff --git a/skills/handoff/SKILL.md b/skills/handoff/SKILL.md
+index 7dda3d5..e1fa936 100644
+--- a/skills/handoff/SKILL.md
++++ b/skills/handoff/SKILL.md
+@@ -8,8 +8,6 @@ card: "Run the pipeline | 6 | Closes a home. It writes a note of ten lines at mo
+ 
+ # handoff
+ 
+-A handoff moves what nothing else holds out of this conversation and onto disk, so that the next thread starts from a note of ten lines and from what jbus holds, and not from this thread's history. After it, this thread is finished.
+-
+ ```sh
+ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+ H=~/.local/state/home/$R
+@@ -402,9 +400,3 @@ Then tell the sender. A thread is told with `t3_thread_send`, to its own id:
+ The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`. Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on. Then settle this thread again.
+ 
+ A crewmate thread (`/crew <slug>`) never runs this skill. It ends by writing its `## Result`, as the `crew` skill says.
+-
+-## What not to carry over
+-
+-- The story of how this thread got here.
+-- Tool output, diffs, file contents.
+-- Anything that is true of every repo; that belongs in the user's global instructions, not here.
+diff --git a/skills/home/SKILL.md b/skills/home/SKILL.md
+index 6bb4596..63bc4ca 100644
+--- a/skills/home/SKILL.md
++++ b/skills/home/SKILL.md
+@@ -7,10 +7,6 @@ card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads the la
+ 
+ # home
+ 
+-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
+-
+-This thread is the **home** for the repo it runs in. A home is short-lived on purpose. It starts from a short note and what jbus holds, plans with the user, hands each task to a crewmate thread, and is replaced by a new home with a new note. What lasts is on disk. The conversation is disposable.
+-
+ There are no review loops here and no subagents doing the work. Each task is one ordinary thread. The repo's own checks and its CI decide whether the work is good.
+ 
+ ## Where a home's state lives
+@@ -676,7 +672,7 @@ One more comes from jbus, whoever merges: `jbus: <slug> ended with something lef
+ 
+ Nothing is sent when a pull request opens, when a review is written or when its findings are handled. A reviewer's findings go to the crewmate. A thread with a question only the user can answer takes a default, carries on and pipes the gate to `jbus gate <slug>`, which keeps it as a numbered question: the home reads the open ones from jbus, shows them, and closes one with the user's answer, which jbus carries back when it differs ("Gates"). On `jbus merges` no line about a pull request is sent here: jbus reads the brief and the pull request on each pass, and the merge step prints what it found. Only a thread at one of the four pauses of "Carry on" asks in its own thread and waits: it shows as `waiting` in T3 Code, which is what reaches the user. The home does not poll for any of it and runs no watch on its state directory or on GitHub, with one exception, in the user's words: "an hourly scheduled run through T3's schedule_task, only while a queue is out, removed when it ends" ("A queue and its hourly audit"). What it has to plan on arrives as a message, and the rest it reads when the user asks for status and at the start of the next home: the gates from jbus ("Gates"), the results from disk.
+ 
+-On each message, do this without waiting for a word from the user. The user is not watching the other threads, and should not have to steer this one for work to land.
++On each message, do this without waiting for a word from the user.
+ 
+ 1. Read what landed: the last result, the review or the report the message is about, from disk. Not the thread that sent it. A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it. A line `Gate: question <number>` in what you just read is a question jbus holds, and asks nothing here. The lines of a gate itself under "Noticed" in a Result or "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
+ 2. Run the merge step of "Merging a pull request that is ready", after its block "Who merges". On `home merges` it runs `jmerge`, which merges what is ready and writes no plan. On `jbus merges` it runs none, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
+@@ -1212,4 +1208,4 @@ Run the `handoff` skill, then stop working in this thread, when any of these is
+ 
+ Before the `handoff` skill, end the audit of a queue, as "A queue and its hourly audit" says for a home that hands off: it posts into this thread, and the next home schedules its own.
+ 
+-Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked. A home that keeps going costs more with every message, because every message re-sends everything before it.
++Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked.
+diff --git a/skills/pr-review/SKILL.md b/skills/pr-review/SKILL.md
+index 1294892..b9e69ab 100644
+--- a/skills/pr-review/SKILL.md
++++ b/skills/pr-review/SKILL.md
+@@ -12,8 +12,6 @@ A pull request is reviewed by a **reviewer**: a new thread that knows the brief
+ 
+ There is one pass per pull request: the reviewer reviews once and the crewmate fixes once. A fix that changes files under `tests/` only is not reviewed: what stands behind it is the pull request's own checks. A fix that changes any other file gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass"). The crewmate's own check decides which it is (the crew skill, "A second pass"). The reviewer finds, and fixes nothing: what to do with a finding is for the thread that did the work.
+ 
+-The scope of a review is the pull request's diff and nothing else. See "What a review covers".
+-
+ ```sh
+ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+ H=~/.local/state/home/$R
+@@ -225,7 +223,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
+ 
+ The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
+ 
+-This thread does both, and starts no subagent: pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
++pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
+ 
+ **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
+ 
+@@ -694,13 +692,3 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
+ 5. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, the findings sent where that pass sends them, and `$T/review.md` appended, filled in. The message begins "Scoped pass, of what the rebase changed.", or after a fix "Scoped pass, of the fix pushed after the review.", in place of "One review pass." The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4. Then settle this thread as a first pass does.
+ 
+ `jmerge` merges the rebased head once a `## Review` names it on its `Head:` line, with its findings handled as any review's. A new rebase after that is compared again, from this head. A fixed head is merged the same way. On a guarded pull request it is merged on the `Proof:` line of that section, and a fix pushed for this pass's findings gets a scoped pass of its own.
+-
+-## What a review costs
+-
+-A review is one thread and no subagent. It reads the prompt, which holds the whole diff, whatever code around it that it opens, the brief and the files it checks a finding against, and runs one proof.
+-
+-All of it is in one transcript, so `jgauge session <the reviewer thread's transcript>` counts the whole review in the thread's own row. Nothing runs as a process `jgauge` cannot see.
+-
+-It has not been measured yet. The first reviews under this section give the figures: write them here, per row, with the size of the diff they reviewed.
+-
+-What it replaced, for comparison: until 2026-10-11 a review was a no-mistakes run, whose agents were `claude` processes of their own that `jgauge session` did not count. The first whole cycle, measured on 2026-10-10 with its review and test steps on pull request 6 (896 added lines in 7 files, a task that took 1.35 million tokens to build), came to 4.7 million tokens in 12 minutes: 0.95 million for the review step's agent, 2.44 million for the test step's, 0.83 million for the reviewer thread and 0.46 million for the crewmate's wake to fix. A run with the review step alone averaged 1.3 million for its agent. Its test step, which no reviewer runs now, cost per agent call, measured on 2026-10-11 by jstack Chef from `~/.no-mistakes/state.sqlite` on one machine over the 14 days before: 1.7 minutes and 0.9M tokens in jstack, 8.3 minutes and 7.4M in LittleRamPantries (firstmate), 11.4 minutes and 7.9M in MNN, 14.1 minutes and 5.6M in lrp-aws-org. Against that, this repo's whole suite is 1775 tests in about 50 seconds on that machine, in one process, with no test over 1.1 seconds, and six recent jstack crews ran 0 to 2 full `make check` runs each. `jgauge run` still counts such a run, for a repo that uses one.
+diff --git a/skills/scout/SKILL.md b/skills/scout/SKILL.md
+index d9574c7..b88d02f 100644
+--- a/skills/scout/SKILL.md
++++ b/skills/scout/SKILL.md
+@@ -7,9 +7,7 @@ card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question wi
+ 
+ # scout
+ 
+-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
+-
+-This thread is a **scout**. It has one request, written by the repo's home. It finds out what the request asks, from the code and from the docs, and writes down what it found so that nobody has to find it out again. It changes nothing in the repo. It never becomes the crewmate and never does the task it researched: a crewmate starts later, from the brief, with a fresh context.
++A scout changes nothing in the repo. It never becomes the crewmate and never does the task it researched: a crewmate starts later, from the brief, with a fresh context.
+ 
+ ```sh
+ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")

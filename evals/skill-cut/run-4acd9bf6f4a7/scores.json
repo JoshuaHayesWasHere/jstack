@@ -1,0 +1,2357 @@
+{
+  "01216a645ab2": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "02499f9a9bab": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "03b6937c626a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "03bdab4d1f36": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "04a27a6f8e3e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "072ed620a84f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "07f08b5f9c3c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "080a7a0cd1c2": {
+    "value": 0.6470588235294118,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.6470588235294118,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "086c4527138f": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "08f8d0709f84": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "0908d797100f": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "09422a4ad59b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "09b5b7f96882": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0a6a294e36ea": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0a713b5e7db9": {
+    "value": 0.5,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.2,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 4
+  },
+  "0a79fd08b7f8": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0b09bced8614": {
+    "value": 0.9090909090909091,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.9090909090909091,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "0bbcb891ef1b": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.75,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "0d539bd1f60f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0d88b8a37a57": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 11
+  },
+  "0d8dc83ac81e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0ddda0f0d953": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "0e6d1ee6879f": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 6,
+    "fixed_sent": 2,
+    "sent": 6
+  },
+  "100cb6e04793": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "10158abe1612": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "104d366d096e": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.8,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 11
+  },
+  "107268cecdd4": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1081481bb2ad": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "10ae7673881a": {
+    "value": 0.4,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 7
+  },
+  "1128ef0c61db": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "1130f1f5ff1a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1173b306819f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "123f8148d8e6": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "1411863d437c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "14266222f0db": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 11
+  },
+  "14d9d9d072f5": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "178d11a9c484": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5833333333333334,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 7
+  },
+  "17cfd733ef2c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "17ffad5b9c9c": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 7,
+    "fixed_sent": 6,
+    "sent": 16
+  },
+  "181735e022c1": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "18eeb5edee5e": {
+    "value": 0.7058823529411765,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7058823529411765,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 12
+  },
+  "19bc1d8d0887": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.9,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "1a69a69ae146": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1bcf32377555": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1be3d9fcd8eb": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 10
+  },
+  "1c1369f6cf3a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1cc36c49e3cd": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "1d676c31dc00": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1dcc47f5e41c": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "1eea878ccf03": {
+    "value": 0.6923076923076923,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.5384615384615384,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 11
+  },
+  "1ef368e4e403": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1f05c69ff78c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1f12aec9c1f0": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1f1c3f1efa74": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "1fa8ca18bebc": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "1ff2d532addc": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "21d6ce010e80": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "221571d72cd3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "221e60acae85": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "23081a0461e9": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "230a270653be": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "23463861de09": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "253bd4e9fec6": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "267ddad2608e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "270de7bbae07": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "28f1ba3cb7dc": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "29313b959c39": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "295c14b7982b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "2ad5fce2e450": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "2c18875e670f": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 11
+  },
+  "2c502d2fcefb": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "2f80c8774ca9": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "2ff46590a927": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.15384615384615385,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "3049836d68df": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3073fb4c87b5": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.9230769230769231,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 10
+  },
+  "3083bfc3b53f": {
+    "value": 0.3,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 6
+  },
+  "321b746d14be": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "338035c891fc": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "34ccc089051e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "35068f607610": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "35f570f3d23d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "361344754277": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "364606376ff9": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "364705c523b3": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7058823529411765,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "365b98813bfe": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 10
+  },
+  "366c011a27c8": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "392160f96052": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "396634ecef33": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3ab53e86cbbe": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.9,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "3aba97ac89ce": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3b1967326156": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3bf8883029dd": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3e3d5048295a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3f02a96ad2b5": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "3f55a565a3a6": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "3fffc94be5f1": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 7
+  },
+  "40de411e63bc": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "419828c04bbe": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "41d9df680685": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "41efa052c8d5": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "423aa92a5198": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.6363636363636364,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "4370ad0fcb94": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.7272727272727273,
+    "fixed": 6,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "4386a8c82d34": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "448fbf26224b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "457071d3912f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "45bfbdfba25f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "466d965e62d9": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "46bebf3eca5e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "48701c81bc9b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "48a7351ea59f": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "49aa67ae2e3a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4a40538e9e33": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4ae36cf1769b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4b511bb90817": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4bf701d57f37": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4ccfa1707b19": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4d25d805d7ca": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4e7bb8d664d5": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4ea49ab48788": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4ef7d23f8571": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "4f9a751913c0": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "508aee74b780": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "50b37e257801": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "50e3a9cb3787": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "51ed51ebae90": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "521c97aac0b9": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "523f9445db88": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "52a2eac25776": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "546980c7e743": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "54822cfd641f": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.6363636363636364,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "55d157eb1ab0": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 8
+  },
+  "560d97cb591d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "56466d963302": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5669f2a2b641": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5833333333333334,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 7
+  },
+  "5671f9612fdf": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "57954bcddc23": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "57962084f5f6": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "57aaeea48d2e": {
+    "value": 0.7333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.7333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 12
+  },
+  "58b3aedb7943": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "59cd94c48248": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "5a1465c10196": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5a565671cc43": {
+    "value": 0.7333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.7333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 12
+  },
+  "5a68fd8d84a0": {
+    "value": 0.6923076923076923,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.5384615384615384,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 7
+  },
+  "5aee71a197ba": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5c49eb4553d6": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "5c79d9ca3f9d": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "5caa431fd6d0": {
+    "value": 0.5555555555555556,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "5d6664f92136": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "5d95c7772b6c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5e037a1bcd54": {
+    "value": 0.9090909090909091,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.9090909090909091,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "5e06979d304e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5ea1a6e7c9d8": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 7
+  },
+  "5f52f3b649d3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5f667db34820": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "5f91256baa7d": {
+    "value": 0.5,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 10
+  },
+  "60288c379f76": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "630b1bc25151": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "631909bd903f": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "638dde4d955b": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "63e5f39d65e7": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "64681ea3e929": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "64a25e1eca50": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "659d0ebb1f22": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6609a03e6f2b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "66365aefd623": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "66ac6c8f004c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "679eb9e79bd8": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "67a4f7325812": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "67e2f68905d5": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "686938b9c95d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6963ce8f5e96": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.8,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 11
+  },
+  "6997453e4d02": {
+    "value": 0.9090909090909091,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.9090909090909091,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "6a72a826b4ea": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "6b7e044223fb": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6bfd7a1f8d38": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6d42bcbba8df": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6e6c8db948d7": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "6ea67148653e": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "6ef1f7a05cfe": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "6ef236706c01": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "6f53b198f35e": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "6fbed693c724": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "705c3e8bf505": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "711f0ea29311": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "71430c78e272": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "71803e1ac66c": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "7182938f88bc": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "718e87c64696": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "71a30903e377": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "71e640d5d9a5": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "73608d6b4063": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "7570b36309f8": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "75fe45359c2c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "76f6895b5c7f": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "7899ec68d15f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "78d0b2f0e087": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "790e629e9254": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "791e6ae74524": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "7a9a0c7265fd": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "7c894b521038": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "7de6e4f837a3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "7df0883f6d26": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8043ea0c487b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "806ccc430d9d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8087e53dc50b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8131f6301158": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8160bd736e27": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "81a9c1ddaae5": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 11
+  },
+  "82ad4608e754": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "830e91603a9b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "83da2f703856": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "842d56797951": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "84f647629529": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 10
+  },
+  "85fcd6e9d087": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8641fa23b2db": {
+    "value": 0.6363636363636364,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 10
+  },
+  "87328e862420": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "87409eef0cb3": {
+    "value": 0.6153846153846154,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6153846153846154,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 12
+  },
+  "87cee6e69433": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "87f693e5de66": {
+    "value": 0.7058823529411765,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7058823529411765,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 15
+  },
+  "88389740bd22": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "8886007cc071": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "88a24b8367ee": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "89feef7ac7e8": {
+    "value": 0.7333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.7333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 12
+  },
+  "8aeba0ce4a73": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8af1f9313b6f": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8b2d8d54839a": {
+    "value": 0.9333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.9333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 13
+  },
+  "8b32a5ed4734": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8c87cb5f5390": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 7
+  },
+  "8d266969dd52": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8e3ad6f1b9e4": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8e3d57b65a78": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "8f0bc2b198c9": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 7
+  },
+  "8f453d0ab575": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.9,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "903a2125aa6a": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "90cc74028bba": {
+    "value": 0.0,
+    "unsettled": [],
+    "judged": true
+  },
+  "92100755b748": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "92d88986cd61": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "93056e6092ec": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "93b17f459232": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "943e0e25d7fe": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.75,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "96a63a80f1d5": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "96bb7705e181": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "98092b7aa334": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "9926e91a06ad": {
+    "value": 0.9090909090909091,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.9090909090909091,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "992c72b630ca": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "994d66d5a0c8": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "99f6090e1b75": {
+    "value": 0.3,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 6
+  },
+  "9a226d413db7": {
+    "value": 0.6,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 5
+  },
+  "9b9a3d6dcf72": {
+    "value": 0.9,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "9c04f35f87ab": {
+    "value": 0.5882352941176471,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.5882352941176471,
+    "fixed": 8,
+    "fixed_sent": 7,
+    "sent": 10
+  },
+  "9cc3d0f28c6e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "9d0ec2a347d4": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "9d1882871fe3": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.75,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "9dc5ad2089d4": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "9dcc9f144062": {
+    "value": 0.5,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.2,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 4
+  },
+  "9df0af6fe620": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "9ea4e13f7e40": {
+    "value": 0.6363636363636364,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.5454545454545454,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 10
+  },
+  "9ede2cabac8d": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "9f40f39ba819": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a1bffc45fb26": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a2eb42b92c8e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a307f1203baf": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a3b0d4eae191": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "a4753e7fb032": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a4bb804cb78c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a56e30b9ae07": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "a622d4704ee2": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a749f2b296cd": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a831f129f0b3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "a83dd79e17d0": {
+    "value": 1.0,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.9,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 8
+  },
+  "a8be1dee43f1": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 11
+  },
+  "a94246e05c4e": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "a96982df7894": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.15384615384615385,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "a9f824ec3297": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "aa7608471614": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "aaf87f936d6d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ab528344ed80": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ac050165ef1d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "af3184d56eaf": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "af6d5593a7a8": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b02b2620bb16": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "b09760d695d2": {
+    "value": 0.5,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 6
+  },
+  "b0a0a2394940": {
+    "value": 0.6153846153846154,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.5384615384615384,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 10
+  },
+  "b2168526fc67": {
+    "value": 0.5384615384615384,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 11
+  },
+  "b2f057839317": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b3ba62ebc9bb": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b403a3abc455": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b5ade24bcc9c": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b5c6c108571d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b611711ff521": {
+    "value": 0.8461538461538461,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.6923076923076923,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 9
+  },
+  "b72fab4b4814": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b849a34db3c9": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b876027e4bf7": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "b8b1828fadff": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "b9a1c3c5d4ed": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ba924b80de22": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bb3adbbc623d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bb62c9c087fc": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5833333333333334,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 8
+  },
+  "bb943a4c310e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bbc44ecf2f45": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bc0e8ebaecbb": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bc200c505b3b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bdc86412f08e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "beb3edc52ac3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "bfc969a8c5db": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c0fe8e024825": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c1ac129cfd13": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c1ba5b4618bc": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c32b361a125c": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "c37b4f991a86": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c3e21bd6e4ab": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c419dc60c6c4": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c4d9f39e93be": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c570e3fbb255": {
+    "value": 0.46153846153846156,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.46153846153846156,
+    "fixed": 3,
+    "fixed_sent": 2,
+    "sent": 12
+  },
+  "c5f4c373b4e4": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.8,
+    "fixed": 7,
+    "fixed_sent": 5,
+    "sent": 6
+  },
+  "c64f4a4239b3": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5833333333333334,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 8
+  },
+  "c7747d8b120c": {
+    "value": 0.75,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.75,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "c77863d0f524": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c7b96ed25ab0": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "c8bc837eeed1": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c8d4361683d3": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "c9a4a5fdda82": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ca11af8c5651": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "cad85d75897d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "caef3acedbad": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 10
+  },
+  "ccb654ec9f83": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "cd2e9f5ee09d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "cd863d568612": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "cdd336d7431b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ce5703e1fd82": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ce92e1840518": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ceb6492bc63e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "cee52c5b7308": {
+    "value": 0.8235294117647058,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.8235294117647058,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 17
+  },
+  "d03996badbb0": {
+    "value": 0.7333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.7333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 12
+  },
+  "d144d8c55841": {
+    "value": 0.9090909090909091,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.9090909090909091,
+    "fixed": 5,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "d1862f284f1b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d1f2b4eaf7a6": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d203fa688db7": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d22baf6b5f01": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d2709c99f699": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d30352ac52bd": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d3132d47908a": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "d4c2b62b0f71": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d514be50cb1e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d52fa1b1531d": {
+    "value": 0.5833333333333334,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.5,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "d540e172b299": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "d54feda01405": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d5c8e3220a37": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d5cdfe453697": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d64cc2151ded": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d6bb4bbd9d2a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d6bcdca7b8cf": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "d70d61b73cd3": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "d7538a933356": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "d7bf6289745b": {
+    "value": 0.7,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.6,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 6
+  },
+  "d85c237650c2": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "d86313b8a5ea": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 10
+  },
+  "d8db3754c133": {
+    "value": 0.38461538461538464,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.23076923076923078,
+    "fixed": 6,
+    "fixed_sent": 0,
+    "sent": 0
+  },
+  "da627a18bd4e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "dd39b5e90657": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "dffe01ed416d": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "e1533fd230b0": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "e19e815d5df4": {
+    "value": 0.8181818181818182,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.8181818181818182,
+    "fixed": 6,
+    "fixed_sent": 5,
+    "sent": 9
+  },
+  "e25014df0118": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "e34f548e4f13": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.6363636363636364,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "e535261e20a6": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "e5b3d7107250": {
+    "value": 0.6923076923076923,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.5384615384615384,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 7
+  },
+  "eb0114769f83": {
+    "value": 0.9230769230769231,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.8461538461538461,
+    "fixed": 10,
+    "fixed_sent": 10,
+    "sent": 11
+  },
+  "eb8f54e7c751": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ec0c683235d9": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ec1e6000e973": {
+    "value": 0.7272727272727273,
+    "unsettled": [],
+    "findings": 11,
+    "three_way": 0.7272727272727273,
+    "fixed": 6,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "ed0c0e52f77a": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ede51e57edab": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "efd4dad0424a": {
+    "value": 0.7647058823529411,
+    "unsettled": [],
+    "findings": 17,
+    "three_way": 0.7647058823529411,
+    "fixed": 7,
+    "fixed_sent": 6,
+    "sent": 16
+  },
+  "f04ef2959571": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f0d9167abd9d": {
+    "value": 0.5,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.3,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 4
+  },
+  "f0fba2221c40": {
+    "value": 0.4,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.4,
+    "fixed": 2,
+    "fixed_sent": 2,
+    "sent": 7
+  },
+  "f19bfac957b2": {
+    "value": 0.4444444444444444,
+    "unsettled": [],
+    "findings": 9,
+    "three_way": 0.4444444444444444,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 9
+  },
+  "f39495570fbe": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f3f49e25e154": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f3f5ec203036": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f63da943a1df": {
+    "value": 0.6153846153846154,
+    "unsettled": [],
+    "findings": 13,
+    "three_way": 0.5384615384615384,
+    "fixed": 3,
+    "fixed_sent": 3,
+    "sent": 12
+  },
+  "f74d121d8a34": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f80041dfd448": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.6666666666666666,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 9
+  },
+  "f828a1091e7e": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f89451caf424": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f91ce91739fd": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f943cd1a6c57": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f986af6d540b": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "f9930cbc22a8": {
+    "value": 0.7333333333333333,
+    "unsettled": [],
+    "findings": 15,
+    "three_way": 0.7333333333333333,
+    "fixed": 6,
+    "fixed_sent": 6,
+    "sent": 10
+  },
+  "fa70771ee8e4": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "fca11d88e518": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "fd5cd7cb1e4a": {
+    "value": 0.6666666666666666,
+    "unsettled": [],
+    "findings": 12,
+    "three_way": 0.6666666666666666,
+    "fixed": 4,
+    "fixed_sent": 4,
+    "sent": 8
+  },
+  "fe92aecfe2b1": {
+    "value": 1.0,
+    "unsettled": []
+  },
+  "ff5b19faaf1a": {
+    "value": 0.8,
+    "unsettled": [],
+    "findings": 10,
+    "three_way": 0.7,
+    "fixed": 7,
+    "fixed_sent": 7,
+    "sent": 9
+  },
+  "ffa3661966f3": {
+    "value": 1.0,
+    "unsettled": []
+  }
+}
