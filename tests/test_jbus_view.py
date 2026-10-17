@@ -3164,7 +3164,8 @@ def test_the_server_ends_with_the_status_its_unit_starts_again_when_its_code_cha
     assert process.code()["stale"] is False
     (process.src / "jbus" / "view" / "state.py").touch()
     ended = process.run.wait(timeout=20)
-    assert ended == view.NEWER_CODE not in (0, 1)
+    assert ended == view.NEWER_CODE
+    assert ended not in (0, 1)
     assert unit["Service"]["Restart"] == "always"
     assert unit["Service"]["RestartForceExitStatus"] == str(ended)
     assert unit["Service"]["SuccessExitStatus"] == str(ended)
