@@ -1,6 +1,7 @@
 #!/bin/sh
 
-template=$(cd "$(dirname "$0")/../templates" 2>/dev/null && pwd)/hook-message.md
+checkout=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)
+template=$checkout/templates/hook-message.md
 
 input=$(cat)
 [ "$(printf '%s' "$input" | jq -r '.source // empty')" = startup ] || exit 0
@@ -27,7 +28,7 @@ first=
 [ -f "$home_dir/plan.md" ] || first=1
 
 [ -f "$template" ] || exit 0
-repo=$repo home_dir=$home_dir first=$first awk '
+repo=$repo home_dir=$home_dir skills=$checkout/skills first=$first awk '
 skip {
   skip = 0
   next
@@ -40,7 +41,7 @@ skip {
     skip = 1
   }
   out = ""
-  while (match(line, /\$(repo|home_dir)/)) {
+  while (match(line, /\$(repo|home_dir|skills)/)) {
     out = out substr(line, 1, RSTART - 1) ENVIRON[substr(line, RSTART + 1, RLENGTH - 1)]
     line = substr(line, RSTART + RLENGTH)
   }

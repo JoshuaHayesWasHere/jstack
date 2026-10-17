@@ -957,7 +957,8 @@ def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(u
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": "context: 350000 tokens, over this home's ceiling of 350000."
-        " Only the handoff runs now: load the handoff skill and do its steps.",
+        f" Only the handoff runs now: read {REPO.resolve() / 'skills' / 'handoff' / 'SKILL.md'}"
+        " and do its steps.",
     }
 
 

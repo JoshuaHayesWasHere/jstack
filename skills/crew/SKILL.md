@@ -2,6 +2,7 @@
 name: crew
 description: Make this thread a crewmate - do the one task a home wrote a brief for, in this thread's own worktree, write the result back to the brief, and stay on the pull request it opened. Use when the user or a home starts a thread with /crew <slug> or $crew <slug>.
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 2 | Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request. | Reach for it when a brief is written and approved. It is typed as `/crew <slug>`. | model: a home; cmd: jbus"
 ---
 

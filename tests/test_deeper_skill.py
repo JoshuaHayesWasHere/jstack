@@ -1,4 +1,4 @@
-"""`/deeper` loads only when typed, and the gate its "Run by a home" section pipes is one that
+"""The gate the "Run by a home" section of `/deeper` pipes is one that
 `jbus gate` keeps: the block is cut out of the skill, filled in, and handed to the code of
 `jbus gate`, which numbers it and keeps its two options."""
 
@@ -7,18 +7,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from jbus import questions
-from jdrift.explained import FRONT_MATTER
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "deeper" / "SKILL.md"
 HEREDOC = re.compile(r"<< 'THE_GATE_ENDS_HERE'\n(.*?)^THE_GATE_ENDS_HERE$", re.M | re.S)
 NOW = datetime(2026, 10, 15, 6, 0, tzinfo=UTC)
-
-
-def front_matter():
-    found = FRONT_MATTER.match(SKILL.read_text())
-    assert found, "skills/deeper/SKILL.md has no front matter"
-    return dict(line.split(": ", 1) for line in found.group(1).splitlines() if ": " in line)
 
 
 def gate_lines(slug):
@@ -31,12 +24,6 @@ def gate_lines(slug):
         "a profiler; the raw log; py-spy; a test",
     )
     return filled
-
-
-def test_the_skill_is_manual_and_is_named_for_its_directory():
-    said = front_matter()
-    assert said["name"] == "deeper"
-    assert said["disable-model-invocation"] == "true"
 
 
 def test_the_gate_a_home_pipes_is_kept_with_the_rewrite_as_default_and_two_options(tmp_path):

@@ -2,6 +2,7 @@
 name: expert
 description: Make this thread an expert - the always-on subject matter expert whose folder is named, which researches and answers asks about its one subject from its sources and its notes, and never writes code. Use when the user or another thread starts a thread with /expert <name> or $expert <name>.
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 5 | Makes a thread an expert: the always-on subject matter expert of one subject. It answers asks from its sources and its notes, in four parts, and writes down what it learns in its own folder. It writes no code and decides nothing. | Reach for it when a question about that subject needs an answer with its sources. It is typed as `/expert <name>`. | op: the operator"
 ---
 

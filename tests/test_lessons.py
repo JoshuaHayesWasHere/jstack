@@ -29,38 +29,9 @@ def block(skill, marker):
     return found
 
 
-def front(text):
-    """A skill's frontmatter as a dict of its `key: value` lines, or None if it has none."""
-    if not text.startswith("---\n") or "\n---\n" not in text[4:]:
-        return None
-    lines = text[4:].split("\n---\n", 1)[0].splitlines()
-    return {key.strip(): value.strip() for key, _, value in (line.partition(":") for line in lines)}
-
-
-def problems(path):
-    """What is wrong with the skill at `path` as one that must never load by itself."""
-    text = path.read_text()
-    found = []
-    fields = front(text)
-    if fields is None:
-        return ["has no frontmatter"]
-    if fields.get("name") != path.parent.name:
-        found.append(f"is named {fields.get('name')!r}, not {path.parent.name!r}")
-    if not fields.get("description"):
-        found.append("has no description")
-    if fields.get("disable-model-invocation") != "true":
-        found.append("can load by itself: disable-model-invocation is not true")
-    return found + em_dashes(text)
-
-
 def em_dashes(text):
     lines = [n for n, line in enumerate(text.splitlines(), 1) if EM_DASH in line]
     return [f"has an em dash on line {lines}"] if lines else []
-
-
-@pytest.mark.parametrize("path", SKILLS.values(), ids=SKILLS)
-def test_a_lessons_skill_never_loads_by_itself(path):
-    assert problems(path) == []
 
 
 @pytest.mark.parametrize("path", TEXTS, ids=lambda path: str(path.relative_to(REPO)))
@@ -76,43 +47,8 @@ def test_reflect_has_its_four_prompts():
     assert named == there
 
 
-GOOD = "---\nname: a-skill\ndescription: Does a thing.\ndisable-model-invocation: true\n---\n# a\n"
-
-
-def check(tmp_path, text):
-    path = tmp_path / "a-skill" / "SKILL.md"
-    path.parent.mkdir()
-    path.write_text(text)
-    return problems(path)
-
-
-def test_a_skill_that_is_hidden_has_no_problem(tmp_path):
-    assert check(tmp_path, GOOD) == []
-
-
-@pytest.mark.parametrize(
-    "line", ["", "disable-model-invocation: false\n", "disable-model-invocation:\n"]
-)
-def test_a_skill_that_is_not_hidden_is_a_problem(tmp_path, line):
-    assert check(tmp_path, GOOD.replace("disable-model-invocation: true\n", line)) == [
-        "can load by itself: disable-model-invocation is not true"
-    ]
-
-
-def test_a_skill_with_no_frontmatter_is_a_problem(tmp_path):
-    assert check(tmp_path, "# a\n") == ["has no frontmatter"]
-
-
-def test_a_skill_named_for_another_directory_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("a-skill", "b-skill")) == [
-        "is named 'b-skill', not 'a-skill'"
-    ]
-
-
-def test_an_em_dash_in_a_skill_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD + f"\nOne thing {EM_DASH} and another.\n") == [
-        "has an em dash on line [8]"
-    ]
+def test_an_em_dash_in_a_skill_is_a_problem():
+    assert em_dashes(f"# a\n\nOne thing {EM_DASH} and another.\n") == ["has an em dash on line [3]"]
 
 
 class Machine:

@@ -3,6 +3,7 @@ name: handoff
 description: Close this thread and leave the next one a short start - stop what runs, write a note of ten lines at most, and, for a repo's home, start the next home and settle this thread. The next home reads the rest from jbus. Use when the user invokes /handoff or $handoff, says to wrap up, move on or start fresh, or when the home skill's hand-off conditions are met.
 tip: closes this thread and leaves the next one a note of ten lines | wrap up | wrap this up | start fresh | hand off | hand this off
 user-invocable: true
+disable-model-invocation: true
 card: "Run the pipeline | 6 | Closes a home. It writes a note of ten lines at most and starts the next home, whose start reads the rest from jbus. | Reach for it when the day ends, or the home's context has grown. | op: the operator; model: a home"
 ---
 
