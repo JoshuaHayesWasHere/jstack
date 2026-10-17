@@ -115,7 +115,7 @@ def resolved(skill, tmp_path):
     Run as the user has the skill: a symlink under ~/.claude/skills, used from another repo.
     """
     text = as_read(REPO / "skills" / skill / "SKILL.md")
-    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html))`", text)))
+    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(REPO / "skills" / skill)
@@ -140,7 +140,7 @@ def resolved(skill, tmp_path):
 READS = {
     "crew": {"gates.md", "result.md", "skill-artifacts.md"},
     "expert": {"expert-answer.md", "gates.md"},
-    "grilling": {"grill-page.html"},
+    "grilling": {"grill-page.html", "grill-round.schema.json"},
     "handoff": {"handoff-seed.md", "handoff.md"},
     "home": {"brief.md", "gates.md", "plan-entry.md", "scout-request.md"},
     "pr-review": {"review.md"},
@@ -148,6 +148,7 @@ READS = {
         "brief.md",
         "gates.md",
         "grill-page.html",
+        "grill-round.schema.json",
         "scout-report.md",
         "scout-request.md",
         "skill-artifacts.md",

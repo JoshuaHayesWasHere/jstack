@@ -3146,11 +3146,21 @@ def test_a_file_the_server_runs_that_is_newer_on_disk_is_said(scene, tmp_path):
     assert code.said()["stale"] is True
 
 
-def test_the_server_ends_with_status_0_when_its_code_changes_and_starts_again(process):
+def test_the_server_ends_with_the_status_its_unit_starts_again_when_its_code_changes(process):
+    import configparser
+
+    unit = configparser.ConfigParser(interpolation=None, strict=False)
+    unit.optionxform = str
+    unit.read(REPO / "templates" / "jbus-view.service")
     process.start()
     assert process.code()["stale"] is False
     (process.src / "jbus" / "view" / "state.py").touch()
-    assert process.run.wait(timeout=20) == 0
+    ended = process.run.wait(timeout=20)
+    assert ended == view.NEWER_CODE
+    assert ended not in (0, 1)
+    assert unit["Service"]["Restart"] == "always"
+    assert unit["Service"]["RestartForceExitStatus"] == str(ended)
+    assert unit["Service"]["SuccessExitStatus"] == str(ended)
     process.start()
     assert process.ask("/healthz") == {"ok": True}
     assert process.code()["stale"] is False
@@ -3170,7 +3180,7 @@ def test_code_that_does_not_start_keeps_the_server_and_ends_it_once_it_starts(pr
     assert process.run.poll() is None
     assert process.ask("/healthz") == {"ok": True}
     module.write_text(whole)
-    assert process.run.wait(timeout=20) == 0
+    assert process.run.wait(timeout=20) == view.NEWER_CODE
 
 
 @pytest.mark.parametrize(
@@ -3417,7 +3427,7 @@ def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, pr
     assert process.ask("/panel/pulse.json?project=demo")["panel"] == "pulse"
     assert "sample" not in raw(process, "/")[1]
     (made / "panel.py").write_text(SAMPLE)
-    assert process.run.wait(timeout=20) == 0
+    assert process.run.wait(timeout=20) == view.NEWER_CODE
     process.start()
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
 
@@ -3443,7 +3453,7 @@ def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(s
     assert process.ask("/panel/sample.json?project=demo") is None
     assert process.code()["stale"] is False
     (made / "panel.js").write_text(LINKED)
-    assert process.run.wait(timeout=20) == 0
+    assert process.run.wait(timeout=20) == view.NEWER_CODE
     process.start()
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
     assert process.code()["stale"] is False

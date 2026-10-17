@@ -68,7 +68,7 @@ the module `jbus view` starts through, which loads this package too, and every p
 (`state.keys`), so a panel that does not load, or gives a key another gives, is code that
 does not start. The server loads the panels once, when it starts (`App`), and a folder
 that becomes a panel or stops being one since is code on disk that is newer. Where that
-starts it ends with status 0, for the unit to start it again. Where it does not, the server
+starts it ends with `NEWER_CODE`, for the unit to start it again. Where it does not, the server
 keeps serving, `/state.json` says so, and the trial is run again at each check: what it
 says rests on more than the files that are newer, as a module nobody has loaded yet.
 """
@@ -105,6 +105,7 @@ from jbus.view.state import Sources
 __all__ = ["CHECK", "PORT", "App", "Code", "Doors", "Refused", "Sources", "doors"]
 
 PORT = 4388
+NEWER_CODE = 75
 LOOPBACK = "127.0.0.1"
 RETRY = 60.0
 CHECK = 30.0
@@ -722,7 +723,8 @@ class Doors:
 
     def serve(self) -> int:
         """Open the doors and serve until the process is stopped, or until the code on disk
-        is newer than the code that serves and starts: then it ends, for a new start."""
+        is newer than the code that serves and starts: then it ends with `NEWER_CODE`, which
+        jbus-view.service starts again."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)
@@ -731,6 +733,7 @@ class Doors:
                 if self.app.code.due():
                     print("jbus view: the code on disk is newer and starts, ending", flush=True)
                     self.close()
+                    return NEWER_CODE
         except KeyboardInterrupt:
             self.close()
         return 0
