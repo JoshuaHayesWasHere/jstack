@@ -96,6 +96,90 @@ def test_all_sends_it_once_to_each_projects_home(kitchen):
     assert [one["line"] for one in logged(kitchen, "other")] == ["word other: sent to home-2"]
 
 
+def kept_not_posted(kitchen, why, project="demo", thread="home-1", name=ID):
+    """What the command says of a word it kept and posted to nobody, and the record it left."""
+    (one,) = [each for each in word.load(kitchen.state) if each.id == name]
+    assert one.thread == thread and one.sent_at and one.waits == ""
+    return f"kept: {project}, not posted, {why}, word {name}\n"
+
+
+def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    kitchen.t3.says("home-1", "m1", WORDS, title="home: demo")
+    ref = "home-1/m1"
+    (code, out) = kitchen.main("word", "--to", "demo", "--message", ref)
+    (kept,) = word.load(kitchen.state)
+    why = "it was said in this project's own home thread home-1"
+    assert (code, out) == (0, kept_not_posted(kitchen, why, name=kept.id))
+    assert (kept.words, kept.ref, kept.checked) == (WORDS, ref, True)
+    again = kitchen.main("word", "--to", "demo", "--message", ref)
+    assert again == (0, out.replace("kept:", "already kept:"))
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert sends(kitchen) == []
+    assert [one["line"] for one in logged(kitchen)] == []
+    assert word.basis(kitchen.state, kept.id).words == WORDS
+
+
+def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    assert kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID) == (
+        0,
+        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1"),
+    )
+    code, out = kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID)
+    assert (code, out.startswith("already kept: demo, not posted")) == (0, True)
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert sends(kitchen) == [] and kitchen.webhook.posts == []
+
+
+def test_a_word_recorded_anywhere_else_is_posted_to_the_home_once(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    kitchen.t3.says("mcp:sous", "m1", WORDS, title="Sous Chef")
+    assert kitchen.main("word", "--to", "demo", "--message", "mcp:sous/m1")[1].startswith("sent:")
+    assert kitchen.main("word", "--to", "demo", "--from", "mcp:sous", *SAID) == (
+        0,
+        f"already sent: demo, to home-1, word {ID}\n",
+    )
+    (sent,) = sends(kitchen)
+    assert sent["threadId"] == "home-1"
+
+
+def test_a_word_recorded_by_a_thread_that_is_not_the_home_is_posted_to_the_home(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    assert kitchen.main("word", "--to", "demo", "--from", "crew-1", *SAID) == (
+        0,
+        f"sent: demo, to home-1, word {ID}\n",
+    )
+    assert len(sends(kitchen)) == 1
+
+
+def test_a_word_from_a_home_that_handed_off_waits_for_the_next_home(kitchen):
+    (kitchen.home / "home-id").write_text("home-0\n")
+    (kitchen.home / "handoff.md").write_text("# Handoff\nWas home: home-0\n")
+    code, out = kitchen.main("word", "--to", "demo", "--from", "home-0", *SAID)
+    assert (code, out.startswith("waits: demo,")) == (0, True)
+    (kitchen.home / "home-id").write_text("home-1\n")
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert [one["threadId"] for one in sends(kitchen)] == ["home-1"]
+
+
+def test_all_skips_only_the_recording_homes_own_copy(kitchen):
+    side = kitchen.second()
+    (kitchen.home / "home-id").write_text("home-1\n")
+    (side.home / "home-id").write_text("home-2\n")
+    code, out = kitchen.main("word", "--all", "--from", "home-1", *SAID)
+    assert code == 0
+    assert out.splitlines() == [
+        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1").strip(),
+        f"sent: other, to home-2, word {OTHER}",
+    ]
+    assert [(one["threadId"], one["message"]) for one in sends(kitchen)] == [
+        ("home-2", MESSAGE.replace(ID, OTHER))
+    ]
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert len(sends(kitchen)) == 1
+
+
 @pytest.mark.parametrize(
     "files",
     [
