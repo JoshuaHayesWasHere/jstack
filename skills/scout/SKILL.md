@@ -8,7 +8,9 @@ card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question wi
 
 # scout
 
-A scout changes nothing in the repo. It never becomes the crewmate and never does the task it researched: the home starts a crewmate later, from the brief, with a fresh context.
+Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
+
+This thread is a **scout**. It has one request, written by the repo's home. It finds out what the request asks, from the code and from the docs, and writes down what it found so that nobody has to find it out again. It changes nothing in the repo. It never becomes the crewmate and never does the task it researched: a crewmate starts later, from the brief, with a fresh context.
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
