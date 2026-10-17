@@ -399,3 +399,69 @@ def test_a_sign_in_that_no_longer_works_is_a_gate_once_a_day(kitchen):
     assert kitchen.log("jmerge") == ["", ""]
     kitchen.poll(NOW + timedelta(days=1))
     assert len(kitchen.lines()) == 2
+
+
+def main_of(kitchen, *checks):
+    """Alpha merged at the oldest of `checks`, one commit each over a green base, oldest
+    first, each a minute apart and newer than the merge. A check is `failure` or `success`
+    for the `full` job. The commits' shas are `1` * 40, `2` * 40, and so on."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    shas = [str(n) * 40 for n in range(1, len(checks) + 1)]
+    done, base = {"status": "completed"}, "f" * 40
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, shas[0], ago=timedelta(minutes=30))])
+    kitchen.set(
+        "commits.json",
+        [
+            *(
+                kitchen.commit(sha, f"feat: {sha[:3]}", ago=timedelta(minutes=30 - n))
+                for n, sha in reversed(list(enumerate(shas)))
+            ),
+            kitchen.commit(base, "feat: older (#6)", ago=timedelta(hours=2)),
+        ],
+    )
+    runs = {
+        sha: [{**done, "conclusion": c, "name": "full"}]
+        for sha, c in zip(shas, checks, strict=True)
+    }
+    kitchen.set("check-runs.json", {**runs, base: [{**done, "conclusion": "success"}]})
+    return shas
+
+
+def test_red_commits_a_later_green_one_superseded_file_nothing(kitchen):
+    main_of(kitchen, "failure", "failure", "success")
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
+    assert main_red(kitchen) == []
+
+
+def test_a_red_tip_files_one_brief_for_the_tip_alone(kitchen):
+    shas = main_of(kitchen, "failure", "failure")
+    kitchen.poll()
+    name = f"main-red-{shas[-1][:12]}"
+    assert [path.name for path in (kitchen.home / "tasks").glob("main-red-*")] == [f"{name}.md"]
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+
+
+def test_a_red_tip_filed_is_not_filed_again_on_the_next_pass(kitchen):
+    shas = main_of(kitchen, "failure")
+    kitchen.poll()
+    brief = kitchen.home / "tasks" / f"main-red-{shas[-1][:12]}.md"
+    brief.write_text(brief.read_text() + "Noticed: the home edited it\n")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{shas[-1][:12]}"]
+
+
+def test_a_red_tip_that_turns_green_leaves_its_row_and_says_so_once(kitchen):
+    main_of(kitchen, "failure")
+    kitchen.poll()
+    shas = main_of(kitchen, "failure", "success")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    name = f"main-red-{shas[0][:12]}"
+    assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [(name, "")]
+    assert (kitchen.home / "tasks" / f"{name}.md").exists()
+    green = f"retro {name}: main is green again at {shas[1][:12]}, and its row is left as it is"
+    assert [line for line in kitchen.lines("retro") if "green again" in line] == [green]
