@@ -3,8 +3,6 @@ from pathlib import Path
 
 import pytest
 
-from test_skill_frontmatter import problems as frontmatter_problems
-
 REPO = Path(__file__).parent.parent
 SKILLS = [REPO / "skills" / name / "SKILL.md" for name in ("unslop", "technical-writing")]
 TEMPLATE = REPO / "templates" / "pr-body.md"
@@ -17,9 +15,9 @@ PLACEHOLDER = re.compile(r"<[^<>\n]+>")
 
 
 def skill_problems(path):
-    """What is wrong with the writing skill at `path`: the frontmatter lint's findings, and
+    """What is wrong with the writing skill at `path` beyond what the frontmatter lint checks:
     em dashes."""
-    return frontmatter_problems(path) + em_dashes(path.read_text())
+    return em_dashes(path.read_text())
 
 
 def em_dashes(text):
