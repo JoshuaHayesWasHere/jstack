@@ -1,5 +1,5 @@
 # The one check command: the lint commands the README lists, and its test command on
-# several workers. CI runs it on every pull request.
+# several workers. CI runs it on main after each merge, and `check-fast` on a pull request.
 
 # The tests run on this many workers (pytest-xdist), counted from the machine the run is on.
 # One core bounds the suite, so workers are what make a run short. A desk takes a third of the
@@ -26,6 +26,20 @@ check:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run pytest -n $(TEST_WORKERS)
+
+# The check of a change: the same lint, and only the test files its diff from BASE to HEAD
+# reaches, as scripts/select_tests.py names them. Where the script says `all`, it is
+# `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
+# pull request is the tip of main; a desk takes origin/main. The full suite runs on main
+# after the merge.
+BASE ?= origin/main
+
+.PHONY: check-fast
+check-fast:
+	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
+	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
+	set -x; \
+	uv run ruff check . && uv run ruff format --check . && uv run pytest -n $(TEST_WORKERS) $$tests
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.
