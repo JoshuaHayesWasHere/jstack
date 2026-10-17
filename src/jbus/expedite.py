@@ -58,7 +58,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from jbus import dispatch, merge, read_json, rebase, write_json
+from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.wake import Pass
@@ -91,7 +91,7 @@ _FINDING = (
 )
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
-    "({reason}). {sentence} Then end your turn."
+    "({reason}). {sentence} " + END_TURN
 )
 
 
