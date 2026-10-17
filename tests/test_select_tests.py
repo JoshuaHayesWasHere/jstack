@@ -3,7 +3,7 @@ verify-jstack's `features/`, and the map is whole: every test file is a feature'
 cross-cutting, every path is a feature's, and every test file it names is there.
 
 The script is run as CI runs it, with `python3 -I -S`, so it imports nothing installed, in a
-temporary git repo that holds a copy of it, of the code it reads a pattern with, and of a map.
+temporary git repo that holds a copy of it, of `src/` as it is, and of a map.
 The map's own tests read the repo's map and the files git tracks."""
 
 import importlib.util
@@ -71,13 +71,12 @@ def write(repo, files):
 
 
 class Repo:
-    """A repo with the script, jmerge's reading of a pattern, a map and a few tests."""
+    """A repo with the script, a copy of `src/`, a map and a few tests."""
 
     def __init__(self, root, features=None):
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
-        for package in ("jmerge", "jsettings"):
-            shutil.copytree(REPO / "src" / package, root / "src" / package)
+        shutil.copytree(REPO / "src", root / "src", ignore=shutil.ignore_patterns("__pycache__"))
         features = features or {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
         write(root / select.MAP, features)
         write(root / "tests", TESTS)
@@ -171,6 +170,7 @@ def test_a_path_no_feature_owns_selects_the_cross_cutting_alone(repo):
         "scripts/select_tests.py",
         "src/jmerge/ready.py",
         "src/jsettings/__init__.py",
+        "src/jbriefs/skills.py",
     ],
 )
 def test_a_path_the_whole_suite_rests_on_selects_all(repo, path):
@@ -216,6 +216,27 @@ def test_the_same_commits_give_the_same_lines(repo):
     head = repo.change(["src/alpha/a.py", "tests/test_helper.py", "src/beta/b.py"])
 
     assert repo.run(repo.base, head).stdout == repo.run(repo.base, head).stdout
+
+
+@pytest.mark.parametrize(
+    "path", ["src/alpha/a.py", "src/jbriefs/skills.py", "tests/test_helper.py"]
+)
+def test_a_bare_python_selects_what_the_venv_selects(repo, path):
+    head = repo.change([path])
+    script = repo.root / "scripts" / "select_tests.py"
+    bare = subprocess.run(
+        [sys.executable, "-I", "-S", script, repo.base, head],
+        cwd=repo.root,
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin"},
+    )
+    venv = subprocess.run(
+        [sys.executable, script, repo.base, head], cwd=repo.root, capture_output=True, text=True
+    )
+
+    assert (bare.stderr, venv.stderr) == ("", "")
+    assert bare.stdout == venv.stdout
 
 
 def test_with_no_way_to_read_a_pattern_it_selects_all(repo):

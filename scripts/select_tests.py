@@ -7,7 +7,8 @@ test files are its tests (`Tests:`). Its README lists the test files that read t
 
 It prints `all` when a changed path is one the whole suite rests on: a path of
 `src/jmerge/ci-paths.txt`, `tests/conftest.py` or any other file under `tests/` that is not a
-test module (`tests/fixtures/`), the map, this script, or the code it reads a pattern with.
+test module (`tests/fixtures/`), the map, this script, or a file of `src/` that loading the code
+it reads a pattern with loads.
 Otherwise it prints, one per line and sorted, the cross-cutting test files, the test files
 that changed and every test module that imports one of them, and the tests of each feature
 that owns a changed path. A test module that `tests/conftest.py` imports is one every test
@@ -34,8 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MAP = ".cursor/skills/verify-jstack/features"
 CI_PATHS = "src/jmerge/ci-paths.txt"
 ITSELF = Path(__file__).resolve().relative_to(ROOT).as_posix()
-MATCHER = ("/src/jmerge/__init__.py", "/src/jmerge/ready.py", "/src/jmerge/rangediff.py")
-EVERYTHING = (f"/{ITSELF}", f"/{MAP}/", "/tests/conftest.py", "/src/jsettings/", *MATCHER)
+EVERYTHING = (f"/{ITSELF}", f"/{MAP}/", "/tests/conftest.py")
 TEST = re.compile(r"tests/test_\w+\.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 IMPORTED = re.compile(r"^\s*(?:from|import) (\w+)", re.M)
@@ -47,13 +47,24 @@ class Unread(Exception):
 
 @cache
 def ready():
-    """jmerge's reading of a list of paths, from this checkout's `src/`."""
+    """jmerge's reading of a list of paths, from this checkout's `src/`, and each file of
+    `src/` loaded once it is: in a process of its own, as CI runs this, the files it rests on."""
     sys.path.insert(0, str(ROOT / "src"))
     try:
         from jmerge.ready import _protects, patterns_of
     except Exception as error:
         raise Unread(f"{type(error).__name__}: {error}") from error
-    return SimpleNamespace(patterns_of=patterns_of, protects=_protects)
+    files = (
+        Path(module.__file__).resolve()
+        for module in list(sys.modules.values())
+        if getattr(module, "__file__", None)
+    )
+    loaded = sorted(
+        f"/{file.relative_to(ROOT).as_posix()}"
+        for file in files
+        if file.is_relative_to(ROOT / "src")
+    )
+    return SimpleNamespace(patterns_of=patterns_of, protects=_protects, loaded=loaded)
 
 
 def listed(text, label):
@@ -80,7 +91,7 @@ def cross_cutting():
 
 def everything():
     """The patterns whose change runs the whole suite."""
-    return (*ready().patterns_of((ROOT / CI_PATHS).read_text()), *EVERYTHING)
+    return (*ready().patterns_of((ROOT / CI_PATHS).read_text()), *EVERYTHING, *ready().loaded)
 
 
 def owns(patterns, path):
