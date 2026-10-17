@@ -21,7 +21,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A pull request's check is the fast one: the lint, and the tests its change reaches. On
+  # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
+  # commits of history are enough and the diff is read from the local git, with no cap on
+  # its files. A change the whole suite rests on runs all of it. It is the check the ruleset
+  # requires, and jmerge's REQUIRED, so its name stays `check`.
   check:
+    if: github.event_name == 'pull_request'
     # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
     # of them as JSON, which starts with a bracket. With none it is the local ephemeral
     # runner, never GitHub's: every CI job runs locally, by the owner's word ("EVERYTHING CI
@@ -30,15 +36,42 @@ jobs:
     # all external contributors, so a fork's run waits for the owner every time.
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
     timeout-minutes: 15
+    env:
+      # A stable Google Chrome, which the local runner image installs and GitHub's image has
+      # too. A Chromium snapshot's virtual time now and then never starts, and the browser
+      # tests then wait out their bound.
+      JSTACK_TEST_BROWSER: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
+      - run: uv sync --locked
+      # The browser is declared, not assumed: a runner without it fails here with one error
+      # naming the path, before the tests, and not as one failure for each browser test.
+      - name: test browser
+        run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }
+      # A fast run leaves no marker and asks for none: a marker says the full suite passed.
+      - name: make check-fast
+        run: make check-fast BASE=HEAD^1
+  # The full suite, on each push to main, after the merge, and by hand.
+  full:
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
+    timeout-minutes: 15
+    env:
+      JSTACK_TEST_BROWSER: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # A run that ends green leaves a marker named by the tree it checked out, and a run whose
       # tree has one skips the suite: it would test the same files again. The skip is on the
-      # steps and never on the job or the workflow, so the check `check` is always reported.
-      # A run that cannot ask runs the suite. A marker is a green run's artifact, or a ref the
-      # desk pushed after jmerge's fresh check of the same tree passed. That check ran in an
+      # steps, and the job's `if` is the event's alone, so a push to main always reports
+      # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact, or a ref the desk
+      # pushed after jmerge's fresh check of the same tree passed. That check ran in an
       # environment nobody locked, so a run skipped on the desk's marker still proves the lock.
       - name: green tree
         id: tree
@@ -48,24 +81,14 @@ jobs:
         run: python3 scripts/green_tree.py
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-      # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-      # The browser is declared, not assumed: a runner without it fails here with one error
-      # naming the path, before the suite, and not as one failure for each browser test.
       - name: test browser
         if: steps.tree.outputs.marker != 'green'
-        env:
-          JSTACK_TEST_BROWSER: /usr/bin/google-chrome
         run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
-        env:
-          # A stable Google Chrome, which the local runner image installs and GitHub's image
-          # has too. A Chromium snapshot's virtual time now and then never starts, and the
-          # browser tests then wait out their bound.
-          JSTACK_TEST_BROWSER: /usr/bin/google-chrome
         run: make check
       # Only after the suite ran and passed. A marker that cannot be kept costs the next run
       # of this tree its skip and nothing else.
