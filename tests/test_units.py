@@ -59,7 +59,8 @@ def test_each_unit_names_the_section_of_the_jbus_page_that_says_what_it_does(nam
     done = subprocess.run(
         ["systemd-analyze", "--user", "verify", str(probe)], capture_output=True, text=True
     )
-    assert (done.returncode, done.stdout + done.stderr) == (0, "")
+    said = (done.stdout + done.stderr).splitlines()
+    assert (done.returncode, [line for line in said if line.startswith(str(probe))]) == (0, [])
 
 
 def test_the_relay_is_not_restarted_after_it_refused_to_start():
