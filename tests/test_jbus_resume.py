@@ -3,14 +3,34 @@ ended run, at most two for a thread, and then a gate. Run as `tests/test_jbus_qu
 runs: the real pass, against the fakes."""
 
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
 import jbus
+from jbus import threads
 from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
 from test_jbus_queue import add, gates
 
 THREAD = "mcp:thread-1"
+
+
+ROOT = Path(__file__).parents[1]
+SKILLS = {"crew: alpha": "crew", "review: alpha, scoped": "pr-review", "scout: alpha": "scout"}
+
+
+def skill_file(name):
+    """The checkout's own skill file, worked out from this test file and not from jbus."""
+    return ROOT / "skills" / name / "SKILL.md"
+
+
+def reads(name, slug="alpha"):
+    return (
+        f" Your role's skill is not loaded in this thread and the Skill tool cannot load it: "
+        f"read `{skill_file(name)}` from the file and follow it from where your work stands. "
+        f"Run `jbriefs --skills tasks/{slug}.md` for the brief's Skills line and read what "
+        "it prints."
+    )
 
 
 def message(status, k, slug="alpha"):
@@ -18,7 +38,7 @@ def message(status, k, slug="alpha"):
         f"jbus: this thread ended ({status}) before writing its Result. Carry on with your "
         f"brief from where you stopped: read `tasks/{slug}.md` and your worktree's `git status` "
         "and `git log` first, keep what is committed, and do not start over. This is carry-on "
-        f"{k} of 2."
+        f"{k} of 2." + reads("crew", slug)
     )
 
 
@@ -29,6 +49,34 @@ def crew(kitchen, slug="alpha", status="failed", run="run-1", **more):
     thread = kitchen.t3.threads[-1]
     thread.update({"status": status, "latestRunId": run, "snoozed": False, **more})
     return thread
+
+
+BASE = threads.CARRY_ON.format(status="failed", slug="alpha", k=1, most=2)
+
+
+@pytest.mark.parametrize(("title", "name"), SKILLS.items())
+def test_every_role_with_a_skill_is_told_to_read_it_from_its_file_after_a_failed_run(title, name):
+    given = threads.resume_message(
+        threads.CARRY_ON, title, status="failed", slug="alpha", k=1, most=2
+    )
+    assert skill_file(name).is_file()
+    assert given == BASE + reads(name)
+    merged = threads.resume_message(threads.MERGED, title, number=7, slug="alpha")
+    assert merged == threads.MERGED.format(number=7, slug="alpha") + reads(name)
+
+
+@pytest.mark.parametrize("title", ["home: demo", "something else", "crewish: alpha"])
+def test_a_thread_with_no_role_skill_is_sent_the_message_as_it_was(title):
+    given = threads.resume_message(
+        threads.CARRY_ON, title, status="failed", slug="alpha", k=1, most=2
+    )
+    assert given == BASE
+
+
+def test_the_skill_files_named_are_this_checkouts_and_exist():
+    for name in SKILLS.values():
+        assert threads.skill_file(name) == skill_file(name)
+        assert skill_file(name).is_file()
 
 
 def resumes(kitchen):
