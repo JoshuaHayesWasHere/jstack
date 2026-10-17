@@ -1,5 +1,7 @@
 """The check workflow runs on main as well as on every pull request, and a run on main is
-never cancelled by the next one: each push's run is a concurrency group of its own.
+never cancelled by the next one: each push's run is a concurrency group of its own. A pull
+request gets the job `check`, the fast one, with the lint and the tests its change reaches,
+and a push to main and a manual run get the job `full`, the whole suite.
 
 The workflow file is read as YAML, by the little of it these two blocks use: mappings by
 their indentation, a scalar, and a list in brackets.
@@ -10,8 +12,9 @@ The check names Google Chrome as its test browser on every runner. Every workflo
 read access to the contents and no more, and none runs on `pull_request_target`. The check
 may also read the repo's artifacts, which is where a green run's marker is.
 
-A run of the check whose tree a green run already tested skips the suite, by its steps and
-never by its job or its triggers, so the check is always reported. The script that asks is
+A run of `full` whose tree a green run already tested skips the suite, by its steps and never
+by its job or its triggers, so `full` is always reported. Only `full` asks for a marker and
+leaves one: a marker says the full suite passed a tree. The script that asks is
 run here in a temporary repo, against a `gh` that answers from files.
 
 The drift step keeps jdrift's clone of pstack in the runner's temporary directory, which
@@ -145,7 +148,7 @@ def jobs(text):
 
 def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_none():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
-        "check.yml": {"check": PICK},
+        "check.yml": {"check": PICK, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
     }
 
@@ -198,19 +201,55 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
 CHROME = {"JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"}
 
 
-def test_the_check_names_google_chrome_on_every_runner():
+def job_env(text, job):
+    """The `env` of one job, as written, and None when it has none."""
+    found, inside, env = None, False, False
+    for line in text.splitlines():
+        indent = len(line) - len(line.lstrip())
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent <= 2:
+            inside = indent == 2 and line.strip() == f"{job}:"
+        elif inside and indent == 4:
+            env = line.strip() == "env:"
+            found = {} if env else found
+        elif inside and env and indent == 6:
+            key, _, value = line.strip().partition(":")
+            found[key] = scalar(value)
+    return found
+
+
+def test_each_job_names_google_chrome_once_for_all_its_steps():
     text = CHECK.read_text()
-    assert (step_env(text, "test browser"), step_env(text, "make check")) == (CHROME, CHROME)
+    assert (job_env(text, "check"), job_env(text, "full")) == (CHROME, CHROME)
+    named = [step for job in ("check", "full") for step in steps(text, job)[0] if "env" in step]
+    assert [step["name"] for step in named] == ["green tree", "green tree marker"]
+    assert text.count("JSTACK_TEST_BROWSER: ") == 2
 
 
-def test_the_browser_is_looked_for_right_before_the_suite_and_its_absence_fails_naming_it(
-    tmp_path,
+def test_a_job_env_is_read_from_its_own_job_and_not_from_a_step():
+    text = (
+        "jobs:\n  one:\n    env:\n      A: b\n    steps:\n      - run: true\n"
+        "  two:\n    steps:\n      - name: x\n        env:\n          C: d\n"
+    )
+    assert (job_env(text, "one"), job_env(text, "two")) == ({"A": "b"}, None)
+
+
+@pytest.mark.parametrize(
+    ("job", "suite", "when"),
+    [
+        ("check", "make check-fast", None),
+        ("full", "make check", "steps.tree.outputs.marker != 'green'"),
+    ],
+)
+def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_naming_it(
+    tmp_path, job, suite, when
 ):
-    found, _ = steps(CHECK.read_text(), "check")
+    found, _ = steps(CHECK.read_text(), job)
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
-    assert names.index("make check") == names.index("test browser") + 1
-    assert look["if"] == UNLESS_GREEN
+    assert names.index(suite) == names.index("test browser") + 1
+    assert look.get("if") == when
     browser = tmp_path / "google-chrome"
 
     def ran():
@@ -311,7 +350,10 @@ def steps(text, job):
             found.append({key: scalar(value.partition(" # ")[0])})
         elif at is not None and indent == 8:
             key, _, value = line.strip().partition(":")
-            found[-1][key] = scalar(value)
+            found[-1][key] = scalar(value) if value.strip() else {}
+        elif at is not None and indent == 10 and isinstance(found[-1][key], dict):
+            under, _, value = line.strip().partition(":")
+            found[-1][key][under] = scalar(value)
     return found, keys
 
 
@@ -319,10 +361,14 @@ def test_steps_are_read_with_their_own_keys_and_the_job_with_its_own():
     text = (
         "jobs:\n  other:\n    if: false\n    steps:\n      - run: true\n"
         "  check:\n    runs-on: x\n    steps:\n      - uses: a/b@1 # v1\n        with:\n"
-        "          if: no\n      - name: one\n        if: a != 'b'\n        run: make check\n"
+        "          if: no\n          depth: 2\n      - name: one\n        if: a != 'b'\n"
+        "        run: make check\n"
     )
     assert steps(text, "check") == (
-        [{"uses": "a/b@1", "with": None}, {"name": "one", "if": "a != 'b'", "run": "make check"}],
+        [
+            {"uses": "a/b@1", "with": {"if": "no", "depth": "2"}},
+            {"name": "one", "if": "a != 'b'", "run": "make check"},
+        ],
         ["runs-on", "steps"],
     )
     assert steps(text, "other") == ([{"run": True}], ["if", "steps"])
@@ -340,20 +386,61 @@ def cap(text, job):
     return None
 
 
-def test_the_check_is_cancelled_after_fifteen_minutes_and_a_job_that_names_no_cap_has_none():
+def test_each_job_is_cancelled_after_fifteen_minutes_and_a_job_that_names_no_cap_has_none():
     text = "jobs:\n  other:\n    steps:\n      - timeout-minutes: 1\n  check:\n"
     text += "    timeout-minutes: 15\n"
     assert (cap(text, "check"), cap(text, "other")) == ("15", None)
-    assert cap(CHECK.read_text(), "check") == "15"
+    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("15", "15")
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 
 
-def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
+EVENTS = ("pull_request", "push", "workflow_dispatch")
+
+
+def ran_on(job):
+    """The events a job of the check runs on, worked out from its `if`."""
+    inside, when = False, None
+    for line in CHECK.read_text().splitlines():
+        indent = len(line) - len(line.lstrip())
+        if indent <= 2 and line.strip() and not line.lstrip().startswith("#"):
+            inside = indent == 2 and line.strip() == f"{job}:"
+        elif inside and indent == 4 and line.startswith("    if: "):
+            when = line.partition(": ")[2]
+    return [e for e in EVENTS if worked(when, {"github.event_name": e})]
+
+
+def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
+    assert jobs(CHECK.read_text()) == {"check": PICK, "full": PICK}
+    assert (ran_on("check"), ran_on("full")) == (["pull_request"], ["push", "workflow_dispatch"])
+
+
+def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
     found, keys = steps(CHECK.read_text(), "check")
-    assert "if" not in keys
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
+        "actions/checkout",
+        "astral-sh/setup-uv",
+        "uv sync --locked",
+        'test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at'
+        ' $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }',
+        "make check-fast BASE=HEAD^1",
+    ]
+    assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert all("if" not in step for step in found)
+
+
+def test_only_the_full_suite_asks_for_a_marker_and_leaves_one():
+    marking = ("green_tree.py", "green-tree", "upload-artifact", "steps.tree", "steps.suite")
+    for job, marks in (("check", False), ("full", True)):
+        said = " ".join(map(str, steps(CHECK.read_text(), job)[0]))
+        assert [word for word in marking if word in said] == (list(marking) if marks else []), job
+
+
+def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
+    found, keys = steps(CHECK.read_text(), "full")
+    assert "if" in keys and ran_on("full") == ["push", "workflow_dispatch"]
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
@@ -385,9 +472,9 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
-    found, keys = steps(CHECK.read_text(), "check")
+    found, _ = steps(CHECK.read_text(), "full")
     _, _, setup, sync, _, suite, *_ = found
-    assert (sync["run"], suite["run"], "if" in keys) == ("uv sync --locked", "make check", False)
+    assert (sync["run"], suite["run"]) == ("uv sync --locked", "make check")
     ran = {
         (marker, by): [
             step.get("run", step.get("uses", "")).partition("@")[0]
@@ -411,7 +498,7 @@ OUTCOMES = ("success", "failure", "cancelled", "skipped", "")
 
 
 def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
-    *_, mark, upload, warn = steps(CHECK.read_text(), "check")[0]
+    *_, mark, upload, warn = steps(CHECK.read_text(), "full")[0]
     assert [
         (outcome, name)
         for outcome in OUTCOMES
@@ -429,7 +516,7 @@ def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
 
 
 def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_on_it():
-    *_, upload, warn = steps(CHECK.read_text(), "check")[0]
+    *_, upload, warn = steps(CHECK.read_text(), "full")[0]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
     assert [
         (tree, sent)

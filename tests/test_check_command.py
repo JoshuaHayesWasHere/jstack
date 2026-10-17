@@ -11,6 +11,11 @@ The workers are pytest-xdist's, which has every worker collect the tests and sto
 when two of them differ. So a test's id must be the same in every process: one made from the
 clock differs between two workers that start in different seconds.
 
+`make check-fast BASE=<rev>` is the check of a change: the same lint, and the test files
+`scripts/select_tests.py` names for the diff from that commit to the head, or `make check`
+where it says `all`. It is run here in a copy of the repo, against a `uv` that only says
+what it was asked.
+
 The machine's budget is one sum: the test slots times a desk's workers, plus the runners
 times a runner's. It is worked out here from the slot default and from what `make` prints.
 The runners are three, and no file of the repo counts them: their units are the machine's.
@@ -18,6 +23,7 @@ The runners are three, and no file of the repo counts them: their units are the 
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -216,3 +222,86 @@ def test_every_test_has_the_same_id_a_second_later():
     while int(time.time()) == second:
         time.sleep(0.05)
     assert collected() == first and first
+
+
+def changed_copy(tmp_path, path):
+    """A copy of the repo's files in a repo of its own, with two commits: the files as they
+    are, then one line added to `path`. Gives the copy and where `uv` writes what it was asked.
+    """
+    copy, bin = tmp_path / "copy", tmp_path / "bin"
+    listed = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split("\0")
+    for name in filter(None, listed):
+        if (REPO / name).is_file():
+            (copy / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO / name, copy / name)
+    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(copy)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    for message in ("base", "change"):
+        if message == "change":
+            with open(copy / path, "a") as changed:
+                changed.write("\n")
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", message], check=True)
+    bin.mkdir()
+    asked = tmp_path / "asked"
+    (bin / "uv").write_text(f'#!/bin/sh\necho "$*" >> {asked}\n')
+    (bin / "uv").chmod(0o755)
+    return copy, f"{bin}:{os.environ['PATH']}", asked
+
+
+def check_fast(copy, path):
+    """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    made = subprocess.run(
+        ["make", "check-fast", "BASE=HEAD^1", "CORES=12"],
+        cwd=copy,
+        env=env | {"PATH": path},
+        capture_output=True,
+        text=True,
+    )
+    assert made.returncode == 0, made.stdout + made.stderr
+
+
+def selected(copy):
+    ran = subprocess.run(
+        [sys.executable, "scripts/select_tests.py", "HEAD^1", "HEAD"],
+        cwd=copy,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ran.stdout.split()
+
+
+LINT = ["run ruff check .", "run ruff format --check ."]
+
+
+def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path):
+    copy, path, asked = changed_copy(tmp_path, "src/jdrift/__init__.py")
+    check_fast(copy, path)
+    tests = selected(copy)
+    assert "tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
+    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 4", *tests])]
+
+
+def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(tmp_path):
+    copy, path, asked = changed_copy(tmp_path, "Makefile")
+    check_fast(copy, path)
+    assert selected(copy) == ["all"]
+    assert asked.read_text().splitlines() == [*LINT, "run pytest -n 4"]
+
+
+def test_check_fast_fails_on_a_base_that_is_not_a_commit_and_runs_nothing(tmp_path):
+    copy, path, asked = changed_copy(tmp_path, "src/jdrift/__init__.py")
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    made = subprocess.run(
+        ["make", "check-fast", "BASE=nowhere"],
+        cwd=copy,
+        env=env | {"PATH": path},
+        capture_output=True,
+        text=True,
+    )
+    assert made.returncode != 0 and "git diff failed" in made.stderr
+    assert not asked.exists()
