@@ -6,12 +6,15 @@ only by a pass, from what T3 Code and GitHub say (`derive`), and no verb takes o
 them are a pair: `why` is the reason a row waits, and `since` is when that reason first held. Each
 change of a row's status is also kept, one line each, in `transitions.jsonl` beside the
 table, which is only ever appended to. `add` refuses a brief that a launch would refuse
-(`jbriefs.parse.faults`), so no brief that cannot launch is put to the user for a go. The
-brief a row was added with is kept beside the table, in `briefs/<slug>.md`, and `approve`
-records its sha256 and its meaning fingerprint (`jbriefs.meaning`): the go holds for a
-brief that asks for the same, whatever its wording, and not for one whose scope changed.
-`approve` is also given the sha of the brief the user was shown, and is refused when the
-stored brief is another.
+(`jbriefs.parse.faults`) when the row is first queued, so no brief that cannot launch is put
+to the user for a go. A row with a go is grandfathered: a lint added since does not refuse
+its brief, at an `add` or at a launch, and only a fault an edit brings does. `show` names the
+rows grandfathered (`grandfathered`). The brief a row was added with is kept beside the table,
+in `briefs/<slug>.md`, and `approve` records its sha256 and its meaning fingerprint
+(`jbriefs.meaning`): the go holds for a brief whose title, Task, Done when, Where, Do not
+touch and Size are what they were, whatever else changed, and not for one whose goal or scope
+changed. `approve` is also given the sha of the brief the user was shown, and is refused when
+the stored brief is another.
 
 An approval rests on words of the user's that something else holds, and `approve` names
 them: a word `jbus word` kept, the answer that closed a question, a message of a T3 Code
@@ -707,6 +710,63 @@ def _merge_after(batch: _Batch, verb: Add) -> None:
                 ahead += [(slug, through or ma) for slug, ma in edges.get(here, [])]
 
 
+def _new_faults(row: Row | None, was: str | None, text: str) -> list[str]:
+    """The faults `add` refuses `text` for (`jbriefs.parse.faults`).
+
+    A lint runs when a row is first queued. A row whose go holds for `text` is already
+    approved: it is grandfathered, so a fault its stored brief `was` already had, which a
+    lint added since found, does not refuse it, and only a fault the edit brought does.
+    """
+    faults = briefs.faults(body(text))
+    if row and row.get("approved") and was is not None and approved_text(row, text):
+        old = briefs.faults(body(was))
+        return [fault for fault in faults if fault not in old]
+    return faults
+
+
+def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
+    """The rows still open whose go holds and whose stored brief a lint refuses now: each
+    slug with the faults, in the order of the table. They were approved before the lint
+    was added, and keep their go and their launch."""
+    found = []
+    for row in sorted(rows, key=order):
+        text = brief(state, row["slug"])
+        if over(row) or not row.get("approved") or text is None or not approved_text(row, text):
+            continue
+        faults = briefs.faults(body(text))
+        if faults:
+            found.append((row["slug"], faults))
+    return found
+
+
+def noted(state: Path, rows: list[Row]) -> str:
+    """The lines `queue show` ends with: the rows whose go the stored brief no longer holds
+    for, and the rows grandfathered. Nothing, when there are none."""
+    said = ""
+    asked = reasked(state, rows)
+    if asked:
+        said += f"\nre-asked, the go does not hold for the stored brief: {', '.join(asked)}\n"
+    kept = grandfathered(state, rows)
+    if kept:
+        said += (
+            "\ngrandfathered, approved before a lint that refuses the brief now; the go stands:\n"
+        )
+        said += "".join(f"- {slug}: {'; '.join(faults)}\n" for slug, faults in kept)
+    return said
+
+
+def reasked(state: Path, rows: list[Row]) -> list[str]:
+    """The slugs of the rows still open that have a go the stored brief no longer holds
+    for: the ones a pass gates as `brief changed after approval`."""
+    return [
+        row["slug"]
+        for row in sorted(rows, key=order)
+        if not over(row)
+        and row.get("approved")
+        and not approved_text(row, brief(state, row["slug"]) or "")
+    ]
+
+
 def _do(
     verb: Verb,
     batch: _Batch,
@@ -737,12 +797,12 @@ def _do(
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():
             raise Refused("refused: no brief on stdin")
-        faults = briefs.faults(body(verb.text))
+        found = [row for row in rows if row["slug"] == verb.slug]
+        faults = _new_faults(found[0] if found else None, batch.brief(verb.slug), verb.text)
         if faults:
             many = "1 fault" if len(faults) == 1 else f"{len(faults)} faults"
             lines = "".join(f"\n- {fault}" for fault in faults)
             raise Refused(f"refused: {verb.slug}'s brief has {many}, and nothing is queued{lines}")
-        found = [row for row in rows if row["slug"] == verb.slug]
         row = (
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
         )
