@@ -123,7 +123,7 @@ A record has the slug, the section it is from, its text whole, when a pass first
 
 ## The view
 
-`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it.
+`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it. The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit. When the code on disk is newer than the code the view runs, and starts, the view ends with status 75 (`NEWER_CODE` in `src/jbus/view/__init__.py`): the unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
 
 | Variable | What it does |
 |---|---|
@@ -213,7 +213,7 @@ An edit of `panel.js` is live on the next request, and the server restarts itsel
 
 1. Write the config, `~/.config/jbus/config.toml`, mode 600, as [Configuration](configuration.md#jbus) shows. jbus refuses to start when group or others can read it, or the token beside it.
 2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
-3. Run `sh <checkout>/install.sh` again. With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`, `jbus-snapshot.timer` and `jbus-ci.timer`. `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`. `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](#back-up-the-homes-state)). `jbus-ci.timer` writes the week's CI report ([Measure the CI](#measure-the-ci)).
+3. Run `sh <checkout>/install.sh` again. With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`, `jbus-snapshot.timer` and `jbus-ci.timer`. `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`. `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](#back-up-the-homes-state)). `jbus-ci.timer` writes the week's CI report ([Measure the CI](#measure-the-ci)). Each unit's `Documentation=` names its section of this page by where its template is (`%Y`), so `systemctl --user show -p Documentation <unit>` leads here. A unit copied in place of the link loses that, and `install.sh --check` reports the copy as old.
 
 [Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once.
 
