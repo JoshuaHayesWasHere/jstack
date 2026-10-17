@@ -527,15 +527,12 @@ def _changed(diff: str) -> tuple[Counter[str], Counter[str]]:
     """The lines a diff of one file adds and the lines it removes, each with how often.
 
     A line is its text with the whitespace at its end stripped, and a blank one is no line.
-    A header is no line either, also one of a second file a pathspec let in.
     """
     added: Counter[str] = Counter()
     removed: Counter[str] = Counter()
     hunks = False
     for line in diff.splitlines():
-        if line.startswith("diff --git "):
-            hunks = False
-        elif line.startswith("@@"):
+        if line.startswith("@@"):
             hunks = True
         elif hunks and line[:1] in ("+", "-") and line[1:].strip():
             (added if line[0] == "+" else removed)[line[1:].rstrip()] += 1

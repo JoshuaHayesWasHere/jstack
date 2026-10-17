@@ -728,6 +728,24 @@ def test_a_line_of_mains_the_rebase_lost_still_waits_once_the_in_place_edits_are
     assert guarded.merges(proven_merged) == []
 
 
+def test_a_ci_fix_that_takes_out_a_line_of_its_own_with_no_rebase_drops_nothing(
+    proven_merged, rules
+):
+    rebased = Rebased(proven_merged, {8: "theirs 8"})
+    tree = proven_merged.tree
+    pushed = commit(tree, "the check wanted line 20 back", {20: "line 20"})
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE])
+    line = f"CI fix: {pushed}, after the review of {rebased.head}\n"
+    rebased.brief(merge.review("clean", rebased.head), line, did=None)
+    (said,) = guarded.jmerge(proven_merged, rules)
+    assert "dropped" not in said
+    assert said == (
+        f"wait 7 {merge.URL}: the rebase changed the content after its review; scoped review "
+        f"of git range-diff --no-color {rebased.tip}..{rebased.head} {rebased.tip}..{pushed}"
+    )
+
+
 REVIEWED, BEFORE, FIRST, HEAD = ("a" * 40, "b" * 40, "c" * 40, "d" * 40)
 TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
