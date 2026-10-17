@@ -10,13 +10,13 @@ import json
 import os
 import signal
 import stat
-import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
 
 import pytest
 
+import daemons
 import jbus
 from jbus import record
 from test_jbus_kitchen import NOW, complete
@@ -134,7 +134,7 @@ def test_a_pass_stopped_halfway_leaves_a_start_with_no_end(kitchen):
     kitchen.set("jmerge-sleep", "60")
     ran = len(kitchen.log("jmerge"))
     before = datetime.now().astimezone()
-    stopped = subprocess.Popen([sys.executable, "-m", "jbus", "poll"], start_new_session=True)
+    stopped = daemons.start([sys.executable, "-m", "jbus", "poll"])
     try:
         until = time.monotonic() + 60
         while len(kitchen.log("jmerge")) == ran and time.monotonic() < until:

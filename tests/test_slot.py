@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import daemons
 from jgauge import slot
 from test_room import BIN
 
@@ -31,7 +32,7 @@ def slots(tmp_path):
 
     def start(*args, command=None, name=None, **more):
         command = command or ["sh", "-c", RUNS_UNTIL_RELEASED, "sh", name]
-        ran = subprocess.Popen(
+        ran = daemons.start(
             [str(BIN / "jgauge"), "test-slot", *args, "--", *command],
             env={**env, **more},
             stdout=subprocess.PIPE,
@@ -134,7 +135,7 @@ def test_what_a_command_leaves_running_holds_no_slot(slots):
 def test_a_command_left_running_ends_when_its_directory_goes(tmp_path):
     state = tmp_path / "state"
     state.mkdir()
-    left = subprocess.Popen(
+    left = daemons.start(
         ["sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a"], env={**os.environ, "D": str(state)}
     )
     try:
