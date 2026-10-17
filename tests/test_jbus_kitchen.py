@@ -387,8 +387,8 @@ def fake_jmerge(stub, args, cwd):
 
     `jmerge-dies` ends it as a `SystemExit` with a message ends the real command: the line
     on stderr, exit 1. `jmerge-says` ends it as the real command ends when it cannot ask
-    GitHub: the line on stdout, exit 1. An accept of a held pull request does nothing where the test wrote
-    no `accept.txt`.
+    GitHub: the line on stdout, exit 1. An accept of a held pull request does nothing where
+    the test wrote no `accept.txt`.
     """
     with open(stub / "jmerge.log", "a") as log:
         log.write(" ".join(args) + "\n")

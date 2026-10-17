@@ -8,10 +8,9 @@ what the command prints, `merge.log`, and the alert."""
 import re
 
 import test_home_merge as merge
-from jbus import alert
 from test_jbus_kitchen import NOW
-from test_jbus_row_ends import PULL, result
 from test_jbus_queue import add
+from test_jbus_row_ends import PULL, result
 from test_sweep import Scene
 
 START = "wait: could not ask GitHub"
@@ -143,7 +142,9 @@ def test_a_branch_whose_open_pull_requests_gh_answers_with_no_json_is_kept_and_s
     assert f"({ask} was not JSON), revert: " in said
 
 
-def test_a_sweep_keeps_a_branch_whose_pull_request_gh_cannot_be_asked_about_and_says_why(home, tmp_path):
+def test_a_sweep_keeps_a_branch_whose_pull_request_gh_cannot_be_asked_about_and_says_why(
+    home, tmp_path
+):
     scene = Scene(home, tmp_path)
     scene.crewmate("alpha")
     gh_fails(home, code=1, said=f"{BAD_GATEWAY}\n", on="pr view")
@@ -158,9 +159,8 @@ def test_a_sweep_keeps_a_branch_whose_pull_request_gh_answers_with_no_json_and_s
     scene = Scene(home, tmp_path)
     scene.crewmate("alpha")
     gh_fails(home, code=0, out="<html></html>\n", on="pr view")
-    assert scene.look() == [
-        "kept alpha: could not ask GitHub about its pull request: gh exited 0: its output was not JSON"
-    ]
+    ask = "could not ask GitHub about its pull request"
+    assert scene.look() == [f"kept alpha: {ask}: gh exited 0: its output was not JSON"]
 
 
 def real_jmerge_line(tmp_path, name, **fails):
@@ -186,9 +186,9 @@ def test_a_run_of_failed_passes_is_one_streak_and_its_alert_says_what_gh_said(ki
     assert kitchen.status()["streaks"]["jmerge demo"]["count"] == 3
     (told,) = kitchen.lines("alert")
     assert re.fullmatch(
-        rf"alert: jmerge demo failed 3 times in a row since [^:]+: {re.escape(lines[2])}", told
+        rf"alert: jmerge demo failed 3 times in a row since \d\d:\d\d \w+: {re.escape(lines[2])}",
+        told,
     )
-    assert alert.AFTER == 3
 
 
 DOWN = "HTTP 504: Gateway Timeout (https://api.github.com/x?token=" + TOKEN + ")"

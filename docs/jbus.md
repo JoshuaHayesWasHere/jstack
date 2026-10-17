@@ -591,7 +591,7 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 - `webhook <project>`, a POST the project's own webhook did not take.
 - `top-level webhook <project>`, a POST of the project's events that the top-level webhook did not take.
 - `blocking webhook <project>`, a body of the project's that the second target did not take.
-- `jmerge <project>`, a `jmerge` that did not run.
+- `jmerge <project>`, a `jmerge` that did not run. When it stopped because it could not ask GitHub, the alert's `<why>` is its line, `wait: could not ask GitHub: gh exited <code>: <what gh said>`; a run of such passes is one streak whatever the text of each says. A pass of jbus that cannot ask GitHub says the same, `wait <project>: could not ask GitHub: gh exited <code>: <what gh said>`.
 - `snapshot`, a snapshot of the homes' state that did not finish. `jbus snapshot --alarm` counts it.
 
 The alert goes out after 3 failures in a row, and for `snapshot` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass` or `snapshot` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing.

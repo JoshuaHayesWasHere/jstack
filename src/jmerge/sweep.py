@@ -40,6 +40,7 @@ class Found:
 
     default: str
     pull: Literal["MERGED", "OPEN", "CLOSED", ""] = ""
+    silent: str = ""
     merged: bool = False
     tree: str = ""
     trees: str = ""
@@ -134,7 +135,7 @@ def kept(record: Record, found: Found) -> str:
     if found.pull == "CLOSED":
         return "its pull request closed unmerged"
     if record.pull and found.pull != "MERGED":
-        return "could not ask GitHub about its pull request"
+        return f"could not ask GitHub about its pull request{found.silent}"
     if found.trees:
         return f"its worktree {found.tree} is not under {found.trees}"
     if found.dirty:

@@ -1023,7 +1023,7 @@ def test_a_project_whose_github_does_not_answer_still_counts_its_crews(kitchen):
     (kitchen.stub / "gh-down-other").touch()
     said = kitchen.poll()
     assert launches(kitchen) == ["a1"]
-    assert "wait other: could not ask GitHub" in said
+    assert "wait other: could not ask GitHub: gh exited 1: it said nothing" in said
     assert "max_running is 3 across all projects: a2 waits" in said
 
 

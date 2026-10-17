@@ -16,7 +16,7 @@ It prints one line per open pull request, and appends the lines to `merge.log`. 
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
 | `hold <number> <url>: needs <user>, <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. |
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
-| `wait: could not ask GitHub` | GitHub did not give the open pull requests or the default branch. |
+| `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
 A pull request that waits is not a failure. `jmerge` exits non-zero when it could not do its job: outside a git repository, with no `gh`, when GitHub could not be asked, or when it refuses an `--accept`.
 
