@@ -9,6 +9,10 @@ the end of the test, whether it passed, failed an assert or timed out.
 
 The kernel signals a child when the thread that started it ends, not the process, so a daemon
 is started from the thread that runs the test, as pytest runs it.
+
+`GUARD` is what the child runs before the command: it asks for SIGKILL when the parent dies,
+gives up if the parent died before the request (the request would never fire for a child
+whose parent is gone), and `exec`s the command, which keeps the setting.
 """
 
 from __future__ import annotations
@@ -21,9 +25,6 @@ import sys
 
 import pytest
 
-# Run in the child before the command: ask for SIGKILL when the parent dies, and then give up
-# if it died before the request (a child whose parent is gone has a new parent, and the
-# request would never fire). `exec` keeps the setting for the command.
 GUARD = """\
 import ctypes, os, signal, sys
 parent = int(sys.argv[1])

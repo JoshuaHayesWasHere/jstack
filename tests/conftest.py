@@ -33,10 +33,11 @@ import os
 
 import pytest
 
-from daemons import no_daemons_left  # noqa: F401
+import daemons
 from jbus import cli, item
 from test_jbus_kitchen import Kitchen
 
+no_daemons_left = daemons.no_daemons_left
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
 NAMED = f'user = "Robin"\n{ZONE}'
 OLD_LEVEL, OLD_EVENT = "robin", "waiting-on-robin"

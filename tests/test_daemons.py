@@ -5,8 +5,7 @@ import time
 
 import daemons
 
-# Ignores SIGTERM, starts a child that ignores it too, and says the child's pid.
-STUBBORN = 'trap "" TERM; sh -c \'trap "" TERM; sleep 60\' & echo $!; wait'
+DEAF_TO_TERM = 'trap "" TERM; sh -c \'trap "" TERM; sleep 60\' & echo $!; wait'
 
 
 def listed(pid: int) -> bool:
@@ -16,7 +15,11 @@ def listed(pid: int) -> bool:
 
 def test_a_daemon_that_ignores_sigterm_is_killed_with_what_it_started(monkeypatch):
     monkeypatch.setattr(daemons, "STOPPED_WITHIN", 0.5)
-    stubborn = daemons.start(["sh", "-c", STUBBORN], stdout=subprocess.PIPE, text=True)
+    stubborn = daemons.start(
+        ["sh", "-c", DEAF_TO_TERM],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
     child = int(stubborn.stdout.readline())
 
     start = time.monotonic()
