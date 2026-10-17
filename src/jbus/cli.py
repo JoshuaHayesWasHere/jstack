@@ -57,6 +57,7 @@ from jbus import (
     leftover,
     merge,
     mirror,
+    packs,
     project,
     questions,
     queue,
@@ -297,6 +298,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
         if not ran:
             run.say(f"wait {name}: {how}")
         run.box.swept(how, ran)
+    packs.check(run)
     sent = alert.flush(run)
     if sent:
         run.say(f"woke {name}: {sent} events")
