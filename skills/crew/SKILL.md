@@ -97,17 +97,19 @@ Proceed on reversible work without asking: do it, then say what you did and why.
 - While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot --short -- <the targeted tests>
+  uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the targeted tests>
   ```
 
   The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one. A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once. The check command is never run in the short lane.
+
+  `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). With `--thread` the call waits for no slot. When every slot of the lane is taken it registers this thread as a waiter, prints one line saying so, and ends 76. Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.` Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake. On it, run the same command again. If the slots are taken again by then, the call registers this thread again and you stop again: each wait is woken once. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
 - Once every **Done when** line holds, run the repo's check command (`notes.md` names it) in full, once, under a test slot. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets:
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot -- <check command>
+  uv run --project "$T/.." jgauge test-slot --thread <thread id> -- <check command>
   ```
 
-  It runs the command while holding one of 2 machine-wide test slots, and ends with the command's exit code. When all are held it prints `test-slot: waiting for one of 2 slots` and waits: give the call a long time limit and let it wait, never run the command a second way to get past it. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found, and put its last line on `Proof:`.
+  It runs the command while holding one of 2 machine-wide test slots, and ends with the command's exit code. When all are held it registers this thread as a waiter and ends 76, as above: end your turn with the one line, and run the same command again when jbus wakes you. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the full run is not how you find out whether an edit works: the targeted runs are. Run it in full again only after changing something to fix what that run found, and put its last line on `Proof:`.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one full run, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself. While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite. The reviewer never runs it, whatever the brief's `Review:` line or the repo's `notes.md` says. A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
@@ -342,10 +344,10 @@ Its first word is one of four answers:
 - `failed`: a check ran and failed. Run the check command in this worktree (`notes.md` names it) under a test slot, as "Do the task" does, with the block at the top:
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot -- <check command>
+  uv run --project "$T/.." jgauge test-slot --thread <thread id> -- <check command>
   ```
 
-  Then run the block of "A failed check" below, and do what its first word says.
+  A call that ends 76 registered this thread as a waiter: stop as "Do the task" says. Then run the block of "A failed check" below, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked. End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
