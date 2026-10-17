@@ -1,10 +1,10 @@
 """The skills a brief names on its `Skills:` line: each name resolved to the one file it
 loads, and each held to the artifact a Result owes for it.
 
-This is the one resolver. `jbus queue add` and the launch refuse a name it does not
-resolve (`parse.CHECKS`), the crew and scout skills load the files it names (`jbriefs
---skills`), and `jmerge` holds a pull request whose Results leave a named skill with no
-artifact (`jmerge.ready.short_of`).
+This is the one resolver. `jbus queue add` refuses a name it does not resolve
+(`parse.CHECKS`) when a row is first queued, the crew and scout skills load the files it
+names (`jbriefs --skills`), and `jmerge` holds a pull request whose Results leave a named
+skill with no artifact (`jmerge.ready.short_of`).
 
 The names are pstack's, so that a name in a brief resolves the same way in Grok Bot, which
 pstack drives, and in T3, which jstack drives. A name is a skill, `skills/<name>/SKILL.md`,
