@@ -42,6 +42,7 @@ SIGNS = {
     "space": re.compile(r"ENOSPC|No space left"),
 }
 STAMP = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z ")
+ESCAPES = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 class Unavailable(Exception):
@@ -56,16 +57,18 @@ class Gh(Protocol):
     def log(self, repo: str, job: int) -> str: ...
 
 
+def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise Unavailable(str(error)[:200]) from error
+
+
 class Cli:
     """`gh api`, one call at a time, read-only."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
-        asked = subprocess.run(
-            ["gh", "api", "--paginate", "--slurp", path],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+        asked = _run(["gh", "api", "--paginate", "--slurp", path])
         if asked.returncode:
             raise Unavailable(" ".join(asked.stderr.split())[:200] or f"gh exit {asked.returncode}")
         found: list[dict[str, Any]] = []
@@ -74,11 +77,8 @@ class Cli:
         return found
 
     def log(self, repo: str, job: int) -> str:
-        asked = subprocess.run(
-            ["gh", "api", f"repos/{repo}/actions/jobs/{job}/logs"],
-            capture_output=True,
-            text=True,
-            timeout=120,
+        asked = _run(
+            ["gh", "api", "--allow-escape-sequences", f"repos/{repo}/actions/jobs/{job}/logs"]
         )
         if asked.returncode:
             raise Unavailable(" ".join(asked.stderr.split())[:200] or f"gh exit {asked.returncode}")
@@ -98,7 +98,7 @@ def kind(labels: list[str]) -> str:
 
 def evidence(log: str) -> list[str]:
     """The lines of a job's log that say what failed: the stamp taken off, the rest cut."""
-    lines = (STAMP.sub("", one).strip() for one in log.splitlines())
+    lines = (STAMP.sub("", ESCAPES.sub("", one)).strip() for one in log.splitlines())
     return [one[:200] for one in lines if EVIDENCE.match(one)]
 
 
@@ -189,8 +189,9 @@ def row(
         try:
             lines = evidence(gh.log(repo, job["id"]))
         except Unavailable:
-            lines = []
-        made["tests"], made["signs"] = failing_tests(lines), signs(lines)
+            made["tests"] = None
+        else:
+            made["tests"], made["signs"] = failing_tests(lines), signs(lines)
     return made
 
 

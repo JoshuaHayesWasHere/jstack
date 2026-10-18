@@ -197,14 +197,14 @@ class Facts:
         return None
 
     def _inherited(self, job: dict[str, Any], mains: list[dict[str, Any]]) -> bool:
-        ids, began = set(job["tests"]), time(job["started"] or job["created"])
+        ids, began = set(job["tests"] or []), time(job["started"] or job["created"])
         for one in mains:
             until = self._red_until(one)
             if (
                 until
                 and began
                 and time(one["started"] or one["created"]) < began
-                and ids & set(one["tests"])
+                and ids & set(one["tests"] or [])
                 and began < until
             ):
                 return True
@@ -224,7 +224,10 @@ class Facts:
         inherited = {j["job"]: self._inherited(j, mains) for j in failed}
         found: dict[int, str] = {}
         for job in failed:
-            ids = set(job["tests"])
+            ids = set(job["tests"] or [])
+            if job["tests"] is None:
+                found[job["job"]] = "unread"
+                continue
             if inherited[job["job"]]:
                 found[job["job"]] = "main"
                 continue
@@ -232,7 +235,7 @@ class Facts:
                 self._branch(other)
                 for other in failed
                 if other is not job
-                and ids & set(other["tests"])
+                and ids & set(other["tests"] or [])
                 and self._branch(other) != self._branch(job)
                 and not inherited[other["job"]]
             }
@@ -407,12 +410,15 @@ def own(facts: Facts, start: datetime, end: datetime) -> Number:
     ]
     counted = [facts.causes[j["job"]] for j in reds]
     split = ", ".join(
-        f"{counted.count(c)} {c}" for c in ("own", "main", "runner", "flake") if c in counted
+        f"{counted.count(c)} {c}"
+        for c in ("own", "main", "runner", "flake", "unread")
+        if c in counted
     )
     how = (
         "failed jobs on the local runner, last attempt of a run, that were the pull request's "
         "own fault: not main already red with the same tests, a runner fault, or a flake "
-        "(the same tests red on another branch)"
+        "(the same tests red on another branch). A job whose log could not be read is counted "
+        "and is not the pull request's"
     )
     if not reds:
         return _number("own", None, "", None, 0, how)
@@ -516,7 +522,7 @@ def flaky(facts: Facts, start: datetime, end: datetime) -> Number:
     red = [j for j in facts.jobs if j["conclusion"] == "failure" and _in(j["created"], start, end)]
     for job in red:
         if facts.causes[job["job"]] == "flake":
-            ids |= set(job["tests"])
+            ids |= set(job["tests"] or [])
     how = (
         "tests that failed on two branches in the period with no runner fault in the log and "
         "no red main to blame; counted by this rule, not by hand"
