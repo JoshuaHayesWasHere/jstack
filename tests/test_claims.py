@@ -6,7 +6,8 @@ import json
 
 import pytest
 
-from test_home_merge import ME, OTHER, Home
+from jmerge import claims as rules
+from test_home_merge import ME, OTHER, Home, git
 from test_home_thread import READERS, about_the_home_id, paths
 
 PULLS = "https://example.test/pull/{}"
@@ -229,3 +230,123 @@ def test_when_github_cannot_be_asked_it_waits(claims):
     assert claims.run() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
     assert claims.home.code == 1
     assert not (claims.home.state / "merge.log").exists()
+
+
+def test_a_file_the_where_does_not_cover_is_outside_and_one_a_wider_line_covers_is_wider():
+    text = brief("alpha", where="`src/alpha/`, `tests/test_a.py`")
+    text += result() + "Wider: tests/test_b.py: the new test needs its fixture\n"
+    changed = ["src/alpha/a.py", "tests/test_a.py", "tests/test_b.py", "docs/a.md"]
+    assert rules.scope(text, changed) == [
+        "wider: tests/test_b.py: the new test needs its fixture",
+        "outside: docs/a.md",
+    ]
+    assert rules.scope(text, changed[:2]) == []
+
+
+def test_only_the_last_results_wider_lines_count():
+    text = brief("alpha", where="`src/`") + result() + "Wider: docs/a.md: once\n" + result()
+    assert rules.scope(text, ["docs/a.md"]) == ["outside: docs/a.md"]
+    assert rules.scope(text + "Wider: `docs/a.md`: twice\n", ["docs/a.md"]) == [
+        "wider: docs/a.md: twice"
+    ]
+
+
+def test_the_templates_own_wider_line_covers_nothing():
+    text = brief("alpha", where="`src/`") + result() + "Wider: <path>: <why>\n"
+    assert rules.scope(text, ["<path>", "docs/a.md"]) == ["outside: <path>", "outside: docs/a.md"]
+
+
+class Scope:
+    """A branch of the fixture repo against its base, and what `jmerge --scope` says of it."""
+
+    def __init__(self, claims):
+        self.claims = claims
+        self.main = claims.home.main
+        git(self.main, "update-ref", "refs/remotes/origin/main", "HEAD")
+        git(self.main, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+    def branch(self, name, *files, base="main"):
+        git(self.main, "checkout", "-q", "-b", name, base)
+        for path in files:
+            (self.main / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.main / path).write_text(f"{path}\n")
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-q", "-m", name)
+        git(self.main, "checkout", "-q", "main")
+
+    def run(self, slug="alpha"):
+        said = self.claims.home.run("--scope", slug)
+        return said, self.claims.home.code, self.claims.home.stderr
+
+
+@pytest.fixture
+def scope(claims):
+    return Scope(claims)
+
+
+def test_scope_prints_nothing_when_every_changed_file_is_inside_the_where(claims, scope):
+    claims.write("alpha", where="`src/alpha/`, `tests/test_a.py`")
+    scope.branch("alpha", "src/alpha/a.py", "tests/test_a.py")
+    assert scope.run() == ([], 0, "")
+
+
+def test_scope_prints_each_changed_file_the_where_does_not_cover(claims, scope):
+    claims.write("alpha", where="`src/alpha/`")
+    scope.branch("alpha", "src/alpha/a.py", "tests/test_a.py", "docs/a.md")
+    assert scope.run() == (["outside: docs/a.md", "outside: tests/test_a.py"], 0, "")
+
+
+def test_scope_says_wider_of_a_file_the_last_result_gives_a_reason_for(claims, scope):
+    claims.write(
+        "alpha", where="`src/alpha/`", result=result() + "Wider: docs/a.md: a test reads it\n"
+    )
+    scope.branch("alpha", "src/alpha/a.py", "tests/test_a.py", "docs/a.md")
+    assert scope.run() == (["wider: docs/a.md: a test reads it", "outside: tests/test_a.py"], 0, "")
+
+
+def test_scope_goes_by_the_branch_the_last_result_names(claims, scope):
+    claims.write("alpha", where="`src/`", result=result().replace("alpha", "other-name"))
+    scope.branch("alpha", "src/a.py")
+    scope.branch("other-name", "docs/a.md")
+    assert scope.run() == (["outside: docs/a.md"], 0, "")
+
+
+def test_scope_compares_a_link_of_a_stack_with_the_branch_it_sits_on(claims, scope):
+    claims.write("alpha", where="`src/`")
+    claims.write("beta", where="`src/`")
+    (claims.home.tasks / "beta.md").write_text(
+        (claims.home.tasks / "beta.md").read_text().replace("Where:", "Stack: s 2 on alpha\nWhere:")
+    )
+    scope.branch("alpha", "docs/a.md")
+    scope.branch("beta", "src/b.py", base="alpha")
+    assert scope.run("beta") == ([], 0, "")
+    assert scope.run("alpha") == (["outside: docs/a.md"], 0, "")
+
+
+def test_scope_does_not_judge_a_where_that_names_no_path(claims, scope):
+    claims.write("alpha", where="wherever it takes")
+    scope.branch("alpha", "src/a.py")
+    said, code, stderr = scope.run()
+    assert (said, code) == ([], 1)
+    assert "its Where: line names no path" in stderr
+
+
+def test_scope_says_so_where_the_brief_or_the_branch_is_missing(claims, scope):
+    said, code, stderr = scope.run("nobody")
+    assert (said, code) == ([], 1)
+    assert "no brief" in stderr
+    claims.write("alpha")
+    said, code, stderr = scope.run()
+    assert (said, code) == ([], 1)
+    assert "no branch alpha" in stderr
+
+
+def test_scope_asks_the_pull_request_for_its_files_where_the_branch_is_gone(claims, scope):
+    claims.write("alpha", where="`src/`", result=result(PULLS.format(7)))
+    stub = claims.home.stub
+    (stub / "gh").write_text(
+        "#!/bin/sh\n"
+        '[ "$1 $2 $3 $4 $5 $6" = "pr view https://example.test/pull/7 --json files --jq" ] || exit 64\n'
+        "printf 'src/a.py\\ndocs/a.md\\n'\n"
+    )
+    assert scope.run() == (["outside: docs/a.md"], 0, "")

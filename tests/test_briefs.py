@@ -695,3 +695,79 @@ def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other
             assert "which is not a crewmate's playbook" in said, path.stem
     assert {"feature", "bug-fix"} <= taken
     assert {"opening-a-pr", "autopilot-full", "investigation", "expert-study"}.isdisjoint(taken)
+
+
+SKILLS_REAL = (
+    "`principles/` (renames only), every file that names a principle, `templates/brief.md`, "
+    "`skills/home/SKILL.md` (only where it says how a brief is written), the brief lint in "
+    "`src/jbus/` or `src/jbriefs/`, `src/jmerge/ready.py` if the gate goes there, the new map "
+    "file, their tests, `docs/`"
+)
+WHERES = {
+    "backticks, prose, and a trailing list of things that are no path": (
+        SKILLS_REAL,
+        (
+            "principles",
+            "templates/brief.md",
+            "skills/home/SKILL.md",
+            "src/jbus",
+            "src/jbriefs",
+            "src/jmerge/ready.py",
+            "docs",
+        ),
+    ),
+    "a directory with the names of its files in parentheses": (
+        "tests/ (conftest.py, test_gate_skills.py), pyproject.toml, "
+        "src/jbus/view/__init__.py:368 (one line)",
+        ("tests", "pyproject.toml", "src/jbus/view/__init__.py"),
+    ),
+    "a path with a line range, and words that are no path": (
+        "`src/a.py:10-20`, the eval's run directory this branch adds under `evals/skill-cut/`",
+        ("src/a.py", "evals/skill-cut"),
+    ),
+    "a path with no backticks, then prose and a flag in backticks": (
+        "src/jmerge/cli.py, docs/ pages tied to `--help`, the tests",
+        ("src/jmerge/cli.py", "docs"),
+    ),
+    "globs": ("`tests/test_*.py`, `skills/*/SKILL.md`", ("tests/test_*.py", "skills/*/SKILL.md")),
+    "none of these is a path in the repo": (
+        "wherever it takes, `make check`, `/etc/hosts`, `../outside.py`, `~/x`",
+        (),
+    ),
+}
+
+
+@pytest.mark.parametrize(("line", "paths"), WHERES.values(), ids=WHERES)
+def test_a_where_line_is_the_paths_and_globs_it_names(line, paths):
+    assert parse.where(f"# a: b\nWhere: {line}\n") == paths
+
+
+def test_only_the_where_line_of_the_head_is_read():
+    assert parse.where("# a: b\nWhere: `src/`\n\n## Result\nWhere: `docs/`\n") == ("src",)
+    assert parse.where("# a: b\nTask: `src/`\n") == ()
+
+
+@pytest.mark.parametrize(
+    ("patterns", "path", "covered"),
+    [
+        (("src",), "src/a/b.py", True),
+        (("src",), "src2/a.py", False),
+        (("src/a.py",), "src/a.py", True),
+        (("src/a.py",), "src/a.pyc", False),
+        (("tests/test_*.py",), "tests/test_a.py", True),
+        (("tests/test_*.py",), "tests/deep/test_a.py", False),
+        (("skills/*",), "skills/crew/SKILL.md", True),
+        (("**/SKILL.md",), "skills/crew/SKILL.md", True),
+        ((), "src/a.py", False),
+    ],
+)
+def test_a_path_is_covered_by_what_it_is_or_sits_under(patterns, path, covered):
+    assert parse.covers(patterns, path) is covered
+
+
+def test_a_brief_whose_where_names_no_path_is_refused_with_the_line():
+    fault = "wherever it takes, the tests"
+    (said,) = [each for each in parse.faults(BRIEF.replace("`src/`", fault)) if "Where" in each]
+    assert said.startswith("brief's Where: line names no path under the repo")
+    assert said.endswith(f": {fault}")
+    assert not [each for each in parse.faults(BRIEF) if "Where" in each]
