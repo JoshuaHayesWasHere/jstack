@@ -23,7 +23,10 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
   `templates/rerun.md` says is accepted whether or not the brief has a section. It is not
   said of a pull request the crew skill leaves with no reviewer, which somebody was told of
   already: a brief that names no reviewer launched, and whose `Reviewer:` line says `none` or
-  that has an `Unrun:`, `Stuck:` or `Stale base:` line for the head.
+  that has an `Unrun:`, `Stuck:` or `Stale base:` line for the head;
+- `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
+  <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward its
+  cap of two after fixed and green, then renumber the migration and those after it, consecutively.
 
 A thread is read by the status T3 Code lists it with. A crew whose thread is at work
 (`watch.LIVE`: starting, `running` or `waiting`) is left alone, since the line may be what
@@ -207,6 +210,23 @@ TABLE = (
         unless=_no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
+    ),
+    Short(
+        "renumber",
+        "wait",
+        re.compile(
+            re.escape(ready.MIGRATION_TAKEN)
+            .replace(r"\{name\}", r"\S+")
+            .replace(r"\{number\}", r"\d+")
+            .replace(r"\{default\}", r"\S+")
+            .replace(r"\{free\}", r"\d+")
+        ),
+        'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
+        "`stale`: it counts the rebase toward the cap of two after fixed and green, and holds a "
+        "third. Then renumber the migration the reason names to the number it gives, and each "
+        "migration of yours after it to the numbers that follow, one each and in their order: "
+        "the files, and every other line that names an old number. Run the check command, and "
+        "push with the block's push.",
     ),
 )
 
