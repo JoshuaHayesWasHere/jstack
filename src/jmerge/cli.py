@@ -36,8 +36,9 @@ A `merge-off` file in the repo's state merges nothing. Each `merged`
 line ends in the command that opens its revert. With `--sweep` it merges nothing: it
 removes what finished threads left and each tree's marker that is more than 7 days old,
 and prints what it removed and what it kept. With
-`--claims` it changes nothing: it prints the files each brief still out holds. With `--scope SLUG`
-it changes nothing either: it prints each file the brief's branch changes that its `Where:` line does not cover.
+`--claims` it changes nothing: it prints the files each brief still out holds. With
+`--scope SLUG` it changes nothing either: it prints each file the brief's branch changes that
+its `Where:` line does not cover.
 No model reads anything.
 """
 
