@@ -308,7 +308,7 @@ def fake_gh(stub, args, cwd):
     one step at the first attempt where it has none there, and its log is its own in
     `logs.json`, by its id, or not found. A commit asked for by its sha lists the files it
     changed, from `commit-files.json`. The runs of the browser workflow are `browser-runs.json`,
-    and a run's jobs are its own in `run-jobs.json`, by the run's id.
+    and a run's jobs are its own in `run-jobs.json`, by the run's id, or fail where it is null.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -384,6 +384,8 @@ def fake_gh(stub, args, cwd):
     ):
         kept = stub / "run-jobs.json"
         every = json.loads(kept.read_text()) if kept.exists() else {}
+        if every.get(args[1].split("/")[-2], []) is None:
+            return 1, "", "gh: Bad Gateway (HTTP 502)\n"
         said = json.dumps({"jobs": every.get(args[1].split("/")[-2], [])})
     elif args[0] == "api":
         said = (stub / "commits.json").read_text()

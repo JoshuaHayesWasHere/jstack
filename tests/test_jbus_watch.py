@@ -639,3 +639,15 @@ def test_a_run_whose_log_stays_unreadable_for_an_hour_is_filed_without_names(kit
     kitchen.poll(NOW + timedelta(hours=2))
     text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
     assert "its log names no failed test, read it" in text
+
+
+def test_a_run_whose_jobs_github_would_not_give_waits_an_hour_and_is_then_filed_without_names(
+    kitchen,
+):
+    browser_runs(kitchen, browser_run())
+    kitchen.set("run-jobs.json", {"88": None})
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+    kitchen.poll(NOW + timedelta(hours=2))
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "\nWhere: the tests marked `browser`\n" in text

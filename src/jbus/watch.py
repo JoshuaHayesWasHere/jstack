@@ -975,7 +975,9 @@ def _browser_red(run: Pass) -> None:
         if queue.fresh(run.state, name) is None:
             asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
             if not isinstance(asked, dict):
-                continue
+                if run.now - ended < BROWSER_GRACE:
+                    continue
+                asked = {}
             red = [
                 j
                 for j in asked.get("jobs") or []
