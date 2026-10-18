@@ -7,10 +7,10 @@ then left out, so none is found stale or told to carry on. Its pull requests sta
 for the machine, and `jbus poll` adds it up over every project. `watch`
 sends a line for what a home would have noticed: a merge, a thread that ran past its
 timebox, waits on a request, or ended with no Result, a main branch whose check failed
-after a merge, and a revert. It names no cause and changes nothing. What no rule covers is
-a gate. `status` is the table's derived column for a slug, and `why` is the reason its row
-waits: the line `jmerge` has for its pull request, what stopped its launch, or what its
-Result leaves.
+after a merge, a red run of the browser workflow, and a revert. It names no cause and changes
+nothing. What no rule covers is a gate. `status` is the table's derived column for a slug,
+and `why` is the reason its row waits: the line `jmerge` has for its pull request, what
+stopped its launch, or what its Result leaves.
 
 A pull request belongs to the slug whose brief names it, on the `Branch:` line of a Result,
 which is how `jmerge` ties the two (`tied`). The name of its branch says whose it is only
@@ -53,6 +53,9 @@ WAITING_MINUTES = 30
 UNWRITTEN_MINUTES = 15
 RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
+BROWSER = "browser.yml"
+BROWSER_RED = ("failure", "timed_out")
+BROWSER_WINDOW = timedelta(days=3)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
@@ -743,6 +746,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
     _retro(run, world, rows)
+    _browser_red(run)
 
 
 def _api(run: Pass, path: str) -> Any:
@@ -875,6 +879,113 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
         run.condition(name, f"its brief was not queued: {refused}")
 
 
+def _default_branch(run: Pass) -> str:
+    default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
+    return default.stdout.strip().removeprefix("origin/") or "main"
+
+
+def browser_red_brief(
+    name: str, day: str, one: dict[str, Any], jobs: list[tuple[str, str, list[str]]]
+) -> str:
+    """The brief for the fix of a red browser run, in `templates/brief.md`'s shape. `one` is
+    the run as GitHub lists it, and `jobs` is each failed job's name, URL and failed tests."""
+    tests = [test for _, _, failed in jobs for test in failed]
+    files = list(dict.fromkeys(test.split("::")[0] for test in tests))
+    where = ", ".join(f"`{file}`" for file in files) or "the tests marked `browser`"
+    number, event = one.get("id"), one.get("event") or "an event"
+    read = [
+        f"- the job `{job}`, {url or 'with no URL'}: "
+        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
+        for job, url, failed in jobs
+    ]
+    read += [f"- the run {one.get('html_url') or number}, from {event}, at {one.get('head_sha')}"]
+    return "\n".join(
+        [
+            f"# {name}: the browser tests failed on {day}",
+            f'Task: "the browser run {number} failed on {day}, {len(tests)} tests named" '
+            "(jbus, from browser.yml)",
+            "Done when:",
+            "- each failed test named under Read passes under `make check-browser`",
+            "- the Result names the cause: the merge that broke the page, or a flake with its "
+            "evidence",
+            "Proves it: `make check-browser` passes, and so does a manual run of browser.yml "
+            "(workflow_dispatch) on the fix's branch",
+            "Size: S",
+            f"Where: {where}",
+            "Do not touch: .github/workflows/, the ruleset",
+            "Decisions: none, jbus filed this from a red browser run and the user has not seen it",
+            "Design: none, a fix to what the failed run names",
+            "Pull request: open one when done",
+            "Review: review",
+            "Playbook: bug-fix",
+            "Read:",
+            *read,
+            "",
+        ]
+    )
+
+
+def _browser_name(day: str, taken: set[str]) -> str:
+    """`browser-red-<day>`, and `-2`, `-3` for each further red run of the same day."""
+    name, more = f"browser-red-{day}", 1
+    while name in taken:
+        more += 1
+        name = f"browser-red-{day}-{more}"
+    return name
+
+
+def _browser_red(run: Pass) -> None:
+    """A red run of browser.yml, which no pull request's check runs, files the brief for its
+    fix and queues it unapproved, once per run: `browser-runs.json` keeps each run seen, so a
+    removed row is not filed again. A run seen on a project's first pass is only recorded.
+
+    A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. A manual run
+    on a branch other than the default is the branch's own business, and files nothing.
+    """
+    said = _api(
+        run,
+        f"repos/{{owner}}/{{repo}}/actions/workflows/{BROWSER}/runs?status=completed&per_page=20",
+    )
+    runs = said.get("workflow_runs") if isinstance(said, dict) else None
+    if not isinstance(runs, list):
+        return
+    seen: dict[str, str] = read_json(run.state / "browser-runs.json", {})
+    default = _default_branch(run)
+    for one in sorted(runs, key=lambda r: r.get("created_at") or ""):
+        number = str(one.get("id"))
+        stale = run.now - when(one.get("updated_at") or one["created_at"]) > BROWSER_WINDOW
+        if number in seen or one.get("conclusion") not in BROWSER_RED or stale:
+            continue
+        if one.get("event") == "workflow_dispatch" and one.get("head_branch") != default:
+            continue
+        if run.first:
+            seen[number] = ""
+            continue
+        day = run.user.day(when(one["created_at"]))
+        name = _browser_name(day, {*seen.values(), *run.removed})
+        if queue.fresh(run.state, name) is None:
+            asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
+            jobs = [
+                (j.get("name") or "?", j.get("html_url") or "", _failed_tests(run, j.get("id")))
+                for j in (asked if isinstance(asked, dict) else {}).get("jobs") or []
+                if j.get("status") == "completed" and j.get("conclusion") not in NOT_RED
+            ]
+            text = browser_red_brief(name, day, one, jobs)
+            (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+            (run.home / "tasks" / f"{name}.md").write_text(text)
+            try:
+                queue.add(run.state, name, 0, [], text)
+            except Refused as refused:
+                run.condition(name, f"its brief was not queued: {refused}")
+                continue
+            tests = sum(len(failed) for _, _, failed in jobs)
+            line = f"retro {name}: the browser run {number} failed on {day}, {tests} tests named"
+            run.find(name, "retro", line, key=f"browser {number}", past=True)
+        seen[number] = name
+        write_json(run.state / "browser-runs.json", seen)
+    write_json(run.state / "browser-runs.json", seen)
+
+
 def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """A red main within a day of a merge, and a revert of one. Both name the merged slug.
 
@@ -900,8 +1011,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         return
     merges = [world.merged[slug] for slug in slugs]
     slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
-    default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-    branch = default.stdout.strip().removeprefix("origin/") or "main"
+    branch = _default_branch(run)
     commits = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
     if not isinstance(commits, list):
         return

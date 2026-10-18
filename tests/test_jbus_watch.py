@@ -10,7 +10,7 @@ import pytest
 
 import jbus.queue
 from jbus import cli
-from test_jbus_kitchen import NOW, RESULT, TOKEN
+from test_jbus_kitchen import NOW, RESULT, TOKEN, iso
 
 
 def test_a_merge_is_one_line_with_its_pull_request_and_commit(kitchen):
@@ -465,3 +465,156 @@ def test_a_red_tip_that_turns_green_leaves_its_row_and_says_so_once(kitchen):
     assert (kitchen.home / "tasks" / f"{name}.md").exists()
     green = f"retro {name}: main is green again at {shas[1][:12]}, and its row is left as it is"
     assert [line for line in kitchen.lines("retro") if "green again" in line] == [green]
+
+
+BROWSER_JOB = "https://example.test/o/r/actions/runs/88/job/911"
+BROWSER_LOG = (
+    "2026-10-18T07:09:02.0000000Z FAILED tests/test_jbus_view_page.py::test_one - AssertionError\n"
+    "2026-10-18T07:09:02.0000000Z FAILED tests/test_jbus_view_page.py::test_two[desk] - KeyError\n"
+    "2026-10-18T07:09:03.0000000Z ===== 2 failed, 92 passed in 400.00s =====\n"
+)
+
+
+def browser_run(number=88, conclusion="failure", ago=timedelta(minutes=40), **more):
+    """A run of browser.yml that ended `ago` before the pass, by default the nightly one."""
+    return {
+        "id": number,
+        "status": "completed",
+        "conclusion": conclusion,
+        "event": "schedule",
+        "head_branch": "main",
+        "head_sha": "c" * 40,
+        "html_url": f"https://example.test/o/r/actions/runs/{number}",
+        "created_at": iso(NOW - ago - timedelta(minutes=8)),
+        "updated_at": iso(NOW - ago),
+    } | more
+
+
+def browser_runs(kitchen, *runs):
+    """The workflow's runs, newest first as GitHub lists them, and a failed job and its log
+    for the run 88."""
+    kitchen.quiet()
+    kitchen.set("browser-runs.json", list(runs))
+    job = {"id": 911, "name": "browser", "status": "completed", "html_url": BROWSER_JOB}
+    kitchen.set("run-jobs.json", {"88": [job | {"conclusion": "failure"}]})
+    kitchen.set("logs.json", {"911": BROWSER_LOG})
+
+
+def browser_red(kitchen):
+    return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("browser-red-")]
+
+
+def test_a_red_browser_run_files_one_unapproved_brief_naming_its_failed_tests(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.poll()
+    brief = kitchen.home / "tasks" / "browser-red-2026-10-12.md"
+    text = brief.read_text()
+    for said in (
+        BROWSER_JOB,
+        "tests/test_jbus_view_page.py::test_one",
+        "tests/test_jbus_view_page.py::test_two[desk]",
+        "\nWhere: `tests/test_jbus_view_page.py`\n",
+        "\nPlaybook: bug-fix\n",
+        "\nSize: S\n",
+        "https://example.test/o/r/actions/runs/88",
+    ):
+        assert said in text
+    assert [(row["slug"], row["approved"]) for row in browser_red(kitchen)] == [
+        ("browser-red-2026-10-12", "")
+    ]
+    assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
+        (kitchen.state / "briefs" / "browser-red-2026-10-12.md").read_text()
+    )
+    line = "retro browser-red-2026-10-12: the browser run 88 failed on 2026-10-12, 2 tests named"
+    assert kitchen.lines("retro") == [line]
+
+
+def test_a_red_browser_run_filed_is_not_filed_again_and_an_edited_brief_stays(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.poll()
+    brief = kitchen.home / "tasks" / "browser-red-2026-10-12.md"
+    brief.write_text(brief.read_text() + "Noticed: the home edited it\n")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+    assert len(kitchen.lines("retro")) == 1
+
+
+def test_a_removed_browser_red_row_is_not_filed_again(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.poll()
+    removed = ["queue", "remove", "browser-red-2026-10-12", "--by", "user"]
+    assert kitchen.main(*removed, "--at", "2026-10-12 11:00 ET")[0] == 0
+    (kitchen.home / "tasks" / "browser-red-2026-10-12.md").unlink()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not (kitchen.home / "tasks" / "browser-red-2026-10-12.md").exists()
+    assert browser_red(kitchen) == []
+
+
+def test_two_red_browser_runs_of_one_day_are_two_briefs_with_two_names(kitchen):
+    nightly = browser_run(88, ago=timedelta(hours=2))
+    release = browser_run(89, ago=timedelta(minutes=30), event="push", head_branch="v1.0.0")
+    browser_runs(kitchen, release, nightly)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert sorted(row["slug"] for row in browser_red(kitchen)) == [
+        "browser-red-2026-10-12",
+        "browser-red-2026-10-12-2",
+    ]
+    tasks = kitchen.home / "tasks"
+    assert "the browser run 88 failed" in (tasks / "browser-red-2026-10-12.md").read_text()
+    assert "the browser run 89 failed" in (tasks / "browser-red-2026-10-12-2.md").read_text()
+
+
+@pytest.mark.parametrize("conclusion", ["success", "cancelled", "skipped"])
+def test_a_browser_run_that_passed_or_was_cancelled_files_nothing(kitchen, conclusion):
+    browser_runs(kitchen, browser_run(conclusion=conclusion))
+    kitchen.poll()
+    assert list((kitchen.home / "tasks").glob("browser-red-*")) == []
+    assert browser_red(kitchen) == []
+    assert kitchen.lines("retro") == []
+
+
+def test_a_browser_run_that_timed_out_is_red_with_no_test_named(kitchen):
+    browser_runs(kitchen, browser_run(conclusion="timed_out"))
+    kitchen.set("logs.json", {})
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "its log names no failed test, read it" in text
+    assert "\nWhere: the tests marked `browser`\n" in text
+
+
+def test_a_first_pass_over_a_red_browser_run_files_no_brief_then_or_later(kitchen):
+    browser_runs(kitchen, browser_run())
+    (kitchen.state / "wake.json").unlink()
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert list((kitchen.home / "tasks").glob("browser-red-*")) == []
+    assert browser_red(kitchen) == []
+
+
+def test_a_red_browser_run_older_than_three_days_files_nothing(kitchen):
+    browser_runs(kitchen, browser_run(ago=timedelta(days=4)))
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+
+
+def test_a_manual_run_on_a_branch_files_nothing_and_one_on_the_default_branch_does(kitchen):
+    manual = {"event": "workflow_dispatch", "head_branch": "some-fix"}
+    browser_runs(kitchen, browser_run(88, **manual))
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+    browser_runs(kitchen, browser_run(88, **manual | {"head_branch": "main"}))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
+def test_a_github_that_does_not_answer_files_nothing_and_the_run_is_filed_when_it_does(kitchen):
+    browser_runs(kitchen, browser_run())
+    (kitchen.stub / "gh-down").write_text("")
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+    (kitchen.stub / "gh-down").unlink()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
