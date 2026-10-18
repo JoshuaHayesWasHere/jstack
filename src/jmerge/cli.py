@@ -27,6 +27,9 @@ review proved its safety fact at that head. Every merge is into the commit of ma
 judged against: a main that moved since is judged again first.
 One whose queue row `jbus queue hold` took the go from waits until the row is approved again,
 and one whose row names a row in `merge_after` that has not merged waits for it (`rows`).
+A repo whose project names a migration directory (`jbus.Project.migrations`) merges the pull
+requests that add a migration there one at a time, in the order of `merge_after`, and a
+numbered migration whose number the default branch has waits to be renumbered by its crew.
 A `merge-off` file in the repo's state merges nothing. Each `merged`
 line ends in the command that opens its revert. With `--sweep` it merges nothing: it
 removes what finished threads left and each tree's marker that is more than 7 days old,
@@ -424,6 +427,10 @@ class Repo:
         self.lifts: list[str] = []
         self.carried: dict[int, str] = {}
         self.fetched = False
+        self.through: int | None = None
+        self.order: list[int] = []
+        self.rebasing: set[int] = set()
+        self.numbers_on: set[int] | None = None
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.listed = _first_word(_read(state / "home-id"))
@@ -436,6 +443,78 @@ class Repo:
         Nothing writes the queue during a run but jbus, so a pull request that waits on a row
         that merges in this very run waits for the next."""
         return rows.read(self.main)
+
+    @functools.cached_property
+    def migrations(self) -> rows.Migrations | None:
+        """Where this repo keeps its migrations, read once for a run: the project's setting."""
+        return rows.migrations(self.main)
+
+    def numbers(self, default: str) -> set[int] | None:
+        """The migration numbers the default branch has, after a fetch, or None where git
+        could not say. It is asked again after a merge, which changes them."""
+        if self.numbers_on is None and self.migrations:
+            where = f"origin/{default}"
+            listed = None
+            if not _run(self.main, "git", "fetch", "-q", "origin", default).returncode:
+                tree = f"{self.migrations.directory}/"
+                listed = _run(self.main, "git", "ls-tree", "-z", "--name-only", where, "--", tree)
+            if listed is None or listed.returncode:
+                return None
+            names = (Path(path).name for path in listed.stdout.split("\0") if path)
+            self.numbers_on = {int(d) for name in names if (d := ready.migration_number(name))}
+        return self.numbers_on
+
+    def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
+        """The pull requests with those that add a migration in the order they merge in, each
+        in a place a migration pull request had: `merge_after` first, then the older. It also
+        notes which of them is being rebased, for `short_on_migrations`: one in conflict with
+        its base, or whose numbered migration the default branch has already taken."""
+        settings = self.migrations
+        mine = {
+            one.number: one
+            for one in listed
+            if settings and ready.migrations(one, settings.directory)
+        }
+        if not settings or not mine:
+            return listed
+        slugs = {}
+        for number, one in mine.items():
+            brief = ready.brief_of(one.url, self.state / "tasks")
+            slugs[number] = brief.stem if brief else ""
+        self.order = rows.merge_order(self.queue, slugs)
+        taken = self.numbers(default) or set()
+        for number, one in mine.items():
+            names = ready.migrations(one, settings.directory)
+            numbered = settings.numbered and ready.short_on_migration(names, taken, default)
+            if one.mergeable == "CONFLICTING" or numbered:
+                self.rebasing.add(number)
+        places = iter(mine[number] for number in self.order)
+        return [next(places) if one.number in mine else one for one in listed]
+
+    def short_on_migrations(self, one: ready.PullRequest, default: str) -> str:
+        """Why a pull request that adds a migration waits for another, or nothing.
+
+        Migration pull requests merge one at a time, in the order of `line_up`. A numbered
+        migration the default branch has the number of is renumbered by its crew. One that is
+        ready waits for the pull request ahead of it that is being rebased, and for the one
+        let through in this run, whose merge changes the numbers the others are judged by.
+        """
+        settings = self.migrations
+        names = ready.migrations(one, settings.directory) if settings else ()
+        if not settings or not names:
+            return ""
+        taken = self.numbers(default)
+        if taken is None:
+            return f"{default} could not be fetched to see its migration numbers"
+        short = ready.short_on_migration(names, taken, default) if settings.numbered else ""
+        if short or one.number not in self.order:
+            return short
+        for ahead in self.order[: self.order.index(one.number)]:
+            if ahead in self.rebasing:
+                return ready.MIGRATION_REBASING.format(number=ahead)
+        if self.through not in (None, one.number):
+            return ready.MIGRATION_MERGING.format(number=self.through)
+        return ""
 
     def others(self, text: str) -> bool:
         """Whether the brief was written by another home of this repo.
@@ -842,7 +921,7 @@ class Repo:
             note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
         if short:
             return brief.stem, "wait", short, note, None
-        short = rows.short(self.queue, brief.stem)
+        short = rows.short(self.queue, brief.stem) or self.short_on_migrations(one, default)
         if short:
             return brief.stem, "wait", short, note, None
         left = self.left(one)
@@ -873,6 +952,8 @@ class Repo:
         if (self.state / "merge-off").exists():
             return brief.stem, "wait", ready.MERGE_OFF, note, None
         rules = bool(path) and ready.changes_the_rules(one, left)
+        if one.number in self.order:
+            self.through = one.number
         return brief.stem, "", "", note, ready.Judged(path, tip, rules, fresh)
 
     def holds(self) -> dict[str, str]:
@@ -1048,6 +1129,7 @@ class Repo:
             commit = one.head
             notes.append("that commit is its head, GitHub did not give the merge commit")
         pulled = _run(self.main, "git", "pull", "--ff-only")
+        self.numbers_on = None
         if pulled.returncode:
             notes.append(f"not pulled: {_said(pulled)}")
         kept = self.clear_up(one.branch, one.head)
@@ -1470,7 +1552,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return repo.accept(found, default, args.by, args.at, say, args.check)
 
-    for one in listed:
+    for one in repo.line_up(listed, default):
         slug, verb, why, rebase, judged = repo.waits(one, default)
         if verb == "hold" and not args.check:
             repo.hold(one)

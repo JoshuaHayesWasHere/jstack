@@ -29,13 +29,14 @@ def row(slug, status="pr", pr="", **more):
     }
 
 
-def queue_of(home, rows):
-    """The jbus config naming this checkout as a project, and that project's queue."""
+def queue_of(home, rows, more=""):
+    """The jbus config naming this checkout as a project, and that project's queue. `more` is
+    lines of the project's table, such as its migration directory."""
     config = home.user / ".config" / "jbus"
     config.mkdir(parents=True, exist_ok=True)
     (config / "config.toml").write_text(
         'server = "http://127.0.0.1:1"\n\n[[project]]\n'
-        f'name = "demo"\ncheckout = "{home.main}"\nprojectId = "p1"\n'
+        f'name = "demo"\ncheckout = "{home.main}"\nprojectId = "p1"\n{more}'
     )
     (config / "config.toml").chmod(0o600)
     state = home.user / ".local" / "state" / "jbus" / "demo"
@@ -154,4 +155,198 @@ def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
     ],
 )
 def test_each_wait_the_queue_gives_lands_on_its_step_and_not_in_unknown(reason, step):
+    assert jbus_merge.step(f"wait: {reason}") == step
+
+
+DIRECTORY = 'migrations = "db/migrations"\n'
+STAMPED = DIRECTORY + 'migration_names = "timestamped"\n'
+GAMMA_URL = "https://example.test/pull/9"
+
+
+def migration(name):
+    return f"db/migrations/{name}.up.sql"
+
+
+def commit_migration(repo, name):
+    path = repo / migration(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("select 1;\n")
+    merge.git(repo, "add", ".")
+    merge.git(repo, "commit", "-q", "-m", name)
+
+
+def listing(home, *pulls):
+    """What GitHub lists: each pull request `(number, url, branch, files, mergeable)` at the one
+    head the fake `gh` merges, a file `(path, kind)` as GitHub gives it."""
+    head = (home.stub / "head").read_text().strip()
+    template = json.loads((home.stub / "list.json").read_text())[0]
+    listed = []
+    for number, url, branch, files, mergeable in pulls:
+        listed.append(
+            {
+                **template,
+                "number": number,
+                "url": url,
+                "headRefName": branch,
+                "headRefOid": head,
+                "mergeable": mergeable,
+                "files": [
+                    {"path": path, "additions": 1, "deletions": 0, "changeType": kind}
+                    for path, kind in files
+                ],
+                "changedFiles": len(files),
+            }
+        )
+    (home.stub / "list.json").write_text(json.dumps(listed))
+
+
+def adds(*names):
+    return [(migration(name), "ADDED") for name in names]
+
+
+@pytest.fixture
+def lined(merged):
+    """The repo has `0004_start` on main. `alpha` (#7), `beta` (#8) and `gamma` (#9) are
+    reviewed clean and green at one head, whose tree holds the migration `alpha` adds."""
+    home, tree = merged.home, merged.tree
+    commit_migration(home.main, "0004_start")
+    merge.git(home.main, "push", "-q", "origin", "main")
+    merge.git(tree, "rebase", "-q", "main")
+    commit_migration(tree, "0005_alpha")
+    merge.git(tree, "push", "-q", "-f", "origin", "alpha")
+    merged.head = merge.git(tree, "rev-parse", "HEAD")
+    (home.stub / "head").write_text(f"{merged.head}\n")
+    (home.tasks / "alpha.md").write_text(merge.brief(merge.review("clean", merged.head)))
+    for slug, url in (("beta", BETA_URL), ("gamma", GAMMA_URL)):
+        (home.tasks / f"{slug}.md").write_text(
+            merge.brief(merge.review("clean", merged.head))
+            .replace(merge.URL, url)
+            .replace("# alpha", f"# {slug}")
+            .replace("Branch: alpha", f"Branch: {slug}")
+        )
+    return merged
+
+
+def pulls(home, alpha=("0005_alpha",), beta=("0005_beta",), mergeable="MERGEABLE"):
+    listing(
+        home,
+        (7, merge.URL, "alpha", adds(*alpha), mergeable),
+        (8, BETA_URL, "beta", adds(*beta), "MERGEABLE"),
+        (9, GAMMA_URL, "gamma", [("a.txt", "MODIFIED")], "MERGEABLE"),
+    )
+
+
+def starts(said):
+    return [" ".join(line.split()[:2]) for line in said]
+
+
+def test_two_ready_migrations_one_merges_and_the_other_is_renumbered_and_merges_later(lined):
+    home = lined.home
+    queue_of(home, [], DIRECTORY)
+    pulls(home)
+    first = lined.run()
+    assert starts(first) == ["merged 7", "wait 8", "merged 9"]
+    taken = ready.MIGRATION_TAKEN.format(
+        name="0005_beta", number="0005", default="main", free="0006"
+    )
+    assert first[1] == f"wait 8 {BETA_URL}: {taken}"
+    pulls(home, beta=("0006_beta",))
+    listed = json.loads((home.stub / "list.json").read_text())
+    (home.stub / "list.json").write_text(json.dumps(listed[1:2]))
+    assert merged_numbers(lined.run()) == [8]
+
+
+def test_a_look_shows_the_migration_pull_requests_in_order_with_one_let_through(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home)
+    said = lined.run("--check")
+    assert said[0].startswith(f"ready 7 {lined.head} alpha alpha")
+    assert said[1] == f"wait 8 {BETA_URL}: {ready.MIGRATION_MERGING.format(number=7)}"
+    assert said[2].startswith(f"ready 9 {lined.head} gamma gamma")
+    assert lined.home.stderr == ""
+
+
+def test_a_pull_request_that_adds_no_migration_is_not_held(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home)
+    gamma = lined.run("--check")[2]
+    assert gamma.startswith("ready 9 ")
+
+
+def test_the_declared_order_is_the_order_migration_pull_requests_merge_in(lined):
+    rows = [row("alpha", pr="#7", merge_after=["beta"]), row("beta", pr="#8")]
+    queue_of(lined.home, rows, DIRECTORY)
+    pulls(lined.home, alpha=("0006_alpha",), beta=("0005_beta",))
+    said = lined.run("--check")
+    assert starts(said)[:2] == ["ready 8", "wait 7"]
+    assert said[1] == f"wait 7 {merge.URL}: merges after beta (#8), not merged yet"
+
+
+def test_a_migration_whose_number_main_has_waits_and_holds_the_ones_behind_it(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home, alpha=("0004_alpha",), beta=("0006_beta",))
+    said = lined.run("--check")
+    renumber = ready.MIGRATION_TAKEN.format(
+        name="0004_alpha", number="0004", default="main", free="0005"
+    )
+    assert said[0] == f"wait 7 {merge.URL}: {renumber}"
+    assert said[1] == f"wait 8 {BETA_URL}: {ready.MIGRATION_REBASING.format(number=7)}"
+    assert said[2].startswith("ready 9 ")
+
+
+def test_a_migration_pull_request_in_conflict_holds_the_ones_behind_it(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home, mergeable="CONFLICTING")
+    said = lined.run("--check")
+    assert said[0] == f"wait 7 {merge.URL}: {ready.CONFLICTS}"
+    assert said[1] == f"wait 8 {BETA_URL}: {ready.MIGRATION_REBASING.format(number=7)}"
+
+
+def test_a_repo_with_timestamped_names_skips_the_number_and_still_merges_one_at_a_time(lined):
+    queue_of(lined.home, [], STAMPED)
+    pulls(lined.home, alpha=("0004_alpha",), beta=("0004_beta",))
+    said = lined.run("--check")
+    assert said[0].startswith(f"ready 7 {lined.head} alpha alpha")
+    assert said[1] == f"wait 8 {BETA_URL}: {ready.MIGRATION_MERGING.format(number=7)}"
+
+
+def test_a_repo_that_names_no_migration_directory_holds_nothing(lined):
+    queue_of(lined.home, [])
+    pulls(lined.home)
+    assert [line.split()[0] for line in lined.run("--check")] == ["ready"] * 3
+
+
+def test_a_file_outside_the_directory_or_not_added_is_no_migration(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    listing(
+        lined.home,
+        (7, merge.URL, "alpha", [(migration("0005_alpha"), "MODIFIED")], "MERGEABLE"),
+        (8, BETA_URL, "beta", [("docs/0005_beta.up.sql", "ADDED")], "MERGEABLE"),
+    )
+    assert [line.split()[0] for line in lined.run("--check")] == ["ready"] * 2
+
+
+def test_pull_requests_with_no_declared_order_go_by_number_and_an_order_runs_through_a_row():
+    from jmerge import rows as jrows
+
+    table = [row("a"), row("b", merge_after=["via"]), row("via", merge_after=["c"]), row("c")]
+    slugs = {3: "a", 5: "b", 9: "c"}
+    assert jrows.merge_order(table, slugs) == [3, 9, 5]
+    assert jrows.merge_order(None, slugs) == [3, 5, 9]
+    cycle = [row("a", merge_after=["b"]), row("b", merge_after=["a"])]
+    assert jrows.merge_order(cycle, {1: "a", 2: "b"}) == [1, 2]
+
+
+TAKEN = ready.MIGRATION_TAKEN.format(name="0005_x", number="0005", default="main", free="0006")
+
+
+@pytest.mark.parametrize(
+    ("reason", "step"),
+    [
+        (TAKEN, "rebase"),
+        (ready.MIGRATION_MERGING.format(number=7), "check"),
+        (ready.MIGRATION_REBASING.format(number=7), "check"),
+    ],
+)
+def test_each_wait_a_migration_gives_lands_on_its_step_and_not_in_unknown(reason, step):
     assert jbus_merge.step(f"wait: {reason}") == step
