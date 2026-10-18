@@ -89,6 +89,7 @@ ANSWER = "Answer"
 REVERSIBLE, MERGES = "reversible", "merge to main"
 NEEDS, PROCEEDS = "needs", "proceeds"
 LINE = 200
+WHY = 60
 _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"])")
 SOURCES = (
     WAITING_FILE,
@@ -236,13 +237,13 @@ def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
     return NEEDS if one.holds else PROCEEDS
 
 
-def _route(project: str, waits: dict[str, Any]) -> str:
+def _route(project: str, waits: dict[str, Any], slug: str) -> str:
     """The hash route of the drawer that shows an item whole: the gate's own for a question
     jbus holds, and for any other the list of its kind, at the item."""
     here = quote(project, safe="")
     if waits["answerable"]:
         return f"#/{here}/gate/{quote(waits['number'], safe='')}"
-    named = waits["number"] if waits["kind"] in ("gate", "hold") else waits["slug"]
+    named = waits["number"] if waits["kind"] in ("gate", "hold") else slug
     return f"#/{here}/you/{waits['kind']}" + (f"/{quote(named, safe='')}" if named else "")
 
 
@@ -258,6 +259,8 @@ def _need(
     kind, slug = waits["kind"], waits["slug"]
     if kind == "hold":
         slug = slugs.get(waits["number"], "")
+    elif kind in ("approve", "row", "left"):
+        slug = slug or waits["key"].rpartition(":")[2]
     title, task = _brief(read, slug)
     line = _after(waits["line"], waits["slug"])
     default = waits["default"]
@@ -269,10 +272,11 @@ def _need(
         said = merge.parse(waits["line"])
         number = f"#{waits['number']}"
         what = f"Pull request {number}" + (f": {title}" if title else "")
-        why = _cut(said.reason if said and said.reason else "jmerge holds it for your word")
+        why = _cut(said.reason if said and said.reason else "waits for your word")
         default = ""
     else:
-        what, why = (title or line, line if title else "")
+        what = title or (slug if kind == "left" else "") or line
+        why = line if what != line else ""
     accepts = bool(waits["answerable"] and one is not None and not one.holds)
     depends = [
         task["slug"]
@@ -287,14 +291,14 @@ def _need(
         "kind": kind,
         "key": waits["key"],
         "what": _cut(what),
-        "why": why,
+        "why": _cut(why, WHY),
         "since": waits["since"],
         "verb": ANSWER if kind == "gate" and not accepts else VERBS[kind],
         "answerable": waits["answerable"],
         "default": _cut(default, 600),
         "risk": MERGES if kind == "hold" else (one.holds if one and one.holds else REVERSIBLE),
         "unblocks": list(dict.fromkeys([*waits["unblocks"], *depends])),
-        "open": _route(read.name, waits),
+        "open": _route(read.name, waits, slug),
         "due": due,
     }
 

@@ -112,6 +112,7 @@ FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 pytestmark = pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)
 DESK, PHONE = (1440, 900), (390, 844)
 BAND = 45
+NEEDS = 220
 FONT = 'src: url("/font.woff2") format("woff2");'
 NARROWEST = 500
 THUMB = 44
@@ -698,8 +699,11 @@ def test_the_bus_card_and_drawer_show_the_top_level_webhook_apart(scene, tmp_pat
 
 
 def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(scene, tmp_path):
-    seen = look(scene, tmp_path, task="oat-milk")
-    opened = clean(seen)
+    """The screen is a desk's and the height the queue of what needs the user, `NEEDS`, draws
+    above the cards, here with four rows."""
+    screen = (DESK[0], DESK[1] + NEEDS)
+    seen = look(scene, tmp_path, task="oat-milk", screen=screen)
+    opened = clean(seen, screen)
     assert [(card["tag"], card["seen"]) for card in seen["cards"]] == [(tag, True) for tag in CARDS]
     assert [card["open"] for card in seen["cards"]] == ["threads", "checks", "bus", "blind"]
     assert [(one["tag"], one["open"], one["seen"]) for one in seen["machine"]] == [
@@ -718,12 +722,17 @@ def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(
     said = {card["tag"]: card["val"] for card in seen["cards"]}
     assert said["CI checks on GitHub"] == "1 running oat-milk 0 waiting for a runner 0 failed"
     assert (said["bus"], said["blind spots"]) == ("2 in outbox", "6")
-    assert seen["count"] == "4 wait on you"
-    assert [(tile["text"], tile["open"]) for tile in seen["tiles"]] == [
-        ("1 at a gate 50m", "you:row"),
-        ("1 need your word 12m", "you:hold"),
-        ("1 to approve 0m", "you:approve"),
-        ("1 gates 3h00", "you:gate"),
+    needs = seen["needs"]
+    assert needs["head"] == "3 Needs you"
+    assert [
+        (one["what"], one["acts"][0]["text"], one["acts"][0]["tag"]) for one in needs["now"]
+    ] == [
+        ("which lid?", "Fix brief", "BUTTON"),
+        ("Pull request #14", "Review merge", "BUTTON"),
+        ("tea-kettle", "Approve launch", "BUTTON"),
+    ]
+    assert [(one["what"], one["acts"][0]["text"]) for one in needs["soon"]] == [
+        ("tea or coffee?", "Answer")
     ]
     held = ["Queued", "Running", "Gate", "Second pass", "Check", "Rebase", "Needs you", "Merged"]
     assert [(lane["name"], lane["seen"]) for lane in seen["lanes"]] == [(n, True) for n in held]
@@ -778,7 +787,7 @@ def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(
         one["open"] for one in seen["machine"]
     } <= once
     assert {one[1] for one in seen["folded"]} <= once
-    assert {tile["open"] for tile in seen["tiles"]} | {"you"} <= once
+    assert {"you:row:jam-lid", "you:hold:14", "you:approve:tea-kettle"} <= once
     assert {lane["open"] for lane in seen["lanes"]} <= once
     assert {f"task:{slug}" for slug in tokens} | {"task:rye-loaf"} <= once
     assert once <= opened
@@ -840,11 +849,12 @@ def test_the_checks_card_says_what_runs_what_waits_for_a_runner_and_what_failed(
 
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
-    """The screen is a desk's and the height of the Threads band, `BAND`, which every page
-    draws, also with no thread in it: question 26 of jv-threads."""
+    """The screen is a desk's, the height of the Threads band, `BAND`, which every page
+    draws, also with no thread in it (question 26 of jv-threads), and the height of the
+    Needs you queue, `NEEDS`, here with the four rows of the scene."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
-    screen = (DESK[0], DESK[1] + BAND)
+    screen = (DESK[0], DESK[1] + BAND + NEEDS)
     seen = look(scene, tmp_path, screen=screen)
     opened = clean(seen, screen)
     assert seen["font"] == 18
@@ -870,11 +880,10 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 
 
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
-    """The machine once, one wait band whose total is the sum of its rows, and a row for each
-    project with only the steps that hold a task. The page asks `/stack.json` and nothing
+    """The machine once, one Needs you queue across the projects, oldest first, and a row for
+    each project with only the steps that hold a task. The page asks `/stack.json` and nothing
     else, once a poll, and a poll that changed nothing draws nothing again."""
     stacked(scene)
-    a_noticed(scene, ("tea-kettle", "new", 5, {}))
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
     assert clean(seen) == set()
     stack = seen["stack"]
@@ -883,30 +892,30 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
         (tag, True, None) for tag in MACHINE
     ]
     assert [one["val"] for one in seen["machine"][1:]] == ["ok", "3/3", "23%/22%"]
-    assert [(row["project"], row["count"]) for row in stack["waits"]] == [
-        ("demo", 4),
-        ("larder", 0),
-        ("pantry", 1),
+    needs = seen["needs"]
+    assert needs["head"] == "4 Needs you"
+    assert [(one["key"], one["what"], one["acts"][0]["text"]) for one in needs["now"]] == [
+        ("demo/row:jam-lid", "which lid?", "Fix brief"),
+        ("pantry/row:fig-tart", "which tin?", "Fix brief"),
+        ("demo/#14", "Pull request #14", "Review merge"),
+        ("demo/approve:tea-kettle", "tea-kettle", "Approve launch"),
     ]
-    assert stack["total"] == "5 wait on you"
-    assert int(stack["total"].split()[0]) == sum(row["count"] for row in stack["waits"])
-    waits = {row["project"]: row for row in stack["waits"]}
-    assert [token["text"] for token in waits["demo"]["tokens"]] == [
-        "1 at a gate 50m",
-        "1 need your word 12m",
-        "1 to approve 0m",
-        "1 gates 3h00",
-        "1 noticed, not counted",
+    assert [one["acts"][0]["href"] for one in needs["now"]] == [
+        "#/demo/you/row/jam-lid",
+        "#/pantry/you/row/fig-tart",
+        "#/demo/you/hold/14",
+        "#/demo/you/approve/tea-kettle",
     ]
-    assert [token["href"] for token in waits["demo"]["tokens"]][-2:] == [
-        "#/demo/you/gate",
-        "#/demo/noticed",
+    assert [one["meta"] for one in needs["now"]] == [
+        "demo · waiting 50m",
+        "pantry · waiting 40m",
+        "demo · waiting 12m · merge to main",
+        "demo · new · unblocks tea-cups",
     ]
-    assert all(token["tip"].startswith("demo: ") for token in waits["demo"]["tokens"])
-    assert [token["tip"] for token in waits["pantry"]["tokens"]] == [
-        "pantry: 1 at a gate, the oldest for 40m"
+    assert [(one["what"], one["acts"][0]["text"]) for one in needs["soon"]] == [
+        ("tea or coffee?", "Answer")
     ]
-    assert (waits["larder"]["tokens"], waits["larder"]["quiet"]) == ([], "nothing waits on you")
+    assert needs["filled"] == 0
     rows = {row["project"]: row for row in stack["rows"]}
     assert [row["project"] for row in stack["rows"]] == ["demo", "larder", "pantry"]
     assert all(row["seen"] and row["box"][2] >= 1100 for row in stack["rows"])
@@ -945,7 +954,7 @@ def test_the_header_says_the_name_where_you_are_and_the_time_of_the_last_read(sc
     for seen in (one, every):
         clean(seen)
         assert seen["header"]["brand"] == "jbus view"
-        assert re.fullmatch(r"read \d\d:\d\d:\d\d", seen["header"]["read"]), seen["header"]
+        assert re.fullmatch(r"Updated \d\d:\d\d · live", seen["header"]["read"]), seen["header"]
         assert seen["header"]["box"][:3] == [0, 0, DESK[0]]
     assert one["header"]["crumbs"] == [["All", "#/", ""], ["demo", "#/demo", "page"]]
     assert every["header"]["crumbs"] == [["All projects", "#/", "page"]]
@@ -974,8 +983,8 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
     clean(seen, screen)
     items = seen["side"]["items"]
     assert [(one["name"], one["count"], one["dot"]) for one in items] == [
-        ("All", "5", ""),
-        ("demo", "4", "ok"),
+        ("All", "4", ""),
+        ("demo", "3", "ok"),
         ("larder", "0", "op"),
         ("pantry", "1", "op"),
     ]
@@ -985,14 +994,14 @@ def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
         ("#/larder", ""),
         ("#/pantry", ""),
     ]
-    assert items[1]["tip"] == "demo: 4 wait on you"
+    assert items[1]["tip"] == "demo: 3 need you"
     assert items[2]["tip"].startswith(
-        "larder: 0 wait on you. its checks on GitHub: the repo is not known. its bus: 0 in the "
+        "larder: 0 need you. its checks on GitHub: the repo is not known. its bus: 0 in the "
         "outbox, 2 failed wakes, last error: 500. the last pass left no list of its threads. "
         "1 thing its page cannot say now. not read: work.json missing, "
     ), items[2]["tip"]
     assert items[3]["tip"].startswith(
-        "pantry: 1 wait on you. the last pass left no list of its threads. 2 things its page "
+        "pantry: 1 need you. the last pass left no list of its threads. 2 things its page "
         "cannot say now. not read: "
     ), items[3]["tip"]
     assert all(one["seen"] for one in items)
@@ -1067,7 +1076,7 @@ def test_a_project_page_asks_its_state_each_poll_and_every_project_once_a_minute
     seen = look(scene, tmp_path, at=63000, budget=70000)
     asked = [one.partition("?")[0] for one in seen["asked"]]
     assert (asked.count("/state.json"), asked.count("/stack.json")) == (5, 2)
-    assert [one["count"] for one in seen["side"]["items"]] == ["5", "4", "0", "1"]
+    assert [one["count"] for one in seen["side"]["items"]] == ["4", "3", "0", "1"]
 
 
 def test_a_poll_draws_again_only_the_parts_whose_data_changed(scene, tmp_path):
@@ -1077,15 +1086,27 @@ def test_a_poll_draws_again_only_the_parts_whose_data_changed(scene, tmp_path):
         if nth > 1:
             pantry = next(one for one in body["projects"] if one["name"] == "pantry")
             pantry["waits"] += 1
-            pantry["waiting"]["approve"] = {"count": 1, "since": None}
+            body["needs"].append(
+                body["needs"][0]
+                | {"project": "pantry", "key": "approve:fig-jam", "what": "fig-jam", "why": ""}
+            )
         return body
 
     seen = look(scene, tmp_path, route="#/", at=20000, budget=25000, alter=more)
     clean(seen)
     first = max(one["at"] for one in seen["changes"] if one["part"].startswith("rows:"))
     later = {one["part"] for one in seen["changes"] if one["at"] > first + 1000}
-    assert later == {"wtotal", "yrows:pantry", "projects"}
-    assert seen["stack"]["total"] == "6 wait on you"
+    assert later == {"needs-h", "nq", "projects"} | {
+        f"nq:{key}"
+        for key in (
+            "demo/row:jam-lid",
+            "pantry/row:fig-tart",
+            "demo/#14",
+            "demo/approve:tea-kettle",
+            "pantry/approve:fig-jam",
+        )
+    }
+    assert seen["needs"]["head"] == "5 Needs you"
 
 
 def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
@@ -1100,14 +1121,14 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
     )
     clean(seen)
     assert seen["hash"] == "#/pantry"
-    assert (seen["stack"]["shown"], seen["count"]) == (False, "1 wait on you")
+    assert (seen["stack"]["shown"], seen["needs"]["head"]) == (False, "1 Needs you")
     assert [lane["tokens"][0]["slug"] for lane in seen["lanes"] if lane["tokens"]] == [
         "fig-jam",
         "fig-tart",
     ]
     seen = look(scene, tmp_path, route="?project=pantry")
     clean(seen)
-    assert (seen["hash"], seen["count"]) == ("#/pantry", "1 wait on you")
+    assert (seen["hash"], seen["needs"]["head"]) == ("#/pantry", "1 Needs you")
     assert [asked.partition("?")[0] for asked in seen["asked"]].count("/stack.json") == 1
 
 
@@ -1146,7 +1167,7 @@ def test_on_a_phone_every_project_is_one_column_with_nothing_cut(scene, tmp_path
     assert [row["project"] for row in seen["stack"]["rows"]] == ["demo", "larder", "pantry"]
 
 
-def test_the_new_noticed_lines_are_a_count_in_the_wait_band_that_opens_their_panel(scene, tmp_path):
+def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_panel(scene, tmp_path):
     lineup(scene, TODAY)
     a_noticed(
         scene,
@@ -1155,10 +1176,10 @@ def test_the_new_noticed_lines_are_a_count_in_the_wait_band_that_opens_their_pan
     )
     seen = look(scene, tmp_path)
     opened = clean(seen)
-    tile = seen["tiles"][-1]
+    tile = seen["needs"]["extra"][-1]
     assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
     assert "term:noticed" in seen["tips"]
-    assert seen["count"] == "10 wait on you", "the two noticed lines are not in the count"
+    assert not any("noticed" in one["what"] for one in seen["needs"]["now"] + seen["needs"]["soon"])
     assert "noticed" in opened
     drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
     assert drawer["title"] == "2 new lines of 3, newest first"
@@ -1166,26 +1187,28 @@ def test_the_new_noticed_lines_are_a_count_in_the_wait_band_that_opens_their_pan
 
     a_noticed(scene, ("oat-kettle", "dropped", 400, {"why": "from before the list"}))
     seen = look(scene, tmp_path)
-    assert [tile["open"] for tile in seen["tiles"] if tile["open"] == "noticed"] == []
+    assert seen["needs"]["extra"] == []
     assert seen["words"] <= WORDS, seen["words"]
 
 
 def test_forty_open_tasks_keep_what_matters_first_on_the_first_screen(scene, tmp_path):
-    """What waits on the user, what is blocked and what is running are above the fold of the
-    browser's own window, which is lower than the screen. The steps after them scroll."""
+    """What waits on the user leads the page, above the line and inside the browser's own
+    window, which is lower than the screen. The steps after it scroll."""
     open_rows = lineup(scene, FORTY)
     assert len(open_rows) == 40
     seen = look(scene, tmp_path, budget=9000)
     clean(seen)
     tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
     assert len(tokens) == 40
+    needs = seen["needs"]
+    assert needs["head"] == "6 Needs you"
     assert seen["band"][1] + seen["band"][3] <= seen["high"]
-    assert all(tile["seen"] for tile in seen["tiles"])
+    assert all(one["seen"] for one in needs["now"])
+    assert seen["lanes"][0]["box"][1] >= seen["band"][1] + seen["band"][3]
     first = {lane["name"]: lane for lane in seen["lanes"][:3]}
     assert list(first) == ["Queued", "Running", "Gate"]
-    assert all(lane["box"][1] + lane["box"][3] <= seen["high"] for lane in first.values())
     assert [len(lane["tokens"]) for lane in first.values()] == [14, 8, 2]
-    assert all(token["seen"] for lane in first.values() for token in lane["tokens"])
+    assert any(token["seen"] for token in first["Queued"]["tokens"])
     assert sum(1 for token in first["Queued"]["tokens"] if token["mark"]) == 11
     assert seen["words"] <= 200, seen["words"]
 
@@ -1196,7 +1219,8 @@ def test_a_day_with_no_open_task_stays_on_one_screen_and_says_so(scene, tmp_path
     clean(seen)
     assert seen["bottom"] <= DESK[1]
     assert seen["calm"] is True
-    assert seen["count"] == "0 wait on you"
+    assert re.fullmatch(r"Nothing needs you · last pass \d\d:\d\d", seen["needs"]["head"])
+    assert (seen["needs"]["now"], seen["needs"]["soon"]) == ([], [])
     assert [(lane["name"], lane["count"]) for lane in seen["lanes"]] == [("Merged", 4)]
     assert [one[1] for one in seen["folded"]] == [f"steps:{key}" for key in STEP_KEYS[:-1]]
     assert seen["words"] <= WORDS, seen["words"]
@@ -1271,8 +1295,7 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     assert all(one["mark"] == bool(one["blocked"]) for one in tokens.values())
     now = {one["target"].removeprefix("task:"): one["now"] for one in seen["opened"]}
     assert {f"task:{slug}" for slug in expected} <= opened
-    tiles = {tile["open"]: tile["text"] for tile in seen["tiles"]}
-    assert tiles["you:left"].startswith("2 left over")
+    assert [one["acts"][0]["text"] for one in seen["needs"]["now"]].count("Close it") == 2
     for slug, kind in expected.items():
         name = "Ended, not closed" if slug in ("fig-burr", "fig-rind") else NAMES[kind]
         assert now[slug].startswith(f"NOW: {name.upper()} "), now[slug]
@@ -1581,7 +1604,8 @@ def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_i
     seen = look(scene, tmp_path, budget=9000, screen=screen)
     opened = clean(seen, screen)
     band = seen["threads"]
-    assert band["seen"] and band["head"] == "Threads 4 out 3 ended today"
+    assert band["seen"] or screen == PHONE, "the queue above it pushes it off a phone"
+    assert band["head"] == "Threads 4 out 3 ended today"
     assert chips(band) == [
         (
             "CREWMATES",
@@ -1698,7 +1722,7 @@ def frozen(seen, since, said):
     assert seen["banner"].startswith("jbus has not passed last pass ended " + since)
     assert said in seen["banner"]
     assert seen["halves"] == [
-        ["frozen", ["the line", "the wait band", "the bus"]],
+        ["frozen", ["the line", "Needs you", "the bus"]],
         ["live", ["Room", "CI checks", "gates", "GitHub"]],
     ]
     jbus = seen["machine"][0]
@@ -1708,13 +1732,7 @@ def frozen(seen, since, said):
     assert seen["line"] == "frozen"
     tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
     assert tokens and {token["border"] for token in tokens} == {"dashed"}
-    tiles = {tile["open"]: (tile["state"], tile["border"]) for tile in seen["tiles"]}
-    assert tiles == {
-        "you:row": ("frozen", "dashed"),
-        "you:hold": ("frozen", "dashed"),
-        "you:approve": ("frozen", "dashed"),
-        "you:gate": ("live", "solid"),
-    }
+    assert seen["header"]["read"].startswith("Updated "), "jbus stopped, the server did not"
     drawers = {one["target"]: one for one in seen["opened"]}
     assert drawers["pulse"]["title"] == "jbus has not passed"
     assert (drawers["room"]["tags"], drawers["checks"]["tags"]) == (["live"], ["live"])
@@ -1747,7 +1765,7 @@ def test_a_jbus_that_passes_shows_no_banner_and_nothing_frozen(scene, tmp_path):
     seen = look(scene, tmp_path)
     assert (seen["body"], seen["banner"], seen["halves"]) == ("", "", [])
     assert {card["state"] for card in seen["cards"]} == {""}
-    assert {tile["state"] for tile in seen["tiles"]} == {""}
+    assert seen["header"]["stale"] is False
     tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
     assert {token["border"] for token in tokens} == {"solid"}
 
@@ -1760,11 +1778,11 @@ def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, t
     assert set(seen["body"].split()) == {"stopped", "gone"}
     assert seen["banner"].startswith("the view server does not answer last answer ")
     assert "2 answers missed" in seen["banner"]
-    read = NOW.astimezone().strftime("%H:%M:%S")
-    assert seen["header"]["read"] == f"read {read}", "the time of the last answer, not of now"
+    read = NOW.astimezone().strftime("%H:%M")
+    assert seen["header"]["read"] == f"Stale since {read}", "the time of the last answer"
+    assert seen["header"]["stale"] is True
     assert [state for state, _ in seen["halves"]] == ["frozen"]
     assert {card["state"] for card in seen["cards"] if card["state"]} == {"frozen"}
-    assert {tile["state"] for tile in seen["tiles"]} == {"frozen"}
     assert "GitHub cannot be asked" in seen["github"]
     assert sum(len(lane["tokens"]) for lane in seen["lanes"]) == 9
 
