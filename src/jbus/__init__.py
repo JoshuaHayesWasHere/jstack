@@ -30,9 +30,10 @@ It is posted no event, only each item that blocks as it opens, each reminder and
 refresh (`wake.Box.blocking`). Half of that pair is refused as half of the other is, and
 both are secret.
 
-`END_TURN` is how every message to a crew or a scout ends. A turn ended while its own check
-runs is never woken when the check ends, so the push, the Result and the pull request it was
-to make never come: the message says to wait for that check in the turn, whenever it started.
+`END_TURN` is how every message to a crew ends, and the one to a reviewer that carries it on or
+wakes it. A turn ended while its own check, or a reviewer's proof, runs is never woken when it
+ends, so the push, the Result, the pull request or the Review it was to make never come: the
+message says to wait for that run in the turn, whenever it started.
 """
 
 from __future__ import annotations
@@ -57,8 +58,8 @@ REDACTED = "[redacted]"
 URL_PART = 8
 CREDENTIALS = ("access_token", "refresh_token", "id_token")
 END_TURN = (
-    "End your turn only once no check you started runs in your worktree: wait for one that "
-    "runs, in this turn."
+    "End your turn only once no check or proof you started runs in your worktree: wait for "
+    "one that runs, in this turn."
 )
 
 

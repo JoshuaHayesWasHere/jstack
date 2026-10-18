@@ -383,18 +383,60 @@ echo "$D/prompt.md"
 D='<the directory of the prompt file>'
 kept='<the head kept at the start>'
 : "${T:?is not set: send this with the block at the top}"
+limit=540
 G=$(git rev-parse --git-dir)
 at() { [ "$(git rev-parse HEAD)" = "$kept" ] && [ ! -d "$G/rebase-merge" ] && [ ! -d "$G/rebase-apply" ]; }
 at || { echo "unproven: this checkout is not at $kept, or a rebase is going on in it, so the proof did not run"; exit 1; }
-uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the proof> > "$D/proof.out" 2>&1
-echo "exit $?"
-tail -n 5 "$D/proof.out"
-at || echo "unproven: the head moved under the proof"
-git status --porcelain
+export D
+cmd=$(cat << 'THE_PROOF_ENDS_HERE'
+<the proof>
+THE_PROOF_ENDS_HERE
+)
+key=$({ printf '%s\n' "$cmd"; cat "$D/proof.sh" 2> /dev/null; } | cksum)
+running() { [ -f "$D/proof.pid" ] && ! [ -f "$D/proof.exit" ] && kill -0 "$(cat "$D/proof.pid")" 2> /dev/null; }
+if running; then
+    echo "joined: the proof an earlier call started still runs, so it is waited on and not started again"
+elif [ -f "$D/proof.exit" ] && ! [ -f "$D/proof.told" ] && [ "$(cat "$D/proof.key" 2> /dev/null)" = "$key" ]; then
+    echo "checked: the proof ended after the last call, and this is what it said"
+else
+    rm -f "$D/proof.pid" "$D/proof.exit" "$D/proof.told" "$D/proof.out"
+    printf '%s\n' "$cmd" > "$D/proof.cmd"
+    echo "$key" > "$D/proof.key"
+    setsid sh -c 'uv run --project "${2}" jgauge test-slot --short --thread "${3}" -- sh "${1}/proof.cmd" > "${1}/proof.out" 2>&1; echo $? > "${1}/proof.exit"' proof "$D" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
+    echo $! > "$D/proof.pid"
+    echo "started: the proof runs at this head, and this call waits on it"
+fi
+waited=0
+while ! [ -f "$D/proof.exit" ] && running && [ "$waited" -lt "$limit" ]; do
+    sleep 1
+    waited=$((waited + 1))
+done
+if [ "$(cat "$D/proof.exit" 2> /dev/null)" = 76 ] && grep -q "is registered as a waiter" "$D/proof.out"; then
+    touch "$D/proof.told"
+    cat "$D/proof.out"
+    echo "waiting: no short test slot is free and nothing ran: end your turn now with the one line, and send this block again when jbus wakes this thread"
+    exit 76
+elif [ -f "$D/proof.exit" ] && [ "$(cat "$D/proof.key")" != "$key" ]; then
+    touch "$D/proof.told"
+    echo "stale: the proof exited $(cat "$D/proof.exit") but it was started for a command that has changed since: send this block again, and it runs the proof as it is now"
+    exit 75
+elif [ -f "$D/proof.exit" ]; then
+    touch "$D/proof.told"
+    echo "exit $(cat "$D/proof.exit")"
+    tail -n 5 "$D/proof.out"
+    at || echo "unproven: the head moved under the proof"
+    git status --porcelain
+elif running; then
+    echo "running: $(tail -n 1 "$D/proof.out" 2> /dev/null). Send this block again now, in this turn, and again until it prints exit: never end your turn while it runs"
+else
+    echo "lost: the proof stopped with no exit code: send this block again, and it starts the proof afresh"
+fi
 ```
 
 - The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.
-- `jgauge test-slot --short` runs it holding one of the slots of the short lane, which no full suite takes, so it waits only behind other short runs. `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). With `--thread` the call waits for no slot: with every slot of the lane taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`, and the block prints `exit 76`. Then end your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message. Never poll for a slot, never loop on the block, and never end the turn with nothing said. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place, printing `test-slot: waiting` into `$D/proof.out`. A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and run it again. Never take the `--short` off to get past the limit. A call cut off while it waited proved nothing: send it again. An `exit 76` proved nothing either: it is the wait above.
+- The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs. `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. The call waits on the proof for up to 9 minutes, and a proof holds the short lane for 2 minutes at most, so one call usually has its `exit` line. On `running`, send the block again, in this turn, as many times as it takes, until it prints `exit`.
+- **Never end your turn while your own proof waits or runs, and never say you will go on once it finishes**: nothing wakes a reviewer when a command ends, only a message does, and the Review would never be written. A proof an earlier call or an earlier turn started is joined (`joined`), not started again, and one that ended after the last call gives what it said (`checked`). A proof sent again after it gave its answer runs afresh, so fix `$D/proof.sh` and send the block again. On `stale`, the proof ran for a command that has changed since and is no proof: send the block again.
+- The one time the turn ends is when the block prints `waiting` and ends 76: with `--thread` the proof waits for no slot, so with every slot of the lane taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`, and nothing runs. End your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message. Never poll for a slot, and never end the turn with nothing said. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the proof waits for its slot in place, on `running`. A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and send the block again. Never take the `--short` off to get past the limit. An `exit 76` or `waiting` proved nothing either.
 - The crewmate's thread may rebase or push in this worktree while the review is out. The block runs the proof only at the head kept at the start with no rebase going on, and looks again after it. On a line that starts `unproven:`, whatever else it printed is not a proof of that head: the `Proof:` line is `unproven, the head moved under the proof`, with the finding below.
 - The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`. The block's own `uv run --project "$T/.."` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
 - The reviewer changes no file in the worktree. The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing. If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.
