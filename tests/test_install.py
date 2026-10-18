@@ -29,6 +29,8 @@ SKILLS = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"
 ROOTS = (".claude/skills", ".agents/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 UNITS = [
+    "jbus-ci.service",
+    "jbus-ci.timer",
     "jbus-failed.service",
     "jbus-relay.service",
     "jbus-snapshot-failed.service",
@@ -38,7 +40,7 @@ UNITS = [
     "jbus.service",
     "jbus.timer",
 ]
-TIMERS = ["jbus-snapshot.timer", "jbus.timer"]
+TIMERS = ["jbus-ci.timer", "jbus-snapshot.timer", "jbus.timer"]
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
@@ -507,7 +509,7 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
         assert os.readlink(wanted) == str(REPO / "templates" / timer)
     ran = [line for line in user.said(user.systemctl_log) if "show" not in line]
     enabled = [f"--user enable --now {timer}" for timer in TIMERS]
-    assert ran[:3] == ["--user daemon-reload", *enabled]
+    assert ran[:4] == ["--user daemon-reload", *enabled]
     before = user.snapshot()
     assert user.run() == (0, user.every("ok", units))
     assert user.snapshot() == before
