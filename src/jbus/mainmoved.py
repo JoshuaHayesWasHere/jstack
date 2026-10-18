@@ -9,8 +9,8 @@ as `broken` in `main.json` until a green one follows it, so a tip whose check ha
 when it landed, or a second red one, loses nothing. The tip's check is main's own, read as
 `watch.main_check` reads it. A conflict is not told here: only a push ends it, and
 `rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
-nothing in a pass is sure to fetch. The check state of a pull request is GitHub's own, read
-from the pass's list of open pull requests.
+nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
+out of the pass's list of open pull requests.
 
 The message's key, `mainmoved|<slug>|#<number>|<main 12>`, is its retry key at T3 Code and
 its mark in `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
