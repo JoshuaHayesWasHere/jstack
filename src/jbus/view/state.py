@@ -1203,7 +1203,6 @@ SUMMARY = {
     "name": None,
     "repo": None,
     "waits": None,
-    "waiting": {ANY: {"count": None, "since": None}},
     "noticed": None,
     "open": None,
     "steps": {ANY: None},
@@ -1219,21 +1218,24 @@ SUMMARY = {
 }
 
 
+def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The records of the user's queue, oldest `since` first and one with no time last, the
+    project and the key breaking a tie."""
+    return sorted(
+        needs,
+        key=lambda one: (one["since"] is None, one["since"] or "", one["project"], one["key"]),
+    )
+
+
 def summary(read: Read) -> dict[str, Any]:
-    """One project as the overview has it: what waits on the user, by kind with the oldest
-    `since`, the new noticed lines (counted apart: they are no wait), its open tasks by step,
-    in the order of the line, what merged today, and its health. The threads are the ones
+    """One project as the overview has it: how many things need the user (`waits`, the
+    count of the project's `needs` and nothing else), the new noticed lines (counted apart:
+    they are no wait), its open tasks by step, in the order of the line, what merged today,
+    and its health. The threads are the ones
     out, or None where the last pass left no list. Blind is what the project's page cannot
     say now, without what it never can and without a source that could not be read, which is
     in unwell. Unwell is each source of the project that is not ok, but for one a session
     writes. What is the machine's, a source or a blind spot, is on no project's row."""
-    waiting = read.panel("you")["waiting"]
-    kinds: dict[str, dict[str, Any]] = {}
-    for one in waiting:
-        kind = kinds.setdefault(one["kind"], {"count": 0, "since": None})
-        kind["count"] += 1
-        if one["since"] and (kind["since"] is None or one["since"] < kind["since"]):
-            kind["since"] = one["since"]
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
@@ -1247,8 +1249,7 @@ def summary(read: Read) -> dict[str, Any]:
     return {
         "name": read.name,
         "repo": read.where,
-        "waits": len(waiting),
-        "waiting": kinds,
+        "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
         "open": len(held),
         "steps": steps,
@@ -1277,8 +1278,9 @@ def stack(
     found: tuple[panels.Panel, ...] | None = None,
     names: list[str] | None = None,
 ) -> dict[str, Any]:
-    """What `/stack.json` holds: the machine once, the steps of the line, and a summary of
-    each project of `names`, or of each the state directory has.
+    """What `/stack.json` holds: the machine once, the steps of the line, a summary of
+    each project of `names`, or of each the state directory has, and the user's two queues
+    across them: `needs`, oldest first, and `proceeds`, the soonest to go ahead first.
 
     The machine is what one jbus and one room serve every project with: the pass and the
     timer, the room and the plan's use, and the runner units. Each project is read as
@@ -1310,9 +1312,24 @@ def stack(
             and (seen := _source(one.name, one.by, now=now, **one.seen(base)))["state"] != "ok"
         ],
     }
-    every = [
-        keep(summary(Read(sources, name, now, runs, code, found, shared)), SUMMARY)
+    reads = [
+        Read(sources, name, now, runs, code, found, shared)
         for name in (projects(sources) if names is None else names)
     ]
+    every = [keep(summary(read), SUMMARY) for read in reads]
+    queues = [read.panel("you") for read in reads]
+    shape = shapes["you"]
+    needs = oldest([one for each in queues for one in keep(each["needs"], shape["needs"])])
+    proceeds = sorted(
+        (one for each in queues for one in keep(each["proceeds"], shape["proceeds"])),
+        key=lambda one: (one["due"] or "~", one["project"], one["key"]),
+    )
     line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
-    return {"at": iso(now), "machine": machine, "steps": line, "projects": every}
+    return {
+        "at": iso(now),
+        "machine": machine,
+        "steps": line,
+        "projects": every,
+        "needs": needs,
+        "proceeds": proceeds,
+    }
