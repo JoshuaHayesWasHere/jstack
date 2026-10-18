@@ -372,7 +372,13 @@ def unit(name):
 def test_the_timer_runs_every_monday_at_nine_in_new_york_whatever_the_machines_zone():
     timer = unit("jbus-ci.timer")
     asked = subprocess.run(
-        ["systemd-analyze", "calendar", "--iterations=3", timer["Timer"]["OnCalendar"]],
+        [
+            "systemd-analyze",
+            "calendar",
+            "--base-time=2026-10-18",
+            "--iterations=3",
+            timer["Timer"]["OnCalendar"],
+        ],
         capture_output=True,
         text=True,
         env={"TZ": "Asia/Tokyo", "PATH": os.environ["PATH"]},
