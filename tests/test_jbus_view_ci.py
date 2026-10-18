@@ -113,11 +113,17 @@ def test_a_mark_is_the_merge_of_each_change_that_has_landed_in_this_home_or_infr
     assert marks[0]["at"] == "2026-10-12T13:00:00+00:00"
 
 
-def test_with_no_ledger_the_panel_says_it_is_not_known_and_the_page_is_blind_to_it(scene, served):
+def test_with_no_ledger_the_panel_has_no_numbers_and_the_sources_say_the_ledger_is_missing(
+    scene, served
+):
+    scene.state.joinpath("ci.jsonl").unlink()
+    scene.state.joinpath("ci-prs.jsonl").unlink()
     ci = asked(served)["data"]["ci"]
     assert (ci["read"], ci["numbers"], ci["jobs"]) == (False, [], 0)
-    blind = [one["line"] for one in served.json("/state.json?project=demo")["blind"]]
-    assert "the CI targets are not known: jbus ci has not kept a job" in blind
+    states = {
+        one["name"]: one["state"] for one in served.json("/state.json?project=demo")["sources"]
+    }
+    assert (states["ci.jsonl"], states["ci-prs.jsonl"]) == ("missing", "missing")
 
 
 def test_the_panel_names_the_files_it_reads_and_the_inode_series_it_never_had(scene, served):

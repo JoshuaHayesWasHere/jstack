@@ -247,6 +247,8 @@ class Scene:
         self.write("stall.json", {})
         self.write("wake.json", {"began": True, "last_error": "", "posted": NOW.timestamp() - 90})
         self.write("sent.json", ["result|jam-jar|tasks 1", "merged|rye-loaf|9", "gate|jam-lid|g"])
+        self.lines("ci.jsonl", [])
+        self.lines("ci-prs.jsonl", [])
         self.write("outbox.json", [{"line": UNREAD[0]}])
         self.waiting(
             [
@@ -705,7 +707,8 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
                     "merge.log",
                 )
             ]
-            + [{"name": "GitHub", "state": "unreadable"}],
+            + [{"name": "GitHub", "state": "unreadable"}]
+            + [{"name": name, "state": "missing"} for name in ("ci.jsonl", "ci-prs.jsonl")],
         },
     }
     pantry = by["pantry"]
