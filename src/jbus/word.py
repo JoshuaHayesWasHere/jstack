@@ -34,8 +34,8 @@ only after T3 Code said yes.
 Nothing of a word is an event. It is in no outbox, so no POST to a project's webhook or to
 the top-level one carries it, and whoever ran the command hears nothing back. The log has a
 line for it all the same (`wake.Box.record`), which `jbus events` prints: the words, `by`,
-`at`, and `to`, the thread it went to or nothing while it waits. A word T3 Code refuses is
-such a line too, and waits like any other.
+`at`, and `to`, the thread it went to or nothing while it waits or was posted to nobody. A
+word T3 Code refuses is such a line too, and waits like any other.
 
 The command holds no lock of the pass, so a pass and the command can hold the same unsent
 word. What became of one is written to the record as it is in the file then, under
@@ -177,6 +177,9 @@ def keep(
         elif mine and mine == recorder:
             made = replace(made, thread=mine, sent_at=kept_at, skipped=BY_HOME.format(thread=mine))
         _write(run.state, [*kept, made])
+    if made.skipped:
+        about = {"words": words, "by": by, "at": at, "to": ""}
+        run.box.record(KIND, f"{KIND} {run.project.name}: kept, {made.skipped}", words, word=about)
     return made
 
 

@@ -115,7 +115,13 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     assert kitchen.main("word", "--to", "demo", "--message", ref) == (code, out)
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == []
-    assert [one["line"] for one in logged(kitchen)] == []
+    (event,) = logged(kitchen)
+    assert (event["event"], event["line"], event["posted"]) == (
+        "word",
+        f"word demo: kept, {why}",
+        None,
+    )
+    assert event["word"] == {"words": WORDS, "by": "user", "at": event["word"]["at"], "to": ""}
     assert word.basis(kitchen.state, kept.id).words == WORDS
 
 
