@@ -596,6 +596,17 @@ def test_unruled_drops_jbus_cannot_ask_a_crew_about_are_the_user_s_as_before(sho
     assert listed(kitchen) == ["#7"] and gates(kitchen) == [] and kitchen.lines("gate") == []
 
 
+def test_unruled_drops_with_no_rebase_line_are_asked_from_the_head_the_crew_kept(short, kitchen):
+    """The crew skill keeps the head before a rebase under refs/jstack/pre-rebase/<slug>/ and
+    writes no `Rebase:` line, so that ref is where the old range of the scoped review starts."""
+    kitchen.git("update-ref", f"refs/jstack/pre-rebase/alpha/{short.saw[:12]}", short.saw)
+    short.out(short.unruled(), "hold")
+    said = short.passes(3)
+    (given,) = sends(kitchen)
+    assert f"..{short.saw} " in given["message"] and given["message"].count(short.head) >= 1
+    assert not [line for line in said if "no Rebase line" in line]
+
+
 def test_unruled_drops_of_a_pull_request_jbus_launched_no_crew_for_are_the_user_s_at_once(
     short, kitchen
 ):
