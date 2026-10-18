@@ -678,7 +678,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "repo": "",
         "broken": [
             {"what": "CI not read", "open": "checks"},
-            {"what": "11 sources unread", "open": "pulse"},
+            {"what": "13 sources unread", "open": "pulse"},
         ],
         "unplaced": [],
         "waits": 0,
