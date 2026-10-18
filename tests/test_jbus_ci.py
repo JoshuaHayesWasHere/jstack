@@ -23,6 +23,7 @@ from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
 from test_jbus_kitchen import REPO as CHECKOUT
 
+HOST = "github.com"
 REPO = "JoshuaHayesWasHere/jstack"
 NOW = datetime(2026, 10, 17, 22, 15, tzinfo=UTC)
 START = NOW - timedelta(days=14)
@@ -404,7 +405,7 @@ def test_the_service_command_collects_and_writes_the_report_for_the_jstack_home(
             "remote",
             "set-url",
             "origin",
-            f"https://github.com/{REPO}.git",
+            f"https://{HOST}/{REPO}.git",
         ],
         check=True,
     )
