@@ -405,7 +405,9 @@ def status(state: State) -> str:
     `merged`, whatever the thread does. A thread in a status jbus does not know is `stale`,
     for somebody to look at. A hung turn is `stale` too, and a thread that ended with
     nothing written is `stale` when it completed, `failed` when it failed, `launched` while
-    no thread is there for a launch, and `queued` once it was settled.
+    no thread is there for a launch, and `queued` once it was settled. The state knows no
+    clock: a row `stale` with nothing written is `left` once the pass finds its thread quiet
+    for long enough, which is `watch.unwritten`'s.
     """
     facts, value = state.facts, state.value
     if value == "asking":
