@@ -205,7 +205,7 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
     if half.blind:
         half.seen = watch.Look(out=half.seen.out, why=half.seen.why)
     if half.seen.world is not None and client is not None:
-        archived.find(run, client, half.seen.world, half.rows or [])
+        archived.ask(run, client, half.seen.world, half.rows or [])
     steps(half, "tellers")
     rows, world = half.rows, half.seen.world
     if world is not None and client is not None:

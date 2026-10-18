@@ -2,7 +2,7 @@
 
 `t3_thread_list` lists the threads that are not archived and cannot be asked for the rest,
 so a home that tidies up by archiving a finished thread takes it out of what a pass reads.
-The row's thread is still its thread. `find` reads each launched thread the list does not
+The row's thread is still its thread. `ask` reads each launched thread the list does not
 have, by its id, with `t3_thread_read`, which answers for an archived thread too:
 
 - archived: the thread is the row's, put away like a settled one (`World.archived`);
@@ -28,7 +28,7 @@ ARCHIVED, MISSING = "archived", "missing"
 KEPT = ("threadId", "title", "status", "createdAt", "updatedAt")
 
 
-def find(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
+def ask(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
     """Put each launched thread of `rows` that the pass's list does not have in `world`."""
     path = run.state / NAME
     kept: dict[str, Any] = read_json(path, {})
