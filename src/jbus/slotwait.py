@@ -26,7 +26,7 @@ import shlex
 from collections import defaultdict
 from typing import Any
 
-from jbus import verbs
+from jbus import END_TURN, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import ENDED
@@ -39,7 +39,7 @@ OVER = (*ENDED, "rolled_back")
 MESSAGE = (
     "jbus: a {lane} test slot is free. Run again what you waited to run: `{command}`. If every"
     " slot is taken again by then, register again and end your turn: jbus wakes you once for"
-    " each wait."
+    " each wait. " + END_TURN
 )
 
 
