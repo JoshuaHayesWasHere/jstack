@@ -20,6 +20,7 @@ import hashlib
 import re
 from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs, watch, work
@@ -54,6 +55,38 @@ MERGED = (
     "`Left:` line of its last Result names, and write a follow-up Result when it is done."
 )
 REPORT = "## Report"
+ROOT = Path(__file__).resolve().parents[2]
+SKILLS = {"crew": "crew", "reviewer": "pr-review", "scout": "scout"}
+
+
+def skill_file(name: str) -> Path:
+    """The jstack checkout's own file of skill `name`, found from this module's place."""
+    return ROOT / "skills" / name / "SKILL.md"
+
+
+READ_SKILL = (
+    " Your role's skill is not loaded in this thread and the Skill tool cannot load it: read "
+    "`{path}` from the file and follow it from where your work stands. Run `jbriefs --skills "
+    "{brief}` for the brief's Skills line and read what it prints."
+)
+
+
+def resume_message(template: str, title: str, home: Path, **fields: Any) -> str:
+    """The text that resumes the thread titled `title`: the template filled in, and for a role
+    that has a skill (`SKILLS`) the path of its file, since a skill loads only when its slash
+    command is typed and a resumed thread, which never typed it or lost it to a compaction,
+    cannot load it through the Skill tool. The brief it names is the one in `home`, by its
+    full path, since the thread's own worktree has no `tasks/`. A title that gives no such
+    role gets the template."""
+    message = template.format(**fields)
+    role = role_of(title)[0]
+    name = SKILLS.get(role)
+    if not name:
+        return message
+    brief = home / ("scouts" if role == "scout" else "tasks") / f"{fields['slug']}.md"
+    return message + READ_SKILL.format(path=skill_file(name), brief=brief)
+
+
 Out = dict[str, Any]
 _SESSION = re.compile(r"/session/([0-9a-f]+)")
 
@@ -436,7 +469,15 @@ def resume(run: Pass, client: Client, world: World) -> None:
         if had >= CARRY_ONS:
             run.gate(slug, f"thread ended {status} after two carry-ons", at, key=f"{at} {ended}")
             continue
-        message = CARRY_ON.format(status=status, slug=slug, k=had + 1, most=CARRY_ONS)
+        message = resume_message(
+            CARRY_ON,
+            str(thread.get("title", "")),
+            run.home,
+            status=status,
+            slug=slug,
+            k=had + 1,
+            most=CARRY_ONS,
+        )
         client.recipients = client.recipients | {at}
         asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
         try:
@@ -472,7 +513,9 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
         at = dispatch.thread_of(brief) or dispatch.launched(run, slug) or listed
         if not at or _done(run, key):
             continue
-        message = MERGED.format(number=pull["number"], slug=slug)
+        message = resume_message(
+            MERGED, f"crew: {slug}", run.home, number=pull["number"], slug=slug
+        )
         client.recipients = client.recipients | {at}
         asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
         try:
