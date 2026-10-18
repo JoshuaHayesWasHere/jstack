@@ -36,7 +36,4 @@ panel({
   drawer: dCi,
   wide: true,
   gloss: { ci: ["CI targets", "Nine numbers that say whether CI is getting faster and more honest, each held to a target and drawn by day. Read from ci.jsonl, which jbus ci writes."] },
-  card: function () {
-    return { at: 45, sum: "CI targets", e: "dim", cls: " wide", tag: "CI targets", st: lv(), val: '<span class="ck"><span>Nine targets, by day</span> ' + openBtn("ci", "open") + '</span>', viz: "", label: "The nine CI targets, opened as a drawer" };
-  }
 });
