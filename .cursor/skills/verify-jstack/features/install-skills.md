@@ -3,7 +3,7 @@
 `install.sh` puts every part jstack carries onto a machine: a link for each skill in `~/.claude/skills` and `~/.agents/skills`, the start hook and the tips hook in `~/.claude/settings.json`, the start hook in `~/.codex/hooks.json`, the six commands as the `uv` tool `jstack`, the limits writer as `statusLine`, and, once jbus has a config, the jbus units and the timer. It prints one line for each part, `<state> <level> <name>[ -> <detail>]`, where the state is `ok`, `missing` or `old` and the level is `hard` or `optional`. With `--check` it prints the same lines and writes nothing. With `--uninstall` it takes away what names this checkout and prints `removed <piece>` or `kept <piece> -> <why>`.
 
 Paths: `/install.sh`, `src/jinstall/`, `src/jbus/*.py`, `src/jbriefs/`, `src/jgauge/`, `src/jmerge/`, `src/jleak/`, `src/jroles/`, `src/jsettings/`, `hooks/`, `templates/jbus.service`, `templates/jbus.timer`, `templates/jbus-failed.service`, `templates/jbus-relay.service`, `templates/jbus-snapshot.service`, `templates/jbus-snapshot.timer`, `templates/jbus-snapshot-failed.service`, `templates/jbus-view.service`
-Tests: `tests/test_doctor.py`, `tests/test_install.py`, `tests/test_jleak.py`, `tests/test_setup.py`, `tests/test_verify_jstack.py`
+Tests: none
 
 ## Sub-features
 

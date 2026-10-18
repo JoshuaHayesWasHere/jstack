@@ -3,7 +3,7 @@
 `correct` and `reflect` turn what went wrong in a thread into a lesson kept where the next thread reads it, with `playbooks/correct.md`.
 
 Paths: `skills/correct/`, `skills/reflect/`, `playbooks/correct.md`
-Tests: `tests/test_lessons.py`, `tests/test_understanding_skills.py`
+Tests: none
 
 ## Sub-features
 

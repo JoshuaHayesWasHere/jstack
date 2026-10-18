@@ -3,7 +3,7 @@
 The expert skill makes a thread the always-on expert of one subject: it answers asks from its sources and its notes, with the `expert-*` playbooks, and lints its notes with `skills/expert/scripts/lint-notes.sh`.
 
 Paths: `skills/expert/`, `templates/expert-answer.md`, `playbooks/expert-*.md`
-Tests: `tests/test_eval_skill_cut.py`, `tests/test_expert_note_lint.py`, `tests/test_expert_skill.py`, `tests/test_playbooks.py`, `tests/test_roles.py`, `tests/test_templates.py`, `tests/test_understanding_skills.py`
+Tests: none
 
 ## Sub-features
 

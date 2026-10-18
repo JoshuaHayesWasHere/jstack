@@ -302,7 +302,7 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(tmp_path):
-    copy, path, asked = changed_copy(tmp_path, "Makefile")
+    copy, path, asked = changed_copy(tmp_path, "pyproject.toml")
     check_fast(copy, path)
     assert selected(copy) == ["all"]
     assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 4", *OFF])]
