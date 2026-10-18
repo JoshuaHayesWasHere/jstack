@@ -56,6 +56,7 @@ NOT_RED = ("success", "neutral", "skipped", "cancelled")
 BROWSER = "browser.yml"
 BROWSER_RED = ("failure", "timed_out")
 BROWSER_WINDOW = timedelta(days=3)
+BROWSER_GRACE = timedelta(hours=1)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
@@ -791,10 +792,15 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     return known.get(sha, "pending")
 
 
-def _failed_tests(run: Pass, job: object) -> list[str]:
-    """The ids of the tests a job's log says failed, from pytest's summary, in order."""
+def _log_failed(run: Pass, job: object) -> list[str] | None:
+    """The ids of the tests a job's log says failed, from pytest's summary, in order; None
+    where the log could not be read."""
     log = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs")
-    return list(dict.fromkeys(_FAILED_TEST.findall(log.stdout))) if log.returncode == 0 else []
+    return list(dict.fromkeys(_FAILED_TEST.findall(log.stdout))) if log.returncode == 0 else None
+
+
+def _failed_tests(run: Pass, job: object) -> list[str]:
+    return _log_failed(run, job) or []
 
 
 def red_brief(
@@ -939,7 +945,9 @@ def _browser_red(run: Pass) -> None:
     fix and queues it unapproved, once per run: `browser-runs.json` keeps each run seen, so a
     removed row is not filed again. A run seen on a project's first pass is only recorded.
 
-    A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. A manual run
+    A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. Where GitHub
+    would not give its jobs, or a failed job's log, the run is asked about again on the next
+    pass, and is filed without the names once it ended `BROWSER_GRACE` ago. A manual run
     on a branch other than the default is the branch's own business, and files nothing.
     """
     said = _api(
@@ -953,7 +961,8 @@ def _browser_red(run: Pass) -> None:
     default = _default_branch(run)
     for one in sorted(runs, key=lambda r: r.get("created_at") or ""):
         number = str(one.get("id"))
-        stale = run.now - when(one.get("updated_at") or one["created_at"]) > BROWSER_WINDOW
+        ended = when(one.get("updated_at") or one["created_at"])
+        stale = run.now - ended > BROWSER_WINDOW
         if number in seen or one.get("conclusion") not in BROWSER_RED or stale:
             continue
         if one.get("event") == "workflow_dispatch" and one.get("head_branch") != default:
@@ -965,10 +974,19 @@ def _browser_red(run: Pass) -> None:
         name = _browser_name(day, {*seen.values(), *run.removed})
         if queue.fresh(run.state, name) is None:
             asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
-            jobs = [
-                (j.get("name") or "?", j.get("html_url") or "", _failed_tests(run, j.get("id")))
-                for j in (asked if isinstance(asked, dict) else {}).get("jobs") or []
+            if not isinstance(asked, dict):
+                continue
+            red = [
+                j
+                for j in asked.get("jobs") or []
                 if j.get("status") == "completed" and j.get("conclusion") not in NOT_RED
+            ]
+            logs = [_log_failed(run, j.get("id")) for j in red]
+            if None in logs and run.now - ended < BROWSER_GRACE:
+                continue
+            jobs = [
+                (j.get("name") or "?", j.get("html_url") or "", failed or [])
+                for j, failed in zip(red, logs, strict=True)
             ]
             text = browser_red_brief(name, day, one, jobs)
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)

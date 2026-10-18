@@ -578,7 +578,7 @@ def test_a_browser_run_that_passed_or_was_cancelled_files_nothing(kitchen, concl
 
 def test_a_browser_run_that_timed_out_is_red_with_no_test_named(kitchen):
     browser_runs(kitchen, browser_run(conclusion="timed_out"))
-    kitchen.set("logs.json", {})
+    kitchen.set("logs.json", {"911": "Error: The operation was canceled.\n"})
     kitchen.poll()
     text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
     assert "its log names no failed test, read it" in text
@@ -618,3 +618,24 @@ def test_a_github_that_does_not_answer_files_nothing_and_the_run_is_filed_when_i
     (kitchen.stub / "gh-down").unlink()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
+def test_a_run_whose_log_or_jobs_github_would_not_give_is_filed_on_a_later_pass_with_its_names(
+    kitchen,
+):
+    browser_runs(kitchen, browser_run())
+    kitchen.set("logs.json", {})
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+    kitchen.set("logs.json", {"911": BROWSER_LOG})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "tests/test_jbus_view_page.py::test_one" in text
+
+
+def test_a_run_whose_log_stays_unreadable_for_an_hour_is_filed_without_names(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.set("logs.json", {})
+    kitchen.poll(NOW + timedelta(hours=2))
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "its log names no failed test, read it" in text
