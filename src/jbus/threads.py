@@ -23,7 +23,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jbus import END_TURN, dispatch, lavish, mirror, queue, read_json, record, stall, verbs, watch, work
+from jbus import (
+    END_TURN,
+    dispatch,
+    lavish,
+    mirror,
+    queue,
+    read_json,
+    record,
+    stall,
+    verbs,
+    watch,
+    work,
+)
 from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
