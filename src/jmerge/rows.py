@@ -10,6 +10,7 @@ hold that stops a merge, so `short` then names it, and nothing merges until it i
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import jbus
@@ -17,6 +18,60 @@ from jbus import queue
 from jmerge import ready
 
 NO_PULL = "no pull request yet"
+
+
+@dataclass(frozen=True)
+class Migrations:
+    """Where a repo keeps its migrations, and whether their names carry a number that is taken
+    when they land: the `migrations` and `migration_names` of its project in jbus's config."""
+
+    directory: str
+    numbered: bool
+
+
+def migrations(checkout: Path) -> Migrations | None:
+    """The migrations of the project whose checkout this is, none where it names no directory
+    or where no config names the project, so a repo that has no migrations is held to nothing."""
+    try:
+        config = jbus.load()
+    except jbus.Refused:
+        return None
+    project = next(
+        (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
+    )
+    if project is None or not project.migrations:
+        return None
+    return Migrations(project.migrations, project.migration_names == jbus.NUMBERED)
+
+
+def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int]:
+    """The pull request numbers of `slugs` (number to its brief's slug) in the order they merge in.
+
+    A row merges after the rows it names in `merge_after`, and after the rows those name, also
+    through a row that is not in `slugs`. Pull requests of rows with no such order between them
+    go by number, the older first. A cycle, which `jbus queue add` refuses, is cut by number.
+    """
+    table = {row["slug"]: row for row in rows or []}
+
+    def before(slug: str) -> set[str]:
+        found: set[str] = set()
+        todo = list(table.get(slug, {}).get("merge_after", []))
+        while todo:
+            one = todo.pop()
+            if one not in found:
+                found.add(one)
+                todo.extend(table.get(one, {}).get("merge_after", []))
+        return found
+
+    waits = {number: before(slug) for number, slug in slugs.items()}
+    placed: list[int] = []
+    left = sorted(slugs)
+    while left:
+        free = [one for one in left if not {slugs[n] for n in left if n != one} & waits[one]]
+        first = free[0] if free else left[0]
+        placed.append(first)
+        left.remove(first)
+    return placed
 
 
 def read(checkout: Path) -> list[queue.Row] | None:
