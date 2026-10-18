@@ -1,12 +1,13 @@
-"""`scripts/select_tests.py <base> <head>` names the test files a diff needs, from the map in
-verify-jstack's `features/`, and the map is whole: every test file is a feature's or
-cross-cutting, every path is a feature's, and every test file it names is there.
+"""`scripts/select_tests.py <base> <head>` names the test files a diff needs, from what the
+tests import and name, and from the map in verify-jstack's `features/`.
 
 The script is run as CI runs it, with `python3 -I -S`, so it imports nothing installed, in a
-temporary git repo that holds a copy of it, of `src/` as it is, and of a map.
-The map's own tests read the repo's map and the files git tracks."""
+temporary git repo that holds a copy of it, of `src/` as it is, and of a few modules, docs and
+tests of its own. The map's own tests read the repo's map and the files git tracks, and run
+the tests' imports once, to see that the script found every import that was made."""
 
 import importlib.util
+import json
 import re
 import shutil
 import subprocess
@@ -22,7 +23,6 @@ select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
 OWNED = "src/ skills/ playbooks/ principles/ templates/ hooks/ docs/ scripts/".split()
 ALSO = ("evals/", ".cursor/", "install.sh")
-PACKAGES = sorted(path.parent.name for path in (REPO / "src").glob("*/__init__.py"))
 
 README = """\
 # A map
@@ -35,7 +35,7 @@ ALPHA = """\
 What alpha does.
 
 Paths: `src/alpha/`, `docs/alpha.md`
-Tests: `tests/test_alpha.py`, `tests/test_both.py`
+Tests: `tests/test_glob.py`
 """
 BETA = """\
 # Beta
@@ -43,19 +43,48 @@ BETA = """\
 What beta does.
 
 Paths: `src/beta/*.py`
-Tests: `tests/test_beta.py`, `tests/test_both.py`
+Tests: none
 """
-TESTS = {
-    "conftest.py": "from test_shared import Kitchen\n",
-    "test_shared.py": "class Kitchen:\n    pass\n",
-    "test_tree.py": "def test_tree():\n    pass\n",
-    "test_alpha.py": "def test_alpha():\n    pass\n",
-    "test_beta.py": "def test_beta():\n    pass\n",
-    "test_both.py": "def test_both():\n    pass\n",
-    "test_helper.py": "HELP = 1\n",
-    "test_user.py": "    from test_helper import HELP\n",
-    "test_user_of_user.py": "import test_user\n",
-    "leaves.py": "import test_helper\n",
+FILES = {
+    "src/alpha/__init__.py": "",
+    "src/alpha/a.py": "from alpha import util\n",
+    "src/alpha/util.py": "X = 1\n",
+    "src/alpha/notes.txt": "notes\n",
+    "src/beta/__init__.py": "",
+    "src/beta/b.py": "import importlib\n\nimportlib.import_module('beta.plug')\n",
+    "src/beta/plug.py": "P = 1\n",
+    "src/gamma/__init__.py": "",
+    "src/gamma/g.py": "G = 1\n",
+    "tests/test_runs_gamma.py": "import subprocess\n\nsubprocess.run(['python', '-m', 'gamma'])\n",
+    "tests/helper_data.py": "ROWS = 1\n",
+    "tests/test_reads_helper.py": "H = Path('tests') / 'helper_data.py'\n",
+    "docs/alpha.md": "# alpha\n",
+    "skills/one/SKILL.md": "one\n",
+    "skills/two/SKILL.md": "two\n",
+    "tests/fixtures/shapes/a.json": "{}\n",
+    "tests/fixtures/shapes/b.json": "{}\n",
+    "tests/fixtures/orphan/x.json": "{}\n",
+    "README.md": "#\n",
+    "tests/conftest.py": (
+        "import pytest\n\nimport daemons\nfrom test_kit import Kit\n\n"
+        "tidy = daemons.tidy\n\n\n@pytest.fixture\ndef kit():\n    return Kit()\n"
+    ),
+    "tests/daemons.py": "def tidy():\n    pass\n",
+    "tests/test_kit.py": "class Kit:\n    pass\n",
+    "tests/test_uses_kit.py": "def test_it(kit):\n    pass\n",
+    "tests/test_tree.py": "def test_tree():\n    pass\n",
+    "tests/test_alpha.py": "from alpha import a\n",
+    "tests/test_beta.py": "import beta.b\n",
+    "tests/helper.py": "import alpha.util\n",
+    "tests/test_helped.py": "from helper import HELP\n",
+    "tests/test_glob.py": "def test_glob():\n    pass\n",
+    "tests/test_doc.py": "from pathlib import Path\n\nDOC = Path('docs') / 'alpha.md'\n",
+    "tests/test_one.py": "from pathlib import Path\n\nS = Path('skills') / 'one' / 'SKILL.md'\n",
+    "tests/test_two.py": "SKILL = 'skills/two/SKILL.md'\n",
+    "tests/test_shapes.py": "S = Path('tests') / 'fixtures' / 'shapes'\n",
+    "tests/test_helper.py": "HELP = 1\n",
+    "tests/test_user.py": "def use():\n    from test_helper import HELP\n",
+    "tests/test_user_of_user.py": "import test_user\n",
 }
 
 
@@ -72,18 +101,20 @@ def write(repo, files):
 
 
 class Repo:
-    """A repo with the script, a copy of `src/`, a map and a few tests."""
+    """A repo with the script, a copy of `src/`, a map and a few modules and tests."""
 
-    def __init__(self, root, features=None):
+    def __init__(self, root, features=None, files=None):
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
         shutil.copytree(REPO / "src", root / "src", ignore=shutil.ignore_patterns("__pycache__"))
         features = features or {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
         write(root / select.MAP, features)
-        write(root / "tests", TESTS)
-        write(root, {"src/alpha/a.py": "A = 1\n", "src/beta/b.py": "B = 1\n", "README.md": "#\n"})
+        write(root, FILES if files is None else files)
         git(root, "init", "-q", "-b", "main")
         self.base = self.commit()
+
+    def commit_head(self):
+        return git(self.root, "rev-parse", "HEAD")
 
     def put(self, name):
         (self.root / name).parent.mkdir(parents=True, exist_ok=True)
@@ -94,11 +125,11 @@ class Repo:
         git(self.root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c")
         return git(self.root, "rev-parse", "HEAD")
 
-    def change(self, files=(), gone=(), moved=()):
+    def change(self, files=(), gone=(), moved=(), text=None):
         """The head after writing `files`, deleting `gone` and moving each pair of `moved`."""
         for name in files:
             with self.put(name).open("a") as file:
-                file.write("\n")
+                file.write(text or "\n")
         for name in gone:
             git(self.root, "rm", "-q", name)
         for old, new in moved:
@@ -106,12 +137,13 @@ class Repo:
             git(self.root, "mv", old, new)
         return self.commit()
 
-    def run(self, *args):
+    def run(self, *args, env=None):
         return subprocess.run(
             [sys.executable, "-I", "-S", self.root / "scripts" / "select_tests.py", *args],
             cwd=self.root,
             capture_output=True,
             text=True,
+            env=env,
         )
 
     def selected(self, head):
@@ -125,57 +157,128 @@ def repo(tmp_path):
     return Repo(tmp_path)
 
 
-def test_a_change_selects_the_tests_of_each_feature_that_owns_it_and_the_cross_cutting(repo):
-    head = repo.change(["src/alpha/a.py"])
+def test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_chain(repo):
+    head = repo.change(["src/alpha/util.py"])
 
     assert repo.selected(head) == [
         "tests/test_alpha.py",
-        "tests/test_both.py",
+        "tests/test_glob.py",
+        "tests/test_helped.py",
         "tests/test_tree.py",
     ]
 
 
-def test_two_features_selected_at_once_name_a_shared_test_once(repo):
-    head = repo.change(["docs/alpha.md", "src/beta/b.py"])
+def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_name(repo):
+    head = repo.change(["src/beta/plug.py"])
+
+    assert repo.selected(head) == ["tests/test_beta.py", "tests/test_tree.py"]
+
+
+def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_change_to_it(repo):
+    head = repo.change(["src/gamma/g.py"])
+
+    assert repo.selected(head) == ["tests/test_runs_gamma.py", "tests/test_tree.py"]
+
+
+def test_a_changed_test_module_selects_the_tests_that_spell_its_path(repo):
+    head = repo.change(["tests/helper_data.py"])
+
+    assert "tests/test_reads_helper.py" in repo.selected(head)
+
+
+def test_a_file_in_a_package_that_is_no_module_selects_the_tests_of_the_modules_beside_it(repo):
+    head = repo.change(["src/alpha/notes.txt"])
 
     assert repo.selected(head) == [
         "tests/test_alpha.py",
-        "tests/test_beta.py",
-        "tests/test_both.py",
+        "tests/test_glob.py",
+        "tests/test_helped.py",
         "tests/test_tree.py",
     ]
 
 
-def test_a_star_stays_within_one_part_of_the_path(repo):
-    head = repo.change(["src/beta/deeper/c.py"])
+def test_a_doc_selects_the_tests_that_name_it_and_the_tests_its_feature_lists(repo):
+    head = repo.change(["docs/alpha.md"])
 
-    assert repo.selected(head) == ["tests/test_tree.py"]
+    assert repo.selected(head) == [
+        "tests/test_doc.py",
+        "tests/test_glob.py",
+        "tests/test_tree.py",
+    ]
 
 
-def test_a_path_no_feature_owns_selects_the_cross_cutting_alone(repo):
+def test_a_skill_selects_the_tests_that_name_its_directory_and_not_the_other_skills(repo):
+    assert repo.selected(repo.change(["skills/one/SKILL.md"])) == [
+        "tests/test_one.py",
+        "tests/test_tree.py",
+    ]
+    repo.base = repo.commit_head()
+    assert repo.selected(repo.change(["skills/two/SKILL.md"])) == [
+        "tests/test_tree.py",
+        "tests/test_two.py",
+    ]
+
+
+def test_a_file_no_feature_owns_and_no_test_names_selects_the_cross_cutting_alone(repo):
     head = repo.change(["README.md"])
 
     assert repo.selected(head) == ["tests/test_tree.py"]
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "Makefile",
-        "pyproject.toml",
-        ".github/workflows/check.yml",
-        "tests/conftest.py",
-        "tests/fixtures/t3/tool.json",
-        "tests/helpers.py",
-        ".cursor/skills/verify-jstack/features/alpha.md",
-        "scripts/select_tests.py",
-        "src/jmerge/ready.py",
-        "src/jsettings/__init__.py",
-        "src/jbriefs/skills.py",
-    ],
-)
-def test_a_path_the_whole_suite_rests_on_selects_all(repo, path):
-    head = repo.change([path])
+def test_a_star_stays_within_one_part_of_the_path(repo):
+    head = repo.change(["docs/deeper/alpha.md"])
+
+    assert repo.selected(head) == ["tests/test_tree.py"]
+
+
+def test_an_edit_to_a_feature_file_selects_that_features_tests_and_not_all(repo):
+    head = repo.change([f"{select.MAP}/alpha.md"])
+
+    assert repo.selected(head) == [
+        "tests/test_alpha.py",
+        "tests/test_glob.py",
+        "tests/test_helped.py",
+        "tests/test_tree.py",
+    ]
+
+
+def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
+    head = repo.change([f"{select.MAP}/README.md"])
+
+    assert repo.selected(head) == ["tests/test_tree.py"]
+
+
+@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock", "tests/conftest.py"])
+def test_a_path_every_test_rests_on_selects_all(repo, path):
+    head = repo.change([path], text="# changed\n")
+
+    assert repo.selected(head) == ["all"]
+
+
+def test_a_test_module_that_conftest_loads_for_every_test_selects_all(repo):
+    head = repo.change(["tests/daemons.py"], text="# changed\n")
+
+    assert repo.selected(head) == ["all"]
+
+
+def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fixture(repo):
+    head = repo.change(["tests/test_kit.py"], text="# changed\n")
+
+    assert repo.selected(head) == [
+        "tests/test_kit.py",
+        "tests/test_tree.py",
+        "tests/test_uses_kit.py",
+    ]
+
+
+def test_a_fixture_selects_the_tests_that_name_it(repo):
+    head = repo.change(["tests/fixtures/shapes/a.json"])
+
+    assert repo.selected(head) == ["tests/test_shapes.py", "tests/test_tree.py"]
+
+
+def test_a_fixture_no_test_names_selects_all(repo):
+    head = repo.change(["tests/fixtures/orphan/x.json"])
 
     assert repo.selected(head) == ["all"]
 
@@ -191,30 +294,23 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
     ]
 
 
-def test_a_helper_that_imports_a_changed_test_is_not_named_for_pytest_to_run(repo):
-    head = repo.change(["tests/test_helper.py"])
-
-    assert "tests/leaves.py" not in repo.selected(head)
-
-
-def test_a_test_module_conftest_imports_selects_all(repo):
-    head = repo.change(["tests/test_shared.py"])
-
-    assert repo.selected(head) == ["all"]
-
-
 def test_a_deleted_test_is_not_named(repo):
-    head = repo.change(["src/alpha/a.py"], gone=["tests/test_alpha.py"])
+    head = repo.change(["src/alpha/util.py"], gone=["tests/test_alpha.py"])
 
-    assert repo.selected(head) == ["tests/test_both.py", "tests/test_tree.py"]
+    assert repo.selected(head) == [
+        "tests/test_glob.py",
+        "tests/test_helped.py",
+        "tests/test_tree.py",
+    ]
 
 
-def test_a_moved_file_selects_the_feature_of_the_path_it_left(repo):
+def test_a_moved_module_selects_the_tests_that_imported_it_from_where_it_was(repo):
     head = repo.change(moved=[("src/alpha/a.py", "lib/a.py")])
 
     assert repo.selected(head) == [
         "tests/test_alpha.py",
-        "tests/test_both.py",
+        "tests/test_glob.py",
+        "tests/test_helped.py",
         "tests/test_tree.py",
     ]
 
@@ -226,7 +322,7 @@ def test_the_same_commits_give_the_same_lines(repo):
 
 
 @pytest.mark.parametrize(
-    "path", ["src/alpha/a.py", "src/jbriefs/skills.py", "tests/test_helper.py"]
+    "path", ["src/alpha/a.py", "src/jbriefs/skills.py", "tests/test_helper.py", "docs/alpha.md"]
 )
 def test_a_bare_python_selects_what_the_venv_selects(repo, path):
     head = repo.change([path])
@@ -254,7 +350,7 @@ def test_with_no_way_to_read_a_pattern_it_selects_all(repo):
 
     assert ran.returncode == 0
     assert ran.stdout == "all\n"
-    assert "no pattern can be read" in ran.stderr
+    assert "nothing can be read" in ran.stderr
 
 
 def test_a_matcher_whose_names_moved_selects_all(repo):
@@ -269,6 +365,16 @@ def test_a_matcher_whose_names_moved_selects_all(repo):
     assert "ImportError" in ran.stderr
 
 
+def test_a_module_that_does_not_parse_selects_all_and_names_it(repo):
+    head = repo.change(["src/alpha/a.py"], text="def (\n")
+
+    ran = repo.run(repo.base, head)
+
+    assert ran.returncode == 0
+    assert ran.stdout == "all\n"
+    assert "src/alpha/a.py" in ran.stderr
+
+
 def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
     ran = repo.run(repo.base, "no-such-commit")
 
@@ -278,9 +384,13 @@ def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
 
 def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
     map = REPO / select.MAP
-    repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")})
+    repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
+    (tmp_path / "tests").mkdir()
     for test in (REPO / "tests").glob("*.py"):
         shutil.copy2(test, tmp_path / "tests" / test.name)
+    for page in (REPO / "tests" / "fixtures").rglob("*"):
+        if page.is_file():
+            write(tmp_path, {page.relative_to(REPO).as_posix(): page.read_text()})
     repo.base = repo.commit()
 
     head = repo.change(["src/jbus/view/page.html"])
@@ -289,20 +399,75 @@ def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its
     assert "tests/test_jbus_view.py" in selected
     assert "tests/test_jbus_view_page.py" not in selected
     assert set(select.cross_cutting()) <= set(selected)
-    assert "tests/test_jbus_queue.py" not in selected
+    assert "tests/test_drift.py" not in selected
+
+
+SUMMARY = re.compile(
+    r"check-fast selection=(?P<selection>all|some) files=(?P<files>\d+) of=(?P<of>\d+)"
+    r" changed=(?P<changed>\d+) imports=(?P<imports>\d+) names=(?P<names>\d+)"
+    r" features=(?P<features>\d+) cross-cutting=(?P<cross>\d+) forced-by=(?P<forced>\S+)"
+)
+
+
+def summary(repo, head, tmp_path):
+    file = tmp_path / "summary.md"
+    env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file)}
+    ran = repo.run(repo.base, head, env=env)
+    assert ran.returncode == 0, ran.stderr
+    return ran.stdout.splitlines(), file.read_text().strip().splitlines()
+
+
+def test_the_selection_is_added_to_the_job_summary_as_a_line_a_collector_can_read(repo, tmp_path):
+    head = repo.change(["src/alpha/util.py", "docs/alpha.md"])
+    total = len(list((repo.root / "tests").glob("test_*.py")))
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert len(lines) == 1
+    found = SUMMARY.fullmatch(lines[0])
+    assert found, lines[0]
+    assert (found["selection"], int(found["files"]), int(found["of"])) == (
+        "some",
+        len(printed),
+        total,
+    )
+    assert int(found["changed"]) == 2
+    assert [found[key] for key in ("imports", "names", "features", "cross", "forced")] == [
+        "2",
+        "1",
+        "1",
+        "1",
+        "-",
+    ]
+
+
+def test_an_all_says_which_path_forced_it(repo, tmp_path):
+    head = repo.change(["pyproject.toml"])
+    total = len(list((repo.root / "tests").glob("test_*.py")))
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    found = SUMMARY.fullmatch(lines[0])
+    assert found, lines[0]
+    assert (found["selection"], int(found["files"]), int(found["of"])) == ("all", total, total)
+    assert found["forced"] == "pyproject.toml"
+
+
+def test_an_unread_map_says_so_in_the_summary(repo, tmp_path):
+    head = repo.change(["src/alpha/a.py"])
+    shutil.rmtree(repo.root / "src" / "jmerge")
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert SUMMARY.fullmatch(lines[0])["forced"] == "unread"
 
 
 def tracked(*paths):
     """The files git has or would add under `paths`."""
     listed = git(REPO, "ls-files", "--cached", "--others", "--exclude-standard", "--", *paths)
     return listed.splitlines()
-
-
-def test_every_test_file_is_a_features_or_cross_cutting():
-    named = {test for _, tests in select.features().values() for test in tests}
-    named |= set(select.cross_cutting())
-
-    assert [test for test in tracked("tests/test_*.py") if test not in named] == []
 
 
 def test_every_path_is_owned_by_a_feature():
@@ -323,72 +488,123 @@ def test_every_test_file_the_map_names_is_there():
 
 
 def test_every_feature_has_both_lines_and_patterns_jmerge_can_read():
-    for name, (paths, tests) in select.features().items():
-        assert paths, f"{name} has no Paths: line"
-        assert tests, f"{name} has no Tests: line"
+    for path in sorted((REPO / select.MAP).glob("*.md")):
+        if path.stem == "README":
+            continue
+        lines = path.read_text().splitlines()
+        for label in ("Paths:", "Tests:"):
+            assert any(line.startswith(label) for line in lines), f"{path.stem} has no {label}"
+        paths = select.features()[path.stem][0]
+        assert paths, f"{path.stem} has no Paths"
         assert select.ready().patterns_of("\n".join(paths)) == tuple(paths)
 
 
-def imports(text):
-    return set(re.findall(r"^\s*(?:from|import) (\w+)", text, re.M))
+def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects():
+    """The tests of a feature come from what they import and what they name. A `Tests:` entry
+    is the test that reads a feature's files with no string that shows it (a glob over a tree),
+    so one that an import or a name already selects is a hand list the code makes needless."""
+    shown = []
+    for name, (owned, listed_tests) in select.features().items():
+        mine = [one for one, path in select.modules().items() if owns_module(owned, path)]
+        seen = select.test_files(select.importers(mine))
+        for path in tracked():
+            if select.owns(owned, path) and path not in select.modules().values():
+                seen |= select.readers(path)
+        shown += [f"{name} lists {test}" for test in listed_tests if test in seen]
+    assert shown == []
 
 
-def reached(package):
-    """The packages of `src/` that a package imports, itself and theirs included."""
-    found, todo = set(), [package]
-    while todo:
-        one = todo.pop()
-        found.add(one)
-        for path in (REPO / "src" / one).rglob("*.py"):
-            todo += sorted(imports(path.read_text()) & set(PACKAGES) - found)
-    return found
+def owns_module(owned, path):
+    return path.startswith("src/") and select.owns(owned, path)
 
 
-def test_each_test_is_named_by_a_feature_that_owns_every_package_it_imports():
-    modules = {path.stem: path.read_text() for path in (REPO / "tests").glob("*.py")}
+def test_every_test_file_is_run_by_a_change_to_something_or_is_cross_cutting():
     cross = set(select.cross_cutting())
-    features = select.features().values()
-    short = []
-    for name in modules:
-        test = f"tests/{name}.py"
-        if not name.startswith("test_") or test in cross:
-            continue
-        seen, todo, packages = set(), [name], set()
-        while todo:
-            one = todo.pop()
-            seen.add(one)
-            packages |= imports(modules[one]) & set(PACKAGES)
-            todo += sorted(imports(modules[one]) & set(modules) - seen)
-        for package in sorted(set().union(*map(reached, packages)) if packages else ()):
-            owner = f"src/{package}/__init__.py"
-            if not any(select.owns(paths, owner) and test in tests for paths, tests in features):
-                short.append(f"{test} imports {package}, and no feature that owns it names it")
-    assert short == []
+    every = {path for path in tracked() if not path.startswith(".")} - {"tests/conftest.py"}
+    run = set(cross)
+    for path in sorted(every):
+        tests, _ = select.selection([path])
+        run |= set(tests) - {"all"}
+    left = [
+        test
+        for test in tracked("tests/test_*.py")
+        if test not in run and not select.opens_browser(test)
+    ]
+    assert left == []
+
+
+ORACLE = """
+import builtins, importlib, json, sys
+from pathlib import Path
+
+tests, src = sys.argv[1:3]
+sys.path[:0] = [tests, src]
+seen, failed = set(), []
+real = builtins.__import__
+
+
+def hook(name, globals=None, locals=None, fromlist=(), level=0):
+    module = real(name, globals, locals, fromlist, level)
+    importer = (globals or {}).get("__name__")
+    if importer and not level:
+        seen.add((importer, name))
+        seen.update((importer, f"{name}.{one}") for one in fromlist or ())
+    return module
+
+
+builtins.__import__ = hook
+for path in sorted(Path(tests).glob("*.py")):
+    try:
+        importlib.import_module(path.stem)
+    except BaseException as error:
+        failed.append(f"{path.stem}: {error!r}")
+print(json.dumps({"seen": sorted(seen), "failed": failed}))
+"""
+
+
+def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
+    ran = subprocess.run(
+        [sys.executable, "-c", ORACLE, str(REPO / "tests"), str(REPO / "src")],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+    found = json.loads(ran.stdout.splitlines()[-1])
+    graph = select.edges()
+    missing = [
+        f"{importer} imports {name}"
+        for importer, name in found["seen"]
+        if importer in graph
+        for reached in sorted(select.parents(name) & select.modules().keys())
+        if reached != importer and reached not in graph[importer]
+    ]
+    assert (missing, found["failed"]) == ([], [])
 
 
 BROWSER_MODULE = "import pytest\n\npytestmark = [pytest.mark.timeout(9), pytest.mark.browser]\n"
-BROWSER_TEST = "import pytest\n\n\n@pytest.mark.browser\ndef test_beta():\n    pass\n"
+BROWSER_TEST = (
+    "import beta.b\nimport pytest\n\n\n@pytest.mark.browser\ndef test_beta():\n    pass\n"
+)
 
 
 def test_a_test_module_marked_browser_is_not_selected_by_a_change_that_reaches_it(repo):
-    write(repo.root, {"tests/test_alpha.py": BROWSER_MODULE + "\n\ndef test_page():\n    pass\n"})
+    write(repo.root, {"tests/test_alpha.py": BROWSER_MODULE + "from alpha import a\n"})
     repo.base = repo.commit()
 
     head = repo.change(["src/alpha/a.py"])
-    assert repo.selected(head) == ["tests/test_both.py", "tests/test_tree.py"]
-    repo.base = head
-    assert repo.selected(repo.change(["tests/test_alpha.py"])) == ["tests/test_tree.py"]
+    assert "tests/test_alpha.py" not in repo.selected(head)
+    repo.base = repo.commit_head()
+    assert "tests/test_alpha.py" not in repo.selected(repo.change(["tests/test_alpha.py"]))
 
 
 def test_a_test_module_that_imports_a_browser_module_is_still_selected(repo):
     write(repo.root, {"tests/test_helper.py": BROWSER_MODULE + "HELP = 1\n"})
     repo.base = repo.commit()
 
-    assert repo.selected(repo.change(["tests/test_helper.py"])) == [
-        "tests/test_tree.py",
-        "tests/test_user.py",
-        "tests/test_user_of_user.py",
-    ]
+    selected = repo.selected(repo.change(["tests/test_helper.py"]))
+    assert "tests/test_helper.py" not in selected
+    assert "tests/test_user.py" in selected
 
 
 def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_test_out(repo):
