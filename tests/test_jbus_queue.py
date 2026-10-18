@@ -1218,8 +1218,16 @@ def test_a_batch_line_takes_merge_after(kitchen):
     [
         ("beta", "beta", "beta cannot merge after itself"),
         ("beta", "nobody", "beta cannot merge after nobody: the queue has no row nobody"),
-        ("alpha", "beta", "alpha cannot merge after beta: beta merges after alpha"),
-        ("gamma", "beta", "gamma cannot merge after beta: beta merges after gamma"),
+        (
+            "alpha",
+            "beta",
+            "alpha cannot merge after beta: beta is already behind alpha by merge_after or depends",
+        ),
+        (
+            "gamma",
+            "beta",
+            "gamma cannot merge after beta: beta is already behind gamma by merge_after or depends",
+        ),
     ],
 )
 def test_an_order_that_could_never_be_kept_is_refused_and_nothing_is_queued(
@@ -1271,6 +1279,22 @@ def test_an_order_that_could_never_be_kept_is_refused_and_nothing_is_queued(
     code, said = kitchen.main("--project", "demo", *argv, stdin=brief(slug))
     assert code != 0
     assert said.startswith(f"refused: {refused}")
+    assert stored(kitchen) == before
+
+
+def test_a_depends_edge_that_closes_a_merge_after_chain_is_refused(kitchen):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
+    argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha"]
+    assert kitchen.main("--project", "demo", *argv, stdin=brief("beta"))[0] == 0
+    before = stored(kitchen)
+    argv = ["queue", "add", "alpha", "--priority", "1", "--depends", "beta"]
+    code, said = kitchen.main("--project", "demo", *argv, stdin=brief("alpha"))
+    assert code != 0
+    assert said.startswith(
+        "refused: alpha cannot depend on beta: beta is already behind alpha "
+        "by merge_after or depends"
+    )
     assert stored(kitchen) == before
 
 

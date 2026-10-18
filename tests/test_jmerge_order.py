@@ -132,6 +132,18 @@ def test_a_queue_that_cannot_be_read_merges_nothing(two):
     assert two.untouched()
 
 
+def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
+    path = queue_of(two.home, [])
+    path.unlink()
+    path.mkdir()
+    said = two.run()
+    assert said == [
+        f"wait 7 {merge.URL}: {ready.QUEUE_UNREADABLE}",
+        f"wait 8 {BETA_URL}: {ready.QUEUE_UNREADABLE}",
+    ]
+    assert two.untouched()
+
+
 @pytest.mark.parametrize(
     ("reason", "step"),
     [

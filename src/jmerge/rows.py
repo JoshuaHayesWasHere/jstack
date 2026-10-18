@@ -33,7 +33,7 @@ def read(checkout: Path) -> list[queue.Row] | None:
         return []
     try:
         return queue.load(config.state(project))
-    except queue.Unparsable:
+    except (queue.Unparsable, OSError):
         return None
 
 
