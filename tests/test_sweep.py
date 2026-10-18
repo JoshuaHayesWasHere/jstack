@@ -362,8 +362,8 @@ def closed_unmerged(scene):
 
 def github_does_not_answer(scene):
     scene.crewmate("alpha")
-    (scene.home.stub / "pull-1.json").unlink()
-    return "could not ask GitHub about its pull request"
+    (scene.home.stub / "pull-1.json").write_text("<html></html>\n")
+    return "could not ask GitHub about its pull request: gh exited 0: its output was not JSON"
 
 
 def dirty(scene):

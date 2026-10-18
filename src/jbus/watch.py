@@ -39,6 +39,8 @@ from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
 from jbus.t3 import Client, T3Error
 from jbus.wake import Changed, Depends, Pass, Slot, cut
+from jmerge.asked import Silent
+from jmerge.asked import why as asked_why
 
 EVENTS = {"merged": "quiet", "stale": "quiet", "retro": "quiet"}
 TITLE = "crew: "
@@ -130,20 +132,23 @@ def _silent(run: Pass, why: str) -> Look:
     return Look(why=why)
 
 
-def pulls(run: Pass, state: str, fields: str, *more: str) -> list[dict[str, Any]] | None:
+def pulls(run: Pass, state: str, fields: str, *more: str) -> list[dict[str, Any]]:
+    """The pull requests `gh` lists. A `gh` that gave none raises `Silent`."""
     asked = run.run("gh", "pr", "list", "--state", state, "--json", fields, *more)
     try:
         pulls = json.loads(asked.stdout) if asked.returncode == 0 else None
     except ValueError:
         pulls = None
-    return pulls if isinstance(pulls, list) else None
+    if not isinstance(pulls, list):
+        raise Silent(asked_why(asked))
+    return pulls
 
 
-def _named(run: Pass, url: str) -> list[dict[str, Any]] | None:
+def _named(run: Pass, url: str) -> list[dict[str, Any]]:
     """The pull request at this address where it merged, as `pulls` gives a list.
 
     An address GitHub says it cannot resolve is no pull request, and stops no pass: a brief
-    may name one. A `gh` that failed any other way gave no answer.
+    may name one. A `gh` that failed any other way gave no answer, and `Silent` is raised.
     """
     asked = run.run("gh", "pr", "view", url, "--json", f"{MERGED},state")
     if asked.returncode and UNRESOLVED in asked.stderr:
@@ -153,7 +158,7 @@ def _named(run: Pass, url: str) -> list[dict[str, Any]] | None:
     except ValueError:
         pull = None
     if not isinstance(pull, dict):
-        return None
+        raise Silent(asked_why(asked))
     return [pull] if pull.get("state") == "MERGED" else []
 
 
@@ -212,29 +217,28 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     out = world.live()
     for slug in run.removed:
         world.threads.pop(slug, None)
-    for state, fields, into in (("open", OPEN, world.open), ("merged", MERGED, world.merged)):
-        listed = pulls(run, state, fields, "--limit", "100")
-        if listed is None:
-            run.say(f"wait {run.project.name}: could not ask GitHub")
-            return Look(out=out)
-        for pull in sorted(listed, key=lambda p: p.get("mergedAt") or ""):
-            into[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
-    for slug in sorted(named - set(world.open) - set(world.merged)):
-        if slug not in kept:
-            if slug in url_of:
-                found = _named(run, url_of[slug])
-            else:
-                found = pulls(run, "merged", MERGED, "--head", slug, "--limit", "1")
-            if found is None:
-                run.say(f"wait {run.project.name}: could not ask GitHub")
-                return Look(out=out)
-            if not found:
-                continue
-            kept[slug] = found[0]
-            write_json(run.state / "merged.json", kept)
-        world.merged[slug] = kept[slug]
+    try:
+        for state, fields, into in (("open", OPEN, world.open), ("merged", MERGED, world.merged)):
+            for pull in sorted(
+                pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
+            ):
+                into[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
+        for slug in sorted(named - set(world.open) - set(world.merged)):
+            if slug not in kept:
+                if slug in url_of:
+                    found = _named(run, url_of[slug])
+                else:
+                    found = pulls(run, "merged", MERGED, "--head", slug, "--limit", "1")
+                if not found:
+                    continue
+                kept[slug] = found[0]
+                write_json(run.state / "merged.json", kept)
+            world.merged[slug] = kept[slug]
+    except Silent as silent:
+        run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
+        return Look(out=out)
     return Look(world, out)
 
 

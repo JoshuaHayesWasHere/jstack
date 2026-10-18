@@ -19,6 +19,7 @@ from typing import Any
 
 import jbus
 from jbus import dispatch, item, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
+from jmerge.asked import Silent
 
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
@@ -71,10 +72,11 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             ("open", "{slug} is out: its pull request #{number} is open"),
             ("merged", "{slug} merged as #{number}, and a merged row stays"),
         ):
-            found = watch.pulls(run, state, "number", "--head", slug, "--limit", "1")
-            if found is None:
+            try:
+                found = watch.pulls(run, state, "number", "--head", slug, "--limit", "1")
+            except Silent as silent:
                 asked = f"GitHub could not be asked whether {slug} has a pull request"
-                raise jbus.Refused(f"refused: {asked}")
+                raise jbus.Refused(f"refused: {asked}{silent}") from silent
             if found:
                 return said.format(slug=slug, number=found[0]["number"])
         return ""

@@ -226,6 +226,6 @@ def test_it_asks_github_once_and_merges_removes_and_logs_nothing(claims):
 def test_when_github_cannot_be_asked_it_waits(claims):
     claims.write("alpha")
     (claims.home.stub / "list.json").unlink()
-    assert claims.run() == ["wait: could not ask GitHub"]
+    assert claims.run() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
     assert claims.home.code == 1
     assert not (claims.home.state / "merge.log").exists()

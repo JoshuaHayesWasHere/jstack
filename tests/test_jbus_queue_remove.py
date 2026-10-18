@@ -173,7 +173,11 @@ def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
         ("other", "refused: only user removes a row, not Chef"),
         ("when", 'refused: --at is "<YYYY-MM-DD HH:MM ET>"'),
         ("silent", "refused: T3 Code could not be asked whether alpha's thread is out"),
-        ("github", "refused: GitHub could not be asked whether alpha has a pull request"),
+        (
+            "github",
+            "refused: GitHub could not be asked whether alpha has a pull request"
+            ": gh exited 1: HTTP 502: Bad Gateway",
+        ),
     ],
 )
 def test_a_row_that_is_out_merged_or_waited_on_is_refused_and_nothing_changes(kitchen, scene, says):
@@ -197,7 +201,7 @@ def test_a_row_that_is_out_merged_or_waited_on_is_refused_and_nothing_changes(ki
     elif scene == "silent":
         (kitchen.config_dir / "t3.json").unlink()
     elif scene == "github":
-        (kitchen.stub / "gh-down").write_text("")
+        (kitchen.stub / "gh-down").write_text("HTTP 502: Bad Gateway\n")
     before = (kitchen.state / "queue.json").read_text()
     code, said = remove(kitchen, slug, *word)
     assert (code, said.splitlines()[0][: len(says)]) == (1, says)

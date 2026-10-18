@@ -3,7 +3,7 @@
 When main's check fails at a commit within a day of a merge, a pass says `retro <slug>: main check failed at <sha12>, <n> merges since the last green`. The same pass writes the brief for the fix, `tasks/main-red-<sha12>.md` in the home's state, and adds it to the queue with no go: the user sees a `main-red-<sha12>` row waiting for approval. It is filed once for each red commit.
 
 Paths: `src/jbus/watch.py`
-Tests: `tests/test_jbus_kitchen.py`, `tests/test_jbus_watch.py`
+Tests: `tests/test_gh_said.py`, `tests/test_jbus_kitchen.py`, `tests/test_jbus_watch.py`
 
 ## Sub-features
 

@@ -295,7 +295,9 @@ def fake_gh(stub, args, cwd):
     """The `gh` of a kitchen, asked `args` in `cwd`: its exit code, stdout and stderr.
 
     `gh-down` is a GitHub that does not answer, and `gh-down-<checkout>` one that does not
-    for that one project. A list is a window: a pull request marked `old` has fallen out of
+    for that one project; `gh-view-down` is one that does not answer a `pr view`. The file
+    holds what `gh` says on stderr; `gh-code` is its exit code (1 with none) and `gh-out` what
+    it prints. A list is a window: a pull request marked `old` has fallen out of
     it, and `pr view` still finds it by its number, or ends as the real command does for one
     it cannot resolve. `head-now.json` is a head pushed since the list was given: only a
     view shows it. `run rerun` starts a run again and says nothing, or with `gh-no-rerun`
@@ -309,8 +311,14 @@ def fake_gh(stub, args, cwd):
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
-    if (stub / "gh-down").exists() or (stub / ("gh-down-" + cwd.name)).exists():
-        return 1, "", ""
+    down = [stub / "gh-down", stub / ("gh-down-" + cwd.name)]
+    if args[:2] == ["pr", "view"]:
+        down.append(stub / "gh-view-down")
+    for failing in down:
+        if failing.exists():
+            code = (stub / "gh-code").read_text() if (stub / "gh-code").exists() else "1"
+            out = (stub / "gh-out").read_text() if (stub / "gh-out").exists() else ""
+            return int(code), out, failing.read_text()
     if args[:2] == ["pr", "list"]:
         pulls = json.loads((stub / (args[args.index("--state") + 1] + ".json")).read_text())
         if "--head" in args:
@@ -378,8 +386,9 @@ def fake_jmerge(stub, args, cwd):
     """The `jmerge` of a kitchen, asked `args`: its exit code, stdout and stderr.
 
     `jmerge-dies` ends it as a `SystemExit` with a message ends the real command: the line
-    on stderr, exit 1. An accept of a held pull request does nothing where the test wrote
-    no `accept.txt`.
+    on stderr, exit 1. `jmerge-says` ends it as the real command ends when it cannot ask
+    GitHub: the line on stdout, exit 1. An accept of a held pull request does nothing where
+    the test wrote no `accept.txt`.
     """
     with open(stub / "jmerge.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -389,6 +398,8 @@ def fake_jmerge(stub, args, cwd):
         return 0, (stub / "claims.txt").read_text(), ""
     if (stub / "jmerge-dies").exists():
         return 1, "", (stub / "jmerge-dies").read_text() + "\n"
+    if (stub / "jmerge-says").exists():
+        return 1, (stub / "jmerge-says").read_text() + "\n", ""
     if "--sweep" in args:
         return 0, (stub / "sweep.txt").read_text(), ""
     if "--accept" in args:
