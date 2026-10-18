@@ -18,17 +18,18 @@ In place of the probe the proxy can add axe, `AXE`: the engine, vendored for the
 alone in `fixtures/jbus-view/axe.min.js`, and `axe-run.js`, which runs it over the view and
 over every drawer it opens, and measures the focus ring of everything a key reaches.
 
-These tests start a browser, so each run of it holds the machine's browser lock,
-`~/.local/state/locks/browser.lock`, where that file's directory is there: one browser of
-these tests is up at a time on the machine, however many runs there are. A test waits
-`PATIENCE` seconds for it and then fails with a line that says so. It is a lock of their own
-and not the heavy-suite lock, `heavy-suite.lock` beside it, so a run under `flock` on that
-one waits on nothing it holds itself. With no `chromium` on `PATH` a desk skips them, and a
-runner (GitHub Actions sets `GITHUB_ACTIONS` to true) fails every one: a check that passed
+These tests start a browser, so the whole module is marked `browser`: `make check` leaves it
+out, and `make check-browser` runs it, nightly and on a release. Each run of it holds the
+machine's browser lock, `~/.local/state/locks/browser.lock`, where that file's directory is
+there: one browser of these tests is up at a time on the machine, however many runs there are.
+A test waits `PATIENCE` seconds for it and then fails with a line that says so. It is a lock of
+their own and not the heavy-suite lock, `heavy-suite.lock` beside it, so a run under `flock` on
+that one waits on nothing it holds itself. With no `chromium` on `PATH` a desk skips them, and
+a runner (GitHub Actions sets `GITHUB_ACTIONS` to true) fails every one: a check that passed
 there would say the page was opened. `JSTACK_TEST_BROWSER` names another browser to open it
-in. The check names Google Chrome on GitHub's runner, whose Chromium is a snapshot build that
-now and then never starts its virtual time: the page runs on the clock and the browser never
-prints it.
+in. The browser workflow names Google Chrome on GitHub's runner, whose Chromium is a snapshot
+build that now and then never starts its virtual time: the page runs on the clock and the
+browser never prints it.
 
 Each browser has `LAUNCH` seconds. It runs under `timeout`, in a process group of its own,
 which goes whole when it ends or when the test is stopped, and the test fails with a line
@@ -109,7 +110,7 @@ LAUNCH = 60
 STOPPED = (124, 137)
 BROWSES = 5
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
-pytestmark = pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)
+pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 DESK, PHONE = (1440, 900), (390, 844)
 BAND = 45
 NEEDS = 220

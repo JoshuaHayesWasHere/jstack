@@ -1,6 +1,6 @@
 # The check CI runs
 
-The check workflow runs `make check` on every pull request and on main. `scripts/green_tree.py` skips the suite for a tree that already passed, and `scripts/select_tests.py` turns a diff into the test files it needs, from this map.
+The check workflow runs `make check-fast` on every pull request and `make check` on main, neither with the tests marked `browser`, which `.github/workflows/browser.yml` runs as `make check-browser` nightly and on a release. `scripts/green_tree.py` skips the suite for a tree that already passed, and `scripts/select_tests.py` turns a diff into the test files it needs, from this map.
 
 Paths: `scripts/`
 Tests: `tests/test_check_command.py`, `tests/test_select_tests.py`, `tests/test_workflows.py`

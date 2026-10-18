@@ -1,5 +1,7 @@
 # The one check command: the lint commands the README lists, and its test command on
 # several workers. CI runs it on main after each merge, and `check-fast` on a pull request.
+# Neither runs the tests marked `browser`, which open a real browser: `check-browser` runs
+# those, on a nightly and on a release (.github/workflows/browser.yml).
 
 # The tests run on this many workers (pytest-xdist), counted from the machine the run is on.
 # One core bounds the suite, so workers are what make a run short. A desk takes a third of the
@@ -25,7 +27,7 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) / $(SHARE))); [ "$$n" -g
 check:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run pytest -n $(TEST_WORKERS)
+	uv run pytest -n $(TEST_WORKERS) -m "not browser"
 
 # The check of a change: the same lint, and only the test files its diff from BASE to HEAD
 # reaches, as scripts/select_tests.py names them. Where the script says `all`, it is
@@ -39,7 +41,13 @@ check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	set -x; \
-	uv run ruff check . && uv run ruff format --check . && uv run pytest -n $(TEST_WORKERS) $$tests
+	uv run ruff check . && uv run ruff format --check . && uv run pytest -n $(TEST_WORKERS) -m "not browser" $$tests
+
+# Only the tests marked `browser`, which open a real browser and hold the machine's browser
+# lock. They run one at a time, so there are no workers, and no lint: `check` has that.
+.PHONY: check-browser
+check-browser:
+	uv run pytest -m browser
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.
