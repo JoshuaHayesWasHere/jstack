@@ -1,5 +1,5 @@
 """The one entry point: `jmerge [--check] [--all] [--home ID] [--land STACK]`,
-`jmerge --sweep [--check]`, `jmerge --claims`, and
+`jmerge --sweep [--check]`, `jmerge --claims`, `jmerge --scope SLUG`, and
 `jmerge --accept NUMBER --by USER --at "YYYY-MM-DD HH:MM ZONE"`, the name and the zone as
 jstack's config has them (`jsettings.Settings`).
 
@@ -36,7 +36,8 @@ A `merge-off` file in the repo's state merges nothing. Each `merged`
 line ends in the command that opens its revert. With `--sweep` it merges nothing: it
 removes what finished threads left and each tree's marker that is more than 7 days old,
 and prints what it removed and what it kept. With
-`--claims` it changes nothing: it prints the files each brief still out holds.
+`--claims` it changes nothing: it prints the files each brief still out holds. With `--scope SLUG`
+it changes nothing either: it prints each file the brief's branch changes that its `Where:` line does not cover.
 No model reads anything.
 """
 
@@ -45,6 +46,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import functools
+import itertools
 import json
 import os
 import re
@@ -60,6 +62,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import jsettings
+from jbriefs import parse
 from jbus import mainstate
 from jmerge import claims, green, proof, rangediff, ready, rows, sweep
 from jmerge.asked import why as asked_why
@@ -701,6 +704,64 @@ class Repo:
             if claim:
                 print(claim.line(), flush=True)
         return 0
+
+    def scoped(self, slug: str) -> int:
+        """Print each file a brief's branch changes that its `Where:` line does not cover.
+
+        The files are the branch's against the base it left: the default branch, or for a link
+        of a stack the branch it sits on. A branch that is gone is asked of its pull request.
+        Nothing is changed or logged, and a file outside is a line, not a failure: what to do
+        with one is the review's finding.
+        """
+        text = _read(self.state / "tasks" / f"{slug}.md")
+        if not text:
+            print(f"jmerge: no brief {slug} in {self.state / 'tasks'}", file=sys.stderr)
+            return 1
+        if not parse.where(text):
+            print(
+                f"jmerge: {slug}'s Where: line names no path, so its width cannot be checked",
+                file=sys.stderr,
+            )
+            return 1
+        branch, pull = claims.branch_of(slug, text)
+        changed = self.changed(branch, claims.stacked_on(text))
+        if changed is None and pull:
+            asked = _run(
+                self.main, "gh", "pr", "view", pull, "--json", "files", "--jq", ".files[].path"
+            )
+            changed = None if asked.returncode else sorted(asked.stdout.split())
+        if changed is None:
+            print(
+                f"jmerge: no branch {branch} here or on origin, and no pull request to ask",
+                file=sys.stderr,
+            )
+            return 1
+        for line in claims.scope(text, changed):
+            print(line, flush=True)
+        return 0
+
+    def changed(self, branch: str, base: str) -> list[str] | None:
+        """The files a branch changes from where it left its base, or None where this checkout
+        has neither the branch nor the base. A local branch is read before `origin`'s."""
+        if not base:
+            tip = _run(
+                self.main, "git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"
+            )
+            base = tip.stdout.strip().removeprefix("origin/")
+        heads = (f"refs/heads/{branch}", f"refs/remotes/origin/{branch}")
+        starts = (f"refs/remotes/origin/{base}", f"refs/heads/{base}") if base else ()
+        for head, start in itertools.product(heads, starts):
+            fork = _run(self.main, "git", "merge-base", start, head)
+            if fork.returncode:
+                continue
+            diff = _run(
+                self.main,
+                *("git", "-c", "core.quotePath=false", "diff", "--no-renames", "--name-only"),
+                fork.stdout.strip(),
+                head,
+            )
+            return None if diff.returncode else sorted(diff.stdout.splitlines())
+        return None
 
     def default(self) -> tuple[str, str]:
         """The default branch, as GitHub names it, and why not where it did not say."""
@@ -1579,6 +1640,13 @@ def parser() -> argparse.ArgumentParser:
         "open pull request, across this repo's homes; merge, remove and log nothing",
     )
     instead.add_argument(
+        "--scope",
+        metavar="SLUG",
+        help="print each file the brief's branch changes that its Where: line does not cover, "
+        "as 'outside: <path>', or 'wider: <path>: <why>' where the last Result's Wider: line "
+        "gives a reason; nothing is printed when all are inside; merge, remove and log nothing",
+    )
+    instead.add_argument(
         "--accept",
         metavar="NUMBER",
         help="lift the hold of this pull request at its current head and merge it: the "
@@ -1629,6 +1697,8 @@ def main(argv: list[str] | None = None) -> int:
     state = Path.home() / ".local" / "state" / "home" / main_checkout.name
     if args.claims:
         return Repo(main_checkout, state, args.home, args.all, user=user).claimed()
+    if args.scope:
+        return Repo(main_checkout, state, args.home, args.all, user=user).scoped(args.scope)
     repo = Repo(
         main_checkout,
         state,

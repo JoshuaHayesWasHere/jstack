@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from jbriefs import parse
 from jmerge import ready, sweep
 
 ROOT = "root"
@@ -34,6 +35,61 @@ def _where(text: str) -> str:
         if line.startswith("Where:"):
             return line.strip()
     return NO_WHERE
+
+
+def _last_result(text: str) -> list[str]:
+    """The lines from the brief's last `## Result` heading on, or none for a brief with none."""
+    lines = text.splitlines()
+    last = [at for at, line in enumerate(lines) if line.startswith("## Result")]
+    return lines[last[-1] :] if last else []
+
+
+def _wider(text: str) -> dict[str, str]:
+    """The files the last Result gives a reason for, by their `Wider: <path>: <why>` lines."""
+    found: dict[str, str] = {}
+    for line in _last_result(text):
+        path, _, why = line.removeprefix("Wider:").partition(":")
+        path = path.strip().strip("`")
+        if line.startswith("Wider:") and path and not path.startswith("<") and why.strip():
+            found[path] = why.strip()
+    return found
+
+
+def branch_of(slug: str, text: str) -> tuple[str, str]:
+    """The branch the last Result names, or the slug before there is a Result, and its pull
+    request's url, or nothing for a Result that opened none."""
+    for line in _last_result(text):
+        if line.startswith("Branch:"):
+            words = line.removeprefix("Branch:").split()
+            pull = next((word for word in words if word.startswith("http")), "")
+            return (words[0] if words else slug), pull
+    return slug, ""
+
+
+def stacked_on(text: str) -> str:
+    """The branch a link of a stack sits on, from `Stack: <name> <place> on <branch>` in the
+    brief's head, or nothing for a brief that is no link."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith("Stack:"):
+            words = line.removeprefix("Stack:").split()
+            return words[-1] if len(words) == 4 and words[2] == "on" else ""
+    return ""
+
+
+def scope(text: str, changed: list[str]) -> list[str]:
+    """One line for each changed file the brief's `Where:` does not cover, in `changed`'s order.
+
+    `outside: <path>` is a file nothing covers. `wider: <path>: <why>` is one the last
+    Result's `Wider: <path>: <why>` line gives a reason for. A file inside is not printed.
+    """
+    inside, wider = parse.where(text), _wider(text)
+    return [
+        f"wider: {path}: {wider[path]}" if path in wider else f"outside: {path}"
+        for path in changed
+        if not parse.covers(inside, path)
+    ]
 
 
 def home_of(text: str, homes: dict[str, str]) -> str:

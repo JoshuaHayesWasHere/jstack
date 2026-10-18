@@ -328,7 +328,7 @@ def test_scope_does_not_judge_a_where_that_names_no_path(claims, scope):
     scope.branch("alpha", "src/a.py")
     said, code, stderr = scope.run()
     assert (said, code) == ([], 1)
-    assert "its Where: line names no path" in stderr
+    assert "Where: line names no path" in stderr
 
 
 def test_scope_says_so_where_the_brief_or_the_branch_is_missing(claims, scope):
@@ -346,7 +346,7 @@ def test_scope_asks_the_pull_request_for_its_files_where_the_branch_is_gone(clai
     stub = claims.home.stub
     (stub / "gh").write_text(
         "#!/bin/sh\n"
-        '[ "$1 $2 $3 $4 $5 $6" = "pr view https://example.test/pull/7 --json files --jq" ] || exit 64\n'
+        '[ "$1 $2 $3 $4 $5" = "pr view https://example.test/pull/7 --json files" ] || exit 64\n'
         "printf 'src/a.py\\ndocs/a.md\\n'\n"
     )
     assert scope.run() == (["outside: docs/a.md"], 0, "")

@@ -11,7 +11,7 @@ A pass launches a row only when all of these hold:
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
 
 - **A brief whose scope changed after the go** is `gate <slug>: brief changed after approval`. Approve it again. An edit that keeps its meaning fingerprint is no change.
-- **A brief is not checked again.** The checks of `add` (`Design:`, `Proves it:`, `Skills:`, `Size:`, `Playbook:`) are made when a row is first queued, and a launch makes none of them. A row with a go is grandfathered, whatever a check added since says of its brief.
+- **A brief is not checked again.** The checks of `add` (`Design:`, `Proves it:`, `Skills:`, `Size:`, `Where:`, `Playbook:`) are made when a row is first queued, and a launch makes none of them. A row with a go is grandfathered, whatever a check added since says of its brief.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass. After `room_passes` passes in a row with no room, jbus sends `gate <slug>: no room for <n> passes: <why>` once.
 - **A lost reply is never launched twice.** jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks a lost reply's thread up.
 - **Overlap stops no launch.** Each crewmate has its own worktree and branch. A launch that shares a path with a brief that is out sends `overlap <slug>: shares <paths> with <holder>; whichever merges second rebases`, once per pair.

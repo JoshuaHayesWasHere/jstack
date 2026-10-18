@@ -413,12 +413,107 @@ def check_asked(text: str, notes: str) -> str:
     )
 
 
+_PAREN = re.compile(r"\([^()]*\)")
+_TICKED = re.compile(r"`([^`]+)`")
+_LINES = re.compile(r":\d+(?:-\d+)?$")
+_PATHLIKE = re.compile(r"[\w.@+~*?\[\]{}/-]+")
+_EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
+
+
+def _head_lines(text: str, label: str) -> str | None:
+    """The head field `<label>`: its first line and the lines under it, joined by a space."""
+    for name, lines in fields(text):
+        if name == label:
+            return " ".join(line.strip() for line in lines)
+    return None
+
+
+def _path(word: str, ticked: bool) -> str:
+    """The path or glob a word names under the repo, or nothing.
+
+    A word in backticks is one if it is a single token that is not an option, a URL or a
+    path that leaves the repo. A word between commas needs more to be told from prose: a
+    `/`, a glob, or a file extension.
+    """
+    word = _LINES.sub("", word.strip().rstrip(".,;:")).removeprefix("./")
+    if not word or word[0] in "-/~" or ".." in word.split("/") or "://" in word:
+        return ""
+    if not _PATHLIKE.fullmatch(word):
+        return ""
+    if not ticked and not ("/" in word or "*" in word or _EXTENSION.search(word)):
+        return ""
+    return word.rstrip("/")
+
+
+def where(text: str) -> tuple[str, ...]:
+    """The paths and globs the head's `Where:` line names, in its order, each once.
+
+    An item in backticks or between commas that names a path under the repo is kept. A
+    `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and prose
+    in parentheses is dropped, commas in it included. The first word of an item that does
+    not start in backticks is read too (`docs/ pages tied to`). A line that names none
+    gives an empty tuple.
+    """
+    line = _head_lines(text, "Where")
+    if line is None:
+        return ()
+    while (bare := _PAREN.sub("", line)) != line:
+        line = bare
+    found: dict[str, None] = {}
+    for item in line.split(","):
+        words = item.split()
+        named = [_path(word, True) for word in _TICKED.findall(item)]
+        if words and not words[0].startswith("`"):
+            named.insert(0, _path(words[0], False))
+        found.update(dict.fromkeys(filter(None, named)))
+    return tuple(found)
+
+
+def _glob(pattern: str) -> re.Pattern[str]:
+    """A glob as a regex over a whole path: `*` stays in a name, `**` crosses `/`."""
+    out, at = "", 0
+    while at < len(pattern):
+        if pattern.startswith("**/", at):
+            out, at = out + "(?:.*/)?", at + 3
+        elif pattern.startswith("**", at):
+            out, at = out + ".*", at + 2
+        elif pattern[at] == "*":
+            out, at = out + "[^/]*", at + 1
+        elif pattern[at] == "?":
+            out, at = out + "[^/]", at + 1
+        else:
+            out, at = out + re.escape(pattern[at]), at + 1
+    return re.compile(out)
+
+
+def covers(patterns: tuple[str, ...], path: str) -> bool:
+    """Whether a changed file is one of the paths and globs `where` gave, or is under one."""
+    parts = path.split("/")
+    parents = ["/".join(parts[: n + 1]) for n in range(len(parts))]
+    return any(_glob(pattern).fullmatch(parent) for pattern in patterns for parent in parents)
+
+
+def wheres(text: str) -> str:
+    """Why a brief's `Where:` line names no path, in one line with the line, or nothing.
+
+    A brief with no line, or with the template's own text, is left to `_filled`.
+    """
+    line = _head_lines(text, "Where")
+    if line is None or _filled(text, "Where") or where(text):
+        return ""
+    return (
+        "brief's Where: line names no path under the repo, so a changed file cannot be "
+        f"told from one outside it (write each path or directory in backticks): {line}"
+    )
+
+
 CHECKS = (
     ("Design", designed),
     ("Proves it", proven),
     ("Skills", skills.unknown),
     ("Size", sized),
     ("Playbook", playbook),
+    ("Where", wheres),
 )
 _SAYS_MISSING = ("Design", "Size", "Skills")
 
