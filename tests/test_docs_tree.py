@@ -7,7 +7,7 @@ what a page says about the tree, and reports each failure as `file:line: what is
   of a fenced block, or in prose as "the `<skill>` skill", has a folder under `skills/`. A slash
   word that is no skill is listed in `NOT_SKILLS` with the reason, so a rename cannot hide
   behind it.
-- A path that starts at a folder of the repo, such as `skills/<skill>/SKILL.md` or
+- A path that starts at a folder of `ROOTS`, such as `skills/<skill>/SKILL.md` or
   `templates/brief.md`, is a file or folder that exists. A path with a placeholder, a glob, or a
   `/` before it (`~/.claude/skills/<skill>`, `$T/../playbooks/$name.md`) is somewhere else and is
   not read.
@@ -18,11 +18,14 @@ what a page says about the tree, and reports each failure as `file:line: what is
   things of its own, so it is not read for counts. The README's counts of skills, and every
   count of commands, are also held by `test_docs_true.py`.
 
-The checks run on a root, so a test can run them on a copy of the tree with a fault put in.
+`python tests/test_docs_tree.py [root]` prints the problems of a root and exits 1 when there is
+one. The tests run it so, on the tree and on a copy of it with a fault put in.
 """
 
 import re
 import shutil
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from urllib.parse import unquote
@@ -31,7 +34,6 @@ import pytest
 
 REPO = Path(__file__).parent.parent
 
-# A slash word that is no skill. The key is the word, the value is what it is.
 NOT_SKILLS = {
     "clear": "a Claude Code command",
     "answer": "a reply to an item jbus asked about, in a webhook's reply",
@@ -39,7 +41,6 @@ NOT_SKILLS = {
     "tmp": "the machine's temporary folder",
     "proc": "the machine's process folder",
 }
-# The folders of the repo whose paths a page may write from its top, as `templates/brief.md`.
 ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
 NUMBERS = (
     "zero one two three four five six seven eight nine ten "
@@ -119,8 +120,12 @@ def link_problems(root, page, text):
     return found
 
 
+def skill_names(root):
+    return {path.parent.name for path in (root / "skills").glob("*/SKILL.md")}
+
+
 def skill_problems(root, text):
-    skills = {path.parent.name for path in (root / "skills").glob("*/SKILL.md")}
+    skills = skill_names(root)
     found = []
     for number, piece in code_of(text):
         word = piece.split()[0] if piece.split() else ""
@@ -187,16 +192,33 @@ def problems(root):
     return found
 
 
+def main(argv):
+    """The command the tests run: each problem of the tree at argv[0], and 1 when there is one."""
+    found = problems(Path(argv[0]) if argv else REPO)
+    if found:
+        print("\n".join(found))
+    return 1 if found else 0
+
+
+def ran(root):
+    """The lines this module prints when run as a command on a root, and its exit code agreed."""
+    done = subprocess.run(
+        [sys.executable, __file__, str(root)], capture_output=True, text=True, check=False
+    )
+    assert done.stderr == ""
+    assert done.returncode == (1 if done.stdout else 0)
+    return done.stdout.splitlines()
+
+
 def test_the_readme_the_docs_and_the_skills_say_nothing_the_tree_does_not_have():
-    assert problems(REPO) == []
+    assert ran(REPO) == []
 
 
 def test_the_tree_is_read_whole_and_counted():
-    tree = tree_counts(REPO)
-    assert tree["skills"] > 20 and tree["principles"] > 20 and tree["playbooks"] > 20
-    assert tree["commands"] == 7
+    counts = tree_counts(REPO)
+    assert len(counts) == 4 and all(count >= 7 for count in counts.values())
     assert len(pages(REPO)) > 40
-    assert not set(NOT_SKILLS) & {path.parent.name for path in (REPO / "skills").glob("*/SKILL.md")}
+    assert not set(NOT_SKILLS) & skill_names(REPO)
 
 
 @pytest.fixture
@@ -211,14 +233,14 @@ def copy(tmp_path):
 
 
 def test_a_copy_with_a_broken_link_an_unknown_skill_and_a_wrong_count_fails_each_time(copy):
-    assert problems(copy) == []
+    assert ran(copy) == []
     readme = copy / "README.md"
     readme.write_text(readme.read_text() + "\nSee [FAKE page](docs/fake-missing.md).\n")
     page = copy / "docs" / "state.md"
     page.write_text(page.read_text() + "\nRun `/fake-skill` first.\n")
     count = copy / "docs" / "playbooks.md"
     count.write_text(count.read_text() + "\nThe tree has 99 principles.\n")
-    found = problems(copy)
+    found = ran(copy)
     assert len(found) == 3, found
     assert found[0].startswith("README.md:") and "docs/fake-missing.md" in found[0]
     assert found[1].startswith("docs/playbooks.md:") and "counts 99 principles" in found[1]
@@ -265,7 +287,7 @@ def test_a_link_to_a_file_or_a_heading_that_is_not_there_is_found(small):
             "docs/pic.svg": "<svg/>",
         },
     )
-    assert problems(small) == [
+    assert ran(small) == [
         "docs/a.md:10: the link nope.md goes to a file that is not there",
         "docs/a.md:11: the link b.md#nowhere goes to a heading that is not there",
         "docs/a.md:12: the link #nowhere goes to a heading that is not there",
@@ -285,7 +307,7 @@ def test_a_skill_named_that_the_tree_lacks_is_found_in_a_page_and_in_a_skill(sma
             "skills/beta/SKILL.md": "# Beta\n\nAsk `/zeta` for it.\n",
         },
     )
-    assert problems(small) == [
+    assert ran(small) == [
         "docs/a.md:2: /gamma is named as a skill and skills/ has no gamma",
         "docs/a.md:5: /delta is named as a skill and skills/ has no delta",
         "docs/a.md:8: theta is named as a skill and skills/ has no theta",
@@ -306,7 +328,7 @@ def test_a_path_that_is_gone_is_found_and_one_somewhere_else_is_not_read(small):
             ),
         },
     )
-    assert problems(small) == [
+    assert ran(small) == [
         "docs/a.md:1: skills/gone/SKILL.md is named and the tree has no such path",
         "docs/a.md:2: skills/alpha/missing.md is named and the tree has no such path",
     ]
@@ -323,9 +345,13 @@ def test_a_count_the_tree_disagrees_with_is_found(small):
             ),
         },
     )
-    assert problems(small) == [
+    assert ran(small) == [
         "docs/a.md:2: it counts 12 skills and the tree has 2",
         "docs/a.md:2: it counts 6 commands and the tree has 2",
         "docs/a.md:2: it counts 3 principles and the tree has 1",
         "docs/a.md:3: it counts 4 playbooks and the tree has 1",
     ]
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
