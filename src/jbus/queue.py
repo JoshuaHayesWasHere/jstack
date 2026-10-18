@@ -666,12 +666,21 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
 def _merge_after(batch: _Batch, verb: Add) -> None:
     """Refuse an order jmerge could not keep: a row that merges after itself, after a slug
     that was removed or that the table has no row for, or after a row that merges after it
-    in turn, or depends on it in turn, which would leave both waiting for ever. Rows of the
-    batch count as they are when the verb runs."""
-    after = {
-        row["slug"]: [*row.get("merge_after", []), *row.get("depends", [])] for row in batch.rows
+    in turn, or depends on it in turn, which would leave both waiting for ever. A loop of
+    `depends` alone is not refused here: the stall check names it. Rows of the batch count as
+    they are when the verb runs."""
+    edges = {
+        row["slug"]: [
+            *((slug, True) for slug in row.get("merge_after", [])),
+            *((slug, False) for slug in row.get("depends", [])),
+        ]
+        for row in batch.rows
     }
-    after[verb.slug] = [*verb.merge_after, *verb.depends]
+    ahead_of = [
+        *((slug, True) for slug in verb.merge_after),
+        *((slug, False) for slug in verb.depends),
+    ]
+    edges[verb.slug] = ahead_of
     for other in verb.merge_after:
         if other == verb.slug:
             raise Refused(f"refused: {verb.slug} cannot merge after itself")
@@ -679,21 +688,23 @@ def _merge_after(batch: _Batch, verb: Add) -> None:
             raise Refused(
                 f"refused: {verb.slug} cannot merge after {other}: {_was(other, batch.gone)}"
             )
-        if other not in after:
+        if other not in edges:
             raise Refused(
                 f"refused: {verb.slug} cannot merge after {other}: the queue has no row {other}"
             )
-        seen, ahead = set(), [other]
+    for other, ordered in ahead_of:
+        seen, ahead = set(), [(other, ordered)]
         while ahead:
-            here = ahead.pop()
-            if here == verb.slug:
+            here, through = ahead.pop()
+            if here == verb.slug and through:
+                said = "merge after" if ordered else "depend on"
                 raise Refused(
-                    f"refused: {verb.slug} cannot merge after {other}: {other} merges after "
-                    f"{verb.slug}, and neither would ever merge"
+                    f"refused: {verb.slug} cannot {said} {other}: {other} is already behind "
+                    f"{verb.slug} by merge_after or depends, and neither would ever go"
                 )
-            if here not in seen:
-                seen.add(here)
-                ahead += after.get(here, [])
+            if (here, through) not in seen:
+                seen.add((here, through))
+                ahead += [(slug, through or ma) for slug, ma in edges.get(here, [])]
 
 
 def _do(
