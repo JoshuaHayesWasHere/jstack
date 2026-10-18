@@ -1,0 +1,47 @@
+name: browser
+
+# The tests marked `browser` open a real browser and take minutes, so no change's check runs
+# them (check.yml leaves them out). They run here on three triggers and no other: a nightly
+# at 03:00 ET (07:00 UTC), a release (a pushed `v*` tag, or a published GitHub release), and
+# by hand. Never on a pull request, and never on a push to main.
+#
+# A red run is not told from here: jbus reads this workflow's runs and files and queues the
+# brief for the fix, `browser-red-<date>` (src/jbus/watch.py).
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    # The runner is the repo's to name, as in check.yml: its variable RUNS_ON, or the local
+    # ephemeral runner, never GitHub's.
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
+    # The 94 browser tests run one at a time under the machine's browser lock, about 7 minutes
+    # on a desk: 30 leaves room for a slow runner, and a hung run still stops.
+    timeout-minutes: 30
+    env:
+      # A stable Google Chrome, which the local runner image installs and GitHub's image has
+      # too. A Chromium snapshot's virtual time now and then never starts, and the browser
+      # tests then wait out their bound.
+      JSTACK_TEST_BROWSER: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
+      - run: uv sync --locked
+      # The browser is declared, not assumed: a runner without it fails here with one error
+      # naming the path, before the tests, and not as one failure for each browser test.
+      - name: test browser
+        run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the browser run declares"; exit 1; }
+      - name: make check-browser
+        run: make check-browser

@@ -50,6 +50,14 @@ tmp_path_retention_count = 1
 # subprocess that never answers fails with its name after this many seconds, and the run goes
 # on. Without it a hang ran until the job's limit and the log said nothing of which test.
 timeout = 120
+# A test that opens a real browser carries `browser`. `make check` leaves those out and
+# `make check-browser` runs only them: they take minutes, hold the machine's browser lock,
+# and run nightly and on a release (.github/workflows/browser.yml), not for every change.
+# With --strict-markers a marker that is not listed here is an error, not a typo that passes.
+addopts = "--strict-markers"
+markers = [
+    "browser: opens a real browser, so it runs under `make check-browser` and not under `make check`",
+]
 
 # The repo's lint commands are `uv run ruff check .` and `uv run ruff format --check .`.
 [tool.ruff]

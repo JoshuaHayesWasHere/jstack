@@ -174,7 +174,7 @@ The Python code is one `uv` project.
 | Lint | `uv run ruff check .` and `uv run ruff format --check .` |
 | Test | `uv run pytest` |
 
-`make check` is the one check command. It runs the lint and test commands above, in that order, and stops at the first that fails. CI (`.github/workflows/check.yml`) runs it on every pull request and on each push to main.
+`make check` is the one check command. It runs the lint and test commands above, in that order, and stops at the first that fails. CI runs `make check-fast` on a pull request, `make check` on main, and `make check-browser` runs the `browser` tests nightly and on a release.
 
 `tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
