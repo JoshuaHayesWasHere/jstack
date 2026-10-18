@@ -2580,7 +2580,7 @@ def test_a_toggletip_opens_by_key_and_by_tap_and_esc_or_a_tap_elsewhere_closes_i
         screen = (
             PHONE[0],
             PHONE[1] + PHONE_NEEDS,
-        )  # the cards in view: a key press scrolls nothing
+        )
     walk = [
         'key:Enter:#vitals [data-tip="card:threads"]',
         "esc",
