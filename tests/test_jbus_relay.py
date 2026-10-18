@@ -387,11 +387,12 @@ def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
 
     running.send(alert)
     until(lambda: len(sous_chef.bodies("blocking")) == 1)
+    until(lambda: len(sous_chef.bodies("everything")) == 1)
     time.sleep(1.2)
     running.send(alert)
 
     until(lambda: len(sous_chef.bodies("blocking")) == 2)
-    assert len(sous_chef.bodies("everything")) == 2
+    until(lambda: len(sous_chef.bodies("everything")) == 2)
     running.stop()
 
 

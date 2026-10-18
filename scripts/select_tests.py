@@ -127,7 +127,7 @@ def selected(changed):
         if any(owns(owned, path) for path in changed):
             tests |= set(listed_tests)
     tests |= set(cross_cutting())
-    return sorted(test for test in tests if (ROOT / test).is_file())
+    return sorted(test for test in tests if TEST.fullmatch(test) and (ROOT / test).is_file())
 
 
 def main(argv):
