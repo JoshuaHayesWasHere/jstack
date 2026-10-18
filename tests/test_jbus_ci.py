@@ -9,6 +9,7 @@ test says by how much and why.
 import configparser
 import json
 import shlex
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -379,11 +380,28 @@ def test_the_service_runs_the_collector_and_the_report_for_the_jstack_home():
 
 
 def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
-    import fcntl
+    inside, release = threading.Event(), threading.Event()
 
-    with ledger.locked(tmp_path):
-        with (tmp_path / ledger.LOCK).open("a") as other:
-            with pytest.raises(BlockingIOError):
-                fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
-    assert collect.collect(Replay(), REPO, tmp_path, NOW, 14).jobs == 0
+    class Held(Replay):
+        def pages(self, path, key=None):
+            inside.set()
+            release.wait(10)
+            return super().pages(path, key)
+
+    counts = {}
+
+    def run(name, gh):
+        counts[name] = collect.collect(gh, REPO, tmp_path, NOW, 14)
+
+    first = threading.Thread(target=run, args=("first", Held()))
+    first.start()
+    assert inside.wait(10)
+    second = threading.Thread(target=run, args=("second", Replay()))
+    second.start()
+    second.join(0.5)
+    assert second.is_alive()
+    release.set()
+    first.join(30)
+    second.join(30)
+    assert (counts["first"].jobs, counts["second"].jobs) == (314, 0)
+    assert len(ledger.read(tmp_path / ledger.JOBS)) == 314
