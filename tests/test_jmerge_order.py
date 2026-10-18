@@ -294,6 +294,15 @@ def test_a_migration_whose_number_main_has_waits_and_holds_the_ones_behind_it(li
     assert said[2].startswith("ready 9 ")
 
 
+def test_a_pull_request_with_several_migrations_is_renumbered_from_the_taken_one_up(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home, alpha=("0004_a", "0005_b"))
+    taken = ready.MIGRATION_TAKEN.format(name="0004_a", number="0004", default="main", free="0005")
+    assert lined.run("--check")[0] == f"wait 7 {merge.URL}: {taken}"
+    pulls(lined.home, alpha=("0005_a", "0006_b"))
+    assert lined.run("--check")[0].startswith("ready 7 ")
+
+
 def test_a_migration_pull_request_in_conflict_holds_the_ones_behind_it(lined):
     queue_of(lined.home, [], DIRECTORY)
     pulls(lined.home, mergeable="CONFLICTING")
