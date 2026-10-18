@@ -144,11 +144,19 @@ The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A 
 
 | Part | What it shows |
 |---|---|
-| This machine | Four cards, once for every project: jbus (whether the timer passes, and when the last pass ended), Room (the answer `jgauge room` gives), the runner units systemd lists, and the plan's use over five hours and seven days. |
-| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a setup. A gate with a default, or one that closes on the 2 hours of silence, is in the folded list "Will proceed on default" under it, with the time it goes ahead, and its "Accept default" is the one filled button of the page: it waits 10 seconds, Undo stops it, and only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. The new noticed lines are a token beside the queue, labelled "not counted". Nothing waiting says "Nothing needs you" and the time of the last pass. The queue is built in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
-| One row for each project | Its repo, open tasks and merges of today, health chips (CI, the bus outbox, threads out, blind spots, and any source that could not be read), and a count for each step of the line that holds a task. A project with an empty queue says "nothing open". |
+| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a setup. A gate with a default, or one that closes on the 2 hours of silence, is in the folded list "Will proceed on default" under it, with the time it goes ahead, and its "Accept default" is the one filled button of the page: it waits 10 seconds, Undo stops it, and only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page the new noticed lines are a token beside the queue, labelled "not counted". Nothing waiting says "Nothing needs you" and the time of the last pass. The queue is built in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
+| Projects | One link for each project, to its page: a name, a dot (amber when something of it needs you, red when something is broken, hollow otherwise), a plain reason only when broken ("CI 3 failed", "bus outbox 2", "1 source unread"), and the count of open tasks and of merges of today. A healthy project says nothing else. |
 
-A project's row opens its page, `#/<project>`: the line, as a bare link showed it before. A token or a step count opens that project's page with its drawer open.
+The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine as one word: "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red. The word links to the pulse drawer, where the machine's parts are. When jbus has stopped or the server does not answer, one line under the header says so once.
+
+A project's row opens its page, `#/<project>`, which has nothing else on its first screen but:
+
+| Part | What it shows |
+|---|---|
+| Needs you | The same queue, of this project. |
+| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: thread hung or quiet, a check failed, behind another task, not confirmed since a time. The queue as a flow is one click from the heading. |
+| Merged | The count of today, and a closed list of them. |
+| Health | One line, each part a link to its drawer: "All well" and the time of the last pass, or each thing that is broken. The threads out and the blind spots are here too, and the rows the view cannot place are named. |
 
 ### Every view is a link
 
@@ -162,8 +170,6 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 | `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/infra/gate/3`, `#/infra/you/gate` or `#/infra/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
 
 `&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
-
-Every band is always drawn, an empty one as its calm line. Each one has a fold button and a hide button in its header: the machine, each project's row, and on a project's page the cards, the Threads band and the line. The Needs you queue is never folded. Folded, a band shows its header and one line, its count or its health. A hidden band is listed under "n hidden" in the header, which brings it back, and Show all there unfolds and unhides everything. The browser keeps the choice, per band and per project, as it keeps the theme.
 
 A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
 

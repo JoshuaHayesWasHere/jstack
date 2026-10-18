@@ -674,6 +674,11 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert by["larder"] == {
         "name": "larder",
         "repo": "",
+        "broken": [
+            {"what": "CI not read", "open": "checks"},
+            {"what": "11 sources unread", "open": "pulse"},
+        ],
+        "unplaced": [],
         "waits": 0,
         "noticed": 0,
         "open": 0,
@@ -2833,6 +2838,7 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         "queued": 2,
         "pending": 0,
         "page": False,
+        "rank": 0,
     }
     seen = tasks(state)["jam-jar"]["seen"]
     assert (seen["live"], seen["run_started"], seen["queued"]) == ("hung", began, 2)
