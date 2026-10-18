@@ -118,7 +118,7 @@ PHONE_NEEDS = 520
 FONT = 'src: url("/font.woff2") format("woff2");'
 NARROWEST = 500
 THUMB = 44
-CARDS = ["threads", "CI checks on GitHub", "bus", "blind spots"]
+CARDS = ["threads", "CI checks on GitHub", "CI targets", "bus", "blind spots"]
 MACHINE = ["jbus", "Room", "Runners", "Plan"]
 MIDDLE = (900, 900)
 LANES = [
@@ -707,7 +707,7 @@ def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(
     seen = look(scene, tmp_path, task="oat-milk", screen=screen)
     opened = clean(seen, screen)
     assert [(card["tag"], card["seen"]) for card in seen["cards"]] == [(tag, True) for tag in CARDS]
-    assert [card["open"] for card in seen["cards"]] == ["threads", "checks", "bus", "blind"]
+    assert [card["open"] for card in seen["cards"]] == ["threads", "checks", "ci", "bus", "blind"]
     assert [(one["tag"], one["open"], one["seen"]) for one in seen["machine"]] == [
         ("jbus", "pulse", True),
         ("Room", "room", True),
