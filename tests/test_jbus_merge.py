@@ -223,6 +223,9 @@ STEPS = {
     "FRESH_FAILS": "rebase",
     "REBASE_HELD": "hold",
     "SKILLS_UNRUN": "result",
+    "ROW_HELD": "hold",
+    "MERGES_AFTER": "check",
+    "QUEUE_UNREADABLE": "hold",
 }
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
 
