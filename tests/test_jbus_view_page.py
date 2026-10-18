@@ -2436,8 +2436,8 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
 ):
     """Two folders are added to a copy of the package, and no other file of it is edited
     (`test_jbus_view.py` compares the trees). `sample` adds a line to the task drawer that
-    opens it, and a count beside the Needs you queue. Nothing opens `lost`, and the drawer of `thrown`
-    throws."""
+    opens it, and a count beside the Needs you queue. Nothing opens `lost`, and the drawer of
+    `thrown` throws."""
     process = Process(scene)
     panel(process, "sample")
     panel(process, "lost", DRAWN + "panel({ drawer: drawn });\n")
@@ -2577,7 +2577,10 @@ def test_a_toggletip_opens_by_key_and_by_tap_and_esc_or_a_tap_elsewhere_closes_i
 ):
     lineup(scene, TODAY)
     if screen == PHONE:
-        screen = (PHONE[0], PHONE[1] + PHONE_NEEDS)  # the cards in view: a key press scrolls nothing
+        screen = (
+            PHONE[0],
+            PHONE[1] + PHONE_NEEDS,
+        )  # the cards in view: a key press scrolls nothing
     walk = [
         'key:Enter:#vitals [data-tip="card:threads"]',
         "esc",
