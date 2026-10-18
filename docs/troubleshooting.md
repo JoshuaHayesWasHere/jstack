@@ -214,7 +214,7 @@ The work is not lost. The brief, the branch and the worktree are on disk, and th
 
 ## `make check-fast` stopped before the tests
 
-`make check-fast BASE=<rev>` runs the lint and the tests `scripts/select_tests.py` names for the diff from `<rev>` to `HEAD`, or `make check` where the script prints `all`. A pull request's CI runs it with `BASE=HEAD^1`. A desk takes `origin/main` by default.
+`make check-fast BASE=<rev>` runs the lint and the tests `scripts/select_tests.py` names for the diff from `<rev>` to `HEAD`, or `make check` where the script prints `all`. A pull request's CI runs it with `BASE=HEAD^1`. A desk takes `origin/main` by default. Neither the script's list nor `make check` has the tests marked `browser`: those open a real browser, and `make check-browser` runs them (nightly, on a release and by hand, in `.github/workflows/browser.yml`).
 
 | Line | Meaning | Do this |
 |---|---|---|
@@ -226,4 +226,4 @@ The work is not lost. The brief, the branch and the worktree are on disk, and th
 | Line | Meaning | Do this |
 |---|---|---|
 | `Failed: Timeout (>120.0s) from pytest-timeout` | The test named above it waited 120 s on something that never answered: a browser, a server or a subprocess. The run went on to the next test. | Run that test alone with `uv run pytest <its id>`. The stack under the line shows where it waited. |
-| `the browser did not finish in 60 s and was stopped` | A browser test's browser never printed the page. It was stopped with every process it started, and its stderr follows the line. | Run the test again. If it stops again, try another build: `JSTACK_TEST_BROWSER=<path> make check`. The check names Google Chrome on every runner, as a Chromium snapshot does this now and then. |
+| `the browser did not finish in 60 s and was stopped` | A browser test's browser never printed the page. It was stopped with every process it started, and its stderr follows the line. | Run the test again. If it stops again, try another build: `JSTACK_TEST_BROWSER=<path> make check-browser`. The browser workflow names Google Chrome on every runner, as a Chromium snapshot does this now and then. |

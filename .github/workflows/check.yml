@@ -24,7 +24,8 @@ jobs:
   # A pull request's check is the fast one: the lint, and the tests its change reaches. On
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
-  # its files. A change the whole suite rests on runs all of it. It is the check the ruleset
+  # its files. A change the whole suite rests on runs all of it, but for the tests that open a
+  # real browser, which browser.yml runs. It is the check the ruleset
   # requires, and jmerge's REQUIRED, so its name stays `check`.
   check:
     if: github.event_name == 'pull_request'
@@ -37,11 +38,6 @@ jobs:
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
     # The full suite runs about 15 minutes on a 2-CPU runner, plus setup and cleanup: 25 leaves 10 minutes of headroom, and a hung run still stops.
     timeout-minutes: 25
-    env:
-      # A stable Google Chrome, which the local runner image installs and GitHub's image has
-      # too. A Chromium snapshot's virtual time now and then never starts, and the browser
-      # tests then wait out their bound.
-      JSTACK_TEST_BROWSER: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,21 +46,16 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
-      # The browser is declared, not assumed: a runner without it fails here with one error
-      # naming the path, before the tests, and not as one failure for each browser test.
-      - name: test browser
-        run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }
       # A fast run leaves no marker and asks for none: a marker says the full suite passed.
       - name: make check-fast
         run: make check-fast BASE=HEAD^1
-  # The full suite, on each push to main, after the merge, and by hand.
+  # The full suite, on each push to main, after the merge, and by hand. The tests that open a
+  # real browser are not in it: browser.yml runs them, nightly and on a release.
   full:
     if: github.event_name != 'pull_request'
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
     # The full suite runs about 15 minutes on a 2-CPU runner, plus setup and cleanup: 25 leaves 10 minutes of headroom, and a hung run still stops.
     timeout-minutes: 25
-    env:
-      JSTACK_TEST_BROWSER: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,9 +77,6 @@ jobs:
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-      - name: test browser
-        if: steps.tree.outputs.marker != 'green'
-        run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'

@@ -8,7 +8,10 @@ their indentation, a scalar, and a list in brackets.
 
 Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
 `jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
-The check names Google Chrome as its test browser on every runner. Every workflow is given
+The browser workflow names Google Chrome as its test browser on every runner, and the check
+names none: the tests that open a browser carry the marker `browser`, which `make check` leaves
+out and `make check-browser` runs, nightly at 03:00 ET, on a `v*` tag or a published release,
+and by hand, and never on a pull request or a push to main. Every workflow is given
 read access to the contents and no more, and none runs on `pull_request_target`. The check
 may also read the repo's artifacts, which is where a green run's marker is.
 
@@ -24,13 +27,17 @@ import json
 import shutil
 import subprocess
 import sys
+from datetime import UTC, datetime
+from fnmatch import fnmatch
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
 WORKFLOWS = Path(__file__).parent.parent / ".github" / "workflows"
 CHECK = WORKFLOWS / "check.yml"
 DRIFT = WORKFLOWS / "pstack-drift.yml"
+BROWSER = WORKFLOWS / "browser.yml"
 GREEN_TREE = WORKFLOWS.parent.parent / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
@@ -148,6 +155,7 @@ def jobs(text):
 
 def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_none():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
+        "browser.yml": {"browser": PICK},
         "check.yml": {"check": PICK, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
     }
@@ -219,12 +227,14 @@ def job_env(text, job):
     return found
 
 
-def test_each_job_names_google_chrome_once_for_all_its_steps():
-    text = CHECK.read_text()
-    assert (job_env(text, "check"), job_env(text, "full")) == (CHROME, CHROME)
-    named = [step for job in ("check", "full") for step in steps(text, job)[0] if "env" in step]
-    assert [step["name"] for step in named] == ["green tree", "green tree marker"]
-    assert text.count("JSTACK_TEST_BROWSER: ") == 2
+def test_the_browser_job_names_google_chrome_once_and_the_check_jobs_name_no_browser():
+    text = BROWSER.read_text()
+    assert job_env(text, "browser") == CHROME
+    assert text.count("JSTACK_TEST_BROWSER: ") == 1
+    named = [step for step in steps(text, "browser")[0] if "env" in step]
+    assert named == []
+    assert "JSTACK_TEST_BROWSER" not in CHECK.read_text()
+    assert "google-chrome" not in CHECK.read_text()
 
 
 def test_a_job_env_is_read_from_its_own_job_and_not_from_a_step():
@@ -235,21 +245,14 @@ def test_a_job_env_is_read_from_its_own_job_and_not_from_a_step():
     assert (job_env(text, "one"), job_env(text, "two")) == ({"A": "b"}, None)
 
 
-@pytest.mark.parametrize(
-    ("job", "suite", "when"),
-    [
-        ("check", "make check-fast", None),
-        ("full", "make check", "steps.tree.outputs.marker != 'green'"),
-    ],
-)
 def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_naming_it(
-    tmp_path, job, suite, when
+    tmp_path,
 ):
-    found, _ = steps(CHECK.read_text(), job)
+    found, _ = steps(BROWSER.read_text(), "browser")
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
-    assert names.index(suite) == names.index("test browser") + 1
-    assert look.get("if") == when
+    assert names.index("make check-browser") == names.index("test browser") + 1
+    assert names[-1] == "make check-browser" and "if" not in look
     browser = tmp_path / "google-chrome"
 
     def ran():
@@ -423,8 +426,6 @@ def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
-        'test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at'
-        ' $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }',
         "make check-fast BASE=HEAD^1",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
@@ -446,15 +447,13 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/green_tree.py",
         "astral-sh/setup-uv",
         "uv sync --locked",
-        'test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at'
-        ' $JSTACK_TEST_BROWSER, which the check declares"; exit 1; }',
         "make check",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
         'echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload'
         ' ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"',
     ]
-    checkout, ask, setup, sync, _, suite, *_ = found
+    checkout, ask, setup, sync, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
     assert [step["if"] for step in (setup, sync, suite)] == [
@@ -473,7 +472,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
     found, _ = steps(CHECK.read_text(), "full")
-    _, _, setup, sync, _, suite, *_ = found
+    _, _, setup, sync, suite, *_ = found
     assert (sync["run"], suite["run"]) == ("uv sync --locked", "make check")
     ran = {
         (marker, by): [
@@ -781,3 +780,74 @@ def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tm
         outputs, _, tree, asked = green_tree(tmp_path / str(at), marked, **env)
         assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked", "from": ""}
         assert asked == []
+
+
+def triggers(text):
+    """What a workflow runs on, from its `on` block: each event, and what narrows it, a
+    mapping of keys, or the list a schedule has, one mapping to an item."""
+    lines = [
+        line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")
+    ]
+    start = lines.index("on:")
+    end = next(
+        (at for at in range(start + 1, len(lines)) if not lines[at].startswith(" ")), len(lines)
+    )
+    found, event = {}, None
+    for line in lines[start + 1 : end]:
+        indent, said = len(line) - len(line.lstrip()), line.strip()
+        if indent == 2:
+            event = said.partition(":")[0]
+            found[event] = None
+        elif said.startswith("- "):
+            key, _, value = said[2:].partition(":")
+            found[event] = [*(found[event] or []), {key: scalar(value)}]
+        else:
+            key, _, value = said.partition(":")
+            found[event] = (found[event] or {}) | {key: scalar(value)}
+    return found
+
+
+def test_a_workflows_triggers_are_read_with_the_list_a_schedule_has():
+    text = "on:\n  schedule:\n    - cron: '0 7 * * *'\n  push:\n    tags: ['v*']\n  other:\n"
+    assert triggers(text) == {
+        "schedule": [{"cron": "0 7 * * *"}],
+        "push": {"tags": ["v*"]},
+        "other": None,
+    }
+
+
+def test_the_browser_tests_run_nightly_on_a_release_and_by_hand_and_on_nothing_else():
+    assert triggers(BROWSER.read_text()) == {
+        "schedule": [{"cron": "0 7 * * *"}],
+        "push": {"tags": ["v*"]},
+        "release": {"types": ["published"]},
+        "workflow_dispatch": None,
+    }
+
+
+def test_the_nightly_is_three_oclock_in_the_morning_eastern_time_every_day():
+    (night,) = triggers(BROWSER.read_text())["schedule"]
+    minute, hour, *every = night["cron"].split()
+    assert every == ["*", "*", "*"]
+    at = datetime(2026, 10, 18, int(hour), int(minute), tzinfo=UTC)
+    assert at.astimezone(ZoneInfo("America/New_York")).strftime("%H:%M") == "03:00"
+
+
+def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch():
+    push = triggers(BROWSER.read_text())["push"]
+    assert list(push) == ["tags"]
+    (pattern,) = push["tags"]
+    assert [fnmatch(name, pattern) for name in ("v1.0.0", "v0.2", "main", "release-1")] == [
+        True,
+        True,
+        False,
+        False,
+    ]
+
+
+def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
+    found, _ = steps(BROWSER.read_text(), "browser")
+    assert found[-1] == {"name": "make check-browser", "run": "make check-browser"}
+    for job in ("check", "full"):
+        assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
+    assert cap(BROWSER.read_text(), "browser") == "30"

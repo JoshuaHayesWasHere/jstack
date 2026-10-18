@@ -39,6 +39,7 @@ EVERYTHING = (f"/{ITSELF}", f"/{MAP}/", "/tests/conftest.py")
 TEST = re.compile(r"tests/test_\w+\.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 IMPORTED = re.compile(r"^\s*(?:from|import) (\w+)", re.M)
+BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 
 
 class Unread(Exception):
@@ -116,6 +117,11 @@ def importers(changed):
     return {f"tests/{name}.py" for name in found}
 
 
+def opens_browser(test):
+    """Whether the test file marks its whole module `browser`."""
+    return bool(BROWSER.search((ROOT / test).read_text()))
+
+
 def selected(changed):
     """`all`, or the sorted test files the changed paths need."""
     if any(whole(path) for path in changed):
@@ -127,7 +133,11 @@ def selected(changed):
         if any(owns(owned, path) for path in changed):
             tests |= set(listed_tests)
     tests |= set(cross_cutting())
-    return sorted(test for test in tests if TEST.fullmatch(test) and (ROOT / test).is_file())
+    return sorted(
+        test
+        for test in tests
+        if TEST.fullmatch(test) and (ROOT / test).is_file() and not opens_browser(test)
+    )
 
 
 def main(argv):

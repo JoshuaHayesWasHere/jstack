@@ -276,7 +276,7 @@ def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
     assert ran.stderr.startswith("select_tests.py: git diff failed: ")
 
 
-def test_a_change_to_the_view_selects_its_browser_and_axe_drive(tmp_path):
+def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")})
     for test in (REPO / "tests").glob("*.py"):
@@ -286,7 +286,8 @@ def test_a_change_to_the_view_selects_its_browser_and_axe_drive(tmp_path):
     head = repo.change(["src/jbus/view/page.html"])
 
     selected = repo.selected(head)
-    assert "tests/test_jbus_view_page.py" in selected
+    assert "tests/test_jbus_view.py" in selected
+    assert "tests/test_jbus_view_page.py" not in selected
     assert set(select.cross_cutting()) <= set(selected)
     assert "tests/test_jbus_queue.py" not in selected
 
@@ -363,3 +364,35 @@ def test_each_test_is_named_by_a_feature_that_owns_every_package_it_imports():
             if not any(select.owns(paths, owner) and test in tests for paths, tests in features):
                 short.append(f"{test} imports {package}, and no feature that owns it names it")
     assert short == []
+
+
+BROWSER_MODULE = "import pytest\n\npytestmark = [pytest.mark.timeout(9), pytest.mark.browser]\n"
+BROWSER_TEST = "import pytest\n\n\n@pytest.mark.browser\ndef test_beta():\n    pass\n"
+
+
+def test_a_test_module_marked_browser_is_not_selected_by_a_change_that_reaches_it(repo):
+    write(repo.root, {"tests/test_alpha.py": BROWSER_MODULE + "\n\ndef test_page():\n    pass\n"})
+    repo.base = repo.commit()
+
+    head = repo.change(["src/alpha/a.py"])
+    assert repo.selected(head) == ["tests/test_both.py", "tests/test_tree.py"]
+    repo.base = head
+    assert repo.selected(repo.change(["tests/test_alpha.py"])) == ["tests/test_tree.py"]
+
+
+def test_a_test_module_that_imports_a_browser_module_is_still_selected(repo):
+    write(repo.root, {"tests/test_helper.py": BROWSER_MODULE + "HELP = 1\n"})
+    repo.base = repo.commit()
+
+    assert repo.selected(repo.change(["tests/test_helper.py"])) == [
+        "tests/test_tree.py",
+        "tests/test_user.py",
+        "tests/test_user_of_user.py",
+    ]
+
+
+def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_test_out(repo):
+    write(repo.root, {"tests/test_beta.py": BROWSER_TEST})
+    repo.base = repo.commit()
+
+    assert "tests/test_beta.py" in repo.selected(repo.change(["src/beta/b.py"]))

@@ -159,7 +159,8 @@ def test_a_pull_request_that_no_brief_with_a_thread_holds_is_not_asked_about(kit
     kitchen.set("open.json", [{**kitchen.opened("stray", 9), "mergeable": "MERGEABLE"}])
     kitchen.set("repo.json", {"owner": {"login": OWNER}})
     kitchen.poll()
-    assert [line for line in kitchen.log("gh") if "comments" in line or "repos/" in line] == []
+    asked = [line for line in kitchen.log("gh") if "comments" in line or "repos/" in line]
+    assert [line for line in asked if "/actions/" not in line] == []
 
 
 def test_the_owners_comment_behind_a_page_of_a_strangers_is_still_relayed(opened):
