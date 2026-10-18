@@ -9,10 +9,6 @@ function runStats() {
   var worst = waited.slice().sort(function (a, b) { return (ms(b.started) - ms(b.created)) - (ms(a.started) - ms(a.created)); })[0] || null;
   return { by: by, waited: waited, worst: worst, now: now, ended: S.checks.ended };
 }
-function branches(runs) {
-  var seen = {}, names = runs.map(function (r) { return r.branch || "no branch"; }).filter(function (n) { return seen[n] ? false : (seen[n] = true); });
-  return names.slice(0, 2).join(", ") + (names.length > 2 ? " +" + (names.length - 2) : "");
-}
 function checksSay(rs) { return CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "); }
 function runnerList() {
   var c = S.checks;
@@ -58,12 +54,6 @@ panel({
   gloss: {
     checks: ["CI checks", "The runs of the repo's workflows on GitHub, read live: what runs, what waits for a runner, and each branch whose newest run failed."],
     runners: ["Runners", "The GitHub Actions runner units of this machine, and how many are active. A check waits for one of them. They are the machine's, not a project's."]
-  },
-  card: function () {
-    var rs = runStats();
-    return { at: 40, sum: S.checks.error ? "CI not read" : "CI " + CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "), e: S.checks.error || rs.now.failed.length ? "op" : rs.now.running.length + rs.now.waiting.length ? "msg" : "dim", cls: " wide", tag: "CI checks on GitHub", st: lv(),
-      val: (S.checks.error ? '<small class="bad">' + esc(S.checks.error) + '</small>' : CHECKS.map(function (c) { var runs = rs.now[c[0]]; return '<span class="ck' + (runs.length ? "" : " zero") + '"><span>' + runs.length + " " + c[1] + '</span>' + (runs.length ? ' <small>' + esc(branches(runs)) + '</small>' : "") + '</span>'; }).join(" ")),
-      viz: "", label: "The repo's checks on GitHub: " + (S.checks.error || checksSay(rs)) };
   },
   drawer: dChecks
 });

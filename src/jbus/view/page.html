@@ -24,7 +24,7 @@
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; background: var(--canvas); color: var(--ink); }
   body { font-family: var(--sans); font-size: 18px; line-height: 1.45; overflow-wrap: anywhere; }
-  main { min-width: 0; padding: 8px 25px 25px; }
+  main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 8px 25px 25px; }
   h1 { font-size: 24px; line-height: 1.2; margin: 0; }
   p { margin: 0 0 12.5px; }
   code, .mono { font-family: var(--mono); font-size: max(15px, 0.88em); }
@@ -43,24 +43,6 @@
   .hdr h1 { font-size: 15px; font-weight: 400; margin-right: auto; min-width: 0; }
   .readat { font-size: 15px; color: var(--ink-2); white-space: nowrap; }
   .readat.stale { color: var(--due); font-weight: 700; }
-  .shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); max-width: 1650px; margin: 0 auto; }
-  .side { border-right: 1.5px solid var(--hair); padding: 14px 12px 30px 25px; position: sticky; top: 50px; align-self: start; max-height: calc(100vh - 50px); overflow: auto; min-width: 0; }
-  .side nav { display: grid; gap: 2px; }
-  .sl { font-size: 15px; font-weight: 700; color: var(--ink-2); margin: 18px 0 4px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .sp { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 15px; border: 1.5px solid transparent; min-width: 0; }
-  .sp .nm { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
-  .sp:hover { border-color: var(--line); }
-  .sp[aria-current="page"] { background: var(--sunk); border-color: var(--ink); font-weight: 700; }
-  .sp .n { font-size: 15px; }
-  .hd { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--ink-3); }
-  .hd.op { background: var(--due); }
-  .mach { display: grid; gap: 4px; }
-  .mi { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline; text-align: left; border: 1.5px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; background: var(--surface); padding: 2px 8px; font-size: 15px; min-width: 0; color: var(--ink); }
-  button.mi { cursor: pointer; }
-  button.mi:hover { border-color: var(--ink); }
-  .mi.e-op { border-left-color: var(--due); }
-  .mi .val { font-weight: 700; display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: center; justify-content: flex-end; min-width: 0; }
-  .mi .val small { font-weight: 400; color: var(--ink-2); }
   .theme { font-size: 15px; font-weight: 600; background: transparent; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; cursor: pointer; color: var(--ink-2); }
   .theme:hover { border-color: var(--ink); color: var(--ink); }
 
@@ -69,41 +51,16 @@
   .dead .dh { display: flex; flex-wrap: wrap; gap: 5px 20px; align-items: baseline; }
   .dead .dh b { font-size: 24px; }
   .dead .dh button { margin-left: auto; border: 1.5px solid var(--canvas); border-radius: 1249px; background: transparent; color: var(--canvas); padding: 0 12.5px; cursor: pointer; font-size: 15px; font-weight: 600; }
-  .dead .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
-  .dead .half { border-radius: 7.5px; padding: 7.5px 10px; background: var(--canvas); color: var(--ink); min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 7.5px; align-items: center; }
-  .dead .half.fzh { background-image: repeating-linear-gradient(135deg, transparent 0 7.5px, var(--due-tint) 7.5px 15px); border: 1.5px dashed var(--due); }
-  .dead .half.lvh { border: 1.5px solid var(--line); }
-  .dead .half code { border: 1px solid var(--hair); border-radius: 6px; padding: 0 6px; background: var(--surface); font-size: 15px; }
-  .dead .half small { color: var(--ink-2); font-size: 15px; }
   .st { display: none; font-size: 15px; font-weight: 800; border-radius: 5px; padding: 0 6px; line-height: 1.6; letter-spacing: 0.07em; text-transform: uppercase; }
   .st.fz { color: var(--due); border: 1.5px dashed var(--due); }
   .st.lv { color: var(--ink-2); border: 1.5px solid var(--line); }
   body.stopped .st, .dead .st, .dw .st { display: inline-block; }
 
-  .vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-  .vit { text-align: left; border: 1.5px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; background: var(--surface); padding: 7.5px 12.5px 9px; cursor: pointer; min-width: 0;
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; align-content: start; }
-  .vit:hover, .tok:hover, .laneh:hover { border-color: var(--ink); }
-  .vit.e-op { border-left-color: var(--due); }
-  .vit .tag { grid-column: 1; }
-  .vit .stw { grid-column: 2; grid-row: 1; justify-self: end; }
-  .vit .val { grid-column: 1; font-weight: 700; font-size: 20px; line-height: 1.25; display: flex; flex-wrap: wrap; gap: 0 7.5px; align-items: baseline; }
-  .vit .val small { font-weight: 400; font-size: 15px; color: var(--ink-2); }
-  .vit .val small.bad { color: var(--due); flex-basis: 100%; }
-  .vit.wide .val { grid-column: 1 / -1; gap: 0 16px; font-size: 18px; }
-  .vit .val b { white-space: nowrap; }
-  .ck { display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; min-width: 0; }
-  .ck.zero { font-weight: 400; color: var(--ink-2); }
-  .vit .viz { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; }
-  .vit .viz:empty { display: none; }
   .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ink-3); display: inline-block; flex: none; }
   .dot.off { background: transparent; border: 2px solid var(--due); }
   .dot.missed { background: var(--missed); }
   .sd { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); flex: none; }
-  .mb.unk { outline: 1px dashed var(--due); outline-offset: -1px; box-shadow: none; }
-  .mb { display: block; width: 87.5px; height: 4px; border-radius: 2px; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--hair); position: relative; overflow: hidden; }
-  .mb u { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); }
-  .mbs { display: grid; gap: 2px; }
 
   .needs { margin-top: 10px; border: 1.5px solid var(--hair); border-left: 5px solid var(--due); border-radius: 10px; background: var(--surface); padding: 6px 14px 8px; }
   .needs h2 { font-size: 20px; margin: 0; display: flex; align-items: baseline; gap: 9px; }
@@ -124,11 +81,7 @@
   .btn.fill { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 700; }
   .btn.fill:hover { border-color: var(--ink); }
   #nsaid .will { margin: 8px 0 0; }
-  .nx:empty { display: none; }
-  .nx { margin: 6px 0 0; }
 
-  .tok { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 11px 1px 9px; background: var(--surface); cursor: pointer; font-family: var(--mono); font-size: 15px; max-width: 100%; min-width: 0; line-height: 1.45; }
-  .tok .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .sh { width: 11px; height: 11px; flex: none; display: inline-block; background: var(--ink-2); }
   .w-user .sh { background: var(--due); transform: rotate(45deg) scale(0.9); border-radius: 1px; }
   .w-crew .sh { background: var(--ink-3); border-radius: 50%; }
@@ -139,32 +92,30 @@
   .w-dep .sh { background: transparent; border: 2px solid var(--ink-2); border-radius: 50%; }
   .w-ok .sh { background: transparent; border: 1.5px solid var(--ink-3); border-radius: 50%; width: 9px; height: 9px; }
   .w-unknown .sh { background: transparent; border: 2px dashed var(--ink-3); border-radius: 2px; }
-  .tok.w-unknown, .tok.unc, .qd.unc, .fr.unc { border-style: dashed; }
+  .fr.unc { border-style: dashed; }
+  .tok { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 11px 1px 9px; background: var(--surface); cursor: pointer; font-family: var(--mono); font-size: 15px; max-width: 100%; min-width: 0; line-height: 1.45; }
+  .tok .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tok.th .src { font-family: var(--sans); font-size: 15px; }
+  .tok.th.ended { border-style: dashed; color: var(--ink-2); }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0 6px; align-items: center; font-size: 15px; color: var(--ink-2); }
+  .fb { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; background: var(--surface); cursor: pointer; font-size: 15px; font-weight: 600; }
+  .fb[aria-pressed="true"] { background: var(--sunk); border-color: var(--ink); }
+  .fb i { font-style: normal; font-weight: 400; color: var(--ink-2); }
+  .nx:empty { display: none; }
+  .nx { margin: 6px 0 0; }
   .mk { flex: none; width: 7.5px; height: 7.5px; border-radius: 50%; display: inline-block; }
   .mk.long { background: var(--due); }
   .mk.rep { background: transparent; border: 1.5px solid var(--ink); width: 9px; height: 9px; }
   .mk.lv-moving { background: var(--ink-3); }
   .mk.lv-quiet { background: transparent; border: 1.5px dashed var(--due); width: 9px; height: 9px; }
   .mk.lv-hung { background: var(--due); border-radius: 1px; width: 9px; height: 9px; }
-  .tok.off { opacity: 0.16; }
-  .tw { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
   .mk.blk { width: 0; height: 0; border-radius: 0; border: 5px solid transparent; border-right-color: var(--due); }
   .bn { flex: none; font-family: var(--sans); font-size: 15px; font-weight: 700; line-height: 1.4; padding: 0 6px; border-radius: 1249px; background: var(--ink); color: var(--canvas); }
   .bk { font-family: var(--mono); font-size: 15px; color: var(--ink-2); background: none; border: 0; padding: 0; white-space: nowrap; }
   button.bk { cursor: pointer; border-bottom: 1px dotted var(--ink-2); }
   button.bk:hover { color: var(--ink); }
 
-  .fl { flex-basis: 100%; min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
-  .flh { flex: none; width: 82px; text-align: left; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 0 4px 0 0; cursor: pointer; font-size: 15px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.05em; text-transform: uppercase; }
-  .flh i { font-style: normal; font-weight: 400; }
-  .pl { border: 1.5px solid var(--line); border-radius: 1249px; background: var(--surface); padding: 0 9px; cursor: pointer; font-size: 15px; font-weight: 700; color: var(--ink-2); }
-  .wv { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
-  .wv b { font-size: 15px; color: var(--ink-2); }
-  .qd { width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid var(--ink-2); background: var(--surface); cursor: pointer; flex: none; }
-  .qd.w-user { border-color: var(--due); }
-  .qd.off { opacity: 0.16; }
-  .flh:hover, .pl:hover, .qd:hover, .fr:hover { border-color: var(--ink); }
-  .ph { display: none; }
+  .fr:hover { border-color: var(--ink); }
   dialog.drawer.wide { width: min(1400px, 100%); }
   .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 8px; margin-top: 12.5px; align-items: start; }
   .fc { min-width: 0; display: grid; gap: 4px; align-content: start; }
@@ -177,34 +128,6 @@
   .fr.dn { border-color: var(--ink); background: var(--sunk); box-shadow: inset 4px 0 0 var(--ink); }
   .fr.dim { opacity: 0.25; }
 
-  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0 6px; align-items: center; font-size: 15px; color: var(--ink-2); }
-  .fb { display: inline-flex; align-items: center; gap: 7.5px; border: 1.5px solid var(--line); border-radius: 1249px; padding: 0 11px; background: var(--surface); cursor: pointer; font-size: 15px; font-weight: 600; }
-  .fb[aria-pressed="true"] { background: var(--sunk); border-color: var(--ink); }
-  .fb i { font-style: normal; font-weight: 400; color: var(--ink-2); }
-  .keyk { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
-  .keyk:first-of-type { margin-left: auto; }
-  .line { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-  .lane { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 0 12.5px; align-items: start; border-left: 5px solid var(--hair); background: var(--sunk); border-radius: 0 10px 10px 0; padding: 4px 10px; }
-  .lane.g { margin-top: 9px; }
-  .lane.e-user { border-left-color: var(--due); }
-  .lane.e-unknown { border-left: 5px dashed var(--line); }
-  .laneh { display: inline-flex; align-items: center; gap: 9px; border: 1.5px solid transparent; border-radius: 7.5px; background: transparent; padding: 1px 5px 1px 0; cursor: pointer; text-align: left; min-width: 0; font-size: 15px; }
-  .laneb { min-width: 0; display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; }
-  .mdots { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-  .md { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; position: relative; flex: none; }
-  .md::after { content: ""; position: absolute; inset: 2.5px; border-radius: 50%; background: var(--ink-3); opacity: 0.8; }
-  .md:hover { border-color: var(--ink); }
-  body.stopped .frz .md, body.stopped .frz .qd { border-style: dashed; opacity: 0.6; }
-  .more { font-family: var(--sans); font-weight: 700; color: var(--ink-2); }
-  .cz { border: 1.5px solid var(--due); color: var(--due); background: transparent; border-radius: 6px; padding: 0 9px; font-size: 15px; font-weight: 700; cursor: pointer; margin-left: auto; }
-  body.stopped .frz .tok { border-style: dashed; }
-  .tw.off > :not(.tok) { opacity: 0.16; }
-  .folded { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; padding: 3px 10px 3px 15px; }
-  .folded .tag { margin-right: 4px; }
-  .folded button { border: 1.5px solid var(--line); border-radius: 1249px; background: transparent; padding: 0 10px; cursor: pointer; font-size: 15px; color: var(--ink-2); }
-  .folded button:hover { border-color: var(--ink); color: var(--ink); }
-  .calm { font-weight: 700; font-size: 18px; margin: 2px 0 7.5px; display: flex; gap: 9px; align-items: center; }
-  .calm[hidden] { display: none; }
 
   dialog.drawer { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(850px, 100%); max-width: 100%; border: 0; border-left: 1.5px solid var(--hair); background: var(--canvas); color: var(--ink); padding: 0; overflow: auto; }
   dialog.drawer::backdrop { background: rgba(0, 0, 0, 0.45); }
@@ -280,56 +203,63 @@
   .confirm { margin-top: 8px; width: 100%; border: 0; border-radius: 10px; background: var(--brand); color: var(--on-brand); font-weight: 700; padding: 9px; cursor: pointer; }
   .confirm:disabled { opacity: 0.4; cursor: default; }
 
-  @media (max-width: 1100px) {
-    .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: dense; }
-    .lane { grid-template-columns: 140px minmax(0, 1fr); }
-  }
-  @media (max-width: 899.98px) {
-    .shell { grid-template-columns: minmax(0, 1fr); }
-    .side { position: static; max-height: none; overflow: visible; border-right: 0; border-bottom: 1.5px solid var(--hair); padding: 8px 10px; display: grid; gap: 6px; }
-    .side nav, .mach { display: flex; flex-wrap: wrap; gap: 6px; }
-    .sl { display: none; }
-    .sp, .mi { min-height: 44px; flex: 0 1 auto; }
-    .sp { border-color: var(--line); background: var(--surface); padding: 4px 12px; }
-    .mi { display: inline-flex; align-items: center; gap: 6px; }
-  }
+  .pick { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 1px 6px; max-width: 14em; }
+  .machw { font-size: 15px; font-weight: 700; color: var(--ink-2); text-decoration: none; white-space: nowrap; border-radius: 1249px; padding: 0 2px; }
+  .machw:hover { text-decoration: underline; }
+  .machw.op { color: var(--due); }
+  .machw.bad { color: var(--missed); }
+  .sec { font-size: 20px; margin: 22px 0 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .sec .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
+  .sec .btn { margin-left: auto; }
+  .prs, .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
+  .prs > li, .pgl > li { border-bottom: 1px solid var(--hair); }
+  .prl { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; padding: 7px 4px; color: var(--ink); text-decoration: none; border-radius: 8px; }
+  .prl:hover { background: var(--sunk); }
+  .pd { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink-3); flex: none; align-self: center; }
+  .pd.op { background: var(--due); border-color: var(--due); }
+  .pd.bad { background: var(--missed); border-color: var(--missed); }
+  .pn { font-size: 18px; }
+  .pwhy { color: var(--missed); font-weight: 600; }
+  .pc { color: var(--ink-2); font-size: 15px; }
+  .pc:first-of-type { margin-left: auto; }
+  .pg { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; padding: 6px 4px; }
+  .pgs { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); text-align: left; }
+  .pgs:hover { text-decoration: underline; }
+  .pgw { color: var(--ink-2); }
+  .pgw b { color: var(--ink); }
+  .pgw.bad b { color: var(--missed); }
+  .pgw.ask b { color: var(--due); }
+  .pga { margin-left: auto; color: var(--ink-2); font-size: 15px; }
+  .chip.bad { background: var(--missed-tint); color: var(--missed); }
+  .merged > summary { cursor: pointer; font-size: 20px; font-weight: 700; margin-top: 22px; }
+  .merged ul { margin-top: 6px; }
+  .merged li { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; padding: 4px 4px; border-bottom: 1px solid var(--hair); }
+  .hl { margin: 0 0 6px; font-size: 18px; }
+  .hl.op .hh { color: var(--due); }
+  .hk { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; font-size: inherit; }
+  .hk:hover { text-decoration-color: var(--ink); }
+  .hk.bad { color: var(--missed); font-weight: 600; }
+  .hk.op { color: var(--due); font-weight: 600; }
+  .qn { margin: 10px 0 0; }
+  .calm { color: var(--ink-2); font-weight: 700; margin: 4px 0; }
+
   @media (max-width: 640px) {
     main { padding: 8px 10px 32px; }
     .hdr { position: static; padding: 4px 10px; gap: 0 10px; }
     .hdr h1 { order: 3; flex-basis: 100%; }
     .brand { min-height: 44px; display: inline-flex; align-items: center; }
-    .side nav .sp { flex: 1 1 auto; }
-    .theme, .fb, .btn, .dead .dh button { min-height: 44px; min-width: 44px; }
-    .theme { padding: 0 14px; }
-    .dead .split { grid-template-columns: minmax(0, 1fr); }
-    .vitals { gap: 0; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
-    .vit { border-width: 0 0 1px 5px; border-radius: 0; min-height: 44px; padding: 5px 10px; }
-    .vitals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .vit.wide { border-bottom-width: 0; }
-    .vit .viz { display: none; }
-    .vit[data-open="bus"] .viz { display: flex; }
-    .vit .val { grid-column: 1 / -1; font-size: 18px; }
     .tok { min-height: 44px; border-radius: 10px; padding: 4px 12px; line-height: 1.3; }
     .tok .lb { white-space: normal; overflow: visible; text-align: left; }
     .tok .src { white-space: nowrap; }
-    .tw .tok { flex: 1 1 auto; }
     .filters { gap: 6px; }
     .fb { padding: 0 14px; }
-    .keyk, .keyk:first-of-type { margin-left: 0; }
-    .line { gap: 5px; }
-    .lane { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 8px 8px; }
-    .laneh { min-height: 44px; width: 100%; font-size: 18px; }
-    .lhw { display: flex; width: 100%; }
-    .lhw > .laneh { flex: 1 1 auto; width: auto; }
-    .laneb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .tw { display: flex; gap: 6px; }
+    .fb { min-height: 44px; min-width: 44px; }
+    .theme, .btn, .dead .dh button, .pick, .machw { min-height: 44px; min-width: 44px; }
+    .machw { display: inline-flex; align-items: center; }
+    .merged > summary { min-height: 44px; }
+    .theme { padding: 0 14px; }
     .bk { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: normal; font-size: 15px; }
     button.bk { border-bottom: 0; text-decoration: underline dotted; }
-    .mdots, .dk { display: none; }
-    .ph { display: block; }
-    .fl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .flh { width: 100%; min-height: 44px; font-size: 15px; }
-    .pl { min-height: 44px; border-radius: 10px; padding: 0 12px; text-align: left; }
     .flow { grid-template-columns: minmax(0, 1fr); }
     .fr { min-height: 44px; }
     dialog.drawer { width: 100%; height: 100dvh; max-height: 100dvh; border-left: 0; }
@@ -343,55 +273,12 @@
   }
   a { color: var(--ink); }
   .dead .dh span { font-size: 15px; }
-  body.stopped .vit.frz, body.gone .vit { border-style: dashed; }
-  body.gone .md, body.gone .qd { opacity: 0.6; }
-  body.gone .tok, body.gone .md, body.gone .qd, body.gone .vit { border-style: dashed; }
   body.gone .dead, body.stopped .dead { display: block; }
-  .mb.over u { background: var(--due); }
   .ghbox { border: 1.5px solid var(--hair); border-radius: 10px; padding: 10px 12.5px; margin-top: 12.5px; background: var(--surface); }
 
-  .pj { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; border-radius: 6px; padding: 0 8px; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); text-decoration: none; white-space: nowrap; }
-  .pj:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
-  .pj .n { font-size: 15px; }
-  .n.op { background: var(--due); color: var(--canvas); }
-  a.tok { color: inherit; text-decoration: none; }
-  .tok.sans, .tok.sans .lb { font-family: var(--sans); }
-  .tok.faint { border-style: dashed; color: var(--ink-2); }
   .quiet { font-size: 15px; color: var(--ink-2); }
-  .proj { border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); padding: 8px 14px 10px; margin-top: 10px; cursor: pointer; }
-  .proj:hover { border-color: var(--ink-2); }
-  .pjh { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
-  .pjh h2 { font-size: 20px; margin: 0; }
-  .pjh h2 a { color: var(--ink); text-decoration: none; }
-  .pjh h2 a:hover { text-decoration: underline; }
-  .pjh .go { margin-left: auto; color: var(--ink); text-decoration: none; }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px 6px; margin-top: 6px; }
-  .hc { display: inline-flex; align-items: baseline; gap: 6px; border: 1.5px solid var(--hair); border-left: 4px solid var(--hair); border-radius: 8px; padding: 0 9px; font-size: 15px; background: var(--canvas); max-width: 100%; }
-  .hc.e-op { border-left-color: var(--due); }
-  .rail { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 3px; }
-  .rcell { display: flex; align-items: baseline; gap: 6px; text-decoration: none; color: var(--ink); border-top: 4px solid var(--hair); border-radius: 0 0 7px 7px; background: var(--sunk); padding: 1px 9px 2px; }
-  .rcell b { font-size: 18px; font-weight: 800; }
-  .rcell span { font-size: 15px; font-weight: 600; }
-  .rcell.e-user { border-top-color: var(--due); background: var(--due-tint); }
-  .rcell.e-q { border-top-color: var(--ink-2); background: var(--surface); } .rcell.e-unknown { border-top-style: dashed; border-top-color: var(--line); }
   .w-scout .sh { background: var(--ink-3); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); width: 12px; }
   .w-other .sh { background: transparent; border: 2px solid var(--ink-2); border-radius: 2px; }
-  .thb { margin-top: 10px; border: 1.5px solid var(--hair); border-left: 5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 3px 12px; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
-  .thb .tok { line-height: 1.4; }
-  .proj .thb { margin-top: 8px; background: var(--canvas); }
-  .thb.blind { border-left: 5px dashed var(--due); }
-  .thh { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
-  .thb.blind .thh { flex: 1 1 auto; }
-  .thh b { font-size: 15px; }
-  .thh .src { font-size: 15px; }
-  .thr { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; }
-  .thr .rl { font-size: 15px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.05em; text-transform: uppercase; }
-  .chs { display: flex; flex-wrap: wrap; gap: 5px 6px; min-width: 0; align-items: center; }
-  .tok.th .src { font-family: var(--sans); font-size: 15px; }
-  .tok.th.ended { border-style: dashed; color: var(--ink-2); }
-  a.pl { text-decoration: none; display: inline-flex; align-items: center; }
-  @media (max-width: 640px) { .thb { display: block; padding: 5px 12px 8px; } .thr { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 5px; } .tok.th, a.pl { min-height: 44px; } }
-  .empty-q { margin: 8px 0 0; color: var(--ink-2); font-weight: 700; display: flex; gap: 9px; align-items: center; }
   .none { margin-top: 12.5px; border: 1.5px solid var(--hair); border-left: 6px solid var(--due); border-radius: 10px; padding: 12.5px 15px; background: var(--surface); }
   .none .big { font-size: 20px; font-weight: 700; display: block; margin-bottom: 5px; }
   .crumbs { display: inline-flex; flex-wrap: wrap; gap: 0 7px; align-items: baseline; }
@@ -409,21 +296,9 @@
   .tip b { display: block; font-size: 15px; margin-bottom: 2px; }
   .tip.peek { pointer-events: none; max-width: min(300px, calc(100vw - 20px)); font-size: 15px; }
   .sh, .mk, .bn, .hd, .sd, [data-gloss] { cursor: help; }
-  .vw { position: relative; min-width: 0; display: flex; }
-  .vw > .vit { flex: 1 1 auto; }
-  .vw > .vit .stw { margin-right: 24px; }
-  .vw > .vit .val { grid-column: 1 / -1; }
-  .vw > .hint { position: absolute; top: 3px; right: 4px; }
-  .vw.wide { grid-column: span 2; }
-  .mw { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
-  .mw > .mi { flex: 1 1 auto; }
-  .mw > .hint { align-self: center; }
-  .lhw { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
   details.gk { font-size: 15px; margin-left: 10px; }
   details.gk[open] { flex-basis: 100%; margin-left: 0; }
   details.gk summary { cursor: pointer; color: var(--ink-2); width: max-content; max-width: 100%; }
-  .gk .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; }
-  .gk .legend > span { display: inline-flex; align-items: center; gap: 6px; }
   .gw { display: inline-flex; align-items: center; justify-content: center; width: 16px; }
   dl.gloss { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; }
   dl.gloss dt { font-weight: 700; display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--hair); }
@@ -433,9 +308,6 @@
   .theme.help::before { content: "?"; font-weight: 800; }
   @media (max-width: 640px) {
     .hint { width: 44px; height: 44px; }
-    .vw > .vit .stw { margin-right: 26px; }
-    .vw > .hint { top: 0; right: 0; align-items: flex-start; justify-content: flex-end; padding: 3px; }
-    .vw.wide { grid-column: 1 / -1; }
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
   }
   [data-st="hidden"] { display: none !important; }
@@ -450,21 +322,6 @@
   .fv-b.x::before, .fv-b.x::after { content: ""; position: absolute; width: 12px; height: 2px; border: 0; background: currentColor; transform: rotate(45deg); }
   .fv-b.x::after { transform: rotate(-45deg); }
   .fv-r { display: flex; align-items: center; gap: 4px 10px; min-width: 0; }
-  #cards-w { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 4px; }
-  #cards-w > .vitals, #cards-sum { grid-column: 1; grid-row: 1; }
-  #cards-c { grid-column: 2; grid-row: 1; flex-direction: column; align-self: start; margin: 0; }
-  [data-st="folded"]#cards-w #cards-sum { display: block; align-self: center; font-size: 15px; color: var(--ink); border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 2px 12.5px; }
-  [data-st="folded"]#cards-w #cards-c { flex-direction: row; }
-  .mh { margin: 18px 0 4px; flex-wrap: wrap; }
-  .mh .sl { margin: 0; white-space: nowrap; }
-  .mh .fv-sum { order: 3; flex-basis: 100%; }
-  .proj .pjh .fv-c { margin-left: 0; }
-  .thrs { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; flex: 1 1 auto; min-width: 0; }
-  .thrs:empty { display: none; }
-  .thh .fv-c { margin-left: 8px; }
-  .lh { display: flex; align-items: flex-start; gap: 0 6px; min-width: 0; }
-  .lh > .filters { flex: 1 1 auto; min-width: 0; }
-  .lh > .fv-c { margin-top: 15px; }
   .kept { position: relative; font-size: 15px; }
   .kept summary { list-style: none; cursor: pointer; font-weight: 600; color: var(--due); border: 1.5px solid var(--due); border-radius: 1249px; padding: 0 11px; white-space: nowrap; }
   .kept summary::-webkit-details-marker { display: none; }
@@ -472,22 +329,14 @@
   .kb { text-align: left; border: 1.5px solid var(--line); border-radius: 8px; background: var(--canvas); padding: 2px 10px; cursor: pointer; font-size: 15px; }
   .kb:hover { border-color: var(--ink); }
   .kb.all { font-weight: 700; }
-  @media (max-width: 899.98px) {
-    .mh { margin: 0; display: flex; }
-    .mh .sl { display: none; }
-  }
   @media (max-width: 640px) {
     .fv-b { width: 44px; height: 44px; }
     .kept summary, .kb { min-height: 44px; display: flex; align-items: center; }
-    .thrs { display: block; }
-    #cards-w { display: flex; flex-direction: column; }
-    #cards-c, [data-st="folded"]#cards-w #cards-c { flex-direction: row; align-self: flex-end; }
   }
   @media (max-width: 640px) {
-    .pj, .hc, .rcell, a.tok, .pjh .go, .back, .folded button { min-height: 44px; display: inline-flex; align-items: center; }
+    .back, .pgs, .prl, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
     .nq .btn, .soon > summary { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
-    .pjh .go { margin-left: 0; }
   }
 </style>
 </head>
@@ -496,19 +345,13 @@
 <header class="hdr">
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
+  <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
+  <a class="machw" id="mach" hidden></a>
   <details class="kept" id="kept" hidden><summary id="kept-s"></summary><div class="kept-l" id="kept-l"></div></details>
   <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
   <button type="button" class="theme" id="theme">Auto</button>
 </header>
-<div class="shell">
-<aside class="side" id="side" aria-label="Every project, and this machine">
-  <nav id="projects" aria-label="Projects"></nav>
-  <div id="mach-w" data-fv="machine" data-fv-name="This machine">
-    <div class="fv-r mh"><span class="sl" id="mach-h">This machine</span><span class="fv-sum" id="mach-sum"></span><span class="fv-c" id="mach-c"></span></div>
-    <section class="mach fv-body" id="machine" aria-labelledby="mach-h"></section>
-  </div>
-</aside>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
@@ -516,28 +359,27 @@
     <ol class="nq clean" id="nq"></ol>
     <details class="soon" id="np-w"><summary id="np-h"></summary><ol class="nq clean soon" id="np"></ol></details>
     <div id="nsaid" role="status"></div>
-    <p class="nx" id="nx"></p>
   </section>
+  <p class="nx" id="nx"></p>
   <div id="stack" hidden>
-    <div id="rows" aria-label="Every project"></div>
+    <h2 class="sec" id="projects-h">Projects</h2>
+    <ul class="prs" id="rows" aria-labelledby="projects-h"></ul>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
-  <div id="cards-w">
-  <div class="vitals fv-body" id="vitals" aria-label="This project: its threads, checks, bus and blind spots"></div>
-  <span class="fv-sum" id="cards-sum"></span><span class="fv-c" id="cards-c"></span>
-  </div>
-  <div id="band"></div>
-  <div id="line-w">
-  <div class="lh"><div class="filters" id="filters" role="group" aria-label="Show tokens held by"><span id="fbs" style="display:contents"></span></div><span class="fv-c" id="line-c"></span></div>
-  <div class="fv-body" id="line-b">
-  <p class="calm" id="calm" hidden><i class="dot"></i> No open task</p>
-  <ol class="line frz" id="line" aria-label="The line: every open task on its step"></ol>
-  </div>
-  </div>
+    <section aria-labelledby="prog-h">
+      <h2 class="sec" id="prog-h"></h2>
+      <p class="calm" id="calm" hidden>Nothing in progress</p>
+      <ol class="pgl" id="prog" aria-labelledby="prog-h"></ol>
+    </section>
+    <details class="merged" id="merged-d" hidden><summary id="merged-s"></summary><ul class="clean" id="merged-l"></ul></details>
+    <section aria-labelledby="health-h">
+      <h2 class="sec" id="health-h">Health</h2>
+      <p class="hl" id="health"></p>
+      <p class="qn" id="unplaced"></p>
+    </section>
   </div>
 </main>
-</div>
 
 <dialog class="drawer" id="drawer" aria-labelledby="dw-title">
   <div class="dw" id="dw"></div>
@@ -545,9 +387,9 @@
 <script>
 (function () {
   "use strict";
-  var POLL_MS = 15000, SIDEBAR_EVERY_POLLS = 4, READ_TIMEOUT_MS = 8000, WRITE_TIMEOUT_MS = 30000, MISSED_TILL_GONE = 2, LONG_ON_STEP_MS = 30 * 60e3, DESK_LINE_TOKENS = 8, PHONE_LINE_TOKENS = 5;
+  var POLL_MS = 15000, STACK_EVERY_POLLS = 4, READ_TIMEOUT_MS = 8000, WRITE_TIMEOUT_MS = 30000, MISSED_TILL_GONE = 2;
   var $ = function (id) { return document.getElementById(id); };
-  var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, VIEW = { filter: "all" };
+  var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
   var STACK = null, NOSUCH = "", PROJECT = null, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
@@ -596,7 +438,6 @@
   }
 
   var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "no rule names this reason yet; its home was told" };
-  var WHOSHORT = { user: "you", crew: "crew", home: "home", rev: "reviewer", ci: "runner", bus: "jbus", dep: "blocked", unknown: "unknown" };
   var UNKNOWN = null;
   function lanes() { return (S.tasks.some(function (t) { return t.step === UNKNOWN.key; }) ? [UNKNOWN] : []).concat(S.steps); }
   var KIND = { row: ["at a gate", "Tasks at a gate"], left: ["left over", "Left over by tasks that ended"], hold: ["need your word", "Pull requests jmerge holds for your word"], approve: ["to approve", "Rows to approve"], gate: ["gates", "Open gates"], config: ["to set up", "Setup jbus lacks"] };
@@ -666,11 +507,6 @@
   function gloss(key) { return key.indexOf("step:") === 0 ? stepGloss(key.slice(5)) : GLOSS[key] || null; }
   function hint(key, label) { return '<button type="button" class="hint" data-tip="' + esc(key) + '" aria-expanded="false" aria-label="What ' + esc(label) + ' means"></button>'; }
   function tipHtml(g) { return '<b>' + (g[2] ? '<span class="w-' + esc(g[2]) + '"><i class="sh"></i></span> ' : "") + esc(g[0]) + '</b>' + esc(g[1]); }
-  function foldedKey() {
-    return '<details class="gk"><summary>Shapes and marks</summary><div class="legend">' +
-      Object.keys(SHAPES).map(function (w) { return '<span class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + hint("who:" + w, SHAPES[w][0]) + '</span>'; }).join("") +
-      MARKS.map(function (m) { return '<span><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + esc(m[2].replace(/[:.].*$/, "")) + hint("mark:" + m[0], m[2].replace(/[:.].*$/, "")) + '</span>'; }).join("") + '</div></details>';
-  }
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
   function asked(t) { var q = t.request; return !q ? "" : q.state === "researching" && !t.out ? "no Report" : q.state; }
   function threadLine(t, title) {
@@ -695,105 +531,21 @@
   function since(t) { var v = ms(t.since); return v == null ? null : NOW - v; }
 
   function behind(n) { return plural(n, "task waits", "tasks wait") + " behind it"; }
-  function blockedBy(b) { return "blocked by " + b.what + (b.state ? " (" + b.state + ")" : ""); }
   function known(slug) { return TASK[slug] || ENDED[slug] || DONE[slug]; }
-  function lastOn(t) { var more = t.blockers.length - 1; return "waits on " + t.waits_on + (more ? " and " + more + " more" : ""); }
-  function waitsOn(t) { return t.slug + " " + lastOn(t); }
-  function mark(by, what, title, label) {
-    return '<i class="mk blk"></i>' + (by ? '<button type="button" class="bk" data-open="task:' + esc(by) + '" aria-description="' + esc(label) + ': open it" title="' + esc(title) + '">' + esc(what) + '</button>' : '<span class="bk" title="' + esc(title) + '">' + esc(what) + '</span>');
-  }
-  function token(t, how) {
-    var o = typeof how === "object" ? how : {}, next = o.next, cls = o.cls || "";
-    var st = STEP[t.step], age = since(t), long = age != null && age >= LONG_ON_STEP_MS, rep = t.visits > 1, b = t.blocked, more = t.blockers.length - 1, after = "", held = b ? blockedBy(b) : "", live = TURN_UNDER_WAY[t.seen.live] ? t.seen.live : "";
-    if (next && t.waits_on) held = lastOn(t);
-    if (next && t.waits_on) after = mark(known(t.waits_on) ? t.waits_on : "", t.waits_on, waitsOn(t), waitsOn(t)) +
-      (more ? '<button type="button" class="bk" data-open="task:' + esc(t.slug) + '" aria-description="' + esc(t.slug) + " waits on " + more + ' more: open it">+' + more + '</button>' : "");
-    else if (b) after = mark(b.by, b.what, blockedBy(b), t.slug + " is " + blockedBy(b));
-    return '<span class="tw' + cls + '"><button type="button" class="tok w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" aria-description="' + esc(t.slug) + ": " + esc(t.state.name) + ", waits for " + esc(t.state.waits) + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + (held ? ", " + esc(held) : "") + (t.blocks ? ", " + behind(t.blocks) : "") + (live ? ", its thread is " + live : "") + (long ? ", over 30 min here" : "") + (rep ? ", " + ord(t.visits) + " time on " + esc(st.name) : "") + '">' +
-      '<i class="sh"></i><span class="lb">' + esc(t.slug) + '</span>' + (t.blocks ? '<span class="bn">' + t.blocks + '</span>' : "") + (live ? '<i class="mk lv-' + live + '"></i>' : "") + (long ? '<i class="mk long"></i>' : "") + (rep ? '<i class="mk rep"></i>' : "") + '</button>' +
-      after + '</span>';
-  }
-  function dot(t) { return '<button type="button" class="qd w-' + esc(t.who) + (t.unconfirmed ? " unc" : "") + '" data-open="task:' + esc(t.slug) + '" data-who="' + esc(t.who) + '" title="' + esc(t.slug) + '" aria-label="' + esc(waitsOn(t)) + ", in wave " + t.wave + (t.state.kind === "unapproved" ? ", not approved" : "") + (t.unconfirmed ? ", " + esc(t.unconfirmed.line) : "") + '"></button>'; }
-  function flowHead(name, n, cls) { return '<button type="button" class="flh' + cls + '" data-open="flow" aria-description="' + name + ": " + n + '. Open the queue as a flow"><b>' + name + '</b> <i data-gloss="count:flow">' + n + '</i></button>'; }
-  function plus(n, cls, text, name) { return '<button type="button" class="pl ' + cls + '" data-open="flow" aria-description="' + n + " more in " + name + ': open the queue as a flow">' + text + '</button>'; }
-  function flowLine(name, rows, next) {
-    var more = rows.length - DESK_LINE_TOKENS, few = rows.length - PHONE_LINE_TOKENS;
-    return '<div class="fl">' + flowHead(name, rows.length, "") + rows.slice(0, DESK_LINE_TOKENS).map(function (t, i) { return token(t, { next: next, cls: i < PHONE_LINE_TOKENS ? "" : " dk" }); }).join("") +
-      (more > 0 ? plus(more, "dk", "+" + more, name) : "") + (few > 0 ? plus(few, "ph", "+" + few + " more", name) : "") + '</div>';
-  }
-  function queuedLane(here) {
-    function of(w) { return here.filter(function (t) { return t.wave === w; }); }
-    var later = here.filter(function (t) { return t.wave > 1; }), ws = [];
-    if (here.length <= DESK_LINE_TOKENS && !later.length) return here.map(token).join("");
-    later.forEach(function (t) { if (ws.indexOf(t.wave) < 0) ws.push(t.wave); });
-    ws.sort(function (a, b) { return a - b; });
-    return flowLine("Ready", of(0), false) + flowLine("Next", of(1), true) + '<div class="fl">' + flowHead("Later", later.length, " dk") +
-      ws.map(function (w) { return '<span class="wv dk"><b data-gloss="count:wave">' + w + '</b>' + of(w).map(dot).join("") + '</span>'; }).join("") +
-      (later.length ? plus(later.length, "ph", later.length + " later, in " + plural(ws.length, "wave", "waves"), "Later") : "") + '</div>';
-  }
   function jb() { return PROJECT ? S && S.jbus : STACK && STACK.machine.jbus; }
   function renderDead() {
     var p = jb() || { said: "" }, end = jb() ? ms(p.last_end) : null;
-    var frozen = gone ? ["the line", "Needs you", "the bus", "Room", "CI checks", "gates", "GitHub"] : ["the line", "Needs you", "the bus"];
-    var live = gone ? [] : ["Room", "CI checks", "gates", "GitHub"];
-    function codes(a) { return a.map(function (x) { return '<code>' + esc(x) + '</code>'; }).join(""); }
     put($("dead"),
       '<div class="dh"><b>' + (gone ? "the view server does not answer" : "jbus has not passed") + '</b>' +
       (gone ? '<span>last answer ' + (lastAnswer ? hm(lastAnswer, true) : "never") + '</span><span>' + missed + ' answers missed</span>'
         : '<span>last pass ended ' + (end == null ? "never" : day(end) + ":" + p2(new Date(end).getSeconds())) + '</span><span>' + esc(p.said) + '</span>') +
-      (S ? '<button type="button" data-open="pulse">Detail</button>' : "") + '</div>' +
-      '<div class="split"><div class="half fzh">' + fz() + codes(frozen) + '</div>' +
-      (live.length ? '<div class="half lvh">' + lv() + codes(live) + '</div>' : "") + '</div>');
-  }
-  function renderTop() {
-    var cards = ORDER.filter(function (p) { return p.card; }).map(function (p) { var c = p.card(); c.k = p.name; return c; }).sort(function (a, b) { return a.at - b.at; });
-    put($("cards-c"), foldCtl(PROJECT + "/cards", "This project's cards", "vitals"));
-    say($("cards-sum"), cards.map(function (c) { return c.sum; }).filter(Boolean).join(", "));
-    put($("vitals"), cards.map(function (c) {
-      return '<div class="vw' + (c.cls || "") + '"><button type="button" class="vit e-' + c.e + (c.frz ? " frz" : "") + (c.cls || "") + '" data-open="' + c.k + '" aria-description="' + esc(c.label) + '"><span class="tag">' + c.tag + '</span> <span class="stw">' + (c.st || "") + '</span> <span class="val">' + c.val + '</span>' + (c.viz ? '<span class="viz">' + c.viz + '</span>' : "") + '</button>' + hint("card:" + c.k, c.tag) + '</div>';
-    }).join(""));
+      (S ? '<button type="button" data-open="pulse">Detail</button>' : "") + '</div>');
   }
   function waits(kind) { return S.waiting.filter(function (w) { return w.kind === kind; }); }
-  function renderLine() {
-    var order = ["user", "crew", "home", "rev", "ci", "bus", "dep", "unknown"], rank = { user: 0, bus: 1, dep: 2 };
-    if (!$("filters").querySelector("details.gk")) $("filters").insertAdjacentHTML("beforeend", foldedKey());
-    put($("fbs"), '<button type="button" class="fb" data-filter="all" aria-pressed="' + (VIEW.filter === "all") + '">all <i data-gloss="count:all">' + S.tasks.length + '</i></button>' +
-      order.map(function (w) {
-        var n = S.tasks.filter(function (t) { return t.who === w; }).length;
-        return n ? '<button type="button" class="fb w-' + w + '" data-filter="' + w + '" aria-pressed="' + (VIEW.filter === w) + '" aria-description="Held by ' + WHO[w] + ": " + n + '"><span class="sh"></span>' + WHOSHORT[w] + ' <i data-gloss="count:held">' + n + '</i></button>' : "";
-      }).join("") + fz() +
-      '<span class="keyk"><i class="mk long"></i>30m+</span><span class="keyk"><i class="mk rep"></i>again</span><span class="keyk"><i class="mk blk"></i>blocked</span>');
-    var html = "", folded = [];
-    lanes().forEach(function (s) {
-      var here = S.tasks.filter(function (t) { return t.step === s.key; }), body, count = s.key === "merged" ? S.merged.length : here.length;
-      if (!count) { folded.push('<button type="button" data-gloss="step:' + esc(s.key) + '" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-label="' + esc(s.name) + ': no task. Open this step">' + esc(s.name) + '</button>'); return; }
-      if (s.key === "queued") here.sort(function (a, b) { return rank[a.who] - rank[b.who] || a.priority - b.priority; });
-      else here.sort(function (a, b) { return (ms(a.since) || NOW) - (ms(b.since) || NOW); });
-      if (s.key === "merged") {
-        body = '<span class="mdots">' + S.merged.slice().reverse().map(function (m) { return '<button type="button" class="md w-ok" data-open="task:' + esc(m.slug) + '" title="' + esc(m.slug) + '" aria-label="' + esc(m.slug) + ', merged ' + hm(ms(m.at)) + '"></button>'; }).join("") + '</span>';
-      } else body = s.key === "queued" ? queuedLane(here) : here.map(token).join("");
-      html += '<li class="lane' + (s.who ? " e-" + esc(s.who) : "") + (s.group ? " g" : "") + '"><span class="lhw"><button type="button" class="laneh" data-open="' + (s.key === "merged" ? "merged" : "steps:" + esc(s.key)) + '" aria-description="' + esc(s.name) + ": " + count + '. Open this step"><span class="n' + (count ? "" : " zero") + '" data-gloss="count:lane">' + count + '</span> <b>' + esc(s.name) + '</b></button>' + hint("step:" + s.key, s.name) + '</span><div class="laneb">' + body + '</div></li>';
-    });
-    if (folded.length) html += '<li class="folded"><span class="tag">empty</span>' + folded.join("") + '</li>';
-    put($("line"), html);
-    put($("line-c"), foldCtl(PROJECT + "/line", "The line", "line-b"));
-    $("calm").hidden = S.tasks.length > 0;
-    applyFilter();
-  }
-  function applyFilter() {
-    $("line").querySelectorAll(".tok[data-who]").forEach(function (tk) { var off = VIEW.filter !== "all" && tk.getAttribute("data-who") !== VIEW.filter; tk.classList.toggle("off", off); tk.parentElement.classList.toggle("off", off); });
-    $("line").querySelectorAll(".qd").forEach(function (d) { d.classList.toggle("off", VIEW.filter !== "all" && d.getAttribute("data-who") !== VIEW.filter); });
-    $("filters").querySelectorAll("[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === VIEW.filter)); });
-  }
   function machineOf() {
-    if (PROJECT && S) return { jbus: S.jbus, room: S.room, runners: S.checks.runners, runners_read: S.checks.runners_read, unwell: STACK ? STACK.machine.unwell : [], opens: true };
+    if (PROJECT && S) return { jbus: S.jbus, room: S.room, runners: S.checks.runners, runners_read: S.checks.runners_read, unwell: STACK ? STACK.machine.unwell : [] };
     return STACK ? STACK.machine : null;
   }
-  function mitem(e, tag, val, tip, open) {
-    var inner = '<span class="tag">' + tag + '</span> <span class="val">' + val + '</span>';
-    return '<span class="mw">' + (open ? '<button type="button" class="mi e-' + e + '" data-open="' + open + '" title="' + esc(tip) + '" aria-description="' + esc(tip) + '. Open it">' + inner + '</button>' : '<div class="mi e-' + e + '" title="' + esc(tip) + '">' + inner + '</div>') + hint("card:" + tag.toLowerCase(), tag) + '</span>';
-  }
-  function bar(v, over) { return v == null ? '<i class="mb unk"></i>' : '<i class="mb' + (v >= over ? " over" : "") + '"><u style="width:' + v.toFixed(0) + '%"></u></i>'; }
   function offBus(m) { return (m.jbus.status && m.jbus.status.homes_off_bus) || []; }
   function machineEdges(m) {
     var r = m.room, plan = r.plan || {}, up = m.runners.filter(function (u) { return u.active === "active"; }).length;
@@ -803,75 +555,89 @@
       homes: offBus(m).length > 0
     };
   }
-  function machineRow(m) {
-    var j = m.jbus, stopped = j.stopped, end = ms(j.last_end), r = m.room, l = r.limits, plan = r.plan || {}, ok = r.answer === "go", o = m.opens;
-    var us = m.runners, up = us.filter(function (u) { return u.active === "active"; }).length, edge = machineEdges(m);
-    var load = r.load[0] == null ? null : pct(r.load[0], r.cores), tmp = r.tmp ? pct(r.tmp.used, r.tmp.total) : null;
-    function used(key) { var x = plan[key]; return x && x.used != null ? x.used + "%" : "?"; }
-    var bad = m.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ");
-    return mitem(edge.stopped || edge.unread ? "op" : "ok", "jbus", '<i class="dot' + (stopped ? " off" : "") + '"></i>' + (stopped ? "stopped" : "passing") + ' <small>' + (end == null ? "never" : hm(end)) + '</small>',
-        (stopped ? "jbus has not passed: " + j.why : "jbus is passing: the last pass ended " + hm(end, true) + ". One timer serves every project") + (bad ? ". Not read: " + bad : ""), o && "pulse") +
-      mitem(edge.room ? "op" : "ok", "Room", (ok ? "ok" : r.answer === "wait" ? "full" : "unknown") + ' <span class="mbs">' + bar(load, l.load) + bar(tmp, l.slots) + '</span>',
-        "Machine room: " + (ok ? "room to launch" : r.why) + ". Load " + (r.load[0] == null ? "unknown" : r.load[0]) + " of " + r.cores + " cores", o && "room") +
-      mitem(edge.runners ? "op" : "ok", "Runners", m.runners_read ? up + "/" + us.length : "not known",
-        m.runners_read ? "Runner units of this machine: " + (us.map(function (u) { return u.unit.replace(/\.service$/, "") + " " + u.active; }).join(", ") || "none") : "systemd did not answer", o && "checks") +
-      mitem(edge.plan ? "op" : "ok", "Plan", used("five_hour") + "/" + used("seven_day"),
-        "The plan's use: " + used("five_hour") + " of five hours, " + used("seven_day") + " of seven days, held to " + l.plan + "%" + ["five_hour", "seven_day"].map(function (k) { return plan[k] && plan[k].say ? ". " + plan[k].say : ""; }).join(""), o && "room") +
-      (edge.homes ? mitem("op", "Homes", offBus(m).length + " off bus",
-        "Homes not on the bus: " + offBus(m).join(", ") + ". Each has a home-id and no project in jbus's config: its home's next start adds it, or jbus project add does") : "");
-  }
-  function health(p) {
-    var h = p.health, c = h.checks, b = h.bus;
-    return [
-      [c.error || c.failed ? "op" : c.running + c.waiting ? "msg" : "dim", c.error ? "CI: " + c.error : "CI " + c.running + " running, " + (c.waiting ? c.waiting + " waiting, " : "") + c.failed + " failed", "its checks on GitHub" + (c.error ? ": " + c.error : ", " + c.running + " running, " + c.waiting + " waiting for a runner, " + c.failed + " branches failed")],
-      [b.failed_wakes || b.last_error ? "op" : "ok", "Bus " + b.outbox + " in outbox" + (b.failed_wakes ? ", " + plural(b.failed_wakes, "failed wake", "failed wakes") : ""), "its bus: " + b.outbox + " in the outbox, " + plural(b.failed_wakes, "failed wake", "failed wakes") + (b.last_error ? ", last error: " + b.last_error : "")],
-      [h.threads == null ? "op" : h.threads ? "msg" : "dim", h.threads == null ? "Threads not known" : "Threads " + h.threads + " out", h.threads == null ? "the last pass left no list of its threads" : plural(h.threads, "thread", "threads") + " out", "threads"],
-      [h.blind ? "op" : "ok", "Blind " + h.blind, plural(h.blind, "thing", "things") + " its page cannot say now"]
-    ].concat(h.unwell.length ? [["op", plural(h.unwell.length, "source", "sources") + " unread", "not read: " + h.unwell.map(function (u) { return u.name + " " + u.state; }).join(", ")]] : []);
-  }
-  function amber(p) { return health(p).filter(function (x) { return x[0] === "op"; }).map(function (x) { return x[2]; }); }
-  function renderSide() {
-    var ps = STACK ? STACK.projects.slice() : [], here = PROJECT && S && !NOSUCH;
-    function waitsOf(p) { return here && p.name === PROJECT ? S.needs.length : p.waits; }
-    if (here && !ps.some(function (p) { return p.name === PROJECT; })) ps.push({ name: PROJECT, waits: S.needs.length });
-    var all = ps.reduce(function (t, p) { return t + waitsOf(p); }, 0);
-    function n(v) { return '<span class="n' + (v ? " op" : " zero") + '" data-gloss="count:waits">' + v + '</span>'; }
-    put($("projects"), (ps.length ? '<a class="sp" href="' + esc(href("")) + '"' + (PROJECT ? "" : ' aria-current="page"') + ' title="Every project: ' + all + ' need you"><span class="nm">All</span>' + n(all) + '</a>' : "") +
-      ps.map(function (p) {
-        var w = waitsOf(p), bad = p.health ? amber(p) : [];
-        return '<a class="sp" href="' + esc(href(p.name)) + '"' + (p.name === PROJECT ? ' aria-current="page"' : "") + ' title="' + esc(p.name + ": " + w + " need you" + (bad.length ? ". " + bad.join(". ") : "")) + '">' + (p.health ? '<i class="hd' + (bad.length ? " op" : "") + '"></i>' : "") + '<span class="nm">' + esc(p.name) + '</span>' + n(w) + '</a>';
-      }).join(""));
-    var m = machineOf(), row = m ? machineRow(m) : "";
-    $("mach-w").hidden = !m;
-    put($("mach-c"), foldCtl("machine", "This machine", "machine"));
-    var edge = m ? machineEdges(m) : {}, looks = ["unread", "room", "runners", "plan", "homes"].filter(function (k) { return edge[k]; }).length;
-    say($("mach-sum"), !m ? "" : (edge.stopped ? "jbus stopped" : "jbus passing") + (looks ? ", " + plural(looks, "wants", "want") + " a look" : edge.stopped ? "" : ", all well"));
-    put($("machine"), row);
+  function machineWord() {
+    var m = machineOf(), box = $("mach"), pj = PROJECT || (STACK && STACK.projects[0] ? STACK.projects[0].name : "");
+    box.hidden = !m;
+    if (!m) return;
+    var e = machineEdges(m), r = m.room, word = "Machine ok", cls = "";
+    if (e.stopped) { word = "jbus stopped"; cls = "bad"; }
+    else if (e.room) { word = "Machine: room " + (r.answer === "wait" ? "full" : "not known"); cls = "op"; }
+    else if (e.runners) { word = "Machine: runners down"; cls = "op"; }
+    else if (e.plan) { word = "Machine: plan at its limit"; cls = "op"; }
+    else if (e.homes) { word = "Machine: " + plural(offBus(m).length, "home", "homes") + " off the bus"; cls = "op"; }
+    else if (e.unread) { word = "Machine: " + plural(m.unwell.length, "source", "sources") + " unread"; cls = "op"; }
+    say(box, word);
+    if (box.className !== "machw " + cls) box.className = "machw " + cls;
+    box.setAttribute("href", pj ? href(pj, "pulse") : "#/");
+    box.title = "jbus, the room, the runners and the plan: open the pulse";
   }
   function renderHeader() {
     var at = PROJECT || NOSUCH;
     put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    var names = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
+    if (at && names.indexOf(at) < 0) names.push(at);
+    put($("pick"), '<option value=""' + (at ? "" : " selected") + '>All projects</option>' + names.map(function (n) { return '<option value="' + esc(n) + '"' + (n === at ? " selected" : "") + '>' + esc(n) + '</option>'; }).join(""));
+    $("pick").hidden = !names.length;
+    machineWord();
     $("helpme").setAttribute("href", href(PROJECT, "help"));
     var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
     if (document.title !== named) document.title = named;
   }
-  function band(name, threads, away) { return added("band", { name: name, threads: threads, away: away, fold: away ? "" : name + "/threads" }).map(function (a) { return a.said; }).join(""); }
-  function chip(e, inner, tip) { return '<span class="hc e-' + e + '" title="' + esc(tip) + '">' + inner + '</span>'; }
   function projectRow(p) {
-    var held = STACK.steps.filter(function (s) { return p.steps[s.key]; }), key = "/row/" + p.name, looks = amber(p).length;
-    var out = '<div class="pjh"><h2><a href="' + href(p.name) + '">' + esc(p.name) + '</a></h2><span class="src">' + esc(p.repo || "repo not known") + ', ' + plural(p.open, "open task", "open tasks") + ', ' + p.merged + ' merged today</span><span class="fv-sum">' + (looks ? plural(looks, "thing wants", "things want") + " a look" : "all well") + '</span><a class="btn go" href="' + href(p.name) + '" aria-label="Open ' + esc(p.name) + '">Open &rsaquo;</a><span class="fv-c">' + foldCtl(key, p.name) + '</span></div>';
-    out += '<div class="fv-body" id="' + fvId(key) + '"><div class="chips">' + health(p).filter(function (x) { return x[3] !== "threads"; }).map(function (x) { return chip(x[0], esc(x[1]), p.name + ": " + x[2]); }).join("") + '</div>';
-    out += band(p.name, p.threads, true);
-    var cells = held.map(function (s) { return [s.who || "q", p.steps[s.key], s.name, "steps:" + s.key]; });
-    if (p.merged) cells.push(["ok", p.merged, "Merged", "merged"]);
-    if (cells.length) out += '<ol class="rail" aria-label="' + esc(p.name) + ': the steps that hold a task">' + cells.map(function (x) { return '<li><a class="rcell e-' + esc(x[0]) + '" href="' + href(p.name, x[3]) + '" title="' + esc(p.name + ", " + x[2] + ": " + x[1]) + '"><b data-gloss="count:lane">' + x[1] + '</b><span>' + esc(x[2]) + '</span></a></li>'; }).join("") + '</ol>';
-    if (!p.open) out += '<p class="empty-q"><i class="dot"></i> nothing open</p>';
-    return out + '</div>';
+    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; })).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
+    if (p.waits) says.push(p.waits + " need you");
+    if (why) says.push(why);
+    return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
+      '<span class="pc">' + p.open + ' open</span><span class="pc">' + p.merged + ' merged today</span></a>';
   }
   function renderStack() {
-    var ps = STACK.projects;
-    keyed($("rows"), "article", "proj", ps.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
-    [].forEach.call($("rows").children, function (a) { setFv(a, "/row/" + a.getAttribute("data-key"), a.getAttribute("data-key")); });
+    keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
+  }
+  var LIVEWORD = { moving: "Working", quiet: "Quiet", hung: "Hung", waiting: "Waiting", unknown: "Unknown" };
+  function chipsOf(t) {
+    var out = [], live = t.seen.live;
+    function add(text, tone) { out.push('<span class="chip ' + tone + '">' + esc(text) + '</span>'); }
+    function liveness(who, word) { if (word === "hung") add(who + " hung", "bad"); else if (word === "quiet") add(who + " quiet", "user"); }
+    if (live !== t.state.kind) liveness("thread", live);
+    (S.threads || []).forEach(function (r) { if (r.role === "reviewer" && r.slug === t.slug && r.out && r.live !== t.state.kind) liveness("reviewer", r.live); });
+    if (t.seen.check && /fail/.test(t.seen.check.state)) add("check failed", "bad");
+    if (t.state.kind === "behind") add("behind " + (t.waits_on || (t.blockers[0] && t.blockers[0].what) || "another task"), "plain");
+    if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");
+    return out.join(" ");
+  }
+  function progRow(r) {
+    var tone = r.rank === 0 ? " bad" : r.rank === 1 ? " ask" : "";
+    return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button></span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
+  }
+  function progress() {
+    var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key; }).map(function (t) {
+      return { key: t.slug, slug: t.slug, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t), age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+    });
+    (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
+      var at = ms(t.created) || ms(t.updated);
+      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role][1], chips: "", age: at == null ? "" : short(NOW - at) });
+    });
+    return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
+  }
+  function hk(text, open, tone) { return '<button type="button" class="hk' + (tone ? " " + tone : "") + '" data-open="' + esc(open) + '">' + esc(text) + '</button>'; }
+  function healthLine(sm) {
+    var h = sm.health, parts = sm.broken.map(function (b) { return hk(b.what, b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
+    if (h.blind) parts.push(hk(plural(h.blind, "blind spot", "blind spots"), "blind", "op"));
+    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; last pass " + hm(end)) + '</span>'] : parts;
+    if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
+    return line.join(" &middot; ");
+  }
+  function renderProject() {
+    var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : ""));
+    $("calm").hidden = rows.length > 0;
+    keyed($("prog"), "li", "pg", rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
+    $("merged-d").hidden = !merged.length;
+    say($("merged-s"), "Merged today \u00b7 " + merged.length);
+    put($("merged-l"), merged.map(function (m) { return '<li>' + openBtn("task:" + m.slug, m.slug) + '<span class="src">' + esc(m.pr) + '</span><span class="src">' + hm(ms(m.at)) + '</span></li>'; }).join("") + (merged.length ? '<li>' + openBtn("merged", "Every merge, with the time to merge") + '</li>' : ""));
+    put($("health"), healthLine(sm) + "");
+    $("health").className = "hl" + (sm.broken.length ? " op" : "");
+    put($("unplaced"), sm.unplaced.length ? plural(sm.unplaced.length, "row", "rows") + ' the view cannot place: ' + sm.unplaced.map(function (u) { return openBtn("task:" + u, u); }).join(" ") : "");
   }
   function noSuch() {
     return '<span class="big">No project named <code>' + esc(NOSUCH) + '</code></span><p style="margin:0">jbus looks after no project of that name: a retired project is not shown. <a href="#/">Every project</a></p>';
@@ -890,22 +656,15 @@
     $("stack").hidden = !!PROJECT || !STACK;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
-    if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderSide(); renderDead(); PANELS.you.draw(); return; }
+    if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderDead(); PANELS.you.draw(); return; }
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
     var read = ms(PROJECT ? S.at : STACK.at) || lastAnswer;
     say($("readat"), gone ? "Stale since " + hm(read) : "Updated " + hm(read) + " \u00b7 live"); $("readat").classList.toggle("stale", gone);
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every 15 s";
-    renderSide();
     renderDead();
     PANELS.you.draw();
-    if (!PROJECT) renderStack();
-    else {
-      if (VIEW.filter !== "all" && !S.tasks.some(function (t) { return t.who === VIEW.filter; })) VIEW.filter = "all";
-      renderTop(); put($("band"), band(PROJECT, S.threads, false)); renderLine();
-      setFv($("cards-w"), PROJECT + "/cards", "This project's cards"); setFv($("band"), PROJECT + "/threads", "Threads");
-      setFv($("line-w"), PROJECT + "/line", "The line");
-    }
+    if (!PROJECT) renderStack(); else renderProject();
     if (tipBtn && !tipBtn.isConnected) refind();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
@@ -1013,7 +772,7 @@
     h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
-    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project in the sidebar</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
+    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
     return h;
   }
   panels("help", true)({ title: "Every term on the page", free: true, drawer: function () { var h = dHelp(); setTimeout(notes); return h; } });
@@ -1040,7 +799,7 @@
     if (!drawer.open) return;
     ours += 1;
     drawer.close();
-    var b = first && document.querySelector('.shell [data-open="' + CSS.escape(first) + '"]');
+    var b = first && document.querySelector('main [data-open="' + CSS.escape(first) + '"]');
     if (b) b.focus();
   }
   function github() {
@@ -1169,6 +928,7 @@
     if (sh && e.target.matches(":focus-visible")) showPeek(sh, tok); else hidePeek();
   });
   document.addEventListener("focusout", hidePeek);
+  document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
   window.addEventListener("scroll", function () { hidePeek(); hideTip(); }, true);
   window.addEventListener("resize", hideTip);
   document.addEventListener("click", function (e) {
@@ -1203,14 +963,6 @@
   function saveFold() { try { if (Object.keys(FOLD).length) localStorage.setItem(FOLDKEY, JSON.stringify(FOLD)); else localStorage.removeItem(FOLDKEY); } catch (e) {} }
   function stOf(key) { var v = FOLD[key]; return v === "folded" || v === "hidden" ? v : "open"; }
   function fvId(key) { return "fv-" + key.replace(/[^A-Za-z0-9_-]/g, function (c) { return "_" + c.charCodeAt(0).toString(16); }); }
-  function foldCtl(key, title, body) {
-    return '<button type="button" class="fv-b" data-fold="' + esc(key) + '" aria-expanded="true" aria-controls="' + esc(body || fvId(key)) + '" aria-label="' + esc(title) + '" title="Fold to one line"></button>' +
-      '<button type="button" class="fv-b x" data-hide="' + esc(key) + '" aria-label="Hide ' + esc(title) + '" title="Hide it: the header brings it back"></button>';
-  }
-  function setFv(el, key, title) {
-    if (el.getAttribute("data-fv") !== key) el.setAttribute("data-fv", key);
-    if (el.getAttribute("data-fv-name") !== title) el.setAttribute("data-fv-name", title);
-  }
   function views() { return [].filter.call(document.querySelectorAll("[data-fv]"), function (el) { return !el.closest("[hidden]"); }); }
   function fold() {
     document.querySelectorAll("[data-fv]").forEach(function (el) { var s = stOf(el.getAttribute("data-fv")); if (el.getAttribute("data-st") !== s) el.setAttribute("data-st", s); });
@@ -1263,8 +1015,6 @@
     if (b) { go(b.getAttribute("data-open"), drawer.open && drawer.contains(b), b.hasAttribute("aria-pressed")); return; }
     if (e.target.closest("#dw-back")) { up(); return; }
     if (e.target.closest("#dw-close") || e.target === drawer) { shut(); return; }
-    var f = e.target.closest("[data-filter]");
-    if (f) { VIEW.filter = f.getAttribute("data-filter"); applyFilter(); }
   });
   var escaped = false;
   document.addEventListener("keydown", function (e) {
@@ -1311,7 +1061,7 @@
   function poll() {
     var mine = turnOf;
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
-    if (!STACK || beat++ % SIDEBAR_EVERY_POLLS === SIDEBAR_EVERY_POLLS - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
+    if (!STACK || beat++ % STACK_EVERY_POLLS === STACK_EVERY_POLLS - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();

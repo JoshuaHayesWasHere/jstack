@@ -4,9 +4,5 @@ function dBlind() {
 }
 panel({
   gloss: { blind: ["Blind spots", "Things this page cannot say now, each with where to look. They are said so that a gap is never drawn as calm."] },
-  card: function () {
-    return { at: 60, sum: plural(S.blind.length, "blind spot", "blind spots"), e: S.blind.length ? "op" : "ok", tag: "blind spots", val: String(S.blind.length), viz: "",
-      label: S.blind.length + " things the page cannot say" };
-  },
   drawer: dBlind
 });
