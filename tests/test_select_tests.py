@@ -55,6 +55,7 @@ TESTS = {
     "test_helper.py": "HELP = 1\n",
     "test_user.py": "    from test_helper import HELP\n",
     "test_user_of_user.py": "import test_user\n",
+    "leaves.py": "import test_helper\n",
 }
 
 
@@ -188,6 +189,12 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
         "tests/test_user.py",
         "tests/test_user_of_user.py",
     ]
+
+
+def test_a_helper_that_imports_a_changed_test_is_not_named_for_pytest_to_run(repo):
+    head = repo.change(["tests/test_helper.py"])
+
+    assert "tests/leaves.py" not in repo.selected(head)
 
 
 def test_a_test_module_conftest_imports_selects_all(repo):
