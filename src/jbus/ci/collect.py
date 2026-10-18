@@ -223,6 +223,11 @@ def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
 
 def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
     """Keep the jobs of the last `days` days that are not kept yet, and the pull requests."""
+    with ledger.locked(state):
+        return _collect(gh, repo, state, now, days)
+
+
+def _collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
     since = now - timedelta(days=days)
     held = {one["number"]: one for one in ledger.read(state / ledger.PULLS)}
     for one in pulls(gh, repo, since):
