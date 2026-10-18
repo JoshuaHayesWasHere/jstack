@@ -1,3 +1,105 @@
+var NEEDS_FOR = 10;
+var ACCEPTING = {}, SAID = [];
+function needId(w) { return w.project + "/" + w.key; }
+function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
+function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
+function inlineAccept(w) { return w.answerable && w.verb === "Accept default"; }
+function needMeta(w, soon) {
+  var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
+  bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
+  if (soon && due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
+  if (w.risk !== "reversible") bits.push(esc(w.risk));
+  if (w.unblocks.length) bits.push("unblocks " + esc(w.unblocks.slice(0, 2).join(", ")) + (w.unblocks.length > 2 ? " and " + (w.unblocks.length - 2) + " more" : ""));
+  return bits.join(" &middot; ");
+}
+function needAct(w) {
+  var id = needId(w), now = ACCEPTING[id];
+  if (now) return '<span class="acc">' + (now.sent ? "Closing it&hellip;" : 'Accepting the default in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
+  if (inlineAccept(w)) return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Accepts the default of question ' + esc(needNumber(w)) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">' + esc(w.verb) + '</button>';
+  if (PROJECT) return '<button type="button" class="btn" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
+  return '<a class="btn" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
+}
+function needRow(w, soon) {
+  return '<div class="nb"><b class="nw">' + esc(w.what) + '</b>' + (w.why ? '<span class="ny">' + esc(w.why) + '</span>' : "") +
+    (w["default"] ? '<span class="ny">If you do nothing: ' + esc(w["default"]) + '</span>' : "") + '<span class="nm"' + (ms(w.since) == null ? "" : ' title="Since ' + esc(day(ms(w.since))) + '"') + '>' + needMeta(w, soon) + '</span></div><div class="na">' + needAct(w) + '</div>';
+}
+function lastPass() {
+  var j = jb(), t = j && (ms(j.status && j.status.last_pass) || ms(j.last_end));
+  return t == null ? "" : " &middot; last pass " + hm(t);
+}
+function saidRows() {
+  return SAID.map(function (s) { return '<p class="' + (s.bad ? "will bad" : "will none") + '"><b>' + esc(s.say) + '</b></p>'; }).join("");
+}
+function ticks() {
+  [].forEach.call(document.querySelectorAll("#needs .cd"), function (el) {
+    var id = el.closest("[data-key]").getAttribute("data-key"), now = ACCEPTING[id];
+    if (now) say(el, String(now.left));
+  });
+}
+function leaveAccepts() {
+  Object.keys(ACCEPTING).forEach(function (id) {
+    var now = ACCEPTING[id];
+    if (now.sent || !PROJECT || PROJECT === now.w.project) return;
+    clearInterval(now.timer); delete ACCEPTING[id];
+  });
+}
+function renderNeeds() {
+  leaveAccepts();
+  var src = PROJECT ? S : STACK, box = $("needs");
+  box.hidden = !src || !!NOSUCH;
+  if (box.hidden) return;
+  var needs = src.needs, soon = src.proceeds;
+  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + hint("term:waits", "Needs you"));
+  keyed($("nq"), "li", "nr", needs.map(function (w) { return { key: needId(w), html: needRow(w, false) }; }));
+  $("nq").hidden = !needs.length;
+  keyed($("np"), "li", "nr", soon.map(function (w) { return { key: needId(w), html: needRow(w, true) }; }));
+  $("np-w").hidden = !soon.length;
+  var next = soon.map(function (w) { return ms(w.due); }).filter(function (v) { return v != null; });
+  put($("np-h"), "Will proceed on default: " + soon.length + (next.length ? ", the first in " + short(Math.max(0, Math.min.apply(null, next) - NOW)) : ""));
+  put($("nsaid"), saidRows());
+  put($("nx"), !PROJECT ? "" : added("you").map(function (a) {
+    return '<button type="button" class="tok sans faint" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it"><b' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb">' + esc(a.said.label) + '</span></button>' + (a.said.tip ? hint(a.said.tip, a.said.label) : "");
+  }).join(" "));
+  ticks();
+}
+function startAccept(id) {
+  var w = (PROJECT ? S : STACK).proceeds.concat((PROJECT ? S : STACK).needs).filter(function (x) { return needId(x) === id; })[0];
+  if (!w || ACCEPTING[id] || !inlineAccept(w)) return;
+  SAID = [];
+  var now = ACCEPTING[id] = { left: NEEDS_FOR, sent: false, w: w };
+  now.timer = setInterval(function () {
+    now.left -= 1;
+    leaveAccepts();
+    if (!ACCEPTING[id]) return;
+    if (now.left > 0) { ticks(); return; }
+    clearInterval(now.timer);
+    sendAccept(id);
+  }, 1000);
+  renderNeeds();
+  var undo = document.querySelector('#needs [data-undo="' + CSS.escape(id) + '"]'); if (undo) undo.focus();
+}
+function undoAccept(id) {
+  var now = ACCEPTING[id]; if (!now || now.sent) return;
+  clearInterval(now.timer); delete ACCEPTING[id];
+  renderNeeds();
+  var back = document.querySelector('#needs [data-accept="' + CSS.escape(id) + '"]'); if (back) back.focus();
+}
+function sendAccept(id) {
+  var now = ACCEPTING[id], w = now.w;
+  now.sent = true; renderNeeds();
+  function over(say, bad) { delete ACCEPTING[id]; SAID = [{ say: say, bad: bad }]; renderNeeds(); }
+  ask("/answer?project=" + encodeURIComponent(w.project), { numbers: [Number(needNumber(w))] }).then(function (r) {
+    if (!r || !r.closed) { over(r && r.error ? "The server refused the write: " + r.error + "." : UNKNOWN_END, true); return; }
+    var one = r.closed[0] || r.refused[0];
+    over(one ? one.say : UNKNOWN_END, !one || !r.closed.length || !(one.sent || one.keeps));
+    poll();
+  }, function () { over(UNKNOWN_END, true); });
+}
+document.addEventListener("click", function (e) {
+  var a = e.target.closest("[data-accept]"), u = e.target.closest("[data-undo]");
+  if (a) startAccept(a.getAttribute("data-accept"));
+  else if (u) undoAccept(u.getAttribute("data-undo"));
+});
 function ticked() { return gates().map(function (w) { return w.number; }).filter(function (n) { return TICKED_GATES[n]; }); }
 function batchFoot() {
   var ns = ticked(), one = ns.length === 1;
@@ -19,8 +121,8 @@ function sendBatch() {
   BATCH = { busy: true, error: "" }; draw();
   send({ numbers: ns.map(Number) }, function (why) { BATCH = { busy: false, error: why }; draw(); });
 }
-function dYou(hit) {
-  var n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
+function dYou(arg) {
+  var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
   h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. Nothing else on the page writes, and nothing here approves.</p>' + note("mixed");
   KINDS.forEach(function (k) {
     var items = waits(k);
@@ -28,9 +130,10 @@ function dYou(hit) {
     h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + KIND[k][1] + '</h3>' +
       (k === "gate" && can.length ? '<p style="margin:0 0 5px"><button type="button" class="btn" id="tickall">Tick all ' + can.length + ' that can be answered here</button></p>' : "") +
       (items.length ? '<ul class="clean rows">' + items.map(function (w) {
-      if (k === "gate") return '<li' + (k === hit ? ' class="hit"' : "") + '>' + gateRow(w) + '</li>';
+      var here = k === hit && (!named || named === w.slug || named === w.number);
+      if (k === "gate") return '<li' + (here ? ' class="hit"' : "") + '>' + gateRow(w) + '</li>';
       var body = (w.slug ? taskBtn(w.slug) + " " : "") + (k === "hold" ? link(w.url, "#" + w.number) + " " : "");
-      return '<li' + (k === hit ? ' class="hit"' : "") + '>' + body + ' ' + ageChip(w.since, "user") +
+      return '<li' + (here ? ' class="hit"' : "") + '>' + body + ' ' + ageChip(w.since, "user") +
         '<br>' + (k === "approve" ? '<code>' + esc(w.line) + '</code>' : esc(w.line)) +
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
     }).join("") + '</ul>' : '<p class="src">None.</p>') +
@@ -54,4 +157,4 @@ document.addEventListener("change", function (e) {
   TICKED_GATES[x.getAttribute("data-tick")] = x.checked;
   $("bfoot").innerHTML = batchFoot();
 });
-panel({ drawer: dYou });
+panel({ drawer: dYou, draw: renderNeeds });

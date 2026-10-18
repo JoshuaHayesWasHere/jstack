@@ -31,11 +31,12 @@ import pytest
 import daemons
 import jbus
 import jsettings
-from jbus import cli, leftover, merge, noticed, questions, queue, record, view, word, work
+from jbus import cli, leftover, merge, noticed, questions, queue, record, view, waiting, word, work
 from jbus.view import panels
 from jbus.view import state as built
 from jbus.view.panels.checks import panel as checks_panel
 from jbus.view.panels.room import panel as room_panel
+from jbus.view.panels.you import panel as panel_you
 from jbus.view.state import waves
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
@@ -674,7 +675,6 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "name": "larder",
         "repo": "",
         "waits": 0,
-        "waiting": {},
         "noticed": 0,
         "open": 0,
         "steps": {},
@@ -705,15 +705,13 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     }
     pantry = by["pantry"]
     assert (pantry["repo"], pantry["waits"], pantry["noticed"]) == ("acme/pantry", 1, 0)
-    assert pantry["waiting"] == {"row": {"count": 1, "since": iso(ago(minutes=40))}}
+    assert "waiting" not in pantry
     assert (pantry["open"], pantry["steps"], pantry["merged"]) == (2, {"running": 1, "gate": 1}, 1)
     assert pantry["health"]["checks"] == {"running": 1, "waiting": 0, "failed": 0, "error": ""}
     shown = by["demo"]
-    assert (shown["repo"], shown["waits"], shown["noticed"]) == ("acme/demo", 4, 1)
-    assert {kind: one["count"] for kind, one in shown["waiting"].items()} == dict.fromkeys(
-        ("gate", "row", "approve", "hold"), 1
-    )
-    assert shown["waits"] == len(demo["waiting"])
+    assert (shown["repo"], shown["waits"], shown["noticed"]) == ("acme/demo", 3, 1)
+    assert shown["waits"] == len(demo["needs"]), "the gate of a home's file has its default"
+    assert len(demo["waiting"]) == 4 and [one["kind"] for one in demo["proceeds"]] == ["gate"]
     steps = [one["step"] for one in demo["tasks"]]
     assert shown["steps"] == {key: steps.count(key) for key in built.STEP if key in steps}
     assert shown["steps"] == {
@@ -3662,3 +3660,125 @@ def test_the_noticed_panel_lists_each_line_newest_first_with_its_mark(scene, ser
     state = served.json("/state.json?project=demo")
     assert state["noticed"] == []
     assert {one["name"]: one["state"] for one in state["sources"]}[noticed.NAME] == "unreadable"
+
+
+HOLDING = "Holds: publishes\nFail-safe: the dry run of the post, in the plan\n"
+
+
+def a_brief(scene, slug, title, task):
+    (scene.state / "briefs").mkdir(exist_ok=True)
+    (scene.state / "briefs" / f"{slug}.md").write_text(f"# {slug}: {title}\nTask: {task}\n")
+
+
+def needing(scene):
+    """One item of each of the six kinds over two projects, each asked at a time of its own:
+    a setup 7 h old, an approval with a brief and a row behind it, a question that holds, a
+    leftover, a row at a gate of `pantry`, and a held pull request."""
+    stacked(scene)
+    a_brief(scene, "tea-kettle", "boil the water first", "Boil the water. Then pour it.")
+    a_brief(scene, "oat-honey", "stir the honey in", "Stir it.")
+    lines = PIPED.format(n="<n>", asked="post the menu?", status="open", slug="jam-jar")
+    held = questions.ask(scene.state, scene.home, "jam-jar", lines + HOLDING, ago(hours=3))[0]
+    scene.waiting(
+        [
+            item("config", "config:webhook", "webhook is not set", hours=7),
+            item(
+                "approve",
+                "approve:tea-kettle",
+                "approve tea-kettle: jbus queue approve --sha 1",
+                slug="tea-kettle",
+                hours=5,
+            ),
+            item("left", "left:rye-loaf", "left rye-loaf: a note", minutes=100, slug="rye-loaf"),
+            item("hold", "#14", f"hold 14 {PULL.format(14)}: needs the user's word", minutes=12)
+            | {"number": 14},
+        ]
+    )
+    return held.number
+
+
+def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    number = needing(scene)
+    served = Served(scene)
+    try:
+        needs = served.json("/stack.json")["needs"]
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    assert [one["kind"] for one in needs] == ["config", "approve", "gate", "left", "row", "hold"]
+    assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
+    assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
+    assert {one["verb"] for one in needs} <= {*panel_you.VERBS.values(), panel_you.ANSWER}
+    assert [one["verb"] for one in needs] == [
+        "Set up",
+        "Approve launch",
+        "Answer",
+        "Close it",
+        "Fix brief",
+        "Review merge",
+    ]
+    assert all(set(one) == set(panel_you._NEED) for one in needs)
+    assert all("jbus " not in one["what"] + one["why"] for one in needs)
+    by = {one["kind"]: one for one in needs}
+    assert by["approve"]["what"] == "tea-kettle: boil the water first"
+    assert by["approve"]["why"] == "Boil the water."
+    assert by["approve"]["unblocks"] == ["tea-cups"]
+    assert by["approve"]["open"] == "#/demo/you/approve/tea-kettle"
+    assert by["hold"]["what"] == "Pull request #14: oat-honey: stir the honey in"
+    assert by["hold"]["why"] == "needs the user's word"
+    assert (by["hold"]["risk"], by["hold"]["answerable"]) == ("merge to main", False)
+    assert by["hold"]["open"] == "#/demo/you/hold/14"
+    assert (by["gate"]["what"], by["gate"]["risk"]) == ("post the menu?", "publishes")
+    assert (by["gate"]["answerable"], by["gate"]["default"]) == (True, "the first one")
+    assert by["gate"]["open"] == f"#/demo/gate/{number}"
+    assert by["gate"]["due"] is None
+    assert by["row"]["project"] == "pantry"
+    assert by["row"]["open"] == "#/pantry/you/row/fig-tart"
+    assert {one["risk"] for one in needs if one["kind"] not in ("gate", "hold")} == {"reversible"}
+    assert demo["needs"] == [one for one in needs if one["project"] == "demo"]
+
+
+def test_a_kind_the_waiting_list_has_is_a_kind_with_a_verb():
+    assert set(panel_you.VERBS) == set(waiting.KINDS)
+
+
+def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_needs_you(
+    tmp_path, monkeypatch
+):
+    """Eleven questions that go ahead on their default, a link's conflict that asks its home,
+    a gate of a home's file with a default, and an approval. The page's count is one, and
+    each countdown is the 2 hours of silence that close the question."""
+    scene = Scene(tmp_path, monkeypatch)
+    asked = [ago(minutes=10 * at) for at in range(11)]
+    for at, when_asked in enumerate(asked):
+        lines = PIPED.format(n="<n>", asked=f"which tin {at}?", status="open", slug="jam-jar")
+        questions.ask(scene.state, scene.home, "jam-jar", lines, when_asked)
+    link = PIPED.format(n="<n>", asked=f"oat-honey {questions.LINK}", status="open", slug="oat")
+    questions.ask(scene.state, scene.home, "oat-honey", link, ago(hours=1))
+    (scene.home / "gates.md").write_text(
+        GATE.format(n=40, asked="a lump?", status="open", default="one")
+    )
+    scene.waiting([item("approve", "approve:tea-kettle", "approve tea-kettle: jbus queue approve")])
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    assert len(demo["waiting"]) == 14
+    assert [one["kind"] for one in stack["needs"]] == ["approve"]
+    assert [one["waits"] for one in stack["projects"] if one["name"] == "demo"] == [1]
+    answerable = [one for one in stack["proceeds"] if one["answerable"]]
+    assert len(stack["proceeds"]) == 12 and len(answerable) == 11
+    assert not any(questions.LINK in one["what"] for one in stack["proceeds"])
+    assert sorted(one["due"] for one in answerable) == sorted(
+        iso(when_asked + questions.QUIET) for when_asked in asked
+    )
+    (home,) = [one for one in stack["proceeds"] if not one["answerable"]]
+    assert (home["what"], home["default"], home["due"]) == ("a lump?", "one", None)
+    assert [one["due"] for one in stack["proceeds"][:11]] == sorted(
+        one["due"] for one in answerable
+    )
+    assert {one["verb"] for one in answerable} == {"Accept default"}
+    assert home["verb"] == "Answer"
