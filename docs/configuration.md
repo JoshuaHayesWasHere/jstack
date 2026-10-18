@@ -93,6 +93,8 @@ Each `[[project]]` table is one repo:
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. A table with only one of the two is refused. |
+| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, no pull request is held for its migrations. |
+| `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. Any other value is refused. |
 
 To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus.md#add-a-project) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
 
