@@ -254,14 +254,26 @@ def test_the_inode_peak_is_the_highest_a_job_wrote(tmp_path):
     assert (peak.shown, peak.met) == ("61.5%", True)
 
 
-def test_github_not_answering_for_the_logs_leaves_the_job_kept_with_no_tests(tmp_path):
+def test_a_red_job_whose_log_could_not_be_read_is_kept_unread_and_is_never_the_pull_requests_own(
+    tmp_path,
+):
     class NoLogs(Replay):
         def log(self, repo, job):
             raise Unavailable("down")
 
     collect.collect(NoLogs(), REPO, tmp_path, NOW, 14)
     rows = ledger.read(tmp_path / ledger.JOBS)
-    assert len(rows) == 314 and all(one["tests"] == [] for one in rows)
+    red = [one for one in rows if one["conclusion"] == "failure" and one["kind"] == "local"]
+    assert len(rows) == 314 and red and all(one["tests"] is None for one in red)
+    one = numbers.own(numbers.Facts(rows, [], [], NOW), START, NOW)
+    assert (one.value, one.met) == (0.0, False) and "35 unread" in one.shown
+
+
+def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
+    plain = "2026-10-17T20:00:00.1Z FAILED tests/test_a.py::test_b - boom\n"
+    coloured = "2026-10-17T20:00:00.1Z \x1b[31mFAILED\x1b[0m tests/test_a.py::test_b - boom\n"
+    assert collect.evidence(coloured) == collect.evidence(plain)
+    assert collect.failing_tests(collect.evidence(coloured)) == ["tests/test_a.py::test_b"]
 
 
 def test_the_notice_a_job_prints_is_the_annotation_the_collector_reads(tmp_path):
