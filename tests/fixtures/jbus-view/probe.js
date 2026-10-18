@@ -17,25 +17,6 @@ new MutationObserver(function (records) {
   });
 }).observe(document, { childList: true, subtree: true, characterData: true });
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
-/* Each band of the view in front that folds: its key, its state, what its fold button says, the
-   part that button names and whether it shows, and its hide button; the header's count of what
-   is hidden or folded, and what the browser keeps. */
-window.__folds = function () {
-  function shown(el) { return !!el && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }); }
-  var views = Array.prototype.filter.call(document.querySelectorAll("[data-fv]"), function (el) { return !el.closest("[hidden]"); });
-  return {
-    bands: views.map(function (el) {
-      var key = el.getAttribute("data-fv"), b = el.querySelector('[data-fold="' + CSS.escape(key) + '"]'), x = el.querySelector('[data-hide="' + CSS.escape(key) + '"]');
-      var body = b && document.getElementById(b.getAttribute("aria-controls")), sum = el.querySelector(".fv-sum");
-      return { key: key, name: el.getAttribute("data-fv-name"), st: el.getAttribute("data-st"), seen: shown(el), expanded: b ? b.getAttribute("aria-expanded") : "", controls: b ? b.getAttribute("aria-controls") : "", grouped: !!b && !!b.closest('[role="group"]'),
-        body: shown(body), sum: shown(sum) ? sum.innerText.trim() : "", fold: b ? [b.tagName, b.getAttribute("aria-label"), shown(b)] : null, hide: x ? [x.tagName, x.getAttribute("aria-label"), shown(x)] : null };
-    }),
-    kept: shown(document.getElementById("kept")) ? document.getElementById("kept-s").innerText.trim() : "",
-    keptBox: (function (b) { return [Math.round(b.width), Math.round(b.height)]; })(document.getElementById("kept-s").getBoundingClientRect()),
-    list: Array.prototype.map.call(document.querySelectorAll("#kept-l button"), function (b) { return b.innerText.trim(); }),
-    store: localStorage.getItem("jbus-view-fold")
-  };
-};
 window.addEventListener("unhandledrejection", function (e) {
   window.__errs.push("rejection: " + String(e.reason && e.reason.message || e.reason));
 });
@@ -85,7 +66,7 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
         expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }),
         acc: raw(document.querySelector("#needs .acc")), nsaid: raw(document.getElementById("nsaid")),
         rows: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { var r = b.closest("[data-key]"); return r ? r.getAttribute("data-key") : ""; }),
-        key: !!document.querySelector("#filters details.gk[open]"), folds: window.__folds(), changes: window.__changes.length });
+        changes: window.__changes.length });
       step(n + 1);
     }, 500);
   }
@@ -132,22 +113,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     }).map(function (el) { return (el.className || el.tagName) + " " + written(el).slice(0, 30); });
   }
   function tag(el) { var st = el && all(".st", el).filter(seen)[0]; return st ? (st.classList.contains("fz") ? "frozen" : "live") : ""; }
-  /* A Threads band: its head, how it is drawn, and each row of it, by role, with each way in it:
-     what it says, where it leads, whether it is dimmed and whether it is on the screen. */
-  function threads(b) {
-    return b ? { head: text(b.querySelector(".thh")), cls: b.className, seen: seen(b), box: box(b), rows: all(".thr", b).map(function (r) {
-      return [text(r.querySelector(".rl")), all(".tok, .pl", r).map(function (c) { return { text: text(c), open: c.getAttribute("data-open") || c.getAttribute("href"), ended: c.classList.contains("ended"), tip: c.title, seen: seen(c) }; })];
-    }) } : null;
-  }
   /* What a voice says of it past its name: the description, or the label of one that shows no words. */
   function called(el) { return el.getAttribute("aria-description") || el.getAttribute("aria-label"); }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
-    /* The view's words, and apart from them the shell's: the header and the sidebar. */
+    /* The view's words, and apart from them the shell's: the header. */
     words: words(document.querySelector("main")),
-    folds: window.__folds(),
-    shell: words(document.querySelector("header")) + words(document.getElementById("side")),
+    shell: words(document.querySelector("header")),
     bottom: Math.round(main.getBoundingClientRect().bottom),
     scrollWidth: document.documentElement.scrollWidth,
     width: vw,
@@ -155,53 +128,33 @@ window.addEventListener("load", function () { setTimeout(function () {
     body: document.body.className,
     background: getComputedStyle(document.body).backgroundColor,
     banner: seen(dead) ? text(dead) : "",
-    halves: all(".half", dead).filter(seen).map(function (h) { return [tag(h), all("code", h).map(text)]; }),
     font: parseFloat(getComputedStyle(document.body).fontSize),
-    strip: box(document.getElementById("vitals")),
-    band: box(document.getElementById("needs")),
-    threads: threads(document.querySelector("#band .thb")),
-    bus: (function (viz) { return viz ? [all(".sd", viz).filter(seen).length, all(".dot.missed", viz).filter(seen).length] : [0, 0]; })(document.querySelector('#vitals [data-open="bus"] .viz')),
-    meters: all("#machine .mb").filter(seen).length,
     small: small(document.body),
     cut: cut(document.body),
-    cards: all("#vitals .vit").map(function (c) { return { tag: c.querySelector(".tag").textContent, val: text(c.querySelector(".val")), label: called(c), open: c.getAttribute("data-open"), state: tag(c), border: border(c), seen: seen(c), box: box(c), valbox: box(c.querySelector(".val")) }; }),
-    /* The shell: the header, the sidebar of every project, and the machine, drawn once. */
-    header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")), stale: document.getElementById("readat").classList.contains("stale") },
-    side: { box: box(document.getElementById("side")), items: all("#side .sp").map(function (a) { var d = a.querySelector(".hd"); return { name: text(a.querySelector(".nm")), count: text(a.querySelector(".n")), dot: d ? d.className.replace(/^hd ?/, "") || "ok" : "", tip: a.title, href: a.getAttribute("href"), current: a.getAttribute("aria-current") || "", seen: seen(a), box: box(a) }; }) },
-    machine: all("#machine .mi").map(function (c) { return { tag: written(c.querySelector(".tag")), val: text(c.querySelector(".val")), tip: c.title, open: c.getAttribute("data-open"), seen: seen(c), box: box(c) }; }),
-    folded: all("#line .folded [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open"), seen(b)]; }),
+    /* The shell: the header, with its one switcher and its machine word. */
+    header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")), stale: document.getElementById("readat").classList.contains("stale"),
+      pick: all("#pick option").map(function (o) { return [o.value, text(o), o.selected]; }), machine: seen(document.getElementById("mach")) ? { text: text(document.getElementById("mach")), cls: document.getElementById("mach").className, href: document.getElementById("mach").getAttribute("href") } : null },
     /* The Needs you section: its heading, and each row of its two queues. */
     needs: (function (sec) {
       function row(r) {
         return { key: r.getAttribute("data-key"), seen: seen(r), what: written(r.querySelector(".nw")), why: all(".ny", r).map(written), meta: written(r.querySelector(".nm")), box: box(r),
           acts: all(".na .btn", r).map(function (b) { return { text: written(b), tag: b.tagName, href: b.getAttribute("href"), fill: b.classList.contains("fill"), seen: seen(b), box: box(b), border: border(b) }; }), acting: text(r.querySelector(".acc")) };
       }
-      return { shown: seen(sec), words: words(sec), text: text(sec), head: text(document.getElementById("needs-h")), count: text(document.querySelector("#needs-h b")), now: all("#nq .nr").map(row), soon: all("#np .nr").map(row), said: text(document.getElementById("nsaid")), extra: all("#nx .tok").map(function (t) { return { text: text(t), open: t.getAttribute("data-open"), seen: seen(t), border: border(t) }; }),
+      return { shown: seen(sec), words: words(sec), text: text(sec), head: text(document.getElementById("needs-h")), count: text(document.querySelector("#needs-h b")), now: all("#nq .nr").map(row), soon: all("#np .nr").map(row), said: text(document.getElementById("nsaid")),
+        extra: all("#nx .tok").map(function (t) { return { text: text(t), open: t.getAttribute("data-open"), seen: seen(t), border: border(t) }; }),
         filled: all("button.fill, a.fill").filter(seen).length, focus: document.activeElement ? document.activeElement.id || document.activeElement.tagName : "" };
     })(document.getElementById("needs")),
-    line: tag(document.getElementById("filters")),
-    calm: seen(document.getElementById("calm")),
-    lanes: all("#line .lane").map(function (l) {
-      return { name: text(l.querySelector(".laneh b")), open: l.querySelector(".laneh").getAttribute("data-open"), count: +text(l.querySelector(".n")), seen: seen(l.querySelector(".laneh")), box: box(l),
-        tokens: all(".tok", l).map(function (t) { return { slug: text(t.querySelector(".lb")), open: t.getAttribute("data-open"), who: t.getAttribute("data-who"), live: (function (m) { return m ? m.className.replace("mk lv-", "") : ""; })(t.querySelector('.mk[class*="lv-"]')), long: !!t.querySelector(".mk.long"), again: !!t.querySelector(".mk.rep"), shape: !!t.querySelector(".sh"), seen: seen(t), shown: shown(t), box: box(t), border: border(t), blocks: text(t.querySelector(".bn")), blocked: text(t.parentElement.querySelector(".bk")), blocker: (t.parentElement.querySelector("button.bk") || t).getAttribute("data-open"), mark: !!t.parentElement.querySelector(".mk.blk"), wrap: t.parentElement.className, label: called(t) }; }),
-        dots: all(".md", l).map(function (d) { return { open: d.getAttribute("data-open"), seen: seen(d) }; }),
-        lines: all(".fl", l).map(function (f) {
-          return { name: written(f.querySelector(".flh b")), count: +written(f.querySelector(".flh i")), named: shown(f.querySelector(".flh")),
-            tokens: all(".tok", f).filter(shown).map(function (t) { return [text(t.querySelector(".lb"))].concat(all(".bk", t.parentElement).map(text)); }),
-            more: all(".pl", f).filter(shown).map(function (b) { return [text(b), b.getAttribute("data-open")]; }),
-            waves: all(".wv", f).filter(shown).map(function (w) { return [+text(w.querySelector("b")), all(".qd", w).map(function (d) { return d.getAttribute("title"); })]; }),
-            dots: all(".qd", f).filter(shown).map(function (d) { return { open: d.getAttribute("data-open"), label: called(d), words: text(d), off: d.classList.contains("off"), border: border(d) }; }) };
-        }) };
-    }),
+    /* The line of one project: each row of In progress, the Merged list and the Health line. */
+    prog: all("#prog li").map(function (r) { return { key: r.getAttribute("data-key"), seen: seen(r), slug: text(r.querySelector(".pgs")), state: text(r.querySelector(".pgw b")), who: text(r.querySelector(".pgw")), chips: all(".chip", r).map(text), age: text(r.querySelector(".pga")), open: r.querySelector(".pgs").getAttribute("data-open"), box: box(r) }; }),
+    merged: { shown: seen(document.getElementById("merged-d")), head: text(document.getElementById("merged-s")), open: document.getElementById("merged-d").open },
+    health: { shown: seen(document.getElementById("health")), text: text(document.getElementById("health")), links: all("#health [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open")]; }), unplaced: text(document.getElementById("unplaced")) },
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
     /* Each ? on the page, and each that is in the folded key: the term it explains. */
     tips: all("[data-tip]").filter(function (b) { return !drawer.contains(b) && !b.closest("details") && shown(b); }).map(function (b) { return b.getAttribute("data-tip"); }),
-    keyed: all("details [data-tip]").filter(function (b) { return !drawer.contains(b); }).map(function (b) { return b.getAttribute("data-tip"); }),
     stack: (function () {
       var view = document.getElementById("stack"), none = document.getElementById("none");
       return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
-        rows: all("#rows .proj").map(function (r) { return { project: r.getAttribute("data-key"), seen: seen(r), box: box(r), head: text(r.querySelector(".pjh")), opens: r.querySelector("h2 a").getAttribute("href"),
-          threads: threads(r.querySelector(".thb")), chips: all(".hc", r).map(text), cells: all(".rcell", r).map(function (c) { return [text(c), c.getAttribute("href")]; }), empty: text(r.querySelector(".empty-q")) }; }) };
+        rows: all("#rows .prl").map(function (r) { return { project: r.parentElement.getAttribute("data-key"), seen: seen(r), box: box(r), name: text(r.querySelector(".pn")), dot: r.querySelector(".pd").className, why: text(r.querySelector(".pwhy")), counts: all(".pc", r).map(text), href: r.getAttribute("href"), said: r.getAttribute("aria-description") }; }) };
     })(),
     links: [],
     opened: []
@@ -242,8 +195,6 @@ window.addEventListener("load", function () { setTimeout(function () {
     function tap(q) { document.querySelector(q).click(); return flow().picked; }
     var row = '#dw .fr[data-pick="' + CSS.escape(window.__pick) + '"]';
     out.taps = [tap(row), tap("#dw .now [data-pick]"), tap("#dw .now [data-pick]"), tap(row)];
-    all("#filters [data-filter]").forEach(function (b) { if (b.getAttribute("data-filter") === "user") b.click(); });
-    out.filtered = { tokens: all("#line .tok.off").length, dots: all("#line .qd.off").length };
     drawer.close();
   }
   /* The gates. Each of `ways` opens one gate, picks a card or types words where it is told to,

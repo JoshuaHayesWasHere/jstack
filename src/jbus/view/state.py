@@ -110,7 +110,7 @@ NO_REVIEWER = "no reviewer has started"
 NO_REVIEW = "no review yet"
 WHOLE = NOTE + 2 * LINE
 WORDS = 600
-FRAME = ("at", "project", "projects", "repo", "sources")
+FRAME = ("at", "project", "projects", "repo", "sources", "summary")
 _PULL = re.compile(rf"https://{re.escape(HOST)}/([\w.-]+/[\w.-]+)/pull/\d+")
 _LOGGED = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d) (.+)$")
 _STAMP = re.compile(r"(\d{4}-\d\d-\d\d \d\d:\d\d)(?: \S+)?")
@@ -150,6 +150,43 @@ LOST = {
 UNKNOWN_WAITS = work.UNKNOWN.waits
 NOT_CONFIRMED = "not confirmed: the last pass judged it from what it could not ask"
 PULLED = frozenset(str(one) for one in work.STEPPED)
+BROKEN, ASKS, WORKS, WAITS, QUEUED, OVER = range(6)
+RANK = {
+    "hung": BROKEN,
+    "lost": BROKEN,
+    "closed": BROKEN,
+    "unknown": BROKEN,
+    "asking": ASKS,
+    "waiting": ASKS,
+    "leftover": ASKS,
+    "unapproved": ASKS,
+    "hold": ASKS,
+    "quiet": WORKS,
+    "launching": WORKS,
+    "working": WORKS,
+    "result": WORKS,
+    "findings": WORKS,
+    "rebase": WORKS,
+    "review": WAITS,
+    "second": WAITS,
+    "check": WAITS,
+    "proof": WAITS,
+    "behind": WAITS,
+    "ready": QUEUED,
+    "removed": OVER,
+    "merged": OVER,
+    "done": OVER,
+}
+if unranked := set(work.VALUES) - set(RANK):
+    raise ValueError(f"RANK does not rank {sorted(unranked)}: add each to a group")
+LIVE_AS = {
+    "hung": "hung",
+    "waiting": "waiting",
+    "quiet": "quiet",
+    "moving": "working",
+    "unknown": "unknown",
+    "ended": "done",
+}
 BLOCKED = {
     "unapproved": "approval",
     "lost": "thread",
@@ -616,6 +653,7 @@ def _tasks(
                 "step": step,
                 "who": who,
                 "state": said,
+                "rank": RANK.get(value, BROKEN),
                 "reason": said["say"],
                 "unconfirmed": doubt,
                 "blockers": blockers,
@@ -710,6 +748,7 @@ THREAD = {
         "queued",
         "pending",
         "page",
+        "rank",
     )
 } | {"request": REQUEST}
 
@@ -758,6 +797,7 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
             "status": text(one.get("status"), 20),
             "live": live,
             "out": live in OUT,
+            "rank": RANK[LIVE_AS[live]],
             "today": live in OUT or bool(updated and day and updated >= day),
             "created": when(one.get("createdAt")),
             "updated": updated,
@@ -1153,6 +1193,7 @@ class Read:
             "projects": projects(self.sources),
             "repo": self.where,
             "sources": self.listed,
+            "summary": keep(summary(self), SUMMARY),
         }
         for panel in self.panels:
             if panel.first:
@@ -1210,6 +1251,8 @@ SUMMARY = {
     "steps": {ANY: None},
     "merged": None,
     "threads": [THREAD],
+    "broken": [{"what": None, "open": None}],
+    "unplaced": [None],
     "health": {
         "checks": {"running": None, "waiting": None, "failed": None, "error": None},
         "bus": {"outbox": None, "failed_wakes": None, "last_error": None},
@@ -1227,6 +1270,28 @@ def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         needs,
         key=lambda one: (one["since"] is None, one["since"] or "", one["project"], one["key"]),
     )
+
+
+def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> list[dict[str, str]]:
+    """What is broken in a project, each as a plain reason and the drawer that has it: its
+    checks that failed or could not be read, its bus when a wake failed, and its sources
+    that could not be read. Nothing is said of what is well, or merely quiet."""
+    found = []
+    if checks["error"]:
+        found.append({"what": "CI not read", "open": "checks"})
+    elif checks["failed"]:
+        found.append({"what": f"CI {checks['failed']} failed", "open": "checks"})
+    if bus["failed_wakes"] or bus["last_error"]:
+        what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
+        found.append({"what": what, "open": "bus"})
+    if unwell:
+        found.append(
+            {
+                "what": f"{len(unwell)} source{'' if len(unwell) == 1 else 's'} unread",
+                "open": "pulse",
+            }
+        )
+    return found
 
 
 def summary(read: Read) -> dict[str, Any]:
@@ -1248,9 +1313,17 @@ def summary(read: Read) -> dict[str, Any]:
         for spot in (panel.data.blind(read) if hasattr(panel.data, "blind") else [])
         if not spot.machine
     ]
+    unwell = [
+        {"name": one["name"], "state": one["state"]}
+        for one in read.listed
+        if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
+    ]
+    failed = {key: len(at) for key, at in checks["now"].items()} | {"error": checks["error"]}
     return {
         "name": read.name,
         "repo": read.where,
+        "broken": broken(failed, bus, unwell),
+        "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
         "open": len(held),
@@ -1258,16 +1331,11 @@ def summary(read: Read) -> dict[str, Any]:
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
         "health": {
-            "checks": {key: len(at) for key, at in checks["now"].items()}
-            | {"error": checks["error"]},
+            "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
             "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
             "blind": len(own),
-            "unwell": [
-                {"name": one["name"], "state": one["state"]}
-                for one in read.listed
-                if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
-            ],
+            "unwell": unwell,
         },
     }
 

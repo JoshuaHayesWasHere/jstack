@@ -27,6 +27,7 @@ _TASK = {
     "step": None,
     "who": None,
     "state": {"kind": None, "name": None, "say": None, "waits": None, "row": None},
+    "rank": None,
     "reason": None,
     "unconfirmed": {"since": None, "source": None, "line": None},
     "blockers": [None],

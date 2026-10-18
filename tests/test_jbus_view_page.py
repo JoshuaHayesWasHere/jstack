@@ -112,14 +112,11 @@ BROWSES = 5
 FONTS = Path(__file__).parent / "fixtures" / "jbus-view" / "fonts.conf"
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 DESK, PHONE = (1440, 900), (390, 844)
-BAND = 45
 NEEDS = 220
 PHONE_NEEDS = 520
 FONT = 'src: url("/font.woff2") format("woff2");'
 NARROWEST = 500
 THUMB = 44
-CARDS = ["threads", "CI checks on GitHub", "bus", "blind spots"]
-MACHINE = ["jbus", "Room", "Runners", "Plan"]
 MIDDLE = (900, 900)
 LANES = [
     "Queued",
@@ -683,191 +680,21 @@ def hanging(tmp_path, monkeypatch, first=""):
     return child
 
 
-def test_the_bus_card_and_drawer_show_the_top_level_webhook_apart(scene, tmp_path):
-    status = json.loads((scene.state_dir / "status.json").read_text())
-    failing = {"failed_wakes": 3, "last_error": "the webhook answered 500", "outbox": 1}
-    status["projects"]["demo"]["top_level"] = failing
-    scene.write("status.json", status, scene.state_dir)
-    seen = look(scene, tmp_path)
-    clean(seen)
-    cards = {card["tag"]: card for card in seen["cards"]}
-    assert cards["bus"]["val"] == "2 in outbox + 1 top-level"
-    drawer = {one["target"]: one for one in seen["opened"]}["bus"]["said"]
-    assert "OUTBOX, OWN WEBHOOK 2 events in the outbox 0 failed wakes." in drawer
-    assert (
-        "OUTBOX, TOP-LEVEL WEBHOOK 1 event in the outbox Last error: the webhook answered 500. "
-        "3 failed wakes. Last POST never."
-    ) in drawer
-
-
-def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(scene, tmp_path):
-    """The screen is a desk's and the height the queue of what needs the user, `NEEDS`, draws
-    above the cards, here with four rows."""
-    screen = (DESK[0], DESK[1] + NEEDS)
-    seen = look(scene, tmp_path, task="oat-milk", screen=screen)
-    opened = clean(seen, screen)
-    assert [(card["tag"], card["seen"]) for card in seen["cards"]] == [(tag, True) for tag in CARDS]
-    assert [card["open"] for card in seen["cards"]] == ["threads", "checks", "bus", "blind"]
-    assert [(one["tag"], one["open"], one["seen"]) for one in seen["machine"]] == [
-        ("jbus", "pulse", True),
-        ("Room", "room", True),
-        ("Runners", "checks", True),
-        ("Plan", "room", True),
-    ]
-    machine = {one["tag"]: one["val"] for one in seen["machine"]}
-    assert re.fullmatch(r"passing \d\d:\d\d", machine["jbus"]), machine["jbus"]
-    assert (machine["Room"], machine["Runners"], machine["Plan"]) == (
-        "ok",
-        "3/3",
-        "23%/22%",
-    )
-    said = {card["tag"]: card["val"] for card in seen["cards"]}
-    assert said["CI checks on GitHub"] == "1 running oat-milk 0 waiting for a runner 0 failed"
-    assert (said["bus"], said["blind spots"]) == ("2 in outbox", "6")
-    needs = seen["needs"]
-    assert needs["head"] == "3 Needs you"
-    assert [
-        (one["what"], one["acts"][0]["text"], one["acts"][0]["tag"]) for one in needs["now"]
-    ] == [
-        ("which lid?", "Fix brief", "BUTTON"),
-        ("Pull request #14", "Review merge", "BUTTON"),
-        ("tea-kettle", "Approve launch", "BUTTON"),
-    ]
-    assert [(one["what"], one["acts"][0]["text"]) for one in needs["soon"]] == [
-        ("tea or coffee?", "Answer")
-    ]
-    held = ["Queued", "Running", "Gate", "Second pass", "Check", "Rebase", "Needs you", "Merged"]
-    assert [(lane["name"], lane["seen"]) for lane in seen["lanes"]] == [(n, True) for n in held]
-    assert [lane["open"] for lane in seen["lanes"]] == [
-        "steps:queued",
-        "steps:running",
-        "steps:gate",
-        "steps:second",
-        "steps:check",
-        "steps:rebase",
-        "steps:hold",
-        "merged",
-    ]
-    assert seen["folded"] == [
-        ["Result", "steps:result", True],
-        ["Review", "steps:review", True],
-        ["Findings", "steps:findings", True],
-        ["Proof", "steps:proof", True],
-    ]
-    lanes = {lane["name"]: lane for lane in seen["lanes"]}
-    assert {name: [token["slug"] for token in lane["tokens"]] for name, lane in lanes.items()} == {
-        "Queued": ["tea-kettle", "tea-tray", "tea-cups"],
-        "Running": ["jam-jar"],
-        "Gate": ["jam-lid"],
-        "Second pass": ["oat-spoon"],
-        "Check": ["oat-milk"],
-        "Rebase": ["oat-bowl"],
-        "Needs you": ["oat-honey"],
-        "Merged": [],
-    }
-    assert [dot["open"] for dot in lanes["Merged"]["dots"]] == ["task:rye-loaf"]
-    assert lanes["Merged"]["count"] == 1
-    tokens = {token["slug"]: token for lane in seen["lanes"] for token in lane["tokens"]}
-    assert {slug: token["who"] for slug, token in tokens.items()} == {
-        "tea-kettle": "user",
-        "tea-tray": "bus",
-        "tea-cups": "dep",
-        "jam-jar": "crew",
-        "jam-lid": "user",
-        "oat-spoon": "rev",
-        "oat-milk": "ci",
-        "oat-bowl": "crew",
-        "oat-honey": "user",
-    }
-    assert all(token["shape"] and token["seen"] for token in tokens.values())
-    assert {token["wrap"] for token in tokens.values()} == {"tw"}
-    assert (tokens["oat-bowl"]["long"], tokens["oat-bowl"]["again"]) == (True, False)
-    assert (tokens["oat-milk"]["long"], tokens["oat-milk"]["again"]) == (False, True)
-    assert (tokens["tea-tray"]["long"], tokens["tea-tray"]["again"]) == (False, False)
-    once = set(seen["first"])
-    assert {card["open"] for card in seen["cards"]} | {
-        one["open"] for one in seen["machine"]
-    } <= once
-    assert {one[1] for one in seen["folded"]} <= once
-    assert {"you:row:jam-lid", "you:hold:14", "you:approve:tea-kettle"} <= once
-    assert {lane["open"] for lane in seen["lanes"]} <= once
-    assert {f"task:{slug}" for slug in tokens} | {"task:rye-loaf"} <= once
-    assert once <= opened
-    assert seen["body"] == "" and seen["banner"] == ""
-    assert "#13 open" in seen["github"] and "in progress" in seen["github"]
-
-
-def test_a_source_of_the_project_that_is_missing_or_unreadable_is_counted_on_its_blind_card(
-    scene, tmp_path
-):
-    """A source of the project is a fact of the project: its blind spots card counts it, its
-    drawer names it, and the machine's jbus says nothing of it."""
-    (scene.state / "queue.json").write_text("{not json")
-    (scene.state / "main.json").unlink()
-    (scene.state / "stall.json").unlink()
-    seen = look(scene, tmp_path)
-    opened = clean(seen)
-    card = seen["cards"][-1]
-    assert (card["tag"], card["val"], card["open"], "sources" in opened) == (
-        "blind spots",
-        "8",
-        "blind",
-        False,
-    )
-    blind = {one["target"]: one["said"] for one in seen["opened"]}["blind"]
-    for line in ("queue.json could not be read", "main.json could not be read"):
-        assert line in blind, blind
-    jbus = seen["machine"][0]
-    assert re.fullmatch(r"passing \d\d:\d\d", jbus["val"]), jbus["val"]
-    assert "json" not in jbus["tip"]
-
-
-def test_the_checks_card_says_what_runs_what_waits_for_a_runner_and_what_failed(scene, tmp_path):
-    scene.github(
-        runs=[
-            ("rye-crust", "completed", "failure"),
-            ("rye-crust", "completed", "timed_out", "lint"),
-            ("kale-chip", "waiting", None),
-            ("fig-jam", "completed", "failure"),
-            ("fig-jam", "completed", "success"),
-            ("oat-milk", "completed", "cancelled"),
-            ("oat-milk", "in_progress", None),
-            ("tea-tray", "in_progress", None),
-            ("jam-lid", "queued", None),
-        ]
-    )
-    seen = look(scene, tmp_path)
-    clean(seen)
-    card = {one["tag"]: one for one in seen["cards"]}["CI checks on GitHub"]
-    assert card["val"] == (
-        "2 running oat-milk, tea-tray 1 waiting for a runner jam-lid 1 failed rye-crust"
-    )
-    assert card["label"] == (
-        "The repo's checks on GitHub: 2 running, 1 waiting for a runner, 1 failed"
-    )
-    drawer = {one["target"]: one for one in seen["opened"]}["checks"]
-    assert drawer["title"] == "CI checks on GitHub"
-    assert drawer["now"].startswith("NOW 2 running, 1 waiting for a runner, 1 failed A check is")
-
-
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
-    """The screen is a desk's, the height of the Threads band, `BAND`, which every page
-    draws, also with no thread in it (question 26 of jv-threads), and the height of the
-    Needs you queue, `NEEDS`, here with the four rows of the scene."""
+    """The screen is a desk's, as high as the Needs you queue, `NEEDS`, here with the four rows
+    of the scene: In progress, with a row for each of the 28 open tasks, starts below it."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
-    screen = (DESK[0], DESK[1] + BAND + NEEDS)
+    screen = (DESK[0], DESK[1] + NEEDS)
     seen = look(scene, tmp_path, screen=screen)
     opened = clean(seen, screen)
     assert seen["font"] == 18
     assert seen["words"] <= WORDS, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
-    assert seen["bottom"] <= screen[1]
-    assert seen["threads"]["box"][3] + 10 <= BAND
-    assert sum(len(lane["tokens"]) for lane in seen["lanes"]) == 28
-    assert len(seen["lanes"][-1]["dots"]) == 30
-    assert {f"task:{slug}" for slug in open_rows} <= set(seen["first"]) <= opened
-    assert len(opened) >= 28 + 30 + 12 + 6
+    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 28
+    assert set(seen["first"]) <= opened
+    assert {f"task:{slug}" for slug in open_rows} <= opened
+    assert len(opened) >= 28 + 6
 
 
 def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
@@ -882,18 +709,16 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 
 
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
-    """The machine once, one Needs you queue across the projects, oldest first, and a row for
-    each project with only the steps that hold a task. The page asks `/stack.json` and nothing
+    """The machine as one word, one Needs you queue across the projects, oldest first, and a
+    row for each project: a name, a dot, what is broken, and two counts. The page asks
+    `/stack.json` and nothing
     else, once a poll, and a poll that changed nothing draws nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
     assert clean(seen) == set()
     stack = seen["stack"]
     assert (stack["shown"], stack["title"], stack["none"]) == (True, "All projects", "")
-    assert [(one["tag"], one["seen"], one["open"]) for one in seen["machine"]] == [
-        (tag, True, None) for tag in MACHINE
-    ]
-    assert [one["val"] for one in seen["machine"][1:]] == ["ok", "3/3", "23%/22%"]
+    assert seen["header"]["machine"]["text"] == "Machine ok"
     needs = seen["needs"]
     assert needs["head"] == "4 Needs you"
     assert [(one["key"], one["what"], one["acts"][0]["text"]) for one in needs["now"]] == [
@@ -918,29 +743,15 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
         ("tea or coffee?", "Answer")
     ]
     assert needs["filled"] == 0
-    rows = {row["project"]: row for row in stack["rows"]}
     assert [row["project"] for row in stack["rows"]] == ["demo", "larder", "pantry"]
-    assert all(row["seen"] and row["box"][2] >= 1100 for row in stack["rows"])
-    assert rows["demo"]["head"] == "demo acme/demo, 9 open tasks, 1 merged today Open ›"
-    assert rows["demo"]["chips"] == ["CI 1 running, 0 failed", "Bus 2 in outbox", "Blind 1"]
-    assert [cell[0] for cell in rows["demo"]["cells"]] == [
-        "3 Queued",
-        "1 Running",
-        "1 Gate",
-        "1 Second pass",
-        "1 Check",
-        "1 Rebase",
-        "1 Needs you",
-        "1 Merged",
+    assert all(row["seen"] for row in stack["rows"])
+    assert [(row["name"], row["counts"]) for row in stack["rows"]] == [
+        ("demo", ["9 open", "1 merged today"]),
+        ("larder", ["0 open", "0 merged today"]),
+        ("pantry", ["2 open", "1 merged today"]),
     ]
-    assert rows["pantry"]["cells"] == [
-        ["1 Running", "#/pantry/steps/running"],
-        ["1 Gate", "#/pantry/steps/gate"],
-        ["1 Merged", "#/pantry/merged"],
-    ]
-    assert (rows["larder"]["cells"], rows["larder"]["empty"]) == ([], "nothing open")
-    assert rows["pantry"]["empty"] == ""
-    assert [row["opens"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
+    assert stack["rows"][0]["why"] == "" and stack["rows"][1]["why"].startswith("CI not read")
+    assert [row["href"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
     assert seen["words"] <= EVERY, seen["words"]
     polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico", "/font.woff2")]
     assert len(polls) == 3 and set(polls) == {"/stack.json"}
@@ -970,91 +781,10 @@ def sidebar(scene):
     scene.write("status.json", status, scene.state_dir)
 
 
-@pytest.mark.parametrize("screen", [DESK, MIDDLE])
-def test_the_sidebar_is_all_then_every_project_with_its_waits_and_a_health_dot(
-    scene, tmp_path, screen
-):
-    sidebar(scene)
-
-    def healthy(nth, body):
-        """demo with nothing wrong: its one blind spot taken off."""
-        next(one for one in body["projects"] if one["name"] == "demo")["health"]["blind"] = 0
-        return body
-
-    seen = look(scene, tmp_path, screen=screen, alter=healthy)
-    clean(seen, screen)
-    items = seen["side"]["items"]
-    assert [(one["name"], one["count"], one["dot"]) for one in items] == [
-        ("All", "4", ""),
-        ("demo", "3", "ok"),
-        ("larder", "0", "op"),
-        ("pantry", "1", "op"),
-    ]
-    assert [(one["href"], one["current"]) for one in items] == [
-        ("#/", ""),
-        ("#/demo", "page"),
-        ("#/larder", ""),
-        ("#/pantry", ""),
-    ]
-    assert items[1]["tip"] == "demo: 3 need you"
-    assert items[2]["tip"].startswith(
-        "larder: 0 need you. its checks on GitHub: the repo is not known. its bus: 0 in the "
-        "outbox, 2 failed wakes, last error: 500. the last pass left no list of its threads. "
-        "1 thing its page cannot say now. not read: work.json missing, "
-    ), items[2]["tip"]
-    assert items[3]["tip"].startswith(
-        "pantry: 1 need you. the last pass left no list of its threads. 2 things its page "
-        "cannot say now. not read: "
-    ), items[3]["tip"]
-    assert all(one["seen"] for one in items)
-    assert len({one["box"][0] for one in items}) == 1, "one column"
-    assert len({one["box"][1] for one in items}) == 4
-    left, _, wide, _ = seen["side"]["box"]
-    assert left == 0 and wide < screen[0] // 3
-    assert all(one["seen"] and one["box"][0] < wide for one in seen["machine"])
-    every = look(scene, tmp_path, route="#/", screen=screen)
-    assert [one["current"] for one in every["side"]["items"]] == ["page", "", "", ""]
-
-
-@pytest.mark.parametrize("screen", [(899, 900), PHONE])
-def test_under_900_wide_the_sidebar_is_a_row_of_chips(scene, tmp_path, screen):
-    sidebar(scene)
-    seen = look(scene, tmp_path, screen=screen)
-    clean(seen, screen)
-    items = seen["side"]["items"]
-    assert [one["name"] for one in items] == ["All", "demo", "larder", "pantry"]
-    assert items[0]["box"][1] == items[1]["box"][1], "chips on a row"
-    assert seen["side"]["box"][2] == screen[0]
-    assert all(one["seen"] for one in items + seen["machine"])
-    assert min(one["box"][3] for one in items + seen["machine"]) >= THUMB
-    assert seen["side"]["box"][1] < seen["strip"][1]
-    assert seen["cut"] == []
-    if screen == PHONE:
-        assert seen["small"] == []
-
-
-def test_the_machine_is_drawn_once_and_no_project_fact_is_on_it(scene, tmp_path):
-    """Room, jbus and Runners are the machine's: drawn once, on every view, and on no
-    project's row or card. What is a project's is on none of the machine's."""
-    sidebar(scene)
-    for route in ("#/", "#/demo", "#/pantry"):
-        seen = look(scene, tmp_path, route=route)
-        clean(seen)
-        assert [one["tag"] for one in seen["machine"]] == MACHINE
-        on_it = json.dumps(seen["machine"]).lower()
-        for fact in ("demo", "pantry", "larder", "outbox", "wait", "blind", "thread", "acme"):
-            assert fact not in on_it, (route, fact, seen["machine"])
-        for card in seen["cards"]:
-            assert card["tag"] not in ("jbus", "room", "runners"), card
-            assert "actions-runner" not in card["val"] + card["label"], card
-        assert not re.search(r"\b(Room|jbus|Runners)\b", json.dumps(seen["stack"]["rows"]))
-
-
 @pytest.mark.parametrize("screen", [DESK, MIDDLE, PHONE])
 @pytest.mark.parametrize("route", ["#/", "#/demo"])
-def test_no_view_scrolls_sideways_and_the_bus_card_keeps_its_words(scene, tmp_path, screen, route):
-    """The longest bus card there is, with a top-level webhook: at a desk its value is one or
-    two lines, never a letter a line. `clean` holds the page to the width of the screen."""
+def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
+    """With a top-level webhook that holds events, nothing is wider than the screen."""
     lineup(scene, TODAY)
     sidebar(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
@@ -1064,51 +794,16 @@ def test_no_view_scrolls_sideways_and_the_bus_card_keeps_its_words(scene, tmp_pa
     seen = look(scene, tmp_path, route=route, screen=screen)
     clean(seen, screen)
     assert seen["cut"] == []
-    if route == "#/demo":
-        bus = {card["tag"]: card for card in seen["cards"]}["bus"]
-        assert bus["val"] == "12 in outbox + 10 top-level"
-        assert bus["valbox"][3] <= 2 * 26, bus
-        assert bus["valbox"][2] >= 150 or screen == PHONE, bus
 
 
 def test_a_project_page_asks_its_state_each_poll_and_every_project_once_a_minute(scene, tmp_path):
-    """The sidebar counts every project, so a project's page asks `/stack.json` too: once when
+    """The switcher names every project, so a project's page asks `/stack.json` too: once when
     it opens and then once a minute, beside its own `/state.json` each poll."""
     stacked(scene)
     seen = look(scene, tmp_path, at=63000, budget=70000)
     asked = [one.partition("?")[0] for one in seen["asked"]]
     assert (asked.count("/state.json"), asked.count("/stack.json")) == (5, 2)
-    assert [one["count"] for one in seen["side"]["items"]] == ["4", "3", "0", "1"]
-
-
-def test_a_poll_draws_again_only_the_parts_whose_data_changed(scene, tmp_path):
-    stacked(scene)
-
-    def more(nth, body):
-        if nth > 1:
-            pantry = next(one for one in body["projects"] if one["name"] == "pantry")
-            pantry["waits"] += 1
-            body["needs"].append(
-                body["needs"][0]
-                | {"project": "pantry", "key": "approve:fig-jam", "what": "fig-jam", "why": ""}
-            )
-        return body
-
-    seen = look(scene, tmp_path, route="#/", at=20000, budget=25000, alter=more)
-    clean(seen)
-    first = max(one["at"] for one in seen["changes"] if one["part"].startswith("rows:"))
-    later = {one["part"] for one in seen["changes"] if one["at"] > first + 1000}
-    assert later == {"needs-h", "nq", "projects"} | {
-        f"nq:{key}"
-        for key in (
-            "demo/row:jam-lid",
-            "pantry/row:fig-tart",
-            "demo/#14",
-            "demo/approve:tea-kettle",
-            "pantry/approve:fig-jam",
-        )
-    }
-    assert seen["needs"]["head"] == "5 Needs you"
+    assert [one[0] for one in seen["header"]["pick"]] == ["", "demo", "larder", "pantry"]
 
 
 def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
@@ -1117,17 +812,14 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
         scene,
         tmp_path,
         route="#/",
-        tap='#rows .proj[data-key="pantry"] .chips',
+        tap='#rows a[href="#/pantry"]',
         at=6000,
         budget=9000,
     )
     clean(seen)
     assert seen["hash"] == "#/pantry"
     assert (seen["stack"]["shown"], seen["needs"]["head"]) == (False, "1 Needs you")
-    assert [lane["tokens"][0]["slug"] for lane in seen["lanes"] if lane["tokens"]] == [
-        "fig-jam",
-        "fig-tart",
-    ]
+    assert {row["slug"] for row in seen["prog"]} == {"fig-jam", "fig-tart"}
     seen = look(scene, tmp_path, route="?project=pantry")
     clean(seen)
     assert (seen["hash"], seen["needs"]["head"]) == ("#/pantry", "1 Needs you")
@@ -1141,8 +833,7 @@ def test_a_link_to_no_project_draws_the_machine_with_its_own_word_on_jbus(scene,
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
     seen = look(scene, tmp_path, route="#/hydra")
     assert seen["errors"] == []
-    assert [one["tag"] for one in seen["machine"]] == MACHINE
-    assert re.fullmatch(r"stopped \d\d:\d\d", seen["machine"][0]["val"]), seen["machine"][0]
+    assert seen["header"]["machine"]["text"] == "jbus stopped"
 
 
 def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(scene, tmp_path):
@@ -1153,79 +844,11 @@ def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(
         "No project named hydra jbus looks after no project of that name: a retired project "
         "is not shown. Every project"
     )
-    assert seen["first"] == [] and seen["cards"] == []
+    assert seen["first"] == []
     seen = look(scene, tmp_path, route="#/")
     assert "hydra" not in json.dumps(seen["stack"])
     seen = look(scene, tmp_path, route="#/%E0")
     assert seen["errors"] == [] and seen["stack"]["none"].startswith("No project named %E0 ")
-
-
-def test_on_a_phone_every_project_is_one_column_with_nothing_cut(scene, tmp_path):
-    lineup(scene, TODAY)
-    stacked(scene)
-    seen = look(scene, tmp_path, route="#/", screen=PHONE)
-    clean(seen, PHONE)
-    assert seen["cut"] == []
-    assert [row["project"] for row in seen["stack"]["rows"]] == ["demo", "larder", "pantry"]
-
-
-def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_panel(scene, tmp_path):
-    lineup(scene, TODAY)
-    a_noticed(
-        scene,
-        *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle"))),
-        ("oat-kettle", "dropped", 400, {"why": "from before the list", "by": "jbus"}),
-    )
-    seen = look(scene, tmp_path)
-    opened = clean(seen)
-    tile = seen["needs"]["extra"][-1]
-    assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
-    assert "term:noticed" in seen["tips"]
-    assert not any("noticed" in one["what"] for one in seen["needs"]["now"] + seen["needs"]["soon"])
-    assert "noticed" in opened
-    drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
-    assert drawer["title"] == "2 new lines of 3, newest first"
-    assert seen["words"] <= WORDS, seen["words"]
-
-    a_noticed(scene, ("oat-kettle", "dropped", 400, {"why": "from before the list"}))
-    seen = look(scene, tmp_path)
-    assert seen["needs"]["extra"] == []
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-def test_forty_open_tasks_keep_what_matters_first_on_the_first_screen(scene, tmp_path):
-    """What waits on the user leads the page, above the line and inside the browser's own
-    window, which is lower than the screen. The steps after it scroll."""
-    open_rows = lineup(scene, FORTY)
-    assert len(open_rows) == 40
-    seen = look(scene, tmp_path, budget=9000)
-    clean(seen)
-    tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
-    assert len(tokens) == 40
-    needs = seen["needs"]
-    assert needs["head"] == "6 Needs you"
-    assert seen["band"][1] + seen["band"][3] <= seen["high"]
-    assert all(one["seen"] for one in needs["now"])
-    assert seen["lanes"][0]["box"][1] >= seen["band"][1] + seen["band"][3]
-    first = {lane["name"]: lane for lane in seen["lanes"][:3]}
-    assert list(first) == ["Queued", "Running", "Gate"]
-    assert [len(lane["tokens"]) for lane in first.values()] == [14, 8, 2]
-    assert any(token["seen"] for token in first["Queued"]["tokens"])
-    assert sum(1 for token in first["Queued"]["tokens"] if token["mark"]) == 11
-    assert seen["words"] <= 200, seen["words"]
-
-
-def test_a_day_with_no_open_task_stays_on_one_screen_and_says_so(scene, tmp_path):
-    assert lineup(scene, {}, merged=4, gates=0) == []
-    seen = look(scene, tmp_path)
-    clean(seen)
-    assert seen["bottom"] <= DESK[1]
-    assert seen["calm"] is True
-    assert re.fullmatch(r"Nothing needs you · last pass \d\d:\d\d", seen["needs"]["head"])
-    assert (seen["needs"]["now"], seen["needs"]["soon"]) == ([], [])
-    assert [(lane["name"], lane["count"]) for lane in seen["lanes"]] == [("Merged", 4)]
-    assert [one[1] for one in seen["folded"]] == [f"steps:{key}" for key in STEP_KEYS[:-1]]
-    assert seen["words"] <= WORDS, seen["words"]
 
 
 def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tmp_path):
@@ -1257,44 +880,17 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     )
     assert by_rule in drawers["task:nut-meat"]
     assert "by rule" not in drawers["task:nut-shell"]
-    lanes = {lane["name"]: lane for lane in seen["lanes"]}
-    tokens = {token["slug"]: token for lane in seen["lanes"] for token in lane["tokens"]}
-    assert {"fig-pip", "fig-tree", "nut-oil"} & set(tokens) == set()
-    assert "task:fig-pip" in [dot["open"] for dot in seen["lanes"][-1]["dots"]]
-    marked = {slug: (one["blocked"], one["blocker"], one["blocks"]) for slug, one in tokens.items()}
-    assert marked["nut-shell"] == ("findings", "task:nut-shell", "2")
-    assert marked["nut-meat"] == ("nut-shell", "task:nut-shell", "1")
-    ready, coming, later = lanes["Queued"]["lines"]
-    assert (ready["name"], coming["name"], later["name"]) == ("Ready", "Next", "Later")
-    assert [one[0] for one in ready["tokens"]] == ["fig-husk", "fig-seed", "fig-jam"]
-    assert coming["tokens"] == [
-        ["fig-fly", "fig-gone"],
-        ["fig-leaf", "fig-seed"],
-        ["fig-sap", "fig-tart", "+1"],
-        ["fig-stem", "fig-pip"],
-        ["nut-meat", "nut-shell"],
-    ]
-    assert later["waves"] == [[2, ["nut-oil"]]]
-    assert tokens["fig-sap"]["label"] == (
-        "fig-sap: Behind, waits for fig-tart to merge, waits on fig-tart and 1 more"
-    )
-    assert tokens["fig-seed"]["label"].endswith(", blocked by approval, 1 task waits behind it")
+    rows = {row["slug"]: row for row in seen["prog"]}
+    assert {"fig-pip", "fig-tree", "nut-oil"} & set(rows) == {"nut-oil"}
+    assert (rows["nut-shell"]["state"], rows["nut-shell"]["open"]) == ("Findings", "task:nut-shell")
+    assert rows["nut-meat"]["chips"] == ["behind nut-shell"]
+    assert rows["fig-sap"]["chips"] == ["behind fig-tart"]
     assert seen["flow"]["chain"] == "3 deep, behind nut-shell (Findings)"
     way = seen["picked"]
     assert (way["picked"], way["up"], way["down"]) == (["fig-sap"], ["fig-tart"], [])
     assert way["said"] == (
         "fig-sap waits on 1 row here and on fig-pip (Merged), and 0 rows wait on it."
     )
-    assert [(dot["open"], dot["label"]) for dot in later["dots"]] == [
-        ("task:nut-oil", "nut-oil waits on nut-meat, in wave 2")
-    ]
-    assert marked["fig-seed"] == ("approval", "task:fig-seed", "1")
-    assert marked["fig-stem"] == ("fig-pip", "task:fig-pip", "")
-    assert marked["fig-sap"] == ("fig-tart", "task:fig-tart", "")
-    assert marked["fig-fly"] == ("fig-gone", "task:fig-fly", "")
-    assert marked["fig-root"][0] == marked["fig-stalk"][0] == "thread"
-    assert marked["fig-tart"] == ("", "task:fig-tart", "1")
-    assert all(one["mark"] == bool(one["blocked"]) for one in tokens.values())
     now = {one["target"].removeprefix("task:"): one["now"] for one in seen["opened"]}
     assert {f"task:{slug}" for slug in expected} <= opened
     assert [one["acts"][0]["text"] for one in seen["needs"]["now"]].count("Close it") == 2
@@ -1311,133 +907,6 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     assert "2 tasks wait behind it: fig-sap, fig-stem" in now["fig-pip"]
     assert "Blocked by fig-tart Running" in now["fig-sap"]
     assert "task:fig-pip" in seen["links"]
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-def test_an_unknown_task_has_a_lane_of_its_own_and_a_pass_that_could_not_ask_marks_every_task(
-    scene, tmp_path
-):
-    rows = json.loads((scene.state / "queue.json").read_text())
-    scene.queue([*rows, row("yam-root", "pr", pr="#61", why="wait: another home's")])
-    record = json.loads((scene.state_dir / "pass.json").read_text())
-    scene.write("pass.json", record | {"silent": {scene.name: "GitHub"}}, scene.state_dir)
-    past = int(ago(hours=1).timestamp())
-    (scene.root / "limits").write_text(f"five_hour 23.0 {past}\nseven_day 22.0 {past}\n")
-    seen = look(scene, tmp_path)
-    opened = clean(seen)
-    held = ["Queued", "Running", "Gate", "Second pass", "Check", "Rebase", "Needs you", "Merged"]
-    assert [lane["name"] for lane in seen["lanes"]] == ["Unknown", *held]
-    lane = seen["lanes"][0]
-    assert (lane["open"], lane["count"], lane["seen"]) == ("steps:unknown", 1, True)
-    assert [(token["slug"], token["who"]) for token in lane["tokens"]] == [("yam-root", "unknown")]
-    tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
-    assert {token["border"] for token in tokens} == {"dashed"}
-    assert {"steps:unknown", "task:yam-root", "room"} <= opened
-    now = {one["target"]: one["now"] for one in seen["opened"]}
-    assert now["task:yam-root"].startswith("NOW: UNKNOWN jmerge said: another home's"), now
-    for token in tokens:
-        said = now[token["open"]]
-        assert "not confirmed since 2026-10-12 15:59 ET: GitHub did not answer." in said, said
-    assert seen["meters"] == 2
-    assert "limits" not in seen["machine"][0]["val"] + seen["machine"][0]["tip"]
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-def lines_of(seen):
-    """The Queued lane as the probe read it: its tokens that show, and its three lines."""
-    lane = seen["lanes"][0]
-    assert lane["name"] == "Queued"
-    return [token["slug"] for token in lane["tokens"] if token["shown"]], lane["lines"]
-
-
-@pytest.mark.parametrize("screen", [DESK, PHONE])
-def test_a_queue_of_five_rows_no_deeper_than_wave_one_is_one_line_as_before(
-    scene, tmp_path, screen
-):
-    ready, coming = flowing(scene, FLOWS[5])
-    seen = look(scene, tmp_path, budget=9000, screen=screen)
-    clean(seen, screen)
-    tokens, lines = lines_of(seen)
-    assert (tokens, lines) == ([*ready, *coming], [])
-    queued = {token["slug"]: token for token in seen["lanes"][0]["tokens"]}
-    assert [(queued[slug]["blocked"], queued[slug]["mark"]) for slug in coming] == [
-        ("tea-kettle", True),
-        ("rye-kettle", True),
-    ]
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-@pytest.mark.parametrize(
-    ("sizes", "lines"),
-    [((4, 4), []), ((5, 4), ["Ready", "Next", "Later"]), ((2, 1, 1), ["Ready", "Next", "Later"])],
-)
-def test_the_lane_is_three_lines_past_eight_rows_or_past_wave_one(scene, tmp_path, sizes, lines):
-    waves = flowing(scene, sizes)
-    seen = look(scene, tmp_path, budget=9000)
-    clean(seen)
-    tokens, found = lines_of(seen)
-    assert [one["name"] for one in found] == lines
-    assert tokens == waves[0] + waves[1]
-    assert [wave for one in found for wave in one["waves"]] == [
-        [at + 2, wave] for at, wave in enumerate(waves[2:])
-    ]
-
-
-@pytest.mark.parametrize(
-    ("rows", "shown", "more"),
-    [(25, (6, 5), ([], [])), (60, (8, 8), ([["+12", "flow"]], [["+6", "flow"]]))],
-)
-def test_a_full_queue_is_three_lines_at_a_desk_and_a_row_in_later_costs_no_word(
-    scene, tmp_path, rows, shown, more
-):
-    waves = flowing(scene, FLOWS[rows])
-    seen = look(scene, tmp_path, budget=9000)
-    opened = clean(seen)
-    tokens, (ready, coming, later) = lines_of(seen)
-    assert [(one["name"], one["count"]) for one in (ready, coming, later)] == [
-        ("Ready", len(waves[0])),
-        ("Next", len(waves[1])),
-        ("Later", rows - len(waves[0]) - len(waves[1])),
-    ]
-    assert [one[0] for one in ready["tokens"]] == waves[0][: shown[0]]
-    assert coming["tokens"][:4] == [
-        [waves[1][0], "tea-kettle"],
-        [waves[1][1], waves[0][1], "+1"],
-        [waves[1][2], waves[0][2]],
-        [waves[1][3], waves[0][3], "+1"],
-    ]
-    assert tokens == waves[0][: shown[0]] + waves[1][: shown[1]]
-    assert (ready["more"], coming["more"], later["more"]) == (*more, [])
-    assert later["waves"] == [[at + 2, wave] for at, wave in enumerate(waves[2:])]
-    assert [(dot["open"], dot["words"]) for dot in later["dots"]] == [
-        (f"task:{slug}", "") for wave in waves[2:] for slug in wave
-    ]
-    assert all(dot["label"].startswith(f"{dot['open'][5:]} waits on ") for dot in later["dots"])
-    assert {"flow", *(dot["open"] for dot in later["dots"])} <= set(seen["first"]) <= opened
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-@pytest.mark.parametrize(
-    ("rows", "more", "button"),
-    [
-        (25, ("+1 more", None), "14 later, in 6 waves"),
-        (60, ("+15 more", "+9 more"), "26 later, in 7 waves"),
-    ],
-)
-def test_on_a_phone_a_full_queue_is_two_lists_cut_at_five_and_one_button_for_later(
-    scene, tmp_path, rows, more, button
-):
-    waves = flowing(scene, FLOWS[rows])
-    seen = look(scene, tmp_path, budget=9000, screen=PHONE)
-    opened = clean(seen, PHONE)
-    tokens, (ready, coming, later) = lines_of(seen)
-    assert tokens == waves[0][:5] + waves[1][:5]
-    assert (ready["more"], coming["more"]) == tuple([[one, "flow"]] if one else [] for one in more)
-    assert (later["more"], later["waves"], later["dots"]) == ([[button, "flow"]], [], [])
-    assert (ready["named"], coming["named"], later["named"]) == (True, True, False)
-    assert "flow" in opened
-    assert (seen["small"], seen["cut"]) == ([], [])
-    assert [one for one in seen["opened"] if one["small"] or one["cut"]] == []
     assert seen["words"] <= WORDS, seen["words"]
 
 
@@ -1470,100 +939,6 @@ def test_the_drawer_of_the_queue_as_a_flow_marks_the_way_of_the_row_picked(
     assert picked["box"] == drawer["box"]
     if screen == PHONE:
         assert picked["box"] == [0, 0, *PHONE]
-    else:
-        assert seen["filtered"] == {"tokens": 12, "dots": 14}
-
-
-def test_a_pass_that_could_not_ask_marks_every_dot_and_every_row_of_the_flow(scene, tmp_path):
-    flowing(scene, FLOWS[25])
-    record = json.loads((scene.state_dir / "pass.json").read_text())
-    scene.write("pass.json", record | {"silent": {scene.name: "GitHub"}}, scene.state_dir)
-    seen = look(scene, tmp_path, budget=9000, pick="tea-ladle")
-    clean(seen)
-    _, (_, _, later) = lines_of(seen)
-    assert len(later["dots"]) == 14
-    assert {dot["border"] for dot in later["dots"]} == {"dashed"}
-    assert all("not confirmed since " in dot["label"] for dot in later["dots"])
-    assert seen["flow"]["borders"] == ["dashed"]
-    assert len(seen["flow"]["labels"]) == 27
-    assert all("not confirmed since " in label for label in seen["flow"]["labels"])
-
-
-@pytest.mark.parametrize("screen", [DESK, PHONE])
-def test_the_threads_card_counts_them_and_its_drawer_lists_each_by_role(scene, tmp_path, screen):
-    """A task whose crewmate is at work has the mark on its token in whatever lane it is, and
-    a hung one is said in its drawer with the times."""
-    began = iso(ago(minutes=40))
-    scene.passed(
-        20,
-        threads=[
-            out("crew: jam-jar", "hung", minutes=25, run_started=began, queued=2),
-            out("crew: oat-milk"),
-            out("crew: oat-bowl", "quiet", minutes=12),
-            out("review: oat-spoon"),
-            out("scout: look", "waiting", minutes=90, page=True),
-            out("home: demo"),
-            out("a thread he opened", "ended", "completed"),
-        ],
-        rows={
-            "jam-jar": {"threads": 1, "thread_status": "running", "live": "hung"}
-            | {"thread_updated": iso(ago(minutes=25))},
-            "oat-milk": {"threads": 1, "thread_status": "running", "live": "moving"},
-            "oat-bowl": {"threads": 1, "thread_status": "running", "live": "quiet"},
-        },
-    )
-    seen = look(scene, tmp_path, budget=9000, screen=screen)
-    opened = clean(seen, screen)
-    card = {card["tag"]: card for card in seen["cards"]}["threads"]
-    assert (card["val"], card["open"], card["seen"]) == ("6 out 1 quiet 1 hung", "threads", True)
-    assert card["label"] == "Threads: 6 out, 1 quiet, 1 hung"
-    lanes = {lane["name"]: lane["tokens"] for lane in seen["lanes"]}
-    assert {token["slug"]: token["live"] for token in lanes["Running"]} == {"jam-jar": "hung"}
-    assert {token["slug"]: token["live"] for token in lanes["Check"]} == {"oat-milk": "moving"}
-    assert {token["slug"]: token["live"] for token in lanes["Rebase"]} == {"oat-bowl": "quiet"}
-    assert {token["live"] for token in lanes["Queued"] + lanes["Gate"]} == {""}
-    assert {"threads", "threads:crew", "threads:scout", "threads:reviewer"} <= opened
-    drawers = {one["target"]: one for one in seen["opened"]}
-    assert {target: drawers[target]["title"] for target in drawers if "threads" in target} == {
-        "threads": "6 threads out",
-        "threads:crew": "3 crews out",
-        "threads:scout": "1 scout out",
-        "threads:reviewer": "1 reviewer out",
-    }
-    assert drawers["threads"]["now"].startswith("AS THE LAST PASS SAW THEM 6 out, 1 quiet, 1 hung")
-    assert drawers["threads:crew"]["now"].startswith("AS THE LAST PASS SAW THEM 3 out, 1 quiet, 1")
-    assert drawers["threads:scout"]["said"].count("last wrote") == 1
-    assert "it holds a page that waits on you" in drawers["threads:scout"]["said"]
-    every = drawers["threads"]["said"]
-    assert every.count("last wrote") == 7 and "2 runs wait behind it" in every
-    assert "1 NOT SETTLED, WITH NO TURN UNDER WAY" in every
-    assert re.search(
-        r"Its thread is hung: it has written nothing since \d\d:\d\d, 25 min ago, "
-        r"its turn started \d\d:\d\d, and 2 runs wait behind it\.",
-        drawers["task:jam-jar"]["now"],
-    ), drawers["task:jam-jar"]["now"]
-    assert "Its thread is quiet: it has written nothing" in drawers["task:oat-bowl"]["now"]
-    assert "Its thread is" not in drawers["task:oat-milk"]["now"]
-    if screen == PHONE:
-        assert (seen["small"], seen["cut"]) == ([], [])
-        assert [one for one in seen["opened"] if one["small"] or one["cut"]] == []
-        assert {tuple(one["box"]) for one in seen["opened"]} == {(0, 0, *PHONE)}
-    else:
-        assert seen["words"] <= WORDS, seen["words"]
-
-
-def test_a_pass_that_left_no_list_of_threads_shows_no_count(scene, tmp_path):
-    scene.passed(20, threads=None)
-    seen = look(scene, tmp_path)
-    clean(seen)
-    card = {card["tag"]: card for card in seen["cards"]}["threads"]
-    assert (card["val"], card["label"]) == (
-        "not known",
-        "Threads: the last pass left no list of them",
-    )
-    drawer = {one["target"]: one for one in seen["opened"]}["threads"]
-    assert drawer["title"] == "No count of threads out"
-    assert drawer["now"].startswith("NOT KNOWN The last pass left no list")
 
 
 def a_day_of_threads(scene):
@@ -1598,70 +973,6 @@ def chips(seen_band):
     return [(rl, [(c["text"], c["open"], c["ended"]) for c in cs]) for rl, cs in seen_band["rows"]]
 
 
-@pytest.mark.parametrize("screen", [DESK, PHONE])
-def test_a_projects_page_has_a_threads_band_by_role_and_each_thread_opens_what_it_works_on(
-    scene, tmp_path, screen
-):
-    a_day_of_threads(scene)
-    seen = look(scene, tmp_path, budget=9000, screen=screen)
-    opened = clean(seen, screen)
-    band = seen["threads"]
-    assert band["seen"] or screen == PHONE, "the queue above it pushes it off a phone"
-    assert band["head"] == "Threads 4 out 3 ended today"
-    assert chips(band) == [
-        (
-            "CREWMATES",
-            [
-                ("jam-jar hung 25m", "thread:crew:jam-jar", False),
-                ("oat-milk ended 2h00", "thread:crew:oat-milk", True),
-            ],
-        ),
-        (
-            "SCOUTS",
-            [
-                ("look researching 1h30", "thread:scout:look", False),
-                ("tin reported 30m", "thread:scout:tin", True),
-                ("cut no Report 40m", "thread:scout:cut", True),
-            ],
-        ),
-        ("REVIEWERS", [("jam-jar moving 1m", "thread:reviewer:jam-jar", False)]),
-        ("HOME", [("demo moving 1m", "thread:home:demo", False)]),
-        ("FOLDED", [("1 ended before today, 1 of no role", "threads", False)]),
-    ]
-    tips = {c["open"]: c["tip"] for _, cs in band["rows"] for c in cs}
-    assert tips["thread:scout:look"].startswith(
-        "scout look: it waits on a request, its request researching, last wrote "
-    )
-    drawers = {one["target"]: one for one in seen["opened"]}
-    assert {"thread:crew:oat-bowl", "threads"} <= opened, "the folded ones are a click away"
-    look_at = drawers["thread:scout:look"]
-    assert (look_at["title"], look_at["now"].split(":")[0]) == ("look", "SCOUT FROZEN waiting")
-    assert "researching Its request has no Report yet." in look_at["said"]
-    assert "ASKS look: what is in the look tin" in look_at["said"]
-    assert "STATUS done" in drawers["thread:scout:tin"]["said"]
-    assert (
-        "no Report Its thread ended with no Report written" in drawers["thread:scout:cut"]["said"]
-    )
-    assert "jam-jar is on Running: " in drawers["thread:reviewer:jam-jar"]["said"]
-    assert "2 runs wait behind it" in drawers["thread:crew:jam-jar"]["said"]
-    assert "The home of demo: it plans the work" in drawers["thread:home:demo"]["said"]
-    assert "oat-bowl" in drawers["thread:crew:oat-bowl"]["said"]
-    assert "Its threads: jam-jar hung 25m jam-jar moving 1m" in drawers["task:jam-jar"]["now"]
-    assert "Its threads: oat-milk ended 2h00" in drawers["task:oat-milk"]["now"]
-    others = [
-        one["now"]
-        for target, one in drawers.items()
-        if target.startswith("task:")
-        and target[5:] not in ("jam-jar", "oat-milk", "oat-bowl")
-        and not one["now"].startswith("NOW: MERGED")
-    ]
-    assert others and all("No thread on it was listed by the last pass." in now for now in others)
-    if screen == PHONE:
-        assert (seen["small"], seen["cut"]) == ([], [])
-    else:
-        assert seen["words"] <= WORDS, seen["words"]
-
-
 def test_a_thread_is_a_link_that_opens_cold_with_the_way_back_to_its_project(scene, tmp_path):
     a_day_of_threads(scene)
     (first,) = walked(scene, tmp_path, "#/demo/thread/scout/look", ["look"])
@@ -1677,63 +988,17 @@ def test_a_thread_is_a_link_that_opens_cold_with_the_way_back_to_its_project(sce
     ]
 
 
-def test_a_list_of_no_thread_is_a_calm_band_of_none_out_on_the_row_and_the_page(scene, tmp_path):
-    stacked(scene)
-    scene.passed(20, threads=[])
-    page = look(scene, tmp_path)
-    clean(page)
-    rows = look(scene, tmp_path, route="#/")["stack"]["rows"]
-    row = {one["project"]: one["threads"] for one in rows}
-    for band in (page["threads"], row["demo"]):
-        assert (band["head"], band["rows"]) == ("Threads 0 out", [])
-        assert "calm" in band["cls"].split() and "blind" not in band["cls"].split()
-
-
-def test_every_projects_row_has_its_threads_band_and_a_blind_one_where_no_list_was_left(
-    scene, tmp_path
-):
-    stacked(scene)
-    a_day_of_threads(scene)
-    seen = look(scene, tmp_path, route="#/")
-    clean(seen)
-    rows = {row["project"]: row["threads"] for row in seen["stack"]["rows"]}
-    assert rows["demo"]["head"] == "Threads 4 out 3 ended today"
-    assert chips(rows["demo"])[0] == (
-        "CREWMATES",
-        [
-            ("jam-jar hung 25m", "#/demo/thread/crew/jam-jar", False),
-            ("oat-milk ended 2h00", "#/demo/thread/crew/oat-milk", True),
-        ],
-    )
-    assert chips(rows["demo"])[-1] == (
-        "FOLDED",
-        [("1 ended before today, 1 of no role", "#/demo/threads", False)],
-    )
-    for name in ("larder", "pantry"):
-        assert rows[name]["head"] == (
-            "Threads not known the last pass left no list: a blind spot, not none"
-        )
-        assert "blind" in rows[name]["cls"].split() and rows[name]["rows"] == []
-    assert seen["words"] <= EVERY, seen["words"]
-
-
 def frozen(seen, since, said):
     """The page of a jbus that has stopped: the banner, and what is frozen and what live."""
     clean(seen)
     assert seen["body"] == "stopped"
     assert seen["banner"].startswith("jbus has not passed last pass ended " + since)
     assert said in seen["banner"]
-    assert seen["halves"] == [
-        ["frozen", ["the line", "Needs you", "the bus"]],
-        ["live", ["Room", "CI checks", "gates", "GitHub"]],
-    ]
-    jbus = seen["machine"][0]
-    assert re.fullmatch(r"stopped \d\d:\d\d", jbus["val"]), jbus["val"]
-    cards = {card["tag"]: (card["state"], card["border"]) for card in seen["cards"]}
-    assert (cards["bus"], cards["CI checks on GitHub"]) == (("frozen", "dashed"), ("live", "solid"))
-    assert seen["line"] == "frozen"
-    tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
-    assert tokens and {token["border"] for token in tokens} == {"dashed"}
+    assert seen["header"]["machine"] == {
+        "text": "jbus stopped",
+        "cls": "machw bad",
+        "href": "#/demo/pulse",
+    }
     assert seen["header"]["read"].startswith("Updated "), "jbus stopped, the server did not"
     drawers = {one["target"]: one for one in seen["opened"]}
     assert drawers["pulse"]["title"] == "jbus has not passed"
@@ -1765,11 +1030,9 @@ def test_a_last_pass_more_than_150_s_ago_shows_the_banner_too(scene, tmp_path):
 
 def test_a_jbus_that_passes_shows_no_banner_and_nothing_frozen(scene, tmp_path):
     seen = look(scene, tmp_path)
-    assert (seen["body"], seen["banner"], seen["halves"]) == ("", "", [])
-    assert {card["state"] for card in seen["cards"]} == {""}
+    assert (seen["body"], seen["banner"]) == ("", "")
+    assert seen["header"]["machine"]["text"] == "Machine ok"
     assert seen["header"]["stale"] is False
-    tokens = [token for lane in seen["lanes"] for token in lane["tokens"]]
-    assert {token["border"] for token in tokens} == {"solid"}
 
 
 def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, tmp_path):
@@ -1783,10 +1046,8 @@ def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, t
     read = NOW.astimezone().strftime("%H:%M")
     assert seen["header"]["read"] == f"Stale since {read}", "the time of the last answer"
     assert seen["header"]["stale"] is True
-    assert [state for state, _ in seen["halves"]] == ["frozen"]
-    assert {card["state"] for card in seen["cards"] if card["state"]} == {"frozen"}
     assert "GitHub cannot be asked" in seen["github"]
-    assert sum(len(lane["tokens"]) for lane in seen["lanes"]) == 9
+    assert len(seen["prog"]) == 9
 
 
 def test_a_server_that_never_answered_is_said_too(scene, tmp_path):
@@ -1794,7 +1055,6 @@ def test_a_server_that_never_answered_is_said_too(scene, tmp_path):
     assert seen["errors"] == []
     assert set(seen["body"].split()) == {"stopped", "gone"}
     assert seen["banner"].startswith("the view server does not answer")
-    assert seen["cards"] == []
 
 
 def test_on_a_phone_the_page_is_one_column_and_every_target_takes_a_thumb(scene, tmp_path):
@@ -1803,24 +1063,11 @@ def test_on_a_phone_the_page_is_one_column_and_every_target_takes_a_thumb(scene,
     seen = look(scene, tmp_path, budget=9000, screen=screen)
     opened = clean(seen, screen)
     assert {f"task:{slug}" for slug in open_rows} <= opened
-    left, top, wide, high = seen["strip"]
-    assert (left, wide) == (10, 370) and high <= PHONE[1] // 4
-    assert seen["band"][1] < top < seen["lanes"][0]["box"][1]
-    assert all(card["seen"] and card["box"][3] >= THUMB for card in seen["cards"])
-    assert {(lane["box"][0], lane["box"][2]) for lane in seen["lanes"]} == {(10, 370)}
-    assert [lane["box"][1] for lane in seen["lanes"]] == sorted(
-        lane["box"][1] for lane in seen["lanes"]
+    assert len(seen["prog"]) >= 28
+    assert all(
+        row["box"][0] >= 0 and row["box"][0] + row["box"][2] <= screen[0] for row in seen["prog"]
     )
-    tokens = [token for lane in seen["lanes"] for token in lane["tokens"] if token["shown"]]
-    assert len(tokens) == 26
-    assert [line["more"] for line in seen["lanes"][0]["lines"]] == [
-        [["+1 more", "flow"]],
-        [["+1 more", "flow"]],
-        [],
-    ]
-    assert {token["box"][0] for token in tokens} == {23}
-    assert len({token["box"][1] for token in tokens}) == 26
-    assert min(token["box"][3] for token in tokens) >= THUMB
+    assert min(row["box"][3] for row in seen["prog"]) >= THUMB
     assert (seen["small"], seen["cut"]) == ([], [])
     assert {tuple(one["box"]) for one in seen["opened"]} == {(0, 0, *screen)}
     assert all(one["closed"] for one in seen["opened"])
@@ -1855,16 +1102,7 @@ def test_on_a_phone_a_stopped_jbus_with_unwell_sources_and_long_checks_is_whole(
     clean(seen, screen)
     assert seen["body"] == "stopped"
     assert seen["banner"].startswith("jbus has not passed last pass ended ")
-    said = {card["tag"]: card["val"] for card in seen["cards"]}
-    assert re.fullmatch(r"stopped \d\d:\d\d", seen["machine"][0]["val"]), seen["machine"][0]
-    assert int(said["blind spots"]) >= 3, said["blind spots"]
-    assert said["CI checks on GitHub"] == (
-        "GitHub did not answer"
-        if github == "down"
-        else f"2 running {long}-one, {long}-two 1 waiting for a runner {long}-three "
-        f"1 failed {long}-four"
-    )
-    assert (seen["bus"], seen["meters"]) == ([9, 3], 2)
+    assert seen["header"]["machine"]["text"] == "jbus stopped"
     assert (seen["small"], seen["cut"]) == ([], [])
     assert [one for one in seen["opened"] if one["small"] or one["cut"]] == []
     assert {tuple(one["box"]) for one in seen["opened"]} == {(0, 0, *screen)}
@@ -2459,7 +1697,6 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         seen = look(scene, tmp_path, port=process.port)
         clean(seen)
         assert unreached(seen, ["sample", "lost", "thrown"]) == ["lost", "thrown"]
-        assert [card["tag"] for card in seen["cards"]] == CARDS
         assert seen["needs"]["head"] == "3 Needs you"
         assert (seen["needs"]["extra"][-1]["text"], seen["needs"]["extra"][-1]["open"]) == (
             "1 sample",
@@ -2509,32 +1746,6 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
     assert "not read it has no brief in its home or in jbus's copies." in other
 
 
-def test_a_runner_that_is_not_active_is_said_on_the_machine_and_not_on_the_checks_card(
-    scene, tmp_path
-):
-    scene.runners(
-        ("actions-runner-a.service", "active", "running"),
-        ("actions-runner-b.service", "inactive", "dead"),
-    )
-    seen = look(scene, tmp_path)
-    clean(seen)
-    card = {one["tag"]: one for one in seen["cards"]}["CI checks on GitHub"]
-    assert "actions-runner" not in card["val"] + card["label"], card["val"]
-    runners = {one["tag"]: one for one in seen["machine"]}["Runners"]
-    assert runners["val"] == "1/2", runners["val"]
-    assert runners["tip"] == (
-        "Runner units of this machine: actions-runner-a active, actions-runner-b inactive"
-    )
-    served = Served(scene)
-    try:
-        drawer = shown(served.port, tmp_path, "checks")
-    finally:
-        served.close()
-    assert "actions-runner-a.service active, running actions-runner-b.service inactive, dead" in (
-        drawer
-    ), drawer
-
-
 def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_path, monkeypatch):
     """The task drawer's Usage line is filled by an ask of its own. A transcript that is not
     there is said, and an ask the server does not answer is said too, never left waiting."""
@@ -2555,107 +1766,6 @@ def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_p
 
 HOLDERS = ["user", "crew", "home", "rev", "ci", "bus", "dep", "ok", "scout", "other", "unknown"]
 MARKS = ["long", "rep", "blk", "bn", "lv-moving", "lv-quiet", "lv-hung"]
-
-
-def test_every_step_shape_mark_and_card_has_a_question_mark_that_says_what_it_means(
-    scene, tmp_path
-):
-    """A `?` stands beside each card, of the project and of the machine, each step that holds
-    a task, the wait band and the Threads band. The folded key has one for every shape and
-    every mark, the steps drawer one for every step, and the glossary lists them all."""
-    lineup(scene, TODAY)
-    seen = look(scene, tmp_path, walk=["key:?:"], at=4500, budget=12000)
-    clean(seen)
-    cards = ["card:threads", "card:checks", "card:bus", "card:blind"]
-    machine = ["card:jbus", "card:room", "card:runners", "card:plan"]
-    lanes = [f"step:{lane['open'].partition(':')[2] or lane['open']}" for lane in seen["lanes"]]
-    assert set(cards + machine + lanes + ["term:waits", "term:threads"]) <= set(seen["tips"])
-    assert len(lanes) == 11, "every step that holds a task, Merged by its own name"
-    assert seen["keyed"] == [f"who:{w}" for w in HOLDERS] + [f"mark:{m}" for m in MARKS]
-    drawers = {one["target"]: one for one in seen["opened"]}
-    steps = drawers["steps:queued"]["tips"]
-    assert [tip for tip in steps if tip.startswith("step:")] == [f"step:{k}" for k in STEP_KEYS]
-    (glossary,) = seen["walked"]
-    assert glossary["title"] == "Every term on the page"
-    for said in (*LANES, "Crewmate", "Over 30 minutes on its step", "Threads out", "Room"):
-        assert said in glossary["said"], said
-    assert seen["words"] <= WORDS, seen["words"]
-
-
-@pytest.mark.parametrize("screen", [DESK, PHONE])
-def test_a_toggletip_opens_by_key_and_by_tap_and_esc_or_a_tap_elsewhere_closes_it(
-    scene, tmp_path, screen
-):
-    lineup(scene, TODAY)
-    if screen == PHONE:
-        screen = (
-            PHONE[0],
-            PHONE[1] + PHONE_NEEDS,
-        )
-    walk = [
-        'key:Enter:#vitals [data-tip="card:threads"]',
-        "esc",
-        'key: :#vitals [data-tip="card:bus"]',
-        'tap:#line [data-tip="step:running"]',
-        'tap:#line [data-tip="step:running"]',
-        'tap:#machine [data-tip="card:room"]',
-        "tap:#filters",
-    ]
-    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000, screen=screen)
-    assert seen["errors"] == []
-    by_key, esc, space, tapped, again, room, away = seen["walked"]
-    assert by_key["tip"].startswith("Threads out")
-    assert (by_key["expanded"], by_key["open"], by_key["hash"]) == (
-        ["card:threads"],
-        False,
-        "#/demo",
-    )
-    assert (esc["tip"], esc["expanded"], esc["focus"]) == ("", [], "card:threads")
-    assert esc["hash"] == "#/demo", "Esc closes the toggletip and nothing else"
-    assert space["tip"].startswith("Bus outbox")
-    assert tapped["tip"].startswith("Running")
-    assert "a crewmate thread has the task" in tapped["tip"]
-    assert tapped["expanded"] == ["step:running"]
-    assert (again["tip"], again["expanded"]) == ("", []), "a second tap closes it"
-    assert room["tip"].startswith("Room")
-    assert (away["tip"], away["expanded"]) == ("", [])
-
-
-def test_hovering_a_shape_a_mark_or_a_count_shows_what_it_means_and_so_does_a_focused_token(
-    scene, tmp_path
-):
-    lineup(scene, TODAY)
-    walk = [
-        "hover:#line .mk.long",
-        "hover:#line .tok.w-user .sh",
-        "hover:#line .bn",
-        "hover:#line .laneh .n",
-        "hover:#side .sp .n",
-        'hover:#filters [data-filter="all"] i',
-        "focus:#line .tok.w-crew",
-        "esc",
-    ]
-    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000)
-    assert seen["errors"] == []
-    long, shape, behind, lane, side, every, focused, esc = [step["peek"] for step in seen["walked"]]
-    assert every.startswith("Count How many open tasks this project has")
-    assert long == "Mark Over 30 minutes on its step."
-    assert shape.startswith("You Drawn as a diamond, amber. Only you can move it")
-    assert behind.startswith("Count How many tasks wait behind it")
-    assert lane.startswith("Count How many open tasks are on this step")
-    assert side.startswith("Count How many things need you")
-    assert focused.startswith("Crewmate Drawn as a dot.")
-    assert esc == ""
-
-
-def test_on_every_project_a_count_says_what_it_means_too(scene, tmp_path):
-    lineup(scene, TODAY)
-    walk = ["hover:#needs-h b", "hover:#rows .rcell b", "look"]
-    seen = look(scene, tmp_path, route="#/", walk=walk, at=4000 + 500 * len(walk), budget=12000)
-    assert seen["errors"] == []
-    waits, cell, _ = [step["peek"] for step in seen["walked"]]
-    assert waits.startswith("Count How many things need you")
-    assert cell.startswith("Count How many open tasks are on this step")
 
 
 @pytest.mark.parametrize(("route", "help"), [("#/demo", "#/demo/help"), ("#/", "#/help")])
@@ -2690,21 +1800,6 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
     assert seen["stack"]["shown"], "the glossary is over every project"
 
 
-def test_the_queue_says_noticed_is_not_counted_and_why(scene, tmp_path):
-    lineup(scene, TODAY)
-    a_noticed(
-        scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle")))
-    )
-    walk = ['tap:#nx [data-tip="term:noticed"]']
-    seen = look(scene, tmp_path, walk=walk, at=4500, budget=12000)
-    assert seen["errors"] == []
-    assert [t["text"] for t in seen["needs"]["extra"]] == ["2 noticed, not counted"]
-    assert seen["needs"]["head"] == "4 Needs you"
-    (tapped,) = seen["walked"]
-    assert tapped["tip"].startswith("Noticed, not counted")
-    assert "wait on a home, not on you" in tapped["tip"]
-
-
 def test_an_open_toggletip_stays_open_when_a_poll_draws_the_queue_again(scene, tmp_path):
     lineup(scene, TODAY)
 
@@ -2729,25 +1824,6 @@ def test_an_open_toggletip_stays_open_when_a_poll_draws_the_queue_again(scene, t
     assert redrawn and max(redrawn) > 2500, "the heading was drawn again after the tip opened"
     assert {step["tip"] for step in seen["walked"]} == {opened["tip"]}
     assert seen["walked"][-1]["expanded"] == ["term:waits"]
-
-
-def test_the_folded_key_stays_open_with_its_focus_when_a_poll_redraws_the_filters(scene, tmp_path):
-    lineup(scene, TODAY)
-
-    def fewer(nth, body):
-        body["tasks"] = body["tasks"][: len(body["tasks"]) - (nth > 1)]
-        return body
-
-    walk = ["tap:#filters details.gk summary", 'focus:#filters [data-tip="who:crew"]']
-    walk += ["look"] * 30
-    seen = look(
-        scene, tmp_path, walk=walk, alter_state=fewer, at=4000 + 500 * len(walk), budget=24000
-    )
-    assert seen["errors"] == []
-    redrawn = [c["at"] for c in seen["changes"] if c["part"] == "fbs"]
-    assert redrawn and max(redrawn) > 3000, "the filters were drawn again after the key opened"
-    assert all(step["key"] for step in seen["walked"])
-    assert seen["walked"][-1]["focus"] == "who:crew"
 
 
 AXE = Path(__file__).parent / "fixtures" / "jbus-view"
@@ -2870,273 +1946,6 @@ def test_a_tick_is_no_field_so_esc_on_it_goes_back_and_g_a_goes_to_every_project
     assert (keyed["hash"], keyed["open"]) == ("#/", False)
 
 
-ROW_BANDS = ["machine", "/row/demo", "/row/larder", "/row/pantry"]
-PAGE_BANDS = ["machine", "demo/cards", "demo/threads", "demo/line"]
-FOLDS = {
-    "machine": "folded",
-    "/row/larder": "hidden",
-    "/row/pantry": "folded",
-    "demo/cards": "folded",
-    "demo/threads": "folded",
-    "demo/line": "folded",
-}
-
-
-def remembered(folds, opened=False):
-    """A script that puts `folds` where the browser keeps them before the page starts, as an
-    earlier visit leaves them, and with `opened` opens the header's list a moment after."""
-    seeded = f"localStorage.setItem('jbus-view-fold', {json.dumps(json.dumps(folds))});"
-    if opened:
-        seeded += 'window.addEventListener("load", function () { setTimeout(function () {'
-        seeded += ' document.getElementById("kept").open = true; }, 1500); });'
-    return seeded
-
-
-def bands(seen):
-    return {band["key"]: band for band in seen["folds"]["bands"]}
-
-
-@pytest.mark.parametrize(("route", "keys"), [("#/", ROW_BANDS), ("#/demo", PAGE_BANDS)])
-def test_every_band_is_drawn_whole_with_a_fold_and_a_hide_button(scene, tmp_path, route, keys):
-    """Every band of the view, the machine's included, is drawn whole the first time, each
-    with two real buttons in its header: fold, which says it is expanded and names its body,
-    and hide. Nothing is hidden or folded, so the header lists nothing."""
-    every_kind(scene)
-    seen = look(scene, tmp_path, route=route)
-    assert seen["errors"] == []
-    assert sorted(bands(seen)) == sorted(keys)
-    for band in seen["folds"]["bands"]:
-        assert (band["st"], band["seen"], band["expanded"], band["body"], band["sum"]) == (
-            "open",
-            True,
-            "true",
-            True,
-            "",
-        ), band
-        assert band["fold"] == ["BUTTON", band["name"], True], band
-        assert band["hide"] == ["BUTTON", f"Hide {band['name']}", True], band
-    assert (seen["folds"]["kept"], seen["folds"]["store"]) == ("", None)
-    if route == "#/demo":
-        assert bands(seen)["demo/line"]["grouped"] is False, "the line's buttons are no filter"
-
-
-@pytest.mark.parametrize(
-    ("stopped", "unread", "said"),
-    [
-        (False, False, "jbus passing, all well"),
-        (False, True, "jbus passing, 1 wants a look"),
-        (True, False, "jbus stopped"),
-        (True, True, "jbus stopped, 1 wants a look"),
-    ],
-)
-def test_the_machine_folded_says_the_pass_once_and_counts_what_else_wants_a_look(
-    scene, tmp_path, stopped, unread, said
-):
-    """The machine with its room, runners and plan well: folded, its line says the pass by
-    name, and counts sources not read beside it, a stopped pass included."""
-
-    def machine(nth, body):
-        m = body["machine"]
-        m["jbus"] |= {"stopped": stopped, "why": "the timer is not active"}
-        m["room"] |= {"answer": "go", "plan": {}}
-        m |= {"runners": [{"unit": "runner.service", "active": "active"}], "runners_read": True}
-        m["unwell"] = [{"name": "room", "state": "missing"}] if unread else []
-        return body
-
-    script = remembered({"machine": "folded"}) + PROBE
-    seen = look(scene, tmp_path, route="#/", script=script, alter=machine)
-    assert seen["errors"] == []
-    assert bands(seen)["machine"]["st"] == "folded"
-    assert bands(seen)["machine"]["sum"] == said
-
-
-def test_the_homes_off_the_bus_are_counted_on_the_machine_and_named_in_its_tip(scene, tmp_path):
-    """Two homes with no project: the machine's Homes item counts them, names them in its tip,
-    and the folded machine counts it among what wants a look. With none, there is no item."""
-
-    def machine(nth, body):
-        m = body["machine"]
-        m["jbus"] |= {"stopped": False}
-        m["jbus"]["status"]["homes_off_bus"] = ["firstmate", "LittleRamPantries"]
-        m["room"] |= {"answer": "go", "plan": {}}
-        m |= {"runners": [{"unit": "runner.service", "active": "active"}], "runners_read": True}
-        m["unwell"] = []
-        return body
-
-    seen = look(scene, tmp_path, route="#/", alter=machine)
-    assert seen["errors"] == []
-    assert [one["tag"] for one in seen["machine"]] == [*MACHINE, "Homes"]
-    (homes,) = [one for one in seen["machine"] if one["tag"] == "Homes"]
-    assert homes["val"] == "2 off bus"
-    assert homes["tip"].startswith("Homes not on the bus: firstmate, LittleRamPantries.")
-    script = remembered({"machine": "folded"}) + PROBE
-    folded = look(scene, tmp_path, route="#/", script=script, alter=machine)
-    assert bands(folded)["machine"]["sum"] == "jbus passing, 1 wants a look"
-
-
-def test_a_band_folds_and_unfolds_by_click_and_by_key_and_nothing_else_is_drawn_again(
-    scene, tmp_path
-):
-    """A tap folds the line to its header, Enter unfolds it, Space folds the Threads band, a tap
-    folds the machine to its one line. Between the first step and the last only the header's
-    count is drawn again, and the page asks the server for nothing more."""
-    every_kind(scene)
-    line, threads = '[data-fold="demo/line"]', '[data-fold="demo/threads"]'
-    walk = [
-        "look",
-        f"tap:{line}",
-        f"key:Enter:{line}",
-        f"key: :{threads}",
-        'tap:[data-fold="machine"]',
-    ]
-    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=12000)
-    assert seen["errors"] == []
-    look_, tapped, entered, spaced, machine = [
-        {band["key"]: band for band in step["folds"]["bands"]} | {"": step}
-        for step in seen["walked"]
-    ]
-    assert look_["demo/line"]["st"] == "open"
-    assert (tapped["demo/line"]["st"], tapped["demo/line"]["expanded"]) == ("folded", "false")
-    assert tapped["demo/line"]["body"] is False and tapped["demo/line"]["seen"] is True
-    assert tapped[""]["folds"]["kept"] == "1 folded"
-    assert json.loads(tapped[""]["folds"]["store"]) == {"demo/line": "folded"}
-    assert [b["st"] for k, b in tapped.items() if k not in ("", "demo/line")] == ["open"] * 3
-    assert (entered["demo/line"]["st"], entered["demo/line"]["expanded"]) == ("open", "true")
-    assert entered[""]["focus"] == "fold:demo/line"
-    assert (entered[""]["folds"]["kept"], entered[""]["folds"]["store"]) == ("", None)
-    assert (spaced["demo/threads"]["st"], spaced["demo/threads"]["body"]) == ("folded", False)
-    assert spaced["demo/threads"]["seen"] and spaced["demo/line"]["st"] == "open"
-    assert machine["machine"]["st"] == "folded"
-    assert re.fullmatch(r"jbus passing, (all well|\d+ wants? a look)", machine["machine"]["sum"])
-    assert machine[""]["folds"]["kept"] == "2 folded"
-    first, last = seen["walked"][0]["changes"], seen["walked"][-1]["changes"]
-    assert {one["part"] for one in seen["changes"][first:last]} <= {"kept-s", "kept-l"}
-    asked = [one.partition("?")[0] for one in seen["asked"]]
-    assert (asked.count("/state.json"), asked.count("/stack.json")) == (1, 1)
-
-
-def test_a_hidden_band_is_listed_in_the_header_and_comes_back_and_show_all_shows_everything(
-    scene, tmp_path
-):
-    """Hide takes a project's row off every project's view, and the focus to the header's
-    count; the list there brings it back, and Show all unhides and unfolds everything. A tap
-    on a row's button does not open the row's project."""
-    every_kind(scene)
-    walk = ['tap:[data-hide="/row/larder"]', "tap:#kept-s", 'tap:[data-show="/row/larder"]']
-    walk += ['tap:[data-hide="/row/demo"]', 'tap:[data-fold="/row/pantry"]', "tap:#kept-s"]
-    walk += ["tap:[data-showall]"]
-    seen = look(scene, tmp_path, route="#/", walk=walk, at=4000 + 500 * len(walk), budget=12000)
-    assert seen["errors"] == []
-    steps = seen["walked"]
-    hid, listed, shown, _, folded, again, everything = (
-        {band["key"]: band for band in step["folds"]["bands"]} for step in steps
-    )
-    assert all(step["hash"] == "#/" for step in steps), "no tap opened a project"
-    assert (hid["/row/larder"]["st"], hid["/row/larder"]["seen"]) == ("hidden", False)
-    assert (steps[0]["folds"]["kept"], steps[0]["focus"]) == ("1 hidden", "kept-s")
-    assert json.loads(steps[0]["folds"]["store"]) == {"/row/larder": "hidden"}
-    assert steps[1]["folds"]["list"] == ["Show larder", "Show all"]
-    assert (shown["/row/larder"]["st"], shown["/row/larder"]["seen"]) == ("open", True)
-    assert (steps[2]["folds"]["kept"], steps[2]["focus"]) == ("", "fold:/row/larder")
-    assert folded["/row/pantry"]["st"] == "folded" and folded["/row/pantry"]["sum"]
-    assert steps[4]["folds"]["kept"] == "1 hidden, 1 folded"
-    assert steps[5]["folds"]["list"] == ["Show demo", "Show all"]
-    assert {band["st"] for band in everything.values()} == {"open"}
-    assert (steps[6]["folds"]["kept"], steps[6]["folds"]["store"]) == ("", None)
-    assert all(band["seen"] and band["body"] for band in everything.values())
-
-
-RELOAD = """
-if (!sessionStorage.getItem("jv-reloaded")) {
-  window.addEventListener("load", function () { setTimeout(function () {
-    document.querySelector('[data-fold="demo/line"]').click();
-    document.querySelector('[data-hide="demo/threads"]').click();
-    sessionStorage.setItem("jv-reloaded", "1");
-    location.reload();
-  }, 2000); });
-} else {
-"""
-
-
-def test_a_band_folded_or_hidden_is_so_after_a_reload(scene, tmp_path):
-    """The two taps of a first visit, then a reload: the page comes back as they left it."""
-    every_kind(scene)
-    seen = look(scene, tmp_path, script=RELOAD + PROBE + "\n}", at=3000, budget=15000)
-    assert seen["errors"] == []
-    states = {key: band["st"] for key, band in bands(seen).items()}
-    assert states == {key: "open" for key in PAGE_BANDS} | {
-        "demo/line": "folded",
-        "demo/threads": "hidden",
-    }
-    assert seen["folds"]["kept"] == "1 hidden, 1 folded"
-
-
-@pytest.mark.parametrize(("route", "keys"), [("#/", ROW_BANDS), ("#/demo", PAGE_BANDS)])
-def test_the_choice_is_kept_per_view_and_project_and_holds_through_a_new_poll(
-    scene, tmp_path, route, keys
-):
-    """What the browser keeps is put on as the page loads, and again after the poll at 15 s
-    draws the page again. A choice for another project's page is not this one's."""
-    every_kind(scene)
-    folds = FOLDS | {"larder/line": "hidden"}
-    seen = look(
-        scene, tmp_path, route=route, script=remembered(folds) + PROBE, at=17000, budget=22000
-    )
-    assert seen["errors"] == []
-    asked = [one.partition("?")[0] for one in seen["asked"]]
-    assert asked.count("/state.json" if route == "#/demo" else "/stack.json") >= 2
-    for key, band in bands(seen).items():
-        st = FOLDS.get(key, "open")
-        assert band["st"] == st, band
-        assert band["seen"] is (st != "hidden"), band
-        assert band["body"] is (st == "open"), band
-        assert band["expanded"] == ("false" if st == "folded" else "true"), band
-    if route == "#/demo":
-        assert seen["folds"]["kept"] == "4 folded"
-        assert re.fullmatch(
-            r"\d+ threads? out, CI .*, bus \d+ in outbox, \d+ blind spots?",
-            bands(seen)["demo/cards"]["sum"],
-        )
-    else:
-        assert seen["folds"]["kept"] == "1 hidden, 2 folded"
-        assert re.fullmatch(
-            r"all well|\d+ things? wants? a look", bands(seen)["/row/pantry"]["sum"]
-        )
-
-
-@pytest.mark.parametrize("route", ["#/", "#/demo"])
-def test_on_a_phone_every_fold_button_and_the_list_of_hidden_bands_take_a_thumb(
-    scene, tmp_path, route
-):
-    every_kind(scene)
-    for folds, opened in (({}, False), (FOLDS, True)):
-        seen = look(
-            scene, tmp_path, route=route, screen=PHONE, script=remembered(folds, opened) + PROBE
-        )
-        clean(seen, PHONE)
-        ours = [one for one in seen["small"] if re.match(r"(fv-b|kb|SUMMARY)\b", one)]
-        assert (ours, seen["cut"]) == ([], [])
-        if folds:
-            assert seen["folds"]["kept"] and min(seen["folds"]["keptBox"]) >= THUMB
-
-
-@pytest.mark.parametrize("theme", ["light", "dark"])
-@pytest.mark.parametrize(
-    ("route", "screen"), [("#/", DESK), ("#/demo", DESK), ("#/", PHONE), ("#/demo", PHONE)]
-)
-def test_axe_finds_no_serious_issue_with_bands_folded_hidden_and_listed(
-    scene, tmp_path, route, screen, theme
-):
-    """The axe run of every view, as above, with bands folded and hidden and the header's
-    list of them open."""
-    every_kind(scene)
-    script = remembered(FOLDS, opened=True) + AXE
-    when = {"budget": 60000, "screen": screen, "at": 3000}
-    seen = look(scene, tmp_path, route=route, fragment=f"theme={theme}", script=script, **when)
-    assert seen["theme"] == theme
-    assert (seen["errors"], seen["violations"], seen["rings"]) == ([], [], [])
-
-
 @pytest.mark.parametrize(
     ("route", "hash", "title", "crumbs", "notice", "tap"),
     [
@@ -3190,3 +1999,42 @@ def test_an_address_read_and_written_again_names_the_same_view(
     assert again["hash"] == crumbs[-1][1]
     assert (again["title"], again["crumbs"]) == (title, crumbs)
     assert again["notice"].startswith(notice), again["notice"]
+
+
+def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_panel(scene, tmp_path):
+    lineup(scene, TODAY)
+    a_noticed(
+        scene,
+        *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle"))),
+        ("oat-kettle", "dropped", 400, {"why": "from before the list", "by": "jbus"}),
+    )
+    seen = look(scene, tmp_path)
+    opened = clean(seen)
+    tile = seen["needs"]["extra"][-1]
+    assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
+    assert "term:noticed" in seen["tips"]
+    assert not any("noticed" in one["what"] for one in seen["needs"]["now"] + seen["needs"]["soon"])
+    assert "noticed" in opened
+    drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
+    assert drawer["title"] == "2 new lines of 3, newest first"
+    assert seen["words"] <= WORDS, seen["words"]
+
+    a_noticed(scene, ("oat-kettle", "dropped", 400, {"why": "from before the list"}))
+    seen = look(scene, tmp_path)
+    assert seen["needs"]["extra"] == []
+    assert seen["words"] <= WORDS, seen["words"]
+
+
+def test_the_queue_says_noticed_is_not_counted_and_why(scene, tmp_path):
+    lineup(scene, TODAY)
+    a_noticed(
+        scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle")))
+    )
+    walk = ['tap:#nx [data-tip="term:noticed"]']
+    seen = look(scene, tmp_path, walk=walk, at=4500, budget=12000)
+    assert seen["errors"] == []
+    assert [t["text"] for t in seen["needs"]["extra"]] == ["2 noticed, not counted"]
+    assert seen["needs"]["head"] == "4 Needs you"
+    (tapped,) = seen["walked"]
+    assert tapped["tip"].startswith("Noticed, not counted")
+    assert "wait on a home, not on you" in tapped["tip"]
