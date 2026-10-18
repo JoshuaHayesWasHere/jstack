@@ -134,3 +134,48 @@ def test_a_config_a_pass_would_refuse_is_refused_and_not_written(kitchen, added,
     code, out = add(kitchen, "added", added)
     assert code == 1 and out.startswith(f"refused: {config(kitchen)} ")
     assert (config(kitchen).read_text(), backups(kitchen)) == (text, [])
+
+
+def settings(tmp_path, lines):
+    path = tmp_path / "config.toml"
+    path.write_text(
+        'server = "http://127.0.0.1:1"\n\n[[project]]\n'
+        f'name = "demo"\ncheckout = "{tmp_path}"\nprojectId = "p1"\n{lines}'
+    )
+    path.chmod(0o600)
+    return jbus.load(tmp_path)
+
+
+def test_a_project_has_no_migrations_unless_it_names_a_directory(tmp_path):
+    (project,) = settings(tmp_path, "").projects
+    assert (project.migrations, project.migration_names) == ("", "numbered")
+
+
+@pytest.mark.parametrize(
+    ("lines", "want"),
+    [
+        ('migrations = "db/migrations"\n', ("db/migrations", "numbered")),
+        ('migrations = "db/migrations/"\n', ("db/migrations", "numbered")),
+        ('migrations = "db/m"\nmigration_names = "timestamped"\n', ("db/m", "timestamped")),
+    ],
+)
+def test_a_project_names_the_directory_of_its_migrations_and_how_they_are_named(
+    tmp_path, lines, want
+):
+    (project,) = settings(tmp_path, lines).projects
+    assert (project.migrations, project.migration_names) == want
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'migrations = "/db"\n',
+        'migrations = "../db"\n',
+        'migrations = "db/../../x"\n',
+        "migrations = 5\n",
+    ]
+    + ['migrations = "db"\nmigration_names = "dated"\n'],
+)
+def test_a_directory_outside_the_checkout_or_an_unknown_naming_is_refused(tmp_path, lines):
+    with pytest.raises(jbus.Refused, match="refused: project demo has migration"):
+        settings(tmp_path, lines)
