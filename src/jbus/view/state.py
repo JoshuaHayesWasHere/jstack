@@ -142,6 +142,8 @@ SAYS = {
 LOST = {
     "none": "its thread is gone and wrote nothing",
     "settled": "its thread was settled and wrote nothing",
+    "archived": "its thread was archived and wrote nothing",
+    "missing": "T3 Code has no such thread, and it wrote nothing",
     "completed": "its thread ended and wrote nothing back",
     "failed": "its thread ended early and wrote nothing back",
 }
