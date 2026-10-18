@@ -21,20 +21,18 @@ file (`jgauge.slot.take`).
 
 from __future__ import annotations
 
-import re
 import shlex
 from collections import defaultdict
 from typing import Any
 
 from jbus import END_TURN, verbs
-from jbus.t3 import Client, T3Error, T3Refused
+from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import ENDED
 from jgauge import slot, waiters
 from jgauge.waiters import Waiter
 
 EVENTS = {"slot-wake": "quiet"}
-GONE = re.compile(r"not found|no such|unknown thread|does not exist|no thread", re.I)
 OVER = (*ENDED, "rolled_back")
 MESSAGE = (
     "jbus: a {lane} test slot is free. Run again what you waited to run: `{command}`. If every"

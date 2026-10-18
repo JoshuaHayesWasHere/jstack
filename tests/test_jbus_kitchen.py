@@ -216,6 +216,7 @@ class T3(Server):
             if given["projectId"] in self.down:
                 return None
             found = [t for t in self.threads if t.get("projectId", PROJECT) == given["projectId"]]
+            found = [t for t in found if not t.get("archived")]
             found = [t for t in found if given.get("titleContains", "") in t["title"]]
             if given.get("settled") is not None:
                 found = [t for t in found if t["settled"] == given["settled"]]

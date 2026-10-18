@@ -71,16 +71,27 @@ _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 
 @dataclass
 class World:
-    """One pass's answers. `threads` holds a slug's threads that are not settled."""
+    """One pass's answers. `threads` holds a slug's threads that are not settled.
+
+    T3 Code's list leaves out an archived thread, so `jbus.archived` asks after a launched
+    thread the list does not have: `archived` holds those that read back archived, by slug,
+    `missing` the slugs whose thread T3 Code has no record of, and `unasked` those it could
+    not be asked about.
+    """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     settled: dict[str, dict[str, Any]] = field(default_factory=dict)
+    archived: dict[str, dict[str, Any]] = field(default_factory=dict)
+    missing: set[str] = field(default_factory=set)
+    unasked: set[str] = field(default_factory=set)
     open: dict[str, dict[str, Any]] = field(default_factory=dict)
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
-        return live[0] if len(live) == 1 else None if live else self.settled.get(slug)
+        if live:
+            return live[0] if len(live) == 1 else None
+        return self.settled.get(slug) or self.archived.get(slug)
 
     def live(self) -> int:
         return sum(t["status"] in LIVE for found in self.threads.values() for t in found)
@@ -350,14 +361,14 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
 
 def gone(run: Pass, world: World, slug: str, launched: str) -> bool:
     """Whether a slug's thread is gone and wrote nothing: it was launched, T3 Code lists no
-    thread for it, a settled one included, no pull request of its is open or merged, and its
-    brief has no Result.
+    thread for it, a settled or archived one included, no pull request of its is open or
+    merged, and its brief has no Result.
 
     `launched` is the thread of its launch record, or nothing for a slug with none. It is
     asked before a pass launches anything, of the answers that pass got: a thread launched
     after them is in neither.
     """
-    if not launched or slug in world.threads or slug in world.settled:
+    if not launched or slug in world.threads or slug in world.settled or slug in world.archived:
         return False
     return (
         slug not in world.open and slug not in world.merged and not last_result(brief_of(run, slug))
@@ -396,6 +407,8 @@ def thread(found: dict[str, Any] | None, live: str) -> work.Thread | None:
     jbus does not know is no facet at all: None."""
     if found is None:
         return work.Thread.NONE
+    if found.get("archived"):
+        return work.Thread.ARCHIVED
     if found.get("settled"):
         return work.Thread.SETTLED
     status = found.get("status", "")
@@ -475,8 +488,14 @@ def facts(
     else:
         found = seen.crew(slug)
         said = thread(found, str((found or {}).get("live", "")))
-    if world is not None and found is None and launched and slug not in seen.gone:
-        said = work.Thread.STARTING
+    answered = seen.answered
+    if world is not None and found is None and launched:
+        if slug in world.missing:
+            said = work.Thread.MISSING
+        elif slug in world.unasked:
+            said, answered = work.Thread.STARTING, work.without_t3(answered)
+        elif slug not in seen.gone:
+            said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
     made = work.Facts(
         row=row_of(run, row, [one for one in row.get("depends", []) if one not in seen.final]),
@@ -486,7 +505,7 @@ def facts(
         written=written(result),
         pull=pull(world, slug, result, seen.said.get(number, "")) if world else work.Pull.NONE,
         question=work.Question.OPEN if slug in run.gated else work.Question.NONE,
-        answered=seen.answered,
+        answered=answered,
         last=last,
     )
     return made, said is None
@@ -739,6 +758,12 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             run.find(slug, "stale", line, key=f"{thread['threadId']} {fact}")
         elif thread["status"] == "completed" and slug not in {*world.open, *world.merged, *queued}:
             run.gate(slug, "thread completed with a Result and no pull request")
+    for slug, thread in world.archived.items():
+        taken = slug in world.open or slug in world.merged
+        if slug in queued and slug not in run.gated and not taken:
+            if not last_result(brief_of(run, slug)):
+                line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
+                run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
     for slug, pull in world.merged.items():
         if slug in run.gated or not brief_of(run, slug):
             continue

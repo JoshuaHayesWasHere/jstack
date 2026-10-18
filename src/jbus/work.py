@@ -5,7 +5,10 @@ closed facets of one row of the queue or of one thread that is no row's, and it 
 one `State`. The facets are:
 
 - `Row`: whether the queue has the row, and how its go stands;
-- `Thread`: the row's thread as T3 Code has it, with its liveness (`jbus.live`);
+- `Thread`: the row's thread as T3 Code has it, with its liveness (`jbus.live`). One T3 Code
+  does not list is `archived` where it reads back as archived, `missing` where it has no such
+  thread, and `starting` where it has it and does not list it yet: a launch is not lost
+  because it left the list;
 - `Launch`: whether a launch record names a thread;
 - `Written`: what the brief's last Result says, or for a thread that is no row's, what its
   role owes: a scout its Report, a reviewer its Review, a home or another thread nothing;
@@ -63,6 +66,8 @@ class Thread(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     SETTLED = "settled"
+    ARCHIVED = "archived"
+    MISSING = "missing"
 
 
 class Launch(StrEnum):
@@ -320,7 +325,14 @@ PATTERNS = (
         "user",
         AGAIN,
         "running",
-        thread=_set(Thread.NONE, Thread.COMPLETED, Thread.FAILED, Thread.SETTLED),
+        thread=_set(
+            Thread.NONE,
+            Thread.COMPLETED,
+            Thread.FAILED,
+            Thread.SETTLED,
+            Thread.ARCHIVED,
+            Thread.MISSING,
+        ),
         launch=_set(Launch.LAUNCHED),
         **NOTHING,
     ),
@@ -404,10 +416,12 @@ def status(state: State) -> str:
     A gate wins, then the pull request: one that is open is `pr`, one that merged is
     `merged`, whatever the thread does. A thread in a status jbus does not know is `stale`,
     for somebody to look at. A hung turn is `stale` too, and a thread that ended with
-    nothing written is `stale` when it completed, `failed` when it failed, `launched` while
-    no thread is there for a launch, and `queued` once it was settled. The state knows no
-    clock: a row `stale` with nothing written is `left` once the pass finds its thread quiet
-    for long enough, which is `watch.unwritten`'s.
+    nothing written is `stale` when it completed or was archived, `failed` when it failed,
+    `launched` while no thread is there for a launch, and `queued` once it was settled. A
+    thread that left T3 Code's list changes nothing of a row that ended: only a row with
+    nothing written is judged by it. The state knows no clock: a row `stale` with nothing
+    written is `left` once the pass finds its thread quiet for long enough, which is
+    `watch.unwritten`'s.
     """
     facts, value = state.facts, state.value
     if value == "asking":
@@ -422,7 +436,7 @@ def status(state: State) -> str:
         return "left"
     if facts.seen:
         return "stale"
-    if facts.thread == Thread.NONE and facts.launch == Launch.LAUNCHED:
+    if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:
         return "launched"
     return _THREAD.get(facts.thread, "queued")
 
@@ -437,7 +451,14 @@ _THREAD = {
     Thread.COMPLETED: "stale",
     Thread.FAILED: "failed",
     Thread.SETTLED: "queued",
+    Thread.ARCHIVED: "stale",
 }
+
+
+def without_t3(answered: Answered) -> Answered:
+    """`answered` with T3 Code taken out: what a pass knows when it could not ask T3 Code
+    about one row's thread, whatever it knows of the others."""
+    return {Answered.BOTH: Answered.GITHUB, Answered.T3: Answered.NEITHER}.get(answered, answered)
 
 
 def unforeseen(facts: Facts) -> State:
