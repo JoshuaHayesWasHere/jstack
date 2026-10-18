@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import textwrap
 import threading
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -682,7 +683,7 @@ def proof(reviewer):
     beside = reviewer.prompt().parent
     kept = crew.git(reviewer.work, "rev-parse", "HEAD")
 
-    def ends(script, **env):
+    def ends(script, limit=None, **env):
         (beside / "proof.sh").write_text(script)
         fill = {
             "<the directory of the prompt file>": str(beside),
@@ -690,15 +691,28 @@ def proof(reviewer):
             "<the proof>": 'sh "$D/proof.sh"',
             "<thread id>": "mcp:thread-1",
         }
+        if limit is not None:
+            fill["limit=540"] = f"limit={limit}"
         return reviewer("### The review", "test-slot", fill=fill, **env)
 
     def run(script, **env):
         printed, code = ends(script, **env)
         assert code == 0
-        return printed
+        assert printed[0].startswith("started:")
+        return printed[1:]
 
     run.out, run.ends, run.work, run.kept = beside / "proof.out", ends, reviewer.work, kept
+    run.ended = lambda: ended(beside)
     return run
+
+
+def ended(beside):
+    """Wait, as a turn between two calls would, for the proof to end with nobody calling."""
+    for _ in range(600):
+        if (beside / "proof.exit").exists():
+            return
+        time.sleep(0.1)
+    raise AssertionError("the proof did not end")
 
 
 def test_the_proof_runs_the_real_code_and_prints_its_exit_code_and_last_lines(proof):
@@ -714,9 +728,7 @@ def test_the_proof_runs_the_real_code_and_prints_its_exit_code_and_last_lines(pr
     assert proof.out.read_text().count("\n") == 23
 
 
-def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_prints_exit_76(
-    proof, tmp_path
-):
+def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_ends_76(proof, tmp_path):
     home = tmp_path / "taken"
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
@@ -730,10 +742,78 @@ def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_prints_exi
     finally:
         for fd in held:
             os.close(fd)
-    assert code == 0 and printed[0] == "exit 76"
+    assert (printed[-1].split(":")[0], code) == ("waiting", 76)
+    assert "exit" not in [line.split()[0] for line in printed]
     assert "mcp:thread-1 is registered as a waiter" in proof.out.read_text()
     waiting = json.loads((locks / "test-slot-waiters.json").read_text())
     assert [one["thread"] for one in waiting] == ["mcp:thread-1"]
+    printed, code = proof.ends("echo the fact holds\n")
+    assert (printed[0].split(":")[0], printed[1], code) == ("started", "exit 0", 0)
+
+
+def held_open(go):
+    """A proof that runs until the test touches `go`, and a minute at most, so a test that
+    fails before the touch leaves no detached proof behind it."""
+    return crew.held_open(go) + "\n"
+
+
+def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_path):
+    """A proof longer than one call: each call waits its whole limit and says to send the
+    block again, a second call joins the proof the first started, and the last has its exit."""
+    runs, go = tmp_path / "runs", tmp_path / "go"
+    script = f"echo ran >> {runs}\n" + held_open(go) + "echo the fact holds\n"
+
+    began = time.monotonic()
+    said, code = proof.ends(script, limit=1)
+    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
+    assert "never end your turn while it runs" in said[-1]
+    assert "exit" not in [line.split()[0] for line in said]
+    assert time.monotonic() - began >= 1
+
+    began = time.monotonic()
+    said, code = proof.ends(script, limit=1)
+    assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
+    assert time.monotonic() - began >= 1
+
+    go.touch()
+    began = time.monotonic()
+    said, code = proof.ends(script, limit=30)
+    assert (said[0].split(":")[0], said[1:3], code) == ("joined", ["exit 0", "the fact holds"], 0)
+    assert time.monotonic() - began < 30
+    assert runs.read_text() == "ran\n"
+
+
+def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
+    """The answer of a proof that ended with no call waiting is given once: a proof that is
+    sent again, after the reviewer fixed it, runs afresh."""
+    runs = tmp_path / "runs"
+    script = f"echo ran >> {runs}\nsleep 1\n[ $(wc -l < {runs}) -gt 1 ]\n"
+
+    said, code = proof.ends(script, limit=0)
+    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
+    proof.ended()
+
+    said, code = proof.ends(script)
+    assert (said[0].split(":")[0], said[1], code) == ("checked", "exit 1", 0)
+    assert runs.read_text() == "ran\n"
+
+    said, code = proof.ends(script)
+    assert (said[0].split(":")[0], said[1], code) == ("started", "exit 0", 0)
+    assert runs.read_text() == "ran\nran\n"
+
+
+def test_a_proof_rewritten_while_it_runs_is_no_proof_of_the_new_one(proof, tmp_path):
+    go = tmp_path / "go"
+    said, _ = proof.ends(held_open(go), limit=0)
+    assert said[-1].split(":")[0] == "running"
+    said, code = proof.ends("echo the new fact\n", limit=1)
+    assert said[0].split(":")[0] == "joined" and said[-1].split(":")[0] == "running"
+    go.touch()
+    said, code = proof.ends("echo the new fact\n", limit=30)
+    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("joined", "stale", 75)
+    assert "exit 0" not in said
+    said, code = proof.ends("echo the new fact\n")
+    assert (said[0].split(":")[0], said[1:3], code) == ("started", ["exit 0", "the new fact"], 0)
 
 
 def test_a_proof_that_fails_is_loud(proof):

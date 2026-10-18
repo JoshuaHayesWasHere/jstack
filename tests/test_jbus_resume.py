@@ -64,9 +64,18 @@ def test_every_role_with_a_skill_is_told_to_read_it_from_its_file_after_a_failed
         threads.CARRY_ON, title, HOME, status="failed", slug="alpha", k=1, most=2
     )
     assert skill_file(name).is_file()
-    assert given == BASE + reads(name)
+    ends = " " + jbus.END_TURN if name == "pr-review" else ""
+    assert given == BASE + reads(name) + ends
     merged = threads.resume_message(threads.MERGED, title, HOME, number=7, slug="alpha")
-    assert merged == threads.MERGED.format(number=7, slug="alpha") + reads(name)
+    assert merged == threads.MERGED.format(number=7, slug="alpha") + reads(name) + ends
+
+
+def test_a_reviewer_is_told_to_end_its_turn_only_once_its_own_proof_has_ended():
+    given = threads.resume_message(
+        threads.CARRY_ON, "review: alpha", HOME, status="failed", slug="alpha", k=1, most=2
+    )
+    assert given.endswith(jbus.END_TURN)
+    assert "proof" in jbus.END_TURN and "wait for one that runs, in this turn" in jbus.END_TURN
 
 
 @pytest.mark.parametrize("title", ["home: demo", "something else", "crewish: alpha"])

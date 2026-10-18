@@ -160,7 +160,7 @@ def said_to(short, kind, reason, sentence):
         "message": (
             "jbus: pull request #7 waits on you, and jmerge keeps saying the same of it "
             f"({reason}). {sentence} "
-            f"End your turn only once no check you started runs in your "
+            f"End your turn only once no check or proof you started runs in your "
             "worktree: wait for one that runs, in this turn."
         ),
         "mode": "queue",

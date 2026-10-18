@@ -1397,7 +1397,7 @@ def test_another_option_or_his_words_go_once_to_the_thread_that_asked_in_the_sam
         f'default you took (the first one). The words, {et(POLLED)}: "{words}". Undo: pick the '
         "other. Built on the default: nothing. Take the default back, do what the answer says, "
         "and add one line to the last Result or Report saying what you changed. End your "
-        "turn only once no check you started runs in your worktree: wait for one that runs, "
+        "turn only once no check or proof you started runs in your worktree: wait for one that runs, "
         "in this turn."
     )
     given = kept(counter.state)[number].answer

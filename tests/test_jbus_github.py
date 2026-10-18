@@ -18,14 +18,14 @@ JOB = "https://example.test/o/r/actions/runs/5/job/{}"
 FAILED = (
     "jbus: check failed on your pull request #7 at {short}. In your own worktree, run the "
     'block of "The checks" and do what it prints. '
-    "End your turn only once no check you started runs in your "
+    "End your turn only once no check or proof you started runs in your "
     "worktree: wait for one that runs, in this turn."
 )
 CONFLICTED = (
     "jbus: your pull request #7 is in conflict with its base at {short}. In your own "
     'worktree, run the first block of "A conflict" as it is, and do what it prints: it does '
     "not rebase while a review is running. "
-    "End your turn only once no check you started runs in your "
+    "End your turn only once no check or proof you started runs in your "
     "worktree: wait for one that runs, in this turn."
 )
 
@@ -178,7 +178,7 @@ GREEN = (
     'line on green. In your own worktree, run the block of "The checks", then do what "The '
     'review" says of a green pull request: the message of the `Reviewer: none` line, or the '
     "`fixed and green` line. "
-    "End your turn only once no check you started runs in your "
+    "End your turn only once no check or proof you started runs in your "
     "worktree: wait for one that runs, in this turn."
 )
 
