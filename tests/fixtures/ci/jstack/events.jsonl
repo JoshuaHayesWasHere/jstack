@@ -1,0 +1,693 @@
+{"at":"2026-10-14T19:55:59+00:00","event":"expedite","slug":"ci-hosted-green","line":"expedite ci-hosted-green: told the crew what #1 is short of (unreviewed, 0b861c0529be)","text":""}
+{"at":"2026-10-14T19:58:08+00:00","event":"failed","slug":"ci-hosted-green","line":"failed ci-hosted-green: told the crew (#1, 0b861c0529be)","text":""}
+{"at":"2026-10-14T20:06:32+00:00","event":"refailed","slug":"ci-hosted-green","line":"refailed ci-hosted-green: told the crew (#1, 0b861c0529be)","text":""}
+{"at":"2026-10-14T20:52:18+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: not run","text":""}
+{"at":"2026-10-14T22:23:18+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: not run","text":""}
+{"at":"2026-10-14T22:26:28+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: findings","text":"Verdict: findings"}
+{"at":"2026-10-14T23:45:33+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: not run","text":""}
+{"at":"2026-10-14T23:51:48+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T00:16:56+00:00","event":"review","slug":"ci-hosted-green","line":"review ci-hosted-green: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T01:26:20+00:00","event":"review","slug":"jv-no-unknown","line":"review jv-no-unknown: not run","text":""}
+{"at":"2026-10-15T01:27:24+00:00","event":"review","slug":"jv-no-unknown","line":"review jv-no-unknown: not run","text":""}
+{"at":"2026-10-15T01:36:51+00:00","event":"review","slug":"jv-no-unknown","line":"review jv-no-unknown: not run","text":""}
+{"at":"2026-10-15T03:11:20+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: not run","text":""}
+{"at":"2026-10-15T03:12:23+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: not run","text":""}
+{"at":"2026-10-15T03:24:43+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: not run","text":""}
+{"at":"2026-10-15T03:25:48+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: not run","text":""}
+{"at":"2026-10-15T03:29:00+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:31:02+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:32:02+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:35:04+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:38:10+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:38:10+00:00","event":"review","slug":"jbus-default-webhook","line":"review jbus-default-webhook: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:48:27+00:00","event":"review","slug":"jv-no-unknown","line":"review jv-no-unknown: not run","text":""}
+{"at":"2026-10-15T03:52:33+00:00","event":"review","slug":"jv-no-unknown","line":"review jv-no-unknown: findings","text":"fails on"}
+{"at":"2026-10-15T03:55:40+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:58:07+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T03:59:08+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:02:11+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:04:11+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:04:11+00:00","event":"review","slug":"lavish-approval","line":"review lavish-approval: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:17:24+00:00","event":"conflict","slug":"jv-stack","line":"conflict jv-stack: told the crew (#5, 5f7cee303fe7)","text":""}
+{"at":"2026-10-15T04:37:43+00:00","event":"review","slug":"protect-policy-dns","line":"review protect-policy-dns: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:39:46+00:00","event":"review","slug":"protect-policy-dns","line":"review protect-policy-dns: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:40:50+00:00","event":"review","slug":"protect-policy-dns","line":"review protect-policy-dns: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:41:50+00:00","event":"review","slug":"jv-stack","line":"review jv-stack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:42:53+00:00","event":"review","slug":"protect-policy-dns","line":"review protect-policy-dns: clean","text":""}
+{"at":"2026-10-15T04:50:00+00:00","event":"review","slug":"jv-stack","line":"review jv-stack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:56:10+00:00","event":"review","slug":"jv-stack","line":"review jv-stack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:59:14+00:00","event":"review","slug":"jv-stack","line":"review jv-stack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T04:59:14+00:00","event":"review","slug":"jv-stack","line":"review jv-stack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:31:05+00:00","event":"review","slug":"jbus-monitor-all","line":"review jbus-monitor-all: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:34:08+00:00","event":"review","slug":"jbus-monitor-all","line":"review jbus-monitor-all: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:35:19+00:00","event":"review","slug":"jbus-monitor-all","line":"review jbus-monitor-all: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:38:35+00:00","event":"review","slug":"jbus-monitor-all","line":"review jbus-monitor-all: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:38:35+00:00","event":"review","slug":"jbus-monitor-all","line":"review jbus-monitor-all: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:40:42+00:00","event":"review","slug":"jv-routes","line":"review jv-routes: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:45:54+00:00","event":"review","slug":"jv-routes","line":"review jv-routes: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:50:56+00:00","event":"review","slug":"jv-routes","line":"review jv-routes: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:54:57+00:00","event":"review","slug":"jv-routes","line":"review jv-routes: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:54:57+00:00","event":"review","slug":"jv-routes","line":"review jv-routes: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T05:57:03+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:00:11+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:01:23+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:04:26+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:10:38+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:10:38+00:00","event":"review","slug":"deeper-proves-it","line":"review deeper-proves-it: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:11:39+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:17:59+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:22:01+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:26:04+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:26:04+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:36:42+00:00","event":"review","slug":"jv-shell","line":"review jv-shell: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:41:52+00:00","event":"review","slug":"jv-shell","line":"review jv-shell: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:46:02+00:00","event":"review","slug":"jv-shell","line":"review jv-shell: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:52:14+00:00","event":"review","slug":"jv-shell","line":"review jv-shell: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T06:52:14+00:00","event":"review","slug":"jv-shell","line":"review jv-shell: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T07:21:30+00:00","event":"review","slug":"jv-threads","line":"review jv-threads: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T07:32:45+00:00","event":"review","slug":"jv-threads","line":"review jv-threads: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T08:13:44+00:00","event":"review","slug":"jv-help","line":"review jv-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T08:23:59+00:00","event":"review","slug":"jv-help","line":"review jv-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:06:43+00:00","event":"review","slug":"jv-a11y","line":"review jv-a11y: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:12:58+00:00","event":"review","slug":"jv-a11y","line":"review jv-a11y: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:17:04+00:00","event":"review","slug":"jv-a11y","line":"review jv-a11y: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:17:04+00:00","event":"review","slug":"jv-a11y","line":"review jv-a11y: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:20:16+00:00","event":"rebase","slug":"deeper-skill","line":"rebase deeper-skill: told the crew (#10, 72bedd766880)","text":"conflicts with its base"}
+{"at":"2026-10-15T09:30:22+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T09:40:55+00:00","event":"failed","slug":"deeper-skill","line":"failed deeper-skill: told the crew (#10, ce8663896d3c)","text":""}
+{"at":"2026-10-15T09:41:58+00:00","event":"review","slug":"deeper-skill","line":"review deeper-skill: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T13:59:05+00:00","event":"review","slug":"jv-collapse","line":"review jv-collapse: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:02:05+00:00","event":"review","slug":"pstack-ketchup","line":"review pstack-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:07:11+00:00","event":"review","slug":"pstack-633","line":"review pstack-633: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:12:13+00:00","event":"expedite","slug":"pstack-ketchup","line":"expedite pstack-ketchup: told the crew what #16 is short of (unfixed, ed095aa89e0f)","text":""}
+{"at":"2026-10-15T14:14:14+00:00","event":"review","slug":"pstack-ketchup","line":"review pstack-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:14:14+00:00","event":"review","slug":"pstack-rebase-cap","line":"review pstack-rebase-cap: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:20:16+00:00","event":"review","slug":"jv-collapse","line":"review jv-collapse: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:21:28+00:00","event":"review","slug":"pstack-ketchup","line":"review pstack-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:21:28+00:00","event":"review","slug":"pstack-ketchup","line":"review pstack-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:25:23+00:00","event":"review","slug":"pstack-633","line":"review pstack-633: clean","text":""}
+{"at":"2026-10-15T14:25:23+00:00","event":"review","slug":"pstack-rebase-cap","line":"review pstack-rebase-cap: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:26:22+00:00","event":"review","slug":"jv-collapse","line":"review jv-collapse: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:28:24+00:00","event":"review","slug":"pstack-rebase-cap","line":"review pstack-rebase-cap: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:34:30+00:00","event":"review","slug":"pstack-autopilot-ketchup","line":"review pstack-autopilot-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:34:30+00:00","event":"review","slug":"pstack-rebase-cap","line":"review pstack-rebase-cap: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:34:30+00:00","event":"review","slug":"pstack-rebase-cap","line":"review pstack-rebase-cap: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:41:36+00:00","event":"review","slug":"pstack-autopilot-ketchup","line":"review pstack-autopilot-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:44:45+00:00","event":"review","slug":"jv-collapse","line":"review jv-collapse: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:44:45+00:00","event":"review","slug":"jv-collapse","line":"review jv-collapse: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:44:45+00:00","event":"review","slug":"pstack-autopilot-ketchup","line":"review pstack-autopilot-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:44:45+00:00","event":"review","slug":"pstack-autopilot-ketchup","line":"review pstack-autopilot-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T14:45:50+00:00","event":"review","slug":"pstack-autopilot-ketchup","line":"review pstack-autopilot-ketchup: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T15:29:11+00:00","event":"expedite","slug":"pstack-depth-style","line":"expedite pstack-depth-style: told the crew what #20 is short of (unreviewed, f051045d0202)","text":""}
+{"at":"2026-10-15T15:29:16+00:00","event":"conflict","slug":"gatekeeper-timers","line":"conflict gatekeeper-timers: told the crew (#22, 6be083cc7c43)","text":""}
+{"at":"2026-10-15T15:31:09+00:00","event":"review","slug":"pstack-depth-style","line":"review pstack-depth-style: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T15:32:10+00:00","event":"review","slug":"brief-size-and-playbook-checked","line":"review brief-size-and-playbook-checked: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T15:41:25+00:00","event":"failed","slug":"pstack-new-skills","line":"failed pstack-new-skills: told the crew (#23, a68b672f030f)","text":""}
+{"at":"2026-10-15T15:44:24+00:00","event":"expedite","slug":"brief-size-and-playbook-checked","line":"expedite brief-size-and-playbook-checked: told the crew what #21 is short of (unfixed, bbe24b245270)","text":""}
+{"at":"2026-10-15T15:50:29+00:00","event":"review","slug":"pstack-new-skills","line":"review pstack-new-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T15:51:30+00:00","event":"review","slug":"pstack-depth-style","line":"review pstack-depth-style: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T15:52:32+00:00","event":"expedite","slug":"pstack-new-skills","line":"expedite pstack-new-skills: told the crew what #23 is short of (unfixed, a68b672f030f)","text":""}
+{"at":"2026-10-15T16:01:35+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:01:35+00:00","event":"review","slug":"pstack-depth-style","line":"review pstack-depth-style: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:01:35+00:00","event":"review","slug":"pstack-depth-style","line":"review pstack-depth-style: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:01:35+00:00","event":"review","slug":"pstack-new-skills","line":"review pstack-new-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:02:43+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:02:43+00:00","event":"review","slug":"pstack-depth-style","line":"review pstack-depth-style: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:12:52+00:00","event":"expedite","slug":"deeper-home-step","line":"expedite deeper-home-step: told the crew what #24 is short of (unfixed, 71c1baaf80e4)","text":""}
+{"at":"2026-10-15T16:13:51+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:14:55+00:00","event":"expedite","slug":"gatekeeper-timers","line":"expedite gatekeeper-timers: told the crew what #22 is short of (unfixed, 6be083cc7c43)","text":""}
+{"at":"2026-10-15T16:16:07+00:00","event":"review","slug":"principles-in-context","line":"review principles-in-context: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:23:01+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:23:04+00:00","event":"expedite","slug":"review-principle-lens","line":"expedite review-principle-lens: told the crew what #26 is short of (unreviewed, 44e21407e6b1)","text":""}
+{"at":"2026-10-15T16:25:03+00:00","event":"review","slug":"brief-size-and-playbook-checked","line":"review brief-size-and-playbook-checked: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:25:03+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:26:03+00:00","event":"review","slug":"brief-size-and-playbook-checked","line":"review brief-size-and-playbook-checked: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:26:03+00:00","event":"review","slug":"pstack-new-skills","line":"review pstack-new-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:31:15+00:00","event":"review","slug":"cite-orphan-principles","line":"review cite-orphan-principles: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:32:14+00:00","event":"review","slug":"brief-size-and-playbook-checked","line":"review brief-size-and-playbook-checked: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:32:14+00:00","event":"review","slug":"brief-size-and-playbook-checked","line":"review brief-size-and-playbook-checked: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:32:14+00:00","event":"review","slug":"cite-orphan-principles","line":"review cite-orphan-principles: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:36:37+00:00","event":"review","slug":"pstack-new-skills","line":"review pstack-new-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:36:37+00:00","event":"review","slug":"pstack-new-skills","line":"review pstack-new-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:36:41+00:00","event":"expedite","slug":"gatekeeper-timers","line":"expedite gatekeeper-timers: told the crew what #22 is short of (fix, d52933d4c2f1)","text":""}
+{"at":"2026-10-15T16:37:21+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:42:24+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:43:24+00:00","event":"review","slug":"home-on-bus","line":"review home-on-bus: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:45:26+00:00","event":"expedite","slug":"home-on-bus","line":"expedite home-on-bus: told the crew what #28 is short of (unfixed, 730ee3e0ffd5)","text":""}
+{"at":"2026-10-15T16:46:38+00:00","event":"review","slug":"home-on-bus","line":"review home-on-bus: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:48:34+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:48:34+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:49:34+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:52:45+00:00","event":"failed","slug":"playbook-steps-printed","line":"failed playbook-steps-printed: told the crew (#29, 148e7b76ed12)","text":""}
+{"at":"2026-10-15T16:56:43+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:56:43+00:00","event":"review","slug":"home-on-bus","line":"review home-on-bus: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:56:43+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:56:46+00:00","event":"expedite","slug":"playbook-steps-printed","line":"expedite playbook-steps-printed: told the crew what #29 is short of (unreviewed, 148e7b76ed12)","text":""}
+{"at":"2026-10-15T16:57:44+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:57:44+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T16:58:46+00:00","event":"expedite","slug":"deeper-home-step","line":"expedite deeper-home-step: told the crew what #24 is short of (unpushed, b4a7937284e1)","text":""}
+{"at":"2026-10-15T17:00:50+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:00:50+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:05:51+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:07:52+00:00","event":"expedite","slug":"gatekeeper-timers","line":"expedite gatekeeper-timers: told the crew what #22 is short of (unended, 2064cd321470)","text":""}
+{"at":"2026-10-15T17:08:51+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:09:51+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:09:51+00:00","event":"review","slug":"review-principle-lens","line":"review review-principle-lens: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:10:51+00:00","event":"review","slug":"home-on-bus","line":"review home-on-bus: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:10:51+00:00","event":"review","slug":"playbook-steps-printed","line":"review playbook-steps-printed: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:13:00+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:13:00+00:00","event":"review","slug":"deeper-home-step","line":"review deeper-home-step: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:13:02+00:00","event":"expedite","slug":"playbook-steps-printed","line":"expedite playbook-steps-printed: told the crew what #29 is short of (unfixed, 148e7b76ed12)","text":""}
+{"at":"2026-10-15T17:13:03+00:00","event":"expedite","slug":"home-on-bus","line":"expedite home-on-bus: told the crew what #28 is short of (unpushed, 5e68bc692fb5)","text":""}
+{"at":"2026-10-15T17:13:11+00:00","event":"failed","slug":"gatekeeper-timers","line":"failed gatekeeper-timers: told the crew (#22, 2064cd321470)","text":""}
+{"at":"2026-10-15T17:20:17+00:00","event":"mainmoved","slug":"playbook-steps-printed","line":"mainmoved playbook-steps-printed: told the crew (#29, main 09933534c350)","text":""}
+{"at":"2026-10-15T17:20:17+00:00","event":"mainmoved","slug":"gatekeeper-timers","line":"mainmoved gatekeeper-timers: told the crew (#22, main 09933534c350)","text":""}
+{"at":"2026-10-15T17:24:18+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:25:10+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"timed out"}
+{"at":"2026-10-15T17:25:10+00:00","event":"review","slug":"home-on-bus","line":"review home-on-bus: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:25:13+00:00","event":"mainmoved","slug":"playbook-steps-printed","line":"mainmoved playbook-steps-printed: told the crew (#29, main a7c0cd86e79a)","text":""}
+{"at":"2026-10-15T17:26:11+00:00","event":"review","slug":"pstack-trigger-effort","line":"review pstack-trigger-effort: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:33:16+00:00","event":"review","slug":"pstack-trigger-effort","line":"review pstack-trigger-effort: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:33:19+00:00","event":"rebase","slug":"gatekeeper-timers","line":"rebase gatekeeper-timers: told the crew (#22, 0497515f40c7)","text":"conflicts with its base"}
+{"at":"2026-10-15T17:33:20+00:00","event":"mainmoved","slug":"playbook-steps-printed","line":"mainmoved playbook-steps-printed: told the crew (#29, main 1394321cefd0)","text":""}
+{"at":"2026-10-15T17:34:20+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"timed out"}
+{"at":"2026-10-15T17:34:20+00:00","event":"review","slug":"playbook-steps-printed","line":"review playbook-steps-printed: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:35:20+00:00","event":"review","slug":"playbook-steps-printed","line":"review playbook-steps-printed: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:37:20+00:00","event":"review","slug":"pstack-trigger-effort","line":"review pstack-trigger-effort: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:38:20+00:00","event":"review","slug":"playbook-steps-printed","line":"review playbook-steps-printed: clean","text":""}
+{"at":"2026-10-15T17:43:30+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"timed out"}
+{"at":"2026-10-15T17:43:30+00:00","event":"review","slug":"pstack-trigger-effort","line":"review pstack-trigger-effort: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:43:30+00:00","event":"review","slug":"pstack-trigger-effort","line":"review pstack-trigger-effort: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:54:05+00:00","event":"rereview","slug":"gatekeeper-timers","line":"rereview gatekeeper-timers: asked the crew for a scoped review (#22, 348284b0e520)","text":""}
+{"at":"2026-10-15T17:55:03+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T17:55:03+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: findings","text":"timed out"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"gatekeeper-timers","line":"review gatekeeper-timers: clean","text":""}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"pstack-pin","line":"review pstack-pin: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:11:56+00:00","event":"review","slug":"pstack-pin","line":"review pstack-pin: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:12:00+00:00","event":"mainmoved","slug":"home-state-snapshot","line":"mainmoved home-state-snapshot: told the crew (#31, main ff5215e1f6d8)","text":""}
+{"at":"2026-10-15T19:12:16+00:00","event":"rebase","slug":"jbus-token-expiry-alert","line":"rebase jbus-token-expiry-alert: told the crew (#33, 4458872d2bbb)","text":"conflicts with its base"}
+{"at":"2026-10-15T19:12:23+00:00","event":"rebase","slug":"exec-removal-jstack","line":"rebase exec-removal-jstack: told the crew (#32, b37aacfbce73)","text":"conflicts with its base"}
+{"at":"2026-10-15T19:13:19+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:13:19+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:24:26+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:24:26+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:26:38+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:26:38+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: findings","text":"conflicts with its base"}
+{"at":"2026-10-15T19:31:56+00:00","event":"rereview","slug":"home-state-snapshot","line":"rereview home-state-snapshot: asked the crew for a scoped review (#31, 2f1bcbd924c7)","text":""}
+{"at":"2026-10-15T19:33:00+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:36:14+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:37:21+00:00","event":"rereview","slug":"jbus-token-expiry-alert","line":"rereview jbus-token-expiry-alert: asked the crew for a scoped review (#33, 336d9af6e92f)","text":""}
+{"at":"2026-10-15T19:37:22+00:00","event":"rereview","slug":"exec-removal-jstack","line":"rereview exec-removal-jstack: asked the crew for a scoped review (#32, 10fa8decb312)","text":""}
+{"at":"2026-10-15T19:38:19+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:38:19+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: findings","text":"conflicts with its base"}
+{"at":"2026-10-15T19:38:21+00:00","event":"expedite","slug":"home-state-snapshot","line":"expedite home-state-snapshot: told the crew what #31 is short of (unpushed, 2f1bcbd924c7)","text":""}
+{"at":"2026-10-15T19:40:28+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: clean","text":""}
+{"at":"2026-10-15T19:40:28+00:00","event":"review","slug":"jbus-token-expiry-alert","line":"review jbus-token-expiry-alert: clean","text":""}
+{"at":"2026-10-15T19:41:18+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:41:18+00:00","event":"review","slug":"home-state-snapshot","line":"review home-state-snapshot: findings","text":"Verdict: findings"}
+{"at":"2026-10-15T19:41:21+00:00","event":"rebase","slug":"exec-removal-jstack","line":"rebase exec-removal-jstack: told the crew (#32, 10fa8decb312)","text":"conflicts with its base"}
+{"at":"2026-10-15T19:42:25+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: clean","text":""}
+{"at":"2026-10-15T19:47:38+00:00","event":"review","slug":"exec-removal-jstack","line":"review exec-removal-jstack: clean","text":""}
+{"at":"2026-10-16T03:19:29+00:00","event":"failed","slug":"gate-silent-default","line":"failed gate-silent-default: told the crew (#36, 0a5fb92d4b61)","text":""}
+{"at":"2026-10-16T03:24:30+00:00","event":"refailed","slug":"gate-silent-default","line":"refailed gate-silent-default: told the crew (#36, 0a5fb92d4b61)","text":""}
+{"at":"2026-10-16T03:30:29+00:00","event":"expedite","slug":"gate-silent-default","line":"expedite gate-silent-default: told the crew what #36 is short of (unreviewed, 0a5fb92d4b61)","text":""}
+{"at":"2026-10-16T03:33:35+00:00","event":"failed","slug":"relay-to-sous-chef","line":"failed relay-to-sous-chef: told the crew (#37, 78293cc29309)","text":""}
+{"at":"2026-10-16T03:37:41+00:00","event":"failed","slug":"one-review-thread","line":"failed one-review-thread: told the crew (#38, 818d47cec7cf)","text":""}
+{"at":"2026-10-16T03:38:30+00:00","event":"review","slug":"ci-local-runner","line":"review ci-local-runner: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:38:30+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:38:30+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:39:31+00:00","event":"review","slug":"ci-local-runner","line":"review ci-local-runner: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:39:31+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:41:31+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:41:33+00:00","event":"expedite","slug":"relay-to-sous-chef","line":"expedite relay-to-sous-chef: told the crew what #37 is short of (unfixed, 78293cc29309)","text":""}
+{"at":"2026-10-16T03:43:32+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:45:35+00:00","event":"expedite","slug":"brief-lint-approval-binding","line":"expedite brief-lint-approval-binding: told the crew what #39 is short of (unfixed, 4b38832b997f)","text":""}
+{"at":"2026-10-16T03:46:33+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:46:42+00:00","event":"failed","slug":"brief-lint-approval-binding","line":"failed brief-lint-approval-binding: told the crew (#39, 4b38832b997f)","text":""}
+{"at":"2026-10-16T03:48:34+00:00","event":"review","slug":"jbus-view-origins","line":"review jbus-view-origins: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:50:37+00:00","event":"expedite","slug":"jbus-view-origins","line":"expedite jbus-view-origins: told the crew what #40 is short of (unfixed, cd70da7a2d9e)","text":""}
+{"at":"2026-10-16T03:52:35+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:56:36+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:57:36+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T03:58:46+00:00","event":"failed","slug":"jbus-view-origins","line":"failed jbus-view-origins: told the crew (#40, cd70da7a2d9e)","text":""}
+{"at":"2026-10-16T04:02:50+00:00","event":"refailed","slug":"relay-to-sous-chef","line":"refailed relay-to-sous-chef: told the crew (#37, 78293cc29309)","text":""}
+{"at":"2026-10-16T04:03:40+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:04:40+00:00","event":"review","slug":"jbus-view-origins","line":"review jbus-view-origins: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:06:43+00:00","event":"expedite","slug":"jbus-view-origins","line":"expedite jbus-view-origins: told the crew what #40 is short of (unpushed, eedcb5c87487)","text":""}
+{"at":"2026-10-16T04:11:56+00:00","event":"failed","slug":"jbus-view-origins","line":"failed jbus-view-origins: told the crew (#40, eedcb5c87487)","text":""}
+{"at":"2026-10-16T04:12:46+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:15:56+00:00","event":"failed","slug":"standing-undo","line":"failed standing-undo: told the crew (#41, fc234acb38bd)","text":""}
+{"at":"2026-10-16T04:17:46+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:19:58+00:00","event":"failed","slug":"relay-to-sous-chef","line":"failed relay-to-sous-chef: told the crew (#37, bb698bf158c7)","text":""}
+{"at":"2026-10-16T04:20:47+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:23:58+00:00","event":"refailed","slug":"standing-undo","line":"refailed standing-undo: told the crew (#41, fc234acb38bd)","text":""}
+{"at":"2026-10-16T04:24:48+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:25:48+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:26:51+00:00","event":"expedite","slug":"relay-to-sous-chef","line":"expedite relay-to-sous-chef: told the crew what #37 is short of (fix, bb698bf158c7)","text":""}
+{"at":"2026-10-16T04:27:48+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:28:00+00:00","event":"failed","slug":"brief-lint-approval-binding","line":"failed brief-lint-approval-binding: told the crew (#39, 8d84c5bd906d)","text":""}
+{"at":"2026-10-16T04:28:49+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:29:49+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:29:49+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:29:49+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"fails on"}
+{"at":"2026-10-16T04:30:50+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:41:56+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:41:58+00:00","event":"expedite","slug":"relay-to-sous-chef","line":"expedite relay-to-sous-chef: told the crew what #37 is short of (unpushed, bb698bf158c7)","text":""}
+{"at":"2026-10-16T04:43:56+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:43:56+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:47:58+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:48:58+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:50:09+00:00","event":"refailed","slug":"gate-silent-default","line":"refailed gate-silent-default: told the crew (#36, c50b52c40324)","text":""}
+{"at":"2026-10-16T04:50:59+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:52:10+00:00","event":"failed","slug":"jbus-view-origins","line":"failed jbus-view-origins: told the crew (#40, a80d3b46d854)","text":""}
+{"at":"2026-10-16T04:53:00+00:00","event":"review","slug":"jbus-view-origins","line":"review jbus-view-origins: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:55:01+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:56:02+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:56:02+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T04:56:02+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:05:04+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:05:04+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:05:17+00:00","event":"failed","slug":"brief-lint-approval-binding","line":"failed brief-lint-approval-binding: told the crew (#39, 826fc227a2ed)","text":""}
+{"at":"2026-10-16T05:06:05+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:06:05+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:13:08+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:13:08+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:15:09+00:00","event":"review","slug":"ci-local-runner","line":"review ci-local-runner: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:21:14+00:00","event":"review","slug":"ci-local-runner","line":"review ci-local-runner: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:43:08+00:00","event":"refailed","slug":"jbus-view-origins","line":"refailed jbus-view-origins: told the crew (#40, a80d3b46d854)","text":""}
+{"at":"2026-10-16T05:43:59+00:00","event":"review","slug":"jbus-view-origins","line":"review jbus-view-origins: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T05:53:34+00:00","event":"failed","slug":"relay-to-sous-chef","line":"failed relay-to-sous-chef: told the crew (#37, 80b5cc001f86)","text":""}
+{"at":"2026-10-16T05:54:20+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:03:48+00:00","event":"failed","slug":"one-review-thread","line":"failed one-review-thread: told the crew (#38, 36b173de991d)","text":""}
+{"at":"2026-10-16T06:04:37+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:13:54+00:00","event":"failed","slug":"standing-undo","line":"failed standing-undo: told the crew (#41, 58e36e589ec4)","text":""}
+{"at":"2026-10-16T06:14:44+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:23:02+00:00","event":"mainmoved","slug":"jbus-view-origins","line":"mainmoved jbus-view-origins: told the crew (#40, main 67545fe170b1)","text":""}
+{"at":"2026-10-16T06:23:03+00:00","event":"mainmoved","slug":"brief-lint-approval-binding","line":"mainmoved brief-lint-approval-binding: told the crew (#39, main 67545fe170b1)","text":""}
+{"at":"2026-10-16T06:23:03+00:00","event":"mainmoved","slug":"gate-silent-default","line":"mainmoved gate-silent-default: told the crew (#36, main 67545fe170b1)","text":""}
+{"at":"2026-10-16T06:23:54+00:00","event":"review","slug":"brief-lint-approval-binding","line":"review brief-lint-approval-binding: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:23:54+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:23:54+00:00","event":"review","slug":"jbus-view-origins","line":"review jbus-view-origins: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:24:55+00:00","event":"review","slug":"gate-silent-default","line":"review gate-silent-default: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:33:13+00:00","event":"refailed","slug":"relay-to-sous-chef","line":"refailed relay-to-sous-chef: told the crew (#37, 80b5cc001f86)","text":""}
+{"at":"2026-10-16T06:34:03+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:43:21+00:00","event":"refailed","slug":"standing-undo","line":"refailed standing-undo: told the crew (#41, 58e36e589ec4)","text":""}
+{"at":"2026-10-16T06:44:13+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:52:32+00:00","event":"mainmoved","slug":"standing-undo","line":"mainmoved standing-undo: told the crew (#41, main 7be5f6291f97)","text":""}
+{"at":"2026-10-16T06:52:32+00:00","event":"mainmoved","slug":"relay-to-sous-chef","line":"mainmoved relay-to-sous-chef: told the crew (#37, main 7be5f6291f97)","text":""}
+{"at":"2026-10-16T06:53:20+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T06:53:20+00:00","event":"review","slug":"standing-undo","line":"review standing-undo: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T07:01:38+00:00","event":"refailed","slug":"one-review-thread","line":"refailed one-review-thread: told the crew (#38, 36b173de991d)","text":""}
+{"at":"2026-10-16T07:02:29+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T07:11:50+00:00","event":"mainmoved","slug":"one-review-thread","line":"mainmoved one-review-thread: told the crew (#38, main 2860d715dd24)","text":""}
+{"at":"2026-10-16T07:12:45+00:00","event":"review","slug":"one-review-thread","line":"review one-review-thread: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T07:41:18+00:00","event":"rebase","slug":"relay-to-sous-chef","line":"rebase relay-to-sous-chef: told the crew (#37, 818991fb0933)","text":"conflicts with its base"}
+{"at":"2026-10-16T07:47:01+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T07:52:47+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T08:27:01+00:00","event":"failed","slug":"relay-to-sous-chef","line":"failed relay-to-sous-chef: told the crew (#37, 1eabd362cee1)","text":""}
+{"at":"2026-10-16T08:43:47+00:00","event":"review","slug":"fresh-check-off-pass","line":"review fresh-check-off-pass: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T08:43:47+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T08:43:47+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T08:54:59+00:00","event":"review","slug":"fresh-check-off-pass","line":"review fresh-check-off-pass: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T09:06:18+00:00","event":"rereview","slug":"relay-to-sous-chef","line":"rereview relay-to-sous-chef: asked the crew for a scoped review (#37, 2ce23bf6c34e)","text":""}
+{"at":"2026-10-16T09:06:53+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T09:10:05+00:00","event":"review","slug":"relay-to-sous-chef","line":"review relay-to-sous-chef: clean","text":""}
+{"at":"2026-10-16T09:42:28+00:00","event":"review","slug":"relay-fallback-pager","line":"review relay-fallback-pager: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T09:48:31+00:00","event":"review","slug":"relay-fallback-pager","line":"review relay-fallback-pager: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T09:49:32+00:00","event":"review","slug":"relay-fallback-pager","line":"review relay-fallback-pager: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T09:52:35+00:00","event":"review","slug":"relay-fallback-pager","line":"review relay-fallback-pager: clean","text":""}
+{"at":"2026-10-16T14:08:23+00:00","event":"expedite","slug":"cmt-noqa-guard","line":"expedite cmt-noqa-guard: told the crew what #44 is short of (unreviewed, a16857ced70b)","text":""}
+{"at":"2026-10-16T14:23:48+00:00","event":"review","slug":"jstack-help","line":"review jstack-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:24:49+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:26:58+00:00","event":"review","slug":"cmt-noqa-guard","line":"review cmt-noqa-guard: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:38:13+00:00","event":"review","slug":"jstack-help","line":"review jstack-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:38:13+00:00","event":"review","slug":"ow-run-not-read","line":"review ow-run-not-read: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:39:21+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:50:30+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: not run","text":""}
+{"at":"2026-10-16T14:50:32+00:00","event":"expedite","slug":"setup-loop","line":"expedite setup-loop: told the crew what #47 is short of (unfixed, 20e87a8e2124)","text":""}
+{"at":"2026-10-16T14:51:31+00:00","event":"review","slug":"cmt-noqa-guard","line":"review cmt-noqa-guard: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T14:57:39+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:08:12+00:00","event":"review","slug":"jstack-help","line":"review jstack-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:08:12+00:00","event":"review","slug":"jstack-help","line":"review jstack-help: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:08:12+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:09:19+00:00","event":"rebase","slug":"setup-loop","line":"rebase setup-loop: told the crew (#47, 7e9521d5ade3)","text":"conflicts with its base"}
+{"at":"2026-10-16T15:09:20+00:00","event":"rebase","slug":"skills-real","line":"rebase skills-real: told the crew (#45, b248f1993cf1)","text":"conflicts with its base"}
+{"at":"2026-10-16T15:10:16+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:10:16+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:10:18+00:00","event":"expedite","slug":"skills-real","line":"expedite skills-real: told the crew what #45 is short of (fix, b248f1993cf1)","text":""}
+{"at":"2026-10-16T15:11:13+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:12:15+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:22:27+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: not run","text":""}
+{"at":"2026-10-16T15:22:27+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:23:27+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:30:37+00:00","event":"expedite","slug":"setup-loop","line":"expedite setup-loop: told the crew what #47 is short of (fix, 7e9521d5ade3)","text":""}
+{"at":"2026-10-16T15:31:44+00:00","event":"review","slug":"ow-run-not-read","line":"review ow-run-not-read: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:31:44+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:32:46+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:32:46+00:00","event":"review","slug":"ow-run-not-read","line":"review ow-run-not-read: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:32:46+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T15:32:46+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:33:49+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T15:33:49+00:00","event":"review","slug":"test-slot-short-lane","line":"review test-slot-short-lane: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:35:56+00:00","event":"expedite","slug":"test-slot-short-lane","line":"expedite test-slot-short-lane: told the crew what #51 is short of (unfixed, df17436fa9f6)","text":""}
+{"at":"2026-10-16T15:36:57+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:36:57+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:42:08+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T15:46:14+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:47:15+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:50:18+00:00","event":"review","slug":"skill-cut-eval","line":"review skill-cut-eval: clean","text":""}
+{"at":"2026-10-16T15:50:18+00:00","event":"review","slug":"test-slot-short-lane","line":"review test-slot-short-lane: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:53:21+00:00","event":"review","slug":"test-slot-short-lane","line":"review test-slot-short-lane: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:53:21+00:00","event":"review","slug":"test-slot-short-lane","line":"review test-slot-short-lane: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:54:21+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:55:22+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T15:57:25+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T16:24:57+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:29:40+00:00","event":"rereview","slug":"skills-real","line":"rereview skills-real: asked the crew for a scoped review (#45, 215bb91b97a7)","text":""}
+{"at":"2026-10-16T16:30:49+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:38:41+00:00","event":"review","slug":"js-item-model","line":"review js-item-model: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:38:41+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:38:41+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:38:41+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:39:53+00:00","event":"rereview","slug":"setup-loop","line":"rereview setup-loop: asked the crew for a scoped review (#47, 3f480b614cc7)","text":""}
+{"at":"2026-10-16T16:40:57+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T16:50:35+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:55:23+00:00","event":"review","slug":"js-item-model","line":"review js-item-model: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:55:28+00:00","event":"rebase","slug":"skills-real","line":"rebase skills-real: told the crew (#45, 215bb91b97a7)","text":"timed out"}
+{"at":"2026-10-16T16:56:43+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:56:43+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T16:57:52+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"timed out"}
+{"at":"2026-10-16T17:07:40+00:00","event":"review","slug":"js-item-model","line":"review js-item-model: clean","text":""}
+{"at":"2026-10-16T17:07:40+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:09:05+00:00","event":"expedite","slug":"main-red-brief","line":"expedite main-red-brief: told the crew what #54 is short of (unfixed, 9fc5ffbbab6c)","text":""}
+{"at":"2026-10-16T17:12:52+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T17:15:40+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:17:02+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:19:48+00:00","event":"expedite","slug":"verify-jstack-map","line":"expedite verify-jstack-map: told the crew what #55 is short of (unfixed, de1783d92474)","text":""}
+{"at":"2026-10-16T17:21:02+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:28:44+00:00","event":"rebase","slug":"setup-loop","line":"rebase setup-loop: told the crew (#47, 3f480b614cc7)","text":"timed out"}
+{"at":"2026-10-16T17:28:45+00:00","event":"expedite","slug":"main-red-brief","line":"expedite main-red-brief: told the crew what #54 is short of (fix, a8588f8ffba3)","text":""}
+{"at":"2026-10-16T17:29:56+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:29:56+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T17:33:47+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:36:10+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T17:36:10+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T17:36:36+00:00","event":"failed","slug":"crew-check-foreground","line":"failed crew-check-foreground: told the crew (#50, 118f29a91c99)","text":""}
+{"at":"2026-10-16T17:39:31+00:00","event":"expedite","slug":"main-red-brief","line":"expedite main-red-brief: told the crew what #54 is short of (unpushed, a8588f8ffba3)","text":""}
+{"at":"2026-10-16T17:57:51+00:00","event":"expedite","slug":"context-packs","line":"expedite context-packs: told the crew what #56 is short of (unreviewed, e884642d3f32)","text":""}
+{"at":"2026-10-16T17:57:52+00:00","event":"mainmoved","slug":"crew-check-foreground","line":"mainmoved crew-check-foreground: told the crew (#50, main 84eb39737e58)","text":""}
+{"at":"2026-10-16T18:00:15+00:00","event":"resume","slug":"ci-hermetic-tests","line":"resume ci-hermetic-tests: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T18:01:27+00:00","event":"resume","slug":"ci-hermetic-tests","line":"resume ci-hermetic-tests: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T18:02:49+00:00","event":"failed","slug":"cmt-view-structure","line":"failed cmt-view-structure: told the crew (#52, 9c820e15e18d)","text":""}
+{"at":"2026-10-16T18:14:54+00:00","event":"failed","slug":"verify-jstack-map","line":"failed verify-jstack-map: told the crew (#55, 137d1db5e61e)","text":""}
+{"at":"2026-10-16T19:22:25+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T19:22:25+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:22:25+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"timed out"}
+{"at":"2026-10-16T19:22:25+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T19:26:40+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T19:36:04+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:36:04+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":"timed out"}
+{"at":"2026-10-16T19:49:53+00:00","event":"drops","slug":"setup-loop","line":"drops setup-loop: told the crew of the drop (#47, 465baa4cae6e)","text":""}
+{"at":"2026-10-16T19:50:58+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":"timed out"}
+{"at":"2026-10-16T19:51:00+00:00","event":"rereview","slug":"setup-loop","line":"rereview setup-loop: asked the crew for a scoped review (#47, 465baa4cae6e)","text":""}
+{"at":"2026-10-16T19:52:07+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:52:07+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":"timed out"}
+{"at":"2026-10-16T19:54:31+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:54:31+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T19:54:35+00:00","event":"expedite","slug":"context-packs","line":"expedite context-packs: told the crew what #56 is short of (unfixed, e884642d3f32)","text":""}
+{"at":"2026-10-16T19:56:07+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:56:07+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T19:56:07+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:10:39+00:00","event":"failed","slug":"crew-check-foreground","line":"failed crew-check-foreground: told the crew (#50, ceb7f8da2a8d)","text":""}
+{"at":"2026-10-16T20:11:35+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T20:11:35+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"timed out"}
+{"at":"2026-10-16T20:16:11+00:00","event":"review","slug":"setup-loop","line":"review setup-loop: clean","text":""}
+{"at":"2026-10-16T20:16:15+00:00","event":"mainmoved","slug":"verify-jstack-map","line":"mainmoved verify-jstack-map: told the crew (#55, main a6c9e22f86b7)","text":""}
+{"at":"2026-10-16T20:16:16+00:00","event":"mainmoved","slug":"cmt-view-structure","line":"mainmoved cmt-view-structure: told the crew (#52, main a6c9e22f86b7)","text":""}
+{"at":"2026-10-16T20:17:36+00:00","event":"review","slug":"ci-hermetic-tests","line":"review ci-hermetic-tests: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:17:36+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:17:36+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:18:56+00:00","event":"review","slug":"ci-hermetic-tests","line":"review ci-hermetic-tests: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:19:10+00:00","event":"rebase","slug":"context-packs","line":"rebase context-packs: told the crew (#56, eb7b3f786ca4)","text":"conflicts with its base"}
+{"at":"2026-10-16T20:20:11+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:29:27+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T20:30:51+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T20:35:04+00:00","event":"rebase","slug":"main-red-brief","line":"rebase main-red-brief: told the crew (#54, b9e1b5e17c16)","text":"fails on"}
+{"at":"2026-10-16T20:36:03+00:00","event":"review","slug":"main-red-brief","line":"review main-red-brief: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:01:22+00:00","event":"drops","slug":"crew-check-foreground","line":"drops crew-check-foreground: told the crew of the drop (#50, ceb7f8da2a8d)","text":""}
+{"at":"2026-10-16T21:02:27+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T21:02:29+00:00","event":"rereview","slug":"crew-check-foreground","line":"rereview crew-check-foreground: asked the crew for a scoped review (#50, ceb7f8da2a8d)","text":""}
+{"at":"2026-10-16T21:03:36+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:03:36+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: clean","text":""}
+{"at":"2026-10-16T21:12:11+00:00","event":"drops","slug":"verify-jstack-map","line":"drops verify-jstack-map: told the crew of the drop (#55, 3825225b019b)","text":""}
+{"at":"2026-10-16T21:13:11+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T21:13:13+00:00","event":"rereview","slug":"verify-jstack-map","line":"rereview verify-jstack-map: asked the crew for a scoped review (#55, 3825225b019b)","text":""}
+{"at":"2026-10-16T21:14:12+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T21:15:15+00:00","event":"review","slug":"context-packs","line":"review context-packs: not run","text":""}
+{"at":"2026-10-16T21:16:18+00:00","event":"review","slug":"context-packs","line":"review context-packs: not run","text":""}
+{"at":"2026-10-16T21:17:38+00:00","event":"review","slug":"context-packs","line":"review context-packs: not run","text":""}
+{"at":"2026-10-16T21:27:03+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T21:28:27+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:28:27+00:00","event":"review","slug":"context-packs","line":"review context-packs: not run","text":""}
+{"at":"2026-10-16T21:28:27+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:32:29+00:00","event":"review","slug":"context-packs","line":"review context-packs: not run","text":""}
+{"at":"2026-10-16T21:37:36+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:37:36+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:38:47+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:38:47+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:41:06+00:00","event":"rebase","slug":"verify-jstack-map","line":"rebase verify-jstack-map: told the crew (#55, 3825225b019b)","text":"fails on"}
+{"at":"2026-10-16T21:49:42+00:00","event":"rereview","slug":"cmt-view-structure","line":"rereview cmt-view-structure: asked the crew for a scoped review (#52, 7e48b7950cad)","text":""}
+{"at":"2026-10-16T21:50:41+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T21:52:47+00:00","event":"review","slug":"cmt-view-structure","line":"review cmt-view-structure: clean","text":""}
+{"at":"2026-10-16T21:54:10+00:00","event":"review","slug":"main-red-tip-only","line":"review main-red-tip-only: clean","text":""}
+{"at":"2026-10-16T22:01:34+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T22:02:41+00:00","event":"rereview","slug":"skills-real","line":"rereview skills-real: asked the crew for a scoped review (#45, 0b71f1c1129d)","text":""}
+{"at":"2026-10-16T22:03:49+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"timed out"}
+{"at":"2026-10-16T22:08:03+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T22:08:03+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"timed out"}
+{"at":"2026-10-16T22:08:03+00:00","event":"review","slug":"skills-real","line":"review skills-real: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T22:43:44+00:00","event":"rereview","slug":"verify-jstack-map","line":"rereview verify-jstack-map: asked the crew for a scoped review (#55, 547169887b51)","text":""}
+{"at":"2026-10-16T22:43:52+00:00","event":"rebase","slug":"crew-check-foreground","line":"rebase crew-check-foreground: told the crew (#50, 4f19daef3a06)","text":"timed out"}
+{"at":"2026-10-16T22:47:13+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"Verdict: findings"}
+{"at":"2026-10-16T22:47:13+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T22:50:09+00:00","event":"review","slug":"verify-jstack-map","line":"review verify-jstack-map: clean","text":""}
+{"at":"2026-10-16T22:50:15+00:00","event":"resume","slug":"pstack-634-port","line":"resume pstack-634-port: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:50:15+00:00","event":"resume","slug":"skill-cut-own","line":"resume skill-cut-own: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:52:41+00:00","event":"resume","slug":"ci-fast-full-split","line":"resume ci-fast-full-split: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:52:41+00:00","event":"resume","slug":"pstack-634-port","line":"resume pstack-634-port: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T22:52:42+00:00","event":"resume","slug":"pstack-no-model-invocation","line":"resume pstack-no-model-invocation: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:52:42+00:00","event":"resume","slug":"skill-cut-own","line":"resume skill-cut-own: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T22:55:41+00:00","event":"resume","slug":"ci-fast-full-split","line":"resume ci-fast-full-split: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T22:55:41+00:00","event":"resume","slug":"cmt-units-lists","line":"resume cmt-units-lists: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:55:41+00:00","event":"resume","slug":"jv-calm-tokens","line":"resume jv-calm-tokens: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T22:55:41+00:00","event":"resume","slug":"pstack-no-model-invocation","line":"resume pstack-no-model-invocation: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T22:58:21+00:00","event":"resume","slug":"cmt-units-lists","line":"resume cmt-units-lists: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T22:58:21+00:00","event":"resume","slug":"jv-calm-tokens","line":"resume jv-calm-tokens: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T23:04:13+00:00","event":"resume","slug":"skills-gate-view-rule","line":"resume skills-gate-view-rule: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T23:05:12+00:00","event":"resume","slug":"skills-gate-view-rule","line":"resume skills-gate-view-rule: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-16T23:10:13+00:00","event":"rebase","slug":"context-packs","line":"rebase context-packs: told the crew (#56, ba025aaee55e)","text":"timed out"}
+{"at":"2026-10-16T23:24:23+00:00","event":"resume","slug":"main-red-5a9a4d040106","line":"resume main-red-5a9a4d040106: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-16T23:24:24+00:00","event":"rebase","slug":"main-red-tip-only","line":"rebase main-red-tip-only: told the crew (#58, 677677a938a8)","text":"fails on"}
+{"at":"2026-10-16T23:25:23+00:00","event":"resume","slug":"main-red-5a9a4d040106","line":"resume main-red-5a9a4d040106: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T00:54:33+00:00","event":"failed","slug":"skills-gate-view-rule","line":"failed skills-gate-view-rule: told the crew (#59, 4c011902f87c)","text":""}
+{"at":"2026-10-17T01:08:49+00:00","event":"review","slug":"main-red-5a9a4d040106","line":"review main-red-5a9a4d040106: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:10:03+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:10:03+00:00","event":"review","slug":"pstack-634-port","line":"review pstack-634-port: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:10:03+00:00","event":"review","slug":"skill-cut-own","line":"review skill-cut-own: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:10:03+00:00","event":"review","slug":"skills-gate-view-rule","line":"review skills-gate-view-rule: clean","text":""}
+{"at":"2026-10-17T01:12:25+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:12:25+00:00","event":"review","slug":"pstack-no-model-invocation","line":"review pstack-no-model-invocation: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:13:36+00:00","event":"review","slug":"main-red-5a9a4d040106","line":"review main-red-5a9a4d040106: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:19:06+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"fails on"}
+{"at":"2026-10-17T01:20:11+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"fails on"}
+{"at":"2026-10-17T01:23:33+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:24:36+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:35:33+00:00","event":"review","slug":"pstack-no-model-invocation","line":"review pstack-no-model-invocation: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:39:37+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T01:40:56+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:44:10+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:45:15+00:00","event":"expedite","slug":"ci-fast-full-split","line":"expedite ci-fast-full-split: told the crew what #65 is short of (unpushed, 55adcbf4d179)","text":""}
+{"at":"2026-10-17T01:46:22+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"fails on"}
+{"at":"2026-10-17T01:46:39+00:00","event":"failed","slug":"ci-fast-full-split","line":"failed ci-fast-full-split: told the crew (#65, 55adcbf4d179)","text":""}
+{"at":"2026-10-17T01:50:45+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:50:45+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"fails on"}
+{"at":"2026-10-17T01:53:16+00:00","event":"expedite","slug":"jmerge-drop-count","line":"expedite jmerge-drop-count: told the crew what #67 is short of (unfixed, 399f339a1ecb)","text":""}
+{"at":"2026-10-17T01:58:38+00:00","event":"review","slug":"pstack-no-model-invocation","line":"review pstack-no-model-invocation: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T01:58:54+00:00","event":"failed","slug":"pstack-no-model-invocation","line":"failed pstack-no-model-invocation: told the crew (#60, e2b26134ef70)","text":""}
+{"at":"2026-10-17T01:59:40+00:00","event":"review","slug":"pstack-no-model-invocation","line":"review pstack-no-model-invocation: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T02:01:46+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T02:02:52+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T02:05:17+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"fails on"}
+{"at":"2026-10-17T02:11:34+00:00","event":"expedite","slug":"skill-cut-own","line":"expedite skill-cut-own: told the crew what #62 is short of (unfixed, bcb87923409f)","text":""}
+{"at":"2026-10-17T02:11:35+00:00","event":"mainmoved","slug":"pstack-no-model-invocation","line":"mainmoved pstack-no-model-invocation: told the crew (#60, main 1bebfb3f5fd4)","text":""}
+{"at":"2026-10-17T02:11:36+00:00","event":"mainmoved","slug":"skills-gate-view-rule","line":"mainmoved skills-gate-view-rule: told the crew (#59, main 1bebfb3f5fd4)","text":""}
+{"at":"2026-10-17T02:12:37+00:00","event":"expedite","slug":"jmerge-drop-count","line":"expedite jmerge-drop-count: told the crew what #67 is short of (fix, a9546a054c25)","text":""}
+{"at":"2026-10-17T02:12:39+00:00","event":"mainmoved","slug":"ci-fast-full-split","line":"mainmoved ci-fast-full-split: told the crew (#65, main 1bebfb3f5fd4)","text":""}
+{"at":"2026-10-17T02:12:39+00:00","event":"mainmoved","slug":"skill-cut-own","line":"mainmoved skill-cut-own: told the crew (#62, main 1bebfb3f5fd4)","text":""}
+{"at":"2026-10-17T02:12:52+00:00","event":"rebase","slug":"cmt-units-lists","line":"rebase cmt-units-lists: told the crew (#61, 9051a3d141df)","text":"conflicts with its base"}
+{"at":"2026-10-17T02:14:39+00:00","event":"expedite","slug":"jv-calm-tokens","line":"expedite jv-calm-tokens: told the crew what #66 is short of (fix, 595b98b2292e)","text":""}
+{"at":"2026-10-17T02:18:50+00:00","event":"mainmoved","slug":"ci-fast-full-split","line":"mainmoved ci-fast-full-split: told the crew (#65, main 189f28336aae)","text":""}
+{"at":"2026-10-17T02:18:51+00:00","event":"mainmoved","slug":"skill-cut-own","line":"mainmoved skill-cut-own: told the crew (#62, main 189f28336aae)","text":""}
+{"at":"2026-10-17T02:18:51+00:00","event":"mainmoved","slug":"pstack-no-model-invocation","line":"mainmoved pstack-no-model-invocation: told the crew (#60, main 189f28336aae)","text":""}
+{"at":"2026-10-17T02:18:52+00:00","event":"mainmoved","slug":"skills-gate-view-rule","line":"mainmoved skills-gate-view-rule: told the crew (#59, main 189f28336aae)","text":""}
+{"at":"2026-10-17T02:30:00+00:00","event":"drops","slug":"crew-check-foreground","line":"drops crew-check-foreground: told the crew of the drop (#50, 4f19daef3a06)","text":""}
+{"at":"2026-10-17T02:33:16+00:00","event":"failed","slug":"jv-calm-tokens","line":"failed jv-calm-tokens: told the crew (#66, 595b98b2292e)","text":""}
+{"at":"2026-10-17T02:43:43+00:00","event":"failed","slug":"pstack-634-port","line":"failed pstack-634-port: told the crew (#64, 116ebd28b8e3)","text":""}
+{"at":"2026-10-17T02:54:54+00:00","event":"failed","slug":"jmerge-drop-count","line":"failed jmerge-drop-count: told the crew (#67, a9546a054c25)","text":""}
+{"at":"2026-10-17T19:45:04+00:00","event":"resume","slug":"provider-failover","line":"resume provider-failover: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-17T19:46:07+00:00","event":"resume","slug":"provider-failover","line":"resume provider-failover: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T19:47:08+00:00","event":"resume","slug":"approval-binds-meaning","line":"resume approval-binds-meaning: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-17T19:47:08+00:00","event":"resume","slug":"slot-wake","line":"resume slot-wake: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-17T19:48:19+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T19:48:19+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T19:48:19+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T19:48:22+00:00","event":"resume","slug":"approval-binds-meaning","line":"resume approval-binds-meaning: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T19:48:22+00:00","event":"resume","slug":"slot-wake","line":"resume slot-wake: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T20:02:14+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-17T20:02:14+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: clean","text":""}
+{"at":"2026-10-17T20:02:14+00:00","event":"review","slug":"pstack-no-model-invocation","line":"review pstack-no-model-invocation: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T20:03:23+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: clean","text":"fails on"}
+{"at":"2026-10-17T20:11:38+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: clean","text":"fails on"}
+{"at":"2026-10-17T20:15:34+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T20:15:44+00:00","event":"mainmoved","slug":"jmerge-drop-count","line":"mainmoved jmerge-drop-count: told the crew (#67, main 6743509c4893)","text":""}
+{"at":"2026-10-17T20:15:45+00:00","event":"mainmoved","slug":"skill-cut-own","line":"mainmoved skill-cut-own: told the crew (#62, main 6743509c4893)","text":""}
+{"at":"2026-10-17T20:15:49+00:00","event":"mainmoved","slug":"skills-gate-view-rule","line":"mainmoved skills-gate-view-rule: told the crew (#59, main 6743509c4893)","text":""}
+{"at":"2026-10-17T20:18:57+00:00","event":"review","slug":"jmerge-drop-count","line":"review jmerge-drop-count: clean","text":"fails on"}
+{"at":"2026-10-17T20:22:39+00:00","event":"mainmoved","slug":"pstack-634-port","line":"mainmoved pstack-634-port: told the crew (#64, main 6743509c4893)","text":""}
+{"at":"2026-10-17T20:26:59+00:00","event":"review","slug":"ci-fast-full-split","line":"review ci-fast-full-split: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T20:29:39+00:00","event":"failed","slug":"cmt-units-lists","line":"failed cmt-units-lists: told the crew (#61, 41f0a5fd21e3)","text":""}
+{"at":"2026-10-17T20:33:56+00:00","event":"mainmoved","slug":"jv-calm-tokens","line":"mainmoved jv-calm-tokens: told the crew (#66, main 6743509c4893)","text":""}
+{"at":"2026-10-17T20:39:12+00:00","event":"review","slug":"skills-gate-view-rule","line":"review skills-gate-view-rule: clean","text":""}
+{"at":"2026-10-17T20:41:24+00:00","event":"mainmoved","slug":"cmt-units-lists","line":"mainmoved cmt-units-lists: told the crew (#61, main efa3bb5b9456)","text":""}
+{"at":"2026-10-17T20:42:21+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T20:42:25+00:00","event":"mainmoved","slug":"pstack-634-port","line":"mainmoved pstack-634-port: told the crew (#64, main efa3bb5b9456)","text":""}
+{"at":"2026-10-17T20:42:26+00:00","event":"mainmoved","slug":"skill-cut-own","line":"mainmoved skill-cut-own: told the crew (#62, main efa3bb5b9456)","text":""}
+{"at":"2026-10-17T20:44:22+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: clean","text":""}
+{"at":"2026-10-17T20:45:24+00:00","event":"mainmoved","slug":"jv-calm-tokens","line":"mainmoved jv-calm-tokens: told the crew (#66, main efa3bb5b9456)","text":""}
+{"at":"2026-10-17T20:50:25+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"timed out"}
+{"at":"2026-10-17T21:01:43+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"fails on"}
+{"at":"2026-10-17T21:01:43+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: clean","text":""}
+{"at":"2026-10-17T21:04:25+00:00","event":"mainmoved","slug":"skill-cut-own","line":"mainmoved skill-cut-own: told the crew (#62, main 3a39cccebaf0)","text":""}
+{"at":"2026-10-17T21:04:26+00:00","event":"mainmoved","slug":"cmt-units-lists","line":"mainmoved cmt-units-lists: told the crew (#61, main 3a39cccebaf0)","text":""}
+{"at":"2026-10-17T21:05:30+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T21:08:46+00:00","event":"mainmoved","slug":"pstack-634-port","line":"mainmoved pstack-634-port: told the crew (#64, main 3a39cccebaf0)","text":""}
+{"at":"2026-10-17T21:11:48+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:11:48+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T21:13:52+00:00","event":"resume","slug":"merge-after","line":"resume merge-after: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-17T21:14:56+00:00","event":"resume","slug":"merge-after","line":"resume merge-after: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T21:14:56+00:00","event":"resume","slug":"relay-test-teardown","line":"resume relay-test-teardown: told the crew to carry on (failed, 1 of 2)","text":""}
+{"at":"2026-10-17T21:15:55+00:00","event":"resume","slug":"relay-test-teardown","line":"resume relay-test-teardown: told the crew to carry on (failed, 2 of 2)","text":""}
+{"at":"2026-10-17T21:34:02+00:00","event":"review","slug":"skill-cut-own","line":"review skill-cut-own: clean","text":""}
+{"at":"2026-10-17T21:36:08+00:00","event":"review","slug":"approval-binds-meaning","line":"review approval-binds-meaning: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:40:13+00:00","event":"rereview","slug":"jv-calm-tokens","line":"rereview jv-calm-tokens: asked the crew for a scoped review (#66, 93fb5df43708)","text":""}
+{"at":"2026-10-17T21:41:10+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: clean","text":""}
+{"at":"2026-10-17T21:42:11+00:00","event":"review","slug":"repo-template","line":"review repo-template: clean","text":""}
+{"at":"2026-10-17T21:43:12+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"fails on"}
+{"at":"2026-10-17T21:43:13+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:45:19+00:00","event":"rebase","slug":"context-packs","line":"rebase context-packs: told the crew (#56, 6b23eba0b70b)","text":"timed out"}
+{"at":"2026-10-17T21:46:15+00:00","event":"review","slug":"approval-binds-meaning","line":"review approval-binds-meaning: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:46:15+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"timed out"}
+{"at":"2026-10-17T21:54:26+00:00","event":"review","slug":"approval-binds-meaning","line":"review approval-binds-meaning: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:54:26+00:00","event":"review","slug":"slot-wake","line":"review slot-wake: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T21:55:39+00:00","event":"rebase","slug":"approval-binds-meaning","line":"rebase approval-binds-meaning: told the crew (#68, f03c47c56c59)","text":"conflicts with its base"}
+{"at":"2026-10-17T21:57:26+00:00","event":"expedite","slug":"approval-binds-meaning","line":"expedite approval-binds-meaning: told the crew what #68 is short of (unfixed, f03c47c56c59)","text":""}
+{"at":"2026-10-17T21:58:37+00:00","event":"failed","slug":"ci-fast-lane","line":"failed ci-fast-lane: told the crew (#69, 8e85f62eb25e)","text":""}
+{"at":"2026-10-17T22:00:36+00:00","event":"rebase","slug":"jv-calm-tokens","line":"rebase jv-calm-tokens: told the crew (#66, 93fb5df43708)","text":"timed out"}
+{"at":"2026-10-17T22:00:36+00:00","event":"expedite","slug":"ci-fast-lane","line":"expedite ci-fast-lane: told the crew what #69 is short of (unreviewed, 8e85f62eb25e)","text":""}
+{"at":"2026-10-17T22:01:33+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T22:05:56+00:00","event":"review","slug":"approval-binds-meaning","line":"review approval-binds-meaning: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:05:59+00:00","event":"mainmoved","slug":"ci-fast-lane","line":"mainmoved ci-fast-lane: told the crew (#69, main b0b377aeac68)","text":""}
+{"at":"2026-10-17T22:06:53+00:00","event":"rebase","slug":"crew-check-foreground","line":"rebase crew-check-foreground: told the crew (#50, 7c63d16aa081)","text":"conflicts with its base"}
+{"at":"2026-10-17T22:07:04+00:00","event":"rebase","slug":"cmt-units-lists","line":"rebase cmt-units-lists: told the crew (#61, c340e46e3f91)","text":"conflicts with its base"}
+{"at":"2026-10-17T22:07:50+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-17T22:07:53+00:00","event":"expedite","slug":"approval-binds-meaning","line":"expedite approval-binds-meaning: told the crew what #68 is short of (unpushed, f03c47c56c59)","text":""}
+{"at":"2026-10-17T22:08:50+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T22:08:50+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"timed out"}
+{"at":"2026-10-17T22:08:50+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T22:11:52+00:00","event":"review","slug":"relay-test-teardown","line":"review relay-test-teardown: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:17:59+00:00","event":"mainmoved","slug":"ci-fast-lane","line":"mainmoved ci-fast-lane: told the crew (#69, main 3c5cadf5cfe2)","text":""}
+{"at":"2026-10-17T22:19:09+00:00","event":"conflict","slug":"rd-home-stale","line":"conflict rd-home-stale: told the crew (#72, 7048438bd8c7)","text":""}
+{"at":"2026-10-17T22:23:01+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:25:13+00:00","event":"expedite","slug":"rd-home-stale","line":"expedite rd-home-stale: told the crew what #72 is short of (unfixed, 7048438bd8c7)","text":""}
+{"at":"2026-10-17T22:25:24+00:00","event":"conflict","slug":"provider-failover","line":"conflict provider-failover: told the crew (#73, 890530a74b76)","text":""}
+{"at":"2026-10-17T22:26:10+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:27:15+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-17T22:27:15+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:29:40+00:00","event":"review","slug":"context-packs","line":"review context-packs: findings","text":"timed out"}
+{"at":"2026-10-17T22:29:40+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-17T22:29:40+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T22:29:40+00:00","event":"review","slug":"provider-failover","line":"review provider-failover: clean","text":""}
+{"at":"2026-10-17T22:30:50+00:00","event":"review","slug":"provider-failover","line":"review provider-failover: clean","text":""}
+{"at":"2026-10-17T22:32:53+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-17T22:45:27+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T22:45:31+00:00","event":"rebase","slug":"skill-cut-own","line":"rebase skill-cut-own: told the crew (#62, dc49751531de)","text":"timed out"}
+{"at":"2026-10-17T22:46:30+00:00","event":"review","slug":"skill-cut-own","line":"review skill-cut-own: clean","text":""}
+{"at":"2026-10-17T22:48:36+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T22:55:32+00:00","event":"review","slug":"provider-failover","line":"review provider-failover: clean","text":""}
+{"at":"2026-10-17T23:03:41+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-17T23:05:11+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T23:06:21+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-17T23:06:21+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T23:11:20+00:00","event":"rereview","slug":"rd-home-stale","line":"rereview rd-home-stale: asked the crew for a scoped review (#72, ae11b95f35c3)","text":""}
+{"at":"2026-10-17T23:12:25+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-17T23:13:33+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T23:16:58+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-17T23:20:20+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-17T23:26:56+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-17T23:27:13+00:00","event":"failed","slug":"merge-after","line":"failed merge-after: told the crew (#74, 5d82843c34ae)","text":""}
+{"at":"2026-10-17T23:30:38+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T23:31:00+00:00","event":"refailed","slug":"jv-calm-tokens","line":"refailed jv-calm-tokens: told the crew (#66, 0003a4cecc90)","text":""}
+{"at":"2026-10-17T23:32:03+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T23:37:19+00:00","event":"failed","slug":"ci-fast-lane","line":"failed ci-fast-lane: told the crew (#69, b32a0db6d72d)","text":""}
+{"at":"2026-10-17T23:40:46+00:00","event":"mainmoved","slug":"ci-fast-lane","line":"mainmoved ci-fast-lane: told the crew (#69, main 3a14b2c48871)","text":""}
+{"at":"2026-10-17T23:40:47+00:00","event":"mainmoved","slug":"jv-calm-tokens","line":"mainmoved jv-calm-tokens: told the crew (#66, main 3a14b2c48871)","text":""}
+{"at":"2026-10-17T23:41:56+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-17T23:41:56+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T23:42:00+00:00","event":"rebase","slug":"rd-home-stale","line":"rebase rd-home-stale: told the crew (#72, ae11b95f35c3)","text":"conflicts with its base"}
+{"at":"2026-10-17T23:44:26+00:00","event":"refailed","slug":"merge-after","line":"refailed merge-after: told the crew (#74, 5d82843c34ae)","text":""}
+{"at":"2026-10-17T23:52:13+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-17T23:57:01+00:00","event":"failed","slug":"cmt-units-lists","line":"failed cmt-units-lists: told the crew (#61, 840e9ead70c3)","text":""}
+{"at":"2026-10-17T23:57:49+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-18T00:00:52+00:00","event":"review","slug":"ci-fast-lane","line":"review ci-fast-lane: clean","text":""}
+{"at":"2026-10-18T00:01:56+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:01:56+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:03:09+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:04:23+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:05:34+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:07:48+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: clean","text":""}
+{"at":"2026-10-18T00:07:48+00:00","event":"review","slug":"merge-after","line":"review merge-after: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:11:10+00:00","event":"expedite","slug":"merge-after","line":"expedite merge-after: told the crew what #74 is short of (unfixed, 5d82843c34ae)","text":""}
+{"at":"2026-10-18T00:12:09+00:00","event":"review","slug":"merge-after","line":"review merge-after: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:14:19+00:00","event":"drops","slug":"jv-calm-tokens","line":"drops jv-calm-tokens: told the crew of the drop (#66, 28ad05a1cb63)","text":""}
+{"at":"2026-10-18T00:15:29+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-18T00:15:32+00:00","event":"rereview","slug":"jv-calm-tokens","line":"rereview jv-calm-tokens: asked the crew for a scoped review (#66, 28ad05a1cb63)","text":""}
+{"at":"2026-10-18T00:16:50+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"timed out"}
+{"at":"2026-10-18T00:26:20+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:41:32+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: clean","text":""}
+{"at":"2026-10-18T00:41:48+00:00","event":"failed","slug":"carry-on-skills","line":"failed carry-on-skills: told the crew (#75, 4f28631ebb14)","text":""}
+{"at":"2026-10-18T00:42:39+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: clean","text":""}
+{"at":"2026-10-18T00:43:42+00:00","event":"review","slug":"merge-after","line":"review merge-after: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:44:59+00:00","event":"failed","slug":"rd-home-stale","line":"failed rd-home-stale: told the crew (#72, d2fdb509c3ae)","text":""}
+{"at":"2026-10-18T00:47:16+00:00","event":"review","slug":"check-timeout-raise","line":"review check-timeout-raise: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:47:16+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"fails on"}
+{"at":"2026-10-18T00:47:16+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:47:16+00:00","event":"review","slug":"merge-after","line":"review merge-after: clean","text":""}
+{"at":"2026-10-18T00:47:20+00:00","event":"mainmoved","slug":"carry-on-skills","line":"mainmoved carry-on-skills: told the crew (#75, main 6125e14772f4)","text":""}
+{"at":"2026-10-18T00:47:21+00:00","event":"mainmoved","slug":"rd-home-stale","line":"mainmoved rd-home-stale: told the crew (#72, main 6125e14772f4)","text":""}
+{"at":"2026-10-18T00:47:21+00:00","event":"mainmoved","slug":"cmt-units-lists","line":"mainmoved cmt-units-lists: told the crew (#61, main 6125e14772f4)","text":""}
+{"at":"2026-10-18T00:47:36+00:00","event":"rebase","slug":"jv-calm-tokens","line":"rebase jv-calm-tokens: told the crew (#66, 28ad05a1cb63)","text":"conflicts with its base"}
+{"at":"2026-10-18T00:48:29+00:00","event":"review","slug":"carry-on-skills","line":"review carry-on-skills: clean","text":""}
+{"at":"2026-10-18T00:48:29+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-18T00:48:29+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:48:29+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:52:36+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T00:53:40+00:00","event":"review","slug":"crew-check-foreground","line":"review crew-check-foreground: findings","text":"timed out"}
+{"at":"2026-10-18T00:58:00+00:00","event":"review","slug":"cmt-units-lists","line":"review cmt-units-lists: clean","text":""}
+{"at":"2026-10-18T00:58:00+00:00","event":"review","slug":"rd-home-stale","line":"review rd-home-stale: findings","text":"Verdict: findings"}
+{"at":"2026-10-18T01:03:30+00:00","event":"review","slug":"jv-calm-tokens","line":"review jv-calm-tokens: findings","text":"Verdict: findings"}
