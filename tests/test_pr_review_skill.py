@@ -1587,9 +1587,10 @@ def test_a_home_with_no_slug_is_told_of_the_briefs_that_are_not_of_the_past(tmp_
     assert launcher.says("*") == []
 
 
-def rebased(reviewer, why="the task replaces it"):
+def rebased(reviewer, why="the task replaces it", line=True):
     """A worktree whose rebase took main's line out of n.txt, the head before it kept as
-    the crew skill keeps it, and a brief whose crewmate says why at the rebased head."""
+    the crew skill keeps it, and a brief whose crewmate says why at the rebased head. The
+    crew skill's rebase writes no `Rebase:` line, so `line=False` is the brief a crew writes."""
     work = reviewer.work
 
     def commit(text):
@@ -1602,9 +1603,8 @@ def rebased(reviewer, why="the task replaces it"):
     crew.git(work, "update-ref", f"refs/jstack/pre-rebase/a-task/{before[:12]}", before)
     head = commit("one\nours\n")
     said = f"Dropped on rebase: n.txt, 1 of main's, 0 of its own, at {head[:12]}: {why}"
-    reviewer.brief.write_text(
-        BRIEF + DONE + f"Rebase: patch changed in n.txt, before {before}, head {head}\n{said}\n"
-    )
+    told = f"Rebase: patch changed in n.txt, before {before}, head {head}\n" if line else ""
+    reviewer.brief.write_text(BRIEF + DONE + f"{told}{said}\n")
     return before, head, said
 
 
@@ -1635,6 +1635,42 @@ def test_a_scoped_pass_reads_each_drop_the_crew_explained_at_the_head(reviewer):
     )
 
 
+def test_a_drop_is_read_from_the_ref_the_crew_kept_when_the_brief_has_no_rebase_line(reviewer):
+    before, head, said = rebased(reviewer, line=False)
+    first, line, *diff = drops(reviewer)
+    assert (first, line) == ("drop: n.txt", said)
+    assert [each for each in diff if each[:1] in "+-" and each[:2] not in ("++", "--")] == [
+        "-theirs"
+    ]
+
+
+def test_with_no_rebase_line_the_newest_kept_head_is_the_one_before_the_last_rebase(reviewer):
+    work = reviewer.work
+
+    def commit(text, when):
+        (work / "n.txt").write_text(text)
+        crew.git(work, "add", "n.txt")
+        dated = {**os.environ, "GIT_COMMITTER_DATE": when, "GIT_AUTHOR_DATE": when}
+        author = ("-c", "user.name=a", "-c", "user.email=a@b")
+        subprocess.run(
+            ["git", *author, "commit", "-q", "-m", "it"], cwd=work, env=dated, check=True
+        )
+        return crew.git(work, "rev-parse", "HEAD")
+
+    older = commit("one\nstale\nours\n", "2026-10-17T10:00:00")
+    crew.git(work, "update-ref", f"refs/jstack/pre-rebase/a-task/{older[:12]}", older)
+    newer = commit("one\ntheirs\nours\n", "2026-10-17T11:00:00")
+    crew.git(work, "update-ref", f"refs/jstack/pre-rebase/a-task/{newer[:12]}", newer)
+    crew.git(work, "update-ref", f"refs/jstack/pre-rebase/b-task/{older[:12]}", older)
+    head = commit("one\nours\n", "2026-10-17T12:00:00")
+    said = f"Dropped on rebase: n.txt, 1 of main's, 0 of its own, at {head[:12]}: the task is it"
+    reviewer.brief.write_text(BRIEF + DONE + said + "\n")
+    _, _, *diff = drops(reviewer)
+    assert [each for each in diff if each[:1] in "+-" and each[:2] not in ("++", "--")] == [
+        "-theirs"
+    ]
+
+
 def test_a_scoped_pass_with_no_drop_explained_at_its_head_rules_on_none(reviewer):
     _, head, said = rebased(reviewer)
     brief = reviewer.brief.read_text()
@@ -1650,6 +1686,46 @@ def test_a_drop_whose_head_before_the_rebase_is_not_kept_is_not_upheld(reviewer)
         "refs/jstack/pre-rebase/a-task, so no drop can be read",
         "drop: n.txt",
     ]
+
+
+WAS, FIX = "a" * 40, "c" * 40
+AFTER_THE_FIX = (
+    "Reviewer: mcp:2\n\n## Review\nVerdict: findings\n"
+    f"Head: {WAS}   Unchanged by the review: yes\n"
+    "Findings:\n- warning x.conf:25 the comment says one thing and the rule another\nSent to: mcp:1\n"
+    "Finding: fixed, the comment\n"
+    f"Scoped review: needed since {WAS}, the fix changed x.conf\n"
+    f"Scoped reviewer: mcp:3, of {FIX}\n"
+    "Finding: (scoped pass) clean, no findings\n"
+    f"Fixed: {FIX}\n"
+)
+SCOPED_SECTION = (
+    f"\n## Review\nVerdict: clean\nScope: range-diff x..{WAS} x..{FIX}\n"
+    f"Head: {FIX}   Unchanged by the review: yes\nFindings:\n- none\nSent to: not sent, clean\n"
+)
+
+
+def written(reviewer, head=FIX):
+    (said,), code = reviewer(
+        "### After the review", "written:", fill={"<the head kept at the start>": head}
+    )
+    assert code == 0
+    return said.split(":")[0]
+
+
+def test_a_scoped_verdict_sent_before_its_section_is_written_is_told_to_write_it_first(reviewer):
+    """The brief of infra #59: the crewmate wrote its `Finding:` and `Fixed:` lines on the
+    scoped reviewer's message, and the brief never got the section jmerge waits for."""
+    reviewer.brief.write_text(BRIEF + DONE + AFTER_THE_FIX)
+    assert ready.short_of(reviewer.brief.read_text(), FIX) == ready.FIX_UNREVIEWED
+    assert written(reviewer) == "not yet"
+    assert written(reviewer, WAS) == "written"
+
+
+def test_a_scoped_verdict_with_its_section_written_is_sent_and_jmerge_counts_the_review(reviewer):
+    reviewer.brief.write_text(BRIEF + DONE + AFTER_THE_FIX + SCOPED_SECTION)
+    assert written(reviewer) == "written"
+    assert ready.short_of(reviewer.brief.read_text(), FIX) == ""
 
 
 def test_the_scoped_pass_a_guarded_fix_is_launched_with_reads_the_fix_alone(tmp_path):
