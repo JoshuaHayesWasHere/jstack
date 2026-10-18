@@ -30,6 +30,9 @@ NO_FINDING = "its findings are not handled: 1 of 2 have no Finding line"
 NO_SECOND = "its fix changed more than the findings named: the second pass is not written"
 NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written"
 NO_REVIEW = "it has no review yet"
+RENUMBER = ready.MIGRATION_TAKEN.format(
+    name="0005_insulin", number="0005", default="main", free="0006"
+)
 ENDED = ("completed", "failed", "interrupted", "cancelled")
 
 
@@ -141,6 +144,14 @@ SAYS = {
         "second one. "
         + (REPO / "templates" / "rerun.md").read_text().strip().replace("{slug}", "alpha")
     ),
+    "renumber": (
+        'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
+        "`stale`: it counts the rebase toward the cap of two after fixed and green, and holds a "
+        "third. Then renumber the migration the reason names to the number it gives, and each "
+        "migration of yours after it to the numbers that follow, one each and in their order: "
+        "the files, and every other line that names an old number. Run the check command, and "
+        "push with the block's push."
+    ),
 }
 
 
@@ -183,6 +194,7 @@ def said_to(short, kind, reason, sentence):
         ("unpushed", NOT_PUSHED),
         ("unended", NO_FINDING),
         ("second", NO_SECOND),
+        ("renumber", RENUMBER),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):
