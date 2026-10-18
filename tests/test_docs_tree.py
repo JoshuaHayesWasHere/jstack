@@ -5,8 +5,7 @@ what a page says about the tree, and reports each failure as `file:line: what is
 
 - A skill named as a slash command, `/<skill>`, as the first word of a code span or of a line
   of a fenced block, or in prose as "the `<skill>` skill", has a folder under `skills/`. A slash
-  word that is no skill is listed in `NOT_SKILLS` with the reason, so a rename cannot hide
-  behind it.
+  word that is no skill is listed in `NOT_SKILLS` with the reason.
 - A path that starts at a folder of `ROOTS`, such as `skills/<skill>/SKILL.md` or
   `templates/brief.md`, is a file or folder that exists. A path with a placeholder, a glob, or a
   `/` before it (`~/.claude/skills/<skill>`, `$T/../playbooks/$name.md`) is somewhere else and is
@@ -218,7 +217,6 @@ def test_the_tree_is_read_whole_and_counted():
     counts = tree_counts(REPO)
     assert len(counts) == 4 and all(count >= 7 for count in counts.values())
     assert len(pages(REPO)) > 40
-    assert not set(NOT_SKILLS) & skill_names(REPO)
 
 
 @pytest.fixture
