@@ -20,7 +20,9 @@ A row's state is judged once a pass, from its `facts` (`work.judge`), and the fa
 thread out that is no row's are `thread_facts`. A row's status, one of `queue.STATUSES`,
 is the projection of its state (`work.status`): `gate`, `pr`, `merged`, `done`, `left`,
 `launched`, `running`, `waiting`, `stale`, `failed` or `queued`. Its `why` is what a Result
-leaves, for a row that merged, ended or left something.
+leaves, for a row that merged, ended or left something. A row stale with nothing written,
+its thread ended or hung, is `left` once its crew had `UNWRITTEN_MINUTES` to be carried on
+(`unwritten`), and its `why` says so: its home closes it (`leftover`).
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ ENDED = ("failed", "interrupted", "cancelled")
 KNOWN = (*LIVE, *ENDED, "completed")
 TIMEBOX_HOURS = 4.0
 WAITING_MINUTES = 30
+UNWRITTEN_MINUTES = 15
 RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
@@ -585,6 +588,26 @@ def judged(
     return found
 
 
+def unwritten(run: Pass, thread: dict[str, Any] | None, state: work.State) -> str:
+    """Why a `stale` row has nobody on it, or nothing while its crew still has it.
+
+    A thread that ended or hung with nothing written is `stale` for as long as jbus carries
+    its crew on (`threads.resume`). From `UNWRITTEN_MINUTES` after its thread last wrote, or
+    at once for a hung turn, the row is a leftover, sent to its home to close (`leftover`),
+    and it is `left` until its home ends it, the thread goes on, or the row is removed.
+    """
+    if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
+        return ""
+    if state.value == "hung":
+        return "its turn hung with nothing written"
+    if thread is None:
+        return "its thread is gone and nothing is written"
+    quiet = (run.now - when(thread["updatedAt"])).total_seconds() / 60
+    if quiet < UNWRITTEN_MINUTES:
+        return ""
+    return f"its thread {thread['status']} with nothing written"
+
+
 def status(
     run: Pass, world: World, slug: str, state: work.State, launched: str = ""
 ) -> dict[str, str]:
@@ -597,7 +620,9 @@ def status(
     pull = world.open.get(slug) or world.merged.get(slug)
     word = work.status(state)
     reason = ""
-    if word in ("merged", "left", "done"):
+    if word == "stale" and (why := unwritten(run, found, state)):
+        word, reason = "left", why
+    elif word in ("merged", "left", "done"):
         result = last_result(brief_of(run, slug))
         reason = (left(result) if word == "merged" else unfinished(result)) if result else ""
     return {

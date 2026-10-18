@@ -19,10 +19,11 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
 - `unreviewed`, `it has no review yet`: launch the reviewer it is owed, or send the one that
-  ended its turn with no `## Review` back to it. It is not said of a pull request the crew
-  skill leaves with no reviewer, which somebody was told of already: a brief that names no
-  reviewer launched, and whose `Reviewer:` line says `none` or that has an `Unrun:`,
-  `Stuck:` or `Stale base:` line for the head.
+  ended its turn with no `## Review` back to it, with `/pr-review run <slug> again`, the line
+  `templates/rerun.md` says is accepted whether or not the brief has a section. It is not
+  said of a pull request the crew skill leaves with no reviewer, which somebody was told of
+  already: a brief that names no reviewer launched, and whose `Reviewer:` line says `none` or
+  that has an `Unrun:`, `Stuck:` or `Stale base:` line for the head.
 
 A thread is read by the status T3 Code lists it with. A crew whose thread is at work
 (`watch.LIVE`: starting, `running` or `waiting`) is left alone, since the line may be what
@@ -56,6 +57,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
@@ -85,6 +87,9 @@ NO_FIX_RANGE = (
     "the Result says a scoped review of the fix is owed, and jbus could not work out its two "
     "ranges."
 )
+RERUN = Path(__file__).parents[2] / "templates" / "rerun.md"
+AGAIN = "/pr-review run {slug} again"
+SCOPED = "/pr-review run {slug} scoped {old} {new}"
 _FINDING = (
     "`Finding: fixed, <the finding in a few words>` or `Finding: not fixed, <the finding in a "
     "few words>, because <the reason>`"
@@ -100,7 +105,10 @@ class Short:
     """One thing a crew can fix: the word and the reason `jmerge` says it with, and the
     sentence that tells the crew what to do. `reviewed` is one that a review ends, which
     is not said while a reviewer is at work. `unless` reads the brief, for a head, and
-    says where the crew cannot fix it after all."""
+    says where the crew cannot fix it after all. `sends` is the line the sentence has the
+    crew send a reviewer, which the event repeats as it went. `rerun` adds the statement of
+    `templates/rerun.md`, the one copy of when a re-run needs `again`, which the reviewer's
+    Start 1 prints when it refuses a message."""
 
     kind: str
     word: str
@@ -108,6 +116,8 @@ class Short:
     sentence: str
     reviewed: bool = False
     unless: Callable[[str, str], bool] | None = None
+    sends: str = ""
+    rerun: bool = False
 
 
 def _no_reviewer_by_rule(brief: str, head: str) -> bool:
@@ -152,32 +162,35 @@ TABLE = (
         "wait",
         re.compile(re.escape(ready.SECOND_UNWRITTEN)),
         'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
-        "the message `/pr-review run {slug} again`, and add `Second reviewer: <threadId>` to the "
+        f"the message `{AGAIN}`, and add `Second reviewer: <threadId>` to the "
         "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
         "nothing until its `## Review` is written.",
         reviewed=True,
+        sends=AGAIN,
     ),
     Short(
         "fix",
         "wait",
         re.compile(re.escape(ready.FIX_UNREVIEWED)),
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
-        '"The review" launches a reviewer, with the message `/pr-review run {slug} scoped {old} '
-        "{new}`, and add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
+        f'"The review" launches a reviewer, with the message `{SCOPED}`, '
+        "and add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
         "`Scoped reviewer:` line whose thread wrote no `## Review`. Push nothing until its "
         "`## Review` is written.",
         reviewed=True,
+        sends=SCOPED,
     ),
     Short(
         "unruled",
         "hold",
         merge.UNRULED,
         'Launch ONE scoped reviewer over the rebase, the way the crew skill\'s "The review" '
-        "launches a reviewer, with the message `/pr-review run {slug} scoped {old} {new}`, and "
+        f"launches a reviewer, with the message `{SCOPED}`, and "
         "add `Scoped reviewer: <threadId>, of {head}` to the Result. Push nothing and do not "
         "rebase until its `## Review` is written: a `Dropped on rebase:` line is read for this "
         "head and no other.",
         reviewed=True,
+        sends=SCOPED,
     ),
     Short(
         "unreviewed",
@@ -188,9 +201,12 @@ TABLE = (
         "do what they print. Where they say `launch a reviewer`, launch it and add `Reviewer: "
         "<threadId>` to the Result. Where they say `launch no reviewer` because the Result has "
         "a `Reviewer:` line, that reviewer ended its turn and wrote nothing: send its thread "
-        "the one line `/pr-review run {slug}` with `t3_thread_send`. Launch no second one.",
+        f"the one line `{AGAIN}` with `t3_thread_send`, and write `Woke: jbus, sent {AGAIN}` "
+        "in the Result, the line as sent. Launch no second one.",
         reviewed=True,
         unless=_no_reviewer_by_rule,
+        sends=AGAIN,
+        rerun=True,
     ),
 )
 
@@ -333,7 +349,7 @@ def _tell(
     """Send the message that is due. The answer is how it went: `told`, `users` for a hold
     no message can lift, or nothing for one to try again in the next pass."""
     head = entry["head"]
-    sentence = row.sentence
+    sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix"):
         ranges = _ranges(run, slug, head, row.kind)
         if not ranges and row.kind == "unruled":
@@ -341,8 +357,11 @@ def _tell(
             return "users"
         if ranges:
             sentence = sentence.replace("{old}", ranges[0]).replace("{new}", ranges[1])
+            sent = sent.replace("{old}", ranges[0]).replace("{new}", ranges[1])
         else:
-            sentence = NO_FIX_RANGE
+            sentence, sent = NO_FIX_RANGE, ""
+    if row.rerun:
+        sentence += " " + RERUN.read_text().strip()
     message = MESSAGE.replace("{sentence}", sentence)
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED
@@ -352,6 +371,7 @@ def _tell(
         return ""
     run.box.mark(f"{row.kind}|{slug}|{head[:12]}")
     line = f"{EXPEDITE} {slug}: told the crew what #{number} is short of ({row.kind}, {head[:12]})"
+    line += f", sent `{sent}`" if sent else ""
     run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]}")
     run.say(line)
     return "told"

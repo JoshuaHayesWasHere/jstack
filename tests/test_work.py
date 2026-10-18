@@ -206,7 +206,7 @@ def test_a_hung_turn(kitchen):
     kitchen.poll()
     line = judged(kitchen)
     assert (line["value"], line["who"], line["facts"]["thread"]) == ("hung", "user", "hung")
-    assert rows(kitchen)["alpha"]["status"] == "stale"
+    assert rows(kitchen)["alpha"]["status"] == "left"
 
 
 def test_a_pull_request_on_a_step_is_that_step_and_a_hung_thread_over_it_is_hung(kitchen):

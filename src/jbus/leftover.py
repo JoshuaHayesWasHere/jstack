@@ -1,7 +1,10 @@
 """A task that ended with something left: its home is told, once, and has it to close.
 
 A leftover is a row whose thread ended, or whose pull request merged, with a last Result
-whose `Left:` line is not `none`, and that no thread is at work on (`ended`). jbus closes
+whose `Left:` line is not `none`, and that no thread is at work on (`ended`). So is a row
+whose thread ended or hung with no Result at all, once its crew had its carry-ons
+(`watch.unwritten`): its `left` text is that reason, and its message says to carry the thread
+on, to remove the row, or to end it with a Result. jbus closes
 none and starts no thread for one. It sends the row's home one queued message (`tell`): the
 slug, its pull request and whether it merged, the `Left:` line whole, each question the
 slug asked with its answer or that it is open, and the two ways to end it. The retry key is
@@ -52,7 +55,7 @@ from typing import Any
 from jbus import mirror, questions, queue, read_json, word, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import LIVE, World, brief_of, named
+from jbus.watch import LIVE, World, brief_of, last_result, named
 
 EVENTS = {"leftover": "quiet"}
 KIND = "leftover"
@@ -77,6 +80,25 @@ MESSAGE = (
     "- something is still to do: write a brief for what is left and queue it as a "
     "follow-up, then close this one as below, with the follow-up's slug as the reason;\n"
     "- nothing more is wanted, or the rest is already somebody's: append a section "
+    "`## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with three lines: "
+    "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
+    "those three end it.\n\n"
+    "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
+    "default and pipe it to `jbus gate {slug}`. jbus says this row to {user} once if it is "
+    "still open {minutes} min from now."
+)
+UNWRITTEN = (
+    "jbus: {slug} ended with nothing written, and it is this home's to close. {user} is not "
+    "asked: it waits on this home.\n\n"
+    "It is left because {why}. {pull}.\n"
+    "{asked}\n\n"
+    "Read `tasks/{slug}.md` and its thread {thread}, then end it one of three ways:\n"
+    "- the work is wanted and the thread can go on: send it a message to carry on "
+    "(`t3_thread_send`), stopping its turn first if it hung;\n"
+    "- the work is wanted and the thread cannot go on: remove the row "
+    '(`jbus queue remove {slug} --by <who> --at "<time>"`) and queue it again for a new '
+    "thread;\n"
+    "- nothing more is wanted, or it is already done: append a section "
     "`## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with three lines: "
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
     "those three end it.\n\n"
@@ -209,8 +231,19 @@ def _asked(run: Pass, slug: str) -> str:
     return "\n".join(lines) or "It asked no question."
 
 
-def message(run: Pass, world: World, slug: str, brief: str) -> str:
-    """The one message a home gets about a leftover."""
+def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> str:
+    """The one message a home gets about a leftover. `why` is the row's `left` text, which a
+    row with no Result has in place of a `Left:` line."""
+    if not mirror.last_result(brief):
+        return UNWRITTEN.format(
+            slug=slug,
+            user=run.user.user,
+            why=why,
+            thread=(world.thread(slug) or {}).get("threadId", "not listed"),
+            pull=_pull(world, slug, brief),
+            asked=_asked(run, slug),
+            minutes=CLOSE_MINUTES,
+        )
     return MESSAGE.format(
         slug=slug,
         user=run.user.user,
@@ -242,7 +275,7 @@ def _judge(
     if has:
         return replace(record, why="")
     digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
-    text = message(run, world, slug, brief)
+    text = message(run, world, slug, brief, record.left)
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": text, "mode": "queue"}
     key = f"{KIND}|{slug}|{digest}|{thread}"
@@ -285,7 +318,7 @@ def tell(
         if not (ended_now or slug in was) or slug in run.removed:
             continue
         brief = brief_of(run, slug)
-        text = note(brief)
+        text = note(brief) or (row.get("why", "") if ended_now and not last_result(brief) else "")
         if not text:
             continue
         before = was.get(slug)

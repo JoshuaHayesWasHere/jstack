@@ -2,7 +2,7 @@
 
 The pr-review skill reviews a finished pull request in a fresh thread: it reads the diff, judges what it found, proves the one safety fact by running code, and sends the findings to the crewmate. `blast-radius` and `interrogate` are the questions it asks.
 
-Paths: `skills/pr-review/`, `skills/blast-radius/`, `skills/interrogate/`, `templates/review.md`
+Paths: `skills/pr-review/`, `skills/blast-radius/`, `skills/interrogate/`, `templates/review.md`, `templates/rerun.md`
 Tests: `tests/test_crew_skill.py`, `tests/test_eval_skill_cut.py`, `tests/test_flow_doc.py`, `tests/test_gate_skills.py`, `tests/test_home_line.py`, `tests/test_home_thread.py`, `tests/test_jbriefs_pick.py`, `tests/test_jbus_dispatch.py`, `tests/test_messages.py`, `tests/test_pr_review_skill.py`, `tests/test_scoped_review.py`, `tests/test_skill_tips.py`, `tests/test_templates.py`, `tests/test_understanding_skills.py`, `tests/test_understanding_skills_2.py`
 
 ## Sub-features

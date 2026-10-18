@@ -36,7 +36,7 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     at = home(kitchen)["threadId"]
     kitchen.poll(NOW)
     assert column(kitchen)[0] == "left"
-    for minutes in (1, 2, 40):
+    for minutes in (1, 2):
         kitchen.poll(NOW + minutes * MIN)
     (sent,) = told(kitchen, at)
     assert sent["clientRequestId"].startswith("leftover|alpha|") and sent["mode"] == "queue"
@@ -47,6 +47,10 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     assert "`jbus queue remove alpha --by" in said
     assert listed(kitchen) == []
     assert [row["status"] for row in rows(kitchen).values()] == ["left"]
+    kitchen.poll(NOW + (leftover.CLOSE_MINUTES + 1) * MIN)
+    (line,) = listed(kitchen)
+    assert line.startswith("left alpha: its thread completed with nothing written; its home")
+    assert len(told(kitchen, at)) == 1
 
 
 def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrupt(kitchen):
@@ -56,7 +60,7 @@ def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrup
     assert column(kitchen)[0] == "left"
     (sent,) = told(kitchen, at)
     assert "its turn hung with nothing written" in sent["message"]
-    assert "`t3_thread_interrupt`" in sent["message"]
+    assert "stopping its turn first" in sent["message"]
 
 
 def test_a_thread_that_ended_a_moment_ago_is_still_its_crews_to_carry_on(kitchen):
