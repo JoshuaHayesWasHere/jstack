@@ -225,6 +225,9 @@ STEPS = {
     "SKILLS_UNRUN": "result",
     "ROW_HELD": "hold",
     "MERGES_AFTER": "check",
+    "MIGRATION_TAKEN": "rebase",
+    "MIGRATION_MERGING": "check",
+    "MIGRATION_REBASING": "check",
     "QUEUE_UNREADABLE": "hold",
 }
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
