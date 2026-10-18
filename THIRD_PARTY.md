@@ -260,6 +260,15 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 - Changed here: nothing. The file is taken whole, with its notice.
 - License: the Mozilla Public License 2.0, whose text is at https://mozilla.org/MPL/2.0/, as the notice at the top of the file says.
 
+## Atkinson Hyperlegible Next
+
+`src/jbus/view/font.woff2` is Atkinson Hyperlegible Next, by The Atkinson Hyperlegible Next Project Authors, the one font of the page `jbus view` serves. The view serves it at `/font.woff2`.
+
+- Source: https://github.com/googlefonts/atkinson-hyperlegible-next
+- Version: commit 7925f50f649b3813257faf2f4c0b381011f434f1, the file `fonts/webfonts/AtkinsonHyperlegibleNext[wght].woff2`, 48,188 bytes, sha256 `abde1ad5cf78b9ac575ef90d991f2e9101eb0b3b6668bde9a00e2e1e27d99afd`
+- Changed here: nothing. The file is taken whole and renamed.
+- License: the SIL Open Font License 1.1, "Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors". Its text, the repo's `OFL.txt`, is shipped beside the font as `src/jbus/view/OFL.txt`.
+
 ## Felix Rieseberg
 
 `skills/deeper/SKILL.md` and `principles/principle-depth-over-breadth.md` are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).

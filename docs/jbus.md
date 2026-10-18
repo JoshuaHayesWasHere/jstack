@@ -130,6 +130,12 @@ A record has the slug, the section it is from, its text whole, when a pass first
 
 To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
 
+### The look
+
+The page follows the system's light or dark setting. The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one. Light is a warm canvas, `#FAF7F2`, with white cards. Dark is a calm `#14191A` with `#1C2324` cards. Each colour is one token named for its role, `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`. Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:root` block. Colour means something or is not used: amber (`due`) is what waits on you, red (`missed`) is what broke. A holder is told by its shape and its name, not by a colour, and nothing healthy or merged is drawn green. `tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every ground, a control's border and the focus ring at 3:1.
+
+The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `src/jbus/view/OFL.txt`. The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title. Mono is for slugs and commits.
+
 ### What the bare link shows
 
 The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A project is a directory of `~/.local/state/jbus` that holds a `queue.json`. A project retired to `~/.local/state/jbus-retired` is never read, and is not shown. From the top:
