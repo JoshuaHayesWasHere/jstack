@@ -8,7 +8,10 @@ test says by how much and why.
 
 import configparser
 import json
+import os
 import shlex
+import shutil
+import subprocess
 import threading
 from datetime import UTC, datetime, timedelta
 
@@ -364,19 +367,50 @@ def unit(name):
     return read
 
 
+@pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
 def test_the_timer_runs_every_monday_at_nine_in_new_york_whatever_the_machines_zone():
     timer = unit("jbus-ci.timer")
-    assert timer["Timer"]["OnCalendar"] == "Mon *-*-* 09:00:00 America/New_York"
+    asked = subprocess.run(
+        ["systemd-analyze", "calendar", "--iterations=3", timer["Timer"]["OnCalendar"]],
+        capture_output=True,
+        text=True,
+        env={"TZ": "Asia/Tokyo", "PATH": os.environ["PATH"]},
+    )
+    assert asked.returncode == 0, asked.stderr
+    utc = [line.split(": ", 1)[1] for line in asked.stdout.splitlines() if "(in UTC)" in line]
+    assert len(utc) == 3 and all(one.startswith("Mon ") for one in utc)
+    assert [one.split()[2] for one in utc] == ["13:00:00", "13:00:00", "14:00:00"]
     assert timer["Timer"]["Persistent"] == "true"
     assert timer["Install"]["WantedBy"] == "timers.target"
 
 
-def test_the_service_runs_the_collector_and_the_report_for_the_jstack_home():
+def test_the_service_command_collects_and_writes_the_report_for_the_jstack_home(
+    kitchen, monkeypatch
+):
     service = unit("jbus-ci.service")
     assert service["Service"]["Type"] == "oneshot"
     command = shlex.split(service["Service"]["ExecStart"])
-    assert command[1:] == ["--project", "jstack", "ci", "--report"]
     assert command[0].endswith("/.local/bin/jbus")
+    import jbus
+
+    config = jbus.load()
+    project = config.projects[0]
+    monkeypatch.setattr(collect, "Cli", Replay)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project.checkout),
+            "remote",
+            "set-url",
+            "origin",
+            f"https://github.com/{REPO}.git",
+        ],
+        check=True,
+    )
+    code, said = kitchen.main(*[project.name if one == "jstack" else one for one in command[1:]])
+    assert code == 0, said
+    assert list((config.home(project) / "reports").glob("ci-week-*.md"))
 
 
 def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
