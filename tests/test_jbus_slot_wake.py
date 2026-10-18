@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+import jbus
 from jgauge import slot, waiters
 from test_jbus_kitchen import NOW, sends
 
@@ -71,6 +72,7 @@ def test_two_waiters_one_slot_frees_only_the_oldest_is_woken(kitchen, slots):
     assert given["mode"] == "queue" and given["clientRequestId"].startswith(f"slot-wake|{older}|")
     assert "a short test slot is free" in given["message"]
     assert f"uv run pytest {older}" in given["message"]
+    assert given["message"].endswith(jbus.END_TURN)
     line = f"slot-wake: woke {older}, a short slot is free for `uv run pytest {older}`"
     assert line in said and kitchen.lines("slot-wake") == [line]
     by = {one.thread: one for one in waiters.read(slot.locks_dir())}

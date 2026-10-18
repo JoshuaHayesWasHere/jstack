@@ -23,7 +23,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jbus import dispatch, lavish, mirror, queue, read_json, record, stall, verbs, watch, work
+from jbus import (
+    END_TURN,
+    dispatch,
+    lavish,
+    mirror,
+    queue,
+    read_json,
+    record,
+    stall,
+    verbs,
+    watch,
+    work,
+)
 from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
@@ -76,15 +88,17 @@ def resume_message(template: str, title: str, home: Path, **fields: Any) -> str:
     that has a skill (`SKILLS`) the path of its file, since a skill loads only when its slash
     command is typed and a resumed thread, which never typed it or lost it to a compaction,
     cannot load it through the Skill tool. The brief it names is the one in `home`, by its
-    full path, since the thread's own worktree has no `tasks/`. A title that gives no such
-    role gets the template."""
+    full path, since the thread's own worktree has no `tasks/`. A reviewer's message ends with
+    `END_TURN` too: its proof is a run its turn waits for. A title that gives no such role gets
+    the template."""
     message = template.format(**fields)
     role = role_of(title)[0]
     name = SKILLS.get(role)
     if not name:
         return message
     brief = home / ("scouts" if role == "scout" else "tasks") / f"{fields['slug']}.md"
-    return message + READ_SKILL.format(path=skill_file(name), brief=brief)
+    message += READ_SKILL.format(path=skill_file(name), brief=brief)
+    return f"{message} {END_TURN}" if role == "reviewer" else message
 
 
 Out = dict[str, Any]
