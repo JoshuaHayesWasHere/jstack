@@ -59,8 +59,6 @@ NOT_KEPT = (Spot("the /tmp inode series is not kept until a job writes tmp_inode
 
 
 def blind(read: Read) -> list[Spot]:
-    if read.records("ci.jsonl") is None:
-        return [Spot("the CI targets are not known: jbus ci has not kept a job", 531)]
     return []
 
 
