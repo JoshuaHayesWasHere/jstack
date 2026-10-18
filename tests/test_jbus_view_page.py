@@ -723,7 +723,7 @@ def test_the_first_screen_has_three_bands_and_everything_on_it_opens_one_drawer(
     )
     said = {card["tag"]: card["val"] for card in seen["cards"]}
     assert said["CI checks on GitHub"] == "1 running oat-milk 0 waiting for a runner 0 failed"
-    assert (said["bus"], said["blind spots"]) == ("2 in outbox", "6")
+    assert (said["bus"], said["blind spots"]) == ("2 in outbox", "7")
     needs = seen["needs"]
     assert needs["head"] == "3 Needs you"
     assert [
@@ -810,7 +810,7 @@ def test_a_source_of_the_project_that_is_missing_or_unreadable_is_counted_on_its
     card = seen["cards"][-1]
     assert (card["tag"], card["val"], card["open"], "sources" in opened) == (
         "blind spots",
-        "8",
+        "9",
         "blind",
         False,
     )
