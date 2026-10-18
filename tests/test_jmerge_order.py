@@ -4,7 +4,11 @@ first. `jmerge` reads both from the project's `queue.json` (`jmerge.rows`).
 
 The command is run as `test_home_merge` runs it, against its fake `gh` and a real origin.
 Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head, and the
-user's home has a jbus config whose project is this checkout."""
+user's home has a jbus config whose project is this checkout.
+
+A red main is the other word the project's state has of a pull request: while jbus's
+`main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that main, the brief `main-red-<sha12>`,
+merges, and every other pull request waits for a green one."""
 
 import json
 
@@ -417,3 +421,76 @@ def test_a_hand_merge_that_takes_the_number_after_the_judgment_has_it_renumbered
         name="0005_beta", number="0005", default="main", free="0006"
     )
     assert here.merge(one, slug, note, judged) == f"wait 8 {BETA_URL}: {taken}"
+
+
+RED = "c" * 40
+FIX = "main-red-cccccccccccc"
+RED_LINE = f"wait 7 {merge.URL}: main is red at cccccccccccc, its fix merges first"
+
+
+def record(red="", green=""):
+    """`mainmoved`'s record of main: the tip, its check, the red tip kept and the last green."""
+    if red:
+        return {"main": red, "check": "failed", "broken": red, "green": green}
+    return {"main": green, "check": "green", "green": green}
+
+
+def main_says(home, **word):
+    """jbus's word on the default branch's check, `main.json` beside the project's queue."""
+    state = home.user / ".local" / "state" / "jbus" / "demo"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "main.json").write_text(json.dumps(record(**word)) if word else "{}")
+    return state / "main.json"
+
+
+@pytest.fixture
+def fix_and_other(two):
+    """`alpha` (#7) is an ordinary pull request and `beta` (#8) is the fix jbus filed for
+    the red main at `cccccccccccc`: its brief is `main-red-cccccccccccc`."""
+    (two.home.tasks / "beta.md").rename(two.home.tasks / f"{FIX}.md")
+    queue_of(two.home, [row("alpha", pr="#7"), row(FIX, pr="#8")])
+    return two
+
+
+def test_a_red_main_merges_its_fix_and_holds_every_other_pull_request(fix_and_other):
+    main_says(fix_and_other.home, red=RED, green="a" * 40)
+    said = fix_and_other.run()
+    assert said[0] == RED_LINE
+    assert merged_numbers(said) == [8]
+    assert (fix_and_other.tree.exists(), fix_and_other.branches()[1]) == (True, ["alpha", "main"])
+
+
+def test_a_hold_for_a_red_main_shows_in_check_and_merges_nothing_but_the_fix(fix_and_other):
+    main_says(fix_and_other.home, red=RED, green="a" * 40)
+    said = fix_and_other.run("--check")
+    assert said[0] == RED_LINE
+    assert said[1].startswith("ready ")
+    assert merged_numbers(said) == []
+
+
+def test_a_green_main_lets_both_through(fix_and_other):
+    main_says(fix_and_other.home, red="", green="a" * 40)
+    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
+    assert merged_numbers(fix_and_other.run()) == [7, 8]
+
+
+def test_a_repo_whose_main_jbus_never_judged_merges_as_it_did(fix_and_other):
+    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
+
+
+def test_the_held_pull_request_merges_once_main_is_green_again(fix_and_other):
+    path = main_says(fix_and_other.home, red=RED, green="a" * 40)
+    assert merged_numbers(fix_and_other.run()) == [8]
+    path.write_text(json.dumps(record(green="d" * 40)))
+    listed = json.loads((fix_and_other.home.stub / "list.json").read_text())
+    (fix_and_other.home.stub / "list.json").write_text(json.dumps(listed[:1]))
+    assert merged_numbers(fix_and_other.run()) == [7]
+
+
+def test_a_main_the_state_cannot_name_is_no_red_main(fix_and_other):
+    main_says(fix_and_other.home).write_text("not json")
+    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
+
+
+def test_the_red_main_wait_lands_on_the_check_step_and_not_in_unknown():
+    assert jbus_merge.step(f"wait: {ready.MAIN_RED.format(sha='cccccccccccc')}") == "check"

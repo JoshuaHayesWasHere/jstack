@@ -30,6 +30,8 @@ and one whose row names a row in `merge_after` that has not merged waits for it 
 A repo whose project names a migration directory (`jbus.Project.migrations`) merges the pull
 requests that add a migration there one at a time, in the order of `merge_after`, and a
 numbered migration whose number the default branch has waits to be renumbered by its crew.
+While jbus has the default branch's check as red, only the pull request of the fix jbus
+filed for it (`main-red-<sha12>`) merges, and the others wait until main is green again.
 A `merge-off` file in the repo's state merges nothing. Each `merged`
 line ends in the command that opens its revert. With `--sweep` it merges nothing: it
 removes what finished threads left and each tree's marker that is more than 7 days old,
@@ -58,6 +60,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import jsettings
+from jbus import mainstate
 from jmerge import claims, green, proof, rangediff, ready, rows, sweep
 from jmerge.asked import why as asked_why
 
@@ -548,6 +551,13 @@ class Repo:
         Nothing writes the queue during a run but jbus, so a pull request that waits on a row
         that merges in this very run waits for the next."""
         return rows.read(self.main)
+
+    @functools.cached_property
+    def red(self) -> mainstate.Main:
+        """What jbus last kept of the default branch's check, read once for a run: the
+        answer `rows.red` asks. Nothing writes it during a run but jbus, so a main that
+        turns green in this run (a fix that merges) frees the others on the next."""
+        return rows.main(self.main)
 
     @functools.cached_property
     def migrations(self) -> rows.Migrations | None:
@@ -1041,7 +1051,11 @@ class Repo:
             note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
         if short:
             return brief.stem, "wait", short, note, None
-        short = rows.short(self.queue, brief.stem) or self.short_on_migrations(one, default)
+        short = (
+            rows.short(self.queue, brief.stem)
+            or rows.red(self.red, brief.stem)
+            or self.short_on_migrations(one, default)
+        )
         if short:
             return brief.stem, "wait", short, note, None
         left = self.left(one)

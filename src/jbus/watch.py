@@ -33,7 +33,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
-from jbus import Refused, merge, queue, read_json, verbs, work, write_json
+from jbus import Refused, mainstate, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
@@ -865,7 +865,7 @@ def red_brief(
     ]
     return "\n".join(
         [
-            f"# main-red-{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
+            f"# {mainstate.FIX}{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
             f'Task: "main check failed at {sha[:12]}, {len(red)} merges since the last green" '
             f"(jbus, the retro of {slug})",
             "Done when:",
@@ -900,10 +900,11 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
 
 def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
-    go: the user approves it as any other row. It is filed while the queue has no row of it,
-    so a pass that stopped before the row was added files it again. A queue that refuses it
-    is a condition."""
-    name = f"main-red-{sha[:12]}"
+    go: the user approves it as any other row. Its priority is one above the first row of
+    the queue, so it is the next launch there once it is approved. It is filed while the
+    queue has no row of it, so a pass that stopped before the row was added files it again.
+    A queue that refuses it is a condition."""
+    name = f"{mainstate.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
@@ -916,8 +917,9 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     (run.home / "tasks").mkdir(parents=True, exist_ok=True)
     (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
-        queue.add(run.state, name, 0, [], text)
-    except Refused as refused:
+        top = min((row.get("priority", 0) for row in queue.load(run.state)), default=1) - 1
+        queue.add(run.state, name, top, [], text)
+    except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
 
 
@@ -1059,7 +1061,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     unlaunched = [
         row["slug"]
         for row in rows
-        if row["slug"].startswith("main-red-")
+        if mainstate.fix_of(row["slug"])
         and row.get("status") in ("queued", "gate")
         and not row.get("thread")
     ]

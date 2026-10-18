@@ -3,6 +3,9 @@ merge after has merged. `jbus queue hold` takes a row's go back, and `jbus queue
 --merge-after a,b` names the rows whose pull requests merge first (`jbus.queue`). Both are
 columns of the project's `queue.json`, which this module only reads.
 
+`main` is the other word the project's state has of a pull request: whether the default
+branch's check is red (`jbus.mainstate`), in which case only the fix of that red merges.
+
 A repo that has no jbus config, or that no project of it names, has no queue, and nothing in
 it is held or ordered. A queue that cannot be read is another matter: it may hold the very
 hold that stops a merge, so `short` then names it, and nothing merges until it is mended.
@@ -14,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import jbus
-from jbus import queue
+from jbus import mainstate, queue
 from jmerge import ready
 
 NO_PULL = "no pull request yet"
@@ -74,22 +77,49 @@ def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int
     return placed
 
 
-def read(checkout: Path) -> list[queue.Row] | None:
-    """The rows of the queue of the project whose checkout this is, none where it has no
-    queue, and None where the queue is there and cannot be read."""
+def _state(checkout: Path) -> Path | None | bool:
+    """The state directory of the project whose checkout this is, None where the repo has no
+    project, and False where the config is there and cannot be read."""
     try:
         config = jbus.load()
     except jbus.Refused:
-        return [] if not (jbus.config_dir() / "config.toml").exists() else None
+        return None if not (jbus.config_dir() / "config.toml").exists() else False
     project = next(
         (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
     )
-    if project is None:
+    return None if project is None else config.state(project)
+
+
+def read(checkout: Path) -> list[queue.Row] | None:
+    """The rows of the queue of the project whose checkout this is, none where it has no
+    queue, and None where the queue is there and cannot be read."""
+    state = _state(checkout)
+    if state is False:
+        return None
+    if state is None:
         return []
     try:
-        return queue.load(config.state(project))
+        return queue.load(state)
     except (queue.Unparsable, OSError):
         return None
+
+
+def main(checkout: Path) -> mainstate.Main:
+    """What jbus last kept of the check of the default branch, nothing known where the repo
+    has no project or no file."""
+    state = _state(checkout)
+    return mainstate.read(state) if isinstance(state, Path) else mainstate.Main()
+
+
+def red(main: mainstate.Main, slug: str) -> str:
+    """Why the pull request of the brief `slug` waits while main is red, or nothing.
+
+    The fix of a red main (`mainstate.fix_of`) is the one pull request that merges: any
+    other would land on a main that does not pass, and the fix then lands on it too.
+    """
+    if not main.red or mainstate.fix_of(slug):
+        return ""
+    return ready.MAIN_RED.format(sha=main.red[: mainstate.SHA])
 
 
 def short(rows: list[queue.Row] | None, slug: str) -> str:
