@@ -47,6 +47,14 @@ and the stored brief is moved to `removed/<slug>.<the first 12 of its sha>.md`. 
 the file names is not added again. A `removed.json` that does not parse is `Unparsable`
 as the table is: nothing is launched and no verb writes until it is mended.
 
+`held` is set by `hold` and cleared by `approve`; a row that was never approved has none.
+`merge_after` is the slugs of rows whose pull requests merge before this row's. `add`
+writes it anew with `depends`, from `--merge-after`, and refuses an order that could never be
+kept (`_merge_after`). `jmerge` reads it and `held` (`jmerge.rows`): a row `hold` took the go
+back from has its pull request left unmerged until it is approved again, as it is not
+launched, and a row named in `merge_after` that is not `merged` or `done` keeps the
+pull requests that name it from merging. `depends` gates a launch and says nothing of a merge.
+
 `entry` is the Chef's column that only `add` writes: the slug of the plan entry the row is
 work for, where that is not the row's own slug. An entry is often several briefs, and
 `jbus plan` counts an entry's status from the rows that name it (`jbus.plan`). A row that
@@ -81,7 +89,7 @@ from jbriefs import parse as briefs
 from jbus import Refused, write_json
 
 EVENTS = {"queue": "quiet"}
-CHEF = ("slug", "priority", "depends", "approved", "brief_sha", "entry")
+CHEF = ("slug", "priority", "depends", "merge_after", "approved", "brief_sha", "entry")
 SEEN = ("status", "thread", "pr", "checks")
 DERIVED = (*SEEN, "updated", "why", "since")
 STATUSES = (
@@ -377,6 +385,9 @@ def _well_formed(row: Any) -> bool:
         and type(row.get("priority", 0)) is int
         and isinstance(row.get("depends", []), list)
         and all(isinstance(slug, str) for slug in row.get("depends", []))
+        and type(row.get("held", False)) is bool
+        and isinstance(row.get("merge_after", []), list)
+        and all(isinstance(slug, str) for slug in row.get("merge_after", []))
         and isinstance(row.get("entry", ""), str)
         and isinstance(row.get("approved", ""), str)
         and isinstance(row.get("approval", {}), dict)
@@ -465,9 +476,9 @@ def _row(rows: list[Row], slug: str, gone: dict[str, dict[str, str]]) -> Row:
 
 @dataclass(frozen=True)
 class Add:
-    """A new row, or a row's brief, priority and depends again. Its approval is left as it
-    is, and so is its entry where `entry` is empty. An `entry` that is the row's own slug
-    takes the row's entry away: the row is then its own entry, and holds none."""
+    """A new row, or a row's brief, priority, depends and merge_after again. Its approval is
+    left as it is, and so is its entry where `entry` is empty. An `entry` that is the row's
+    own slug takes the row's entry away: the row is then its own entry, and holds none."""
 
     slug: str
     priority: int
@@ -475,6 +486,7 @@ class Add:
     text: str
     entry: str = ""
     item: str = ""
+    merge_after: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -526,7 +538,7 @@ class Asks:
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "add": (("priority",), ("depends", "entry")),
+    "add": (("priority",), ("depends", "merge-after", "entry")),
     "approve": (("sha",), (*BASES, RULE, "follows", "by", "at")),
     "hold": ((), ()),
     "remove": (("by", "at"), ()),
@@ -634,7 +646,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> None:
 
 
 def _hold(row: Row) -> None:
-    row.update(approved="", brief_sha="")
+    row.update(approved="", brief_sha="", held=True)
     row.pop("approval", None)
 
 
@@ -649,6 +661,50 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
             _hold(row)
             held.append(row["slug"])
     return sorted(held)
+
+
+def _merge_after(batch: _Batch, verb: Add) -> None:
+    """Refuse an order jmerge could not keep: a row that merges after itself, after a slug
+    that was removed or that the table has no row for, or after a row that merges after it
+    in turn, or depends on it in turn, which would leave both waiting for ever. A loop of
+    `depends` alone is not refused here: the stall check names it. Rows of the batch count as
+    they are when the verb runs."""
+    edges = {
+        row["slug"]: [
+            *((slug, True) for slug in row.get("merge_after", [])),
+            *((slug, False) for slug in row.get("depends", [])),
+        ]
+        for row in batch.rows
+    }
+    ahead_of = [
+        *((slug, True) for slug in verb.merge_after),
+        *((slug, False) for slug in verb.depends),
+    ]
+    edges[verb.slug] = ahead_of
+    for other in verb.merge_after:
+        if other == verb.slug:
+            raise Refused(f"refused: {verb.slug} cannot merge after itself")
+        if other in batch.gone:
+            raise Refused(
+                f"refused: {verb.slug} cannot merge after {other}: {_was(other, batch.gone)}"
+            )
+        if other not in edges:
+            raise Refused(
+                f"refused: {verb.slug} cannot merge after {other}: the queue has no row {other}"
+            )
+    for other, ordered in ahead_of:
+        seen, ahead = set(), [(other, ordered)]
+        while ahead:
+            here, through = ahead.pop()
+            if here == verb.slug and through:
+                said = "merge after" if ordered else "depend on"
+                raise Refused(
+                    f"refused: {verb.slug} cannot {said} {other}: {other} is already behind "
+                    f"{verb.slug} by merge_after or depends, and neither would ever go"
+                )
+            if (here, through) not in seen:
+                seen.add((here, through))
+                ahead += [(slug, through or ma) for slug, ma in edges.get(here, [])]
 
 
 def _do(
@@ -676,6 +732,7 @@ def _do(
             if other in batch.gone:
                 said = _was(other, batch.gone)
                 raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
+        _merge_after(batch, verb)
         if verb.entry and not _SLUG.fullmatch(verb.entry):
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():
@@ -692,6 +749,9 @@ def _do(
         if verb.item and row.get("item", verb.item) != verb.item:
             raise Refused(f"refused: {verb.slug} is linked to {row['item']}, not {verb.item}")
         row.update(priority=verb.priority, depends=verb.depends)
+        row.pop("merge_after", None)
+        if verb.merge_after:
+            row["merge_after"] = verb.merge_after
         if verb.item:
             row["item"] = verb.item
         if verb.entry == verb.slug:
@@ -706,6 +766,8 @@ def _do(
             rows.append(row)
         batch.briefs[verb.slug] = verb.text
         depends = f", depends {', '.join(verb.depends)}" if verb.depends else ""
+        if verb.merge_after:
+            depends += f", merges after {', '.join(verb.merge_after)}"
         of = f", entry {row['entry']}" if "entry" in row else ""
         shown = brief_sha(verb.text)[:12]
         go = ""
@@ -743,6 +805,7 @@ def _do(
             scope=meaning.fingerprint(means),
             meaning=means,
         )
+        row.pop("held", None)
         row.update(approved=made.line(), approval=held(made), brief_sha=stored)
         return f"approved {verb.slug}: brief {stored[:12]}, {made.line()}"
     if user is None:
@@ -756,7 +819,8 @@ def _do(
     waits = sorted(
         other["slug"]
         for other in rows
-        if verb.slug in other.get("depends", []) and other.get("status") != "merged"
+        if verb.slug in (*other.get("depends", []), *other.get("merge_after", []))
+        and other.get("status") != "merged"
     )
     if waits:
         raise Refused(f"refused: {', '.join(waits)} wait on {verb.slug}: remove them first")
@@ -876,10 +940,12 @@ def add(
     text: str,
     entry: str = "",
     item: str = "",
+    merge_after: list[str] | None = None,
 ) -> str:
     """Add the row, or its brief again, linked to the work item `item` where that is given.
     The answer is the line that says what was added."""
-    return _run(state, [(0, Add(slug, priority, depends, text, entry, item))])[0]
+    verb = Add(slug, priority, depends, text, entry, item, merge_after or [])
+    return _run(state, [(0, verb)])[0]
 
 
 def approve(
@@ -931,7 +997,8 @@ def _options(verb: str, words: list[str]) -> dict[str, str]:
 def parse(text: str) -> list[tuple[int, Verb]]:
     """A batch as its verbs, each with the number of the line it is on.
 
-    A line is `add <slug> --priority N [--depends a,b] [--entry <plan entry>]`, `approve
+    A line is `add <slug> --priority N [--depends a,b] [--merge-after a,b] [--entry <plan
+    entry>]`, `approve
     <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`, `--message
     <thread id>/<message id>` and `--page <session key>/<entry id>`, or with `--rule <n>
     --follows <parent slug>`, `hold <slug>` or `remove <slug> --by <user> --at "<YYYY-MM-DD
@@ -982,7 +1049,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
                 at = end + 1
                 depends = slugs(given.get("depends", ""))
                 of = given.get("entry", "")
-                verbs.append((number, Add(slug, priority, depends, brief_text, of)))
+                after = slugs(given.get("merge-after", ""))
+                verbs.append((number, Add(slug, priority, depends, brief_text, of, "", after)))
         except (Refused, ValueError) as error:
             raise _none(number, error) from error
     if not verbs:
@@ -1051,7 +1119,7 @@ def render(rows: list[Row]) -> str:
         cells = []
         for column in columns:
             value = row.get(column, "")
-            if column == "depends":
+            if column in ("depends", "merge_after"):
                 value = ", ".join(value)
             elif column == "approved":
                 value = approval(row)

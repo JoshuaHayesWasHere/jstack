@@ -17,10 +17,10 @@ from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID,
 
 AT = "2026-10-11 17:58 ET"
 HEAD = (
-    "| slug | priority | depends | approved | brief_sha | entry | status | thread | pr | checks "
-    "| updated | why | since |"
+    "| slug | priority | depends | merge_after | approved | brief_sha | entry | status | thread "
+    "| pr | checks | updated | why | since |"
 )
-RULE = "|" + " --- |" * 13
+RULE = "|" + " --- |" * 14
 NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
     "id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and "
@@ -119,8 +119,8 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
     assert said.splitlines() == [
         HEAD,
         RULE,
-        f"| alpha | 1 |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |",
-        "| beta | 2 | alpha, gamma |  |  |  | queued |  |  |  |  |  |  |",
+        f"| alpha | 1 |  |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |",
+        "| beta | 2 | alpha, gamma |  |  |  |  | queued |  |  |  |  |  |  |",
     ]
     assert kitchen.main("queue", "hold", "alpha")[0] == 0
     assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == ("", "")
@@ -484,11 +484,11 @@ def test_a_queue_event_holds_the_row_that_changed_and_what_changed_in_it(kitchen
     assert event["text"] == (
         "row-07: status queued -> running, thread (empty) -> mcp:thread-1\n\n"
         f"{HEAD}\n{RULE}\n"
-        "| row-07 | 7 |  |  |  |  | running | mcp:thread-1 |  |  | 2026-10-12 11:03 ET |  |  |\n"
+        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  | 2026-10-12 11:03 ET |  |  |\n"
     )
     whole = table(kitchen)
-    assert whole.count("| row-") == 20 and len(whole) == 1909
-    assert event["text"].count("| row-") == 1 and len(event["text"]) == 349
+    assert whole.count("| row-") == 20 and len(whole) == 1989
+    assert event["text"].count("| row-") == 1 and len(event["text"]) == 372
 
 
 def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
@@ -501,7 +501,8 @@ def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
         f"queue demo: removed row-07, {AT} by user",
     )
     assert (
-        event["text"] == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  | queued |  |  |  |  |  |  |\n"
+        event["text"]
+        == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  |  | queued |  |  |  |  |  |  |\n"
     )
 
 
@@ -1187,3 +1188,133 @@ def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_sho
     assert rows(kitchen)["alpha"]["brief_sha"] == queue.brief_sha(text)
     assert queue.approved_text(rows(kitchen)["alpha"], brief("alpha"))
     assert not queue.approved_text(rows(kitchen)["alpha"], brief("alpha", "More.\n"))
+
+
+def test_merge_after_is_written_by_add_shown_and_set_anew_by_the_next_add(kitchen):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "gamma", approve=False)
+    argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha,gamma"]
+    code, said = kitchen.main("--project", "demo", *argv, stdin=brief("beta"))
+    assert code == 0
+    assert rows(kitchen)["beta"]["merge_after"] == ["alpha", "gamma"]
+    assert "| beta | 2 |  | alpha, gamma |" in said
+    add(kitchen, "beta", approve=False)
+    assert "merge_after" not in rows(kitchen)["beta"]
+
+
+def test_a_batch_line_takes_merge_after(kitchen):
+    add(kitchen, "alpha", approve=False)
+    text = batch(adds("beta", "--priority 2 --merge-after alpha"))
+    code, said = kitchen.main("queue", "apply", stdin=text)
+    assert (code, said.splitlines()[0]) == (
+        0,
+        f"added beta: priority 2, merges after alpha, brief {sha12(brief('beta'))}",
+    )
+    assert rows(kitchen)["beta"]["merge_after"] == ["alpha"]
+
+
+@pytest.mark.parametrize(
+    ("slug", "given", "refused"),
+    [
+        ("beta", "beta", "beta cannot merge after itself"),
+        ("beta", "nobody", "beta cannot merge after nobody: the queue has no row nobody"),
+        (
+            "alpha",
+            "beta",
+            "alpha cannot merge after beta: beta is already behind alpha by merge_after or depends",
+        ),
+        (
+            "gamma",
+            "beta",
+            "gamma cannot merge after beta: beta is already behind gamma by merge_after or depends",
+        ),
+    ],
+)
+def test_an_order_that_could_never_be_kept_is_refused_and_nothing_is_queued(
+    kitchen, slug, given, refused
+):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
+    add(kitchen, "gamma", approve=False)
+    kitchen.main(
+        "--project",
+        "demo",
+        "queue",
+        "add",
+        "beta",
+        "--priority",
+        "1",
+        "--merge-after",
+        "alpha",
+        stdin=brief("beta"),
+    )
+    kitchen.main(
+        "--project",
+        "demo",
+        "queue",
+        "add",
+        "alpha",
+        "--priority",
+        "1",
+        "--depends",
+        "",
+        stdin=brief("alpha"),
+    )
+    before = stored(kitchen)
+    if slug == "gamma":
+        kitchen.main(
+            "--project",
+            "demo",
+            "queue",
+            "add",
+            "beta",
+            "--priority",
+            "1",
+            "--depends",
+            "gamma",
+            stdin=brief("beta"),
+        )
+        before = stored(kitchen)
+    argv = ["queue", "add", slug, "--priority", "1", "--merge-after", given]
+    code, said = kitchen.main("--project", "demo", *argv, stdin=brief(slug))
+    assert code != 0
+    assert said.startswith(f"refused: {refused}")
+    assert stored(kitchen) == before
+
+
+def test_a_depends_edge_that_closes_a_merge_after_chain_is_refused(kitchen):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
+    argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha"]
+    assert kitchen.main("--project", "demo", *argv, stdin=brief("beta"))[0] == 0
+    before = stored(kitchen)
+    argv = ["queue", "add", "alpha", "--priority", "1", "--depends", "beta"]
+    code, said = kitchen.main("--project", "demo", *argv, stdin=brief("alpha"))
+    assert code != 0
+    assert said.startswith(
+        "refused: alpha cannot depend on beta: beta is already behind alpha "
+        "by merge_after or depends"
+    )
+    assert stored(kitchen) == before
+
+
+def test_hold_marks_the_row_and_approve_lifts_the_mark(kitchen):
+    add(kitchen, "alpha")
+    assert "held" not in rows(kitchen)["alpha"]
+    assert kitchen.main("queue", "hold", "alpha")[0] == 0
+    assert rows(kitchen)["alpha"]["held"] is True
+    assert go(kitchen, "alpha")[0] == 0
+    assert "held" not in rows(kitchen)["alpha"]
+    add(kitchen, "beta", approve=False)
+    assert "held" not in rows(kitchen)["beta"]
+
+
+def test_a_row_another_merges_after_is_not_removed(kitchen):
+    add(kitchen, "alpha", approve=False)
+    argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha"]
+    kitchen.main("--project", "demo", *argv, stdin=brief("beta"))
+    code, said = kitchen.main(
+        "queue", "remove", "alpha", "--by", "user", "--at", "2026-10-11 17:58 ET"
+    )
+    assert code != 0
+    assert "beta wait on alpha: remove them first" in said

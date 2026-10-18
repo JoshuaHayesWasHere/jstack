@@ -5,7 +5,7 @@ positional arguments:
     show                the rows still open, as Markdown
     add                 a row, with its brief on stdin
     approve             record the go for the brief the user was shown
-    hold                take a row's approval back
+    hold                take a row's approval back: no launch, and no merge
     remove              take a row out of the queue for good
     apply               a batch of the four verbs on stdin, all or none
     verify              the row's approval record and whether it holds for a

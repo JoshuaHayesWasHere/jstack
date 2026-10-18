@@ -93,6 +93,9 @@ MAIN_CHANGED = "{default} changed {paths} after its check started at {since}; it
 FRESH_CHECK = "a fresh check"
 FRESH_FAILS = "{command} fails on {head} over today's main {tip}{how}"
 REBASE_HELD = "its crew held a third rebase after fixed and green, and its gate asks the user"
+ROW_HELD = "its queue row is held: approve it again to let it merge"
+MERGES_AFTER = "merges after {slug} ({open}), not merged yet"
+QUEUE_UNREADABLE = "its queue cannot be read, so its holds and merge order are not known"
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
