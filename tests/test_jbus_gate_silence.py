@@ -271,5 +271,7 @@ def test_a_gate_that_holds_answered_otherwise_tells_its_thread_not_to_take_the_d
         "jbus: user answered question 1 (tea or coffee?), which held for the answer (deletes "
         f'data), and the answer is not the default (made tea). The words, {AT}: "keep them". '
         "Do not take the default: do what the answer says, and add one line to the last "
-        "Result or Report saying what you did. Then end your turn."
+        "Result or Report saying what you did. "
+        "End your turn only once no check you started runs in your "
+        "worktree: wait for one that runs, in this turn."
     )
