@@ -36,7 +36,15 @@ function ticks() {
     if (now) say(el, String(now.left));
   });
 }
+function leaveAccepts() {
+  Object.keys(ACCEPTING).forEach(function (id) {
+    var now = ACCEPTING[id];
+    if (now.sent || !PROJECT || PROJECT === now.w.project) return;
+    clearInterval(now.timer); delete ACCEPTING[id];
+  });
+}
 function renderNeeds() {
+  leaveAccepts();
   var src = PROJECT ? S : STACK, box = $("needs");
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
@@ -61,6 +69,8 @@ function startAccept(id) {
   var now = ACCEPTING[id] = { left: NEEDS_FOR, sent: false, w: w };
   now.timer = setInterval(function () {
     now.left -= 1;
+    leaveAccepts();
+    if (!ACCEPTING[id]) return;
     if (now.left > 0) { ticks(); return; }
     clearInterval(now.timer);
     sendAccept(id);

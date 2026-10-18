@@ -2154,6 +2154,16 @@ def test_the_inline_accept_waits_ten_seconds_undo_stops_it_and_one_write_follows
     assert seen["needs"]["filled"] <= 1
 
 
+def test_an_accept_still_counting_is_dropped_when_the_route_leaves_its_project(scene, tmp_path):
+    """Going to another project hides the queue and its Undo, so the countdown ends there
+    and no write follows."""
+    gated(scene)
+    walk = ["look", "tap:[data-accept]", "hash:#/nowhere", *["look"] * 25]
+    seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=40000)
+    assert seen["errors"] == []
+    assert seen["writes"] == []
+
+
 @pytest.mark.parametrize("screen", [DESK, PHONE])
 def test_a_gate_is_opened_and_answered_each_of_the_three_ways(scene, tmp_path, screen):
     tea, milk, sugar = gated(scene)
