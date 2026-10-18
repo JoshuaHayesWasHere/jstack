@@ -205,6 +205,49 @@ def test_the_review_line_is_read_only_where_it_starts_a_line(reviewer, brief, va
     assert reviewer.output("## The brief's `Review:` line") == ([value] if value else [])
 
 
+ASKED = "<the message this thread was started with, whole>"
+SECTION = "\n## Review\nVerdict: findings\nHead: " + "a" * 40 + "\n"
+NO_SECTION = "Review: review\nReviewer: mcp:thread-9\nTask: a `## Review` said inside a line\n"
+RERUN = REPO / "templates" / "rerun.md"
+
+
+def started(reviewer, asked, brief=""):
+    """What the reviewer's Start 1 prints for a message and a brief, and how it ended."""
+    reviewer.brief.write_text(BRIEF + brief)
+    return reviewer("### Start", "asked=", fill={ASKED: asked})
+
+
+@pytest.mark.parametrize("brief", ["", NO_SECTION, SECTION])
+def test_a_reviewer_sent_again_goes_whether_or_not_the_brief_has_a_review(reviewer, brief):
+    """A re-run is always sent as `again`, so it always works: with a `## Review` it is a
+    second pass, and with none it is the review the brief is still owed."""
+    said, code = started(reviewer, "/pr-review run a-task again", brief)
+    assert code == 0 and said[0].startswith("go: "), said
+
+
+@pytest.mark.parametrize("brief", ["", NO_SECTION])
+def test_a_plain_message_goes_where_the_brief_has_no_review_section(reviewer, brief):
+    """The reviewer of pull request 69 refused the plain line on a brief that had none, since
+    it read the `Review:` and `Reviewer:` lines as a section."""
+    said, code = started(reviewer, "/pr-review run a-task", brief)
+    assert code == 0 and said[0].startswith("go: "), said
+
+
+def test_a_plain_message_under_a_review_stops_and_names_the_line_it_would_accept(reviewer):
+    said, code = started(reviewer, "/pr-review run a-task", SECTION)
+    assert code == 0 and said[0].startswith("stop: "), said
+    (accepted,) = [line for line in said if line.startswith("the line I accept: ")]
+    line = accepted.removeprefix("the line I accept: ")
+    assert line == "/pr-review run a-task again"
+    assert started(reviewer, line, SECTION)[0][0].startswith("go: ")
+    assert RERUN.read_text().strip().replace("{slug}", "a-task") in "\n".join(said)
+
+
+def test_a_scoped_message_goes_under_a_review(reviewer):
+    asked = "/pr-review run a-task scoped aaa..bbb ccc..ddd"
+    assert started(reviewer, asked, SECTION)[0][0].startswith("go: ")
+
+
 FULL_RUN = "- Check command: `make check`\n- Full run: reviewer\n"
 NOTES = [None, FULL_RUN, "Full run: reviewer (the user, 2026-10-10)\n", "- a note\n"]
 

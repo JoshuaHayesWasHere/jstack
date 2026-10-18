@@ -409,7 +409,7 @@ def scene(kitchen, status):
         "running": ("running", {}),
         "waiting": ("waiting", {}),
         "failed": ("interrupted", {}),
-        "stale": ("running", {"age": timedelta(hours=5), "idle": timedelta(minutes=25)}),
+        "stale": ("completed", {}),
     }
     state, more = given[status]
     return {"thread": t3.thread("alpha", state, **more)["threadId"]}
