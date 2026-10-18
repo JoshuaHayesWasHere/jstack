@@ -1692,7 +1692,8 @@ WAS, FIX = "a" * 40, "c" * 40
 AFTER_THE_FIX = (
     "Reviewer: mcp:2\n\n## Review\nVerdict: findings\n"
     f"Head: {WAS}   Unchanged by the review: yes\n"
-    "Findings:\n- warning x.conf:25 the comment says one thing and the rule another\nSent to: mcp:1\n"
+    "Findings:\n- warning x.conf:25 the comment says one thing and the rule another\n"
+    "Sent to: mcp:1\n"
     "Finding: fixed, the comment\n"
     f"Scoped review: needed since {WAS}, the fix changed x.conf\n"
     f"Scoped reviewer: mcp:3, of {FIX}\n"
