@@ -703,6 +703,7 @@ def proof(reviewer):
 
     run.out, run.ends, run.work, run.kept = beside / "proof.out", ends, reviewer.work, kept
     run.ended = lambda: ended(beside)
+    run.stub = reviewer.stub
     return run
 
 
@@ -783,6 +784,23 @@ def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_pat
     assert runs.read_text() == "ran\n"
 
 
+def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path):
+    """The block records the proof's pid itself, so a proof the system starts late is running
+    from the first call on: no second call may start another."""
+    delayed = proof.stub / "setsid"
+    delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("setsid")} "$@"\n')
+    delayed.chmod(0o755)
+    runs = tmp_path / "runs"
+    script = f"echo ran >> {runs}\necho the fact holds\n"
+    began = time.monotonic()
+    said, code = proof.ends(script, limit=0)
+    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
+    assert time.monotonic() - began < 8
+    said, code = proof.ends(script, limit=0)
+    assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
+    assert not runs.exists()
+
+
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
     """The answer of a proof that ended with no call waiting is given once: a proof that is
     sent again, after the reviewer fixed it, runs afresh."""
@@ -803,9 +821,13 @@ def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proo
 
 
 def test_a_proof_rewritten_while_it_runs_is_no_proof_of_the_new_one(proof, tmp_path):
-    go = tmp_path / "go"
-    said, _ = proof.ends(held_open(go), limit=0)
+    go, begun = tmp_path / "go", tmp_path / "begun"
+    said, _ = proof.ends(f"touch {begun}\n" + held_open(go), limit=0)
     assert said[-1].split(":")[0] == "running"
+    for _ in range(100):
+        if begun.exists():
+            break
+        time.sleep(0.1)
     said, code = proof.ends("echo the new fact\n", limit=1)
     assert said[0].split(":")[0] == "joined" and said[-1].split(":")[0] == "running"
     go.touch()
