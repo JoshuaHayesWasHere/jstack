@@ -3,8 +3,8 @@
 `test_docs_true.py` holds the commands and their flags to `--help`. This module holds the rest of
 what a page says about the tree, and reports each failure as `file:line: what is wrong`:
 
-- A skill named as a slash command, `/<skill>`, as the first word of a code span or of a line
-  of a fenced block, or in prose as "the `<skill>` skill", has a folder under `skills/`. A slash
+- A skill named as a slash command, `/<skill>`, in prose or as the first word of a code span or
+  of a line of a fenced block, or as "the `<skill>` skill", has a folder under `skills/`. A slash
   word that is no skill is listed in `NOT_SKILLS` with the reason.
 - A path that starts at a folder of `ROOTS`, such as `skills/<skill>/SKILL.md` or
   `templates/brief.md`, is a file or folder that exists. A path with a placeholder, a glob, or a
@@ -40,6 +40,7 @@ NOT_SKILLS = {
     "tmp": "the machine's temporary folder",
     "proc": "the machine's process folder",
 }
+PROSE_SLASH = r"(?<![\w/.~<>$-])/([a-z][a-z0-9-]*)(?![\w/-]|\.\w)"
 ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
 NUMBERS = (
     "zero one two three four five six seven eight nine ten "
@@ -132,6 +133,10 @@ def skill_problems(root, text):
         if re.fullmatch(r"/[a-z][a-z0-9-]*", word) and name not in skills | set(NOT_SKILLS):
             found.append(f"{number}: /{name} is named as a skill and skills/ has no {name}")
     for number, line, fenced in lines_of(text):
+        if fenced is False:
+            for name in re.findall(PROSE_SLASH, blank_code(line)):
+                if name not in skills | set(NOT_SKILLS):
+                    found.append(f"{number}: /{name} is named as a skill and skills/ has no {name}")
         for pair in re.findall(
             r"`([a-z][a-z0-9-]*)` skills?\b|\bskills? `([a-z][a-z0-9-]*)`", line
         ):
@@ -301,6 +306,7 @@ def test_a_skill_named_that_the_tree_lacks_is_found_in_a_page_and_in_a_skill(sma
                 "Then `/gamma` and\n```\n/beta now\n/delta now\n```\n"
                 "and `a /epsilon` is not read.\n"
                 "The `alpha` skill, the skill `theta` and the `iota` skills.\n"
+                "Use /alpha and /kappa now, not a/b, /tmp or `/alpha`; see /lambda/x.\n"
             ),
             "skills/beta/SKILL.md": "# Beta\n\nAsk `/zeta` for it.\n",
         },
@@ -310,6 +316,7 @@ def test_a_skill_named_that_the_tree_lacks_is_found_in_a_page_and_in_a_skill(sma
         "docs/a.md:5: /delta is named as a skill and skills/ has no delta",
         "docs/a.md:8: theta is named as a skill and skills/ has no theta",
         "docs/a.md:8: iota is named as a skill and skills/ has no iota",
+        "docs/a.md:9: /kappa is named as a skill and skills/ has no kappa",
         "skills/beta/SKILL.md:3: /zeta is named as a skill and skills/ has no zeta",
     ]
 
