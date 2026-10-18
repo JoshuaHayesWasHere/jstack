@@ -3,7 +3,7 @@
 The pages under `docs/` explain jstack: one page for each command, the flow (`docs/flow.html`, `flow.md`, `flow.svg`), the state tree, the hooks and the configuration. Each says what the code does today.
 
 Paths: `docs/`
-Tests: `tests/test_flow_doc.py`, `tests/test_jbus.py`, `tests/test_jbus_snapshot.py`, `tests/test_jmerge_callers.py`, `tests/test_new_home_skill.py`, `tests/test_probes.py`, `tests/test_skill_tips.py`
+Tests: none
 
 ## Sub-features
 

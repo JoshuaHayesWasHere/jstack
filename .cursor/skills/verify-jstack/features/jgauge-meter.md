@@ -3,7 +3,7 @@
 `jgauge session` counts what a thread's session used, `jgauge context` tells a home how full its context is, through `hooks/home-gauge.sh`, and `jgauge test-slot` runs a command while it holds one of the machine's test slots. The counts are checked against two probe sessions (`docs/meter-findings.md`).
 
 Paths: `src/jgauge/`, `hooks/home-gauge.sh`, `docs/jgauge.md`, `docs/meter-findings.md`
-Tests: `tests/test_home_gauge.py`, `tests/test_install.py`, `tests/test_jbus_slot_wake.py`, `tests/test_jbus_view_usage.py`, `tests/test_limits.py`, `tests/test_probes.py`, `tests/test_room.py`, `tests/test_session.py`, `tests/test_slot.py`, `tests/test_slot_waiters.py`, `tests/test_transcript.py`
+Tests: none
 
 ## Sub-features
 

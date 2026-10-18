@@ -47,6 +47,7 @@ jobs:
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
       # A fast run leaves no marker and asks for none: a marker says the full suite passed.
+      # scripts/select_tests.py adds its selection to the job summary, as one line.
       - name: make check-fast
         run: make check-fast BASE=HEAD^1
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
