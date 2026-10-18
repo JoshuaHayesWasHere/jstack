@@ -36,7 +36,7 @@ panel({
     task: function (t) {
       if (!S.threads) return "Its threads are not known: the last pass left no list.";
       var list = onIt(t.slug);
-      return list.length ? "Its threads: " + list.map(function (one) { return threadChip(one); }).join(" ") : "No thread on it was listed by the last pass.";
+      return list.length ? "Its threads: " + list.map(function (one) { return threadChip(one, ""); }).join(" ") : "No thread on it was listed by the last pass.";
     }
   }
 });

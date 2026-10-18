@@ -2038,3 +2038,13 @@ def test_the_queue_says_noticed_is_not_counted_and_why(scene, tmp_path):
     (tapped,) = seen["walked"]
     assert tapped["tip"].startswith("Noticed, not counted")
     assert "wait on a home, not on you" in tapped["tip"]
+
+
+def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_path):
+    stacked(scene)
+    scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
+    seen = look(scene, tmp_path, route="#/")
+    clean(seen)
+    rows = seen["stack"]["rows"]
+    assert [row["name"] for row in rows] == ["demo", "larder", "pantry"]
+    assert all(row["why"].startswith("jbus stopped") and "bad" in row["dot"] for row in rows)

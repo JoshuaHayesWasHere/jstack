@@ -517,12 +517,14 @@
     return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + title + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
       (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
   }
-  function threadChip(t) {
+  function threadChip(t, project) {
     var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = TURN_UNDER_WAY[t.live] ? t.live : "", q = asked(t);
     var word = q && q !== "missing" ? q : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
     var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
     var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + ' <span class="src">' + esc(word + age) + '</span>';
-    return '<button type="button" class="tok th w-' + r[0] + (t.out ? "" : " ended") + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
+    var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
+    return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</a>'
+      : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
   }
   function fz() { return '<span class="st fz">frozen</span>'; }
   function lv() { return gone ? fz() : '<span class="st lv">live</span>'; }
@@ -582,7 +584,7 @@
     if (document.title !== named) document.title = named;
   }
   function projectRow(p) {
-    var why = p.broken.map(function (b) { return b.what; }).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
+    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; })).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
     if (p.waits) says.push(p.waits + " need you");
     if (why) says.push(why);
     return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
