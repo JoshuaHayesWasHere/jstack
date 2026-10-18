@@ -224,16 +224,28 @@ def _brief(run: Pass, slug: str) -> str:
         return ""
 
 
+def _kept(run: Pass, slug: str) -> str:
+    """The head the crew kept before its last rebase, the newest commit under the slug's
+    `refs/jstack/pre-rebase/` directory, or nothing where it kept none."""
+    ref = f"refs/jstack/pre-rebase/{slug}/"
+    asked = ("git", "for-each-ref", "--sort=-committerdate", "--count=1", "--format=%(objectname)")
+    kept = run.run(*asked, ref)
+    return "" if kept.returncode else kept.stdout.strip()
+
+
 def _ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None:
     """The two ranges of a scoped review that ends on `head`: the patch before it and the
     patch after, each from where it left the default branch. Before a rebase it is the commit
-    the `Rebase:` line of this head names, and before a fix the head the last `Scoped review:
-    needed since` line names, the one the last review saw."""
+    the `Rebase:` line of this head names, or with no such line the newest head the crew kept
+    under `refs/jstack/pre-rebase/<slug>/` (its keep step writes the ref and no line), and
+    before a fix the head the last `Scoped review: needed since` line names, the one the last
+    review saw."""
     brief = _brief(run, slug)
     if kind == "fix":
         before = (_OWED.findall(brief) or [""])[-1]
     else:
         before = next((was for was, to in reversed(_REBASE.findall(brief)) if to == head), "")
+        before = before or _kept(run, slug)
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     if not before or default.returncode:
         return None
