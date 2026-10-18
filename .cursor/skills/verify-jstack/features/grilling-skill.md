@@ -3,7 +3,7 @@
 The grilling skill asks the user a round of questions on a Lavish page (`templates/grill-page.html`) and reads the answers back. Its page script is run in node.
 
 Paths: `skills/grilling/`, `templates/grill-page.html`
-Tests: `tests/test_flow_doc.py`, `tests/test_gates.py`, `tests/test_grill_page.py`, `tests/test_grilling.py`, `tests/test_jbriefs_pick.py`, `tests/test_scout_page.py`, `tests/test_templates.py`, `tests/test_understanding_skills.py`, `tests/test_writing.py`
+Tests: none
 
 ## Sub-features
 

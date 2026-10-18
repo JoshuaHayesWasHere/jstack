@@ -3,7 +3,7 @@
 Every skill under `skills/` and every template under `templates/` is installed as one library: each skill has its frontmatter, takes its arguments the way a loaded skill does, names only templates and tools that exist, and fits the rules every skill shares. The tests here read every skill or every template at once.
 
 Paths: `skills/`, `templates/`
-Tests: `tests/test_drift.py`, `tests/test_home_no_jmerge.py`, `tests/test_install.py`, `tests/test_room.py`, `tests/test_skill_args.py`, `tests/test_skill_tips.py`, `tests/test_templates.py`, `tests/test_understanding_skills.py`, `tests/test_understanding_skills_2.py`
+Tests: `tests/test_drift.py`, `tests/test_room.py`
 
 ## Sub-features
 
