@@ -7,7 +7,7 @@ sends the crew of each open pull request that is red one message when main goes 
 green: a main that moved while green was no reason for a branch to move. A red tip is kept
 as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
 when it landed, or a second red one, loses nothing. The tip's check is main's own, read as
-`watch.main_check` reads it. A conflict is not told here: only a push ends it, and
+`main_check` reads it. A conflict is not told here: only a push ends it, and
 `rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
 nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
 out of the pass's list of open pull requests.
@@ -36,7 +36,7 @@ from __future__ import annotations
 from jbus import dispatch, read_json, rebase, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import World, checks, main_check
+from jbus.watch import World, _check, checks
 
 EVENTS = {"mainmoved": "quiet"}
 RED = "red: checks failed"
@@ -59,6 +59,15 @@ MESSAGE = (
 def short_of(pull: dict) -> str:
     """Why a pull request is woken, in the message's words, or nothing for one that is not."""
     return RED if checks(pull) == "failed" else ""
+
+
+def main_check(run: Pass, sha: str) -> str:
+    """Whether the checks of a commit on main passed, as `watch._check` says it, through the
+    answers `checks.json` keeps: a final one is asked of GitHub once."""
+    known: dict[str, str] = read_json(run.state / "checks.json", {})
+    answer = _check(run, known, sha)
+    write_json(run.state / "checks.json", {**read_json(run.state / "checks.json", {}), **known})
+    return answer
 
 
 def tell(run: Pass, client: Client, world: World) -> None:
