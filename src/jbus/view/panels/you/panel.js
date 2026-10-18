@@ -41,7 +41,7 @@ function renderNeeds() {
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
   var needs = src.needs, soon = src.proceeds;
-  put($("needs-h"), needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass());
+  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + hint("term:waits", "Needs you"));
   keyed($("nq"), "li", "nr", needs.map(function (w) { return { key: needId(w), html: needRow(w, false) }; }));
   $("nq").hidden = !needs.length;
   keyed($("np"), "li", "nr", soon.map(function (w) { return { key: needId(w), html: needRow(w, true) }; }));

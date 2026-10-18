@@ -52,6 +52,7 @@ window.addEventListener("unhandledrejection", function (e) {
 window.__walked = [];
 window.addEventListener("load", function () { if (window.__walk) setTimeout(function () {
   function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
+  function raw(el) { return el ? el.textContent.replace(/\s+/g, " ").trim() : ""; }
   function step(n) {
     if (n >= window.__walk.length) return;
     var w = window.__walk[n], drawer = document.getElementById("drawer"), how = w.split(":")[0], what = w.slice(how.length + 1);
@@ -82,6 +83,7 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
         notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.getAttribute("data-tip") || (focus.hasAttribute("data-fold") ? "fold:" + focus.getAttribute("data-fold") : focus.hasAttribute("data-hide") ? "hide:" + focus.getAttribute("data-hide") : "") || focus.id : "",
         said: drawer.open ? text(document.getElementById("dw")) : "", tip: text(document.getElementById("tip")), peek: text(document.getElementById("peek")),
         expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }),
+        acc: raw(document.querySelector("#needs .acc")), nsaid: raw(document.getElementById("nsaid")),
         rows: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { var r = b.closest("[data-key]"); return r ? r.getAttribute("data-key") : ""; }),
         key: !!document.querySelector("#filters details.gk[open]"), folds: window.__folds(), changes: window.__changes.length });
       step(n + 1);

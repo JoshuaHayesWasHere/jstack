@@ -143,7 +143,7 @@ The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A 
 | Part | What it shows |
 |---|---|
 | This machine | Four cards, once for every project: jbus (whether the timer passes, and when the last pass ended), Room (the answer `jgauge room` gives), the runner units systemd lists, and the plan's use over five hours and seven days. |
-| Waits on you | The total, and one row for each project: its count, then a token for each kind of wait (gates, rows at a gate, pull requests that need your word, rows to approve), each named for its project. The new noticed lines are a token of their own, labelled "not counted": they wait on nobody, so the total leaves them out. The total is the sum of the rows. |
+| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a setup. A gate with a default, or one that closes on the 2 hours of silence, is in the folded list "Will proceed on default" under it, with the time it goes ahead, and its "Accept default" is the one filled button of the page: it waits 10 seconds, Undo stops it, and only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. The new noticed lines are a token beside the queue, labelled "not counted". Nothing waiting says "Nothing needs you" and the time of the last pass. The queue is built in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
 | One row for each project | Its repo, open tasks and merges of today, health chips (CI, the bus outbox, threads out, blind spots, and any source that could not be read), and a count for each step of the line that holds a task. A project with an empty queue says "nothing open". |
 
 A project's row opens its page, `#/<project>`: the line, as a bare link showed it before. A token or a step count opens that project's page with its drawer open.
@@ -161,7 +161,7 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 
 `&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
 
-Every band is always drawn, an empty one as its calm line. Each one has a fold button and a hide button in its header: the machine, the wait band, each project's row, and on a project's page the cards, the Threads band, the wait band and the line. Folded, a band shows its header and one line, its count or its health. A hidden band is listed under "n hidden" in the header, which brings it back, and Show all there unfolds and unhides everything. The browser keeps the choice, per band and per project, as it keeps the theme.
+Every band is always drawn, an empty one as its calm line. Each one has a fold button and a hide button in its header: the machine, each project's row, and on a project's page the cards, the Threads band and the line. The Needs you queue is never folded. Folded, a band shows its header and one line, its count or its health. A hidden band is listed under "n hidden" in the header, which brings it back, and Show all there unfolds and unhides everything. The browser keeps the choice, per band and per project, as it keeps the theme.
 
 A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
 
@@ -195,7 +195,7 @@ A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other 
 
 1. `panel.py` is its data. `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
 2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
-3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count in the wait band.
+3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count beside the Needs you queue.
 4. Set `FIRST = True` in `panel.py` only when the first screen needs the data. Without it the page asks `/panel/<name>.json` when the drawer opens.
 
 An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.

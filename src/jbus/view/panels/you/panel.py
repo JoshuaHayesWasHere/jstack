@@ -290,7 +290,7 @@ def _need(
         "project": read.name,
         "kind": kind,
         "key": waits["key"],
-        "what": _cut(what),
+        "what": _cut(what, 100),
         "why": _cut(why, WHY),
         "since": waits["since"],
         "verb": ANSWER if kind == "gate" and not accepts else VERBS[kind],
