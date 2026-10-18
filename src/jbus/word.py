@@ -15,10 +15,17 @@ of `Word`:
 - `kept_at`: when `jbus word` took it;
 - `thread` and `sent_at`: the home's thread it went to, and when. Both are empty while it
   waits;
+- `skipped`: why it was posted to nobody, for a word recorded from or by the home it is for:
+  `thread` is then that home's thread and `sent_at` the time it was kept, so the word is
+  done, and the home is not told what it recorded itself. It is empty for every other word;
 - `waits`: why it has not gone yet, as the log last said it.
 
 A word goes once, as one queued message to the thread in the home's `home-id`, which is
-read when it is sent and not when it is kept (`home`). The command sends it at once. One
+read when it is sent and not when it is kept (`home`). The command sends it at once, except
+to the home that recorded it: a word said in that home's own thread (`--message` whose
+thread is the home's) or recorded by it (`--from <thread id>`) is kept as sent, with
+`skipped` saying why, and with `--all` only that project's copy is. A home that handed off
+and has no `home-id` is nobody, so such a word waits for the next home as any other. One
 that could not go waits in the file, and each pass tries it again (`deliver`): a home with
 no `home-id`, or one that handed off, gets it on the pass after the next home's start wrote
 its id there. The retry key is `word|<project>|<id>|<thread>`, and `sent_at` is written
@@ -27,8 +34,8 @@ only after T3 Code said yes.
 Nothing of a word is an event. It is in no outbox, so no POST to a project's webhook or to
 the top-level one carries it, and whoever ran the command hears nothing back. The log has a
 line for it all the same (`wake.Box.record`), which `jbus events` prints: the words, `by`,
-`at`, and `to`, the thread it went to or nothing while it waits. A word T3 Code refuses is
-such a line too, and waits like any other.
+`at`, and `to`, the thread it went to or nothing while it waits or was posted to nobody. A
+word T3 Code refuses is such a line too, and waits like any other.
 
 The command holds no lock of the pass, so a pass and the command can hold the same unsent
 word. What became of one is written to the record as it is in the file then, under
@@ -71,6 +78,8 @@ NO_HOME = "its home has no home-id, so it goes on the pass after that home's nex
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
 REFUSED = "T3 Code refused it"
+SAID_IN_HOME = "it was said in this project's own home thread {thread}"
+BY_HOME = "it was recorded by this project's home thread {thread}"
 _WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.MULTILINE)
 
 
@@ -91,6 +100,7 @@ class Word:
     ref: str = ""
     said_in: str = ""
     checked: bool = False
+    skipped: str = ""
 
 
 def path(state: Path) -> Path:
@@ -132,11 +142,20 @@ def said(words: str, by: str, at: str, user: jsettings.Settings) -> str:
     return words
 
 
-def keep(run: Pass, words: str, by: str, at: str, heard: queue.Said | None = None) -> Word:
+def keep(
+    run: Pass,
+    words: str,
+    by: str,
+    at: str,
+    heard: queue.Said | None = None,
+    recorder: str = "",
+) -> Word:
     """Keep a word for the project. The answer is its record: the one there was, or a new one.
 
     `heard` is the message jbus read the words and the time from, for a word given as
-    `--message`: `ref` is then its `<thread id>/<message id>`.
+    `--message`: `ref` is then its `<thread id>/<message id>`. `recorder` is the thread that
+    ran `jbus word`, for `--from`. A new word said in the project's home thread, or recorded
+    by it, is kept as sent to that thread and posted to nobody (`skipped`).
     """
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])
@@ -150,7 +169,17 @@ def keep(run: Pass, words: str, by: str, at: str, heard: queue.Said | None = Non
         made = Word(name, words, by, at, kept_at)
         if heard:
             made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
+        mine = home(run.home)
+        if mine and mine == ref.partition("/")[0]:
+            made = replace(
+                made, thread=mine, sent_at=kept_at, skipped=SAID_IN_HOME.format(thread=mine)
+            )
+        elif mine and mine == recorder:
+            made = replace(made, thread=mine, sent_at=kept_at, skipped=BY_HOME.format(thread=mine))
         _write(run.state, [*kept, made])
+    if made.skipped:
+        about = {"words": words, "by": by, "at": at, "to": ""}
+        run.box.record(KIND, f"{KIND} {run.project.name}: kept, {made.skipped}", words, word=about)
     return made
 
 
@@ -231,6 +260,8 @@ def line(run: Pass, was: Word) -> str:
     """What `jbus word` prints for one project: how the word it kept as `was` stands now."""
     (one,) = [one for one in load(run.state) if one.id == was.id]
     name = run.project.name
+    if one.skipped:
+        return f"kept: {name}, not posted, {one.skipped}, word {one.id}"
     if one.sent_at:
         how = "already sent" if was.sent_at else "sent"
         return f"{how}: {name}, to {one.thread}, word {one.id}"
@@ -243,7 +274,8 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     It is kept, and sent at once to the thread in the home's `home-id`. The same words, `by`
     and `at` for the same project are the same word: a second run sends nothing again. The
     words are typed with `--by` and `--at`, or are those of the message `--message` names,
-    which jbus reads from T3 Code with its time.
+    which jbus reads from T3 Code with its time. A word said in a project's home thread, or
+    recorded by it (`--from`), is kept there as sent and posted to nobody (`keep`).
     A project that refuses, as one whose `words.json` does not parse, is said and passed
     over: the others still get it, and the answer is then 1.
     """
@@ -260,7 +292,7 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     for project in projects:
         run = Pass(config, project, now, lambda _: None)
         try:
-            was = keep(run, words, by, at, heard)
+            was = keep(run, words, by, at, heard, args.recorder or "")
             deliver(run, client)
             print(line(run, was))
         except Refused as error:
@@ -282,6 +314,12 @@ def _down(down: argparse.ArgumentParser) -> None:
         "--message",
         metavar="THREAD/MESSAGE",
         help="the user's own message in T3 Code, in place of --by, --at and the words",
+    )
+    down.add_argument(
+        "--from",
+        dest="recorder",
+        metavar="THREAD",
+        help="the thread running this: a word recorded by a project's home is not posted to it",
     )
     down.add_argument("words", nargs="*", help="the user's words, with --by and --at")
 
