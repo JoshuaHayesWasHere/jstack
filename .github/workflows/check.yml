@@ -35,7 +35,8 @@ jobs:
     # request reaches that runner only through GitHub's gate: the repo requires approval for
     # all external contributors, so a fork's run waits for the owner every time.
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    timeout-minutes: 15
+    # The full suite runs about 15 minutes on a 2-CPU runner, plus setup and cleanup: 25 leaves 10 minutes of headroom, and a hung run still stops.
+    timeout-minutes: 25
     env:
       # A stable Google Chrome, which the local runner image installs and GitHub's image has
       # too. A Chromium snapshot's virtual time now and then never starts, and the browser
@@ -60,7 +61,8 @@ jobs:
   full:
     if: github.event_name != 'pull_request'
     runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    timeout-minutes: 15
+    # The full suite runs about 15 minutes on a 2-CPU runner, plus setup and cleanup: 25 leaves 10 minutes of headroom, and a hung run still stops.
+    timeout-minutes: 25
     env:
       JSTACK_TEST_BROWSER: /usr/bin/google-chrome
     steps:

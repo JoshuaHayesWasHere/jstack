@@ -386,11 +386,11 @@ def cap(text, job):
     return None
 
 
-def test_each_job_is_cancelled_after_fifteen_minutes_and_a_job_that_names_no_cap_has_none():
+def test_each_job_is_cancelled_after_twenty_five_minutes_and_a_job_that_names_no_cap_has_none():
     text = "jobs:\n  other:\n    steps:\n      - timeout-minutes: 1\n  check:\n"
-    text += "    timeout-minutes: 15\n"
-    assert (cap(text, "check"), cap(text, "other")) == ("15", None)
-    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("15", "15")
+    text += "    timeout-minutes: 25\n"
+    assert (cap(text, "check"), cap(text, "other")) == ("25", None)
+    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("25", "25")
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
