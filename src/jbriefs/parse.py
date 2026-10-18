@@ -435,6 +435,8 @@ def _path(word: str, ticked: bool) -> str:
     path that leaves the repo. A word between commas needs more to be told from prose: a
     `/`, a glob, or a file extension.
     """
+    if word.strip() in (".", "./"):
+        return "."
     word = _LINES.sub("", word.strip().rstrip(".,;:")).removeprefix("./")
     if not word or word[0] in "-/~" or ".." in word.split("/") or "://" in word:
         return ""
@@ -487,7 +489,10 @@ def _glob(pattern: str) -> re.Pattern[str]:
 
 
 def covers(patterns: tuple[str, ...], path: str) -> bool:
-    """Whether a changed file is one of the paths and globs `where` gave, or is under one."""
+    """Whether a changed file is one of the paths and globs `where` gave, or is under one.
+    `.` is the whole repo."""
+    if "." in patterns:
+        return True
     parts = path.split("/")
     parents = ["/".join(parts[: n + 1]) for n in range(len(parts))]
     return any(_glob(pattern).fullmatch(parent) for pattern in patterns for parent in parents)

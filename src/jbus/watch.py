@@ -852,7 +852,8 @@ def red_brief(
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
-        ", ".join(f"`{file}`" for file in files) or "what the merges since the last green changed"
+        ", ".join(f"`{file}`" for file in files)
+        or "`.` (the whole repo: the merges since the last green changed files nobody listed)"
     )
     read = [
         f"- the job `{name}`, {url or 'with no URL'}: "

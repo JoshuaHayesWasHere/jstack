@@ -729,6 +729,7 @@ WHERES = {
         "src/jmerge/cli.py, docs/ pages tied to `--help`, the tests",
         ("src/jmerge/cli.py", "docs"),
     ),
+    "the whole repo, with the words that say so": ("`.` (the whole repo, jbus filed it)", (".",)),
     "globs": ("`tests/test_*.py`, `skills/*/SKILL.md`", ("tests/test_*.py", "skills/*/SKILL.md")),
     "none of these is a path in the repo": (
         "wherever it takes, `make check`, `/etc/hosts`, `../outside.py`, `~/x`",
@@ -759,6 +760,7 @@ def test_only_the_where_line_of_the_head_is_read():
         (("skills/*",), "skills/crew/SKILL.md", True),
         (("**/SKILL.md",), "skills/crew/SKILL.md", True),
         ((), "src/a.py", False),
+        ((".",), "src/a.py", True),
     ],
 )
 def test_a_path_is_covered_by_what_it_is_or_sits_under(patterns, path, covered):
