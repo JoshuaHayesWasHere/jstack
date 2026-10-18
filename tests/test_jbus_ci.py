@@ -376,3 +376,14 @@ def test_the_service_runs_the_collector_and_the_report_for_the_jstack_home():
     command = shlex.split(service["Service"]["ExecStart"])
     assert command[1:] == ["--project", "jstack", "ci", "--report"]
     assert command[0].endswith("/.local/bin/jbus")
+
+
+def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
+    import fcntl
+
+    with ledger.locked(tmp_path):
+        with (tmp_path / ledger.LOCK).open("a") as other:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
+    assert collect.collect(Replay(), REPO, tmp_path, NOW, 14).jobs == 0
