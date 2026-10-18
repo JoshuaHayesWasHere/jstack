@@ -1,15 +1,19 @@
 usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
-                      [--entry ENTRY] [--item ITEM]
+                      [--merge-after MERGE_AFTER] [--entry ENTRY]
+                      [--item ITEM]
                       slug
 
 positional arguments:
   slug
 
 options:
-  -h, --help           show this help message and exit
-  --priority PRIORITY  an integer, lower first
-  --depends DEPENDS    slugs that must be merged first, with commas
-  --entry ENTRY        the plan entry the row is work for, when not its own
-                       slug
-  --item ITEM          the work item the row is, by its id; with none, one is
-                       made
+  -h, --help            show this help message and exit
+  --priority PRIORITY   an integer, lower first
+  --depends DEPENDS     slugs that must be merged first, with commas
+  --merge-after MERGE_AFTER
+                        slugs whose pull requests merge before this row's,
+                        with commas: jmerge waits
+  --entry ENTRY         the plan entry the row is work for, when not its own
+                        slug
+  --item ITEM           the work item the row is, by its id; with none, one is
+                        made

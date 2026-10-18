@@ -104,7 +104,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         depends = queue.slugs(args.depends or "")
         text = sys.stdin.read()
         named = _item(state, args.slug, args.item or "")
-        said = queue.add(state, args.slug, args.priority, depends, text, args.entry or "", named)
+        after = queue.slugs(args.merge_after or "")
+        said = queue.add(
+            state, args.slug, args.priority, depends, text, args.entry or "", named, after
+        )
         if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
             print(said)
         row = queue.fresh(state, args.slug)
@@ -181,6 +184,10 @@ def _table(table: argparse.ArgumentParser) -> None:
     add.add_argument("slug")
     add.add_argument("--priority", type=int, required=True, help="an integer, lower first")
     add.add_argument("--depends", help="slugs that must be merged first, with commas")
+    add.add_argument(
+        "--merge-after",
+        help="slugs whose pull requests merge before this row's, with commas: jmerge waits",
+    )
     add.add_argument("--entry", help="the plan entry the row is work for, when not its own slug")
     add.add_argument("--item", help="the work item the row is, by its id; with none, one is made")
     approve = table_verbs.add_parser(
@@ -204,7 +211,9 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--by", help=argparse.SUPPRESS)
     approve.add_argument("--at", help=argparse.SUPPRESS)
     approve.add_argument("--sha", required=True, help="the first 12 of that brief's sha256")
-    table_verbs.add_parser("hold", help="take a row's approval back").add_argument("slug")
+    table_verbs.add_parser(
+        "hold", help="take a row's approval back: no launch, and no merge"
+    ).add_argument("slug")
     remove = table_verbs.add_parser(
         "remove", help="take a row out of the queue for good", allow_abbrev=False
     )
