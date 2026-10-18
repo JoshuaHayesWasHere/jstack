@@ -667,7 +667,7 @@ def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case
 
 def test_a_gh_that_fails_prints_nothing_as_ready(home):
     (home.tasks / "alpha.md").write_text(FIXED)
-    assert home.ready() == ["wait: could not ask GitHub"]
+    assert home.ready() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
 
 
 def test_with_no_open_pull_request_it_prints_nothing(home):
@@ -1111,8 +1111,12 @@ def test_a_checkout_with_no_origin_leaves_the_repo_to_gh(home):
 
 
 def test_a_gh_that_fails_is_logged(home):
-    assert home.run() == ["wait: could not ask GitHub"]
-    assert (home.state / "merge.log").read_text().endswith(" wait: could not ask GitHub\n")
+    assert home.run() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
+    assert (
+        (home.state / "merge.log")
+        .read_text()
+        .endswith(" wait: could not ask GitHub: gh exited 1: it said nothing\n")
+    )
 
 
 STACK = "Stack: demo (link 2 of 3)\n"
@@ -1135,7 +1139,9 @@ def test_the_base_is_compared_with_the_default_branch_github_names(merged):
 
 def test_a_default_branch_github_does_not_give_merges_nothing(merged):
     (merged.home.stub / "default").write_text("")
-    assert merged.home.run() == ["wait: could not ask GitHub"]
+    assert merged.home.run() == [
+        "wait: could not ask GitHub: gh exited 0: it named no default branch"
+    ]
     assert merged.home.code == 1
     assert merged.untouched()
 
@@ -1200,7 +1206,8 @@ def test_a_merged_branch_an_open_pull_request_is_based_on_is_kept(merged):
 def test_a_merged_branch_is_kept_when_github_does_not_say_what_is_based_on_it(merged):
     (merged.home.stub / "based-on-alpha.json").write_text("not json\n")
     (said,) = merged.run()
-    assert "(could not ask GitHub whether a pull request is based on it), revert: " in said
+    ask = "could not ask GitHub whether a pull request is based on it: gh exited 0: its output"
+    assert f"({ask} was not JSON), revert: " in said
     assert merged.branches() == (["main"], ["alpha", "main"])
 
 

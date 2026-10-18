@@ -262,7 +262,7 @@ def test_the_launch_check_prints_the_files_every_brief_still_out_holds(tmp_path)
 def test_the_launch_check_waits_when_github_cannot_be_asked(tmp_path):
     home = Home(tmp_path)
     (home.tasks / "alpha.md").write_text(brief("alpha"))
-    assert home.run(about=CLAIMS) == ["wait: could not ask GitHub"]
+    assert home.run(about=CLAIMS) == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
     assert home.code == 1
 
 

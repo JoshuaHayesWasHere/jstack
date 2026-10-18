@@ -56,6 +56,7 @@ from pathlib import Path
 
 import jsettings
 from jmerge import claims, proof, rangediff, ready, rows, sweep
+from jmerge.asked import why as asked_why
 
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
@@ -505,7 +506,7 @@ class Repo:
         except (ValueError, KeyError, TypeError):
             open_pulls = None
         if asked.returncode or open_pulls is None:
-            print("wait: could not ask GitHub", flush=True)
+            print(f"wait: could not ask GitHub{asked_why(asked)}", flush=True)
             return 1
         homes = self.homes()
         for brief in sorted((self.state / "tasks").glob("*.md")):
@@ -514,8 +515,8 @@ class Repo:
                 print(claim.line(), flush=True)
         return 0
 
-    def default(self) -> str:
-        """The default branch, as GitHub names it, or nothing where it did not say."""
+    def default(self) -> tuple[str, str]:
+        """The default branch, as GitHub names it, and why not where it did not say."""
         asked = _run(
             self.main,
             "gh",
@@ -527,7 +528,10 @@ class Repo:
             "--jq",
             ".defaultBranchRef.name",
         )
-        return "" if asked.returncode else asked.stdout.strip()
+        if asked.returncode:
+            return "", asked_why(asked)
+        branch = asked.stdout.strip()
+        return branch, "" if branch else asked_why(asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
         """What stands on a remote branch, or nothing: an open pull request based on it.
@@ -554,7 +558,7 @@ class Repo:
         except (ValueError, KeyError, TypeError):
             numbers = None
         if asked.returncode or numbers is None:
-            return "could not ask GitHub whether a pull request is based on it"
+            return f"could not ask GitHub whether a pull request is based on it{asked_why(asked)}"
         if not numbers:
             return ""
         several = "s" if len(numbers) > 1 else ""
@@ -1174,7 +1178,7 @@ class Sweep:
         return self._within(commit, head)
 
     def found(self, record: sweep.Record, left: dict[str, str]) -> sweep.Found:
-        state = head = ""
+        state = head = silent = ""
         if record.pull and not record.short:
             asked = _run(
                 self.main, "gh", "pr", "view", record.pull, "--json", "state,headRefOid,baseRefName"
@@ -1186,12 +1190,15 @@ class Sweep:
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
                 state = ""
+            if not state:
+                silent = asked_why(asked)
         tree = left.get(sweep.WORKTREE, "")
         status = _run(self.main, "git", "-C", tree, "status", "--porcelain") if tree else None
         refs = (sweep.LOCAL, sweep.REMOTE)
         found = sweep.Found(
             default=self.default,
             pull=state,
+            silent=silent,
             merged=bool(head),
             tree=tree,
             trees="" if not tree or self.trees in Path(tree).parents else str(self.trees),
@@ -1458,9 +1465,11 @@ def main(argv: list[str] | None = None) -> int:
         listed = [ready.pull_request(one) for one in json.loads(asked.stdout)]
     except (ValueError, KeyError, TypeError, AttributeError):
         listed = None
-    default = repo.default() if listed else ""
-    if asked.returncode or listed is None or (listed and not default):
-        say("wait: could not ask GitHub")
+    default, silent = repo.default() if listed else ("", "")
+    if asked.returncode or listed is None:
+        silent = asked_why(asked)
+    if silent:
+        say(f"wait: could not ask GitHub{silent}")
         return 1
 
     if args.accept is not None:

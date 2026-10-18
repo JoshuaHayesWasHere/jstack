@@ -225,5 +225,7 @@ def test_a_tick_that_could_not_ask_github_judges_nothing_and_keeps_its_marks(tic
     ticks.tick()
     before = ticks.seen.read_text()
     (ticks.home.stub / "list.json").unlink()
-    assert ticks.tick() == ["wait: could not ask GitHub: nothing was judged"]
+    assert ticks.tick() == [
+        "wait: could not ask GitHub: gh exited 1: it said nothing: nothing was judged"
+    ]
     assert ticks.seen.read_text() == before
