@@ -175,6 +175,19 @@ def test_the_recommended_option_is_checked_and_every_input_is_inside_its_questio
     assert [c for c in drawn["controls"] if c["details"]] == []
 
 
+def test_a_question_asked_again_in_a_later_round_starts_from_its_recommended_option():
+    def links(report):
+        return next(name for name in report["checked"] if name.split(":")[-1] == "links")
+
+    def picked(report):
+        return report["checked"][links(report)]
+
+    first = links(page({**ROUND, "round": 1, "settled": []}))
+    again = links(page())
+    assert picked(page(restored={first: "last"})) == ["first"]
+    assert picked(page(restored={again: "last"})) == ["last"]
+
+
 def test_a_gate_shows_what_was_built_on_it_and_how_to_undo_it():
     links, _, gate = page()["cards"]
     assert "Built onthe cutover's second step" in gate
