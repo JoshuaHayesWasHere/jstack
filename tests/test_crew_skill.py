@@ -1182,6 +1182,13 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
     ]
 
 
+def main_adds(pr, other, name):
+    """Main lands a file, as a pull request that took the next migration number would."""
+    pr.commit(other, name, "theirs\n", f"main adds {name}")
+    git(other, "push", "-q", "origin", "HEAD:main")
+    return git(other, "rev-parse", "HEAD")
+
+
 def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
     """Upstream's cap: past merge prep, trunk forcing a third rebase is held and reported.
     The block counts the rebases it made after the `Fixed:` line, writes the stop line in
@@ -1227,6 +1234,33 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
     assert ready.rebase_held(brief.read_text(), held) == ""
     assert pr.run("mergeable", home).splitlines() == ["rebased onto origin/main"]
     assert brief.read_text().count("Rebased after fixed:") == 3
+
+
+def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path):
+    """A migration whose number main took is rebased with the block run with `stale`, which is
+    what the `renumber` message of `expedite` says to run: GitHub reports no conflict, and each
+    such rebase after the `Fixed:` line is counted, so the third is held and `jmerge` waits."""
+    pr = PullRequest(tmp_path, "MERGEABLE", "0005_other.up.sql")
+    asked(pr, "MERGEABLE")
+    state = tmp_path / "home"
+    brief = state / "tasks" / "a-task.md"
+    other = tmp_path / "other"
+    fixed = f"{BRIEF}Fixed: {pr.head()}\n"
+
+    def renumber(text=None):
+        return stays(pr, "mergeable", text, "stale", state=state)
+
+    assert renumber(fixed) == ["rebased onto origin/main"]
+    before, tip = pr.head(), main_adds(pr, other, "0006_other.up.sql")
+    assert renumber() == ["rebased onto origin/main"]
+    assert f"Rebased after fixed: {before} onto origin/main at {tip}\n" in brief.read_text()
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert ready.rebase_held(brief.read_text(), pr.head()) == ""
+    held, tip = pr.head(), main_adds(pr, other, "0008_other.up.sql")
+    (said,) = renumber()
+    assert said.startswith("hold: no third rebase after fixed and green")
+    assert pr.head() == held
+    assert ready.rebase_held(brief.read_text(), held) == ready.REBASE_HELD
 
 
 def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):

@@ -39,6 +39,7 @@ _NOT_UPHELD = "Drops: not upheld "
 
 _CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
 _HELD = re.compile(r"Rebase hold: at ([0-9a-f]{40}), |Rebase hold lifted: ")
+_MIGRATION = re.compile(r"(\d+)_")
 
 OTHER_HOME = "another home's"
 REQUIRED = "check"
@@ -96,6 +97,11 @@ REBASE_HELD = "its crew held a third rebase after fixed and green, and its gate 
 ROW_HELD = "its queue row is held: approve it again to let it merge"
 MERGES_AFTER = "merges after {slug} ({open}), not merged yet"
 QUEUE_UNREADABLE = "its queue cannot be read, so its holds and merge order are not known"
+MIGRATION_TAKEN = (
+    "its migration {name} takes number {number}, which {default} has: renumber it to {free}"
+)
+MIGRATION_MERGING = "it adds a migration, and #{number}, which merges before it, is merging"
+MIGRATION_REBASING = "it adds a migration, and #{number}, which merges before it, is being rebased"
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -123,6 +129,7 @@ class PullRequest:
     changed: int
     draft: bool = False
     started: datetime | None = None
+    added: tuple[str, ...] = ()
 
 
 def passed(rollup: list[dict]) -> bool:
@@ -173,6 +180,7 @@ def pull_request(listed: dict) -> PullRequest:
         changed=listed["changedFiles"],
         draft=bool(listed.get("isDraft")),
         started=started(listed.get("statusCheckRollup") or []),
+        added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
     )
 
 
@@ -248,6 +256,48 @@ def rebase_held(text: str, head: str) -> str:
         if found:
             last = found[1] or ""
     return REBASE_HELD if last and last == head else ""
+
+
+def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:
+    """The migrations a pull request adds: the files it adds directly in the repo's migration
+    directory, by name, each with its `.up.sql` and `.down.sql` or whatever else the repo
+    keeps beside it as one entry. Nothing for a repo with no migration directory."""
+    if not directory:
+        return ()
+    found = (Path(path) for path in one.added)
+    names = (path.name.split(".")[0] for path in found if path.parent == Path(directory))
+    return tuple(dict.fromkeys(sorted(names)))
+
+
+def migration_number(name: str) -> str:
+    """The digits a numbered migration's name starts with, or nothing for a name without."""
+    found = _MIGRATION.match(name)
+    return found[1] if found else ""
+
+
+def short_on_migration(names: tuple[str, ...], on_default: set[int], default: str) -> str:
+    """Why a pull request whose numbered migration is taken waits, or nothing.
+
+    The number is picked when the branch is cut and is wanted when it lands: a migration
+    whose number the default branch has already is renumbered by its crew to the one after the
+    highest the default branch has, written with as many digits as it has now, and the
+    pull request is judged again at its new head.
+    """
+    for name in names:
+        digits = migration_number(name)
+        if digits and int(digits) in on_default:
+            free = str(max(on_default) + 1).zfill(len(digits))
+            return MIGRATION_TAKEN.format(name=name, number=digits, default=default, free=free)
+    return ""
+
+
+_TAKEN = re.compile(re.sub(r"\\\{\w+\\\}", ".+", re.escape(MIGRATION_TAKEN)) + "$")
+
+
+def being_rebased(why: str) -> bool:
+    """Whether a wait is one its crew rebases for: a conflict with the base or with today's
+    default branch, or a migration number the default branch has taken."""
+    return why in (CONFLICTS, FRESH_CONFLICT) or bool(_TAKEN.match(why))
 
 
 @dataclass

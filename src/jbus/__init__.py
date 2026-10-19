@@ -53,6 +53,8 @@ LEVELS: tuple[Loud, ...] = ("user", "quiet")
 NAMED_AFTER = ("user", "waiting-on-user")
 WAS = {"chef": "quiet"}
 IGNORED = ("loud",)
+NUMBERED = "numbered"
+TIMESTAMPED = "timestamped"
 Hook = tuple[str, str]
 REDACTED = "[redacted]"
 URL_PART = 8
@@ -70,7 +72,12 @@ class Refused(Exception):
 @dataclass(frozen=True)
 class Project:
     """One repo jbus looks after, and the webhook that is posted what the user must act on:
-    its own pair, or the config's top-level one when it has none."""
+    its own pair, or the config's top-level one when it has none.
+
+    `migrations` is the directory, from the checkout's root, where the repo keeps its
+    migrations, and nothing where it has none. `migration_names` says how a migration is
+    named: `numbered`, as `0004_insulin`, whose number is taken when it lands, or
+    `timestamped`, whose name cannot collide. `jmerge` reads both."""
 
     name: str
     checkout: Path
@@ -78,6 +85,8 @@ class Project:
     project_id: str
     webhook_url: str
     webhook_key: str
+    migrations: str = ""
+    migration_names: str = NUMBERED
 
 
 @dataclass(frozen=True)
@@ -200,6 +209,26 @@ def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
     return tuple(f"{key} of project {name}" for key, name in found)
 
 
+def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
+    """The directory a project keeps its migrations in, relative to its checkout and with no
+    `..` in it, and how they are named. Anything else is refused: a directory outside the
+    checkout is one `jmerge` would read the default branch for in the wrong place."""
+    directory = entry.get("migrations", "")
+    names = entry.get("migration_names", NUMBERED)
+    parts = str(directory).strip("/").split("/") if directory else []
+    if not isinstance(directory, str) or str(directory).startswith("/") or ".." in parts:
+        raise Refused(
+            f"refused: project {entry['name']} has migrations = {directory!r}: "
+            "give a directory inside the checkout, such as db/migrations"
+        )
+    if names not in (NUMBERED, TIMESTAMPED):
+        raise Refused(
+            f"refused: project {entry['name']} has migration_names = {names!r}: "
+            f"give {NUMBERED} or {TIMESTAMPED}"
+        )
+    return "/".join(parts), str(names)
+
+
 def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
     """The webhook URL and key of each top-level table that has one: secret, read or not."""
     tables = (table for table in raw.values() if isinstance(table, dict))
@@ -262,6 +291,7 @@ def load(directory: Path | None = None) -> Config:
                     "other: give it both, or neither to take the top-level pair"
                 )
             url, key = _pair(entry, webhook)
+            migrations, names = _migrations(entry)
             projects.append(
                 Project(
                     name=str(entry["name"]),
@@ -270,6 +300,8 @@ def load(directory: Path | None = None) -> Config:
                     project_id=str(entry["projectId"]),
                     webhook_url=url,
                     webhook_key=key,
+                    migrations=migrations,
+                    migration_names=names,
                 )
             )
         server = str(raw["server"]).rstrip("/")
