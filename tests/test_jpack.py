@@ -134,6 +134,7 @@ def test_a_good_citation_passes_and_each_wrong_one_fails_with_its_line(subject):
             ("path.md", "Where is the lid?", f'- `src/lid.py:3` at `{short}`: "lid"'),
             ("quote.md", "How many tries?", f'- `src/upload.py:12` at `{short}`: "RETRIES = 5"'),
             ("commit.md", "Since when?", '- `src/upload.py:12` at `abc1234`: "RETRIES = 3"'),
+            ("mute.md", "What does it say?", f"- `src/upload.py:12` at `{short}`"),
         ],
     )
     code, said, _ = jpack("verify", str(repo / "docs" / "context"))
@@ -141,6 +142,7 @@ def test_a_good_citation_passes_and_each_wrong_one_fails_with_its_line(subject):
     assert said == [
         f"commit.md: `src/upload.py:12` at abc1234: no commit abc1234 in {repo}",
         f"line.md: `src/upload.py:99` at {short}: src/upload.py has 40 lines at {short}",
+        f"mute.md: `src/upload.py:12` at {short}: quotes no words of the line in double quotes",
         f"path.md: `src/lid.py:3` at {short}: no src/lid.py at {short}",
         f'quote.md: `src/upload.py:12` at {short}: the line does not say "RETRIES = 5"',
     ]
