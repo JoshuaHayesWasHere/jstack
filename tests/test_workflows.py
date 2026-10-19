@@ -21,7 +21,10 @@ leaves one: a marker says the full suite passed a tree. The script that asks is
 run here in a temporary repo, against a `gh` that answers from files.
 
 The drift step keeps jdrift's clone of pstack in the runner's temporary directory, which
-does not outlive the job."""
+does not outlive the job.
+
+Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and every
+workflow names the same one: with no version setup-uv fetches the latest release on each job."""
 
 import json
 import shutil
@@ -851,3 +854,47 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
     for job in ("check", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
     assert cap(BROWSER.read_text(), "browser") == "30"
+
+
+PIN = "${{ env.UV_VERSION }}"
+
+
+def uv_versions(path):
+    """The uv each setup-uv step of a workflow installs: the workflow's own `UV_VERSION`
+    where the step's `version` names it, what the step writes otherwise, and None with none,
+    which setup-uv reads as the latest release."""
+    text = path.read_text()
+    pinned = (block("env", path) if "env:" in text.splitlines() else {}).get("UV_VERSION")
+    found = []
+    for job in jobs(text):
+        for step in steps(text, job)[0]:
+            if str(step.get("uses", "")).startswith("astral-sh/setup-uv@"):
+                version = (step.get("with") or {}).get("version")
+                found.append(pinned if version == PIN else version)
+    return found
+
+
+def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow():
+    found = {path.name: uv_versions(path) for path in sorted(WORKFLOWS.glob("*.yml"))}
+    found = {name: versions for name, versions in found.items() if versions}
+    assert {name: len(versions) for name, versions in found.items()} == {
+        "browser.yml": 1,
+        "check.yml": 2,
+        "pstack-drift.yml": 1,
+    }
+    (version,) = {version for versions in found.values() for version in versions}
+    assert version is not None and version.count(".") == 2, version
+    assert all(part.isdigit() for part in version.split(".")), version
+    for name in found:
+        assert (WORKFLOWS / name).read_text().count("UV_VERSION:") == 1, name
+
+
+def test_a_setup_uv_step_with_no_version_or_a_workflow_with_no_pin_reads_as_the_latest(tmp_path):
+    path = tmp_path / "flow.yml"
+    step = "      - uses: astral-sh/setup-uv@1 # v1\n"
+    path.write_text(f"jobs:\n  one:\n    steps:\n{step}")
+    assert uv_versions(path) == [None]
+    path.write_text(f"jobs:\n  one:\n    steps:\n{step}        with:\n          version: {PIN}\n")
+    assert uv_versions(path) == [None]
+    path.write_text("env:\n  UV_VERSION: '0.1.2'\n" + path.read_text())
+    assert uv_versions(path) == ["0.1.2"]
