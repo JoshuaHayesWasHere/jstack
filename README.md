@@ -13,7 +13,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 
 [How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
-Eight commands do the routine work with no model: `jmerge` merges, `jbus` runs a home's routine from a timer, `jgauge` counts tokens and checks for room, `jbriefs` shows every brief on one page, `jroles` picks a model for a role, `jdrift` lists what pstack changed upstream, `jleak` finds what must not leave the machine, and `jpack` checks packs.
+Eight commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
 
 What lasts is on disk, in a state directory outside the repo. A thread can end at any time, and the next one starts from those files.
 
