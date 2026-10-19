@@ -757,7 +757,9 @@ def noted(state: Path, rows: list[Row]) -> str:
 
 def reasked(state: Path, rows: list[Row]) -> list[str]:
     """The slugs of the rows still open that have a go the stored brief no longer holds
-    for: the ones a pass gates as `brief changed after approval`."""
+    for. A pass gates such a row as `brief changed after approval` when it would launch it;
+    a row already launched, with a thread or a pull request, is listed too, though no pass
+    gates it again."""
     return [
         row["slug"]
         for row in sorted(rows, key=order)

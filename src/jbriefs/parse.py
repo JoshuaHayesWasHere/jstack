@@ -386,11 +386,11 @@ def proven(text: str) -> str:
 
 
 CHECKS = (
-    ("Design", "no design", designed),
-    ("Proves it", "no proof", proven),
-    ("Skills", "unknown skill", skills.unknown),
-    ("Size", "no size", sized),
-    ("Playbook", "no playbook", playbook),
+    ("Design", designed),
+    ("Proves it", proven),
+    ("Skills", skills.unknown),
+    ("Size", sized),
+    ("Playbook", playbook),
 )
 _SAYS_MISSING = ("Design", "Size", "Skills")
 
@@ -404,7 +404,7 @@ def faults(text: str) -> list[str]:
     fault is complete. It runs when a row is first queued and not again at a launch: a brief
     with a go is grandfathered (`jbus.queue`).
     """
-    checks = {label: check for label, _, check in CHECKS}
+    checks = dict(CHECKS)
     found = []
     for label in (*REQUIRED, *(label for label in checks if label not in REQUIRED)):
         fault = "" if label in _SAYS_MISSING else _filled(text, label)

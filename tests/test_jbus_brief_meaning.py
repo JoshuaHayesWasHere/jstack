@@ -352,7 +352,7 @@ def test_a_lint_added_after_an_approval_neither_refuses_the_brief_nor_voids_its_
     monkeypatch.setattr(
         parse,
         "CHECKS",
-        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+        (*parse.CHECKS, ("Where", lambda text: "brief's Where: names a file")),
     )
     assert parse.faults(APPROVED) == ["brief's Where: names a file"]
     code, said = add(kitchen, APPROVED)
@@ -369,7 +369,7 @@ def test_a_lint_added_later_still_refuses_a_brief_first_queued_after_it(kitchen,
     monkeypatch.setattr(
         parse,
         "CHECKS",
-        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+        (*parse.CHECKS, ("Where", lambda text: "brief's Where: names a file")),
     )
     code, said = add(kitchen, APPROVED)
     assert code == 1 and "- brief's Where: names a file" in said, said
@@ -382,7 +382,7 @@ def test_an_edit_to_an_approved_brief_is_refused_for_the_fault_it_brings_and_not
     monkeypatch.setattr(
         parse,
         "CHECKS",
-        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+        (*parse.CHECKS, ("Where", lambda text: "brief's Where: names a file")),
     )
     broken = APPROVED.replace("Design: none, the Done when list pins it", "Design: TBD")
     code, said = add(kitchen, broken)
@@ -396,7 +396,7 @@ def test_queue_show_says_which_rows_were_grandfathered_and_which_are_re_asked(ki
     monkeypatch.setattr(
         parse,
         "CHECKS",
-        (*parse.CHECKS, ("Where", "no queue", lambda text: "brief's Where: names a file")),
+        (*parse.CHECKS, ("Where", lambda text: "brief's Where: names a file")),
     )
     code, said = kitchen.main("queue", "show")
     assert code == 0 and "re-asked" not in said
