@@ -467,9 +467,9 @@ class Repo:
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
         """The pull requests with those that add a migration in the order they merge in, each
-        in a place a migration pull request had: `merge_after` first, then the older. It also
-        notes which of them is being rebased, for `short_on_migrations`: one in conflict with
-        its base, or whose numbered migration the default branch has already taken."""
+        in a place a migration pull request had: `merge_after` first, then the older. Each is
+        judged after those ahead of it, so `waits` has noted which of those is being rebased
+        by the time `short_on_migrations` asks."""
         settings = self.migrations
         mine = {
             one.number: one
@@ -483,12 +483,6 @@ class Repo:
             brief = ready.brief_of(one.url, self.state / "tasks")
             slugs[number] = brief.stem if brief else ""
         self.order = rows.merge_order(self.queue, slugs)
-        taken = self.numbers(default) or set()
-        for number, one in mine.items():
-            names = ready.migrations(one, settings.directory)
-            numbered = settings.numbered and ready.short_on_migration(names, taken, default)
-            if one.mergeable == "CONFLICTING" or numbered:
-                self.rebasing.add(number)
         places = iter(mine[number] for number in self.order)
         return [next(places) if one.number in mine else one for one in listed]
 
@@ -869,6 +863,20 @@ class Repo:
     def waits(
         self, one: ready.PullRequest, default: str
     ) -> tuple[str, str, str, str, ready.Judged | None]:
+        """What `judge` says of a pull request, noting a migration pull request whose own
+        reason is one its crew rebases for: it holds the migration pull requests behind it.
+        One that waits on anything else (a draft, no brief, another home's, a review) holds
+        none of them, since nobody is told to rebase it."""
+        found = self.judge(one, default)
+        if one.number in self.order and found[1] == "wait" and ready.being_rebased(found[2]):
+            self.rebasing.add(one.number)
+        else:
+            self.rebasing.discard(one.number)
+        return found
+
+    def judge(
+        self, one: ready.PullRequest, default: str
+    ) -> tuple[str, str, str, str, ready.Judged | None]:
         """The slug of the pull request's brief, `wait` or `hold` with the first thing that
         keeps it from a merge, that its review carried over a rebase, and for one that met
         every gate, how it was judged.
@@ -1096,6 +1104,7 @@ class Repo:
                 guarded = f"guarded (touches {judged.path}), " if judged.path else ""
                 return f"wait {number} {one.url}: {guarded}{ready.MAIN_MOVED}"
             again += 1
+            self.numbers_on = None
             _, verb, why, rebase, found = self.waits(one, one.base)
             if found is None:
                 return f"{verb} {number} {one.url}: {why}"

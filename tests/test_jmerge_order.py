@@ -359,3 +359,61 @@ TAKEN = ready.MIGRATION_TAKEN.format(name="0005_x", number="0005", default="main
 )
 def test_each_wait_a_migration_gives_lands_on_its_step_and_not_in_unknown(reason, step):
     assert jbus_merge.step(f"wait: {reason}") == step
+
+
+def mark(home, number, **fields):
+    """Change one listed pull request's fields as GitHub gives them."""
+    listed = json.loads((home.stub / "list.json").read_text())
+    for one in listed:
+        if one["number"] == number:
+            one.update(fields)
+    (home.stub / "list.json").write_text(json.dumps(listed))
+
+
+@pytest.mark.parametrize("mergeable", ["CONFLICTING", "MERGEABLE"])
+def test_a_draft_migration_pull_request_ahead_holds_none_behind_it(lined, mergeable):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home, alpha=("0004_alpha",), mergeable=mergeable)
+    mark(lined.home, 7, isDraft=True)
+    said = lined.run("--check")
+    assert said[0] == f"wait 7 {merge.URL}: {ready.DRAFT}"
+    assert said[1].startswith(f"ready 8 {lined.head} beta beta")
+
+
+def test_an_unreviewed_migration_pull_request_in_conflict_holds_none_behind_it(lined):
+    queue_of(lined.home, [], DIRECTORY)
+    pulls(lined.home, mergeable="CONFLICTING")
+    (lined.home.tasks / "alpha.md").write_text(merge.brief())
+    said = lined.run("--check")
+    assert said[0].startswith(f"wait 7 {merge.URL}: ")
+    assert not ready.being_rebased(said[0].split(": ", 1)[1])
+    assert said[1].startswith(f"ready 8 {lined.head} beta beta")
+
+
+def test_a_hand_merge_that_takes_the_number_after_the_judgment_has_it_renumbered(
+    lined, monkeypatch
+):
+    from test_jmerge_fresh import repo
+
+    home = lined.home
+    queue_of(home, [], DIRECTORY)
+    listing(home, (8, BETA_URL, "beta", adds("0005_beta"), "MERGEABLE"))
+    listed = json.loads((home.stub / "list.json").read_text())
+    for check in listed[0]["statusCheckRollup"]:
+        check["startedAt"] = "2000-01-01T00:00:00Z"
+    (home.stub / "list.json").write_text(json.dumps(listed))
+    one = ready.pull_request(listed[0])
+    monkeypatch.setenv("JBUS_CONFIG_DIR", str(home.user / ".config" / "jbus"))
+    here = repo(lined, monkeypatch)
+    here.line_up([one], "main")
+    slug, verb, why, note, judged = here.waits(one, "main")
+    assert here.migrations and here.numbers("main") == {4}
+    assert (verb, why) == ("", "") and judged is not None and judged.tip
+    by_hand = merge.git(home.main, "rev-parse", "HEAD")
+    commit_migration(home.main, "0005_by_hand")
+    merge.git(home.main, "push", "-q", "origin", "main")
+    assert merge.git(home.main, "rev-parse", "HEAD") != by_hand
+    taken = ready.MIGRATION_TAKEN.format(
+        name="0005_beta", number="0005", default="main", free="0006"
+    )
+    assert here.merge(one, slug, note, judged) == f"wait 8 {BETA_URL}: {taken}"

@@ -291,6 +291,15 @@ def short_on_migration(names: tuple[str, ...], on_default: set[int], default: st
     return ""
 
 
+_TAKEN = re.compile(re.sub(r"\\\{\w+\\\}", ".+", re.escape(MIGRATION_TAKEN)) + "$")
+
+
+def being_rebased(why: str) -> bool:
+    """Whether a wait is one its crew rebases for: a conflict with the base or with today's
+    default branch, or a migration number the default branch has taken."""
+    return why in (CONFLICTS, FRESH_CONFLICT) or bool(_TAKEN.match(why))
+
+
 @dataclass
 class Round:
     """One `## Review` section of a brief: its verdict, its head and its count of findings."""
