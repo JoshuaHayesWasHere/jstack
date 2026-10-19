@@ -46,13 +46,13 @@ def test_the_units_are_the_ones_install_links():
 
 @pytest.mark.parametrize("name", UNITS)
 def test_each_unit_names_the_section_of_the_jbus_page_that_says_what_it_does(name, tmp_path):
-    if not shutil.which("systemd-analyze"):
-        pytest.skip("no systemd-analyze on PATH")
     documentation = unit(name)["Unit"]["Documentation"]
     for uri in documentation.split():
         found = DOCUMENTED.fullmatch(uri)
         assert found, f"{name}: {uri} is not file:%Y/../docs/jbus.md#<section>"
         assert found[1] in anchors(), f"{name}: docs/jbus.md has no section #{found[1]}"
+    if not shutil.which("systemd-analyze"):
+        pytest.skip("no systemd-analyze on PATH")
     probe = tmp_path / name.replace(".timer", ".service")
     probe.write_text(
         f"[Unit]\nDescription=probe\nDocumentation={documentation}\n\n"
