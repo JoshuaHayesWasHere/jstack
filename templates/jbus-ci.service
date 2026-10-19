@@ -1,9 +1,6 @@
-# jbus ci: keep the last two weeks of jstack's CI jobs, write reports/ci-week-<date>.md in
-# jstack's home, and alert once if a target was missed.
-# Install: `sh install.sh` links this file and jbus-ci.timer into ~/.config/systemd/user/ with the
-# jbus units, and enables the timer. Do not copy this file.
 [Unit]
 Description=jbus ci: keep CI's jobs, write the week's report and alert on a missed target
+Documentation=file:%Y/../docs/jbus.md#measure-the-ci file:%Y/../docs/jbus.md#the-weeks-report
 
 [Service]
 Type=oneshot
