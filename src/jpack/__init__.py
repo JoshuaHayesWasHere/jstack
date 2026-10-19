@@ -9,7 +9,8 @@ lines that carry it on, up to the next blank line, item or heading, as the lint
 `lint-notes.sh` reads them. A citation in a source is written `` `path:line` at <sha> ``, or
 `` `path:first-last` at <sha> ``, with the commit in backticks or bare, and at most one word
 between `at` and it, as in `` at Winnifred `3f9c2ab` ``. The first double-quoted fragment
-after a citation, before the next one, is what the cited lines say. A source dated and not
+after a citation, before the next one, is what the cited lines say, and a citation with none
+is a fault of `verify`. A source dated and not
 pinned to a commit (a doc, a link, a command that was run) has no citation: the lint holds it
 to a revision, and nothing here reads it. A source that names a commit and has no citation is
 a fault of `verify`: nothing could check what it claims.

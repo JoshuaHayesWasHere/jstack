@@ -2,7 +2,8 @@
 
 For each citation it reads the subject repo at the cited commit: the commit is there, the
 path is in it, the file has the cited lines, and the quote that follows the citation is on
-them, with white space read as one space. Whoever wrote the notes, a scout or a crewmate,
+them, with white space read as one space. A citation that quotes nothing is a fault, since
+the line alone proves nothing the note claims. Whoever wrote the notes, a scout or a crewmate,
 this is the outside check on them: it can say no.
 """
 
@@ -34,8 +35,10 @@ def fault(repo: Path, cited: Citation) -> str:
     lines = shown.stdout.splitlines()
     if cited.first < 1 or cited.last > len(lines) or cited.first > cited.last:
         return f"{cited.note}: {cited}: {cited.path} has {len(lines)} lines at {cited.sha}"
+    if not cited.quote:
+        return f"{cited.note}: {cited}: quotes no words of the line in double quotes"
     there = said(" ".join(lines[cited.first - 1 : cited.last]))
-    if cited.quote and said(cited.quote) not in there:
+    if said(cited.quote) not in there:
         return f'{cited.note}: {cited}: the line does not say "{cited.quote}"'
     return ""
 
