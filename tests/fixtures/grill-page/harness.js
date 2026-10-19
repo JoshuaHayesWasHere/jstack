@@ -76,6 +76,13 @@ const known = (name) => vm.runInContext(`(function () { try { return typeof ${na
 const before = [...names].filter(known);
 scripts.forEach((script) => vm.runInContext(script.own, sandbox));
 
+const forms = () => root.walk().filter((node) => 'data-lavish-question' in node.attrs);
+// After a reload Lavish puts back each pick under the name of the form it was made in.
+for (const [name, option] of Object.entries(spec.restored || {})) {
+  const form = forms().find((node) => node.attrs['data-lavish-question'] === name);
+  if (form) form.walk().filter((node) => node.type === 'radio').forEach((input) => { input.checked = input.value === option; });
+}
+
 const controls = () => root.walk().filter((node) => ['input', 'textarea', 'select'].includes(node.tagName));
 const question = (node) => node.up((n) => 'data-lavish-question' in n.attrs);
 const checked = {};
