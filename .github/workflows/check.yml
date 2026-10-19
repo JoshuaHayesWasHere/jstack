@@ -20,6 +20,12 @@ concurrency:
   # Only a pull request shares a group, its ref, and there a new push cancels the older run.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
+  # each job. check.yml, browser.yml and pstack-drift.yml name the same one
+  # (tests/test_workflows.py).
+  UV_VERSION: "0.13.2"
+
 jobs:
   # A pull request's check is the fast one: the lint, and the tests its change reaches. On
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
@@ -44,6 +50,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
       # A fast run leaves no marker and asks for none: a marker says the full suite passed.
@@ -75,6 +83,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/green_tree.py
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'

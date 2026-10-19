@@ -21,7 +21,10 @@ leaves one: a marker says the full suite passed a tree. The script that asks is
 run here in a temporary repo, against a `gh` that answers from files.
 
 The drift step keeps jdrift's clone of pstack in the runner's temporary directory, which
-does not outlive the job."""
+does not outlive the job.
+
+Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and every
+workflow names the same one: with no version setup-uv fetches the latest release on each job."""
 
 import json
 import shutil
