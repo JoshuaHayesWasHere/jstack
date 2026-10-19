@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
+  # each job. check.yml, browser.yml and pstack-drift.yml name the same one
+  # (tests/test_workflows.py).
+  UV_VERSION: "0.13.2"
+
 jobs:
   drift:
     # The repo's variable RUNS_ON names the runner, and the local ephemeral one it is with none,
@@ -21,6 +27,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
       - run: uv sync --locked
       - name: make pstack-drift
         # jdrift keeps its clone of pstack under the cache directory. On a runner that is kept
