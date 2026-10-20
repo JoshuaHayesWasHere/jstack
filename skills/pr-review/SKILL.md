@@ -58,6 +58,7 @@ A review covers the lines the pull request changes, and reads them the way a tec
 - A finding is about a changed line, or about something a changed line breaks. In the second case it is written against the changed line that does the breaking, and says what breaks.
 - A bug or weakness in code the pull request did not change is not fixed, not sent to the crewmate and not written in `## Review`, however real it is. Those are handled by other paths. Only their count is kept.
 - The review asks for nothing beyond what the brief needed.
+- New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
 The questions a review answers, each about the changed code only:
 
