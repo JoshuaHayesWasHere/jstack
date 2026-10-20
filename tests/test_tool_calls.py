@@ -21,6 +21,7 @@ TOOL = re.compile(r"`((?<=`t3-code` server's `)\w+|t3_\w+|Agent)`")
 PLACEHOLDER = re.compile(r"<[^<>]+>")
 FILLED = {
     "<slug>": "fix-login",
+    "<n>": "2",
     "<default branch>": "main",
     "<that worktree>": "/home/someone/trees/fix-login",
     "<the pull request's branch>": "fix-login",

@@ -59,29 +59,32 @@ Call sites:
 
 ```python
 # src/jroles/__init__.py, _selection
-if effort is not None and effort not in known.allowed(role): refuse
+if effort is not None and effort not in known.allowed(role):
+    refuse
 
 # src/jmerge/ready.py, _round
-if said.triage.roster.owed(said.triage.sections): said.verdict = ""
+if said.triage.roster.owed(said.triage.sections):
+    said.verdict = ""
 
 # src/jbriefs/findings.py, left
 owed = said.roster.owed(said.sections)
-if owed: return f"wait: {size - owed} of {size} reviewers have written their section"
+if owed:
+    return f"wait: {size - owed} of {size} reviewers have written their section"
 ```
 
 ## Shape
 
-**Effort.** `Provider.levels` stays the fact of what T3 Code lists.
+**Effort**: `Provider.levels` stays the fact of what T3 Code lists.
 The user's rule is data beside it: `ceiling`, the highest level any role may name, and `raised`, the roles the user lifted.
 `Provider.allowed(role)` cuts `levels` at the role's ceiling and is the one judge of a level.
 Claude lists `low, medium, high, xhigh, max`, has the ceiling `medium`, and `raised = {"review": "high"}`.
 Codex, Cursor and Grok have no ceiling and read as today.
 A level T3 Code adds never loosens a role, since the ceiling is a separate field (single source of truth).
 
-**Identity.** A section's `By:` keeps its whole text, `#<n>` included, and `Section.seat` holds the parsed number.
+**Identity**: A section's `By:` keeps its whole text, `#<n>` included, and `Section.seat` holds the parsed number.
 Because `by` carries the number, `_superseded`, `_same`, `Raised.reviewer` and `listed` tell two Sonnets apart with no edit, and the Start check stops a reviewer only for its own seat.
 
-**The roster.** `Roster = Legacy(named) | Numbered(seats)`, read from the `Reviewer:` lines by `findings.triage`, the one Python reader of them.
+**The roster**: `Roster = Legacy(named) | Numbered(seats)`, read from the `Reviewer:` lines by `findings.triage`, the one Python reader of them.
 `ready.said_of` loses its own count (`Said.reviewers`).
 Any numbered `Reviewer:` line makes the brief `Numbered`, and its unnumbered lines are the launch it replaced: the Codex reviewer that never wrote is forgotten.
 `seats` is a set, so a relaunch of a seat, or a line written twice, does not grow the count.
@@ -89,12 +92,12 @@ Any numbered `Reviewer:` line makes the brief `Numbered`, and its unnumbered lin
 `Numbered` owes each seat that no numbered section carries, at any head, scoped or not.
 A `Reviewer: none, ...` line claims no seat, as it counts for nothing today.
 
-**The round's verdict.** In a `Numbered` brief the verdict is read from the numbered sections only (`Roster.counted`).
+**The round's verdict**: In a `Numbered` brief the verdict is read from the numbered sections only (`Roster.counted`).
 An old section of the replaced launch keeps its findings in the triage, which still block by id until answered, but its verdict, a `findings` or a `not run`, is not the new round's word.
 `said.rounds`, and so `ran` and the last head, are read from the same counted sections.
 Without that, a legacy `not run` at the current head would hold the round forever, since `_RANKS` puts any verdict but `clean` and `findings` worst.
 
-**The skills.** Three words change on the wire: the numbered launch message, the `#<n>` on the `Reviewer:` line, and the `#<n>` on the `By:` line.
+**The skills**: Three words change on the wire: the numbered launch message, the `#<n>` on the `Reviewer:` line, and the `#<n>` on the `By:` line.
 The crew skill's rebase guard (`reviewing()` in `SKILL.md` and `a-conflict.md`) counts launched against written by the same rule: in a brief with a numbered `Reviewer:` line, neither the unnumbered `Reviewer:` lines nor the unnumbered sections count.
 jbus's nudge to a crewmate with no review (`src/jbus/expedite.py`) names the `#<n>` on the `Reviewer:` line it asks for.
 `again` keeps its seat: it is sent to a reviewer thread that is already there, whose first message has the number.
@@ -118,11 +121,13 @@ My own whole-shape alternative, identity by the reviewer's thread id joined to t
 
 ## Alternatives considered
 
-- **Count only the last Result's `Reviewer:` lines.** It needs no new line, but rests on where a crewmate writes a line, and single lines go "into the last result there is": a proxy for which launch, not the launch.
-- **`By: ... #<n> of <m>`, and no `Reviewer:` reading.** Self-describing, but not the line the brief names, and before any section is written nothing says how many are owed.
-- **Identity by thread id (my own whole-shape alternative).** The reviewer writes its thread id on its `By:` line and the round joins it to the `Reviewer:` lines of the last launch. It hides as much, but every reviewer must learn and write its id, a rerun still has to say which launch is current, and the number is already in the launch message. Scored below a on interface depth and on the stale verdict, which it does not address.
-- **A table of levels per role (`LEVELS[(provider, role)]`).** Twenty cells where the rule is one ceiling and one exception.
-- **Raise the ceiling for every Claude role.** The smallest diff, but it moves the user's rule from code to prose.
+- **Count only the last Result's `Reviewer:` lines**: It needs no new line, but rests on where a crewmate writes a line, and single lines go "into the last result there is": a proxy for which launch, not the launch.
+- **`By: ... #<n> of <m>`, and no `Reviewer:` reading**: Self-describing, but not the line the brief names, and before any section is written nothing says how many are owed.
+- **Identity by thread id (my own whole-shape alternative)**: The reviewer writes its thread id on its `By:` line and the round joins it to the `Reviewer:` lines of the last launch.
+  It hides as much, but every reviewer must learn and write its id, a rerun still has to say which launch is current, and the number is already in the launch message.
+  Scored below a on interface depth and on the stale verdict, which it does not address.
+- **A table of levels per role (`LEVELS[(provider, role)]`)**: Twenty cells where the rule is one ceiling and one exception.
+- **Raise the ceiling for every Claude role**: The smallest diff, but it moves the user's rule from code to prose.
 
 ## Open questions and risks
 

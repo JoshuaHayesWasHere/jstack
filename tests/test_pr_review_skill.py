@@ -279,14 +279,35 @@ def by(reviewer, asked, roles=None, thread=None):
 
 
 def test_each_reviewer_names_the_line_of_the_review_list_it_was_launched_on(reviewer):
-    assert by(reviewer, "/pr-review run a-task 1", DUAL) == CODEX
-    assert by(reviewer, "/pr-review run a-task 2", DUAL) == CURSOR
-    assert by(reviewer, "/pr-review run a-task", DUAL) == CODEX
-    assert by(reviewer, "/pr-review run a-task scoped aaa..bbb ccc..ddd", DUAL) == CODEX
+    assert by(reviewer, "/pr-review run a-task 1", DUAL) == f"{CODEX} #1"
+    assert by(reviewer, "/pr-review run a-task 2", DUAL) == f"{CURSOR} #2"
+    assert by(reviewer, "/pr-review run a-task", DUAL) == f"{CODEX} #1"
+    assert by(reviewer, "/pr-review run a-task scoped aaa..bbb ccc..ddd", DUAL) == f"{CODEX} #1"
     assert by(reviewer, "/pr-review run a-task 2", "review: claudeAgent claude-opus-5-5\n") == (
-        "By: inherit"
+        "By: inherit #2"
     )
-    assert by(reviewer, "/pr-review run a-task", "review: inherit\n") == "By: inherit"
+    assert by(reviewer, "/pr-review run a-task", "review: inherit\n") == "By: inherit #1"
+
+
+SONNET = "review: claudeAgent claude-sonnet-5-5 effort=high\n" * 2
+
+
+def test_two_reviewers_of_one_model_write_two_by_lines_told_apart_by_their_number(reviewer):
+    """The user's word of 2026-10-20: two Sonnet 5.5 reviewers on High, one model twice."""
+    one = {"modelSelection": {"instanceId": "claudeAgent", "model": "claude-sonnet-5-5"}}
+    one["modelSelection"]["options"] = [{"id": "effort", "value": "high"}]
+    first = by(reviewer, "/pr-review run a-task 1", SONNET, one)
+    second = by(reviewer, "/pr-review run a-task 2", SONNET, one)
+    assert (first, second) == (
+        "By: claudeAgent claude-sonnet-5-5 high #1",
+        "By: claudeAgent claude-sonnet-5-5 high #2",
+    )
+    assert by(reviewer, "/pr-review run a-task 2", SONNET) == second
+    section = SECTION.replace("## Review\n", f"## Review\n{first}\n")
+    said, code = numbered(reviewer, "/pr-review run a-task 2", second, section)
+    assert code == 0 and said[0].startswith("go: "), said
+    said, code = numbered(reviewer, "/pr-review run a-task 1", first, section)
+    assert code == 0 and said[0].startswith("stop: "), said
 
 
 def test_the_by_line_is_read_from_the_thread_itself_whatever_the_map_says_now(reviewer):
@@ -303,7 +324,7 @@ def test_the_by_line_is_read_from_the_thread_itself_whatever_the_map_says_now(re
             ],
         },
     }
-    assert by(reviewer, "/pr-review run a-task 2", "review: inherit\n", cursor) == CURSOR
+    assert by(reviewer, "/pr-review run a-task 2", "review: inherit\n", cursor) == f"{CURSOR} #2"
     codex = {
         "modelSelection": {
             "provider": "codex",
@@ -312,9 +333,11 @@ def test_the_by_line_is_read_from_the_thread_itself_whatever_the_map_says_now(re
             "options": [{"id": "reasoningEffort", "value": "xhigh"}],
         }
     }
-    assert by(reviewer, "/pr-review run a-task again", DUAL, codex) == CODEX
+    assert by(reviewer, "/pr-review run a-task again", DUAL, codex) == f"{CODEX} #1"
     claude = {"modelSelection": {"instanceId": "claudeAgent", "model": "claude-opus-5-5"}}
-    assert by(reviewer, "/pr-review run a-task", None, claude) == "By: claudeAgent claude-opus-5-5"
+    assert (
+        by(reviewer, "/pr-review run a-task", None, claude) == "By: claudeAgent claude-opus-5-5 #1"
+    )
 
 
 def numbered(reviewer, asked, mine, brief):
@@ -832,7 +855,10 @@ def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):
     ]
     made = calls(as_read(SKILL))
     assert [each for each in made if "subagent_type" in each or "description" in each] == []
-    assert {each["message"] for each in made} == {"/pr-review run <slug>"}
+    assert {each["message"] for each in made} == {
+        "/pr-review run <slug> 1",
+        "/pr-review run <slug> <n>",
+    }
     assert reviewer.prompt().is_file()
 
 

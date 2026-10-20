@@ -92,25 +92,35 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
 
    ```json
    {
-     "title": "review: <slug>",
+     "title": "review: <slug>, 1",
      "workspaceStrategy": {"type": "existing_worktree", "worktreePath": "<that worktree>", "branch": "<the pull request's branch>"},
-     "message": "/pr-review run <slug>"
+     "message": "/pr-review run <slug> 1"
    }
    ```
 
-   Before this launch, run `uv run --project "$T/.." jroles review` with the block at the top. It prints one JSON object a line, one for each reviewer the role map lists, in order: each line is a `<model selection>`, and each is one `t3_thread_launch` call, this one, which starts that reviewer on the model the line names. A pull request gets a review from each. With one line, the call is this one as it is. With two or more, the call for line `<n>` (1 for the first) has the title `review: <slug>, <n>` and the message `/pr-review run <slug> <n>`: the number is how the reviewer knows which line it is. When it prints nothing, there is one call, the one above. A scoped pass and a second pass are one reviewer, whatever the map lists: one call, on the first line, with the message and title they are given. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of a review line's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed.
+   Before this launch, run `uv run --project "$T/.." jroles review` with the block at the top.
+   It prints one JSON object a line, one for each reviewer the role map lists, in order: each line is a `<model selection>`, and each is one `t3_thread_launch` call, this one, which starts that reviewer on the model the line names.
+   A pull request gets a review from each.
+   The call for line `<n>` (1 for the first) has the title `review: <slug>, <n>` and the message `/pr-review run <slug> <n>`, with one line too: the number is how the reviewer knows which line it is, and it writes it on its `By:` line, `#<n>`.
+   Two lines of one provider and model are two reviewers, told apart by the number alone.
+   When it prints nothing, there is one call, the one above.
+   A scoped pass and a second pass are one reviewer, whatever the map lists: one call, on the first line, with the message and title they are given.
+   Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+   When it exits 75 and prints no JSON, every instance of a review line's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line.
+   A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed.
 
    ```json
    {
-     "title": "review: <slug>",
+     "title": "review: <slug>, <n>",
      "workspaceStrategy": {"type": "existing_worktree", "worktreePath": "<that worktree>", "branch": "<the pull request's branch>"},
-     "message": "/pr-review run <slug>",
+     "message": "/pr-review run <slug> <n>",
      "modelSelection": <model selection>
    }
    ```
 
    - Leave the project and modes out, and the model unless `jroles` printed one. What is left out, the reviewer inherits from this thread.
-   - A crewmate writes one `Reviewer: <threadId>` line in its Result for each reviewer launched, in the order they were launched.
+   - A crewmate writes one `Reviewer: <threadId> #<n>` line in its Result for each reviewer launched, in the order they were launched, with the number its message gave it.
+     `jmerge` waits for each number those lines name, and once one is numbered, an unnumbered `Reviewer:` line is a launch they replaced and is waited on no more.
    - A launch has no retry key. If the call fails or its reply is lost, look for the thread with `t3_thread_list` (`titleContains: "review: <slug>"`) before launching again.
    - If the session has no such tool, tell the user instead: "Open a new thread in this project, in the worktree of `<branch>`, and type `/pr-review run <slug>`."
 5. Give the user the links, one line for each reviewer: `[review: <slug>](t3-thread://v1/<threadId>)`, with its title. Then stop. Do not wait for a reviewer, poll it, or read its thread: its findings go to the crewmate and into the brief.

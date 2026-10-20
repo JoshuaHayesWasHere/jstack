@@ -5,11 +5,11 @@
 A launched thread runs on the model of the thread that launched it, unless the role map names one for its role. The map is `${XDG_CONFIG_HOME:-~/.config}/jstack/roles`, one line a role, with `#` for a comment:
 
 ```
-# Claude does the coding, scouting and homes; Codex and Cursor review
+# Two Claude Sonnet 5.5 reviewers on High (the user, 2026-10-20)
 crew: claudeAgent claude-sonnet-5-5
 scout: claudeAgent claude-sonnet-5-5
-review: codex gpt-6-sol effort=xhigh
-review: cursor grok-4.7 effort=xhigh fast=off
+review: claudeAgent claude-sonnet-5-5 effort=high
+review: claudeAgent claude-sonnet-5-5 effort=high
 home: inherit
 ```
 
@@ -17,22 +17,38 @@ A line is `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<
 
 ## The review list
 
-`review` alone may have several lines. Each is one reviewer, in the order written, and every pull request gets one review from each: the crewmate launches a reviewer thread for each line, told its number, and each writes its own `## Review` section into the brief, with a `By: <provider> <model> <effort>` line under the heading. `jmerge` reads the sections at one head as one round: it waits until every reviewer the Result's `Reviewer:` lines name has written, and the round's verdict is the worst of them. A scoped pass or a second pass is one reviewer, on the first line. Any other role named twice refuses the map, and so does `review: inherit` beside another review line.
+`review` alone may have several lines.
+Each is one reviewer, in the order written, and every pull request gets one review from each.
+The crewmate launches a reviewer thread for each line with the message `/pr-review run <slug> <n>`, `<n>` the line's number from 1, and writes `Reviewer: <threadId> #<n>` in its Result.
+Each reviewer writes its own `## Review` section into the brief, with a `By: <provider> <model> <effort> #<n>` line under the heading.
+Two lines of one provider and model are two reviewers, told apart by the number alone.
+`jmerge` reads the sections at one head as one round: it waits until a section carries each number the `Reviewer:` lines name, and the round's verdict is the worst of them.
+Once a `Reviewer:` line carries a number, the unnumbered `Reviewer:` lines are a launch it replaced: the round waits on them no more, and their sections are not its verdict, though their findings still need their answers.
+A brief none of whose lines carries a number is read as before, by the `By:` texts.
+A scoped pass or a second pass is one reviewer, on the first line, and writes `#1`.
+Any other role named twice refuses the map, and so does `review: inherit` beside another review line.
 
-Claude does no reviews by default. The user's rule is that Claude does the coding, the scouting and the homes, and Codex and Cursor review. A map with no review line launches the reviewer on the launcher's model, which is Claude, so the review list is what puts the reviews on Codex and Cursor.
+Since the user's word of 2026-10-20 every review runs as two Claude Sonnet 5.5 threads at `high`, from the main Claude pool, and no review line names Codex or Cursor.
+It replaces, for now, the earlier rule that Claude does the coding and the other providers review.
+A review line that names Claude's built-in instance, or a pool of Claude instances, is placed and moved on a cap like any other Claude thread (see Pools).
 
 ## Effort and fast
 
-Each provider names its effort with its own T3 Code option id, and takes only the levels T3 Code lists for it:
+Each provider names its effort with its own T3 Code option id, and takes only the levels T3 Code lists for it, up to the ceiling the user's rule gives the role:
 
 | Provider | Option id | Levels | With no `effort=` |
 | --- | --- | --- | --- |
-| `claudeAgent` | `effort` | `low`, `medium` | `medium`, always sent |
+| `claudeAgent` | `effort` | `low`, `medium`; `high` too on a `review` line | `medium`, always sent |
 | `codex` | `reasoningEffort` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | the model's default, nothing sent |
 | `cursor` | `reasoning_effort` | `low`, `medium`, `high`, `xhigh` | the model's default, nothing sent |
 | `grok` | none | none: a Grok line names no effort | nothing sent |
 
-A Claude line always launches at `medium`, or at `low` where it says `effort=low`. T3 Code launches a model with no effort at that model's own default, which is `high` for Claude Sonnet 5.5 and Claude Opus 5, and no Claude thread here runs above medium unless the user says so: any other level refuses the line's role, and its launch inherits. A level the provider does not list, such as `effort=turbo` on a Codex line, refuses the role the same way.
+A Claude line always launches at `medium`, or at the level it names.
+T3 Code launches a model with no effort at that model's own default, which is `high` for Claude Sonnet 5.5 and Claude Opus 5, and no Claude thread here runs above medium unless the user says so.
+The user said so for reviews (2026-10-20): a `review` line may name `high`, and no higher.
+A `crew`, `scout`, `home` or `expert` line takes `low` or `medium` alone.
+T3 Code lists `xhigh` and `max` for Claude too, and a level above a role's ceiling refuses the line's role, and its launch inherits.
+A level the provider does not list, such as `effort=turbo` on a Codex line, refuses the role the same way.
 
 `fast=on` or `fast=off` is Cursor's alone, sent as `{"id": "fastMode", "value": true}` or `false`. T3 Code's default for Cursor's Grok 4.7 is on, so a reviewer with Fast off says `fast=off`.
 
@@ -40,7 +56,13 @@ One line of a role that is refused refuses every line of that role: half a list 
 
 ## Running it
 
-Before a launch a thread runs `uv run jroles <role>`. For a role the map names, `jroles` prints one JSON line a selection, such as `{"provider": "codex", "model": "gpt-6-sol", "options": [{"id": "reasoningEffort", "value": "xhigh"}]}`, and the launch sends it as `modelSelection`. For `review` it prints a line for each reviewer, in order, and each is one launch. It prints nothing when the launch inherits. A selection names the instance of its pool it chose (see Pools), and while any review line's pool is capped the whole list waits. A map it cannot use is said on stderr, the launch inherits, and `jroles` exits 0. It does not ask T3 Code whether the model exists.
+Before a launch a thread runs `uv run jroles <role>`.
+For a role the map names, `jroles` prints one JSON line a selection, such as `{"provider": "claudeAgent", "model": "claude-sonnet-5-5", "options": [{"id": "effort", "value": "high"}]}`, and the launch sends it as `modelSelection`.
+For `review` it prints a line for each reviewer, in order, and each is one launch.
+It prints nothing when the launch inherits.
+A selection names the instance of its pool it chose (see Pools), and while any review line's pool is capped the whole list waits.
+A map it cannot use is said on stderr, the launch inherits, and `jroles` exits 0.
+It does not ask T3 Code whether the model exists.
 
 ## Pools
 
