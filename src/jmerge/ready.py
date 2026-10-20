@@ -1026,7 +1026,8 @@ def short_of_guarded(one: PullRequest, text: str, rebase: Rebase | None, carried
     finished: `short_of` has held it until every finding that blocks has its answer, on every
     path, with or without a second pass. And the head is one the review covers: the head it
     saw, the `Fixed:` commit, the head of a rebase the command found to leave the patch as it
-    was, or one the review carried over to. `carried` is `rebase_note`'s: a rebase that left the content as it was.
+    was, or one the review carried over to. `carried` is `rebase_note`'s: a rebase that left
+    the content as it was.
     """
     if one.started is None:
         return NO_START

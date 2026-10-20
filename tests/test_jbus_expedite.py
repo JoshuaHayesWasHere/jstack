@@ -13,8 +13,8 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import merge
 from jbriefs import findings
+from jbus import merge
 from jmerge import ready
 from test_jbus_kitchen import NOW, OPTIONS, PROJECT
 from test_jbus_queue import add, gates

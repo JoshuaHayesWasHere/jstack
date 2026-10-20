@@ -160,8 +160,8 @@ TABLE = (
             re.escape(ready.UNENDED).replace(r"\{left\}", r"\d+").replace(r"\{found\}", r"\d+")
         ),
         "Write the lines that are missing, one for each finding of both passes, "
-        f"{findings.ANSWER}. Set `Fixed:` to the head you pushed where you push for them, and push nothing where "
-        "you decline them.",
+        f"{findings.ANSWER}. Set `Fixed:` to the head you pushed where you push for them, and "
+        "push nothing where you decline them.",
     ),
     Short(
         "unanswered",

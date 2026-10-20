@@ -386,7 +386,8 @@ LATER = "c" * 40
 
 SECOND_PASS = {
     "a fix inside the files the findings named": (
-        f"{ENDED}Fixed: {PUSHED}\nSecond pass: none, the fix stayed inside the files the findings named\n",
+        f"{ENDED}Fixed: {PUSHED}\n"
+        "Second pass: none, the fix stayed inside the files the findings named\n",
         review("findings"),
         PUSHED,
     ),
