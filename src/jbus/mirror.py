@@ -205,18 +205,12 @@ def _gates(
     return found
 
 
-def _named(run: Pass) -> frozenset[str] | None:
-    """The slugs a row of the queue has, or had before it was removed: what jbus launched. With
-    a queue that does not parse, None: no file is then taken as restored."""
-    try:
-        rows = queue.load(run.state)
-    except queue.Unparsable:
-        return None
-    return frozenset(row["slug"] for row in rows) | queue.removed_slugs(run.state)
-
-
-def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
-    """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`).
+def scan(
+    run: Pass, held: frozenset[str] | None = frozenset(), rows: list[queue.Row] | None = None
+) -> int:
+    """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`), and
+    `rows` the rows of the queue as the pass loaded them, or None where it could not: then, as
+    on a project's first pass, which records all there is, no file is taken as restored.
 
     Each file read is kept in `seen.json`, with no heading while it has nothing to send, so a
     file a pass has read once is known. One a pass never read whose slug no row of the queue
@@ -227,7 +221,9 @@ def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
     """
     seen_path = run.state / "seen.json"
     seen: dict[str, dict[str, str]] = read_json(seen_path, {})
-    named = _named(run)
+    named = None
+    if rows is not None and not run.first:
+        named = frozenset(row["slug"] for row in rows) | queue.removed_slugs(run.state)
     restored: set[str] = set()
     sent = 0
 
@@ -282,5 +278,7 @@ def _read(path: Path) -> str:
 
 
 STEPS = (
-    verbs.Step("tellers", 10, "mirror.scan", lambda half: scan(half.run, half.held), ("sight",)),
+    verbs.Step(
+        "tellers", 10, "mirror.scan", lambda half: scan(half.run, half.held, half.rows), ("sight",)
+    ),
 )
