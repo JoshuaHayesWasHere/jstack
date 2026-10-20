@@ -368,6 +368,7 @@ def asking(module):
     }
 
 
+@cache
 def opens_browser(test):
     """Whether the test file marks its whole module `browser`, which `make check-browser` runs
     and the check leaves out."""
