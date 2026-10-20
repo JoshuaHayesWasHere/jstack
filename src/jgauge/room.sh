@@ -14,7 +14,33 @@ room() (
   cores=$(nproc 2> /dev/null)
   memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
   pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
-  slots=$(df -Pi "$TMPFS" 2> /dev/null | awk 'NR == 2 {print $(2), $(3)}')
+  read_slots() { df -Pi "$TMPFS" 2> /dev/null | awk 'NR == 2 {print $(2), $(3)}'; }
+  slots=$(read_slots)
+  if echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
+    here=$(cd "$TMPFS" 2> /dev/null && pwd -P); then
+    stale=$({
+      find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -printf '%l\n' 2> /dev/null
+      printf '\001\n'
+      find "$here"/pytest-of-* -mindepth 1 -maxdepth 1 -name 'pytest-*' -type d -user "$(id -u)" -mmin +20 2> /dev/null
+    } | awk '
+      $(0) == "\001" {runs = 1; next}
+      !runs {path = $(0); while (path ~ /.\//) {held[path]; sub(/\/[^\/]*$/, "", path)}; next}
+      !($(0) in held)')
+    removed=$(printf '%s\n' "$stale" | while IFS= read -r run; do
+      [ -n "$run" ] || continue
+      pid=$(head -c 20 "$run/.lock" 2> /dev/null)
+      case $pid in "" | *[!0-9]*) ;; *) [ -e "$PROC/$pid" ] && continue ;; esac
+      rm -rf -- "$run" 2> /dev/null
+      [ -e "$run" ] || echo "$run"
+    done | wc -l)
+    if [ "$removed" -gt 0 ]; then
+      was=$slots
+      slots=$(read_slots)
+      echo "$was $slots" | awk -v removed="$removed" -v TMPFS="$TMPFS" '{
+        print "room: removed " removed " stale pytest directories under " TMPFS ", freeing " ($(2) - $(4) > 0 ? $(2) - $(4) : 0) " file slots" > "/dev/stderr"
+      }'
+    fi
+  fi
   awk -v busy="$load" -v cores="$cores" -v memory="$memory" -v pressure="$pressure" \
     -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
     -v LOAD="$LOAD" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
