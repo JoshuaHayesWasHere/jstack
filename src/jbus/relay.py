@@ -46,15 +46,11 @@ mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify
 it. Silent is judged with no word from Sous Chef: (a) a POST on the `blocking` route that
 failed pages each body that waits on that route, once for each event id; (b) an item still
 open in a `reminder` or a `refresh` `PAGE_MINUTES` (45) after it began to block pages once
-(`judge`). A POST to `/ack` naming an event id marks the items of that body seen, and a seen
+(`jbus.silent`). A POST to `/ack` naming an event id marks the items of that body seen, and a seen
 item pages nothing under (b). A page is one line, and it goes through a spooled route of its
 own, `page`, whose ids are kept for good.
 
-Sous Chef's decisions come back on `POST /item`, with the same key: `{project, item, verb,
-words, by, message, seen_event}` on a card (`jbus.item.card`), decided as `jbus item approve`
-or `jbus item steer` decides it, from `chat` (`decide`). It is by Sous Chef, as itself, or by
-the user, with the chat message it was said in and the words quoted from it, which nothing
-reads back and which are kept with `checked: false`.
+Sous Chef's decisions on a card come back on `POST /item`, with the same key (`jbus.chat`).
 """
 
 from __future__ import annotations
@@ -76,13 +72,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import jbus
-from jbus import item, leftover, steer, verbs, wake
+from jbus import chat, leftover, silent, verbs
 
 Body = dict[str, Any]
 Say = Callable[[str], None]
@@ -95,8 +90,6 @@ PASS = {"reminder", "refresh"}
 AGAIN = {401, 403, 404, 407, 408, 429}
 NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 SERVICE = re.compile(r"[a-z0-9_]{1,128}")
-SECRET_URL = re.compile(r"\S+://\S*[@?]\S*?(?=[:,;)]?(\s|$))")
-PAGE_MINUTES = leftover.REMIND_MINUTES + 30
 SILENT_MINUTES = leftover.REFRESH_MINUTES + 30
 BEAT_SECONDS = 60
 REFUSED_KEPT = timedelta(days=1)
@@ -436,207 +429,6 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-def _when(value: Any) -> datetime | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        when = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    return when if when.tzinfo else None
-
-
-def page_line(project: str, line: str, minutes: float, event: str = "") -> str:
-    """A page: the project, the line, how long it has blocked, and for (a) the event id. A
-    URL that carries a key, as a query or a user, is cut out."""
-    said = f"{project}: {SECRET_URL.sub('<url>', line)}, blocking {int(minutes)} min"
-    return f"{said}, event {event}" if event else said
-
-
-def unheard_line(id: str, body: Body) -> str | None:
-    """The page for a body on the `blocking` route that Sous Chef did not take: its first
-    item or event, and how many more. None for a body that names nothing, an all-clear."""
-    at = _when(body.get("at"))
-    named = []
-    for one in [*(body.get("items") or []), *(body.get("events") or [])]:
-        if isinstance(one, dict) and isinstance(one.get("line"), str):
-            opened = _when(one.get("opened") or one.get("since"))
-            minutes = (at - opened).total_seconds() / 60 if at and opened else 0
-            project = one.get("project") or body.get("project") or "jbus"
-            named.append((str(project), one["line"], max(minutes, 0)))
-    if not named:
-        return None
-    project, line, minutes = named[0]
-    more = f" and {len(named) - 1} more" if len(named) > 1 else ""
-    return page_line(project, line + more, minutes, id)
-
-
-@dataclass(frozen=True)
-class Watch:
-    """What the relay knows of what blocks: each item by its page id, a hash of its project,
-    key and when it began to block (so an item that closes and opens again is a new one), the
-    page ids marked seen, and the page ids each event id carried, for `/ack`."""
-
-    items: dict[str, Body] = field(default_factory=dict)
-    seen: frozenset[str] = frozenset()
-    ids: dict[str, list[str]] = field(default_factory=dict)
-
-    @classmethod
-    def load(cls, path: Path) -> Watch:
-        try:
-            kept = json.loads(path.read_text())
-            return cls(kept["items"], frozenset(kept["seen"]), kept["ids"])
-        except (OSError, ValueError, KeyError, TypeError):
-            return cls()
-
-    def save(self, path: Path) -> None:
-        part = path.with_suffix(".part")
-        with part.open("w") as file:
-            json.dump({"items": self.items, "seen": sorted(self.seen), "ids": self.ids}, file)
-            file.flush()
-            os.fsync(file.fileno())
-        os.replace(part, path)
-
-
-def page_id(project: str, key: str, opened: str) -> str:
-    named = json.dumps([project, key, opened]).encode()
-    return f"open-{hashlib.sha256(named).hexdigest()[:24]}"
-
-
-def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str]]]:
-    """What a body tells of what blocks, and the pages it makes, each `(page id, line)`.
-
-    The items of an `events`, `reminder` or `refresh` body are kept, under the event id that
-    carried them. A `refresh` lists every open item of its project, so the project's items it
-    does not list closed: they are dropped. An item a `reminder` or `refresh` lists
-    `PAGE_MINUTES` after it began to block (the body's `at` against the item's `opened`), and
-    that is not seen, makes a page. The pager's route sends a page id once."""
-    kind, project = body.get("kind"), body.get("project")
-    if kind not in ("events", "reminder", "refresh"):
-        return watch, []
-    listed: dict[str, Body] = {}
-    for one in body.get("items") or []:
-        if not isinstance(one, dict):
-            continue
-        named, key, line = one.get("project") or project, one.get("key"), one.get("line")
-        opened = one.get("opened") or one.get("since")
-        if all(isinstance(value, str) for value in (named, key, line)) and _when(opened):
-            item = {"project": named, "key": key, "line": line, "opened": opened}
-            listed[page_id(named, key, opened)] = item
-    items = watch.items | listed
-    ids = {event: list(pages) for event, pages in watch.ids.items()}
-    if listed:
-        ids[id] = sorted(set(ids.get(id, [])) | set(listed))
-    seen = watch.seen
-    if kind == "refresh" and isinstance(project, str):
-        closed = {page for page, one in items.items() if one["project"] == project} - set(listed)
-        items = {page: one for page, one in items.items() if page not in closed}
-        seen = seen - closed
-        ids = {event: [p for p in pages if p not in closed] for event, pages in ids.items()}
-        ids = {event: pages for event, pages in ids.items() if pages}
-    pages = []
-    at = _when(body.get("at"))
-    if kind in ("reminder", "refresh") and at:
-        for page, one in listed.items():
-            minutes = (at - datetime.fromisoformat(one["opened"])).total_seconds() / 60
-            if minutes >= PAGE_MINUTES and page not in seen:
-                pages.append((page, page_line(one["project"], one["line"], minutes)))
-    return Watch(items, seen, ids), pages
-
-
-SOUS_CHEF = "Sous Chef"
-DECISIONS = tuple(item.ACTIONS.values())
-TEXT = ("project", "item", "verb", "by", "seen_event")
-
-
-def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
-    """A decision from Sous Chef's chat on a card, `POST /item`, as `jbus item approve` or
-    `jbus item steer` decides it, `where: chat`. The answer is the HTTP status and its body.
-
-    `verb` is one of the card's actions: `approve`, `message`, or `hold`, which the card's
-    button confirms. `seen_event` is the card's `id`, and the line it names must still be the
-    item's last, so a card acted on twice moves the item once. `by` is Sous Chef, which steers
-    as itself and approves nothing, or the user, with `message`, the chat message's id or
-    link, and `words`, the words quoted from it: those are kept unchecked (`steer.chat`), and
-    an approval from chat is taken only for a routine item they name. Anyone else is 403, and
-    a decision jbus refuses is 409 with its sentence, as is a verb the item's card does not
-    offer now (`item.actions`): a review item, a merge, a secret or the config, is decided in
-    the view and takes no message or hold from chat either.
-    """
-    wrong = [key for key in TEXT if not isinstance(body.get(key), str) or not body[key].strip()]
-    wrong += [key for key in ("words", "message") if not isinstance(body.get(key, ""), str)]
-    if wrong:
-        return 400, {"refused": f"refused: {', '.join(wrong)} must be text"}
-    if body["verb"] not in DECISIONS:
-        return 400, {"refused": f"refused: verb is one of {', '.join(DECISIONS)}"}
-    try:
-        config = jbus.load()
-    except jbus.Refused as error:
-        return 503, {"refused": str(error)}
-    try:
-        project = config.project(body["project"])
-    except jbus.Refused as error:
-        return 404, {"refused": str(error)}
-    by, words, message = body["by"], body.get("words", ""), body.get("message", "")
-    user = config.user
-    if by == user.user:
-        if not message.strip() or not words.strip():
-            return 403, {
-                "refused": f"refused: a decision by {user.user} names the chat message it was "
-                "said in and quotes the words"
-            }
-        basis: steer.Basis | None = steer.chat(message, words, user, now or datetime.now(UTC))
-    elif by == SOUS_CHEF:
-        basis = None
-    else:
-        return 403, {"refused": f"refused: a decision from chat is by {SOUS_CHEF} or {user.user}"}
-    seen = body["seen_event"].removeprefix(f"{project.name}.")
-    state = config.state(project)
-    found = item.items(state).get(body["item"])
-    if found is not None:
-        found = item.judged(state, found)
-        if body["verb"] not in item.actions(found):
-            link = item.view_link(project.name, found.id)
-            what = "a review item" if found.risk is item.Risk.REVIEW else str(found.state)
-            return 409, {
-                "refused": f"refused: {found.id} is {what}, and its card offers no "
-                f"{body['verb']} from chat: decide it in the view, {link}"
-            }
-    box = wake.Box(state, project)
-    where = item.Where.CHAT
-    try:
-        if body["verb"] == item.ACTIONS[item.Verb.APPROVE]:
-            made = steer.approve(
-                state,
-                box,
-                body["item"],
-                by=by,
-                where=where,
-                words=words,
-                seen=seen,
-                user=user,
-                project=project.name,
-                basis=basis,
-            )
-        else:
-            made = steer.steer(
-                state,
-                box,
-                body["item"],
-                body["verb"],
-                words,
-                seen,
-                by,
-                where,
-                True,
-                user=user,
-                basis=basis,
-            )
-    except jbus.Refused as error:
-        return 409, {"refused": str(error)}
-    return 200, {"id": made["id"], "item": made["item"], "line": made["line"]}
-
-
 def notify(line: str, say: Say) -> None:
     """Raise the page on this machine's desktop. One that fails is said, and pages on."""
     command = shutil.which("notify-send")
@@ -669,7 +461,7 @@ class Pager:
 
     def unheard(self, id: str, body: Body) -> None:
         """(a): Sous Chef did not take a body that blocks."""
-        line = unheard_line(id, body)
+        line = silent.unheard_line(id, body)
         if line is not None:
             self.page(f"unheard-{id}", line)
 
@@ -684,13 +476,13 @@ class Relay:
             for route in ROUTES
         ]
         self.watched = config.state / "watch.json"
-        self.watch = Watch.load(self.watched)
+        self.watch = silent.Watch.load(self.watched)
         self.beating = config.state / HEARTBEAT
         try:
             heard = json.loads(self.beating.read_text()).get("heard")
         except (OSError, ValueError, AttributeError):
             heard = None
-        self.heard: str | None = heard if _when(heard) else None
+        self.heard: str | None = heard if silent.when(heard) else None
         self.refusals: list[Body] = self._refusals()
         self.refuse_lock = threading.Lock()
         self._failing()
@@ -707,7 +499,7 @@ class Relay:
         id = event_id(body)
         with self.lock:
             spooled = [lane.route.name for lane in self.lanes if lane.take(id, body)]
-            watch, pages = judge(self.watch, id, body)
+            watch, pages = silent.judge(self.watch, id, body)
             if watch != self.watch:
                 self.watch = watch
                 self.watch.save(self.watched)
@@ -724,7 +516,9 @@ class Relay:
             pages = self.watch.ids.get(id)
             if pages is None:
                 return None
-            self.watch = Watch(self.watch.items, self.watch.seen | set(pages), self.watch.ids)
+            self.watch = silent.Watch(
+                self.watch.items, self.watch.seen | set(pages), self.watch.ids
+            )
             self.watch.save(self.watched)
         self.say(f"relay: event {id} acknowledged, {len(pages)} item(s) seen")
         return len(pages)
@@ -737,7 +531,7 @@ class Relay:
             return []
         recent = []
         for one in kept if isinstance(kept, list) else []:
-            at = _when(one.get("at")) if isinstance(one, dict) else None
+            at = silent.when(one.get("at")) if isinstance(one, dict) else None
             if at and datetime.now(UTC) - at < REFUSED_KEPT:
                 recent.append(one)
         return recent
@@ -752,7 +546,7 @@ class Relay:
         lanes = {lane.route.name: lane for lane in [*self.lanes, self.pager.lane]}
         for one in kept if isinstance(kept, list) else []:
             lane = lanes.get(one.get("route")) if isinstance(one, dict) else None
-            if lane and _when(one.get("since")) and lane._waiting():
+            if lane and silent.when(one.get("since")) and lane._waiting():
                 lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
 
     def refuse(self, one: Body) -> None:
@@ -764,7 +558,7 @@ class Relay:
 
     def _recent(self) -> list[Body]:
         now = datetime.now(UTC)
-        return [one for one in self.refusals if now - _when(one["at"]) < REFUSED_KEPT]
+        return [one for one in self.refusals if now - silent.when(one["at"]) < REFUSED_KEPT]
 
     def beat(self) -> None:
         """Write the heartbeat: see the module. One that cannot be written is said.
@@ -865,7 +659,7 @@ class Relay:
                 self._answer(200, {"id": id, "seen": seen})
 
             def _item(self, body: Body) -> None:
-                code, said = decide(body)
+                code, said = chat.decide(body)
                 if code == 200:
                     relay.say(f"relay: {said['item']} decided from chat, line {said['id']}")
                 else:
