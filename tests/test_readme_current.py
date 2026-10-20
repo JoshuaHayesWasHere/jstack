@@ -109,12 +109,8 @@ IS = (
 
 
 def page(name):
-    return (DOCS / name).read_text()
-
-
-def told(command):
-    """A command's page and the pages of its folder, `docs/<command>/`, as one text."""
-    paths = (DOCS / f"{command}.md", *sorted((DOCS / command).glob("*.md")))
+    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`."""
+    paths = (DOCS / name, *sorted((DOCS / Path(name).stem).glob("*.md")))
     return "\n".join(path.read_text() for path in paths)
 
 
@@ -149,7 +145,7 @@ def test_the_pages_name_what_the_code_has_and_nothing_it_dropped():
 
 
 def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_have():
-    said = told("jbus")
+    said = page("jbus.md")
     timer = configparser.ConfigParser(interpolation=None)
     timer.read(REPO / "templates/jbus.timer")
     assert f"(`OnUnitActiveSec={timer['Timer']['OnUnitActiveSec']}`)" in said
@@ -158,7 +154,7 @@ def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_hav
 
 
 def test_the_levels_the_jbus_page_gives_each_kind_of_event_are_the_codes():
-    rows = re.findall(r"^\| `(user|quiet)` \| ([^|]+) \|", told("jbus"), re.M)
+    rows = re.findall(r"^\| `(user|quiet)` \| ([^|]+) \|", page("jbus.md"), re.M)
     given = {kind: level for level, kinds in rows for kind in re.findall(r"`([^`]+)`", kinds)}
     assert given == wake.LOUDNESS
 

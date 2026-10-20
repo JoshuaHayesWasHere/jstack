@@ -1,4 +1,7 @@
-"""The built parts of `docs/jbus.md` and `docs/jbus/`, and the length of every docs page."""
+"""The built parts of `docs/jbus.md` and `docs/jbus/`, and the length of every docs page.
+
+`LONG` names each page over the cap, by its path under docs/, until it is split: the list only
+shrinks."""
 
 import shutil
 import subprocess
@@ -11,7 +14,6 @@ from jbus import pages, wake
 
 REPO = Path(__file__).parent.parent
 CAP = 300
-# A page over the cap, by its path under docs/, until it is split. The list only shrinks.
 LONG = frozenset()
 
 
