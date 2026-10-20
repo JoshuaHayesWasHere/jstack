@@ -139,8 +139,8 @@ def test_the_list_is_the_same_on_every_run(tmp_path):
 
 def test_the_rounds_the_second_pass_reads_come_from_the_same_parser(tmp_path):
     brief = RESULT + section([tagged("error src/a.py:10 x")], CODEX) + section([], CURSOR, LATER)
-    assert run(tmp_path, brief, "--rounds") == f"2 {LATER} {SAW},{LATER}\n"
-    assert run(tmp_path, RESULT, "--rounds") == "0 - -\n"
+    assert run(tmp_path, brief, "--rounds") == f"2 {LATER} {SAW},{LATER} -\n"
+    assert run(tmp_path, RESULT, "--rounds") == "0 - - -\n"
 
 
 def test_a_brief_that_cannot_be_read_is_said(tmp_path):
@@ -209,7 +209,9 @@ def test_a_brief_two_reviewers_wrote_is_one_list_with_both_named_and_a_dismissal
         out.splitlines()[-1]
         == "next: write Fixed: <the head you pushed>, 4 findings each have their ending"
     )
-    assert ready.short_of(TWO.read_text(), "1e16fb7dd82ea2dae3209f561f5273e559b46b4a") == ""
+    head = "1e16fb7dd82ea2dae3209f561f5273e559b46b4a"
+    assert ready.short_of(TWO.read_text(), head) == ready.DECLINES_UNRULED.format(ids="F2")
+    assert "  ruling: none, a scoped pass rules on it before the merge" in out.split("F3 ")[0]
 
 
 def test_a_re_run_at_one_head_moves_no_id_and_no_answer():

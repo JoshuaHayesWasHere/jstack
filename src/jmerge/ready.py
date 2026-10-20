@@ -85,6 +85,15 @@ SECOND_UNWRITTEN = Reason(
     "its fix changed more than the findings named: the second pass is not written",
 )
 FIX_UNREVIEWED = Reason("second", "its fix is not reviewed: the scoped review of it is not written")
+DECLINES_UNRULED = Reason("second", "the scoped review has not ruled on the declines of {ids}")
+DECLINES_OVERRULED = Reason(
+    "findings",
+    "its findings are not handled: the scoped review did not uphold the decline of {ruled}",
+)
+RISKY_OVERRULED = Reason(
+    "hold",
+    "needs {user}, the scoped review did not uphold the decline of {ruled} on {risks}",
+)
 UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
 UNANSWERED = Reason("findings", "its findings are not handled: {ids} have no answer by id")
 UNCITED = Reason(
@@ -162,6 +171,7 @@ MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
+_RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
@@ -329,6 +339,7 @@ class Round:
     head: str = ""
     found: int = 0
     by: str = ""
+    scoped: bool = False
 
 
 def _worst(verdicts: list[str]) -> str:
@@ -351,6 +362,7 @@ class Said:
     since: str = ""
     owed: bool = False
     asked: str = ""
+    asked_at: int = -1
     found: int = 0
     ended: int = 0
     second: bool = False
@@ -364,12 +376,14 @@ def said_of(text: str) -> Said:
     triage = findings.triage(text)
     said.triage = triage
     said.written = bool(triage.sections)
-    said.rounds = [Round(one.verdict, one.head, one.found, one.by) for one in triage.sections]
+    said.rounds = [
+        Round(one.verdict, one.head, one.found, one.by, one.scoped) for one in triage.sections
+    ]
     said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
     sent = [one for one in triage.findings if one.blocks]
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     seen = False
-    for line in text.splitlines():
+    for at, line in enumerate(text.splitlines()):
         if line.startswith("Review:") and not seen:
             seen = True
             said.none = _second(line) == "none"
@@ -387,6 +401,7 @@ def said_of(text: str) -> Said:
             said.owed = fields[2:3] == ["needed"] and fields[5:] != ["guarded"]
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
+            said.asked_at = at
         if line.startswith("Rebase:"):
             said.rebased = _fields(line)[-1]
         if line.startswith("CI fix:"):
@@ -419,9 +434,9 @@ def unanswered(said: Said) -> str:
 def _round(said: Said) -> None:
     if not said.rounds:
         return
-    heads: dict[str, dict[str, str]] = {}
+    heads: dict[str, dict[tuple[str, bool], str]] = {}
     for number, one in enumerate(said.rounds):
-        heads.setdefault(one.head or f"#{number}", {})[one.by] = one.verdict
+        heads.setdefault(one.head or f"#{number}", {})[(one.by, one.scoped)] = one.verdict
     last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
     said.verdict = _worst(list(last.values()))
     said.ran = sum(
@@ -455,14 +470,49 @@ def short_of(text: str, head: str) -> str:
         return NOT_PUSHED
     if said.wider and (not reviewed or said.since in ("", reviewed)):
         return SECOND_UNWRITTEN
-    if said.owed and (not reviewed or said.asked in ("", reviewed)):
+    if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
     if fixed not in ("", "none") and not _COMMIT.fullmatch(fixed):
         return FIXED_NO_COMMIT
     if verdict == "findings" and _COMMIT.fullmatch(fixed) and head != fixed:
         if head == reviewed:
             return NOT_PUSHED
-    return unanswered(said)
+    return unanswered(said) or unruled(said)
+
+
+def _scoped_since(said: Said) -> bool:
+    """Whether a scoped pass that ran is written after the last `Scoped review:` line: the
+    review it owes, also of the head the review saw, where nothing was pushed and the pass
+    is owed only for its declines."""
+    return any(one.scoped and one.ran and one.line > said.asked_at for one in said.triage.sections)
+
+
+def _ruled(named: tuple[findings.Finding, ...]) -> str:
+    return " and ".join(_RULED.format(id=one.id, why=one.ruling.why) for one in named)
+
+
+def unruled(said: Said) -> str:
+    """Why the declines keep the pull request waiting on its crew, or nothing: a blocking
+    decline no scoped pass has ruled on, then one it did not uphold that is on none of
+    `findings.RISKS`. Such a one is the crew's to fix, and where it holds its decline, the
+    home's; one on a risk is the user's (`declines`)."""
+    triage = said.triage
+    left = triage.declines(findings.UNRULED)
+    if left:
+        return DECLINES_UNRULED.format(ids=", ".join(one.id for one in left))
+    overruled = tuple(one for one in triage.declines(findings.OVERRULED) if not one.risk)
+    return DECLINES_OVERRULED.format(ruled=_ruled(overruled)) if overruled else ""
+
+
+def declines(text: str, *, user: Settings) -> tuple[str, str]:
+    """`hold` with why, where the scoped pass did not uphold the decline of a finding on one
+    of `findings.RISKS`, review-triage's categories, or nothing twice. Only such a decline
+    is the user's: one on none of them waits on the crew and its home (`unruled`)."""
+    named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)
+    if not named:
+        return "", ""
+    risks = ", ".join(dict.fromkeys(one.risk for one in named))
+    return "hold", RISKY_OVERRULED.format(user=user.user, ruled=_ruled(named), risks=risks)
 
 
 def _named(said: Said, head: str) -> bool:

@@ -90,8 +90,8 @@ def main(argv: list[str] | None = None) -> int:
     told.add_argument(
         "--rounds",
         action="store_true",
-        help="with --findings, print only the sections that ran, the head the last saw and "
-        "every head a section names",
+        help="with --findings, print only the sections that ran, the head the last saw, "
+        "every head a section names and the blocking declines no scoped pass has ruled on",
     )
     args = parser.parse_args(argv)
 
