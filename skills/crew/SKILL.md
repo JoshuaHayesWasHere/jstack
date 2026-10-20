@@ -846,42 +846,32 @@ On `tell the home`, add the line, then send the thread that hears of a pull requ
 
 The findings come back as a message in this thread, one from each reviewer. With more than one reviewer, push nothing for the findings until each has written its section: the block below prints `wait` until then, and on it end your turn, since the last reviewer's message wakes this thread. Then the findings of all of them are handled together, and pushed once. The reviewer sends it to the thread on the brief's `Thread:` line, home or no home. When the reviewer could not send it, jbus does, once, and that message begins `jbus: the reviewer could not deliver these findings.` and holds the `## Review` section whole: it is the same wake. Fix what you agree with and say here why for the rest, each by its severity as below. Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again. Handling the findings sends the home nothing. A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
 
-Every finding ends one of two ways, and none is left unanswered. Add one line to the Result for each, in one of these two shapes:
-
-- `Finding: fixed, <the finding in a few words>`;
-- `Finding: not fixed, <the finding in a few words>, because <the reason, in one line>`.
-
-A reason says why the pull request is right as it is, or where the finding went: "I disagree" is not one. A finding the reviewer marked `for Noticed, not this pull request` asks for no fix here: write it in the Result under "Noticed", and end it `not fixed`, with the reason that its remedy is outside the brief's `Where`. A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the reason that the default leaves the pull request as it is and the gate holds the question.
-
-A finding's severity is its first word, and it sets the default. An `error` or a `warning` is handled as above: fixed, or not fixed with a reason of its own. An `info` finding is declined by default: end it `Finding: not fixed, <the finding in a few words>, because info: left for a follow-up`, and add it to the Result under "Noticed", one line for each, as `follow-up: <the finding as the reviewer wrote it>`. Fix one only when the fix is inside the lines the finding names, adds no test and touches no other file. A review whose findings are all `info` and all declined pushes nothing, and the block below says `write Fixed: none needed`. The findings of a second pass and of a scoped review are handled the same way.
-
-Then run this, with the block at the top. It counts the findings in the brief's `## Review` sections against the `Finding:` lines:
+Every finding ends one of two ways, and none is left unanswered. The findings have ids, `F1`, `F2`, ..., which no reviewer writes: two reviewers' findings of one place are one id, and this lists them, merged and triaged, each with its bucket, its reviewers and the answer it has so far. Run it with the block at the top:
 
 ```sh
-B="$H/tasks/<slug>.md"
-awk '
-    /^## / {review = ($(0) == "## Review"); list = 0; if (review) {written = 1; was = before; before = found}}
-    review && /^Head:/ {if ($(2) == round) before = was; round = $(2)}
-    review && /^By: / && !($(0) in by) {by[$(0)]; wrote++}
-    /^Reviewer: / && $(2) !~ /^none/ {named++}
-    review && /^Findings:/ {list = 1; next}
-    /^Dropped:/ {list = 0}
-    list && /^- / && $(0) != "- none" {found++}
-    /^Finding: fixed, ./ {ended++; fixed++; mended[ended] = 1}
-    /^Finding: not fixed, .+, because ./ {ended++}
-    END {
-        for (i = before + 1; i <= ended; i++) last += mended[i]
-        if (!written) print "wait: the review is not written in the brief yet"
-        else if (named > 1 && wrote < named) print "wait: " wrote + 0 " of " named " reviewers have written their section"
-        else if (ended < found) print "not yet: " found - ended " of " found " findings have no Finding: line"
-        else if (before && found > before && !last) print "write Fixed: none needed, <reason>: " found - before " findings of the last review, none fixed"
-        else if (fixed) print "write Fixed: <the head you pushed>, " found " findings each have their ending"
-        else if (found) print "write Fixed: none needed, <reason>: " found " findings, none fixed"
-        else print "write Fixed: none needed, <reason>: the review has no findings"
-    }' "$B"
+uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md"
 ```
 
-On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no ending: give it one. Otherwise it says which `Fixed:` line to write. It counts and does not match: it cannot tell which finding a line is about, so two lines for one finding pass for two. A finding is a line that starts `- ` between `Findings:` and `Dropped:`, so one that wraps or follows a blank line is still counted, and a review with no `Dropped:` line counts every such line to the end of its section. After a second pass or a scoped review the findings of every review are counted, and the earlier `Finding:` lines stay and answer the earlier findings: add the new ones under them, since the block reads them in order. The sections of one head are one review, one from each reviewer. The lines past the count of the earlier reviews' findings answer the last review, and where that review has findings and none of them is fixed, the block says `none needed` whatever an earlier pass fixed. The `Finding:` lines say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head: `jmerge` reads only the `Fixed:` line, and merges on it.
+Add one line to the Result for each finding it lists as `[Act on]` or `[Consider]`, by its id, in one of these two shapes:
+
+- `Finding F<n>: fixed, <the finding in a few words>`;
+- `Finding F<n>: not fixed, <the finding in a few words>, because <the reason, in one line>`.
+
+A finding listed `[Dismissed]` or `[Noted]` was not sent and asks for no line. One listed as `contradicts: F<n>` is another reviewer's dismissal of that finding, printed beside it: weigh it when you answer that one. A review written before the ids, whose findings have no bucket, is answered as before, `Finding: fixed, ...` or `Finding: not fixed, ..., because ...`, in order: those lines go to its findings by count. An answer with no id answers no finding that has a bucket.
+
+A reason says why the pull request is right as it is, or where the finding went: "I disagree" is not one. For an `Act on` finding, the one bucket that holds the merge, a decline counts only where its reason cites a `path:line`, a command in backticks, or the gate it is parked on as `question <n>` with the Result's `Gate: question <n>` line, and only where no other finding was declined for the same reason: `jmerge` waits on each one that does not, by id. A finding the reviewer marked `for Noticed, not this pull request` asks for no fix here: write it in the Result under "Noticed", and end it `not fixed`, with the reason that its remedy is outside the brief's `Where`, naming the `Where:` line's file it falls outside. A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the reason that the default leaves the pull request as it is and `question <n>` holds it.
+
+A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, is not declined by this thread alone. Where you would decline it, park it as a gate ("Do the task") whose default, the one you take, is "fix it": fix it and end it `fixed`. Where the user answers that it stays, end it `Finding F<n>: not fixed, ..., because question <n>: <the answer>`. `jmerge` waits on a risky decline that names no such gate. No other finding asks the user anything.
+
+A finding's bucket is the lead's reading, and it sets the default; its severity is a field and decides nothing. An `Act on` finding is handled as above: fixed, or not fixed with a reason of its own. A `Consider` finding is declined by default: end it `Finding F<n>: not fixed, <the finding in a few words>, because consider: left for a follow-up`, and add it to the Result under "Noticed", one line for each, as `follow-up: <the finding as the reviewer wrote it>`. Fix one only when the fix is inside the lines the finding names, adds no test and touches no other file. A review from before the buckets is read by severity the same way: an `info` finding there is declined by default, `Finding: not fixed, <the finding in a few words>, because info: left for a follow-up`. A review whose findings are all declined pushes nothing, and the block below says `write Fixed: none needed`. The findings of a second pass and of a scoped review are handled the same way.
+
+Then run this, with the block at the top. It reads the same list, and says what is left:
+
+```sh
+uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md" --left
+```
+
+On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none. Give each its line. Otherwise it says which `Fixed:` line to write. After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them. The sections of one head are one review, one from each reviewer. Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed. The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head. `jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 
@@ -907,12 +897,12 @@ What decides is this, run with the block at the top, in this worktree. Run it on
 
 ```sh
 B="$H/tasks/<slug>.md"
-read -r passes saw decided since launched asked sent stopped ruled << EOF
-$(awk '
-    /^## / {review = ($(0) == "## Review"); ran = 0}
-    review && /^Verdict: (clean|findings)$/ {ran = 1; passes++}
-    ran && /^Head:/ {saw = $(2)}
-    review && /^Head:/ {written[$(2)]}
+read -r passes saw written << EOF
+$(uv run --project "$T/.." jbriefs --findings "$B" --rounds)
+EOF
+read -r decided since launched asked sent stopped ruled << EOF
+$(awk -v written="$written" '
+    BEGIN {split(written, heads, ","); for (one in heads) seen[heads[one]]}
     /^Second pass:/ {decided = $(3); sub(/,$/, "", decided); since = $(5); sub(/,$/, "", since)}
     /^Second reviewer:/ {launched = "yes"}
     /^Scoped review: / {ruled = $(3); sub(/,$/, "", ruled)}
@@ -920,9 +910,9 @@ $(awk '
     /^Scoped reviewer:/ && $(NF - 1) == "of" {sent = $(NF); nobody = ($(3) ~ /^none/)}
     function word(value, unset) {return value == "" ? unset : value}
     END {
-        print passes + 0, word(saw, "-"), word(decided, "-"), word(since, "-"), word(launched, "no"),
+        print word(decided, "-"), word(since, "-"), word(launched, "no"),
             word(asked, "-"), (nobody ? "none:" : "") word(sent, "-"),
-            (sent == "" || nobody || (sent in written)) ? "-" : sent, word(ruled, "no")
+            (sent == "" || nobody || (sent in seen)) ? "-" : sent, word(ruled, "no")
     }' "$B")
 EOF
 scoped() {

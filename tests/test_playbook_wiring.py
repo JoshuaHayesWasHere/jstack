@@ -307,7 +307,7 @@ PROVEN = [
     "`make check` passes: `make check` printed `604 passed`, and the `Fixed: none` case",
     "the page shows it: opened the page, and the Review: line is there",
 ]
-ENDED = ["it runs twice", f"the head {merge.REVIEWED} is old", "Fixed: names the new one"]
+ENDED = ["it runs twice", f"the head {merge.REVIEWED} is old", "`git log -1` names the new one"]
 
 
 def result(lines):
@@ -321,10 +321,11 @@ def result(lines):
             filled.append(line)
         elif line.startswith("- <"):
             filled += [f"- {proof}" for proof in PROVEN]
-        elif label == "Finding:":
-            shapes, _ = line.removeprefix("Finding:").split("   <")
+        elif label == "Finding":
+            shapes, _ = line.removeprefix("Finding F<n>:").split("   <")
             filled += [
-                "Finding: " + re.sub(r"<[^>]+>", "{}", shape.strip()) for shape in shapes.split("|")
+                f"Finding F{n}: " + re.sub(r"<[^>]+>", "{}", shape.strip())
+                for n, shape in enumerate(shapes.split("|"), 1)
             ]
             filled[-2:] = "\n".join(filled[-2:]).format(*ENDED).splitlines()
         elif label in given:
@@ -349,7 +350,8 @@ def test_proof_and_finding_lines_do_not_change_what_jmerge_says_is_ready(
     review, lines, head, tmp_path
 ):
     said = []
-    for n, text in enumerate([lines, result(lines)]):
+    answers = "".join(f"{line}\n" for line in result(lines).splitlines() if line[:7] == "Finding")
+    for n, text in enumerate([lines + answers, result(lines)]):
         home = merge.Home(tmp_path / str(n))
         section = merge.review(review) if review else ""
         (home.tasks / "alpha.md").write_text(merge.brief(section, text))
@@ -362,7 +364,7 @@ def test_proof_and_finding_lines_do_not_change_what_jmerge_says_is_ready(
 def test_proof_lines_are_not_counted_as_findings_or_as_their_endings(tmp_path):
     later = "\n## Result, follow-up (a steer)\nProof:\n- it still passes: `make check`\n"
     brief = crew.reviewed(crew.TWO, result("")) + later
-    assert crew.said(tmp_path, "The review", "Finding:", brief) == [
+    assert crew.said(tmp_path, "The review", "--left", brief) == [
         "write Fixed: <the head you pushed>, 2 findings each have their ending"
     ]
 

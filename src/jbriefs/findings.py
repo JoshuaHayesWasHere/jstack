@@ -21,13 +21,13 @@ findings keep their ids and count for nothing (`Finding.superseded`).
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from
-before the ids answered: such answers go, in order, to the findings with no bucket, as the
-crew's count matched them. Only an **Act on** finding blocks a merge, and one from before
-the buckets does, as every finding did. Its decline counts only with a reason that cites a
-`path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`); a
-reason given for an earlier finding is refused; and a finding on one of `RISKS` declined
-counts only on a gate, which asks the user with the default "fix it". Severity is a field
-and decides nothing.
+before the ids answered: such answers go, in order, to the findings with no bucket that have
+no answer by id, as the crew's count matched them. Only an **Act on** finding blocks a
+merge, and one from before the buckets does, as every finding did. Its decline counts only
+with a reason that cites a `path:line`, a command in backticks, or a gate the Result names
+(`Gate: question <n>`); a reason given for an earlier finding is refused; and a finding on
+one of `RISKS` declined counts only on a gate, which asks the user with the default "fix
+it". Severity is a field and decides nothing.
 
 `jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its
 second pass (`jbriefs --findings --left` and `--rounds`) and jbus's ask (`expedite`) read
@@ -406,10 +406,9 @@ def triage(text: str) -> Triage:
     for one in findings:
         if not one.sent:
             continue
-        if one.legacy:
+        one.answer = answers.get(one.id)
+        if one.answer is None and one.legacy:
             one.answer = next(unnumbered, None)
-        else:
-            one.answer = answers.get(one.id)
     _judge(findings, text)
     named = sum(
         1
@@ -477,7 +476,9 @@ def left(said: Triage) -> str:
     if open_:
         line = f"not yet: {len(open_)} of {len(sent)} findings have no Finding: line"
         named = [
-            one.id + (f" ({one.why})" if one.refused else "") for one in open_ if not one.legacy
+            one.id + (f" ({one.why})" if one.answer and one.refused else "")
+            for one in open_
+            if not one.legacy
         ]
         return line + (": " + ", ".join(named) if named else "")
     last = _last_round(said)

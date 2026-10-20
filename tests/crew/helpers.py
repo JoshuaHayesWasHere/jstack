@@ -57,7 +57,7 @@ def said(tmp_path, heading, about, brief, notes=None, cwd=None):
         ["sh", "-c", block(heading, about).replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
-        env={**os.environ, "H": str(tmp_path)},
+        env={**os.environ, "H": str(tmp_path), "T": str(SKILL.parents[2] / "templates")},
         cwd=cwd,
         check=True,
     )

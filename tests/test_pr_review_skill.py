@@ -1223,22 +1223,24 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     labels = [line.split(":")[0] for line in template.splitlines()]
     after = labels[labels.index("Dropped") :]
     assert after[:3] == ["Dropped", "Noted", "Dismissed"]
-    finding = '<what is wrong> (principle: <name> | none) (or the one word "none")'
-    assert finding in template
+    (finding,) = [line for line in template.splitlines() if line.startswith("- <severity>")][:1]
+    assert "(bucket: Act on | Consider)" in finding
     review = template.replace(
         finding,
-        "it runs twice (principle: principle-make-operations-idempotent)",
+        "- warning a.py:3 it runs twice (principle: principle-make-operations-idempotent) "
+        "(bucket: Act on)",
+        1,
     )
     reviewer.brief.write_text(BRIEF + "\n## Result\nStatus: done\n\n" + review)
-    counts = crew.block("The review", "found++").replace("<slug>", "a-task")
+    counts = crew.block("The review", "--left").replace("<slug>", "a-task")
     ran = subprocess.run(
         ["sh", "-c", counts],
-        env={**os.environ, "H": str(reviewer.state)},
+        env={**os.environ, "H": str(reviewer.state), "T": str(REPO / "templates")},
         capture_output=True,
         text=True,
         check=True,
     )
-    assert ran.stdout == "not yet: 1 of 1 findings have no Finding: line\n"
+    assert ran.stdout == "not yet: 1 of 1 findings have no Finding: line: F1\n"
 
 
 @pytest.mark.parametrize(
