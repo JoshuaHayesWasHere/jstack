@@ -492,6 +492,8 @@ def poll(
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:
             for key in (alert.PASS, alert.STALE):
+                if raised:
+                    break
                 recovered = alert.ok(config.state_dir, key, user=config.user)
                 for half in halves:
                     name = half.run.project.name
