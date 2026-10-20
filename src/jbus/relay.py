@@ -667,28 +667,31 @@ class Relay:
         return [one for one in self.refusals if now - _when(one["at"]) < REFUSED_KEPT]
 
     def beat(self) -> None:
-        """Write the heartbeat: see the module. One that cannot be written is said."""
-        with self.refuse_lock:
-            refused = self._recent()
-        failing = []
-        for lane in [*self.lanes, self.pager.lane]:
-            if lane.failing:
-                failing.append({**lane.failing, "waiting": len(lane._waiting())})
-        made = {
-            "beat": _now(),
-            "started": self.started,
-            "heard": self.heard,
-            "silent_minutes": self.config.silent,
-            "failing": failing,
-            "refused": refused,
-        }
+        """Write the heartbeat: see the module. One that cannot be written is said.
+
+        The state is read and written under one lock, so a beat that read it before a route
+        began or ended to fail cannot be written over the beat that read it after."""
         part = self.beating.with_suffix(".part")
-        try:
-            with self.beat_lock:
+        with self.beat_lock:
+            with self.refuse_lock:
+                refused = self._recent()
+            failing = []
+            for lane in [*self.lanes, self.pager.lane]:
+                if lane.failing:
+                    failing.append({**lane.failing, "waiting": len(lane._waiting())})
+            made = {
+                "beat": _now(),
+                "started": self.started,
+                "heard": self.heard,
+                "silent_minutes": self.config.silent,
+                "failing": failing,
+                "refused": refused,
+            }
+            try:
                 part.write_text(json.dumps(made))
                 os.replace(part, self.beating)
-        except OSError as error:
-            self.say(f"relay: could not write the heartbeat: {error}")
+            except OSError as error:
+                self.say(f"relay: could not write the heartbeat: {error}")
 
     def beats(self) -> None:
         while True:
