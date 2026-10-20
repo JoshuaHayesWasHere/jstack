@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus relay: what jbus posts, sent on to Sous Chef, paged when it is silent (loopback only)
-Documentation=file:%Y/../docs/jbus.md#the-relay
+Documentation=file:%Y/../docs/jbus/the-relay.md#the-relay
 
 [Service]
 EnvironmentFile=%h/.config/jbus-relay/env

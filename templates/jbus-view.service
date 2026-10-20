@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus view: the bus as a page, read-only
-Documentation=file:%Y/../docs/jbus.md#the-view
+Documentation=file:%Y/../docs/jbus/the-view.md#the-view
 
 [Service]
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin

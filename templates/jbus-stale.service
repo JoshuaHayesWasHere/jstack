@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus stale: alert once when no pass ended in the last 2 hours
-Documentation=file:%Y/../docs/jbus.md#when-jbus-fails
+Documentation=file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Service]
 Type=oneshot

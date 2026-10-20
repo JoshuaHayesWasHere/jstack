@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus: a pass every minute
-Documentation=file:%Y/../docs/jbus.md#set-up-jbus file:%Y/../docs/jbus.md#when-jbus-fails
+Documentation=file:%Y/../docs/jbus/set-up-jbus.md#set-up-jbus file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Timer]
 OnBootSec=2min

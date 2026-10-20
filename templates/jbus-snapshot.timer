@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus snapshot: the homes' state tree at 08:30 and 17:30
-Documentation=file:%Y/../docs/jbus.md#back-up-the-homes-state
+Documentation=file:%Y/../docs/jbus/back-up-the-homes-state.md#back-up-the-homes-state
 
 [Timer]
 OnCalendar=*-*-* 08:30:00

@@ -1,6 +1,6 @@
 [Unit]
 Description=jbus: launch what was approved, merge through jmerge, watch what is done, wake the Chef
-Documentation=file:%Y/../docs/jbus.md#set-up-jbus file:%Y/../docs/jbus.md#when-jbus-fails
+Documentation=file:%Y/../docs/jbus/set-up-jbus.md#set-up-jbus file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 OnFailure=jbus-failed.service
 
 [Service]

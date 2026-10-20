@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[1]
 TEMPLATES = REPO / "templates"
 DOCS = REPO / "docs"
 UNITS = sorted(path.name for path in TEMPLATES.iterdir() if path.suffix in (".service", ".timer"))
-DOCUMENTED = re.compile(r"file:%Y/\.\./docs/([a-z]+\.md)#([a-z0-9-]+)")
+DOCUMENTED = re.compile(r"file:%Y/\.\./docs/([a-z/-]+\.md)#([a-z0-9-]+)")
 
 
 def unit(name):
