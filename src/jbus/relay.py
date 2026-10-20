@@ -35,11 +35,11 @@ route begins or ends to fail: `beat`, when it was written; `started`, when this 
 `RELAY_SILENT_MINUTES` (90), how long with no body is silence; `failing`, each route whose
 last POST failed and was not followed by one that went, with when it began to fail, why, and
 how many bodies wait, kept across a restart while the route still holds a body, and ended by
-a body refused for good; and `refused`, each body a target refused for good in the last day,
-with its route, when, why and its file in `dead/`, kept across a restart. The relay judges
-none of it: `jbus health` reads it and pages (`jbus.health`). jbus posts a `refresh` to
-`blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it posts to hears a body at
-least that often.
+a body refused for good when none waits behind it; and `refused`, each body a target refused
+for good in the last day, with its route, when, why and its file in `dead/`, kept across a
+restart. The relay judges none of it: `jbus health` reads it and pages (`jbus.health`). jbus
+posts a `refresh` to `blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it
+posts to hears a body at least that often.
 
 When Sous Chef is silent the relay pages a second way, the `pager` target (Home Assistant's
 mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify-send` beside
@@ -400,7 +400,7 @@ class Lane:
                 with self.lock:
                     self.held.discard(id)
                 self.say(f"{said}: {error}, refused for good, kept in {self.dead / path.name}")
-                if self.failing:
+                if self.failing and not self._waiting():
                     self.failing = None
                     self.changed()
                 self.refused(
@@ -592,6 +592,7 @@ class Relay:
             heard = None
         self.heard: str | None = heard if _when(heard) else None
         self.refusals: list[Body] = self._refusals()
+        self.refuse_lock = threading.Lock()
         self._failing()
         self.beat_lock = threading.Lock()
         self.started = _now()
@@ -655,8 +656,10 @@ class Relay:
                 lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
 
     def refuse(self, one: Body) -> None:
-        """A body was refused for good: keep it for the heartbeat, and beat."""
-        self.refusals = [*self._recent(), one]
+        """A body was refused for good: keep it for the heartbeat, and beat. Each lane's thread
+        calls it, so the list is changed under a lock."""
+        with self.refuse_lock:
+            self.refusals = [*self._recent(), one]
         self.beat()
 
     def _recent(self) -> list[Body]:
@@ -665,6 +668,8 @@ class Relay:
 
     def beat(self) -> None:
         """Write the heartbeat: see the module. One that cannot be written is said."""
+        with self.refuse_lock:
+            refused = self._recent()
         failing = []
         for lane in [*self.lanes, self.pager.lane]:
             if lane.failing:
@@ -675,7 +680,7 @@ class Relay:
             "heard": self.heard,
             "silent_minutes": self.config.silent,
             "failing": failing,
-            "refused": self._recent(),
+            "refused": refused,
         }
         part = self.beating.with_suffix(".part")
         try:

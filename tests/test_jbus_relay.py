@@ -822,3 +822,38 @@ def test_a_failing_route_stays_failing_from_when_it_began_across_a_restart(hooks
     sous_chef.answer = 200
     until(lambda: beat(again)["failing"] == [])
     again.stop()
+
+
+def test_a_body_refused_for_good_keeps_the_failure_of_the_bodies_behind_it(tmp_path, monkeypatch):
+    """A final 4xx ends a route's failure only when nothing waits behind it: a body still
+    failing behind it keeps the time the failure began."""
+    from jbus import relay as relaying
+
+    answers = {"first": relaying.Failed("HTTP 503"), "second": relaying.Failed("HTTP 503")}
+
+    def post(target, data, timeout):
+        raise answers[json.loads(data)["id"]]
+
+    monkeypatch.setattr(relaying, "post", post)
+    config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
+    lane = relaying.Lane(relaying.ROUTES[0], config.targets["sous-chef"], config, lambda line: None)
+    lane.take("first", {"id": "first"})
+    lane.take("second", {"id": "second"})
+    assert lane.drain() is False
+    began = lane.failing["since"]
+    answers["first"] = relaying.Failed("HTTP 400", final=True)
+    assert lane.drain() is False
+    assert lane.failing == {"route": "everything", "since": began, "why": "HTTP 503"}
+    answers["second"] = relaying.Failed("HTTP 400", final=True)
+    assert lane.drain() is True and lane.failing is None
+
+
+def env_for_lane() -> dict[str, str]:
+    return {
+        "RELAY_INBOUND_KEY": INBOUND,
+        "GROK_WEBHOOK_URL": "http://127.0.0.1:9/",
+        "GROK_WEBHOOK_KEY": SOUS_CHEF_KEY,
+        "PAGER_HA_URL": "http://127.0.0.1:9",
+        "PAGER_HA_TOKEN": HA_TOKEN,
+        "PAGER_HA_SERVICE": HA_SERVICE,
+    }

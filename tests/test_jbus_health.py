@@ -406,3 +406,15 @@ def test_an_incident_whose_page_did_not_go_and_that_cleared_is_paged_once_with_b
         "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80% "
         "(it began 11:00 ET, and that page did not go)"
     ]
+
+
+def test_a_heartbeat_that_cannot_be_read_leaves_an_open_refusal_open(kitchen, relay):
+    refused = {"route": "blocking", "at": NOW.isoformat(), "why": "HTTP 400", "file": "1-a.json"}
+    relay.write(NOW, NOW, refused=[refused])
+    kitchen.poll()
+    relay.path.write_text("{not json")
+    polls(kitchen, 61, 62)
+    assert [line.split(":", 2)[1] for line in pages(kitchen)] == [
+        " health relay refused",
+        " health relay heartbeat",
+    ]

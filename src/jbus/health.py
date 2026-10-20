@@ -34,9 +34,10 @@ None) leaves its incident as it is. An incident whose reading is not taken any m
 or an instance gone, a relay the config no longer posts to, ends with no line. A page goes to
 the desk and, as an event of the machine, to the top-level webhook once (`wake.Box.send`).
 
-`jbus poll` pages: the look is the first step of the config's first project, so it runs in
-every pass, before anything of the pass can raise, and before the launch, so a capped
-instance's lines come before the launch that skips it or goes back to it. A look that raises
+`jbus poll` pages: the look is the first step of the config's first project (rank 6 of
+`before-watch`, ahead of every other step), so it runs in every pass before another step can
+raise, and before the launch, so a capped instance's lines come before the launch that skips
+it or goes back to it. A look that raises
 is said, and the pass goes on. `jbus health` prints every reading and pages nothing.
 """
 
@@ -361,7 +362,11 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
             f", the last {minutes} min ago on route {last.get('route')} ({last.get('why')}), "
             f"kept in {relay.path / 'dead' / str(last.get('route')) / str(last.get('file'))}"
         )
-    found.append(Reading("relay refused", said, limit, bool(lately)))
+    if relay.beat is None:
+        said = f"no heartbeat in {relay.path / 'heartbeat.json'} to read the refusals of"
+    found.append(
+        Reading("relay refused", said, limit, None if relay.beat is None else bool(lately))
+    )
     return found
 
 
@@ -478,7 +483,7 @@ def run_health(args: argparse.Namespace, config: jbus.Config) -> int:
     return 1 if any(one.over for one in found) else 0
 
 
-STEPS = (verbs.Step("before-watch", 50, "health.first", first),)
+STEPS = (verbs.Step("before-watch", 6, "health.first", first),)
 VERBS = (
     verbs.Verb(
         "health",
