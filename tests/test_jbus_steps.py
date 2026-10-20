@@ -87,6 +87,7 @@ ORDER = [
     "close 40 chores.began (world)",
     "close 50 chores.daily",
     "close 60 chores.sweep",
+    "close 70 packs.check",
 ]
 JMERGE = f"wait 7 {URL}: {NO_FIXED}"
 
