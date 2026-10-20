@@ -16,6 +16,10 @@ name or a checkout the config has with anything else differing is refused by wha
 No line has a value of any key in it, what the caller gave included: a line of this command
 is safe in any log.
 
+`add --scratch` writes a scratch home's table in place of a repo's: `name`, `kind =
+"scratch"` and `projectId`, and no checkout, since it has no repo (`jbus.Scratch`). Its name
+is refused as a repo's is, against every project and every scratch home of the config.
+
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` works the new
 project and no unit is restarted.
 
@@ -66,17 +70,20 @@ def _private(path: Path, text: str) -> None:
         raise
 
 
-def table(name: str, checkout: Path, project_id: str) -> str:
-    """The lines of one project's table, as TOML."""
-    pairs = (("name", name), ("checkout", str(checkout)), ("projectId", project_id))
+def table(name: str, checkout: Path | None, project_id: str) -> str:
+    """The lines of one project's table, as TOML: a scratch home's where `checkout` is None."""
+    where = ("kind", jbus.SCRATCH) if checkout is None else ("checkout", str(checkout))
+    pairs = (("name", name), where, ("projectId", project_id))
     return "[[project]]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in pairs)
 
 
-def add(config_path: Path, name: str, checkout: str, project_id: str) -> str:
-    """Add the project's table to the config at `config_path`. The answer is the one line."""
+def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> str:
+    """Add the project's table to the config at `config_path`, or a scratch home's where
+    `checkout` is None. The answer is the one line."""
     if config_path.name != "config.toml":
         raise jbus.Refused(f"refused: {config_path} is not a config.toml")
-    have = jbus.load(config_path.parent).projects
+    config = jbus.load(config_path.parent)
+    have, scratch = config.projects, config.scratch
     was = config_path.read_text()
     if not NAME.fullmatch(name):
         raise jbus.Refused(
@@ -84,17 +91,21 @@ def add(config_path: Path, name: str, checkout: str, project_id: str) -> str:
         )
     if not project_id.strip():
         raise jbus.Refused("refused: --project-id is empty")
-    where = Path(checkout).expanduser().resolve()
-    if not where.is_dir():
+    where = None if checkout is None else Path(checkout).expanduser().resolve()
+    if where is not None and not where.is_dir():
         raise jbus.Refused("refused: --checkout is not a directory")
-    if any(
+    if where is None and jbus.Scratch(name, project_id.strip()) in scratch:
+        raise jbus.Refused(HAS)
+    if where is not None and any(
         (one.name, one.project_id) == (name, project_id.strip()) and _same(one.checkout, where)
         for one in have
     ):
         raise jbus.Refused(HAS)
-    if any(name in (one.name, one.state) for one in have):
+    if any(name in (one.name, one.state) for one in have) or any(
+        one.name == name for one in scratch
+    ):
         raise jbus.Refused("refused: the config already has a project of that name")
-    if any(_same(one.checkout, where) for one in have):
+    if where is not None and any(_same(one.checkout, where) for one in have):
         raise jbus.Refused("refused: the config already has a project with that checkout")
     gap = "" if not was or was.endswith("\n\n") else "\n" if was.endswith("\n") else "\n\n"
     now = was + gap + table(name, where, project_id.strip())
@@ -108,6 +119,7 @@ def add(config_path: Path, name: str, checkout: str, project_id: str) -> str:
 def missing(config: jbus.Config) -> list[str]:
     """The folders under the homes' state root with a `home-id` and no project, by name."""
     homes = {config.home(one).resolve() for one in config.projects}
+    homes |= {config.home(one.addressee()).resolve() for one in config.scratch}
     try:
         found = list(config.home_dir.iterdir())
     except OSError:
@@ -126,6 +138,8 @@ def missing(config: jbus.Config) -> list[str]:
 
 
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:
+    if (args.checkout is None) == (not args.scratch):
+        raise jbus.Refused("refused: give --checkout for a repo, or --scratch for a scratch home")
     print(add(jbus.config_dir() / "config.toml", args.name, args.checkout, args.project_id))
     return 0
 
@@ -135,8 +149,13 @@ def _listed(listed: argparse.ArgumentParser) -> None:
     added = listed_verbs.add_parser(
         "add", help="add a project's table to the config, with no webhook", allow_abbrev=False
     )
-    added.add_argument("name", help="the repo's directory name under the homes' state")
-    added.add_argument("--checkout", required=True, help="the path of the repo's main checkout")
+    added.add_argument("name", help="the home's directory name under the homes' state")
+    added.add_argument("--checkout", help="the path of the repo's main checkout")
+    added.add_argument(
+        "--scratch",
+        action="store_true",
+        help="a scratch home with no repo, in place of --checkout",
+    )
     added.add_argument("--project-id", required=True, help="the T3 Code project's id")
 
 

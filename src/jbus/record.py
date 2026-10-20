@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from jbus import Config, alert, project, read_json, signin, t3, wake, write_json
+from jbus import Config, alert, project, read_json, signin, t3, wake, word, write_json
 from jbus.queue import Row
 from jbus.watch import World, checks
 
@@ -208,8 +208,9 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
 
 
 def status(config: Config, now: datetime) -> dict[str, Any]:
-    """What the status file holds: read back from what the pass left, and the homes not on
-    the bus, which no pass leaves (`project.missing`)."""
+    """What the status file holds: read back from what the pass left, the homes not on the
+    bus, which no pass leaves (`project.missing`), and each scratch home with the thread in its
+    `home-id` and no field of a repo's."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
@@ -233,6 +234,13 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
         "projects": projects,
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
+        "scratch": {
+            one.name: {
+                "project_id": one.project_id,
+                "home_thread": word.home(config.home(one.addressee())),
+            }
+            for one in config.scratch
+        },
     }
 
 

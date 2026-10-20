@@ -10,6 +10,8 @@ A home that was never added is named. Each folder under `~/.local/state/home` wi
 - `--checkout` is the path of the repo's main checkout.
 - `--project-id` is the id of the repo's T3 Code project.
 
+A home with no repo is added with `--scratch` in place of `--checkout`: [A scratch home](a-scratch-home.md) says what it writes and what jbus does for it.
+
 The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook. The new project takes the top-level webhook at the top of the config when there is one ([Events and the webhook](events-and-the-webhook.md)). With none there, jbus POSTs nothing for it.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`. Each pass is a new run of `jbus poll` that loads the config, so no unit is restarted. No line it prints has a value of a key of the config.

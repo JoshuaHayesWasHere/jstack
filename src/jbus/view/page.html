@@ -208,6 +208,7 @@
   .machw:hover { text-decoration: underline; }
   .machw.op { color: var(--due); }
   .machw.bad { color: var(--missed); }
+  .scratchw { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
   .sec { font-size: 20px; margin: 22px 0 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   .sec .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
   .sec .btn { margin-left: auto; }
@@ -348,6 +349,7 @@
   <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
+  <span class="scratchw" id="scratch" hidden></span>
   <details class="kept" id="kept" hidden><summary id="kept-s"></summary><div class="kept-l" id="kept-l"></div></details>
   <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
   <button type="button" class="theme" id="theme">Auto</button>
@@ -540,6 +542,14 @@
     if (PROJECT && S) return { jbus: S.jbus, room: S.room, runners: S.checks.runners, runners_read: S.checks.runners_read, unwell: STACK ? STACK.machine.unwell : [] };
     return STACK ? STACK.machine : null;
   }
+  function scratchOf(m) { return (m.jbus.status && m.jbus.status.scratch) || []; }
+  function scratchWord(m) {
+    var box = $("scratch"), homes = m ? scratchOf(m) : [];
+    box.hidden = !homes.length;
+    if (!homes.length) return;
+    say(box, plural(homes.length, "scratch home", "scratch homes") + ": " + homes.map(function (h) { return h.name; }).join(", "));
+    box.title = "A home with no repo, for questions and drafts: jbus carries a word to it and runs no repo step for it. " + homes.map(function (h) { return h.name + ": " + (h.home_thread || "no home thread yet"); }).join("; ");
+  }
   function offBus(m) { return (m.jbus.status && m.jbus.status.homes_off_bus) || []; }
   function machineEdges(m) {
     var r = m.room, plan = r.plan || {}, up = m.runners.filter(function (u) { return u.active === "active"; }).length;
@@ -552,6 +562,7 @@
   function machineWord() {
     var m = machineOf(), box = $("mach"), pj = PROJECT || (STACK && STACK.projects[0] ? STACK.projects[0].name : "");
     box.hidden = !m;
+    scratchWord(m);
     if (!m) return;
     var e = machineEdges(m), r = m.room, word = "Machine ok", cls = "";
     if (e.stopped) { word = "jbus stopped"; cls = "bad"; }

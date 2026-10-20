@@ -93,6 +93,7 @@ Each `[[project]]` table is one repo:
 | `name` | None, required | The project's name in `jbus --project <name>` and in every event. |
 | `checkout` | None, required | The path of the repo's main checkout. A leading `~` is your home directory. |
 | `projectId` | None, required | The T3 Code project that the launches go to. |
+| `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key: no repo step is run for it ([A scratch home](jbus/a-scratch-home.md)). Any other value is refused. |
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. A table with only one of the two is refused. |

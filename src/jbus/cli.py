@@ -33,6 +33,8 @@ what a webhook that is down cannot say.
 config (`jbus.view`).
 `jbus project add` is no pass either: it adds one project's table to the config, and the
 next pass loads it (`jbus.project`).
+A scratch home of the config is no project of the pass, and no repo step is run for it
+(`jbus.load`): its words go to its thread in the first project's pass (`word.scratch`).
 Beside the status file is the record of the pass
 (`record`), written when the pass starts and again when it ends.
 No model reads anything.

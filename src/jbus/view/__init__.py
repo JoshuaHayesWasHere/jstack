@@ -193,6 +193,7 @@ DIGEST = {
         "projects": {ANY: _HOOK},
         "streaks": {ANY: {"key": None, "count": None, "since": None, "alerted": None}},
         "homes_off_bus": [None],
+        "scratch": {ANY: {"project_id": None, "home_thread": None}},
         "pass": {
             "started": None,
             "ended": None,

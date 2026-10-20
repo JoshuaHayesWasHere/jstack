@@ -30,6 +30,14 @@ It is posted no event, only each item that blocks as it opens, each reminder and
 refresh (`wake.Box.blocking`). Half of that pair is refused as half of the other is, and
 both are secret.
 
+A `[[project]]` table whose `kind` is `scratch` is no repo: a scratch home, for throwaway
+questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one
+place a table becomes a project, and it sorts a scratch table into `Config.scratch` and never
+into `Config.projects`, so no step that takes a `Project` (the queue, `jmerge`, the sweep, CI,
+the readers, the snapshot) is ever given one. A name is one home's across both lists: a
+scratch table with a name a project has, or keeps its state under, is refused, and so is a
+repo table after a scratch home of its name.
+
 `END_TURN` is how every message to a crew ends, and the one to a reviewer that carries it on or
 wakes it. A turn ended while its own check, or a reviewer's proof, runs is never woken when it
 ends, so the push, the Result, the pull request or the Review it was to make never come: the
@@ -54,6 +62,7 @@ NAMED_AFTER = ("user", "waiting-on-user")
 WAS = {"chef": "quiet"}
 IGNORED = ("loud",)
 NUMBERED = "numbered"
+REPO, SCRATCH = "repo", "scratch"
 TIMESTAMPED = "timestamped"
 MAX_RUNNING = 24
 Hook = tuple[str, str]
@@ -91,6 +100,22 @@ class Project:
 
 
 @dataclass(frozen=True)
+class Scratch:
+    """A scratch home: a name, and the T3 Code project its threads run in. It has no repo, so
+    it has no checkout, no webhook and no migrations, and nothing of it can push, open a pull
+    request or launch a crew."""
+
+    name: str
+    project_id: str
+
+    def addressee(self) -> Project:
+        """The home as `word` addresses it: a `Project` whose checkout is nowhere, for the
+        `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for nothing else.
+        Its state and its home are `<name>`, as a repo's are."""
+        return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
+
+
+@dataclass(frozen=True)
 class Config:
     server: str
     runtime_mode: str | None
@@ -108,6 +133,7 @@ class Config:
     tabled: tuple[Hook, ...] = ()
     webhook: Hook = ("", "")
     blocking: Hook = ("", "")
+    scratch: tuple[Scratch, ...] = ()
 
     @property
     def token_path(self) -> Path:
@@ -137,6 +163,13 @@ class Config:
                 return project
         names = ", ".join(project.name for project in self.projects) or "none"
         raise Refused(f"refused: no project {name or '(name one with --project)'}, have {names}")
+
+    def addressee(self, name: str | None) -> Project:
+        """The home a word is for: a repo project by its name, or a scratch home's addressee."""
+        for one in self.scratch:
+            if one.name == name:
+                return one.addressee()
+        return self.project(name)
 
     def secrets(self) -> tuple[str, ...]:
         """Every string that must not leave this machine in a list, a digest or a line:
@@ -283,8 +316,25 @@ def load(directory: Path | None = None) -> Config:
     webhook = _pair(raw, ("", ""))
     blocking = _pair(raw, ("", ""), BLOCKING)
     try:
-        projects = []
+        projects, scratch = [], []
         for entry in raw.get("project", []):
+            kind = entry.get("kind", REPO)
+            if kind not in (REPO, SCRATCH):
+                raise Refused(
+                    f"refused: project {entry['name']} has kind = {kind!r}: "
+                    f"give {REPO}, {SCRATCH}, or leave it out for {REPO}"
+                )
+            name, state = str(entry["name"]), str(entry.get("state") or entry["name"])
+            homes = {one.name for one in scratch}
+            if kind == SCRATCH:
+                homes |= {held for one in projects for held in (one.name, one.state)}
+            if homes & {name, state}:
+                raise Refused(
+                    f"refused: {path} has a scratch home and another project named {name}"
+                )
+            if kind == SCRATCH:
+                scratch.append(Scratch(name, str(entry["projectId"])))
+                continue
             if missing := _missing(entry):
                 raise Refused(
                     f"refused: project {entry['name']} has no {missing} of its own beside the "
@@ -336,6 +386,7 @@ def load(directory: Path | None = None) -> Config:
         tabled=_tabled(raw),
         webhook=webhook,
         blocking=blocking,
+        scratch=tuple(scratch),
     )
 
 

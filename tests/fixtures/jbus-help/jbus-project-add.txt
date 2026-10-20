@@ -1,10 +1,13 @@
-usage: jbus project add [-h] --checkout CHECKOUT --project-id PROJECT_ID name
+usage: jbus project add [-h] [--checkout CHECKOUT] [--scratch]
+                        --project-id PROJECT_ID
+                        name
 
 positional arguments:
-  name                  the repo's directory name under the homes' state
+  name                  the home's directory name under the homes' state
 
 options:
   -h, --help            show this help message and exit
   --checkout CHECKOUT   the path of the repo's main checkout
+  --scratch             a scratch home with no repo, in place of --checkout
   --project-id PROJECT_ID
                         the T3 Code project's id
