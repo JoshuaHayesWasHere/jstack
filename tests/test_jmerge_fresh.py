@@ -597,7 +597,11 @@ def test_a_head_that_fails_over_todays_main_waits_and_is_not_checked_twice(kitch
     assert len(checked.ran()) == 2
 
 
-def test_a_command_that_runs_over_its_time_is_stopped_and_counts_as_a_fail(kitchen, monkeypatch):
+def test_a_command_that_runs_over_its_time_is_stopped_and_queued_again_not_failed(
+    kitchen, monkeypatch
+):
+    """The limit counts the wait for a test slot too, so running over it says nothing of
+    the tree: the pull request waits for a fresh check, which is started again."""
     checked = Checked(kitchen, "sleep 30")
     home = kitchen.home
     fresh = cli.Fresh(home.main, home.state, timeout=0.5)
@@ -605,15 +609,17 @@ def test_a_command_that_runs_over_its_time_is_stopped_and_counts_as_a_fail(kitch
     one = ready.pull_request(kitchen.pulls["two"])
     assert here.waits(one, "main")[1:3] == ("wait", ready.FRESH_QUEUED)
     settled(kitchen)
-    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
-    _, verb, why, _, judged = here.waits(one, "main")
-    assert (verb, why, judged) == (
-        "wait",
-        f"{checked.command} fails {checked.over()}, timed out",
-        None,
-    )
     assert checked.known()["7"]["result"] == "timed out"
-    assert not (home.state / "fresh" / "7").exists()
+    assert markers(kitchen) == {} and not (home.state / "fresh" / "7").exists()
+    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state, timeout=0.5))
+    assert here.waits(one, "main")[1:] == ("wait", ready.FRESH_QUEUED, "", None)
+    end = time.monotonic() + 60
+    while len(checked.ran()) < 2:
+        assert time.monotonic() < end, "no second check was started"
+        time.sleep(0.05)
+    settled(kitchen)
+    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state, run=False))
+    assert here.waits(one, "main")[1:] == ("wait", ready.FRESH_QUEUED, "", None)
     asleep = subprocess.run(["pgrep", "-f", "^sleep 30$"], capture_output=True, text=True)
     assert [
         pid
@@ -779,15 +785,12 @@ def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
     assert markers(kitchen) == {ref: commit}
 
 
-@pytest.mark.parametrize(
-    ("script", "timeout", "result"), [("exit 3", 60, "failed"), ("sleep 30", 0.5, "timed out")]
-)
-def test_a_fail_or_a_timeout_marks_no_tree(kitchen, script, timeout, result):
-    checked = Checked(kitchen, script)
+def test_a_fail_marks_no_tree(kitchen):
+    checked = Checked(kitchen, "exit 3")
     home = kitchen.home
-    why, note = checked_of(kitchen, cli.Fresh(home.main, home.state, timeout=timeout), checked)
+    why, note = checked_of(kitchen, cli.Fresh(home.main, home.state), checked)
     assert (why.startswith(f"{checked.command} fails "), note) == (True, "")
-    assert checked.known()["7"]["result"] == result
+    assert checked.known()["7"]["result"] == "failed"
     assert markers(kitchen) == {}
 
 
