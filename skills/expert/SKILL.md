@@ -92,10 +92,6 @@ esac
 case $about in
 '' | *[!A-Za-z0-9-]*) why=${why:-"what the finding is about is letters, digits and hyphens"} ;;
 esac
-case $(printf '%s\n' "$gate" | head -n 1) in
-'## Gate <n>: '[!\<]*) ;;
-*) why=${why:-"the first line is not '## Gate <n>: ' and the finding"} ;;
-esac
 if [ -z "$why" ] && ! printf '%s\n' "$gate" | grep -q '^Asked by: [^,]*, thread '; then
     why="the gate has no line 'Asked by: <slug>, thread <id>'"
 fi
@@ -113,7 +109,7 @@ else
 fi
 ```
 
-On `sent`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate. On `not sent`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed. A repo with no home has nobody to gate: its finding goes to the user, here.
+`jbus gate` checks the rest of the lines against `$T/gates.md` and refuses what they lack with `not sent: <why>`, which comes back here as `not sent: jbus said: not sent: <why>`: mend that line and run it again. On `sent`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate. On `not sent`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed. A repo with no home has nobody to gate: its finding goes to the user, here.
 
 ## When to roll over
 

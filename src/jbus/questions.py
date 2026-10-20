@@ -51,6 +51,13 @@ the question waits for the user. Its `Holds:` line names the case, one of `HOLDS
 closed by silence. A `Holds:` line with no filled `Fail-safe:` line is refused, and so is an
 unknown case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 
+Lines that are not one gate of `templates/gates.md`, filled in, are refused with `not sent`
+and what they lack (`_shaped`): a first line that is not `## Gate <n>: ` and the question,
+or `## Gate <number>: ` for a gate a home's `gates.md` numbered, more than one `## ` line,
+no `Status: open` line, and a line of the template's head that is missing or left as its
+placeholder. The labels are read from the template, the one copy, so a skill pipes the gate
+and checks none of this itself.
+
 While homes still keep a `gates.md`, one more thing closes a record: a pass that finds the
 same gate in such a file with `Status: answered` (`closed_in_files`), since that home took
 the answer and carried it.
@@ -90,6 +97,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import itertools
 import json
 import re
 import sys
@@ -109,9 +117,8 @@ EVENTS = {"note": "quiet"}
 NAME = "questions.json"
 SOURCE = "jbus"
 NOTE = "note"
-NO_DEFAULT = (
-    "refused: the gate has no Default: line, so it does not say what was done in place of an answer"
-)
+TEMPLATE = Path(__file__).parents[2] / "templates" / "gates.md"
+_HEAD = re.compile(r"## Gate (<n>|[0-9]+): [^<]")
 GO = (
     "jbus: {user} answered question {number} ({question}) with the default ({default}), which "
     'held for the answer ({holds}). The words, {at}: "{words}". Fail-safe: {fail_safe}. Go '
@@ -379,17 +386,46 @@ def _held(lines: str) -> tuple[str, str]:
     raise Refused(f"not sent: {what}.")
 
 
+def _labels() -> list[str]:
+    """The labels of the template's head, under its first line and down to the first blank one."""
+    head = itertools.takewhile(str.strip, TEMPLATE.read_text().splitlines()[1:])
+    return [line.split(":", 1)[0] + ":" for line in head if ":" in line]
+
+
+def _shaped(lines: str) -> None:
+    """`Refused`, with what is wrong, for lines that are not one gate of the template filled in."""
+    rows = lines.splitlines()
+    if not rows or not _HEAD.match(rows[0]):
+        what = "the first line is not '## Gate <n>: ' and the question"
+    elif sum(row.startswith("## ") for row in rows) != 1:
+        what = "it is not one gate"
+    elif "Status: open" not in rows:
+        what = "the gate has no Status: open line"
+    else:
+        filled = re.compile(r"[^<]")
+        bare = [
+            label
+            for label in _labels()
+            if not any(
+                row.startswith(f"{label} ") and filled.match(row[len(label) + 1 :]) for row in rows
+            )
+        ]
+        if not bare:
+            return
+        what = f"the gate has no {bare[0]} line that is filled in"
+    raise Refused(f"not sent: {what}.")
+
+
 def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[Question, bool]:
     """Keep the gate a thread piped. The answer is its record, and whether it is new.
 
-    Lines with no `Default:` line that is filled in are refused: a question with no default
-    is a thread that waits, and no record says what an answer would undo. So are lines that
-    do not propose two options with the default among them as the one recommended
+    Lines that are not one gate of the template, filled in, are refused (`_shaped`): one with
+    no `Default:` line is a thread that waits, and no record says what an answer would undo.
+    So are lines that do not propose two options with the default among them as the one recommended
     (`_proposed`), and a `Holds:` line that is wrong (`_held`).
     """
+    _shaped(lines)
     asked, default = mirror.question(lines), mirror.field(lines, "Default")
-    if not default or default.startswith("<"):
-        raise Refused(NO_DEFAULT)
     options = _proposed(lines)
     holds, fail_safe = _held(lines)
     named = _THREAD.search(mirror.field(lines, "Asked by"))
