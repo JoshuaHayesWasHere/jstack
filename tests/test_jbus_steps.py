@@ -1,5 +1,6 @@
-"""A feature declares the step it adds to a pass, and `first_half` runs each slot's steps by
-rank. Run as `tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes.
+"""A feature declares the step it adds to a pass, and `first_half` and `second_half` run each
+slot's steps by rank. Run as `tests/test_jbus_guarded_ask.py` runs: the real pass, against
+the fakes.
 
 `ORDER` is the order `first_half` called its tellers in before any was a step, written out
 once, here, with each step added since in its slot by rank. `BEFORE` is what one pass's
@@ -8,6 +9,10 @@ recorded on the code before the move. Two calls moved with it, and `moved` moves
 `questions.closed_in_files` runs in the first slot, before `merge.merge` and `queue.load`,
 which touch no question; `watch.gone`, which only reads, runs after the tellers slot, beside
 `expedite.tell`.
+
+`AFTER` is what the second half called, recorded the same way on the code before its calls
+were steps, and `EVENING` the same for a pass late enough in the day to send the snapshot
+and run the sweep it leaves owed. None of its calls moved.
 """
 
 import importlib
@@ -69,6 +74,19 @@ ORDER = [
     "after-expedite 10 mainmoved.tell (client, world)",
     "after-expedite 20 remarks.tell (client, world)",
     "after-expedite 30 rebase.github (client, world)",
+    "derive 10 states.judged (sight)",
+    "derive 20 states.derive (client, world, rows)",
+    "after-derive 10 leftover.tell (client, world, rows)",
+    "after-derive 20 stall.unclosed (client, world, rows)",
+    "after-derive 30 states.unplaced (client, world, rows)",
+    "after-derive 40 states.keep_work (rows)",
+    "after-derive 50 item.follow (rows)",
+    "close 10 stall.tell",
+    "close 20 waiting.keep (sight)",
+    "close 30 waiting.cadence",
+    "close 40 chores.began (world)",
+    "close 50 chores.daily",
+    "close 60 chores.sweep",
 ]
 JMERGE = f"wait 7 {URL}: {NO_FIXED}"
 
@@ -271,8 +289,9 @@ def traced(kitchen, monkeypatch, *more, at=NOW + timedelta(hours=1)):
 
         monkeypatch.setattr(module, name, spy)
     for which in calls:
+        real = getattr(cli, which)
 
-        def half(*args, real=getattr(cli, which), which=which):
+        def half(*args, real=real, which=which):
             inside.append(which)
             try:
                 return real(*args)
@@ -415,6 +434,47 @@ def test_a_new_module_s_step_is_printed_in_its_place(tmp_path):
         "tellers 85 madeup.step (client, world)",
         *ORDER[at:],
     ]
+
+
+LATE = """
+from jbus import verbs
+
+
+def step(half):
+    half.run.say(f"late: {len(half.table)} rows, {len(half.roots)} roots")
+
+
+STEPS = (verbs.Step("close", 35, "late.step", lambda half: step(half), ("rows",)),)
+"""
+
+
+@pytest.fixture
+def late(tmp_path, monkeypatch):
+    """A module of jbus that no file of jbus names, with one step of the second half,
+    between `waiting.cadence` and `chores.began`."""
+    (tmp_path / "late.py").write_text(LATE)
+    monkeypatch.setattr(jbus, "__path__", [*jbus.__path__, str(tmp_path)])
+    yield importlib.import_module("jbus.late")
+    sys.modules.pop("jbus.late", None)
+
+
+def test_a_new_module_s_second_half_step_runs_in_its_place_with_no_line_in_cli(
+    kitchen, monkeypatch, late
+):
+    monkeypatch.setattr(cli, "RANKED", verbs.ranked(jbus.__path__))
+    short(kitchen)
+    first, second, events = traced(kitchen, monkeypatch, (late, "step"))
+    expected = AFTER["short"].split()
+    expected.insert(expected.index("waiting.cadence") + 1, "late.step")
+    assert (first, second, events) == (moved(BEFORE["short"][0]), expected, BEFORE["short"][1])
+
+
+def test_a_new_module_s_second_half_step_is_printed_in_its_place(tmp_path):
+    (tmp_path / "jbus").mkdir()
+    ran = fresh(tmp_path / "jbus", "from jbus import cli\ncli.main(['steps'])", late=LATE)
+    assert ran.returncode == 0, ran.stderr
+    at = ORDER.index("close 40 chores.began (world)")
+    assert ran.stdout.splitlines() == [*ORDER[:at], "close 35 late.step (rows)", *ORDER[at:]]
 
 
 def test_a_rank_two_modules_declare_in_one_slot_fails_at_import_and_names_both(tmp_path):

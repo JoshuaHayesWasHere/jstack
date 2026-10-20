@@ -655,4 +655,9 @@ def _item(args: argparse.Namespace, config: jbus.Config) -> int:
     return 0
 
 
+STEPS = (
+    verbs.Step(
+        "after-derive", 50, "item.follow", lambda half: follow(half.run, half.table), ("rows",)
+    ),
+)
 VERBS = (verbs.Verb("item", "work items: propose, approve, drop, show, list", _arguments, _item),)

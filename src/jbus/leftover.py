@@ -52,7 +52,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from jbus import mirror, questions, queue, read_json, word, write_json
+from jbus import mirror, questions, queue, read_json, verbs, word, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, World, brief_of, last_result, named
@@ -337,3 +337,14 @@ def said(state: Path, slug: str, at: datetime) -> None:
     if slug in records:
         stamp = at.astimezone(UTC).isoformat(timespec="seconds")
         _write(state, records | {slug: replace(records[slug], stalled=stamp)})
+
+
+STEPS = (
+    verbs.Step(
+        "after-derive",
+        10,
+        "leftover.tell",
+        lambda half: tell(half.run, half.client, half.seen.world, half.table, half.out),
+        ("client", "world", "rows"),
+    ),
+)

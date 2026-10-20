@@ -75,6 +75,7 @@ says rests on more than the files that are newer, as a module nobody has loaded 
 
 from __future__ import annotations
 
+import argparse
 import ipaddress
 import json
 import os
@@ -96,7 +97,7 @@ from urllib.parse import parse_qs
 
 import jbus
 import jsettings
-from jbus import Refused, digest, questions, record, t3, wake
+from jbus import Refused, digest, questions, record, t3, verbs, wake
 from jbus.view import panels, state
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
@@ -779,3 +780,19 @@ def doors(port: int = PORT) -> Doors:
         names=tuple(name.lower() for name in names if name),
         origins=tuple(origin(one) for one in origins if one),
     )
+
+
+def _port(shown: argparse.ArgumentParser) -> None:
+    shown.add_argument("--port", type=int, default=PORT, help="the one port it listens on")
+
+
+VERBS = (
+    verbs.Verb(
+        "view",
+        "serve the bus as a page, read-only",
+        _port,
+        lambda args, _: doors(args.port).serve(),
+        abbrev=False,
+        config=False,
+    ),
+)

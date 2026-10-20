@@ -85,7 +85,7 @@ import re
 from collections.abc import Collection
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbus import (
@@ -98,10 +98,14 @@ from jbus import (
     queue,
     read_json,
     redact,
+    verbs,
     write_json,
 )
 from jbus.wake import CONDITION, Pass, Slot, renamed
 from jbus.watch import LIVE, World
+
+if TYPE_CHECKING:
+    from jbus.cli import Half
 
 EVENTS = {"waiting": "user"}
 EVENT = "waiting"
@@ -594,3 +598,22 @@ def cadence(
     if refresh:
         run.box.post(_body(run, "refresh", found))
     return found
+
+
+def _keep(half: Half) -> None:
+    """Rewrite the list, and keep it for `cadence`."""
+    run, world, rows = half.run, half.seen.world, half.table
+    half.listed = keep(
+        run, world, rows, half.users, half.roots, derived=half.derived, read_all=half.read
+    )
+
+
+STEPS = (
+    verbs.Step("close", 20, "waiting.keep", _keep, ("sight",)),
+    verbs.Step(
+        "close",
+        30,
+        "waiting.cadence",
+        lambda half: cadence(half.run, half.listed, half.table, half.seen.world),
+    ),
+)
