@@ -33,25 +33,7 @@ Find your line in the tables. A word in angle brackets stands for a value on you
 
 ## The platform and the programs
 
-| Line | Meaning | Do this |
-|---|---|---|
-| `missing hard linux -> this is <platform>` | jstack runs on Linux only. | Use a Linux machine. |
-| `missing hard t3 -> the nightly build (on Arch: t3code-nightly-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install the nightly build of T3 Code and open the app once. |
-| `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
-| `old hard t3 -> <version> is the stable build, needs the nightly build (on Arch: t3code-nightly-bin)` | The stable build lacks tools that jstack calls, such as `t3_thread_launch`. | Install the nightly build. |
-| `old hard t3 -> <version>, needs <floor> or newer` | The nightly is older than the oldest build jstack supports. | Update T3 Code. |
-| `missing hard claude` | Claude Code is not on `PATH`. | Install Claude Code. |
-| `missing hard uv` | `uv` is not on `PATH`. | Install `uv`. |
-| `missing hard git` | `git` is not on `PATH`. | Install `git` 2.31 or newer. |
-| `old hard git -> <version>, needs 2.31 or newer` | The `git` on `PATH` is too old. | Update `git`. |
-| `missing hard jq` | `jq` is not on `PATH`. | Install `jq` 1.6 or newer. |
-| `old hard jq -> <version>, needs 1.6 or newer` | The `jq` on `PATH` is too old. | Update `jq`. |
-| `old hard <program> -> its version could not be read` | `git --version` or `jq --version` printed no version number. | Run that command yourself and see what is on `PATH` under that name. |
-| `missing hard gh` | The GitHub CLI is not on `PATH`. | Install `gh`. |
-| `missing hard gh sign-in -> gh auth login` | `gh auth token` exited non-zero. | Run `gh auth login`. |
-| `missing optional lavish-axi -> npm install -g lavish-axi` | `lavish-axi` is not on `PATH`. A scout writes no visual page, and a question round is asked as text. | Run `npm install -g lavish-axi`, or leave it. |
-| `missing optional state repo <path> -> not a git repo` | The homes' state tree is not a git repo, so `jbus snapshot` fails and alerts. | Run `git init <path>`, then add the remote as the next line says. |
-| `missing optional state repo <path> -> no remote` | The state tree has no `origin`. Each `jbus snapshot` commits and then fails, and the first failure alerts. | Run `git -C <path> remote add origin <url>`, with a private repository of your own. |
+[The platform and the programs](troubleshooting/the-platform-and-the-programs.md) has its lines.
 
 ## The skill links
 
@@ -109,45 +91,11 @@ A status line of your own gets no line. [Configuration](configuration.md#the-lim
 
 ## The configs and the limits file
 
-| Line | Meaning | Do this |
-|---|---|---|
-| `missing optional config <path> -> defaults are used: user, timezone, timezone_label` | You have no jstack config. Nothing is wrong. | Nothing, or write the file as [Configuration](configuration.md#jstack) shows. |
-| `old optional config <path> -> <why>` | The file is there and the commands refuse it. `<why>` names the key, or says the file does not parse. `jmerge` and `jbus` stop on the same line. | Correct what `<why>` names. |
-| `missing optional patterns <path>` | You have no private patterns file. `jleak` checks only its built-in patterns, and both of its hooks refuse every push and every pull request command. | Run `sh install.sh`. It makes the file. Then fill in the names, as [jleak](jleak.md#the-private-patterns) shows. |
-| `missing optional roles <path> -> every role inherits the model of the thread that launches it` | You have no role map. Nothing is wrong. | Nothing, or run `sh install.sh --setup`, which writes one where every role is `inherit`. |
-| `old optional roles <path> -> it cannot be read` | The path is a directory, or you cannot read it. | Remove it, or make it readable. |
-| `old optional roles <path> -> bad line <n>: <line>` | `jroles` refuses the map, so every launch inherits. Each bad line is named, joined by `;`. | Correct each line as [jroles](jroles.md) shows. |
-| `missing optional jbus config <path> -> jbus does not run without it` | `jbus` is not set up. No timer runs. A home thread launches and settles, and you run `jmerge` or hand the merge to a home. | Nothing, or follow [Set up jbus](jbus/set-up-jbus.md). |
-| `old optional jbus config <path> -> <path> is mode <mode>, readable by others: chmod 600 it` | The file holds a key, and group or others can read it. | Run `chmod 600 <path>`. |
-| `old optional jbus config <path> -> <why>` | `jbus` refuses the file. `<why>` is its own line: the file does not parse, lacks a key, or has a `loud` it cannot use. | Correct what `<why>` names. [Configuration](configuration.md#jbus) has every key. |
-| `old optional jbus config <path> -> jbus cannot read it: <error>` | The loader failed in a way it has no line for. `<error>` is the kind of error. | Compare the file with the example in [Configuration](configuration.md#jbus). |
-| `missing optional jbus sign-in <path> -> run jbus t3 login` | `jbus` has not signed in to T3 Code. | Run `jbus t3 login`. |
-| `old optional jbus sign-in <path> -> holds no token, run jbus t3 login` | The sign-in file has no token in it. | Run `jbus t3 login`. |
-| `old optional jbus sign-in <path> -> expired <date>, run jbus t3 login` | The sign-in ran out on `<date>`. | See [A T3 Code sign-in ran out](#a-t3-code-sign-in-ran-out). |
-| `old optional jbus sign-in <path> -> <path> is mode <mode>, readable by others: chmod 600 it` | The file holds a token, and group or others can read it. | Run `chmod 600 <path>`. |
-| `missing optional limits <path> -> hooks/limits.sh writes it, as the status line` | Nothing has written the plan's limits yet. `jgauge room` cannot hold a launch back for the plan. | Start one Claude Code session after the install. With a status line of your own, see [Configuration](configuration.md#the-limits-file). |
-| `old optional limits <path> -> it cannot be read` | The path is a directory, or you cannot read it. | Remove it. `hooks/limits.sh` writes it again. |
-| `old optional limits <path> -> it gives no limit` | No row of the file is a limit. | Remove it. `hooks/limits.sh` writes it again. |
-| `old optional limits <path> -> every reset in it is past, nothing writes it now` | The file is stale. No Claude Code session ran since the last reset, or the status line no longer runs `hooks/limits.sh`. | Start one Claude Code session and run the doctor again. If the line stays, run `sh install.sh --check` and read its `statusline` line. With a status line of your own there is no such line: see [Configuration](configuration.md#the-limits-file). |
+[The configs and the limits file](troubleshooting/the-configs-and-the-limits-file.md) has its lines.
 
 ## Setup
 
-`sh install.sh --setup` prints one line for each need the doctor lists, in the same order, and exits 1 while a `hard` need is left to you. A second run writes nothing.
-
-| Line | Meaning | Do this |
-|---|---|---|
-| `done <name>` | This run wrote it: a config that was not there, or a part the install puts. | Nothing. |
-| `already <name>` | It was there and `ok`. | Nothing. |
-| `needs you <program> -> yay -S <package>` | The program is missing or too old. On a machine with no `pacman` the command is the program's name. | Install it, then run `--setup` again. |
-| `needs you gh sign-in -> gh auth login` | `gh` is not signed in. | Run `gh auth login`. |
-| `needs you jbus sign-in <path> -> jbus t3 login` | `jbus` has its config and no sign-in. | Run `jbus t3 login`, as [Set up jbus](jbus/set-up-jbus.md) says. |
-| `needs you limits <path> -> claude` | Only Claude Code's status line writes the limits file. | Start one Claude Code session. |
-| `needs you state repo <path> -> git -C <path> remote add origin <url>` | The state tree has no remote, or with `git init <path> && ` first, is not a git repo. | Run it with a private repository of your own as `<url>`. |
-| `needs you <name> -> <why>` | A file is there and its loader refuses it, or a part the install puts could not be put. Setup never writes over a file. | Find the doctor's line for `<name>` above and do what it says. |
-
-Setup writes three configs, each only where no file is: `~/.config/jstack/config.toml`, with `user` from the first word of `git config user.name` and `timezone` from the machine, `~/.config/jstack/roles` with every role `inherit`, and `~/.config/jbus/config.toml`, mode 600, with `server` from the T3 sign-in beside it, else `http://127.0.0.1:3773`, and `dispatch = false`. The units are linked in the same run, since the jbus config is then there. `--uninstall` removes each of the three only while its bytes are the ones setup wrote, and says `kept <name> -> yours, it is not as setup wrote it` for one you changed.
-
-`scripts/fresh-host.sh` runs `--setup` on a fresh host: a throwaway `archlinux` container with the checkout's `HEAD` cloned in, `uv`, `git` and `jq` installed, and stand-ins for `t3`, `claude`, `gh`, `lavish-axi` and `systemctl`. It fails unless the doctor then says `doctor: ok`, a second `--setup` writes nothing, and the only `needs you` lines left are `jbus t3 login` and `claude`. It starts a container, so run it under the heavy-suite lock: `flock ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh`.
+[Setup](troubleshooting/setup.md) has its lines.
 
 ## The jbus units
 
@@ -179,20 +127,7 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 
 ## `jgauge room` prints `wait:`
 
-`jgauge room` prints `wait: ` and the first reading that has no room. No thread is launched until it prints `go`. `wait:` is an answer, not a fault: most readings clear by themselves.
-
-| Line | Meaning | Do this |
-|---|---|---|
-| `wait: load <load> is at or over 200% of <n> cores` | The run queue is twice the cores: a backstop past what CPU pressure already says. A review never says it: its check, `jgauge room --light`, skips the load. | Wait for running tests or builds to end. |
-| `wait: CPU pressure <n> is at or over 40` | Something waited for a core for that share of the last minute (`some avg60` of `/proc/pressure/cpu`). A review never says it: `jgauge room --light` skips it with the load. | Wait for running tests or builds to end. |
-| `wait: <n> GB of memory available, under 6` | The machine is short of memory. | Close what holds the memory. |
-| `wait: memory pressure <n> is at or over 10` | Programs wait on memory. | Close what holds the memory. |
-| `wait: /tmp has <n> of <m> file slots used, over 85%` | `/tmp` is almost out of file slots. | Remove old test directories from `/tmp`. |
-| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit of the instance asked about (`--instance`, `claudeAgent` by default) is used up. The same line names `the weekly limit`. | Wait for the reset, or launch on another instance of the role's pool. |
-| `wait: <name> is not the name of a provider instance` | `--instance` was given a name with a character an instance id does not have. | Give the id as `orchestrator_capabilities` lists it. |
-| `wait: the load or the core count could not be read` | A reading is missing. The lines for the CPU pressure, the memory, the memory pressure and the file slots have the same form. | `jgauge room` reads `/proc` and `df`. Check that both work in this shell. |
-
-A `note: the plan's ... not known` line on stderr is no `wait:`. It says the limits file is missing or stale, and `jgauge room` still prints `go`.
+[`jgauge room` prints `wait:`](troubleshooting/jgauge-room-prints-wait.md) has its lines.
 
 ## A launch waits on a usage limit
 
