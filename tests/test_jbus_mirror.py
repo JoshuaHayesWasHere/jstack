@@ -4,9 +4,10 @@ once. Run as `tests/test_jbus_kitchen.py` runs: the real pass and the real comma
 the fakes.
 """
 
+import json
 from datetime import timedelta
 
-from test_jbus_kitchen import GATE, NOW, RESULT
+from test_jbus_kitchen import GATE, NOW, RESULT, complete
 
 
 def test_each_new_section_is_one_event_and_a_second_pass_sends_nothing(kitchen):
@@ -105,3 +106,72 @@ def test_a_gate_piped_to_jbus_and_written_in_the_brief_goes_once(kitchen):
     kitchen.poll()
     assert kitchen.main("gate", "alpha", stdin=lines)[1] == "already sent: question 1\n"
     assert kitchen.lines("gate") == ["gate alpha: question 1: which way?"]
+
+
+OLD = (
+    RESULT.replace("Left: none\n", "Noticed: an old line from another machine.\nLeft: none\n")
+    + "\n## Review\nVerdict: findings\nFindings:\n- warning a.py:1 off by one\n"
+    + "Noticed, from the review: an old review's line.\n"
+)
+OLD_REPORT = "Thread: mcp:an-old-scout\n\n## Report\nStatus: done\nNoticed: an old scout's line.\n"
+
+
+def _restore(kitchen):
+    """What a backup put back: briefs and requests no row of this project's queue names, each
+    finished long ago, with a gate left in a Result."""
+    gate = GATE.format(n="<n>", asked="main fails make check at 198ea14?", status="open", slug="x")
+    kitchen.brief("crew-testing", OLD.replace("Left: none\n", f"crew-testing: gate\n{gate}"))
+    kitchen.brief("docs-sweep-2", OLD)
+    kitchen.brief("check-speed", OLD_REPORT, kind="scouts")
+
+
+def test_a_restored_tree_is_recorded_and_sends_nothing_old(kitchen):
+    """A project jbus knows, past its first pass, gets back from a backup briefs, requests,
+    Results, Reviews, Reports and gates it never saw: none of them is news."""
+    kitchen.quiet()
+    _restore(kitchen)
+    kitchen.poll()
+    kinds = ("gate", "result", "review", "report")
+    assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == []
+    records = json.loads((kitchen.state / "noticed.json").read_text())["records"]
+    assert {one["slug"] for one in records} == {"check-speed", "crew-testing", "docs-sweep-2"}
+    assert {(one["mark"], one["why"]) for one in records} == {("dropped", "from before the list")}
+    seen = json.loads((kitchen.state / "seen.json").read_text())
+    assert "gate main fails make check at 198ea14?" in seen["tasks/crew-testing.md"]
+    assert set(seen["scouts/check-speed.md"]) == {"## Report #1"}
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == []
+
+
+def test_a_gate_a_live_thread_writes_after_a_restore_goes_once(kitchen):
+    kitchen.quiet()
+    assert kitchen.main("queue", "add", "live", "--priority", "1", stdin=complete("live"))[0] == 0
+    _restore(kitchen)
+    kitchen.poll()
+    gate = GATE.format(n="<n>", asked="which way now?", status="open", slug="live")
+    kitchen.brief("live", RESULT + "Noticed:\nlive: gate\n" + gate)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
+    kinds = ("gate", "result", "review", "report")
+    assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == [
+        "gate live: which way now?",
+        "result live: done",
+    ]
+
+
+def test_a_scout_a_home_launched_has_its_report_sent_though_no_row_names_it(kitchen):
+    """A home writes `scouts/<slug>.md`, launches the scout from it and adds its `Thread:`
+    line; no queue row names it. A pass reads the request before the Report is in it, and that
+    is what tells it from a request a backup put back with its Report."""
+    kitchen.quiet()
+    request = kitchen.brief("look", "Thread: mcp:a-live-scout\n", kind="scouts")
+    kitchen.poll()
+    request.write_text(request.read_text() + "\n## Report\nStatus: done\nNoticed: a new one.\n")
+    _restore(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kinds = ("gate", "result", "review", "report")
+    assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == [
+        "report look: done"
+    ]
+    records = json.loads((kitchen.state / "noticed.json").read_text())["records"]
+    assert [one["text"] for one in records if one["mark"] == "new"] == ["a new one."]
