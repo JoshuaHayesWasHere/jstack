@@ -1,13 +1,12 @@
 # The skills a user types
 
-The skills a user types to think with an agent: `architect`, `automate-me`, `benchmark-checklist`, `bro`, `deeper`, `how`, `in-your-own-words`, `ketchup`, `no-comments`, `recall`, `sharpen`, `show-me-your-work`, `tdd`, `teach`, `typescript-best-practices`, `why`. Each loads only when typed, and its shell blocks are run.
+The skills a user types to think with an agent: `architect`, `automate-me`, `benchmark-checklist`, `bro`, `how`, `in-your-own-words`, `ketchup`, `no-comments`, `recall`, `sharpen`, `show-me-your-work`, `tdd`, `teach`, `typescript-best-practices`, `why`. Each loads only when typed, and its shell blocks are run.
 
 Paths:
 - `skills/architect/`
 - `skills/automate-me/`
 - `skills/benchmark-checklist/`
 - `skills/bro/`
-- `skills/deeper/`
 - `skills/how/`
 - `skills/in-your-own-words/`
 - `skills/ketchup/`

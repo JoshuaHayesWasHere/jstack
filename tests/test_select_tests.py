@@ -231,7 +231,7 @@ def test_a_file_no_feature_owns_and_no_test_names_selects_the_cross_cutting_alon
 
 
 def test_a_star_stays_within_one_part_of_the_path(repo):
-    head = repo.change(["docs/deeper/alpha.md"])
+    head = repo.change(["docs/other/alpha.md"])
 
     assert repo.selected(head) == ["tests/test_tree.py"]
 

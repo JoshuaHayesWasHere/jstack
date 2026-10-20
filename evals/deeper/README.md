@@ -1,5 +1,7 @@
 # The /deeper eval
 
+**Retired.** The skill this eval gated was retired when pstack's `/sharpen` (cursor/plugins #729) became the same four questions and a rewritten prompt, so this directory is a record and nothing runs it. Its cases, its two runs and the Result below are kept as they were. `eval.py` and `score.py` are removed with the skill, and the commands under "Run it" and "Blind scoring" ran them: `git show 18325a98aa9c:evals/deeper/eval.py` gives them back.
+
 Does a brief written through `/deeper` (`skills/deeper/SKILL.md`) ask for deeper work than one written without it? This eval is the merge gate of the skill: it ran before the skill merged, and its results are committed here.
 
 ## What it does

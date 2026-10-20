@@ -1,13 +1,20 @@
 ---
 name: sharpen
-description: "Sharpen a task before starting: the expert approach, what the user is really after, and the right level of specification. Use for /sharpen."
-tip: sharpens a task the way an expert would, then does it | sharpen this | sharpen the task | how would an expert approach | is * overspecified | is * underspecified
+description: "Make a task deeper, not bigger, then rewrite the prompt. Use for /sharpen."
+tip: rewrites a task's prompt to ask for the deeper version, and does not do the task | sharpen this | sharpen the task | go deeper | deeper version | more ambitious | what would an expert do | how would an expert approach
 disable-model-invocation: true
-card: "Settle the shape before code | 5 | Sharpens a task before starting: the expert's raw sources, methods and outside check, what the operator is really after, and the right level of specification. Then it does the work, and hands back no rewrite. | Reach for it when a task should be done, done better, and not handed back. | op: the operator"
+card: "Settle the shape before code | 4 | Makes a task deeper, not bigger: what an expert would do, from what raw material, with which methods and tools, and what outside the agent shows the result is right. Then it rewrites the prompt to ask for that, and does not do the task. | Reach for it before a research, perf, analysis or outcome task goes out. | op: the operator"
 ---
 
 Source: pstack, `pstack/skills/sharpen/SKILL.md`
 
-Before starting, ask how a top expert would approach this task (their raw sources, their real methods, an outside check that the result is right), what the user is really after, and whether the task is over- or underspecified. Loosen constraints that don't serve the goal as readily as you add ones that do, and leave choices that are the user's to make open instead of deciding them. Fold in only what makes the work better, not bigger, but always keep one outside check that the result is right, without narrating the framing, then do the work. Don't hand back a rewritten prompt.
+I want a deeper version of this task, not a bigger one. Before rewriting it, do four things:
 
-To get the four answers and the prompt rewritten, with no part of the work done, use `/deeper` (`skills/deeper/SKILL.md`) in place of this.
+1. Say what a top professional in this field would do here that I'm not asking for.
+2. Name the rawest material they would start from instead of what has already been digested for me.
+3. Name the specific methods and tools they would use.
+4. Say what, other than you or me, would show the result is right.
+
+Then rewrite my prompt to ask for exactly that.
+
+Leave choices that are mine to make open instead of deciding them.

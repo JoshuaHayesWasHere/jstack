@@ -420,12 +420,12 @@
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
-<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a>
+<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
 <!-- built: skill links, Settle the shape before code -->
-<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-deeper">deeper</a><a href="#skill-sharpen">sharpen</a>
+<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-sharpen">sharpen</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Understand what is there</b><div class="names">
@@ -435,7 +435,7 @@
 </div></div>
 <div class="tile"><b>Distrust the change</b><div class="names">
 <!-- built: skill links, Distrust the change -->
-<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a>
+<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a><a href="#skill-create-formal-verification-skill">create-formal-verification-skill</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Catch up and keep track</b><div class="names">
@@ -465,6 +465,7 @@
 <article class="card" id="skill-nohome"><h4>/nohome</h4><p>Opts this thread, or every new thread in the repo, out of the automatic home. With <code>merge</code> it switches the repo's automatic merge off or on.</p><p class="when">Reach for it when a thread should just do the work itself, or merges should wait.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-new-home"><h4>/new-home</h4><p>Sets up a repo's first home in five steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, and its home thread.</p><p class="when">Reach for it when a repo gets its first home, or one was started by hand.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-poteto-help"><h4>/poteto-help</h4><p>Answers a help question with the skill to type and the file it came from: the role that takes the work, its playbook, and the skills its words call for. It starts no work.</p><p class="when">Reach for it when you do not know which skill, playbook or role fits a brief, a request or a question.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-setup-pstack"><h4>/setup-pstack</h4><p>Sets this machine up for jstack in one pass, through <code>install.sh --setup</code>: the configs it lacks, the links, the commands and the units, and the one command for each thing only you can do.</p><p class="when">Reach for it on a new machine, or to check one again.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Settle the shape before code <small>Decide what to build before a thread builds it.</small></h3><div class="cards">
@@ -472,8 +473,7 @@
 <article class="card" id="skill-grilling"><h4>/grilling</h4><p>Questions the operator about a plan, a decision or an idea, round after round, until nothing is left assumed.</p><p class="when">Reach for it when the work is more than one task, or a design choice is not made yet.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <article class="card" id="skill-architect"><h4>/architect</h4><p>Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it.</p><p class="when">Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's <code>Design:</code> line names.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a crewmate</span></div></article>
 <article class="card" id="skill-in-your-own-words"><h4>/in-your-own-words</h4><p>Restates in its own words what it thinks the operator's goals are and the problem they are trying to solve.</p><p class="when">Reach for it before work starts, to check the goal was heard.</p><div class="who"><span class="chip op">the operator</span></div></article>
-<article class="card" id="skill-deeper"><h4>/deeper</h4><p>Asks for the deeper version of a task, not a bigger one: what an expert would do, from what raw material, with which instruments, and what outside the agent proves it. Returns the four answers and the prompt rewritten.</p><p class="when">Reach for it before a research, perf, analysis or outcome brief goes out.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a home, before a brief</span></div></article>
-<article class="card" id="skill-sharpen"><h4>/sharpen</h4><p>Sharpens a task before starting: the expert's raw sources, methods and outside check, what the operator is really after, and the right level of specification. Then it does the work, and hands back no rewrite.</p><p class="when">Reach for it when a task should be done, done better, and not handed back.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-sharpen"><h4>/sharpen</h4><p>Makes a task deeper, not bigger: what an expert would do, from what raw material, with which methods and tools, and what outside the agent shows the result is right. Then it rewrites the prompt to ask for that, and does not do the task.</p><p class="when">Reach for it before a research, perf, analysis or outcome task goes out.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Understand what is there <small>Read before changing.</small></h3><div class="cards">
@@ -489,12 +489,13 @@
 <article class="card" id="skill-interrogate"><h4>/interrogate</h4><p>Two reviewers that do not see each other challenge a change, and the lead filters what they found.</p><p class="when">Reach for it when a design or a change needs adversarial pressure.</p><div class="who"><span class="chip op">the operator</span><span class="chip rev">a reviewer</span></div></article>
 <article class="card" id="skill-tdd"><h4>/tdd</h4><p>Fixes a bug test-first: a focused regression test that fails before the fix and passes after it.</p><p class="when">Reach for it when a bug has a clear, cheap test path.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-benchmark-checklist"><h4>/benchmark-checklist</h4><p>Vets a measured number before it is reported: its limiter, its tuning, its errors, whether it repeats, and whether the work happened.</p><p class="when">Reach for it when a speedup, a regression or an eval result is about to be believed.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>perf-issue</code>, <code>hillclimb</code></span></div></article>
+<article class="card" id="skill-create-formal-verification-skill"><h4>/create-formal-verification-skill</h4><p>Finds the part of the code where a bug costs the most and tests reach the least, verifies one property of it with the tool that fits, and leaves a project-local skill that rechecks it on every change.</p><p class="when">Reach for it when a race, a retry, a state machine, a parser or unsafe code needs more than tests.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Catch up and keep track <small>For the operator after time away.</small></h3><div class="cards">
 <!-- built: skill cards, Catch up and keep track -->
 <article class="card" id="skill-recall"><h4>/recall</h4><p>Rebuilds your recent working context from the chat history, the home's record and live state, and hands back a short current-state brief.</p><p class="when">Reach for it when you start or resume work and ask where you left off.</p><div class="who"><span class="chip op">the operator</span></div></article>
-<article class="card" id="skill-ketchup"><h4>/ketchup</h4><p>Catches the operator up on everything in this chat since their last message, with a summary for each action item.</p><p class="when">Reach for it when a thread ran on while you were away.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-ketchup"><h4>/ketchup</h4><p>Catches the operator up on everything in this chat since their last message and lists every waiting item, each one decidable from the reply alone.</p><p class="when">Reach for it when a thread ran on while you were away.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-bro"><h4>/bro</h4><p>Restates the last message in plain language, with no jargon.</p><p class="when">Reach for it when an answer was too dense to act on.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-show-me-your-work"><h4>/show-me-your-work</h4><p>Keeps a decision log for long or unattended work, one row per decision: what, why, the evidence and the result.</p><p class="when">Reach for it when a run goes on with nobody watching and will be reviewed later.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>autonomous-run</code>, <code>hillclimb</code></span></div></article>
 <!-- built: end -->
@@ -735,7 +736,7 @@
 <div id="principle-principle-fix-root-causes"><b>principle-fix-root-causes</b><small>Reproduce first, trace the symptom to the first wrong decision, and fix it there; a guard is a fix only for a legitimate state.</small><div class="leans"><code>bug-fix</code><code>runtime-forensics</code><code>perf-issue</code></div></div>
 <div id="principle-principle-attack-the-premise"><b>principle-attack-the-premise</b><small>When two fixes that share a premise fail the same gate, write the premise down and test it before the next fix.</small><div class="leans"><code>bug-fix</code></div></div>
 <div id="principle-principle-explain-the-number"><b>principle-explain-the-number</b><small>Before trusting a measured number, find what limits it and rule out that it measured something else.</small><div class="leans"><code>benchmark-checklist</code><code>perf-issue</code><code>hillclimb</code></div></div>
-<div id="principle-principle-depth-over-breadth"><b>principle-depth-over-breadth</b><small>In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment.</small><div class="leans"><code>deeper</code></div></div>
+<div id="principle-principle-depth-over-breadth"><b>principle-depth-over-breadth</b><small>In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment.</small><div class="leans"><code>sharpen</code></div></div>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Keep moving with nobody watching</h3><div class="principles">
