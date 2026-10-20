@@ -55,6 +55,9 @@ class Quiet(Scene):
     def jbus(self, repo=NAME):
         """The real `jbus`, with one project: the repo whose home's directory is `repo`."""
         (self.bin / "jbus").symlink_to(Path(sys.executable).parent / "jbus")
+        stub = '#!/bin/sh\n[ "$1 $2" = "run --project" ] || exit 64\nshift 3\nexec "$@"\n'
+        (self.bin / "uv").write_text(stub)
+        (self.bin / "uv").chmod(0o755)
         config = self.user / ".config" / "jbus" / "config.toml"
         config.parent.mkdir(parents=True)
         config.write_text(
