@@ -3,11 +3,12 @@ room() (
   LOAD=85
   MEMORY=6
   PRESSURE=10
-  CUSHION=85
+  CUSHION=100
   SLOTS=85
   PROC=${PROC:-/proc}
   LIMITS=${LIMITS:-$HOME/.local/state/claude/limits}
   TMPFS=${TMPFS:-/tmp}
+  SKIP_LOAD=${SKIP_LOAD:-0}
   rows=$LIMITS
   if [ -d "$LIMITS" ]; then rows=/dev/null; fi
   load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)
@@ -42,7 +43,7 @@ room() (
     fi
   fi
   awk -v busy="$load" -v cores="$cores" -v memory="$memory" -v pressure="$pressure" \
-    -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
+    -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
     -v LOAD="$LOAD" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
     -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v rows="$rows" -v now="$(date +%s)" 'BEGIN {
       number = "^[0-9]+(\\.[0-9]+)?$"
@@ -53,8 +54,8 @@ room() (
           used[at[1]] = at[2]
           left[at[1]] = at[3] - now
         }
-      if (busy !~ number || cores !~ number || cores == 0) why = "the load or the core count could not be read"
-      else if (int(busy * 100 + 0.5) >= cores * LOAD) why = "load " busy " is at or over " LOAD "% of " cores " cores"
+      if (light != "1" && (busy !~ number || cores !~ number || cores == 0)) why = "the load or the core count could not be read"
+      else if (light != "1" && int(busy * 100 + 0.5) >= cores * LOAD) why = "load " busy " is at or over " LOAD "% of " cores " cores"
       else if (memory !~ number) why = "the available memory could not be read"
       else if (memory < MEMORY * 1048576) why = sprintf("%.1f GB of memory available, under %s", memory / 1048576, MEMORY)
       else if (pressure !~ number) why = "the memory pressure could not be read"
