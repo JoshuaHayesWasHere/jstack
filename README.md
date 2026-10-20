@@ -52,7 +52,7 @@ These steps take a new machine from a clone to one merged pull request.
 	cd jstack
 	```
 
-2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.claude/skills` and `~/.agents/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the seven commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
+2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.{claude,agents,codex}/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the seven commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
 
 	```sh
 	sh install.sh --setup
@@ -153,7 +153,7 @@ The other 26 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 
 | Path | Holds |
 |---|---|
-| `skills/` | The skills. `~/.claude/skills/<name>` and `~/.agents/skills/<name>` are symlinks to them. |
+| `skills/` | The skills. `~/.{claude,agents,codex}/skills/<name>` are symlinks to them. |
 | `templates/` | The one copy of each text the skills and the start hook fill in, and the systemd units of `jbus`. |
 | `playbooks/` | The numbered steps for one kind of task. |
 | `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
