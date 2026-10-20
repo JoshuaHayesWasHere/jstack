@@ -270,7 +270,7 @@ def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_pat
         == f"five_hour 100 {SOON}\nseven_day 30 {WEEK}\n"
     )
     assert ran(env, check()).stdout == "go\n"
-    waits = ran({**env, "INSTANCE": PRIME}, check()).stdout
+    waits = ran({**env, "POOL": PRIME}, check()).stdout
     assert waits.startswith("wait: the five-hour limit is 100% used")
 
 

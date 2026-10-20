@@ -52,6 +52,10 @@ crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_claude_prime effort=me
 
 A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`. So every launch goes to `claudeAgent` until a usage limit caps it, then to `claudeAgent_claude_prime`, and back to `claudeAgent` once its window has reset. Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)). One instance is a pool of one. A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
 
+The move goes both ways: a thread capped on `claudeAgent` goes on to `claudeAgent_claude_prime`, and one capped on `claudeAgent_claude_prime` goes back to `claudeAgent` while that one has headroom.
+A home in a `home-id`, the root home's or a scope's, moves in the `home` line's pool as a crew moves in the `crew` line's.
+With both capped the thread is sent nothing: `jbus` says so once, as a `stall`, and the first pass after the first reset sends it on.
+
 For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_claude_prime with headroom`, or `jroles: crew on claudeAgent_claude_prime: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_claude_prime are both capped until ...`) and exits 75: the launch waits for the first reset.
 
 A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](configuration.md#provider-instances)), and one more id on the role line. Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance. With no inventory the line is taken as written. An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
@@ -59,3 +63,10 @@ A pool grows by one line of the provider inventory, `~/.config/jstack/providers.
 ## The ledger
 
 A usage limit, the five-hour or the weekly one, caps an instance until its window resets. The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](configuration.md#the-limits-file)). An instance has headroom while none of its windows is at 100% with its reset ahead. Two writers keep it, by one rule, the later reset winning and for the same reset the larger share: the status line (`hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, from a turn T3 Code ended on a usage limit (`src/jroles/ledger.py`).
+
+`jgauge room` reads the ledger for the pool of the role it checks for, `jgauge room --role <role>`, the crew's where it names none.
+It waits on the plan only while every instance of a line's pool is full, and the `wait:` names each instance and the first reset: `wait: claudeAgent and claudeAgent_claude_prime are both at or over 100%: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min, claudeAgent_claude_prime's weekly limit is 100% used and resets in 1 d 6 h 0 min; the first resets in 2 h 0 min`.
+An instance full on both windows is named by the one that resets later, since it has no headroom until then.
+While one instance is full and another has room, `jgauge room` prints `go` and a `note:` on stderr that names the full one and the first with room.
+For a role with several lines, `review`, each line is a pool, and one whose instances are all full holds the check.
+A role with no pool reads the file `LIMITS` names, as before, and `jgauge room --instance <id>` reads that one instance's file alone.

@@ -9,8 +9,10 @@ import sys
 import time
 from pathlib import Path
 
+import jroles
 from jgauge import sample, session, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
+from jroles import ledger, pool
 
 NO_ROOM = 75
 LOOK_EVERY_SECONDS = 15.0
@@ -71,11 +73,22 @@ def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, s
     return 0 if said == "go" else NO_ROOM
 
 
+def _pool(role: str) -> str:
+    """The role's pools as `room.sh` takes them, `POOL`: the instances of a line joined by
+    commas, one line from the next by a space. Empty where the role inherits, or where the map
+    cannot be used, which is said: `room.sh` then reads the built-in instance's file."""
+    try:
+        chosen = pool.selections(role)
+    except jroles.Refused as refused:
+        print(f"note: room reads {ledger.BUILT_IN}'s limits: {refused}", file=sys.stderr)
+        return ""
+    return " ".join(",".join(one.instances) for one in chosen)
+
+
 def cmd_room(args: argparse.Namespace) -> int:
     look = ["sh", str(Path(__file__).with_name("room.sh"))]
     env = {**os.environ, "SKIP_LOAD": "1" if args.light else "0"}
-    if args.instance:
-        env["INSTANCE"] = args.instance
+    env["POOL"] = args.instance if args.instance is not None else _pool(args.role)
     if args.wait is None:
         return subprocess.run(look, env=env).returncode
     return _wait_for_room(look, args.wait, args.every, env)
@@ -169,10 +182,19 @@ def parser() -> argparse.ArgumentParser:
         " such as a review:"
         " memory, memory pressure, /tmp and the plan still hold it",
     )
-    room.add_argument(
+    asked = room.add_mutually_exclusive_group()
+    asked.add_argument(
+        "--role",
+        choices=jroles.ROLES,
+        default="crew",
+        help="the role whose pool's plan limits to read, from the role map and the ledger: wait"
+        " only while every instance of a line's pool is full (default: %(default)s; a role"
+        " with no pool reads claudeAgent's, the file LIMITS names)",
+    )
+    asked.add_argument(
         "--instance",
-        help="the provider instance whose plan limits to read, from the ledger (default:"
-        " claudeAgent, the file LIMITS names)",
+        help="the one provider instance whose plan limits to read, from the ledger, in place"
+        " of a role's pool",
     )
     room.set_defaults(run=cmd_room)
 

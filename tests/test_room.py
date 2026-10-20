@@ -94,6 +94,7 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         "LIMITS": str(where / "limits"),
         "TMPFS": str(tmp),
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
+        "XDG_CONFIG_HOME": str(where / "config"),
     }
 
 
@@ -786,8 +787,144 @@ def test_the_plan_is_read_for_the_instance_room_is_asked_about(tmp_path):
 
 def test_a_name_that_is_no_instance_is_a_wait(tmp_path):
     env = machine(tmp_path, **IDLE)
-    for name in ("../limits", "a b"):
-        assert (
-            says({**env, "INSTANCE": name})
-            == f"wait: {name} is not the name of a provider instance"
+    for name in ("../limits", "a,,b", "a  b", ",a", "a\nb"):
+        said = subprocess.run(
+            [str(BIN / "jgauge"), "room", "--instance", name], env=env, capture_output=True
         )
+        assert said.stdout.decode() == f"wait: {name} is not a pool of provider instances\n"
+
+
+def pooled(env, *lines):
+    """The role map of the machine `env` points at: `crew:` and then each line as written."""
+    roles = Path(env["XDG_CONFIG_HOME"]) / "jstack" / "roles"
+    roles.parent.mkdir(parents=True, exist_ok=True)
+    roles.write_text("".join(f"{line}\n" for line in lines))
+    return env
+
+
+def ledgers(env, main, prime):
+    """Each instance's file of the ledger, the main one's at LIMITS and prime's beside it."""
+    for file, plan in ((env["LIMITS"], main), (f"{env['LIMITS']}.{PRIME}", prime)):
+        Path(file).write_text(limits(plan))
+    return env
+
+
+POOLED = f"crew: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}"
+CAPPED = {**FRESH, "five_hour": ("100", 2 * HOUR + 59)}
+CAPPED_WEEK = {**FRESH, "seven_day": ("100.0", 30 * HOUR + 59)}
+
+
+def test_a_pool_with_room_on_both_instances_goes_with_nothing_said(tmp_path):
+    env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), FRESH, FRESH)
+    assert ran(env).stdout == "go\n" and ran(env).stderr == ""
+
+
+@pytest.mark.parametrize(
+    ("main", "prime", "held", "free"),
+    [
+        (
+            CAPPED,
+            FRESH,
+            "claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min",
+            PRIME,
+        ),
+        (
+            FRESH,
+            CAPPED_WEEK,
+            f"{PRIME}'s weekly limit is 100.0% used and resets in 1 d 6 h 0 min",
+            "claudeAgent",
+        ),
+    ],
+)
+def test_a_pool_with_one_instance_full_goes_and_says_which_has_room(
+    tmp_path, main, prime, held, free
+):
+    env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), main, prime)
+    looked = ran(env)
+    assert looked.stdout == "go\n"
+    assert looked.stderr == f"note: {held}; the pool has room on {free}\n"
+
+
+def test_a_pool_with_every_instance_full_waits_and_names_each_and_the_first_reset(tmp_path):
+    """An instance full on both windows is held until the later reset, which is the one named."""
+    both = {"five_hour": ("100", 2 * HOUR + 59), "seven_day": ("100", 50 * HOUR + 59)}
+    env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), both, CAPPED_WEEK)
+    assert says(env) == (
+        f"wait: claudeAgent and {PRIME} are both at or over 100%: "
+        "claudeAgent's weekly limit is 100% used and resets in 2 d 2 h 0 min, "
+        f"{PRIME}'s weekly limit is 100.0% used and resets in 1 d 6 h 0 min; "
+        "the first resets in 1 d 6 h 0 min"
+    )
+    assert waited(env, "0") == ([says(env)], 75)
+
+
+def test_a_full_instance_beside_one_the_ledger_does_not_know_goes_and_says_both(tmp_path):
+    """No file for prime is no cap: it is the instance with room, and its limits are not known."""
+    env = pooled(machine(tmp_path, **IDLE, plan=CAPPED), POOLED)
+    looked = ran(env)
+    assert looked.stdout == "go\n"
+    assert looked.stderr == (
+        f"note: the plan's {NEITHER.format(env['LIMITS'] + '.' + PRIME)}\n"
+        f"note: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min; "
+        f"the pool has room on {PRIME}\n"
+    )
+
+
+def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
+    """`--role` takes that role's line; the crew's is read with none, and `--instance` reads
+    the one instance it names whatever the map says."""
+    env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
+    pooled(env, "crew: inherit", f"scout: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}")
+    room = [str(BIN / "jgauge"), "room"]
+    full = "wait: the five-hour limit is 100% used, at or over 100%, and resets in 2 h 0 min\n"
+    for asked, said in (
+        ([], full),
+        (["--role", "crew"], full),
+        (["--role", "scout"], "go\n"),
+        (["--role", "scout", "--instance", "claudeAgent"], ""),
+        (["--instance", "claudeAgent"], full),
+        (["--instance", PRIME], "go\n"),
+    ):
+        looked = subprocess.run([*room, *asked], env=env, capture_output=True, text=True)
+        assert looked.stdout == said, asked
+
+
+def test_a_role_with_no_pool_reads_limits_as_before(tmp_path):
+    """No role map, `inherit`, or a line that names no instance: the file LIMITS names."""
+    env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
+    full = "wait: the five-hour limit is 100% used, at or over 100%, and resets in 2 h 0 min"
+    assert says(env) == full
+    assert says(pooled(env, "crew: inherit")) == full
+    assert says(pooled(env, "crew: claudeAgent claude-opus-5-5")) == full
+
+
+def test_a_role_map_room_cannot_use_reads_limits_as_before_and_says_why(tmp_path):
+    env = pooled(ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH), "crew: nonsense here")
+    looked = ran(env)
+    assert looked.stdout.startswith("wait: the five-hour limit is 100% used")
+    assert looked.stderr == (
+        "note: room reads claudeAgent's limits: refused crew: nonsense is not "
+        "Claude, Codex, Cursor or Grok\n"
+    )
+
+
+def test_every_line_of_a_role_is_a_pool_and_any_one_full_waits(tmp_path):
+    """`review` alone has several lines, each a reviewer: one whose pool is full holds it."""
+    env = ledgers(machine(tmp_path, **IDLE), FRESH, CAPPED_WEEK)
+    pooled(
+        env, "review: claudeAgent claude-opus-5-5", f"review: claudeAgent claude-opus-5-5 {PRIME}"
+    )
+    asked = [str(BIN / "jgauge"), "room", "--role", "review"]
+    looked = subprocess.run(asked, env=env, capture_output=True, text=True)
+    assert looked.stdout == (
+        "wait: the weekly limit is 100.0% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+    )
+
+
+def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(tmp_path):
+    """Some awks stop on a directory they are asked to read: room skips it before awk reads."""
+    env = pooled(machine(tmp_path, **IDLE, plan=CAPPED), POOLED)
+    Path(f"{env['LIMITS']}.{PRIME}").mkdir()
+    looked = ran(env)
+    assert looked.stdout == "go\n"
+    assert looked.stderr.endswith(f"the pool has room on {PRIME}\n")
