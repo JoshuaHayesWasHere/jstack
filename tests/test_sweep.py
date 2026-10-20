@@ -526,6 +526,7 @@ def test_a_process_list_that_cannot_be_read_whole_is_no_answer(tmp_path, monkeyp
     other = proc / str(os.getpid() + 1 if listable else os.getpid())
     other.mkdir(parents=True)
     (other / "cwd").symlink_to(tmp_path)
+    (proc / "self").symlink_to(other.name)
     if not listable:
         proc.chmod(0o111)
     monkeypatch.setattr(cli, "PROC", proc)
