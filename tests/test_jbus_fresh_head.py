@@ -13,7 +13,7 @@ from test_jbus_expedite import NO_FIXED, Short
 from test_jbus_guarded_ask import URL, Fixed
 from test_jbus_kitchen import NOW
 from test_jbus_kitchen import review as findings
-from test_jbus_main_moved import move, pull
+from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_questions import answer, ask
 from test_jbus_queue import add
 from test_jbus_remarks import one
@@ -39,6 +39,7 @@ class Due:
 
     def __init__(self, kitchen, kind):
         self.kitchen, self.kind = kitchen, kind
+        checks(kitchen, tip(kitchen), "failure")
         self.fixed = Fixed(kitchen)
         self.thread, self.head = self.fixed.thread, self.fixed.head
         move(kitchen)
@@ -188,6 +189,8 @@ def test_a_message_held_back_holds_up_no_other_pull_request(kitchen):
     add(kitchen, "beta", priority=2)
     kitchen.poll(NOW - timedelta(minutes=10))
     kitchen.t3.threads[1]["status"] = "completed"
+    move(kitchen, "failure")
+    kitchen.poll(NOW - timedelta(minutes=5))
     main = move(kitchen)
     alpha = {**pull(kitchen, "alpha", 7, "FAILURE"), "headRefOid": due.head}
     kitchen.set("open.json", [alpha, pull(kitchen, "beta", 8)])

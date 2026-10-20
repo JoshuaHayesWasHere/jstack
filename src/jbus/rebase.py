@@ -8,7 +8,10 @@ rewrites and a lease that names it, so a rebase never loses what was there.
 
 The message's key, `rebase|<slug>|<head 12>`, is its retry key at T3 Code and its mark in
 `sent.json`, so a pass that got no answer tries again and a head that was told is not told
-twice. A crew that rebased and is stale again has a new head, and gets one more.
+twice. A pull request is told to rebase once for main moving or a failure: a crew that
+rebased and is stale or failing again at a new head gets a gate (`SECOND`), with the default
+that the pull request waits, and no second rebase. A conflict with its base is told at every
+head: nothing but a rebase resolves it.
 
 A rebase that changed what the patch says is the other line `tell` reads. `jmerge` carries
 a review over a rebase whose range-diff changes no content, and waits on one that does:
@@ -75,13 +78,11 @@ EVENTS = {
 }
 _WAIT = re.compile(r"^wait (\d+) \S+: (.+)$")
 _HEAD = re.compile(r"\bfails on ([0-9a-f]{12}) over today's main")
-STALE = (
-    re.compile(r"\bchanged .+ after its check started"),
-    _HEAD,
-    re.compile(r"\bconflicts with its base"),
-)
+CONFLICT = re.compile(r"\bconflicts with its base")
+STALE = (re.compile(r"\bchanged .+ after its check started"), _HEAD, CONFLICT)
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
+SECOND = "stale again after its one rebase"
 MESSAGE = (
     "jbus: main moved under your pull request #{number} ({reason}). Rebase it in your own "
     "worktree now, even if GitHub says MERGEABLE: run `git update-ref "
@@ -354,9 +355,14 @@ def post(
     key = f"{ask.kind}|{slug}|{head[:12]}"
     if not head or not dispatch.launched(run, slug):
         return None
-    if key in read_json(run.state / "sent.json", []):
+    sent = read_json(run.state / "sent.json", [])
+    if key in sent:
         return None
     if ask.head and not head.startswith(ask.head):
+        return None
+    again = any(mark.startswith(f"rebase|{slug}|") for mark in sent)
+    if ask.kind == "rebase" and again and not CONFLICT.search(reason):
+        run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
     try:
         brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")

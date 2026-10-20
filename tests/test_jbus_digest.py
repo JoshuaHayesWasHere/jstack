@@ -13,7 +13,7 @@ import pytest
 import jbus
 from jbus import digest, waiting
 from test_jbus_kitchen import FIXTURE, GATE, KEY, NOW, RESULT, TOKEN
-from test_jbus_main_moved import move
+from test_jbus_main_moved import checks, move, tip
 from test_jbus_one_wake import box
 from test_jbus_queue import add, brief, go, sha12
 
@@ -148,6 +148,7 @@ def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_g
     """T3 Code refuses the main-moved message: the row is at `gate` for that one pass."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
+    checks(kitchen, tip(kitchen), "failure")
     kitchen.poll(later(-30))
     kitchen.t3.threads[0]["status"] = "completed"
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7, "FAILURE"), "mergeable": "MERGEABLE"}])

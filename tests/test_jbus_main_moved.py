@@ -1,6 +1,7 @@
-"""When the default branch moves, the crew of each open pull request that is red is told
-once to rebase and carry on, so one that main broke does not sit idle after main is fixed.
-A conflict is told once per head by `rebase.github`, and not here (`test_jbus_github.py`).
+"""When the default branch goes from red to green, the crew of each open pull request that
+is red is told once to rebase and carry on, so one that main broke does not sit idle after
+main is fixed. A main that moved from green to green tells nobody. A conflict is told once
+per head by `rebase.github`, and not here (`test_jbus_github.py`).
 Run as `tests/test_jbus_unlock.py` runs: the real pass, against the fakes, with the kitchen's
 own origin as the remote whose main moves."""
 
@@ -19,12 +20,13 @@ RED = "red: checks failed"
 
 
 @pytest.fixture
-def launched(kitchen):
-    """Alpha and beta, launched by a first pass that also records where main is, with each
-    thread's turn ended: one at work is told nothing."""
+def launched(kitchen, request):
+    """Alpha and beta, launched by a first pass that also records where main is, red unless
+    the test asks for `success`, with each thread's turn ended: one at work is told nothing."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
     add(kitchen, "beta", priority=2)
+    checks(kitchen, tip(kitchen), getattr(request, "param", "failure"))
     said = kitchen.poll(NOW - timedelta(minutes=30))
     assert "launched alpha: mcp:thread-1" in said and "launched beta: mcp:thread-2" in said
     for thread in kitchen.t3.threads:
@@ -39,14 +41,24 @@ def tip(kitchen):
     ).stdout.strip()
 
 
-def move(kitchen):
-    """A merge lands on origin's main from another clone: the checkout never fetches it."""
+def checks(kitchen, sha, conclusion):
+    """The conclusion of main's one check run at a commit, `""` for one still running."""
+    kept = kitchen.stub / "check-runs.json"
+    runs = json.loads(kept.read_text()) if kept.exists() else {}
+    runs[sha] = [{"status": "completed" if conclusion else "in_progress", "conclusion": conclusion}]
+    kitchen.set("check-runs.json", runs)
+
+
+def move(kitchen, conclusion="success"):
+    """A merge lands on origin's main from another clone: the checkout never fetches it. Its
+    check ends as `conclusion` says."""
     other = kitchen.root / "other"
     if not other.exists():
         kitchen.git("clone", "-q", str(kitchen.origin), str(other), cwd=kitchen.root)
     kitchen.git("pull", "-q", "--ff-only", cwd=other)
     kitchen.git("commit", "-q", "--allow-empty", "-m", "a merge", cwd=other)
     kitchen.git("push", "-q", "origin", "main", cwd=other)
+    checks(kitchen, tip(kitchen), conclusion)
     return tip(kitchen)
 
 
@@ -76,8 +88,8 @@ def mine(gates):
 
 def message(slug, number, main, why):
     return (
-        f"jbus: main moved to {main[:12]} while your pull request #{number} is {why}. If main "
-        "was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
+        f"jbus: main is green again at {main[:12]} while your pull request #{number} is {why}. "
+        "If main was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
         f'refs/jstack/pre-rebase/{slug}/cccccccccccc {HEAD}`, rebase onto origin/main as "A '
         'conflict" says, rerun the tests your change touches plus the ones that failed, and '
         f"push with `git push --force-with-lease=refs/heads/{slug}:{HEAD} origin "
@@ -112,6 +124,7 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
     assert json.loads((launched.state / "main.json").read_text()) == {
         "main": main,
         "at": NOW.isoformat(),
+        "check": "green",
     }
 
 
@@ -121,6 +134,8 @@ def test_the_same_main_commit_tells_nobody_again_and_a_new_one_tells_once_more(l
     for minutes in (0, 3, 6):
         launched.poll(NOW + timedelta(minutes=minutes))
     assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
+    move(launched, "failure")
+    launched.poll(NOW + timedelta(minutes=8))
     second = move(launched)
     for minutes in (9, 12):
         launched.poll(NOW + timedelta(minutes=minutes))
@@ -137,7 +152,7 @@ def test_the_same_main_commit_tells_nobody_again_and_a_new_one_tells_once_more(l
 def test_a_green_pull_request_is_told_nothing_up_to_date_or_behind_main(launched):
     launched.set("open.json", [pull(launched, "alpha", 7), pull(launched, "beta", 8)])
     for minutes in (0, 3):
-        main = move(launched)
+        main = move(launched, "failure" if minutes else "success")
         launched.poll(NOW + timedelta(minutes=minutes))
     assert sends(launched) == [] and launched.lines("mainmoved") == [] and gates(launched) == []
     assert jbus.read_json(launched.state / "main.json", {})["main"] == main
@@ -177,6 +192,8 @@ def test_a_red_pull_request_with_no_thread_line_is_a_gate_once_per_main_commit(l
     gate = "condition alpha: red pull request with no thread to tell"
     assert sends(launched) == []
     assert [line for line in mine(gates(launched)) if "thread to tell" in line] == [gate]
+    move(launched, "failure")
+    launched.poll(NOW + timedelta(minutes=4))
     move(launched)
     launched.poll(NOW + timedelta(minutes=6))
     assert [line for line in mine(gates(launched)) if "thread to tell" in line] == [gate, gate]
@@ -252,13 +269,67 @@ def test_a_refused_message_is_not_sent_again_while_another_is_owed(launched):
     assert mine(gates(launched)) == ["condition alpha: T3 Code refused the main-moved message"]
 
 
-def test_a_red_pull_request_is_told_for_each_commit_of_main_under_one_head(launched):
+def test_a_red_pull_request_is_told_each_time_main_is_fixed_under_one_head(launched):
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    mains = []
-    for minutes in (0, 3, 6):
-        mains.append(move(launched))
+    fixes = []
+    for minutes in (0, 6, 12):
+        move(launched, "failure")
         launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}" for main in mains]
+        fixes.append(move(launched))
+        launched.poll(NOW + timedelta(minutes=minutes + 3))
+    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}" for main in fixes]
+
+
+@pytest.mark.parametrize("launched", ["success"], indirect=True)
+def test_main_going_green_to_green_tells_a_red_pull_request_nothing(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    for minutes in (0, 3):
+        main = move(launched)
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert sends(launched) == [] and launched.lines("mainmoved") == []
+    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
+
+
+def test_main_going_red_to_green_tells_a_red_pull_request_once(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    for minutes in (0, 3):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
+
+
+def test_main_going_red_to_red_tells_nobody_and_the_green_after_it_tells_once(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    move(launched, "failure")
+    launched.poll()
+    assert sends(launched) == []
+    fixed = move(launched)
+    launched.poll(NOW + timedelta(minutes=3))
+    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"]
+
+
+def test_a_main_whose_check_has_not_ended_tells_nobody_until_it_is_green(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched, "")
+    for minutes in (0, 3):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert sends(launched) == []
+    checks(launched, main, "success")
+    for minutes in (6, 9):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
+
+
+def test_a_main_whose_check_failed_after_it_landed_is_red_and_the_next_green_tells(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    first = move(launched, "")
+    launched.poll()
+    checks(launched, first, "failure")
+    launched.poll(NOW + timedelta(minutes=3))
+    assert sends(launched) == []
+    fixed = move(launched)
+    launched.poll(NOW + timedelta(minutes=6))
+    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"]
 
 
 def test_a_red_head_that_is_also_in_conflict_is_told_once_however_often_main_moves(launched):
@@ -278,10 +349,12 @@ def test_a_red_head_told_in_conflict_waits_while_github_has_not_judged_it_again(
     first = move(launched)
     launched.poll()
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
+    red = move(launched, "failure")
+    launched.poll(NOW + timedelta(minutes=2))
     main = move(launched)
     launched.poll(NOW + timedelta(minutes=3))
     assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == first
+    assert jbus.read_json(launched.state / "main.json", {})["main"] == red
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE", mergeable="CONFLICTING")])
     launched.poll(NOW + timedelta(minutes=6))
     assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]

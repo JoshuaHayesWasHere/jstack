@@ -163,7 +163,9 @@ def test_a_stale_pull_request_tells_its_crew_to_rebase_with_a_backup_ref_and_a_l
     assert "rebase|alpha|cccccccccccc" in jbus.read_json(launched.state / "sent.json", [])
 
 
-def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_once_more(launched):
+def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_is_a_gate_not_a_second_rebase(
+    launched,
+):
     out(launched)
     for minutes in (0, 3, 6):
         launched.poll(NOW + timedelta(minutes=minutes))
@@ -171,14 +173,48 @@ def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_once_more(launch
     out(launched, head="d" * 40)
     for minutes in (9, 12):
         launched.poll(NOW + timedelta(minutes=minutes))
+    assert [given["clientRequestId"] for given in sends(launched)] == ["rebase|alpha|cccccccccccc"]
+    assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+    assert gates(launched) == ["condition alpha: stale again after its one rebase"]
+
+
+@pytest.mark.parametrize(
+    "first",
+    [CHANGED + ": it needs a rebase", "it conflicts with its base"],
+    ids=["stale then conflict", "conflict then conflict"],
+)
+def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launched, first):
+    out(launched, reason=first)
+    launched.poll(NOW)
+    launched.t3.threads[0]["status"] = "completed"
+    out(launched, head="d" * 40, reason="it conflicts with its base")
+    launched.poll(NOW + timedelta(minutes=3))
     assert [given["clientRequestId"] for given in sends(launched)] == [
         "rebase|alpha|cccccccccccc",
         "rebase|alpha|dddddddddddd",
     ]
-    assert launched.lines("rebase") == [
-        "rebase alpha: told the crew (#7, cccccccccccc)",
-        "rebase alpha: told the crew (#7, dddddddddddd)",
-    ]
+    assert gates(launched) == []
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        CHANGED + ": it needs a rebase",
+        "make check fails on cccccccccccc over today's main bbbbbbbbbbbb",
+        "it conflicts with its base",
+    ],
+    ids=["guarded", "fails over main", "conflict"],
+)
+def test_a_real_conflict_or_failure_tells_the_crew_to_rebase(launched, reason):
+    out(launched, reason=reason)
+    launched.poll()
+    assert [given["clientRequestId"] for given in sends(launched)] == ["rebase|alpha|cccccccccccc"]
+
+
+def test_a_fresh_check_that_is_queued_tells_its_crew_nothing(launched):
+    out(launched, reason="a fresh check is queued")
+    launched.poll()
+    assert sends(launched) == [] and gates(launched) == []
 
 
 def test_a_pull_request_with_no_launch_record_is_told_nothing(kitchen):
