@@ -17,7 +17,7 @@ THUMB = 44
 
 
 def frozen(seen, since, said):
-    """The page of a jbus that has stopped: the banner, and what is frozen and what live."""
+    """The page of a jbus that has stopped: the banner, and each drawer saying once how fresh it is."""
     clean(seen)
     assert seen["body"] == "stopped"
     assert seen["banner"].startswith("jbus has not passed last pass ended " + since)
@@ -30,10 +30,10 @@ def frozen(seen, since, said):
     assert seen["header"]["read"].startswith("Updated "), "jbus stopped, the server did not"
     drawers = {one["target"]: one for one in seen["opened"]}
     assert drawers["pulse"]["title"] == "jbus has not passed"
-    assert (drawers["room"]["tags"], drawers["checks"]["tags"]) == (["live"], ["live"])
-    assert drawers["bus"]["tags"] == ["frozen"]
-    assert drawers["task:oat-milk"]["github"] == "live"
-    assert "frozen" in drawers["task:oat-milk"]["tags"]
+    for live in ("room", "checks"):
+        assert drawers[live]["fresh"].endswith(" by the server itself, also while jbus is stopped")
+    assert drawers["bus"]["fresh"] == f"As the last pass left it at {since}: jbus has stopped"
+    assert drawers["task:oat-milk"]["fresh"] == drawers["bus"]["fresh"]
     assert "#13 open" in seen["github"]
 
 

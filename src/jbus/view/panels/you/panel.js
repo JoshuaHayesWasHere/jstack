@@ -49,7 +49,7 @@ function renderNeeds() {
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
   var needs = src.needs, soon = src.proceeds;
-  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + hint("term:waits", "Needs you"));
+  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()));
   keyed($("nq"), "li", "nr", needs.map(function (w) { return { key: needId(w), html: needRow(w, false) }; }));
   $("nq").hidden = !needs.length;
   keyed($("np"), "li", "nr", soon.map(function (w) { return { key: needId(w), html: needRow(w, true) }; }));
@@ -58,7 +58,7 @@ function renderNeeds() {
   put($("np-h"), "Will proceed on default: " + soon.length + (next.length ? ", the first in " + short(Math.max(0, Math.min.apply(null, next) - NOW)) : ""));
   put($("nsaid"), saidRows());
   put($("nx"), !PROJECT ? "" : added("you").map(function (a) {
-    return '<button type="button" class="tok sans faint" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it"><b' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb">' + esc(a.said.label) + '</span></button>' + (a.said.tip ? hint(a.said.tip, a.said.label) : "");
+    return '<button type="button" class="tok sans faint" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it"><b' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb">' + esc(a.said.label) + '</span></button>';
   }).join(" "));
   ticks();
 }
@@ -123,7 +123,7 @@ function sendBatch() {
 }
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. Nothing else on the page writes, and nothing here approves.</p>' + note("mixed");
+  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. Nothing else on the page writes, and nothing here approves.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;
@@ -157,4 +157,4 @@ document.addEventListener("change", function (e) {
   TICKED_GATES[x.getAttribute("data-tick")] = x.checked;
   $("bfoot").innerHTML = batchFoot();
 });
-panel({ drawer: dYou, draw: renderNeeds });
+panel({ reads: "mixed", drawer: dYou, draw: renderNeeds });

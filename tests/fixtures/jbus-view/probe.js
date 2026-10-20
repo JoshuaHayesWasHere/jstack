@@ -29,7 +29,7 @@ window.addEventListener("unhandledrejection", function (e) {
    put there as a keyboard would; `hover:<selector>`, the pointer moved onto it; `cancel`, the
    close request a phone's back gesture sends; `cancel-hard`, the second one in a row, which
    cannot be refused and shuts the drawer; or `look`. After each it writes down what the page
-   shows, with the open toggletip, `tip`, and the peek, `peek`. */
+   shows, with the peek, `peek`. */
 window.__walked = [];
 window.addEventListener("load", function () { if (window.__walk) setTimeout(function () {
   function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
@@ -61,11 +61,9 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
       var focus = document.activeElement;
       window.__walked.push({ step: w, hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "",
         back: drawer.open ? text(document.getElementById("dw-back")) : "", crumbs: Array.prototype.map.call(document.querySelectorAll(drawer.open ? "#dw .crumbs a" : "#title .crumbs a"), function (a) { return [text(a), a.getAttribute("href")]; }),
-        notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.getAttribute("data-tip") || (focus.hasAttribute("data-fold") ? "fold:" + focus.getAttribute("data-fold") : focus.hasAttribute("data-hide") ? "hide:" + focus.getAttribute("data-hide") : "") || focus.id : "",
-        said: drawer.open ? text(document.getElementById("dw")) : "", tip: text(document.getElementById("tip")), peek: text(document.getElementById("peek")),
-        expanded: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { return b.getAttribute("data-tip"); }),
+        notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.id : "",
+        said: drawer.open ? text(document.getElementById("dw")) : "", peek: text(document.getElementById("peek")),
         acc: raw(document.querySelector("#needs .acc")), nsaid: raw(document.getElementById("nsaid")),
-        rows: Array.prototype.map.call(document.querySelectorAll('[data-tip][aria-expanded="true"]'), function (b) { var r = b.closest("[data-key]"); return r ? r.getAttribute("data-key") : ""; }),
         changes: window.__changes.length });
       step(n + 1);
     }, 500);
@@ -112,7 +110,6 @@ window.addEventListener("load", function () { setTimeout(function () {
       return b.width > 0 && (b.right > vw + 0.5 || b.left < -0.5 || (hides && el.scrollWidth > el.clientWidth + 1));
     }).map(function (el) { return (el.className || el.tagName) + " " + written(el).slice(0, 30); });
   }
-  function tag(el) { var st = el && all(".st", el).filter(seen)[0]; return st ? (st.classList.contains("fz") ? "frozen" : "live") : ""; }
   /* What a voice says of it past its name: the description, or the label of one that shows no words. */
   function called(el) { return el.getAttribute("aria-description") || el.getAttribute("aria-label"); }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
@@ -149,8 +146,6 @@ window.addEventListener("load", function () { setTimeout(function () {
     merged: { shown: seen(document.getElementById("merged-d")), head: text(document.getElementById("merged-s")), open: document.getElementById("merged-d").open },
     health: { shown: seen(document.getElementById("health")), text: text(document.getElementById("health")), links: all("#health [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open")]; }), unplaced: text(document.getElementById("unplaced")) },
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
-    /* Each ? on the page, and each that is in the folded key: the term it explains. */
-    tips: all("[data-tip]").filter(function (b) { return !drawer.contains(b) && !b.closest("details") && shown(b); }).map(function (b) { return b.getAttribute("data-tip"); }),
     stack: (function () {
       var view = document.getElementById("stack"), none = document.getElementById("none");
       return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
@@ -170,7 +165,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     from.click();
     if (made) made.remove();
     var dw = document.getElementById("dw"), said = dw.innerText;
-    out.opened.push({ target: target, open: drawer.open, title: text(document.getElementById("dw-title")), now: text(dw.querySelector(".now")), said: said.replace(/\s+/g, " "), words: (said.match(/\S+/g) || []).length, bad: /NaN|undefined|\[object/.test(said), errors: window.__errs.length - before, tags: all(".st", dw).map(function (s) { return s.classList.contains("fz") ? "frozen" : "live"; }), github: tag(document.getElementById("gh") && document.getElementById("gh").previousElementSibling), box: box(drawer), small: small(dw), cut: cut(dw), tips: all("[data-tip]", dw).map(function (b) { return b.getAttribute("data-tip"); }) });
+    out.opened.push({ target: target, open: drawer.open, title: text(document.getElementById("dw-title")), now: text(dw.querySelector(".now")), said: said.replace(/\s+/g, " "), words: (said.match(/\S+/g) || []).length, bad: /NaN|undefined|\[object/.test(said), errors: window.__errs.length - before, fresh: seen(document.getElementById("dw-fresh")) ? text(document.getElementById("dw-fresh")) : "", box: box(drawer), small: small(dw), cut: cut(dw) });
     all("[data-open]", dw).forEach(function (b) { queue.push(b.getAttribute("data-open")); });
     if (target === "bus") out.links = all("li [data-open]", dw).map(function (b) { return b.getAttribute("data-open"); });
     document.getElementById("dw-close").click();
@@ -185,7 +180,7 @@ window.addEventListener("load", function () { setTimeout(function () {
       columns: all(".fc", dw).map(function (c) { return [text(c.querySelector("h3")), all(".fr", c).map(function (r) { return text(r.querySelector(".lb")); })]; }),
       lefts: all(".fc", dw).map(function (c) { return box(c)[0]; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length,
       borders: all(".fr", dw).map(border).filter(function (x, i, a) { return a.indexOf(x) === i; }), labels: all(".fr", dw).map(function (r) { return called(r); }),
-      picked: slugs(".fr.pk"), up: slugs(".fr.up"), down: slugs(".fr.dn"), dim: slugs(".fr.dim").length, said: text(dw.querySelector("p")) };
+      picked: slugs(".fr.pk"), up: slugs(".fr.up"), down: slugs(".fr.dn"), dim: slugs(".fr.dim").length, said: text(dw.querySelector("p:not(#dw-fresh)")) };
   }
   if (window.__pick) {
     var way = document.createElement("button"); way.setAttribute("data-open", "flow"); document.body.appendChild(way); way.click(); way.remove();

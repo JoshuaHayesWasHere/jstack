@@ -121,7 +121,8 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         )
         assert seen["words"] <= WORDS
         said = shown(process.port, tmp_path, "sample")
-        assert said.startswith("All › demo › 2 sample lines Sample 2 sample lines Close"), said
+        assert said.startswith("All › demo › 2 sample lines Sample 2 sample lines As the last pass"), said
+        assert ": jbus has stopped Close (Esc) a first line" in said, "how fresh it is, once in its head"
         assert "a first line a second line" in said and "could not be read" not in said
         assert "a sample line of oat-milk the sample" in shown(
             process.port, tmp_path, "task:oat-milk"
@@ -133,7 +134,7 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         )
         (scene.state / "sample.json").unlink()
         said = shown(process.port, tmp_path, "sample")
-        assert said.startswith("All › demo › 0 sample lines Sample 0 sample lines Close"), said
+        assert said.startswith("All › demo › 0 sample lines Sample 0 sample lines As the last pass"), said
         assert said.endswith("missing sample.json could not be read.")
     finally:
         process.stop()
@@ -152,7 +153,8 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
         served.close()
     assert "2 reviews, 1 rebase, 3 wakes" in task
     assert drawer.startswith(
-        "All › demo › oat-milk Rounds oat-milk Close (Esc) Now 2 reviews, 1 rebase, 3 wakes"
+        f"All › demo › oat-milk Rounds oat-milk Updated {NOW.astimezone():%H:%M:%S} Close (Esc) Now 2 "
+        "reviews, 1 rebase, 3 wakes"
     ), drawer
     at = ago(minutes=20).astimezone()
     when = f"{at:%H:%M}" if at.date() == NOW.astimezone().date() else f"{at:%m-%d %H:%M}"

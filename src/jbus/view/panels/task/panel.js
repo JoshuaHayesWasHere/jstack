@@ -16,7 +16,7 @@ function dTask(slug) {
   if (!t && !m) return null;
   if (!t) {
     var at = ms(m.at), ap = ms(m.approved);
-    return head("Task", slug + (m.pr ? " " + m.pr : ""), true) + '<div class="now w-ok"><span class="tag">Now: Merged</span><span class="big">Merged at ' + hm(at) + (ap == null ? "" : ", " + dur(at - ap) + " after approval") + '</span></div>' + note("frozen") + (m.pr ? ghBox(slug) : "");
+    return head("Task", slug + (m.pr ? " " + m.pr : ""), true) + '<div class="now w-ok"><span class="tag">Now: Merged</span><span class="big">Merged at ' + hm(at) + (ap == null ? "" : ", " + dur(at - ap) + " after approval") + '</span></div>' + (m.pr ? ghBox(slug) : "");
   }
   var st = t.state, bl = t.blocked, h = head("Task", slug + (t.pr ? " " + t.pr : ""), true);
   h += '<div class="now w-' + (t.who === "dep" || t.who === "bus" ? "plain" : esc(t.who)) + '"><span class="tag">Now: ' + esc(st.name) + '</span><span class="big">' + esc(st.say) + '</span>' +
@@ -28,7 +28,7 @@ function dTask(slug) {
     (st.row ? '<p style="margin:10px 0 0">' + gap("the row disagrees") + ' ' + esc(st.row) + '.</p>' : "") +
     (t.unconfirmed ? '<p style="margin:10px 0 0">' + gap("not confirmed") + ' ' + esc(t.unconfirmed.line.replace(/^not confirmed /, "")) + '.</p>' : "") +
     added("task", t).map(function (a) { return '<p style="margin:10px 0 0">' + a.said + '</p>'; }).join("") +
-    (stopped || gone ? '<p style="margin:10px 0 0">' + fz() + ' Last known: where the last pass saw it.</p>' : "") + '</div>';
+    '</div>';
   if (t.pr) h += ghBox(slug);
   if (t.depends.length) h += '<h3>Depends on</h3><ul class="clean steps">' + t.depends.map(function (d) {
     return '<li class="one"><span>' + taskBtn(d.slug) + ' <span class="chip ' + (d.state === "merged" || d.state === "done" ? "ok" : "user") + '">' + esc(d.state) + '</span></span></li>';

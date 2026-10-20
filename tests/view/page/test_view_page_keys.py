@@ -1,4 +1,4 @@
-"""The glossary, the keys, the toggletips and axe over every view."""
+"""The glossary, the keys and axe over every view."""
 
 from pathlib import Path
 
@@ -50,33 +50,9 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
     )
     assert first["crumbs"] == [["All", "#/"], ["Every term on the page", "#/help"]]
     assert "Step 2 of 12: a crewmate thread has the task" in first["said"], "notes come cold too"
+    assert "Needs you What only you can move" in first["said"]
+    assert "Noticed, not counted A line a thread wrote under Noticed" in first["said"]
     assert seen["stack"]["shown"], "the glossary is over every project"
-
-
-def test_an_open_toggletip_stays_open_when_a_poll_draws_the_queue_again(scene, tmp_path):
-    lineup(scene, TODAY)
-
-    def more(nth, body):
-        if nth > 1:
-            body["needs"] = body["needs"][1:]
-        return body
-
-    walk = ['tap:#needs-h [data-tip="term:waits"]'] + ["look"] * 30
-    seen = look(
-        scene,
-        tmp_path,
-        route="#/",
-        walk=walk,
-        alter=more,
-        at=4000 + 500 * len(walk),
-        budget=24000,
-    )
-    assert seen["errors"] == []
-    opened = seen["walked"][0]
-    redrawn = [c["at"] for c in seen["changes"] if c["part"] == "needs-h"]
-    assert redrawn and max(redrawn) > 2500, "the heading was drawn again after the tip opened"
-    assert {step["tip"] for step in seen["walked"]} == {opened["tip"]}
-    assert seen["walked"][-1]["expanded"] == ["term:waits"]
 
 
 AXE = Path(__file__).parent.parent.parent / "fixtures" / "jbus-view"
