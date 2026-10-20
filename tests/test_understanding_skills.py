@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from test_home_thread import as_read
+
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
 EM_DASH = "\N{EM DASH}"
@@ -84,8 +86,9 @@ def blocks(text, language):
 
 
 def block(skill, marker):
-    """The one `sh` block of the skill named `skill` that has `marker` in it."""
-    (found,) = [b for b in blocks((SKILLS / skill / "SKILL.md").read_text(), "sh") if marker in b]
+    """The one `sh` block of the skill named `skill`, as an agent reads it, that has `marker`
+    in it."""
+    (found,) = [b for b in blocks(as_read(SKILLS / skill / "SKILL.md"), "sh") if marker in b]
     return found
 
 
