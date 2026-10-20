@@ -53,7 +53,10 @@ Step 4 is usually one small script that imports the same library the app ships a
 3. Look where grep stops. Read the source of the library you call, and check its pinned version and any local patch. Work out when things run: microtasks, unmount and teardown, Solid versus React. Follow what a symbol search misses: the JSON an API returns, a DB column, a wire format, another language reading the same bytes, a feature flag, code three hops downstream.
 4. Be honest about each risk. Give it a real chance of happening and a real cost if it does. Keep the risks you confirmed. List the ones you checked and cleared separately. Same rules as `why`. Cite a real `file:line`, a search that finds nothing is still an answer, and never make up a caller or an API.
 5. Prove the one fact. Write a script or test that runs the real code, run it, and paste what happened. The script goes in a temporary directory, not in the repo, unless it is the test the change should ship with.
-6. For a big or wide change, ask more than one reader the same question and merge the answers. There is no arena skill here and no second model family to send to, so the readers are two or three `Explore` subagents on this session's model, started in one message, none shown another's answer, and never more than ten in a step. Or, with no subagent tool, do it in this thread, once for each reader. Readers that do not see each other still catch different real bugs.
+6. For a big or wide change, ask more than one reader the same question and merge the answers.
+   Readers that do not see each other still catch different real bugs.
+   In a home, that is `/swarm` (`../swarm/SKILL.md`), with one scout for each reader, none shown another's answer.
+   In any other thread, read the change once for each reader in this thread, each pass from the diff alone and not from the last pass's notes, and write `/swarm <the question>` under "Noticed" for the home when the change is too wide for that.
 
 ## What to hand back
 
