@@ -418,6 +418,7 @@ _TICKED = re.compile(r"`([^`]+)`")
 _LINES = re.compile(r":\d+(?:-\d+)?$")
 _PATHLIKE = re.compile(r"[\w.@+~*?\[\]{}/-]+")
 _EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
+_BRACES = re.compile(r"\{([^{}]*)\}")
 
 
 def _head_lines(text: str, label: str) -> str | None:
@@ -447,14 +448,40 @@ def _path(word: str, ticked: bool) -> str:
     return word.rstrip("/")
 
 
+def _items(line: str) -> list[str]:
+    """The line cut at each comma that is not inside a brace set."""
+    items, depth, start = [], 0, 0
+    for at, char in enumerate(line):
+        if char == "{":
+            depth += 1
+        elif char == "}" and depth:
+            depth -= 1
+        elif char == "," and not depth:
+            items.append(line[start:at])
+            start = at + 1
+    return [*items, line[start:]]
+
+
+def _expanded(word: str) -> tuple[str, ...]:
+    """A word with its brace sets spelled out, the innermost first: `a{b,c}.py` is two."""
+    found = _BRACES.search(word)
+    if found is None:
+        return (word,)
+    head, tail = word[: found.start()], word[found.end() :]
+    return tuple(
+        whole for part in found.group(1).split(",") for whole in _expanded(head + part + tail)
+    )
+
+
 def where(text: str) -> tuple[str, ...]:
     """The paths and globs the head's `Where:` line names, in its order, each once.
 
     An item in backticks or between commas that names a path under the repo is kept. A
     `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and prose
-    in parentheses is dropped, commas in it included. The first word of an item that does
-    not start in backticks is read too (`docs/ pages tied to`). A line that names none
-    gives an empty tuple.
+    in parentheses is dropped, commas in it included. A brace set is spelled out, so
+    `src/{a,b}.py` is two paths, and its commas do not end an item. The first word of an
+    item that does not start in backticks is read too (`docs/ pages tied to`). A line
+    that names none gives an empty tuple.
     """
     line = _head_lines(text, "Where")
     if line is None:
@@ -462,11 +489,11 @@ def where(text: str) -> tuple[str, ...]:
     while (bare := _PAREN.sub("", line)) != line:
         line = bare
     found: dict[str, None] = {}
-    for item in line.split(","):
+    for item in _items(line):
         words = item.split()
-        named = [_path(word, True) for word in _TICKED.findall(item)]
+        named = [_path(one, True) for word in _TICKED.findall(item) for one in _expanded(word)]
         if words and not words[0].startswith("`"):
-            named.insert(0, _path(words[0], False))
+            named[:0] = [_path(one, False) for one in _expanded(words[0])]
         found.update(dict.fromkeys(filter(None, named)))
     return tuple(found)
 

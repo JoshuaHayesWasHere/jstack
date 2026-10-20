@@ -731,6 +731,18 @@ WHERES = {
     ),
     "the whole repo, with the words that say so": ("`.` (the whole repo, jbus filed it)", (".",)),
     "globs": ("`tests/test_*.py`, `skills/*/SKILL.md`", ("tests/test_*.py", "skills/*/SKILL.md")),
+    "brace sets, bare and in backticks, one in another": (
+        "src/jmerge/{claims,cli}.py, `docs/{flow.html,jbus.md}`, tests/test_{a,b{1,2}}.py",
+        (
+            "src/jmerge/claims.py",
+            "src/jmerge/cli.py",
+            "docs/flow.html",
+            "docs/jbus.md",
+            "tests/test_a.py",
+            "tests/test_b1.py",
+            "tests/test_b2.py",
+        ),
+    ),
     "none of these is a path in the repo": (
         "wherever it takes, `make check`, `/etc/hosts`, `../outside.py`, `~/x`",
         (),
