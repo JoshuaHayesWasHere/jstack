@@ -1,7 +1,7 @@
 # The health check
 
 A failure no thread trips on goes unseen unless something looks at the machine as one.
-`jbus health` takes that look and prints it, and every `jbus poll` takes the same look before it launches and pages what it finds.
+`jbus health` takes that look and prints it, and every `jbus poll` takes the same look as its first step and pages what it finds.
 
 ```sh
 jbus health
@@ -33,6 +33,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `relay heartbeat` | How long since the relay last wrote its heartbeat. | 3 minutes |
 | `relay silent` | How long since the relay last heard a body. | `RELAY_SILENT_MINUTES`, 90 |
 | `relay errors` | How long a route's POSTs have failed, and how many bodies wait. | 10 minutes |
+| `relay refused` | The bodies a target refused for good in the last 60 minutes, and where the last is kept in `dead/`. | 1 |
 | `quota <instance> seven_day` | The share of the instance's seven-day window used, from the ledger. | 80% |
 | `quota <instance> five_hour` | The share of the five-hour window used. | paged only when full, as `capped` |
 | `capped <instance>` | The windows of the instance that are full, and until when. | 100% of a window |
@@ -43,6 +44,7 @@ A pass that systemd stops cannot say so itself, so the journal of `jbus.service`
 The relay is watched only where the config posts to it: a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
 While the relay's unit is not active or its heartbeat is stale, silence and errors are not judged: the unit and the heartbeat say it.
+Silence runs from the last body heard, which a restart keeps, so a relay that restarts often still goes silent.
 
 The instances are the built-in one and each instance a role's pool names ([jroles](../jroles.md)).
 Their numbers are the ledger, which the threads' status lines and their usage-limit failures write.

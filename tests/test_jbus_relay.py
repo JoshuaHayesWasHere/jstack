@@ -786,3 +786,21 @@ def test_a_silence_that_is_not_a_number_fails_the_start(hooks, tmp_path):
     started = Relay({**env_for(hooks), "RELAY_SILENT_MINUTES": "soon"}, tmp_path / "state")
     assert started.process.wait(timeout=10) == 2
     assert "RELAY_SILENT_MINUTES" in started.process.stdout.read()
+
+
+def test_a_body_refused_for_good_is_in_the_heartbeat_also_after_a_restart(hooks, tmp_path):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 400
+    relay = Relay(env_for(hooks), tmp_path / "state").up()
+    relay.send(body(event("gate", "user")))
+    until(lambda: {one["route"] for one in beat(relay)["refused"]} == {"everything", "blocking"})
+    refused = beat(relay)["refused"]
+    assert {one["why"] for one in refused} == {"HTTP 400"}
+    assert all((relay.state / "dead" / one["route"] / one["file"]).exists() for one in refused)
+    relay.stop()
+    beating = relay.state / "heartbeat.json"
+    beating.write_text(json.dumps({**beat(relay), "old": True}))
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: "old" not in beat(again))
+    assert beat(again)["refused"] == refused
+    again.stop()

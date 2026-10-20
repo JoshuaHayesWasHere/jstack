@@ -122,21 +122,15 @@ def failed(
     return f"alert: {key} failed {one.count} times in a row since {_since(one, user)}: {why}"
 
 
-def _end(state: Path, key: str) -> Streak | None:
-    """The streak under this key, ended at once where it had not alerted."""
-    with _locked(state):
-        one = streak(state, key)
-        if one is not None and not one.alerted:
-            _keep(state, key, None)
-    return one
-
-
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
     """A try went. The answer is the recovered line of a streak that alerted, until `told`.
 
     A streak that had not alerted ends here, with no line.
     """
-    one = _end(state, key)
+    with _locked(state):
+        one = streak(state, key)
+        if one is not None and not one.alerted:
+            _keep(state, key, None)
     if one is None or not one.alerted:
         return None
     return f"recovered: {key} after {one.count} failures since {_since(one, user)}"
@@ -155,12 +149,23 @@ def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
     return None if one.alerted else f"alert: {line}"
 
 
-def closed(state: Path, key: str, line: str) -> str | None:
+def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str | None:
     """The incident under `key` was measured and is under its limit again. The answer is
-    `recovered: <line>` for one that was paged, until `told`, and nothing for one that never
-    was."""
-    one = _end(state, key)
-    return f"recovered: {line}" if one is not None and one.alerted else None
+    `recovered: <line>` for one that was paged, until `told`, and nothing where there is none.
+
+    One whose start was never told, since its page did not go, is not ended unseen: the
+    answer says when it began as well, and the streak is marked as paged, so `told` ends it
+    and a page that does not go this time goes as a plain recovered line on the next look."""
+    with _locked(state):
+        one = streak(state, key)
+        owed = one is not None and not one.alerted
+        if one is not None and owed:
+            one.alerted = True
+            _keep(state, key, one)
+    if one is None:
+        return None
+    began = f" (it began {_since(one, user)}, and that page did not go)" if owed else ""
+    return f"recovered: {line}{began}"
 
 
 def told(state: Path, key: str) -> None:

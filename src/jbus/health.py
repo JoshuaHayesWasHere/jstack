@@ -15,8 +15,9 @@ Each check gives a `Reading`: the number, what it counts, and the limit it is he
   the relay (a webhook on 127.0.0.1 or localhost, at `RELAY_PORT`). Its unit not active; a
   heartbeat older than `BEAT_MINUTES`; no body heard for the heartbeat's `silent_minutes`,
   `RELAY_SILENT_MINUTES` in the relay's env; a route whose POSTs have failed for
-  `ERRORS_MINUTES` (`jbus.relay`). Silence and errors are not judged from a heartbeat that is
-  stale.
+  `ERRORS_MINUTES`; a body a target refused for good in the last `REFUSED_MINUTES`, which is
+  in the relay's `dead/` and never goes (`jbus.relay`). Silence and errors are not judged from
+  a heartbeat that is stale.
 - `quota <instance> <window>` and `capped <instance>`: each instance of the role map's pools
   and the built-in one, from the ledger the threads' status lines and their limit failures
   write (`jroles.ledger`). The seven-day window pages at `FULL`; the five-hour one, which
@@ -32,7 +33,10 @@ None) leaves its incident as it is. An incident whose reading is not taken any m
 or an instance gone, a relay the config no longer posts to, ends with no line. A page goes to
 the desk and, as an event of the machine, to the top-level webhook once (`wake.Box.send`).
 
-`jbus poll` pages. `jbus health` prints every reading and pages nothing.
+`jbus poll` pages: the look is the first step of the config's first project, so it runs in
+every pass, before anything of the pass can raise, and before the launch, so a capped
+instance's lines come before the launch that skips it or goes back to it. A look that raises
+is said, and the pass goes on. `jbus health` prints every reading and pages nothing.
 """
 
 from __future__ import annotations
@@ -59,6 +63,7 @@ FULL = 80
 TIMEOUT_MINUTES = 60
 BEAT_MINUTES = 3
 ERRORS_MINUTES = 10
+REFUSED_MINUTES = 60
 PREFIX = "health "
 RELAY = "jbus-relay.service"
 UNIT = "jbus.service"
@@ -289,6 +294,8 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
         )
     ]
     beat = relay.beat or {}
+    # Silence runs from the last body heard, which a restart keeps; `started` is only for a
+    # relay that has never heard one, so a relay restarted often still goes silent.
     age = _minutes(beat.get("beat"), now)
     limit = f"alerts after {BEAT_MINUTES} min"
     if age is None:
@@ -299,14 +306,7 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
         found.append(Reading("relay heartbeat", said, limit, age >= BEAT_MINUTES))
     live = relay.state == "active" and age is not None and age < BEAT_MINUTES
     silent = beat.get("silent_minutes")
-    quiet = min(
-        (
-            m
-            for m in (_minutes(beat.get("heard"), now), _minutes(beat.get("started"), now))
-            if m is not None
-        ),
-        default=None,
-    )
+    quiet = _minutes(beat.get("heard") or beat.get("started"), now)
     if isinstance(silent, (int, float)) and quiet is not None:
         said = f"no body heard for {quiet} min"
         limit = f"alerts after {silent:g} min (RELAY_SILENT_MINUTES)"
@@ -324,6 +324,18 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
     else:
         said = f"{len(failing)} routes failing"
     found.append(Reading("relay errors", said, limit, bool(long) if live else None))
+    refused = [one for one in beat.get("refused") or [] if isinstance(one, dict)]
+    ages = [(m, one) for one in refused if (m := _minutes(one.get("at"), now)) is not None]
+    lately = [(m, one) for m, one in ages if m < REFUSED_MINUTES]
+    limit = f"alerts at 1 in the last {REFUSED_MINUTES} min"
+    said = f"{len(lately)} bodies refused for good in the last {REFUSED_MINUTES} min"
+    if lately:
+        minutes, last = min(lately, key=lambda pair: pair[0])
+        said += (
+            f", the last {minutes} min ago on route {last.get('route')} ({last.get('why')}), "
+            f"kept in {relay.path / 'dead' / str(last.get('route')) / str(last.get('file'))}"
+        )
+    found.append(Reading("relay refused", said, limit, bool(lately)))
     return found
 
 
@@ -393,7 +405,7 @@ def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> lis
         if one.over:
             line = alert.opened(state, key, one.line(), now=now)
         elif one.over is False:
-            line = alert.closed(state, key, one.line(recovered=True))
+            line = alert.closed(state, key, one.line(recovered=True), user=config.user)
         else:
             line = None
         if line:
@@ -405,6 +417,17 @@ def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> lis
         page(config, now, say, line)
         alert.told(state, key)
     return found
+
+
+def first(half: Any) -> None:
+    """The look of a pass, in the first step of the config's first project: see the module."""
+    run = half.run
+    if run.project != run.config.projects[0]:
+        return
+    try:
+        watch(run.config, run.now, run.say)
+    except Exception as error:
+        run.say(f"health failed: {alert.why(error, *run.config.hooks())}")
 
 
 def page(config: jbus.Config, now: datetime, say: Callable[[str], None], line: str) -> None:
@@ -429,6 +452,7 @@ def run_health(args: argparse.Namespace, config: jbus.Config) -> int:
     return 1 if any(one.over for one in found) else 0
 
 
+STEPS = (verbs.Step("before-watch", 50, "health.first", first),)
 VERBS = (
     verbs.Verb(
         "health",

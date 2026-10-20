@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import health, merge
+from jbus import cli, health, merge, wake
 from jroles import ledger
 from test_jbus_kitchen import NOW, approved
 
@@ -172,13 +172,14 @@ class Beat:
         self.path = path
         self.write(NOW, NOW)
 
-    def write(self, beat, heard, failing=(), started=NOW - timedelta(days=1)):
+    def write(self, beat, heard, failing=(), started=NOW - timedelta(days=1), refused=()):
         made = {
             "beat": beat.isoformat(),
             "started": started.isoformat(),
             "heard": heard and heard.isoformat(),
             "silent_minutes": 90,
             "failing": list(failing),
+            "refused": list(refused),
         }
         self.path.write_text(json.dumps(made))
 
@@ -326,3 +327,76 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
         "ok   health capped claudeAgent: no window full, pauses its launches at 100% of a window",
     ]
     assert pages(kitchen) == [] and kitchen.waiting() == []
+
+
+def test_a_pass_in_which_a_project_raises_still_looks_at_the_machine_and_pages(
+    kitchen, senses, monkeypatch
+):
+    def broken(run):
+        raise RuntimeError("jmerge broke")
+
+    monkeypatch.setattr(merge, "merge", broken)
+    senses.disks["/home"] = (85 * GIB, 15 * GIB, 0, 0)
+    kitchen.t3.write(NOW)
+    said = []
+    assert cli.poll(jbus.load(), NOW, said.append) == 1
+    line = "alert: health disk /home: 85% of its space used (85.0 of 100.0 GiB), alerts at 80%"
+    assert line in said and pages(kitchen) == [line]
+    assert [one for one in kitchen.log("notify") if "health" in one] == [f"jbus | {line}"]
+
+
+def test_a_relay_restarted_often_still_goes_silent_from_the_last_body_it_heard(kitchen, relay):
+    now = NOW + timedelta(minutes=95)
+    relay.write(now, NOW, started=now - timedelta(minutes=5))
+    kitchen.poll(now)
+    assert pages(kitchen) == [
+        "alert: health relay silent: no body heard for 95 min, "
+        "alerts after 90 min (RELAY_SILENT_MINUTES)"
+    ]
+
+
+def test_a_body_refused_for_good_is_paged_with_where_it_is_kept_and_clears_after_an_hour(
+    kitchen, relay, tmp_path
+):
+    at = NOW - timedelta(minutes=5)
+    refused = {"route": "blocking", "at": at.isoformat(), "why": "HTTP 400", "file": "1-abc.json"}
+    for minutes in (0, 10):
+        relay.write(NOW + timedelta(minutes=minutes), NOW, refused=[refused])
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    kept = tmp_path / "relay" / "dead" / "blocking" / "1-abc.json"
+    assert pages(kitchen) == [
+        "alert: health relay refused: 1 bodies refused for good in the last 60 min, the last "
+        f"5 min ago on route blocking (HTTP 400), kept in {kept}, alerts at 1 in the last 60 min"
+    ]
+    later = NOW + timedelta(minutes=56)
+    relay.write(later, later, refused=[refused])
+    kitchen.poll(later)
+    assert pages(kitchen)[1:] == [
+        "recovered: health relay refused: 0 bodies refused for good in the last 60 min, "
+        "alerts at 1 in the last 60 min"
+    ]
+
+
+def test_an_incident_whose_page_did_not_go_and_that_cleared_is_paged_once_with_both(
+    kitchen, senses, monkeypatch
+):
+    sent = wake.Box.send
+    failed = []
+
+    def flaky(self, slug, kind, line, *more, **named):
+        if kind == "alert" and not failed:
+            failed.append(line)
+            raise OSError("No space left on device")
+        return sent(self, slug, kind, line, *more, **named)
+
+    monkeypatch.setattr(wake.Box, "send", flaky)
+    senses.disks["/home"] = (85 * GIB, 15 * GIB, 0, 0)
+    said = kitchen.poll()
+    assert failed and pages(kitchen) == []
+    assert any(line.startswith("health failed: OSError") for line in said)
+    senses.disks["/home"] = (60 * GIB, 40 * GIB, 0, 0)
+    polls(kitchen, 1, 2, 10)
+    assert pages(kitchen) == [
+        "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80% "
+        "(it began 11:00 ET, and that page did not go)"
+    ]

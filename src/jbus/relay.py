@@ -32,11 +32,13 @@ relay names each such key in the journal, never its value, and exits 2, which
 The heartbeat is `heartbeat.json`, written each `BEAT_SECONDS`, on each body taken, and when a
 route begins or ends to fail: `beat`, when it was written; `started`, when this relay started;
 `heard`, when the relay last took a body, kept across a restart; `silent_minutes`,
-`RELAY_SILENT_MINUTES` (90), how long with no body is silence; and `failing`, each route whose
+`RELAY_SILENT_MINUTES` (90), how long with no body is silence; `failing`, each route whose
 last POST failed and was not followed by one that went, with when it began to fail, why, and
-how many bodies wait. The relay judges none of it: `jbus health` reads it and pages
-(`jbus.health`). jbus posts a `refresh` to `blocking_url` each hour
-(`leftover.REFRESH_MINUTES`), so a relay it posts to hears a body at least that often.
+how many bodies wait; and `refused`, each body a target refused for good in the last day,
+with its route, when, why and its file in `dead/`, kept across a restart. The relay judges
+none of it: `jbus health` reads it and pages (`jbus.health`). jbus posts a `refresh` to
+`blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it posts to hears a body at
+least that often.
 
 When Sous Chef is silent the relay pages a second way, the `pager` target (Home Assistant's
 mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify-send` beside
@@ -68,7 +70,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +91,7 @@ SECRET_URL = re.compile(r"\S+://\S*[@?]\S*?(?=[:,;)]?(\s|$))")
 PAGE_MINUTES = leftover.REMIND_MINUTES + 30
 SILENT_MINUTES = leftover.REFRESH_MINUTES + 30
 BEAT_SECONDS = 60
+REFUSED_KEPT = timedelta(days=1)
 HEARTBEAT = "heartbeat.json"
 
 
@@ -289,6 +292,7 @@ class Lane:
         self.wake = threading.Event()
         self.failing: Body | None = None
         self.changed: Callable[[], None] = lambda: None
+        self.refused: Callable[[Body], None] = lambda one: None
 
     @staticmethod
     def _id(path: Path) -> str:
@@ -395,6 +399,9 @@ class Lane:
                 with self.lock:
                     self.held.discard(id)
                 self.say(f"{said}: {error}, refused for good, kept in {self.dead / path.name}")
+                self.refused(
+                    {"route": self.route.name, "at": _now(), "why": str(error), "file": path.name}
+                )
                 continue
             self._done(path, id, own=json.loads(data).get("id") == id)
             if self.failing:
@@ -580,10 +587,12 @@ class Relay:
         except (OSError, ValueError, AttributeError):
             heard = None
         self.heard: str | None = heard if _when(heard) else None
+        self.refusals: list[Body] = self._refusals()
         self.beat_lock = threading.Lock()
         self.started = _now()
         for lane in [*self.lanes, self.pager.lane]:
             lane.changed = self.beat
+            lane.refused = self.refuse
 
     def _unheard(self, route: Route) -> Callable[[str, Body], None] | None:
         return self.pager.unheard if route.pick is blocking else None
@@ -614,6 +623,28 @@ class Relay:
         self.say(f"relay: event {id} acknowledged, {len(pages)} item(s) seen")
         return len(pages)
 
+    def _refusals(self) -> list[Body]:
+        """The refusals the last heartbeat kept, of the last `REFUSED_KEPT`."""
+        try:
+            kept = json.loads(self.beating.read_text()).get("refused")
+        except (OSError, ValueError, AttributeError):
+            return []
+        recent = []
+        for one in kept if isinstance(kept, list) else []:
+            at = _when(one.get("at")) if isinstance(one, dict) else None
+            if at and datetime.now(UTC) - at < REFUSED_KEPT:
+                recent.append(one)
+        return recent
+
+    def refuse(self, one: Body) -> None:
+        """A body was refused for good: keep it for the heartbeat, and beat."""
+        self.refusals = [*self._recent(), one]
+        self.beat()
+
+    def _recent(self) -> list[Body]:
+        now = datetime.now(UTC)
+        return [one for one in self.refusals if now - _when(one["at"]) < REFUSED_KEPT]
+
     def beat(self) -> None:
         """Write the heartbeat: see the module. One that cannot be written is said."""
         failing = []
@@ -626,6 +657,7 @@ class Relay:
             "heard": self.heard,
             "silent_minutes": self.config.silent,
             "failing": failing,
+            "refused": self._recent(),
         }
         part = self.beating.with_suffix(".part")
         try:

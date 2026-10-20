@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import Config, alert, dispatch, health, read_json, write_json
+from jbus import Config, dispatch, read_json, write_json
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -39,18 +39,7 @@ def share(config: Config, halves: list[Half], say: Callable[[str], None]) -> Non
 
     The turns start at the project the rotation file names. With the crews out of any
     project not known, the count is not known, and nothing is launched anywhere.
-
-    The machine is looked at first, once a pass (`health`): an instance capped since the last
-    pass is paged before a launch skips it, and one whose window reset says launches on it
-    resume before the launch that goes there. A look that raises is said, and the launch
-    goes on.
     """
-    if halves:
-        now = halves[0].run.now
-        try:
-            health.watch(config, now, say)
-        except Exception as error:
-            say(f"health failed: {alert.why(error, *config.hooks())}")
     first = start(config)
     turns = [half.turns for half in halves[first:] + halves[:first] if half.turns]
     out = [half.seen.out for half in halves]
