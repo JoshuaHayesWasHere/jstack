@@ -203,6 +203,67 @@ def test_a_home_thread_is_moved_in_the_home_pool_and_told_to_carry_on_from_its_h
     assert "read your handoff" in carry["message"]
 
 
+WHO = ("crew", "home", "scoped home")
+
+
+def mover(kitchen, who):
+    """A thread failover reads, and the name its lines give it: a crew a brief names, the
+    root home's thread in `home-id`, or a scoped home's in `<scope>/home-id`."""
+    if who == "crew":
+        return crew(kitchen), "alpha"
+    home = kitchen.t3.thread("home", "failed", title="home: demo")
+    where = kitchen.home if who == "home" else kitchen.home / "infra"
+    where.mkdir(parents=True, exist_ok=True)
+    (where / "home-id").write_text(f"{home['threadId']} 2026-10-20\n")
+    return home, "home"
+
+
+@pytest.mark.parametrize("who", WHO)
+@pytest.mark.parametrize(("ran_on", "other"), [("claudeAgent", PRIME), (PRIME, "claudeAgent")])
+def test_a_capped_thread_moves_to_the_other_instance_either_way(kitchen, who, ran_on, other):
+    thread, name = mover(kitchen, who)
+    thread["selection"] = {**SELECTION, "instanceId": ran_on}
+    failed_on(thread, SESSION, ran_on=ran_on, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert configures(kitchen) == [
+        {"threadId": thread["threadId"], "modelSelection": {**SELECTION, "instanceId": other}}
+    ]
+    (carry,) = sends(kitchen)
+    assert f"now on {other}" in carry["message"]
+    (line,) = failovers(kitchen)
+    assert line.startswith(f"failover {name}: five_hour limit until {SESSION_RESET.isoformat()}")
+    assert f"carry-on on {ran_on} to {other}, model " in line
+    assert kept(ran_on, FAILED_16TH) == SESSION_RESET and kept(other, FAILED_16TH) is None
+
+
+@pytest.mark.parametrize("who", WHO)
+@pytest.mark.parametrize(("ran_on", "other"), [("claudeAgent", PRIME), (PRIME, "claudeAgent")])
+def test_with_both_capped_a_thread_stalls_once_and_carries_on_at_the_first_reset(
+    kitchen, who, ran_on, other
+):
+    """The other instance resets first: the thread waits for it, said once, then moves there."""
+    first = SESSION_RESET - timedelta(hours=2)
+    ledger.write(ledger.Record(other, "five_hour", 100, int(first.timestamp())))
+    thread, name = mover(kitchen, who)
+    thread["selection"] = {**SELECTION, "instanceId": ran_on}
+    failed_on(thread, SESSION, ran_on=ran_on, notice=("five_hour", SESSION_RESET))
+    for minutes in (0, 3, 6, 60):
+        kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
+    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert kitchen.lines("stall") == [
+        f"capped {name}: claudeAgent and {PRIME} are both capped until {first.isoformat()}; "
+        "it is sent on at the first reset"
+    ]
+    kitchen.poll(first + timedelta(minutes=1))
+    kitchen.poll(first + timedelta(minutes=4))
+    assert configures(kitchen) == [
+        {"threadId": thread["threadId"], "modelSelection": {**SELECTION, "instanceId": other}}
+    ]
+    (carry,) = sends(kitchen)
+    assert f"now on {other}" in carry["message"]
+    assert len(kitchen.lines("stall")) == 1 and kitchen.lines("resume") == []
+
+
 def test_a_thread_no_brief_and_no_home_names_is_left_alone(kitchen):
     other = kitchen.t3.thread("stray", "failed", title="a chat")
     failed_on(other, WEEKLY)
