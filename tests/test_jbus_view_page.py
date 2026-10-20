@@ -2048,3 +2048,36 @@ def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_p
     rows = seen["stack"]["rows"]
     assert [row["name"] for row in rows] == ["demo", "larder", "pantry"]
     assert all(row["why"].startswith("jbus stopped") and "bad" in row["dot"] for row in rows)
+
+
+KIND_HEADINGS = (
+    "Tasks at a gate",
+    "Left over by tasks that ended",
+    "Pull requests jmerge holds for your word",
+    "Rows to approve",
+    "Open gates",
+)
+ROLE_WORDS = (
+    "The thread that does a task's one brief, in its own worktree",
+    "A thread that researches one request, read-only",
+    "A fresh thread that reads a task's pull request",
+    "The thread that plans the project's work",
+    "A thread whose title names no role",
+)
+
+
+def test_the_drawers_name_the_kinds_and_roles_as_state_json_gives_them(scene, tmp_path):
+    """The drawer of what waits on you heads each kind with its label, in the page's order; the
+    threads drawer counts each role in its words; Help says what each role is, on a project
+    and on the page of every project."""
+    said_by_him(scene)
+    you, threads, help_ = walked(
+        scene, tmp_path, "#/demo/you", ["look", "hash:#/demo/threads/scout", "hash:#/demo/help"]
+    )
+    places = [you["said"].lower().find(heading.lower()) for heading in KIND_HEADINGS]
+    assert -1 not in places and places == sorted(places), you["said"]
+    assert threads["title"] == "0 scouts out"
+    assert "all 0 crews 0 scouts 0 reviewers 0" in threads["said"]
+    assert all(word in help_["said"] for word in ROLE_WORDS), help_["said"]
+    (overview,) = walked(scene, tmp_path, "#/help", ["look"])
+    assert all(word in overview["said"] for word in ROLE_WORDS), overview["said"]
