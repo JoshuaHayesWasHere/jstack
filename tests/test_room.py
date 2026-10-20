@@ -669,9 +669,13 @@ def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_
     assert sorted(tmp.rglob("*")) == before
 
 
-def test_no_skill_holds_a_copy_of_the_check():
+def test_no_skill_holds_a_copy_of_the_check(tmp_path):
     held = [path for path in SKILLS.rglob("*") if path.is_file() and "CUSHION=" in path.read_text()]
-    assert held == [] and "CUSHION=100\n" in ROOM.read_text()
+    assert held == []
+    used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
+    assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(
+        "wait: the five-hour limit is 100% used, at or over 100%,"
+    )
 
 
 def light(env, *more):
