@@ -45,6 +45,7 @@ from typing import Any
 
 import jbus
 import jsettings
+from jbriefs import parse as briefs
 from jbus import Refused, questions, queue, read_json, t3, verbs, wake, word, work, write_json
 
 EVENTS = {
@@ -385,17 +386,18 @@ def write(
 
 
 def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | None) -> Item:
-    """The item a move is made on, or `Refused`: one there is not, one whose state has no
-    such move, and one whose last line is not `seen` where that is given. A stale `seen` is
-    refused with the line that came after it, as `shown` prints a line."""
+    """The item a move is made on, or `Refused`: one there is not, one whose last line is
+    not `seen` where that is given, and one whose state has no such move. A stale `seen` is
+    refused first, with the line that came after it as `shown` prints a line, so a steer
+    made stale by a move to `done` or `dropped` is told of that move."""
     current = fold(lines).get(name)
     if current is None:
         raise Refused(refusal(None, move, name))
-    if (current.state, move) not in MOVES:
-        raise Refused(refusal(current, move))
     if seen is not None and seen != current.last_event:
         (last,) = [one for one in lines if one.get("id") == current.last_event][-1:]
         raise Refused(f"refused: {name} moved since {seen}: its last line is {said_line(last)}")
+    if (current.state, move) not in MOVES:
+        raise Refused(refusal(current, move))
     return current
 
 
@@ -695,9 +697,12 @@ def steer(
     `words` as the row's brief and takes its go back in the same batch, so the item is
     proposed again, and only an approval by its id approves it (`Item.redirect`).
 
-    The row's change is made before the line, both under `items.lock`: a steer that dies
-    between the two is made again by the same steer, whose `seen` still holds. A message is
-    sent after the line (`deliver`), and one T3 Code did not take is sent by the next pass.
+    A hold changes the row before the line, both under `items.lock`: a hold that dies
+    between the two is made again by the same steer, whose `seen` still holds. A redirect
+    writes its line first, with the new brief, and then the row: a redirect that dies between
+    the two is marked already, so nothing approves the item, and the first pass finishes the
+    row's change before it launches anything (`settle`). A message is sent after the line
+    (`deliver`), and one T3 Code did not take is sent by the next pass.
     """
     action, where = Steer(action), Where(where)
     if where is Where.PASS:
@@ -739,32 +744,71 @@ def steer(
             if said:
                 more["words"] = said
         else:
-            line, more["brief_sha"] = _redirect(state, item, said, who), queue.brief_sha(said)
+            _redirectable(state, item, said)
+            line = f"redirect by {who}: {item.slug}'s brief is {queue.brief_sha(said)[:12]} now"
+            more.update(brief=said, brief_sha=queue.brief_sha(said))
         made = _put(state, Verb.STEER, item=id, by=who, where=where, line=line, seen=seen, **more)
+        if action is Steer.REDIRECT:
+            made = {**made, "line": f"{line}; {_redirect(state, made)}"}
     told(box, made)
     return made
 
 
-def _redirect(state: Path, item: Item, text: str, who: str) -> str:
-    """Write `text` as the brief of the item's row and take its go back, in one batch of the
-    queue: `Add` alone keeps a go whose brief means the same, and a redirect is never
-    approved by the go it had. The answer is the line the steer writes."""
+def _redirectable(state: Path, item: Item, text: str) -> None:
+    """Refuse a redirect the queue would refuse, before its line is written: an item with no
+    row, and a brief a launch would refuse (`jbriefs.parse.faults`)."""
     if not item.slug:
         raise Refused(f"refused: {item.id} has no row, so it has no brief to redirect")
-    row = queue.fresh(state, item.slug)
-    if row is None:
+    if queue.fresh(state, item.slug) is None:
         raise Refused(f"refused: the queue has no row {item.slug}")
+    faults = briefs.faults(queue.body(text))
+    if faults:
+        lines = "".join(f"\n- {fault}" for fault in faults)
+        raise Refused(
+            f"refused: the new brief of {item.slug} has faults, and nothing is written{lines}"
+        )
+
+
+def _redirect(state: Path, made: dict[str, Any]) -> str:
+    """Write a redirect line's brief as the brief of the item's row and take its go back, in
+    one batch of the queue: `Add` alone keeps a go whose brief means the same, and a redirect
+    is never approved by the go it had. The answer says what the queue did, or nothing where
+    the row has the brief and no go already, so a second run is the first."""
+    slug = items(state)[made["item"]].slug
+    row = queue.fresh(state, slug)
+    if row is None:
+        return ""
+    stored = queue.brief(state, slug) or ""
+    if not row.get("approved") and queue.brief_sha(stored) == made["brief_sha"]:
+        return ""
     add = queue.Add(
-        item.slug,
+        slug,
         row.get("priority", 0),
         row.get("depends", []),
-        text,
+        made["brief"],
         row.get("entry", ""),
         row.get("item", ""),
         row.get("merge_after", []),
     )
-    added, held = queue._run(state, [(0, add), (0, queue.Hold(item.slug))])
-    return f"redirect by {who}: {added}; {held}, and it waits for an approval by its id"
+    added, held = queue._run(state, [(0, add), (0, queue.Hold(slug))])
+    return f"{added}; {held}, and it waits for an approval by its id"
+
+
+def settle(state: Path) -> list[str]:
+    """Finish the row's change of each redirect not yet approved by its id: one whose steer
+    died after its line was written. The answer is what the queue did, one line each."""
+    lines = {one.get("id"): one for one in read(state)}
+    done = []
+    for item in items(state).values():
+        made = lines.get(item.redirect)
+        if made and made.get("brief") and item.slug:
+            try:
+                said = _redirect(state, made)
+            except Refused:
+                continue
+            if said:
+                done.append(f"item {item.id}: redirect {item.redirect} finished, {said}")
+    return done
 
 
 def approvable(state: Path, slug: str) -> None:
@@ -808,31 +852,38 @@ def approve(
     where = Where(where)
     if by != user.user:
         raise Refused(f"refused: only {user.user} approves an item, not {by}")
-    if where is Where.CHAT:
-        item = items(state).get(id)
-        if item is None:
-            raise Refused(refusal(None, Verb.APPROVE, id))
-        link = f"#/{project}/item/{id}"
-        if not names(words, item):
-            slug = f" or its slug {item.slug}" if item.slug else ""
-            raise Refused(
-                f"refused: an approval from chat names the item, {id}{slug}, and these words "
-                f"name neither: approve it in the view, {link}"
-            )
-        if judged(state, item).risk is Risk.REVIEW:
-            raise Refused(
-                f"refused: {id} is a review item, approved in the view and not from chat: {link}"
-            )
-        if item.redirect:
-            raise Refused(
-                f"refused: {id} was redirected at {item.redirect}, and a redirected item is "
-                f"approved in the view or the command, not from chat: {link}"
-            )
     said = f"approve by {by}" + (f": {words}" if words else "")
     more: dict[str, Any] = {"by_id": True, **({"words": words} if words else {})}
-    return write(
-        state, box, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more
-    )
+    with _locked(state):
+        if where is Where.CHAT:
+            _from_chat(state, id, words, project)
+        made = _put(state, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more)
+    told(box, made)
+    return made
+
+
+def _from_chat(state: Path, id: str, words: str, project: str) -> None:
+    """Refuse an approval from chat whose words do not name the item, of a review item, or
+    of a redirected one. It is asked with `items.lock` held, so no line comes between."""
+    item = items(state).get(id)
+    if item is None:
+        raise Refused(refusal(None, Verb.APPROVE, id))
+    link = f"#/{project}/item/{id}"
+    if not names(words, item):
+        slug = f" or its slug {item.slug}" if item.slug else ""
+        raise Refused(
+            f"refused: an approval from chat names the item, {id}{slug}, and these words "
+            f"name neither: approve it in the view, {link}"
+        )
+    if judged(state, item).risk is Risk.REVIEW:
+        raise Refused(
+            f"refused: {id} is a review item, approved in the view and not from chat: {link}"
+        )
+    if item.redirect:
+        raise Refused(
+            f"refused: {id} was redirected at {item.redirect}, and a redirected item is "
+            f"approved in the view or the command, not from chat: {link}"
+        )
 
 
 def sends(state: Path) -> dict[str, dict[str, str]]:
@@ -1080,7 +1131,14 @@ def _deliver(half: Any) -> None:
             run.say(f"item {run.project.name}: message {name} sent to {one['thread']}")
 
 
+def _settle(half: Any) -> None:
+    """`settle` as a step of the pass, first in it, so a launch finds every redirect's row."""
+    for said in settle(half.run.state):
+        half.run.say(said)
+
+
 STEPS = (
+    verbs.Step("before-watch", 7, "item.settle", _settle),
     verbs.Step("before-watch", 15, "item.deliver", _deliver, ("client",)),
     verbs.Step(
         "after-derive", 50, "item.follow", lambda half: follow(half.run, half.table), ("rows",)

@@ -52,3 +52,5 @@ A steer `--by` you is taken only with a word of yours it rests on, `--message`, 
 
 A redirected item is approved only by its id: `jbus item approve <id>` from the view or the command.
 Until then a pass does not approve it, `jbus item approve` from chat is refused, and `jbus queue approve` refuses its row by any basis, `--rule` with `--follows` included.
+A redirect writes its line, with the new brief, before it changes the row.
+A redirect that died between the two is marked already, and the first step of the next pass writes the brief and takes the go back before anything is launched.

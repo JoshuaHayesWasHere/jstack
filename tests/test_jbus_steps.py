@@ -55,6 +55,7 @@ from test_jbus_unlock import CHANGED
 from test_jbus_verbs import fresh
 
 ORDER = [
+    "before-watch 7 item.settle",
     "before-watch 10 word.deliver",
     "before-watch 15 item.deliver (client)",
     "before-watch 20 questions.closed_in_files",
