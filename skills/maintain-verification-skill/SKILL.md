@@ -67,7 +67,7 @@ else
                 echo "- Which user-facing surface of this feature changed since the file last changed (\`git log\` on the paths it names) and is missing from the file, each with a concrete source path, or none?"
                 echo "- One live-verification recipe: the commands, in the harness that \`$dir/SKILL.md\` names, that drive every sub-feature from as few app states as practical, and the end state that proves each."
                 echo "Deliver:"
-                echo "- Under \"## Report\" in this file: a first line \`Verdict: clean\` or \`Verdict: drift\`, then the four answers under Summary, Entry points, Drift and Recipe."
+                echo "- Under \"## Report\" in this file, in the scout report's shape: the four answers under Answers, and a first Findings item \`Verdict: clean\` or \`Verdict: drift\`."
                 echo "Playbook: investigation"
                 echo "Out of bounds: read-only. Never launch, doctor or drive the app, never run a script of \`$dir/scripts/\`, and edit no file: the crewmate that follows does the live pass."
                 if [ -n "$scope" ]; then echo "Home: $scope"; fi
@@ -106,11 +106,12 @@ else
     read=
     gaps=
     for S in $(cd "$H/scouts" && ls "$run"-*.md | sed 's/\.md$//'); do
-        verdict=$(sed -n '/^## Report/,$ s/^Verdict: \([a-z]*\).*/\1/p' "$H/scouts/$S.md" | head -n 1)
-        if [ -z "$verdict" ]; then
+        status=$(sed -n '/^## Report/,$ s/^Status: \([a-z][a-z ]*\).*/\1/p' "$H/scouts/$S.md" | tail -n 1)
+        verdict=$(sed -n '/^## Report/,$ s/^[-* ]*Verdict: \([a-z]*\).*/\1/p' "$H/scouts/$S.md" | tail -n 1)
+        if [ -z "$status" ]; then
             gaps="$gaps ${S#"$run"-}"
         else
-            read="$read; \`scouts/$S.md\`, $verdict"
+            read="$read; \`scouts/$S.md\`, $status, ${verdict:-no verdict given}"
         fi
     done
     {
