@@ -64,7 +64,8 @@ was taken and whether the thread `recommended` it), what was `built_on` the defa
 how to `undo` it, and who asked: the `slug`, the `thread` an answer goes to and that
 thread's `role` (`asker`). A gate that lives only in a home's `gates.md` is not answerable.
 
-`items` is every work item of the project (`jbus.item`), in the order of its number: its
+`items` is each live work item of the project (`jbus.item`) and the `ENDED` that ended
+last, in the order of its number: its
 `id`, `slug`, `title`, `state`, `owner`, `risk` and `last_event`, which a steer names as the
 line it saw, and its last `ITEM_LINES` lines, oldest first.
 
@@ -116,7 +117,7 @@ NO_REVIEWER = "no reviewer has started"
 NO_REVIEW = "no review yet"
 WHOLE = NOTE + 2 * LINE
 WORDS = 600
-ITEM_LINES = 5
+ITEM_LINES, ENDED = 5, 20
 FRAME = ("at", "project", "projects", "repo", "sources", "summary", "kinds", "roles", "items")
 _PULL = re.compile(rf"https://{re.escape(HOST)}/([\w.-]+/[\w.-]+)/pull/\d+")
 _LOGGED = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d) (.+)$")
@@ -1232,8 +1233,12 @@ def items(state: Path) -> list[dict[str, Any]]:
     """`items`: each work item of the project, as its log folds, with its risk and its last
     lines."""
     lines = item.read(state)
+    found = sorted(item.fold(lines).values(), key=lambda one: item._number(one.id))
+    ended = {one.id for one in found if one.state not in item.LIVE}
+    last = [line["item"] for line in lines if line.get("item") in ended]
+    shown = set(list(dict.fromkeys(reversed(last)))[:ENDED])
     made = []
-    for one in sorted(item.fold(lines).values(), key=lambda one: item._number(one.id)):
+    for one in (one for one in found if one.state in item.LIVE or one.id in shown):
         one = item.judged(state, one)
         mine = [line for line in lines if line.get("item") == one.id][-ITEM_LINES:]
         made.append(

@@ -82,13 +82,13 @@ Only a write that has an answer or a message to send reads jbus's config and the
 
 ### Steer a work item
 
-`/state.json` lists each work item of the project under `items`: its id, slug, title, state, owner, risk, `last_event` and its last five lines.
+`/state.json` lists the work items of the project under `items`, each live one and the 20 that ended last: its id, slug, title, state, owner, risk, `last_event` and its last five lines.
 A steer of one goes to `POST /steer?project=<project>`, with the body `{item, action, words, seen_event, confirm}`.
 `action` is `message`, `hold` or `redirect`, `words` is the message or a redirect's new brief, and `seen_event` is the item's last line as the page showed it.
 The view decides nothing of it: it calls `jbus.steer`, as `jbus item steer` does, by the user of your settings, in the view.
-The words typed in the view are the word of yours the steer rests on, with the basis `view` and the server's clock.
-A steer whose `seen_event` is not the item's last line is 409, and its sentence quotes the line that came after, so the same steer sent twice is written once.
-A hold with no `confirm` is 400, and any other refusal of `jbus.steer` is 409.
+The steer's line records the words typed in the view as what it rests on, with the basis `view`, the server's clock, and `checked` false, since they were typed.
+A steer whose `seen_event` is not the item's last line is 409, and its sentence quotes the line that came after, so a second POST of the same steer is 409 and is not written.
+A hold with no `confirm` is 400, an item the project does not have is 404, and any other refusal of `jbus.steer` is 409.
 The answer is `{at, item, say, state, last_event}`, read from the record after the write.
 A message goes to the item's home in the same request, and where T3 Code does not take it, the line is recorded, `say` tells why it was not sent, and the next pass sends it.
 `/steer` has the checks `/answer` has: a foreign `Host` or `Origin` is 403, a body that is too long or not of that shape is 400, and a project the state directory lacks is 404.

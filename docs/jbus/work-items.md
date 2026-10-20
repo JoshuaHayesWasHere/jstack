@@ -49,7 +49,7 @@ A running item is not redirected, since its thread has the brief already: a mess
 An agent steers only as itself.
 `--by` is its role and `--from` its thread, and the line keeps both, with who ran the command (`ran_by`) as an approval keeps it.
 A steer `--by` you is taken only with a word of yours it rests on, `--message`, `--word` or `--answer`, as an approval takes one.
-In the view, `POST /steer` takes the words you typed there as that word, with the basis `view` ([The view](the-view.md#steer-a-work-item)).
+In the view, `POST /steer` records the words you typed there as that word, with the basis `view` ([The view](the-view.md#steer-a-work-item)).
 
 A redirected item is approved only by its id: `jbus item approve <id>` from the view or the command.
 Until then a pass does not approve it, `jbus item approve` from chat is refused, and `jbus queue approve` refuses its row by any basis, `--rule` with `--follows` included.

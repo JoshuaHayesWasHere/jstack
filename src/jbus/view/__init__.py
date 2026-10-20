@@ -44,8 +44,9 @@ the item's last line as the page showed it, and `confirm`, which a hold takes. T
 decides nothing of it: it calls `jbus.steer.steer`, by the user of the settings, in the
 view, on the basis of these words said in the view at the server's clock, and that
 function's rules are the only ones. A steer whose `seen_event` is not the item's last line
-is refused with the line that came after it, so the same steer sent twice is written once,
-and that and any other refusal is 409, but a hold with no `confirm`, which is 400. A message
+is refused with the line that came after it, so a second POST of the same steer is 409 and
+is not written. Any other refusal is 409 too, but a hold with no `confirm`, which is 400,
+and an item the project does not have, which is 404. A message and a redirect have words. A message
 is sent to the home in the same request (`jbus.steer.deliver`), as the command sends it, and
 where it does not go, the line is recorded all the same, the answer says why, and the next
 pass sends it. What comes back is `at`, the `item`, one sentence, `say`, and the item's
@@ -358,7 +359,7 @@ class Code:
 
 
 class App:
-    """What the server answers to a `GET` and to its one write, whatever door it came in by.
+    """What the server answers to a `GET` and to its two writes, whatever door it came in by.
 
     The panels are the folders there are when it starts, each loaded once, and a key two of
     them give stops the start. Only a panel's script is read again on every request.
@@ -584,6 +585,7 @@ class App:
                 and isinstance(seen, str)
                 and bool(seen)
                 and isinstance(words, str)
+                and (bool(words.strip()) or action == item.Steer.HOLD)
                 and isinstance(confirm, bool)
             )
         except (ValueError, TypeError, KeyError, AttributeError):
@@ -591,8 +593,11 @@ class App:
         if not shaped:
             return said(400, {"error": "a steer is an item, an action, words, seen_event, confirm"})
         user, state_dir, now = self.sources.user, self.sources.state(name), self.clock()
+        if id not in item.items(state_dir):
+            return NOT_FOUND
         box = wake.Box(state_dir, reader(self.sources).project(name))
-        basis = steer.Basis("view", state.iso(now), queue.Said(words, state.iso(now), WHERE, True))
+        heard = queue.Said(words or f"{action} {id}", state.iso(now), WHERE, False)
+        basis = steer.Basis("view", WHERE, heard)
         try:
             made = steer.steer(
                 state_dir,
@@ -611,6 +616,10 @@ class App:
             status = 400 if str(error) == steer.CONFIRM else 409
             say = str(error).removeprefix("refused: ").replace("--confirm", "confirm")
             return self._steered(name, status, id, say, now)
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            say = "The server failed during the steer: the state below is what the record says."
+            return self._steered(name, 500, id, say, now)
         say = f"{id} {action} at {user.clock(now)}: {made['line']}"
         if action == item.Steer.MESSAGE:
             say = f"{say}. {self._message(name, made['id'], now)}"
