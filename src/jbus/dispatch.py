@@ -112,14 +112,23 @@ def write_missing(run: Pass) -> None:
             write_thread(run, slug, launched(run, slug), replace=False)
 
 
+GREEN_MAIN = "Green main:"
+
+
 def green_main(brief: str, green: str) -> str:
     """The brief with `Green main: <sha>` under its first line, the last commit of main whose
-    check passed (`mainstate`), for a crew to rebase onto where main is red. With no green
-    main known the brief goes as it is."""
+    check passed (`mainstate`), for a crew to rebase onto where main is red, in place of any
+    such line its head had. With no green main known the brief has none."""
+    kept, head = [], True
+    for line in brief.splitlines(keepends=True):
+        head = head and not line.startswith("## ")
+        if not (head and line.startswith(GREEN_MAIN)):
+            kept.append(line)
+    plain = "".join(kept)
     if not green:
-        return brief
-    first, _, rest = brief.partition("\n")
-    return f"{first}\nGreen main: {green}\n{rest}"
+        return plain
+    first, _, rest = plain.partition("\n")
+    return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
 
 
 def arguments(
@@ -351,7 +360,8 @@ class Turns:
                 run.gate(slug, "the default branch is not known in the main checkout")
                 continue
             plain = queue.body(brief)
-            text = green_main(plain, mainstate.read(run.state).green)
+            green = mainstate.read(run.state).green
+            text = green_main(plain, green)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
             on_disk = "" if wrote else queue.body(target.read_text(errors="replace"))
@@ -388,6 +398,8 @@ class Turns:
             if wrote:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
+            elif (named := green_main(kept := target.read_text(errors="replace"), green)) != kept:
+                target.write_text(named)
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"

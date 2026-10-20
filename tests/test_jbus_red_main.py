@@ -197,6 +197,24 @@ def test_a_brief_that_names_a_green_main_itself_is_sent_with_jbus_own_line(kitch
     ]
 
 
+def test_a_brief_already_in_the_home_gets_the_green_main_line_it_is_launched_with(kitchen):
+    green = tip(kitchen)
+    checks(kitchen, green, "success")
+    kitchen.poll()
+    approved(kitchen, "beta")
+    target = kitchen.home / "tasks" / "beta.md"
+    target.write_text(
+        complete("beta").replace("\n", "\nHome: root\nGreen main: " + "9" * 40 + "\n", 1)
+    )
+    kitchen.poll(NOW + timedelta(minutes=3))
+    (given,) = kitchen.t3.launches
+    line = f"Green main: {green}"
+    assert line in given["message"]
+    lines = target.read_text().splitlines()
+    assert [x for x in lines if x.startswith("Green main:")] == [line]
+    assert "Home: root" in lines
+
+
 def test_a_launch_with_no_green_main_known_sends_the_brief_as_approved(kitchen):
     approved(kitchen, "beta")
     kitchen.poll()
