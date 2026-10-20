@@ -28,6 +28,9 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
     source = "\n".join(path.read_text() for path in sorted((REPO / "src/jbus").rglob("*.py")))
     counted = "\n".join(path.read_text() for path in sorted((REPO / "src/jgauge").rglob("*.py")))
     counted += "\n" + (REPO / "src/jbriefs/parse.py").read_text()
+    counted += "\n" + "\n".join(
+        path.read_text() for path in sorted((REPO / "src/jpack").glob("*.py"))
+    )
     imports = re.findall(r"^\s*(?:from|import)\s+([\w.]+)", source + counted, re.M)
     roots = {name.split(".")[0] for name in imports}
     assert roots <= set(sys.stdlib_module_names) | {
@@ -36,6 +39,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
         "jsettings",
         "jgauge",
         "jbriefs",
+        "jpack",
     }, roots
     named = source.replace(queue.SESSION, "").replace(f'KEPT = "{usage.KEPT}"', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)
