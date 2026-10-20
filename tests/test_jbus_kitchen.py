@@ -611,9 +611,12 @@ class Kitchen:
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
     def config(self, url=None, **top):
+        """Write the config. A top-level key given as None is left out of the file."""
         top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
+            if value is None:
+                continue
             if isinstance(value, dict):
                 value = "{ " + ", ".join(f"{k} = {json.dumps(v)}" for k, v in value.items()) + " }"
                 lines.append(f"{key} = {value}")
