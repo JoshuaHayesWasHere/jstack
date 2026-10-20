@@ -344,6 +344,9 @@ def test_a_start_prints_the_new_noticed_lines_of_this_home_by_their_keys(bus):
 
     assert parts(bus.home(START))["noticed"] == ["none is new"]
     said = "the view shows a finished row as stuck."
+    for slug in ("speedy", "none-left"):
+        bus.kitchen.brief(slug, "Home: speed\n")
+    bus.kitchen.poll()
     bus.kitchen.brief("alpha", f"Thread: mcp:crew-alpha\n\n## Result\nNoticed: {said}\n")
     bus.kitchen.brief("speedy", "Home: speed\n\n## Result\nNoticed: the scope's own line\n")
     bus.kitchen.brief("none-left", "Home: speed\n\n## Result\nNoticed: the scope's other line\n")

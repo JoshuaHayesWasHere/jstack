@@ -7,7 +7,8 @@ its own Result or Report. A gate that was piped to `jbus gate` is a question jbu
 (`questions`): it is the same event by `gate_key`, and its answer is no event. `seen.json`
 holds the file, heading and hash of every section sent, so each goes once, and a Result,
 Review or Report goes again when its text changes. The first pass of a project sends none:
-it only records what is already there.
+it only records what is already there. Nor does a file no pass read before whose slug was
+never a row of the queue, as a tree restored from a backup puts back (`scan`).
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from jbus import read_json, verbs, write_json
+from jbus import noticed, queue, read_json, verbs, write_json
 from jbus.wake import Pass
 
 EVENTS = {
@@ -204,10 +205,26 @@ def _gates(
     return found
 
 
-def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
-    """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`)."""
+def scan(
+    run: Pass, held: frozenset[str] | None = frozenset(), rows: list[queue.Row] | None = None
+) -> int:
+    """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`), and
+    `rows` the rows of the queue as the pass loaded them, or None where it could not: then, as
+    on a project's first pass, which records all there is, no file is taken as restored.
+
+    Each file read is kept in `seen.json`, with no heading while it has nothing to send, so a
+    file a pass has read once is known. One a pass never read whose slug no row of the queue
+    has, nor had, came with all it holds at once, as a tree restored from a backup does: it
+    is recorded and sends nothing, and its `Noticed` lines go in as from before
+    (`noticed.keep`). A brief jbus launched has a row, and a scout's request is read before
+    its Report is in it, since a home writes it before the launch.
+    """
     seen_path = run.state / "seen.json"
     seen: dict[str, dict[str, str]] = read_json(seen_path, {})
+    named = None
+    if rows is not None and not run.first:
+        named = frozenset(row["slug"] for row in rows) | queue.removed_slugs(run.state)
+    restored: set[str] = set()
     sent = 0
 
     def new(file: str, heading: str, whole: str, *, again: bool) -> str:
@@ -221,8 +238,12 @@ def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
     for kind in ("tasks", "scouts"):
         for path in sorted((run.home / kind).glob("*.md")):
             slug, counts, text = path.stem, {}, _read(path)
+            file = f"{kind}/{path.name}"
+            if file not in seen and named is not None and slug not in named:
+                restored.add(file)
+            seen.setdefault(file, {})
             for asked, lines in gates_in(text):
-                if new(f"{kind}/{path.name}", f"gate {asked}", lines, again=False):
+                if new(file, f"gate {asked}", lines, again=False) and file not in restored:
                     key = gate_key(slug, asked)
                     sent += run.find(
                         slug, "gate", f"gate {slug}: {asked}", lines, key=key, past=True
@@ -231,8 +252,8 @@ def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
                 counts[heading] = counts.get(heading, 0) + 1
                 made = _found(kind, slug, heading, body)
                 name = f"{heading} #{counts[heading]}"
-                digest = made and new(f"{kind}/{path.name}", name, body, again=True)
-                if made and digest:
+                digest = made and new(file, name, body, again=True)
+                if made and digest and file not in restored:
                     what, line, _ = made
                     whole = f"{heading}\n{body}"
                     key = f"{kind} {name} {digest}"
@@ -240,6 +261,11 @@ def scan(run: Pass, held: frozenset[str] | None = frozenset()) -> int:
     for slug, what, line, whole, key in _gates(_read(run.home / "gates.md"), held):
         if new("gates.md", f"{what} {key}", whole, again=False):
             sent += run.find(slug, what, line, whole, key=key, past=True)
+    if restored:
+        try:
+            noticed.keep(run.state, run.home, run.now, before=frozenset(restored))
+        except noticed.Unparsable:
+            pass
     write_json(seen_path, seen)
     return sent
 
@@ -252,5 +278,7 @@ def _read(path: Path) -> str:
 
 
 STEPS = (
-    verbs.Step("tellers", 10, "mirror.scan", lambda half: scan(half.run, half.held), ("sight",)),
+    verbs.Step(
+        "tellers", 10, "mirror.scan", lambda half: scan(half.run, half.held, half.rows), ("sight",)
+    ),
 )

@@ -64,8 +64,17 @@ def say(kitchen, *argv):
     return said
 
 
+def launched(kitchen, *slugs, kind="tasks"):
+    """Briefs or requests a pass reads before anything is written in them, as it reads a brief
+    or request out in a thread: a file it never read is one a backup put back."""
+    for slug in slugs:
+        kitchen.brief(slug, kind=kind)
+
+
 def test_the_first_pass_drops_what_was_there_and_later_passes_add_each_new_line_once(kitchen):
     kitchen.brief("old", RESULT)
+    launched(kitchen, "alpha", "beta")
+    launched(kitchen, "gamma", kind="scouts")
     kitchen.poll(NOW - timedelta(hours=1))
     (before,) = kept(kitchen)
     assert (before["slug"], before["mark"], before["why"], before["by"]) == (
@@ -117,6 +126,7 @@ def test_the_first_pass_drops_what_was_there_and_later_passes_add_each_new_line_
 
 
 def test_noticed_prints_the_new_ones_all_of_them_or_json(kitchen):
+    launched(kitchen, "alpha", "beta")
     kitchen.poll(NOW - timedelta(hours=1))
     kitchen.brief("alpha", RESULT)
     kitchen.poll()
@@ -146,6 +156,7 @@ def test_noticed_prints_the_new_ones_all_of_them_or_json(kitchen):
 
 
 def test_a_line_is_taken_by_a_queue_row_or_a_plan_entry_and_marked_once(kitchen):
+    launched(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(hours=1))
     kitchen.brief("alpha", RESULT + LISTED)
     kitchen.poll()
@@ -197,6 +208,7 @@ def test_a_file_that_does_not_parse_is_left_as_it_is_and_refused(kitchen):
 def test_a_line_added_under_a_list_later_is_one_new_record_and_the_others_keep_their_marks(
     kitchen,
 ):
+    launched(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(hours=1))
     kitchen.brief("alpha", LISTED)
     kitchen.poll()
@@ -234,4 +246,27 @@ def test_bare_follow_up_lines_and_a_nested_item_are_read_as_the_crew_skill_write
         "follow-up: info src/a.py:3 a name is wrong",
         "follow-up: info src/b.py:9 a test is missing",
         "a parent\n- its child",
+    ]
+
+
+def test_a_restored_file_no_row_names_is_dropped_and_a_queued_brief_is_new(kitchen):
+    """A project past its first pass gets back from a backup a brief and a request a pass never
+    read: their lines are from before. A brief a row of the queue names is out, and its lines
+    are new however soon after the launch they are written."""
+    kitchen.poll(NOW - timedelta(hours=1))
+    assert kitchen.main("queue", "add", "live", "--priority", "1", stdin=complete("live"))[0] == 0
+    kitchen.brief("restored", RESULT + LISTED)
+    kitchen.brief("an-old-scout", REPORT, kind="scouts")
+    kitchen.brief("live", RESULT)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=5))
+    marks = {(one["slug"], one["mark"], one["why"]) for one in kept(kitchen)}
+    assert marks == {
+        ("restored", "dropped", noticed.FROM_BEFORE),
+        ("an-old-scout", "dropped", noticed.FROM_BEFORE),
+        ("live", "new", ""),
+    }
+    assert say(kitchen).splitlines() == [
+        f"{noticed.key('live', 'the view shows a finished row as stuck.')} live, Result, new: "
+        "the view shows a finished row as stuck."
     ]
