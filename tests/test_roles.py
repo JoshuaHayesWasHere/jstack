@@ -150,7 +150,10 @@ def test_each_provider_names_its_effort_and_fast_by_its_own_option_id(roles, lin
 @pytest.mark.parametrize(
     ("line", "why"),
     [
-        ("review: claudeAgent claude-opus-5-5 effort=high", "effort=high is not low or medium"),
+        (
+            "review: claudeAgent claude-opus-5-5 effort=xhigh",
+            "effort=xhigh is not low, medium or high",
+        ),
         (
             "review: codex gpt-6-sol effort=turbo",
             "effort=turbo is not low, medium, high, xhigh, max or ultra",
@@ -238,11 +241,35 @@ def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, lin
     assert selection["options"] == [{"id": "effort", "value": effort}]
 
 
+@pytest.mark.parametrize("role", ["crew", "scout", "home", "expert"])
 @pytest.mark.parametrize("level", ["high", "xhigh", "max", "ultracode", "ultrathink", ""])
-def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, level):
-    text = f"scout: claudeAgent claude-opus-5-5 effort={level}\ncrew: grok grok-build\n"
-    assert roles("scout", text) == ("", f"refused scout: effort={level} is not low or medium\n")
-    assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, role, level):
+    """Only the review line may run a Claude thread above medium: the user said so for it."""
+    other = "review" if role != "review" else "crew"
+    text = f"{role}: claudeAgent claude-opus-5-5 effort={level}\n{other}: grok grok-build\n"
+    assert roles(role, text) == ("", f"refused {role}: effort={level} is not low or medium\n")
+    assert roles(other, text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+
+
+SONNETS = "review: claudeAgent claude-sonnet-5-5 effort=high\n" * 2
+
+
+def test_two_sonnet_review_lines_at_high_print_two_selections(roles):
+    """The user's word of 2026-10-20: every review is two Claude Sonnet 5.5 threads on High."""
+    sonnet = (
+        '{"provider": "claudeAgent", "model": "claude-sonnet-5-5", '
+        '"options": [{"id": "effort", "value": "high"}]}\n'
+    )
+    assert roles("review", SONNETS + "crew: claudeAgent claude-sonnet-5-5\n") == (sonnet * 2, "")
+
+
+@pytest.mark.parametrize("level", ["xhigh", "max", "ultrathink"])
+def test_a_review_line_above_high_is_refused(roles, level):
+    text = f"review: claudeAgent claude-sonnet-5-5 effort={level}\n"
+    assert roles("review", text) == (
+        "",
+        f"refused review: effort={level} is not low, medium or high\n",
+    )
 
 
 def test_an_effort_comes_after_the_model_and_instance(roles):

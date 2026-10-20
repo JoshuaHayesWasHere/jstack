@@ -82,3 +82,71 @@ def test_a_reviewer_run_again_at_one_head_replaces_its_own_earlier_section():
     pair = RESULT + TWO + section(CODEX, "not run") + section(CURSOR, "clean")
     assert ready.short_of(pair, SAW) == ready.NO_VERDICT
     assert ready.short_of(pair + section(CODEX, "clean"), SAW) == ""
+
+
+SONNET = "claudeAgent claude-sonnet-5-5 high"
+SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
+
+
+def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
+    """Two Sonnet reviewers write the same model and effort: the number tells them apart, so
+    one numbered review alone waits and both pass (question 38: two Cursor reviews were
+    once read as one)."""
+    one = RESULT + SEATS + section(f"{SONNET} #1", "clean")
+    assert ready.short_of(one, SAW) == ready.NO_VERDICT
+    both = one + section(f"{SONNET} #2", "clean")
+    assert ready.short_of(both, SAW) == ""
+    assert ready.said_of(both).verdict == "clean"
+
+
+def test_a_numbered_review_does_not_take_the_place_of_the_other_numbers():
+    found = section(f"{SONNET} #2", "findings", findings=["warning a.py:1 a made up one"])
+    brief = RESULT + SEATS + section(f"{SONNET} #1", "clean") + found
+    assert ready.said_of(brief).verdict == "findings"
+    assert ready.short_of(brief, SAW) == ready.NO_FIXED
+
+
+def test_a_seat_launched_again_does_not_double_the_count():
+    brief = RESULT + SEATS + "Reviewer: mcp:sonnet-c #2\n"
+    brief += section(f"{SONNET} #1", "clean") + section(f"{SONNET} #2", "clean")
+    assert ready.short_of(brief, SAW) == ""
+
+
+STALLED = RESULT + TWO + section(CURSOR, "findings", findings=["warning a.py:1 a made up one"])
+STALLED += "Finding F1: fixed, a made up one\nFixed: none needed, it was answered\n"
+
+
+def test_a_stalled_review_run_again_on_numbered_lines_reaches_a_verdict():
+    """A brief whose Codex reviewer never wrote waits for ever on its two unnumbered lines.
+    Run again on two numbered lines, it waits on those two and no longer on the Codex one."""
+    assert ready.short_of(STALLED, SAW) == ready.NO_VERDICT
+    rerun = STALLED + SEATS + section(f"{SONNET} #1", "clean")
+    assert ready.short_of(rerun, SAW) == ready.NO_VERDICT
+    done = rerun + section(f"{SONNET} #2", "clean")
+    assert ready.said_of(done).verdict == "clean"
+    assert ready.short_of(done, SAW) == ""
+
+
+def test_an_old_section_that_was_not_run_does_not_hold_a_numbered_round():
+    brief = RESULT + TWO + section(CODEX, "not run") + SEATS
+    brief += section(f"{SONNET} #1", "clean") + section(f"{SONNET} #2", "clean")
+    assert ready.short_of(brief, SAW) == ""
+
+
+def test_an_old_finding_still_needs_its_answer_after_a_numbered_round():
+    brief = RESULT + TWO + section(CURSOR, "findings", findings=["error a.py:1 a made up one"])
+    brief += SEATS + section(f"{SONNET} #1", "clean") + section(f"{SONNET} #2", "clean")
+    assert ready.short_of(brief, SAW) != ""
+    answered = brief + "Finding F1: fixed, a made up one\n"
+    assert ready.short_of(answered, SAW) == ""
+
+
+def test_a_scoped_pass_numbered_one_does_not_take_the_place_of_reviewer_one():
+    first = section(f"{SONNET} #1", "findings", findings=["error a.py:1 x"])
+    first += section(f"{SONNET} #2", "clean")
+    owed = f"Scoped review: needed since {SAW}, the fix changed a.py\n"
+    brief = RESULT + SEATS + "Finding F1: fixed, x\n" + owed + f"Fixed: {FIX}\n" + first
+    assert ready.short_of(brief, FIX) == ready.FIX_UNREVIEWED
+    scoped = brief + section(f"{SONNET} #1", "clean", head=FIX).replace("By:", "Scope: a.py\nBy:")
+    assert ready.said_of(scoped).ran == 2
+    assert ready.short_of(scoped, FIX) == ""
