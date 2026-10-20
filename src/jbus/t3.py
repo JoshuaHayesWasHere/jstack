@@ -431,7 +431,7 @@ def _t3(args: argparse.Namespace, config: Config) -> int:
     try:
         routed = pool.route("crew", datetime.now(UTC))
     except jroles.Refused as error:
-        raise Refused(f"refused: {error}") from error
+        raise Refused(str(error)) from error
     if routed and routed.choice.instance is None:
         print(f"no launch: {routed.choice.why}")
         return pool.WAIT
