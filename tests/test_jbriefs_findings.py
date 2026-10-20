@@ -210,3 +210,24 @@ def test_a_brief_two_reviewers_wrote_is_one_list_with_both_named_and_a_dismissal
         == "next: write Fixed: <the head you pushed>, 4 findings each have their ending"
     )
     assert ready.short_of(TWO.read_text(), "1e16fb7dd82ea2dae3209f561f5273e559b46b4a") == ""
+
+
+def test_a_re_run_at_one_head_moves_no_id_and_no_answer():
+    a = tagged("error src/a.py:10 x", principle="model-the-domain")
+    b = tagged("warning src/a.py:12 y", principle="model-the-domain")
+    d = tagged("error src/d.py:1 z")
+    before = RESULT + section([a], CODEX) + section([b, d], CURSOR)
+    before += "Finding F1: fixed, x\nFinding F2: fixed, z\n"
+    after = before + section([a], CODEX)
+    ids = [(one.id, one.path, one.superseded) for one in findings.triage(after).findings]
+    assert ids[:2] == [("F1", "src/a.py", False), ("F2", "src/d.py", False)]
+    assert ids[2] == ("F3", "src/a.py", False)
+    assert findings.triage(after).answers["F2"].what == "z"
+
+
+def test_a_risky_consider_finding_blocks_and_its_decline_needs_a_gate():
+    risky = tagged("warning src/auth.py:5 the token is logged", "Consider", risk="auth")
+    declined = "Finding F1: not fixed, the token, because consider: left for a follow-up\n"
+    triage = findings.triage(RESULT + section([risky], CODEX) + declined)
+    (one,) = triage.blocking()
+    assert one.refused == findings.UNASKED

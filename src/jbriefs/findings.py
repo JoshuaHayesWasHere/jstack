@@ -16,14 +16,16 @@ finding or the next one, so a finding keeps its id whatever is written after it.
 reviewers' findings of one head are one finding (`_same`): the same file, lines at most
 `NEAR` apart, the same principle, both raised. A finding one reviewer raised and another
 dismissed there is kept as two, the dismissal printed beside it (`Finding.contradicts`).
-A section a reviewer wrote again at the same head takes the place of its earlier one, whose
-findings keep their ids and count for nothing (`Finding.superseded`).
+A section a reviewer wrote again at the same head takes the place of its earlier one: which
+lines merge is decided as if it had not, so no id moves, and a finding every line of which is
+in such a section keeps its id and counts for nothing (`Finding.superseded`).
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from
 before the ids answered: such answers go, in order, to the findings with no bucket that have
 no answer by id, as the crew's count matched them. Only an **Act on** finding blocks a
-merge, and one from before the buckets does, as every finding did. Its decline counts only
+merge, and one from before the buckets does, as every finding did, and so does a finding on
+one of `RISKS`, whatever its bucket. Its decline counts only
 with a reason that cites a `path:line`, a command in backticks, or a gate the Result names
 (`Gate: question <n>`); a reason given for an earlier finding is refused; and a finding on
 one of `RISKS` declined counts only on a gate, which asks the user with the default "fix
@@ -119,7 +121,7 @@ class Finding:
     id: str
     raised: list[Raised]
     contradicts: str = ""
-    superseded: bool = False
+    stale: frozenset[int] = frozenset()
     answer: Answer | None = None
     refused: str = ""
     first: str = ""
@@ -133,8 +135,18 @@ class Finding:
         return tuple(one.reviewer for one in self.raised)
 
     @property
+    def standing(self) -> list[Raised]:
+        """The lines that raised it in sections that stand, or all of them where none does."""
+        return [one for one in self.raised if one.section not in self.stale] or self.raised
+
+    @property
+    def superseded(self) -> bool:
+        """Whether every line that raised it is in a section its reviewer wrote again."""
+        return all(one.section in self.stale for one in self.raised)
+
+    @property
     def bucket(self) -> str:
-        return min((one.bucket for one in self.raised), key=BUCKETS.index)
+        return min((one.bucket for one in self.standing), key=BUCKETS.index)
 
     @property
     def severity(self) -> str:
@@ -169,8 +181,8 @@ class Finding:
     @property
     def blocks(self) -> bool:
         """Whether it holds the merge until it is answered: an Act on finding, which every
-        finding from before the buckets is."""
-        return self.sent and self.bucket == ACT_ON
+        finding from before the buckets is, and a finding on one of `RISKS` in any bucket."""
+        return self.sent and (self.bucket == ACT_ON or bool(self.risk))
 
     @property
     def ended(self) -> bool:
@@ -313,7 +325,7 @@ def _same(finding: Finding, one: Raised) -> int | None:
     another reviewer's finding of the same head and place, both raised and both written
     with a bucket, and one line from each reviewer at most."""
     lead = finding.lead
-    if finding.superseded or lead.legacy or one.legacy or not one.head:
+    if lead.legacy or one.legacy or not one.head:
         return None
     if DISMISSED in (lead.bucket, one.bucket) or lead.head != one.head:
         return None
@@ -380,13 +392,13 @@ def triage(text: str) -> Triage:
     sections = _sections(text)
     stale = _superseded(sections)
     findings: list[Finding] = []
-    for number, section in enumerate(sections):
+    for section in sections:
         for one in section.raised:
             near = [(apart, f) for f in findings if (apart := _same(f, one)) is not None]
-            if near and number not in stale:
+            if near:
                 min(near, key=lambda pair: pair[0])[1].raised.append(one)
             else:
-                findings.append(Finding(f"F{len(findings) + 1}", [one], superseded=number in stale))
+                findings.append(Finding(f"F{len(findings) + 1}", [one], stale=frozenset(stale)))
     for one in findings:
         if one.bucket != DISMISSED or one.legacy or one.superseded:
             continue
