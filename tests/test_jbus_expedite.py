@@ -13,6 +13,7 @@ import pytest
 
 import jbus
 import jsettings
+from jbriefs import findings
 from jbus import merge
 from jmerge import ready
 from test_jbus_kitchen import NOW, OPTIONS, PROJECT
@@ -100,10 +101,7 @@ def short(kitchen):
     return Short(kitchen)
 
 
-FINDING_LINES = (
-    "`Finding: fixed, <the finding in a few words>` or `Finding: not fixed, <the finding in a "
-    "few words>, because <the reason>`"
-)
+FINDING_LINES = findings.ANSWER
 SAYS = {
     "unfixed": (
         f"Write one line in the Result for each finding, {FINDING_LINES}, and then the `Fixed:` "
@@ -171,6 +169,11 @@ def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
     assert ready.short_of(result + "Reviewer: none, no launch tool in this session\n", head) == (
         NO_REVIEW
     )
+
+
+NAMED = " The findings with no answer that counts: F1."
+for answered in ("unfixed", "unpushed", "unended"):
+    SAYS[answered] += NAMED
 
 
 def said_to(short, kind, reason, sentence):
@@ -793,3 +796,20 @@ def test_a_jmerge_that_stopped_before_it_reached_a_pull_request_keeps_its_count(
     short.out(NO_FIXED)
     short.passes(1)
     assert len(sends(kitchen)) == 1
+
+
+@pytest.mark.parametrize(
+    ("kind", "reason"),
+    [
+        ("unanswered", ready.UNANSWERED.format(ids="F1, F3")),
+        ("uncited", ready.UNCITED.format(ids="F2")),
+        ("repeated", ready.REPEATED.format(ids="F2", first="F1")),
+        ("risky", ready.RISK_UNASKED.format(ids="F1", risks="auth")),
+    ],
+)
+def test_each_wait_for_an_answer_by_id_is_a_row_its_crew_is_told(kind, reason):
+    from jbus import expedite
+
+    row = expedite.short_of(merge.Line("wait", 7, URL, reason))
+    assert row is not None and row.kind == kind
+    assert kind in expedite.ANSWERED

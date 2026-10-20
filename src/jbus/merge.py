@@ -92,6 +92,7 @@ ELSEWHERE = (
     ("rebase", r"needs a rebase"),
     ("check", r"check has not finished|fresh check|could not be fetched|jmerge's own rules"),
     ("findings", r"^its head moved after"),
+    ("findings", r"^\d+ of its \d+ findings have no Finding line"),
 )
 _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
 

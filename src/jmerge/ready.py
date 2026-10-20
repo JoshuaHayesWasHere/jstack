@@ -24,13 +24,12 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import skills
+from jbriefs import findings, skills
 from jmerge.rangediff import Verdict
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _RANKS = {"clean": 0, "findings": 1}
-_ENDED = re.compile(r"Finding: (fixed, .|not fixed, .+, because .)")
 _REBASE = re.compile(
     r"Rebase: patch (unchanged|changed in (.+)), before ([0-9a-f]{40}), head ([0-9a-f]{40})"
 )
@@ -106,6 +105,19 @@ SECOND_UNWRITTEN = Reason(
 )
 FIX_UNREVIEWED = Reason("second", "its fix is not reviewed: the scoped review of it is not written")
 UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
+UNANSWERED = Reason("findings", "its findings are not handled: {ids} have no answer by id")
+UNCITED = Reason(
+    "findings",
+    "its findings are not handled: the decline of {ids} cites no path:line, command or gate",
+)
+REPEATED = Reason(
+    "findings",
+    "its findings are not handled: the decline of {ids} gives the reason of {first}",
+)
+RISK_UNASKED = Reason(
+    "findings",
+    "its findings are not handled: {ids} on {risks} declined with no gate question",
+)
 FIXED_NO_COMMIT = Reason("findings", "its Fixed line names no commit")
 REBASE_UNSAID = Reason("rebase", "its Rebase line does not say what the rebase did to the patch")
 REBASE_UNTRUE = Reason(
@@ -135,7 +147,6 @@ TOUCHES = Reason("hold", "needs {user}, touches {path}")
 RENAMES_UNSAID = Reason("hold", "needs {user}, GitHub did not say which paths its renames left")
 UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")
 NO_START = Reason("check", "its check has no start time")
-GUARDED_UNENDED = Reason("findings", "{left} of its {found} findings have no Finding line")
 NOT_SEEN = Reason("second", "its head is not the one its review saw")
 MAIN_CHANGED = Reason(
     "check",
@@ -429,38 +440,26 @@ class Said:
     second: bool = False
     scoped: bool = False
     rounds: list[Round] = field(default_factory=list)
+    triage: findings.Triage = field(default_factory=findings.Triage)
 
 
 def said_of(text: str) -> Said:
     """What the brief says of its review, read line by line: the one reader, which the merge
-    goes by and the view shows."""
+    goes by and the view shows. The `## Review` sections, their findings and the answers to
+    them are read by `jbriefs.findings`, the one parser of them."""
     said = Said()
-    seen = review = listed = False
+    triage = findings.triage(text)
+    said.triage = triage
+    said.written = bool(triage.sections)
+    said.rounds = [Round(one.verdict, one.head, one.found, one.by) for one in triage.sections]
+    said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
+    sent = [one for one in triage.findings if one.blocks]
+    said.found, said.ended = len(sent), sum(one.ended for one in sent)
+    seen = False
     for line in text.splitlines():
         if line.startswith("Review:") and not seen:
             seen = True
             said.none = _second(line) == "none"
-        if line.startswith("## "):
-            review = line == "## Review"
-            said.written = said.written or review
-            listed = False
-            if review:
-                said.rounds.append(Round())
-        elif review and line.startswith("Findings:"):
-            listed = True
-        elif line.startswith("Dropped:"):
-            listed = False
-        elif listed and line.startswith("- ") and line != "- none":
-            said.found += 1
-            said.rounds[-1].found += 1
-        if _ENDED.match(line):
-            said.ended += 1
-        if review and line.startswith("Verdict:"):
-            said.rounds[-1].verdict = _second(line)
-        if review and line.startswith("Head:"):
-            said.reviewed = said.rounds[-1].head = _second(line)
-        if review and line.startswith("By:"):
-            said.rounds[-1].by = line[len("By:") :].strip()
         if line.startswith("Reviewer:") and _second(line) not in ("", "none", "none,"):
             said.reviewers += 1
         if line.startswith("Fixed:"):
@@ -482,6 +481,29 @@ def said_of(text: str) -> Said:
             said.pushed, said.saw = (named[1], named[2]) if named else ("", "")
     _round(said)
     return said
+
+
+def unanswered(said: Said) -> str:
+    """Why the findings are not handled, or nothing: the first blocking finding with no
+    answer that counts (`jbriefs.findings`), on every path. Findings from before the ids are
+    counted, as their answers with no id were; the others are named by id."""
+    blocking = said.triage.blocking()
+    old = [one for one in blocking if one.legacy]
+    if old:
+        found = sum(1 for one in said.triage.findings if one.blocks and one.legacy)
+        return UNENDED.format(left=len(old), found=found)
+    for why, reason in (
+        (findings.UNANSWERED, UNANSWERED),
+        (findings.UNCITED, UNCITED),
+        (findings.REPEATED, REPEATED),
+        (findings.UNASKED, RISK_UNASKED),
+    ):
+        named = [one for one in blocking if one.refused == why]
+        if named:
+            ids = ", ".join(one.id for one in named)
+            risks = ", ".join(dict.fromkeys(one.risk for one in named))
+            return reason.format(ids=ids, first=named[0].first, risks=risks)
+    return ""
 
 
 def _round(said: Said) -> None:
@@ -528,14 +550,16 @@ def short_of(text: str, head: str) -> str:
     show two ways: the head is the one they were written on, or one has no `Finding:` line.
 
     A fix whose review is owed, the last `Scoped review: needed since <head>` line, is short
-    of it until a review of another head is written, and then of a `Finding:` line for each
-    finding. A `Second pass: needed since <head>` line, which a brief from before that rule
-    has, is read the same way. A line that ends `guarded` is not read here: what holds that
-    fix is the proof a guarded path is merged on (`short_of_guarded` and the proof's head).
+    of it until a review of another head is written. A `Second pass: needed since <head>`
+    line, which a brief from before that rule has, is read the same way. A line that ends
+    `guarded` is not read here: what holds that fix is the proof a guarded path is merged on
+    (`short_of_guarded` and the proof's head).
+
+    Last, on every path, each finding that blocks waits for an answer that counts
+    (`unanswered`, read by `jbriefs.findings`).
     """
     said = said_of(text)
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
-    found, ended = said.found, said.ended
     unrun = skills.missing(text)
     if unrun:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
@@ -553,16 +577,12 @@ def short_of(text: str, head: str) -> str:
         return SECOND_UNWRITTEN
     if said.owed and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
-    if (said.wider or said.owed) and ended < found:
-        return UNENDED.format(left=found - ended, found=found)
     if fixed not in ("", "none") and not _COMMIT.fullmatch(fixed):
         return FIXED_NO_COMMIT
     if verdict == "findings" and _COMMIT.fullmatch(fixed) and head != fixed:
         if head == reviewed:
             return NOT_PUSHED
-        if ended < found:
-            return UNENDED.format(left=found - ended, found=found)
-    return ""
+    return unanswered(said)
 
 
 def _named(said: Said, head: str) -> bool:
@@ -1007,16 +1027,15 @@ def short_of_guarded(one: PullRequest, text: str, rebase: Rebase | None, carried
     """What a pull request that is ready is still short of when it changes a guarded path.
 
     Its check has a start time, which is what main is compared against. Its review is
-    finished: every finding it lists has its `Finding:` line, with or without a second pass.
-    And the head is one the review covers: the head it saw, the `Fixed:` commit, the head
-    of a rebase the command found to leave the patch as it was, or one the review carried
-    over to. `carried` is `rebase_note`'s: a rebase that left the content as it was.
+    finished: `short_of` has held it until every finding that blocks has its answer, on every
+    path, with or without a second pass. And the head is one the review covers: the head it
+    saw, the `Fixed:` commit, the head of a rebase the command found to leave the patch as it
+    was, or one the review carried over to. `carried` is `rebase_note`'s: a rebase that left
+    the content as it was.
     """
     if one.started is None:
         return NO_START
     said = said_of(text)
-    if said.verdict == "findings" and said.ended < said.found:
-        return GUARDED_UNENDED.format(left=said.found - said.ended, found=said.found)
     if carried or one.head in (said.reviewed, said.fixed):
         return ""
     if rebase is not None and rebase.did == "unchanged" and rebase.head == one.head:

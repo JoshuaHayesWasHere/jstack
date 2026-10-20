@@ -175,7 +175,8 @@ def test_a_review_with_a_finding_that_has_no_ending_is_not_finished(proven_merge
     brief = merge.brief(proven("findings", proven_merged.head), declined)
     (proven_merged.home.tasks / "alpha.md").write_text(brief)
     proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
-    assert jmerge(proven_merged, rules) == guarded("1 of its 1 findings have no Finding line")
+    unended = ready.UNENDED.format(left=1, found=1)
+    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: {unended}"]
     assert proven_merged.untouched()
     ended = "Finding: not fixed, it is wrong, because the task does not own that code\n"
     (proven_merged.home.tasks / "alpha.md").write_text(brief + ended)
@@ -295,11 +296,6 @@ REVIEWS = {
         merge.review("findings") + f"Fixed: {merge.PUSHED}\n{ENDED}",
         None,
         "",
-    ),
-    "findings fixed at the head with no Finding line": (
-        merge.review("findings") + f"Fixed: {merge.PUSHED}\n",
-        None,
-        "1 of its 1 findings have no Finding line",
     ),
     "a rebase the command found to leave the patch as it was": (
         merge.review("clean"),

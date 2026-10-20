@@ -185,7 +185,7 @@ When the review has its verdict, and whenever a step names "After the review" or
 
 ### Outside the diff
 
-Write the lead's findings, the **Act on** and **Consider** ones of step 4 with what step 5 added, one to a line, each as `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in place of the middle line of this block. A finding about a file as a whole has no `:<line>`. A finding about what the change as a whole lacks (a `Done when` line it does not meet, a test it does not have) has `-` in place of the file and line: that form is for what the pull request leaves out, never for code it did not touch. A finding about something a changed line breaks is written against that changed line before it goes in: if no changed line can be named for it, it goes in as it came, and the block drops it.
+Write the lead's findings, the **Act on** and **Consider** ones of step 4 with what step 5 added, one to a line, each as `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: <Act on or Consider>)`, with its `(risk: <area>)` tag where it has one, in place of the middle line of this block. A finding about a file as a whole has no `:<line>`. A finding about what the change as a whole lacks (a `Done when` line it does not meet, a test it does not have) has `-` in place of the file and line: that form is for what the pull request leaves out, never for code it did not touch. A finding about something a changed line breaks is written against that changed line before it goes in: if no changed line can be named for it, it goes in as it came, and the block drops it.
 
 ```sh
 gh pr diff <url> | awk '
