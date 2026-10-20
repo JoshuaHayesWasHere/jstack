@@ -16,11 +16,14 @@ Every unit is a durable thread with its own file: no unit starts a subagent, her
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
-T=$(realpath ~/.claude/skills/figure-it-out/../../templates)
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
+if ! T=$(realpath ~/.claude/skills/figure-it-out/../../templates 2> /dev/null); then
+    echo "no root: ~/.claude/skills/figure-it-out is not a link into the repo this skill lives in"
+fi
 ```
 
 That is **the block at the top**.
+It prints nothing but `no root`, and on that the root is two directories above the real place of this file: set `T` to its `templates/`.
 A path such as `playbooks/<name>.md` or `principles/<name>.md` is from `$T/..`, the repo this skill lives in.
 
 ## Where it runs
@@ -83,7 +86,8 @@ Before a brief is queued, run this with the block at the top and the briefs' slu
 It runs the brief lint that `jbus queue add` runs, and reads the `Skills:` line as the crew skill loads it:
 
 ```sh
-for slug in <the slugs>; do
+slugs='<the slugs>'
+for slug in $slugs; do
     f="$H/tasks/$slug.md"
     if [ ! -f "$f" ]; then
         echo "$slug: no brief at $f"
