@@ -11,7 +11,7 @@ The record is `~/.local/state/jbus/<project>/items.jsonl`. It is only ever appen
 | `queued` | A pass that finds its row approved and waiting to launch. |
 | `running` | A pass that finds its row launched, at work, or with a pull request on its way. |
 | `waiting_on_you` | A pass that finds a gate, a thread's request or a merge `jmerge` holds, from `queued` or `running`. It goes back to the state it came from. |
-| `held` | A pass that finds a queued row's go taken back. A new go approves it again. |
+| `held` | A pass that finds a queued row's go taken back, or a hold steer. A new go approves it again. |
 | `done` | A pass that finds its row merged or done. |
 | `dropped` | `jbus item drop`, or a pass that finds its row removed. |
 
@@ -22,7 +22,33 @@ An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an o
 | Verb | What it does |
 |---|---|
 | `jbus item propose --title <title> --by <name> [--where chat\|view\|cli] [--owner <owner>]` | Proposes an item with no row, and prints its id. `--where` is where it was said, `cli` with none, and is the item's source. `--owner` is who will do it, `home` with none. |
-| `jbus item approve <id> --by <user> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Your go for an item. `--by` is refused for anyone but you. `--words` keeps what you said, as you said it. `--seen` names the item's last line as the writer saw it, and a move is refused where the item has moved since. |
+| `jbus item approve <id> --by <user> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Your go for an item, by its id. `--by` is refused for anyone but you. `--words` keeps what you said, as you said it. `--seen` names the item's last line as the writer saw it, and a move is refused where the item has moved since. From `chat` it is taken only where the words name the item, by its id or its slug, and its risk is `routine`: a review item, and a redirected one, is refused with the view's link `#/<project>/item/<id>`. |
+| `jbus item steer <id> message\|hold\|redirect --seen <line id> --by <name> [--where chat\|view\|cli] [--from <thread id>] [--confirm] [--message <thread id>/<message id>\|--word <id>\|--answer <number>] [<words>]` | Steers an item, as [Steering an item](#steering-an-item) says. |
 | `jbus item drop <id> --by <name> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Drops an item that will not be done. |
 | `jbus item show <id>` | Prints the item, its state, its slug, its source, its owner, its risk, its last line, and each of its lines. |
 | `jbus item list` | Prints every item, one line each: its id, state, risk, slug and title. |
+
+## Steering an item
+
+`jbus item steer` is the one way an item is steered, from chat, the view or the command, and `item.steer` decides it.
+A steer is one line, `steered`, with its `action`, and one quiet event `item.steered`.
+`--seen` is the item's last line as the steerer saw it.
+A steer whose `--seen` is not the item's last line is refused, quotes the line that came after, and writes nothing.
+So the same steer sent twice is written once.
+
+| Action | What it does |
+|---|---|
+| `message` | Sends the words to the thread of the item's home, as one queued message with the retry key `item\|<project>\|<id>\|<line id>`. The item does not move. |
+| `hold` | Takes the row's go back, as `jbus queue hold` does, and moves the item to `held`. It is refused without `--confirm`. |
+| `redirect` | Writes the brief on stdin as the row's brief, takes the row's go back, and moves the item to `proposed`. |
+
+A message is recorded whether or not T3 Code takes it, and the command says which.
+One that did not go is sent by the next pass, and `item-sends.json` beside the log says where each went and why one waits.
+A running item is not redirected, since its thread has the brief already: a message steers it.
+
+An agent steers only as itself.
+`--by` is its role and `--from` its thread, and the line keeps both, with who ran the command (`ran_by`) as an approval keeps it.
+A steer `--by` you is taken only with a word of yours it rests on, `--message`, `--word` or `--answer`, as an approval takes one.
+
+A redirected item is approved only by its id: `jbus item approve <id>` from the view or the command.
+Until then a pass does not approve it, `jbus item approve` from chat is refused, and `jbus queue approve` refuses its row by any basis, `--rule` with `--follows` included.

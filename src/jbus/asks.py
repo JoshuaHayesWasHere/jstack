@@ -99,7 +99,11 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     state = config.state(project)
     if args.verb == "apply":
         asks = _asks(config, project)
-        print("\n".join(queue.apply(state, sys.stdin.read(), config.user, asks)))
+        text = sys.stdin.read()
+        for _, verb in queue.parse(text):
+            if isinstance(verb, queue.Approve):
+                item.approvable(state, verb.slug)
+        print("\n".join(queue.apply(state, text, config.user, asks)))
         return 0
     if args.verb == "verify":
         return _verify(state, args.slug, args.brief)
@@ -127,6 +131,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             item.link(state, box, row, args.item or "", by, config.user.user)
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
+        item.approvable(state, args.slug)
         queue.approve(state, args.slug, rests, args.sha, config.user, _asks(config, project))
     elif args.verb == "hold":
         held = queue.hold(state, args.slug)

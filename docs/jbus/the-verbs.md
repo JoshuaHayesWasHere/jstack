@@ -12,7 +12,7 @@
 | `jbus view [--port <port>]` | Serves the bus as a page. The page reads, and writes one thing: your answer to a question. [The view](the-view.md) has the rest. |
 | `jbus word --to <project> --message <thread id>/<message id>` | Sends your word to a project's home, or with `--all` in place of `--to` to every home. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types it. `--from <thread id>` names the thread running the command: a word recorded by a project's home is not posted back to it. [Your word to a home](your-word-to-a-home.md) has the rest. |
 | `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](the-queue.md) has each verb. |
-| `jbus item propose\|approve\|drop\|show\|list` | Proposes, approves or drops a work item, or prints one or every one. [Work items](work-items.md) has each verb. |
+| `jbus item propose\|approve\|steer\|drop\|show\|list` | Proposes, approves, steers or drops a work item, or prints one or every one. [Work items](work-items.md) has each verb. |
 | `jbus plan [--scope <scope>]`, `jbus plan close <entry>` | Prints each entry of a home's `plan.md` with its status, or moves a finished entry out. [The plan](the-plan.md) has the rest. |
 | `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number. |
 | `jbus answer <number> --message <thread id>/<message id> --default` | Closes a question with your answer. `--default` says the answer is the default the thread took, and `--differs` in its place says it is not. One of the two is required. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types the answer. |
