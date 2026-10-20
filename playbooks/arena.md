@@ -27,7 +27,7 @@ No seat is a subagent.
 3. Approve the four rows, each on the user's word that asked for this arena, as "The user's word, carried by jbus" in `skills/home/SKILL.md` says.
    jbus launches each row when its `--depends` are met: the two runners at once, the judge once both runners ended `done` with no pull request, the graft once all three did.
 4. Drain as for any crewmate ("When a thread sends a message").
-   A runner that ends with no candidate is a dropout: queue the judge and the graft again with `--depends` on the other runner alone, approve both again, and send the graft's thread nothing, since it has not started.
+   A runner that ends with no candidate is a dropout: run the block of step 2 again with `have` set to the runner left, which writes the judge's and the graft's briefs again for that one candidate and queues them on it alone, then approve both again.
    Both runners with no candidate mean step 1 was too loose: frame it again under a new slug.
 5. Close by the graft's Result.
    It names the base and why, the judge's verdict and where it differed, each graft with its candidate, and the runner branches to remove once it merged.
@@ -40,6 +40,7 @@ size='<S, M, L or XL>'
 where='<the paths the artifact is in, each in backticks>'
 priority='<n>'
 scope=''
+have='a b'
 prompt=$(cat << 'THE_PROMPT_ENDS_HERE'
 <the one prompt both runners get>
 THE_PROMPT_ENDS_HERE
@@ -53,10 +54,13 @@ done_when=$(cat << 'THE_DONE_ENDS_HERE'
 THE_DONE_ENDS_HERE
 )
 proves='<the entry Proves it line>'
-. "$T/../skills/arena/briefs.sh"
+export H slug entry size where priority scope have prompt rubric done_when proves
+sh "$T/../skills/arena/briefs.sh"
 ```
 
-It writes the four briefs, then queues their rows in one batch, all four or none.
+It writes each brief that is not there, then queues the rows in one batch, all or none.
+Run again with the same frame, it keeps each brief as it is and queues again, so a turn that stopped between the two is finished by running it once more.
+On `differs`, a brief there has another head, or a seat it would write again has started: nothing is queued.
 On `refused:`, nothing is queued: mend the frame, delete the four briefs, and run it again.
 On `no row`, launch the runners by "Handing a task to a crewmate", and each later seat when the ones it depends on ended.
 
