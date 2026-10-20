@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).parent.parent
-SKILLS = sorted((REPO / "skills").glob("*/SKILL.md"))
+SKILLS = sorted((REPO / "skills").glob("*/*.md"))
 
 TYPED = {
     "pr-review": ["run a-slug", "a-slug"],

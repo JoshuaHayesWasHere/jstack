@@ -24,6 +24,7 @@ from crew.helpers import (
     said,
     with_field,
 )
+from test_home_thread import as_read
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 
@@ -348,7 +349,7 @@ ALL_INFO = "Fixed: none needed, every finding is info and left for a follow-up\n
 
 def declined(findings=INFO):
     """The `Finding:` lines of info findings a crewmate declines, in the skill's own words."""
-    found = re.findall(r"`(Finding: not fixed, <[^>]+>, because info: [^`]+)`", SKILL.read_text())
+    found = re.findall(r"`(Finding: not fixed, <[^>]+>, because info: [^`]+)`", as_read(SKILL))
     (shape,) = set(found)
     words = [finding.split(" ", 2)[2] for finding in findings]
     return "".join(re.sub("<[^>]+>", said, shape) + "\n" for said in words)
