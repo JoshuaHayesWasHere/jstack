@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Any
 
 import jroles
-from jbus import queue, read_json, write_json
+from jbus import mainstate, queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
@@ -110,6 +110,25 @@ def write_missing(run: Pass) -> None:
     for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
         if launched(run, slug):
             write_thread(run, slug, launched(run, slug), replace=False)
+
+
+GREEN_MAIN = "Green main:"
+
+
+def green_main(brief: str, green: str) -> str:
+    """The brief with `Green main: <sha>` under its first line, the last commit of main whose
+    check passed (`mainstate`), for a crew to rebase onto where main is red, in place of any
+    such line its head had. With no green main known the brief has none."""
+    kept, head = [], True
+    for line in brief.splitlines(keepends=True):
+        head = head and not line.startswith("## ")
+        if not (head and line.startswith(GREEN_MAIN)):
+            kept.append(line)
+    plain = "".join(kept)
+    if not green:
+        return plain
+    first, _, rest = plain.partition("\n")
+    return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
 
 
 def arguments(
@@ -340,11 +359,13 @@ class Turns:
             if base.returncode or not base.stdout.strip():
                 run.gate(slug, "the default branch is not known in the main checkout")
                 continue
-            text = queue.body(brief)
+            plain = queue.body(brief)
+            green = mainstate.read(run.state).green
+            text = green_main(plain, green)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
             on_disk = "" if wrote else queue.body(target.read_text(errors="replace"))
-            if not wrote and on_disk.strip() != text.strip():
+            if not wrote and on_disk.strip() != plain.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
             try:
@@ -377,6 +398,8 @@ class Turns:
             if wrote:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
+            elif (named := green_main(kept := target.read_text(errors="replace"), green)) != kept:
+                target.write_text(named)
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"

@@ -110,7 +110,7 @@ STATUSES = (
 )
 FINAL = ("merged", "done")
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
-_SENT_TO = ("Home:", "Thread:")
+_SENT_TO = ("Home:", "Thread:", "Green main:")
 PAGE = "page"
 BASES = ("word", "answer", "message", PAGE)
 BASIS = (
@@ -319,9 +319,10 @@ def sha(text: str) -> str:
 
 
 def body(text: str) -> str:
-    """The brief with no `Home:` and no `Thread:` line in its head, the lines above its first
-    `## `. They name the threads the brief is sent to, and a brief is the same brief under
-    another home. It is what a launch sends, so no line goes out that the sha leaves out."""
+    """The brief with no `Home:`, `Thread:` or `Green main:` line in its head, the lines above
+    its first `## `. The first two name the threads the brief is sent to, and a brief is the
+    same brief under another home; the third is the line a launch writes (`dispatch`).
+    It is what a launch sends, so no line goes out that the sha leaves out."""
     kept, head = [], True
     for line in text.splitlines(keepends=True):
         head = head and not line.startswith("## ")
