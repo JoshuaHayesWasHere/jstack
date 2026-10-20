@@ -761,8 +761,10 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
 
 
-def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path):
-    """The thread's turn then ends with the one line, and jbus wakes it: the file has it."""
+def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
+    """The thread's turn then ends with the one line, and jbus wakes it: the file has it. The
+    full lane is the default two slots, whatever `TEST_SLOTS` the machine sets."""
+    monkeypatch.delenv("TEST_SLOTS", raising=False)
     (tmp_path / "stub").mkdir()
     room.uv(tmp_path / "stub")
     home = tmp_path / "home"
