@@ -6,15 +6,19 @@ This is the one resolver. `jbus queue add` refuses a name it does not resolve
 names (`jbriefs --skills`), and `jmerge` holds a pull request whose Results leave a named
 skill with no artifact (`jmerge.ready.short_of`).
 
+The names are listed in `skills.json` at the repo root, which `make skills-json` writes
+from skills/ and principles/ (`scripts/skills_json.py`) and nothing else edits: `make check`
+fails when it is stale. A name is a skill, `skills/<name>/SKILL.md`, or a principle,
+`principles/principle-<name>.md`, and its canonical form is the directory's or the file's
+name: `architect`, `principle-model-the-domain`. The file is also what any reader outside
+this repo (another provider, another machine) takes the set from.
+
 The names are pstack's, so that a name in a brief resolves the same way in Grok Bot, which
-pstack drives, and in T3, which jstack drives. A name is a skill, `skills/<name>/SKILL.md`,
-or a principle, `principles/principle-<name>.md`, of the repo this module lives in, and its
-canonical form is the directory's or the file's name: `architect`, `principle-model-the-
-domain`. The one list of names is those two directories: there is no table to keep beside
-them. Two kinds of alias are read from the same list. A principle's name before it took
-pstack's prefix, `model-the-domain`, is that principle. A pstack skill that jstack keeps as
-a playbook (`PLAYBOOKS`) is `playbooks/<name>.md`. Any other spelling, a path, a `/` in
-front or a capital letter, is no name, and so is a pstack skill jstack did not take
+pstack drives, and in T3, which jstack drives. Three kinds of alias resolve. An entry's
+`pstack_name`, where pstack's name for it differs, is that entry. A principle's name before
+it took pstack's prefix, `model-the-domain`, is that principle. A pstack skill that jstack
+keeps as a playbook (`PLAYBOOKS`) is `playbooks/<name>.md`. Any other spelling, a path, a
+`/` in front or a capital letter, is no name, and so is a pstack skill jstack did not take
 (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
 
 `templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
@@ -23,13 +27,14 @@ one item, `- <name>: <the artifact>`, its further lines indented.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SKILLS = ROOT / "skills"
-PRINCIPLES = ROOT / "principles"
+CATALOG = "skills.json"
 PLAYBOOK_DIR = ROOT / "playbooks"
 PLAYBOOKS = ("arena", "swarm")
 ARTIFACTS = ROOT / "templates" / "skill-artifacts.md"
@@ -76,23 +81,31 @@ class Named:
         return str(self.path.relative_to(ROOT)) if self.path else ""
 
 
+@cache
+def _listed() -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
+    """The items of `skills.json`, by name and by `pstack_name`."""
+    items = json.loads((ROOT / CATALOG).read_text())["items"]
+    by_name = {item["name"]: item for item in items}
+    by_alias = {item["pstack_name"]: item for item in items if "pstack_name" in item}
+    return by_name, by_alias
+
+
 def resolve(said: str) -> Named:
-    """The file a name loads: `skills/<name>/SKILL.md`; for `principle-<name>`,
-    `principles/principle-<name>.md` alone; for an old principle name, the principle that
-    took the prefix; for a pstack skill kept as a playbook, the playbook."""
+    """The file a name loads, from `skills.json`: the item of that name, or the one pstack
+    names so; for an old principle name, the principle that took the prefix; for a pstack
+    skill kept as a playbook, the playbook."""
     if not _NAME.fullmatch(said):
         return Named(said, None)
-    if said.startswith(ALIAS):
-        principle = PRINCIPLES / f"{said}.md"
-        return Named(said, principle if principle.is_file() else None)
-    for path in (
-        SKILLS / said / "SKILL.md",
-        PRINCIPLES / f"{ALIAS}{said}.md",
-        PLAYBOOK_DIR / f"{said}.md" if said in PLAYBOOKS else None,
-    ):
-        if path is not None and path.is_file():
-            return Named(said, path)
-    return Named(said, None)
+    by_name, by_alias = _listed()
+    item = by_name.get(said) or by_alias.get(said)
+    if item is None and not said.startswith(ALIAS):
+        old = by_name.get(f"{ALIAS}{said}")
+        item = old if old is not None and old["kind"] == "principle" else None
+    if item is not None:
+        path = ROOT / item["path"]
+        return Named(said, path if path.is_file() else None)
+    playbook = PLAYBOOK_DIR / f"{said}.md"
+    return Named(said, playbook if said in PLAYBOOKS and playbook.is_file() else None)
 
 
 def _none(line: str) -> bool:
@@ -127,7 +140,7 @@ def named(text: str) -> tuple[Named, ...]:
     return tuple(found.values())
 
 
-_NAMES = "(name a skill of skills/ or a principle of principles/, without its path, or none)"
+_NAMES = "(name a skill or principle that skills.json lists, without its path, or none)"
 
 
 def unknown(text: str) -> str:
@@ -148,7 +161,7 @@ def unknown(text: str) -> str:
         if len(bad) > SHOWN:
             listed += f" and {len(bad) - SHOWN} more"
         which = "which is" if len(bad) == 1 else "which are"
-        fault = f"names {listed}, {which} no skill in skills/ and no principle in principles/"
+        fault = f"names {listed}, {which} no skill and no principle that skills.json lists"
     return f"brief's Skills: line {fault} {_NAMES}"
 
 
@@ -264,8 +277,8 @@ def load(text: str) -> str:
     for one in names:
         if one.path is None:
             out.append(
-                f"unknown skill: {one.said} is no skill of skills/ and no principle of "
-                "principles/, so nothing is loaded for it"
+                f"unknown skill: {one.said} is no skill and no principle that skills.json "
+                "lists, so nothing is loaded for it"
             )
     known = [one for one in names if one.path is not None]
     if known:
