@@ -104,8 +104,10 @@ A message goes to the item's home in the same request, and where T3 Code does no
 A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other file names it.
 
 1. `panel.py` is its data. `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
-2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen, and `reads` where the server reads its data itself.
+2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
 3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count beside the Needs you queue.
 4. Set `FIRST = True` in `panel.py` only when the first screen needs the data. Without it the page asks `/panel/<name>.json` when the drawer opens.
+
+A panel whose data the server reads itself says so with `reads`, and its drawer's head then says it is read now.
 
 An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.
