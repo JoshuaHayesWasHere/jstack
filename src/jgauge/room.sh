@@ -26,11 +26,14 @@ room() (
       $(0) == "\001" {runs = 1; next}
       !runs {path = $(0); while (path ~ /.\//) {held[path]; sub(/\/[^\/]*$/, "", path)}; next}
       !($(0) in held)')
-    if [ -n "$stale" ]; then
-      removed=$(printf '%s\n' "$stale" | while IFS= read -r run; do
-        rm -rf -- "$run" 2> /dev/null
-        [ -e "$run" ] || echo "$run"
-      done | wc -l)
+    removed=$(printf '%s\n' "$stale" | while IFS= read -r run; do
+      [ -n "$run" ] || continue
+      pid=$(head -c 20 "$run/.lock" 2> /dev/null)
+      case $pid in "" | *[!0-9]*) ;; *) [ -e "$PROC/$pid" ] && continue ;; esac
+      rm -rf -- "$run" 2> /dev/null
+      [ -e "$run" ] || echo "$run"
+    done | wc -l)
+    if [ "$removed" -gt 0 ]; then
       was=$slots
       slots=$(read_slots)
       echo "$was $slots" | awk -v removed="$removed" -v TMPFS="$TMPFS" '{

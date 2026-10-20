@@ -608,6 +608,27 @@ def test_a_pytest_run_a_live_process_holds_is_never_removed(tmp_path, how):
     assert not any(path.exists() for path in stale)
 
 
+def test_a_pytest_run_whose_lock_names_a_live_process_is_never_removed(tmp_path):
+    env, tmp = tmpfs(tmp_path, 99)
+    live_run, dead_run, *stale = runs(tmp, "joshua", [1, 2, 3, 4, 5, 6, 7])
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    live = subprocess.Popen(["sleep", "60"], cwd=tmp_path)
+    try:
+        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
+        for run, pid in [(live_run, live.pid), (dead_run, gone.pid)]:
+            (run / ".lock").write_text(str(pid))
+            os.utime(run, (time.time() - STALE,) * 2)
+        alone = ran(env)
+    finally:
+        live.kill()
+        live.wait()
+    assert alone.stdout == "go\n"
+    assert alone.stderr.startswith("room: removed 6 stale pytest directories under ")
+    assert live_run.is_dir() and len(list((live_run / "test_it0").iterdir())) == 10
+    assert not dead_run.exists() and not any(path.exists() for path in stale)
+
+
 def test_held_or_fresh_pytest_runs_still_wait_and_nothing_is_removed(tmp_path):
     env, tmp = tmpfs(tmp_path, 50)
     fresh = runs(tmp, "joshua", [1, 2, 3], age=60)
