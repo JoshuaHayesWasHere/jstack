@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from jgauge import session, slot, transcript, waiters
+from jgauge import sample, session, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
 
 NO_ROOM = 75
@@ -77,6 +77,25 @@ def cmd_room(args: argparse.Namespace) -> int:
     if args.wait is None:
         return subprocess.run(look, env=env).returncode
     return _wait_for_room(look, args.wait, args.every, env)
+
+
+def _since(asked: str) -> int:
+    try:
+        return sample.since(asked)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
+def cmd_sample(args: argparse.Namespace) -> int:
+    log = sample.log_path()
+    if not args.report:
+        if args.since is not None or args.pressure is not None:
+            args.usage("--since and --pressure go with --report")
+        sample.take(log)
+        return 0
+    pressure = sample.PRESSURE_LINE if args.pressure is None else args.pressure
+    print("\n".join(sample.report(log, args.since, pressure)))
+    return 0
 
 
 def _list_waiters() -> int:
@@ -148,6 +167,33 @@ def parser() -> argparse.ArgumentParser:
         " memory, memory pressure, /tmp and the plan still hold it",
     )
     room.set_defaults(run=cmd_room)
+
+    sampled = commands.add_parser(
+        "sample",
+        help="append one row of load and pressure to the log, or with --report count its rows",
+        description="Append one row to the log (JGAUGE_LOAD_LOG, else"
+        " ~/.local/state/jgauge/load.tsv): the time, the cores, /proc/loadavg, and some and full"
+        " avg10 and avg60 of /proc/pressure/{cpu,memory,io}. Rows older than 30 days are dropped.",
+    )
+    sampled.add_argument(
+        "--report",
+        action="store_true",
+        help="print the rows, their span, and how many had the 1-minute load at or over room's"
+        " line while CPU pressure (some avg60) was under the pressure line",
+    )
+    sampled.add_argument(
+        "--since",
+        metavar="TIME",
+        type=_since,
+        help="with --report, count rows from this time: seconds since the epoch or an ISO date",
+    )
+    sampled.add_argument(
+        "--pressure",
+        metavar="LINE",
+        type=float,
+        help=f"with --report, the CPU pressure line (default: {sample.PRESSURE_LINE:g})",
+    )
+    sampled.set_defaults(run=cmd_sample, usage=sampled.error)
 
     held = commands.add_parser(
         "test-slot",
