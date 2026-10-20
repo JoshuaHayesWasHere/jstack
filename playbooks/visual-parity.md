@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own pixel-exact equivalence of one component.** The baseline is the spec, and you do not touch it. Equivalence is shown by an image diff, not by eye. Three things are held from the first step to the last: the harness is not changed, the baseline is not changed, and the component is not restructured so that a diff passes.
 
 1. Establish the baseline first, before any migration: the harness that screenshots the current component across its states, and its images, plus the target's when two implementations are matched. No baseline, no parity claim. Where the repo has none and the brief's **Where** covers a harness, build it now, take its images under the lock of step 2, and commit it by itself, before the component is touched (`principles/principle-sequence-verifiable-units.md`). Where it does not, stop and say so.

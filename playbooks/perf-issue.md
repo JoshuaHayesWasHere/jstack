@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own the measurement story.** Every fix is tied to a number you took, and a number is believed only after it is vetted. Reading the source is not measuring: no claim of a ceiling, a cause or a win without a run behind it.
 
 1. Write the claim you expect to ship, in one sentence with its unit ("the export is 30% faster at the median on the 60k-row file"), and the one command that measures it: the repo's verify skill or harness where it has one, otherwise the command the brief names. Set a target the field would call ambitious, proved by the measurement and not by your own word (`principles/principle-depth-over-breadth.md`). Read `skills/benchmark-checklist/SKILL.md` in full now.

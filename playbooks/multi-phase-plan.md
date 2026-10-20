@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own the plan, not the code.** The plan is the deliverable: entries in `$M/plan.md` that a crewmate each works line by line and the user can audit from the evidence. Write nothing in the repo.
 
 1. Size it first (`principles/principle-subtract-before-you-add.md`). Work that is one pull request with an obvious approach is one entry: write it by "Planning" in `skills/home/SKILL.md`, and steps 2 to 7 are `skip: one entry`.
