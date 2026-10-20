@@ -34,9 +34,9 @@ This page says what the Chef is sent, what it may run, and how to make one as a 
 | `events[].event` | The kind, such as `gate`, `result`, `review` or `merged`. |
 | `events[].line` | The event in one line. |
 | `events[].text` | The whole text when there is one: a Result, a Review, a Report, a gate. |
-| `events[].loud` | `user`, `chef` or `quiet`. An event with `user` also has its own `say`. |
+| `events[].loud` | `user` or `quiet`. An event with `user` also has its own `say`. |
 
-[Events and the webhook](jbus.md#events-and-the-webhook) has the kinds at each level. A project's `loud` key in the config limits the levels its webhook is sent.
+[Events and the webhook](jbus.md#events-and-the-webhook) has the kinds at each level. A project's webhook is posted its `user` events, and nothing quiet.
 
 Each POST carries the project's `webhook_key` in two headers, `Authorization: Bearer <key>` and `X-Automation-Key: <key>`. Its `User-Agent` is `jbus`.
 
