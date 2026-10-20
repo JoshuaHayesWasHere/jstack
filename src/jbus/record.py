@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any
 from jbriefs.home import thread_of
 from jbus import Config, alert, project, read_json, signin, t3, wake, write_json
 from jbus.queue import Row
-from jbus.watch import World, checks
+from jbus.watch import NEVER, World, checks
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -128,7 +128,7 @@ def _latest(pull: dict[str, Any]) -> dict[str, Any] | None:
     check = max(reversed(rollup), key=_order)
     return {
         "name": check.get("name") or check.get("context") or "",
-        "state": checks({"statusCheckRollup": [check]}),
+        "state": checks({"statusCheckRollup": [check], NEVER: pull.get(NEVER)}),
         "started": _time(check.get("startedAt")),
         "completed": _time(check.get("completedAt")),
     }

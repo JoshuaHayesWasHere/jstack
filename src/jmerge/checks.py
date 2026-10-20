@@ -8,6 +8,7 @@ named `check`; what `jmerge` merges on is `ready.passed`, that one check alone.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from jmerge.ready import latest
 
@@ -35,6 +36,15 @@ def failed_jobs(rollup: list[dict]) -> list[tuple[str, str, str]]:
         if job:
             found.append((url, *job.groups()))
     return found
+
+
+def never_started(rollup: list[dict], job_of: Callable[[str, str], dict]) -> frozenset[str]:
+    """The address of each failed check whose job GitHub says ran no step: `job_of` gives a
+    job as GitHub does, by repo and number, or {} where GitHub will not give it, which counts
+    as a job that ran."""
+    return frozenset(
+        url for url, repo, job in failed_jobs(rollup) if job_of(repo, job).get("steps") == []
+    )
 
 
 _JOB_URL = re.compile(r"^https://[^/]*/([^/]*/[^/]*)/actions/runs/\d+/job/(\d+)$")

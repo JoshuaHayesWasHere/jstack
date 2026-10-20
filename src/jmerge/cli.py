@@ -1348,6 +1348,16 @@ class Sweep:
         return 0
 
 
+def _job(repo: str, job: str) -> dict:
+    """A job as GitHub gives it, or {} where it gives none."""
+    given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
+    try:
+        found = json.loads(given.stdout) if not given.returncode else {}
+    except ValueError:
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
 def said_of_checks(pull: str) -> str:
     """The one line `--checks` prints for a pull request: its checks in a word, then why. A
     failed check whose job ran no step never started; one whose job GitHub will not give
@@ -1357,17 +1367,10 @@ def said_of_checks(pull: str) -> str:
         asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", "headRefOid,statusCheckRollup")
         view = json.loads(asked.stdout) if not asked.returncode else None
         rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
-        never = set()
-        for url, repo, job in checks.failed_jobs(rollup):
-            given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
-            try:
-                if not given.returncode and json.loads(given.stdout).get("steps") == []:
-                    never.add(url)
-            except (ValueError, AttributeError):
-                continue
+        never = checks.never_started(rollup, _job)
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return "wait: could not ask GitHub"
-    return checks.SAID[checks.checks(rollup, frozenset(never))].format(head=head)
+    return checks.SAID[checks.checks(rollup, never)].format(head=head)
 
 
 def parser() -> argparse.ArgumentParser:
