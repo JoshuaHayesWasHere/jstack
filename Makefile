@@ -44,12 +44,14 @@ check:
 # reaches, as scripts/select_tests.py names them. Where the script says `all`, it is
 # `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
 # pull request is the tip of main; a desk takes origin/main. The full suite runs on main
-# after the merge.
+# after the merge. Before the tests, scripts/prose_lint.py holds each prose line the diff adds
+# to one sentence.
 BASE ?= origin/main
 
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
+	python3 scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	set -x; \
 	uv run ruff check . && uv run ruff format --check . && $(PYTEST) $$tests
