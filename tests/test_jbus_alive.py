@@ -126,6 +126,68 @@ def test_an_alert_the_webhook_did_not_take_waits_and_a_pass_keeps_the_streaks(ki
     assert kitchen.log("notify") == [f"jbus | {alert}", f"jbus | {recovered}"]
 
 
+STALE = (
+    "alert: stale failed 1 times in a row since {since}: "
+    "no pass ended since {last}, more than 2h ago"
+)
+
+
+def stale(now, limit="2h"):
+    said = []
+    assert cli.stale(jbus.load(), cli.span(limit), now, said.append) == 0
+    return said
+
+
+def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_says_it_recovered(kitchen):
+    """The watcher is `jbus alarm --stale 2h`, run by its own timer: it reads the end of the
+    last pass from `pass.json`, and the pass after the outage ends its streak."""
+    kitchen.poll(NOW)
+    assert stale(NOW + timedelta(hours=1, minutes=59)) == ["pass seen: last ended 11:00 ET"]
+    assert kitchen.webhook.posts == [] and kitchen.log("notify") == []
+    first = STALE.format(since="13:01 ET", last="2026-10-12 11:00 ET")
+    assert stale(NOW + timedelta(hours=2, minutes=1)) == [
+        "no pass: last ended 2026-10-12 11:00 ET",
+        "alert sent: demo",
+    ]
+    assert stale(NOW + timedelta(hours=3)) == ["no pass: last ended 2026-10-12 11:00 ET"]
+    assert kitchen.webhook.said == [[f"demo: {first}"]]
+    assert kitchen.log("notify") == [f"jbus | {first}"]
+    kitchen.poll(NOW + timedelta(hours=3, minutes=10))
+    recovered = "recovered: stale after 2 failures since 13:01 ET"
+    assert kitchen.lines("alert") == [first, recovered]
+    assert kitchen.status()["streaks"] == {}
+    kitchen.poll(NOW + timedelta(hours=3, minutes=11))
+    assert kitchen.webhook.said[1:] == [[f"demo: {recovered}"]]
+    assert kitchen.lines("alert") == [first, recovered]
+    second = STALE.format(since="16:12 ET", last="2026-10-12 14:11 ET")
+    assert stale(NOW + timedelta(hours=5, minutes=12))[1:] == ["alert sent: demo"]
+    assert kitchen.webhook.said[2:] == [[f"demo: {second}"]]
+    assert kitchen.log("notify")[1:] == [f"jbus | {second}"]
+
+
+def test_a_pass_that_never_ended_counts_from_its_start_and_no_record_is_no_pass(kitchen):
+    assert stale(NOW) == ["no pass: none on record", "alert sent: demo"]
+    (alert,) = kitchen.lines("alert")
+    assert alert == "alert: stale failed 1 times in a row since 11:00 ET: no pass on record"
+    jbus.write_json(kitchen.state_dir / "pass.json", {"started": "2026-10-12T15:00:00Z"})
+    assert stale(NOW + timedelta(minutes=1), "1m") == ["pass seen: last ended 11:00 ET"]
+    assert stale(NOW + timedelta(minutes=2), "1m") == ["no pass: last ended 2026-10-12 11:00 ET"]
+
+
+def test_the_alarm_verb_takes_a_limit_in_minutes_hours_or_days(kitchen):
+    kitchen.poll(datetime.now(UTC))
+    code, said = kitchen.main("alarm", "--stale", "2h")
+    assert (code, said.startswith("pass seen: last ended ")) == (0, True)
+    code, said = kitchen.main("alarm", "--stale", "2x")
+    assert code == 2 and "a limit is a number and m, h or d, as 2h: not 2x" in said
+    assert [cli.span(given) for given in ("15m", "2h", "1d")] == [
+        timedelta(minutes=15),
+        timedelta(hours=2),
+        timedelta(days=1),
+    ]
+    assert kitchen.main("alarm") == (0, "pass failed: 1 in a row\n")
+
+
 def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(kitchen):
     kitchen.poll(NOW)
     kitchen.poll(NOW + timedelta(minutes=59))

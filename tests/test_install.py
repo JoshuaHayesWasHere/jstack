@@ -36,13 +36,21 @@ UNITS = [
     "jbus-snapshot-failed.service",
     "jbus-snapshot.service",
     "jbus-snapshot.timer",
+    "jbus-stale.service",
+    "jbus-stale.timer",
     "jbus-view.service",
     "jbus.service",
     "jbus.timer",
     "jgauge-sample.service",
     "jgauge-sample.timer",
 ]
-TIMERS = ["jbus-ci.timer", "jbus-snapshot.timer", "jbus.timer", "jgauge-sample.timer"]
+TIMERS = [
+    "jbus-ci.timer",
+    "jbus-snapshot.timer",
+    "jbus-stale.timer",
+    "jbus.timer",
+    "jgauge-sample.timer",
+]
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 

@@ -430,7 +430,8 @@ def poll(
     A project that raises is said, kept as its `last_error`, and does not end the pass: the
     others still run and the status file is still written. The answer is then 1. Nothing
     is launched in such a pass, since that project's crews out are not known. A pass in
-    which nothing raised ends the `pass` streak that `jbus alarm` counts. A record of the
+    which nothing raised ends the `pass` streak that `jbus alarm` counts, and the `stale`
+    streak that `jbus alarm --stale` counts. A record of the
     pass that cannot be written is said, and the pass does all it does with one.
 
     A config that still has a key nothing reads is said in one line, on each pass until
@@ -490,12 +491,15 @@ def poll(
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:
-            recovered = alert.ok(config.state_dir, alert.PASS, user=config.user)
-            for half in halves:
-                name = half.run.project.name
-                guarded(name, lambda half=half: alert.deliver(half.run, recovered))
-            if recovered and not raised:
-                alert.told(config.state_dir, alert.PASS)
+            for key in (alert.PASS, alert.STALE):
+                if raised:
+                    break
+                recovered = alert.ok(config.state_dir, key, user=config.user)
+                for half in halves:
+                    name = half.run.project.name
+                    guarded(name, lambda half=half, line=recovered: alert.deliver(half.run, line))
+                if recovered and not raised:
+                    alert.told(config.state_dir, key)
         report = status(config, now)
         if report["homes_off_bus"] != last.get("homes_off_bus", []):
             say(f"homes not on the bus: {', '.join(report['homes_off_bus']) or 'none'}")
@@ -518,6 +522,69 @@ def alarm(
     return alert.sound(config, alert.PASS, ALARM, alert.AFTER, now, say)
 
 
+SPAN = re.compile(r"([1-9][0-9]*)([mhd])")
+UNITS = {"m": "minutes", "h": "hours", "d": "days"}
+SIZES = (("d", 1440), ("h", 60), ("m", 1))
+
+
+def span(given: str) -> timedelta:
+    """A limit as the user types it: a number and m, h or d, as `2h`."""
+    found = SPAN.fullmatch(given)
+    if found is None:
+        raise argparse.ArgumentTypeError(f"a limit is a number and m, h or d, as 2h: not {given}")
+    return timedelta(**{UNITS[found[2]]: int(found[1])})
+
+
+def _shown(limit: timedelta) -> str:
+    """A limit as `span` reads it, in its largest whole unit."""
+    minutes = int(limit.total_seconds() // 60)
+    return next(f"{minutes // size}{unit}" for unit, size in SIZES if minutes % size == 0)
+
+
+def stale(
+    config: jbus.Config,
+    limit: timedelta,
+    now: datetime | None = None,
+    say: Callable[[str], None] = print,
+) -> int:
+    """Look for a pass that ended within `limit`, from a timer of its own, so a `jbus.timer`
+    that is stopped or a `jbus.service` that never starts is seen: `jbus-failed.service` runs
+    only when a pass fails.
+
+    The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
+    one that died. Past the limit, and with no record at all, it counts a failure of the
+    `stale` streak, which alerts at the first, once (`alert.sound`). The next pass in which
+    nothing raised ends the streak, and says it recovered (`poll`).
+    """
+    now = now or datetime.now(UTC)
+    kept = record.read(config)
+    last = kept.get("ended") or kept.get("started")
+    if not isinstance(last, str):
+        say("no pass: none on record")
+        return alert.sound(config, alert.STALE, "no pass on record", 1, now, say)
+    ended = datetime.fromisoformat(last)
+    if now - ended <= limit:
+        say(f"pass seen: last ended {config.user.clock(ended)}")
+        return 0
+    at = config.user.stamp(ended)
+    say(f"no pass: last ended {at}")
+    why = f"no pass ended since {at}, more than {_shown(limit)} ago"
+    return alert.sound(config, alert.STALE, why, 1, now, say)
+
+
+def _stale(shown: argparse.ArgumentParser) -> None:
+    shown.add_argument(
+        "--stale",
+        type=span,
+        metavar="LIMIT",
+        help="look for a pass that ended within LIMIT (as 2h) instead: past it alerts, once",
+    )
+
+
+def run_alarm(args: argparse.Namespace, config: jbus.Config) -> int:
+    return alarm(config) if args.stale is None else stale(config, args.stale)
+
+
 def _port(shown: argparse.ArgumentParser) -> None:
     shown.add_argument("--port", type=int, default=view.PORT, help="the one port it listens on")
 
@@ -529,8 +596,8 @@ VERBS = (
     verbs.Verb(
         "alarm",
         "count a pass that did not finish: the third in a row alerts",
-        verbs.nothing,
-        lambda _, config: alarm(config),
+        _stale,
+        run_alarm,
     ),
     verbs.Verb(
         "view",
