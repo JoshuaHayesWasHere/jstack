@@ -143,6 +143,17 @@ def test_only_markdown_of_the_four_folders_is_judged(repo):
     assert check(repo)[0] == 1
 
 
+def test_a_page_moved_whole_is_never_judged_and_a_moved_page_only_for_what_changed(repo):
+    git(repo, "mv", "docs/old.md", "docs/moved.md")
+    git(repo, "commit", "-q", "-m", "move")
+    assert check(repo) == (0, [])
+    change(repo, "docs/moved.md", lambda text: text.replace("Nobody rewraps it.", "Nobody does."))
+    code, said = check(repo)
+    at = numbered(repo, "docs/moved.md", LONG + " Nobody does.")
+    assert code == 1
+    assert [one.split(": ")[0] for one in said[:-1]] == [f"docs/moved.md:{at}"]
+
+
 def test_a_removed_line_is_never_judged(repo):
     change(repo, "docs/old.md", lambda text: text.replace(LONG + " Nobody rewraps it.\n", ""))
     assert check(repo) == (0, [])
@@ -172,6 +183,7 @@ def test_a_base_that_is_not_a_commit_fails_and_says_git_failed(repo):
         ("Read docs/jbus.md and skills/crew/SKILL.md for it.", 1),
         ("Run `make check. Then` once.", 1),
         ("Run `a`. Then `b`.", 2),
+        ("Stop here. `Then` go on.", 2),
         ("See [the page](docs/a.b. C.md) here.", 1),
         ('He said "stop." Then left.', 2),
         ("It ends (as it should.) Then more.", 2),

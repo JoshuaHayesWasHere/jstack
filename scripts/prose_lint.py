@@ -1,10 +1,11 @@
 """One sentence per line, for new prose: `prose_lint.py <base>`.
 
-It reads what a pull request adds or changes with `git diff --unified=0 --no-renames
+It reads what a pull request adds or changes with `git diff --unified=0 --find-renames
 <base>...HEAD`, in the Markdown files of `docs/`, `skills/`, `playbooks/` and `templates/`,
 and fails on each added line that holds more than one sentence. It prints one fault a line,
 `<file>:<line>: ...: <the line>`, and exits 1. A line the diff does not add is never judged,
-so old prose stays as it is until a pull request touches it.
+so old prose stays as it is until a pull request touches it: a file moved whole adds no
+line, and a moved file adds only the lines that changed.
 
 A line is judged in its place in the file at HEAD, read whole, so it knows what the line is
 in. These are not prose and are never judged: a line in a code fence, in the front matter, in
@@ -43,7 +44,7 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 def sentences(line):
     """The sentences of one line of prose, in order, as they are written."""
     text = LINK.sub(lambda found: "]" + "x" * (len(found[0]) - 1), line)
-    text = CODE.sub(lambda found: "x" * len(found[0]), text)
+    text = CODE.sub(lambda found: "`" + "x" * (len(found[0]) - 1), text)
     found, start = [], 0
     for end in END.finditer(text):
         before = WORD_BEFORE.search(text, start, end.start() + len(end[0].rstrip()))
@@ -119,7 +120,7 @@ def git(*args):
 
 def faults(base):
     """Each added prose line of more than one sentence, as `(path, number, line)`."""
-    diff = git("diff", "--unified=0", "--no-renames", "--no-ext-diff", f"{base}...HEAD", "--")
+    diff = git("diff", "--unified=0", "--find-renames", "--no-ext-diff", f"{base}...HEAD", "--")
     found = []
     for path, numbers in added(diff).items():
         if not path.startswith(FOLDERS) or not path.endswith(".md"):
