@@ -1,8 +1,6 @@
-# Runs jbus-stale.service every 15 minutes, on a timer of its own: stopping jbus.timer does not
-# stop this one. The first look is 2 hours after the timer starts, at boot or at install, so a
-# jbus that has had no time to make its first pass is not reported.
 [Unit]
 Description=jbus stale: a look for a missing pass every 15 minutes
+Documentation=file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Timer]
 OnActiveSec=2h

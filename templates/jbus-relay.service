@@ -1,14 +1,6 @@
-# jbus relay: takes what jbus posts on 127.0.0.1:4390 and sends it on to Sous Chef, spooled,
-# and pages Home Assistant's mobile push, with notify-send beside it, when Sous Chef is silent.
-# Install: `sh install.sh` in the checkout links this file into ~/.config/systemd/user/, and
-# `systemctl --user enable --now jbus-relay.service` starts it. Do not copy this file.
-# Its settings are in ~/.config/jbus-relay/env (docs/jbus.md, "The relay"), the fallback pager's
-# PAGER_HA_URL, PAGER_HA_TOKEN and PAGER_HA_SERVICE among them. A target whose URL or key is
-# missing, empty or REPLACE_ME stops it at start with status 2, which is not restarted:
-# `systemctl --user status jbus-relay` shows it failed, and the journal says why. notify-send
-# reaches the desktop over the session bus the user manager gives every user unit.
 [Unit]
 Description=jbus relay: what jbus posts, sent on to Sous Chef, paged when it is silent (loopback only)
+Documentation=file:%Y/../docs/jbus/the-relay.md#the-relay
 
 [Service]
 EnvironmentFile=%h/.config/jbus-relay/env

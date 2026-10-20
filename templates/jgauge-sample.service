@@ -1,8 +1,6 @@
-# jgauge sample: append one row of load and pressure to ~/.local/state/jgauge/load.tsv.
-# Install: `sh install.sh` links this file and jgauge-sample.timer into ~/.config/systemd/user/
-# with the jbus units, and enables the timer. Do not copy this file.
 [Unit]
 Description=jgauge sample: one row of load and pressure
+Documentation=file:%Y/../docs/jgauge.md#jgauge
 
 [Service]
 Type=oneshot

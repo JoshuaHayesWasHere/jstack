@@ -1,7 +1,6 @@
-# Runs jbus.service every minute. A pass holds a lock for as long as it runs, and
-# one that finds the lock held prints `busy` and ends, so passes that overlap are harmless.
 [Unit]
 Description=jbus: a pass every minute
+Documentation=file:%Y/../docs/jbus/set-up-jbus.md#set-up-jbus file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Timer]
 OnBootSec=2min

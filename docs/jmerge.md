@@ -81,11 +81,23 @@ A push that fixes a failed check after the review is read the same way. The crew
 
 ## Protected and guarded paths
 
-`jmerge` reads three lists from its own package directory, never from a pull request. Each has one pattern per line and `#` for a comment. A pattern that ends in `/` is a directory. Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root. `jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read, such as `**` or a leading `!`.
+`jmerge` reads three lists from its own package directory, never from a pull request: `protected.txt`, `guarded.txt` and `src/jmerge/ci-paths.txt`, the paths that decide whether a check still stands ([Fresh against main](#fresh-against-main)). Each holds patterns and nothing else.
+
+### Patterns
+
+One pattern per line. A line that starts with `#` is a comment, and the shipped lists have none.
+
+- A pattern that ends in `/` is a directory, and covers everything under it. With another `/` in it, or one at its start, it is a path from the root of the repo. With none, it is a directory of that name at any depth.
+- Any other pattern is a file. With no `/` in it, it is a file name at any depth. With one, it is the whole path from the root of the repo: `src/jbus/merge.py`, `/Makefile`.
+- `*` matches any run of characters between two `/`, and never a `/` itself.
+
+`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part. It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: docs/jmerge.md#patterns)`.
+
+### The lists
 
 **Protected paths** are in `src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the files `protected.txt` and `guarded.txt` themselves, and the directories `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records. A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`. So is one whose file list GitHub cut short.
 
-**Guarded paths** are in `src/jmerge/guarded.txt`: `acceptance/`, `.github/workflows/`, `src/jmerge/`, `src/jbus/` and `skills/`. `jmerge` merges a pull request that changes one under a stricter gate, and prints a part that does not hold as `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
+**Guarded paths** are in `src/jmerge/guarded.txt`, which is empty: no path is guarded, and a ready pull request merges with no proven safety fact at its head. A pattern added to it guards that path again, and since the file is protected, the user merges that change. `jmerge` merges a pull request that changes a guarded path under a stricter gate, and prints a part that does not hold as `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
 
 - **A check with a start time.** `check` passed at the head, and the time its earliest run started there is known: `its check has no start time`.
 - **A finished review of that head.** Every blocking finding has its answer, which the rule above holds on every path. The head is the one the review saw, the `Fixed:` commit, a head the review carried over to, or in a brief from before the head of a `Rebase: patch unchanged` line whose patch-ids match: `its head is not the one its review saw`.

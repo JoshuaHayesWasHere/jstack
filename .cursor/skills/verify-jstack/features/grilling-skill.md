@@ -5,6 +5,7 @@ The grilling skill asks the user a round of questions on a Lavish page (`templat
 Paths:
 - `skills/grilling/`
 - `templates/grill-page.html`
+- `templates/grill-round.schema.json`
 Tests: none
 
 ## Sub-features

@@ -1,11 +1,6 @@
-# jbus stale: look for a pass that ended in the last 2 hours, and alert once when none did.
-# It runs from jbus-stale.timer, apart from jbus.timer, so a jbus.timer that is stopped or
-# disabled, or a jbus.service that never starts, is seen: jbus-failed.service runs only when
-# a pass fails. The next pass says it recovered.
-# Install: `sh install.sh` links this file and jbus-stale.timer into ~/.config/systemd/user/
-# with the jbus units, and enables the timer. Do not copy this file.
 [Unit]
 Description=jbus stale: alert once when no pass ended in the last 2 hours
+Documentation=file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Service]
 Type=oneshot
