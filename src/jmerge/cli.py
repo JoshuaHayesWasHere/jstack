@@ -214,6 +214,14 @@ class Fresh:
         "GIT_COMMITTER_EMAIL": "jmerge@localhost",
     }
     CHECK = "import sys; from jmerge.cli import Fresh; raise SystemExit(Fresh.alone(sys.argv[1:]))"
+    SELECTOR = "scripts/select_tests.py"
+    APART = (
+        "import json, sys; sys.path.insert(0, sys.argv[1]); import select_tests as s; "
+        "ours, _ = s.selection(json.loads(sys.argv[2])); "
+        "theirs, _ = s.selection(json.loads(sys.argv[3])); "
+        "both = set(ours) & set(theirs); "
+        "print('apart' if 'all' not in ours + theirs and not both else 'meet')"
+    )
     UNIT_OWN = {"INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID"}
 
     def __init__(self, main: Path, state: Path, run: bool = True, timeout: float = TIMEOUT):
@@ -231,14 +239,20 @@ class Fresh:
             return {}
         return known if isinstance(known, dict) else {}
 
-    def of(self, number: int, head: str, tip: str) -> tuple[str, str] | None:
+    def of(
+        self, number: int, head: str, tip: str, files: tuple[str, ...] | None
+    ) -> tuple[str, str] | None:
         """Why a pull request whose check is stale still waits, or nothing with the note of
-        a local check that passed. None where none is remembered and this run runs none."""
+        a local check that passed. None where none is remembered and this run runs none.
+        A pass over an older main can still stand (`stands`): `files` are the paths the
+        pull request changes, or None where they are not all known."""
         was = self.known().get(str(number))
         asked = {"head": head, "main": tip, "command": self.command}
         recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
         if recorded and was.get("result") != ready.TIMED_OUT:
             return self._said(str(was.get("result")), head, tip, str(was.get("unmarked") or ""))
+        if isinstance(was, dict) and self.stands(number, was, head, tip, files):
+            return "", ready.fresh_kept(self.command, head, str(was["main"]), tip)
         if not self.run:
             return (ready.FRESH_QUEUED, "") if recorded else None
         if self.ran or self._held():
@@ -251,6 +265,59 @@ class Fresh:
         self.ran = True
         started = self.start(number, head, tip, _first_word(merged.stdout))
         return started or ready.FRESH_QUEUED, ""
+
+    def stands(
+        self, number: int, was: dict, head: str, tip: str, files: tuple[str, ...] | None
+    ) -> bool:
+        """Whether a pass of this head and command over an older main stands over `tip`:
+        main's change since and the pull request's `files` select no test file in common
+        and neither selects `all`, by the repo's own `scripts/select_tests.py` run in a
+        worktree of the head merged over `tip`, so a module either side imports there is
+        read. A test file every change selects (`Cross-cutting:`) is one in common too, so
+        in a repo that has one no pass is kept. Where any of it cannot be told, it does
+        not."""
+        older = str(was.get("main") or "")
+        mine = (was.get("result"), was.get("head"), was.get("command"))
+        if not files or not older or mine != (ready.PASSED, head, self.command):
+            return False
+        changed = _text(self.main, "git", "diff", "--name-only", "--no-renames", older, tip)
+        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
+        commit = None if merged.returncode else self._commit(_first_word(merged.stdout), head, tip)
+        if changed is None or commit is None or commit.returncode:
+            return False
+        at = self.state / "fresh" / f"{number}.select"
+        _run(self.main, "git", "worktree", "remove", "--force", str(at))
+        shutil.rmtree(at, ignore_errors=True)
+        try:
+            added = _run(
+                self.main,
+                "git",
+                "worktree",
+                "add",
+                "-q",
+                "--detach",
+                str(at),
+                commit.stdout.strip(),
+            )
+            if added.returncode or not (at / self.SELECTOR).is_file():
+                return False
+            scripts = str((at / self.SELECTOR).parent)
+            theirs = json.dumps(changed.splitlines())
+            said = _run(at, sys.executable, "-c", self.APART, scripts, json.dumps(files), theirs)
+            return not said.returncode and said.stdout.strip() == "apart"
+        finally:
+            _run(self.main, "git", "worktree", "remove", "--force", str(at))
+
+    def _commit(self, tree: str, head: str, tip: str) -> subprocess.CompletedProcess[str]:
+        """The merge of the head over the commit, as a commit of the tree git made of it."""
+        return subprocess.run(
+            ["git", "commit-tree", tree, "-p", tip, "-p", head]
+            + ["-m", f"jmerge: {head} over {tip}"],
+            cwd=self.main,
+            capture_output=True,
+            text=True,
+            env={**os.environ, **self.AUTHOR},
+        )
 
     def _held(self) -> bool:
         """A check is running: its process holds the lock."""
@@ -353,14 +420,7 @@ class Fresh:
         """Run the command on the head merged over the commit, as the tree: passed, failed
         or timed out, or the reason it was not run, and the merge it ran on. What it printed
         is kept beside the worktree, in `fresh/<number>.log`."""
-        commit = subprocess.run(
-            ["git", "commit-tree", tree, "-p", tip, "-p", head]
-            + ["-m", f"jmerge: {head} over {tip}"],
-            cwd=self.main,
-            capture_output=True,
-            text=True,
-            env={**os.environ, **self.AUTHOR},
-        )
+        commit = self._commit(tree, head, tip)
         if commit.returncode:
             return self._not_run(commit), ""
         made = commit.stdout.strip()
@@ -787,7 +847,7 @@ class Repo:
                 lost.append(ready.Drop(file, theirs, ours))
         return tuple(lost)
 
-    def stale(self, one: ready.PullRequest, left: tuple[str, ...]) -> tuple[str, str, str]:
+    def stale(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str, str]:
         """What a pull request whose green may no longer cover the default branch is short
         of. Or nothing, with the commit of the default branch it was judged fresh against
         and what a local check found, where its own check was stale and one stood in.
@@ -795,10 +855,13 @@ class Repo:
         The default branch is fetched each time, so a pull request is judged against what
         an earlier merge of the same run put there. One that changed only other paths, none
         of them a caller of the pull request's files or something they depend on, leaves the
-        check standing. A check with no start time is compared with nothing.
+        check standing. A check with no start time is compared with nothing. A pull request
+        whose paths GitHub did not give in full keeps no pass over an older main.
         """
         if one.started is None:
             return "", "", ""
+        files = None if left is None or one.changed > len(one.files) else (*one.files, *left)
+        left = left or ()
         moved = self.moved(one.base, one.started)
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
@@ -813,7 +876,7 @@ class Repo:
             short = ready.short_on_main(stale, one.started, one.base, "a rebase", user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
         asks = self.fresh is not None and self.fresh.command
-        found = self.fresh.of(one.number, one.head, tip) if asks else None
+        found = self.fresh.of(one.number, one.head, tip, files) if asks else None
         if found is None:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         short, note = found
@@ -884,9 +947,10 @@ class Repo:
 
         The gates are in order. A draft comes first: its author has not said it is done,
         and no flag, review or brief makes it ready. A check that no longer covers the
-        default branch comes before the ones the user alone lifts, so that a `hold` is said
-        only of a pull request that is fresh and short of nothing else. The gate of a
-        guarded path is beside the hold, and is asked only of one that is not held.
+        default branch comes after a line a rebase dropped and the gates the user alone
+        lifts, so a pull request held on any of them starts no fresh check while it waits.
+        The gate of a guarded path comes after it, and is asked only of one that is fresh
+        and not held.
         """
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
@@ -938,9 +1002,6 @@ class Repo:
         if short:
             return brief.stem, "wait", short, note, None
         left = self.left(one)
-        short, tip, fresh = self.stale(one, left or ())
-        if short:
-            return brief.stem, "wait", short, note, None
         lifted = self.accepted == (one.number, one.head)
         kind, why = ready.drops(lost, text, one.head, user=self.user)
         self.lifts = []
@@ -955,6 +1016,9 @@ class Repo:
             hold = ""
         if hold:
             return brief.stem, "hold", hold, note, None
+        short, tip, fresh = self.stale(one, left)
+        if short:
+            return brief.stem, "wait", short, note, None
         note = f"{note}, {ready.KEPT}" if note else ""
         left = left or ()
         path = ready.guarded_path(one, self.guarded, left)
