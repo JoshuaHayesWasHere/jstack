@@ -178,6 +178,25 @@ def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_is_a_gate_not_a_
     assert gates(launched) == ["condition alpha: stale again after its one rebase"]
 
 
+
+@pytest.mark.parametrize(
+    "first",
+    [CHANGED + ": it needs a rebase", "it conflicts with its base"],
+    ids=["stale then conflict", "conflict then conflict"],
+)
+def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launched, first):
+    out(launched, reason=first)
+    launched.poll(NOW)
+    launched.t3.threads[0]["status"] = "completed"
+    out(launched, head="d" * 40, reason="it conflicts with its base")
+    launched.poll(NOW + timedelta(minutes=3))
+    assert [given["clientRequestId"] for given in sends(launched)] == [
+        "rebase|alpha|cccccccccccc",
+        "rebase|alpha|dddddddddddd",
+    ]
+    assert gates(launched) == []
+
+
 def checking(kitchen):
     """The repo asks `jmerge` for a fresh check: its state has a `fresh-check` file."""
     (kitchen.home / "fresh-check").write_text("make check\n")
