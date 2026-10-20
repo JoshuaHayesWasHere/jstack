@@ -26,6 +26,8 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _run(args: argparse.Namespace, _: jbus.Config) -> int:
+    if not args.brief.strip():
+        raise jbus.Refused("refused: no brief, set B to <state>/tasks/<slug>.md and run it again")
     brief = Path(args.brief)
     try:
         text = brief.read_text(errors="replace")
