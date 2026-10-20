@@ -1,0 +1,4 @@
+[
+  {"name": "fake-skill", "kind": "skill", "source": "josh"},
+  {"name": "principle-fake", "kind": "principle", "source": "josh"}
+]
