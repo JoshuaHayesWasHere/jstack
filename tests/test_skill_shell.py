@@ -12,9 +12,11 @@ not exist fails here and not in an agent's hands.
 
 import contextlib
 import io
+import os
 import re
 import shlex
 import shutil
+import subprocess
 
 import pytest
 
@@ -74,20 +76,25 @@ PLAYBOOK = "Run by: a scout, with a request.\n\n1. Read principles/a.md and prin
 
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
 def test_the_scouts_playbook_block_prints_the_same_under_zsh_as_under_sh(tmp_path):
-    root = tmp_path / "root"
-    (root / "playbooks").mkdir(parents=True)
-    (root / "principles").mkdir()
-    (root / "templates").mkdir()
+    """Run as a scout runs it: the block at the top finds `$T` by the skill's link under
+    `~/.claude/skills` and `$H` by the repo it runs in, both made up here."""
+    root, user, repo = tmp_path / "root", tmp_path / "user", tmp_path / "demo"
+    for made in ("playbooks", "principles", "templates", "skills/scout"):
+        (root / made).mkdir(parents=True)
     (root / "playbooks" / "look.md").write_text(PLAYBOOK)
     for name in "ab":
         (root / "principles" / f"{name}.md").write_text(f"the principle {name}\n")
-    (tmp_path / "scouts").mkdir()
-    (tmp_path / "scouts" / "a-question.md").write_text("# a-question\nPlaybook: look\n")
+    (user / ".claude" / "skills").mkdir(parents=True)
+    (user / ".claude" / "skills" / "scout").symlink_to(root / "skills" / "scout")
+    scouts = user / ".local" / "state" / "home" / "demo" / "scouts"
+    scouts.mkdir(parents=True)
+    (scouts / "a-question.md").write_text("# a-question\nPlaybook: look\n")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
     body = next(one for one in blocks(as_read(SKILLS / "scout" / "SKILL.md")) if "printed=" in one)
-    filled = f'H="{tmp_path}"\nT="{root}/templates"\nS=a-question\n{body}'
+    env = {"HOME": str(user), "PATH": os.environ["PATH"], "GIT_CONFIG_GLOBAL": os.devnull}
     said = {}
     for shell in ("sh", "zsh"):
-        done = run("scout", filled, shell, cwd=REPO)
+        done = run("scout", f"S=a-question\n{body}", shell, cwd=repo, env=env)
         assert done.stderr == ""
         said[shell] = done.stdout
     assert said["zsh"] == said["sh"]
