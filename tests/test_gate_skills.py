@@ -28,6 +28,7 @@ from test_home_thread import as_read
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
+from test_prose_lines import unwrapped
 
 HEAD = merge.PUSHED
 SECRET = "secrets/x.json"
@@ -329,7 +330,7 @@ def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
     ran = form.split(" | ")[0]
     step = as_read(root / "skills" / "pr-review" / "SKILL.md")
-    (said,) = [line for line in step.splitlines() if "section's `Proof:` line" in line]
+    (said,) = [line for line in unwrapped(step) if "section's `Proof:` line" in line]
     ((plain, trap),) = re.findall(r"write `([^`]+)`, not `([^`]+)`", said)
     (code,) = re.findall(r"`(exit <n>)`", said)
 

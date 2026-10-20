@@ -15,6 +15,7 @@ import test_pr_review_skill as reviews
 from jbus import rebase
 from test_home_merge import FENCED, git, review
 from test_home_thread import as_read
+from test_prose_lines import unwrapped
 
 SKILL = reviews.SKILL
 
@@ -52,7 +53,7 @@ def test_the_message_jbus_sends_is_the_one_the_section_takes():
 
 
 def test_a_brief_with_a_review_is_launched_for_a_scoped_pass_and_refused_for_a_first(tmp_path):
-    (rule,) = [line for line in as_read(SKILL).splitlines() if "is refused: say so" in line]
+    (rule,) = [line for line in unwrapped(as_read(SKILL)) if "is refused: say so" in line]
     (scoped_pass,) = [part for part in rule.split(". ") if part.startswith("A scoped pass")]
     (first_line,) = re.findall(r"`(PASS=\w+)`", scoped_pass)
     launcher = reviews.Launcher(tmp_path)

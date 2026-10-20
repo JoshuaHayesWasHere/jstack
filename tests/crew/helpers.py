@@ -10,6 +10,7 @@ import textwrap
 from pathlib import Path
 
 from jmerge import rangediff, ready
+from test_prose_lines import unwrapped
 
 SKILL = Path(__file__).parent.parent.parent / "skills" / "crew" / "SKILL.md"
 
@@ -19,7 +20,7 @@ FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 def sections():
     found, name = {}, None
-    for line in SKILL.read_text().splitlines():
+    for line in unwrapped(SKILL.read_text()):
         if line.startswith("## "):
             name = line[3:]
             found[name] = []

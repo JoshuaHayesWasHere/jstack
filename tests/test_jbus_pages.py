@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from jbus import pages, wake
+from test_prose_lines import unwrapped
 
 REPO = Path(__file__).parent.parent
 CAP = 300
@@ -21,7 +22,7 @@ def over(root, allowed):
     """The pages under `root/docs` over the cap that `allowed` lacks, and those it lists that
     are not over it any more."""
     lengths = {
-        str(path.relative_to(root / "docs")): len(path.read_text().splitlines())
+        str(path.relative_to(root / "docs")): len(unwrapped(path.read_text()))
         for path in (root / "docs").glob("**/*.md")
     }
     long = {name for name, lines in lengths.items() if lines > CAP}
@@ -101,8 +102,8 @@ def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():
 
 def test_a_page_over_the_cap_and_a_listed_page_under_it_are_found(tmp_path):
     (tmp_path / "docs" / "deep").mkdir(parents=True)
-    (tmp_path / "docs" / "long.md").write_text("line\n" * (CAP + 1))
-    (tmp_path / "docs" / "deep" / "short.md").write_text("line\n" * CAP)
+    (tmp_path / "docs" / "long.md").write_text("- line\n" * (CAP + 1))
+    (tmp_path / "docs" / "deep" / "short.md").write_text("- line\n" * CAP)
     assert over(tmp_path, frozenset()) == [f"long.md: {CAP + 1} lines"]
     assert over(tmp_path, frozenset({"long.md", "deep/short.md"})) == [
         f"deep/short.md: under {CAP}, take it off the list"

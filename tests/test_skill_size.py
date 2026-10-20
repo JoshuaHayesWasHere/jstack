@@ -7,11 +7,12 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import NAMED, named
+from test_prose_lines import unwrapped
 
 REPO = Path(__file__).parent.parent
 CAP = 400
 ROLES = REPO / "skills"
-OVER = {ROLES / "crew", ROLES / "handoff"}
+OVER = {ROLES / "crew"}
 SKILLS = sorted(ROLES.glob("*/SKILL.md"))
 SIDES = sorted(side for skill in SKILLS for side in skill.parent.glob("*.md") if side != skill)
 
@@ -22,7 +23,7 @@ def ids(path):
 
 @pytest.mark.parametrize("skill", SKILLS, ids=ids)
 def test_a_skill_md_stays_within_the_cap_or_is_on_the_allowlist(skill):
-    lines = len(skill.read_text().splitlines())
+    lines = len(unwrapped(skill.read_text()))
     if skill.parent in OVER:
         assert lines > CAP, f"{ids(skill)} is within {CAP} lines now: take it off OVER"
     else:
