@@ -36,6 +36,8 @@ class Doctored(User):
         self.limits = self.home / ".local" / "state" / "claude" / "limits"
         self.config = self.home / ".config" / "jstack" / "config.toml"
         self.token = self.jbus / "t3.json"
+        self.providers = self.home / ".config" / "jstack" / "providers.json"
+        self.t3_settings = self.home / ".t3" / "userdata" / "settings.json"
 
     def program(self, name, line):
         self.script(name, f"#!/bin/sh\n{line}\n")
@@ -91,7 +93,8 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         " -> every role inherits the model of the thread that launches it",
         "ok optional lavish-axi",
     ]
-    assert said[14:-1] == user.every("ok")
+    assert said[14] == f"missing optional provider inventory -> {user.providers}"
+    assert said[15:-1] == user.every("ok")
 
 
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
@@ -114,7 +117,7 @@ def test_the_doctor_writes_nothing_and_gives_checks_answer_for_each_part_both_pr
     assert user.listing() == []
     checked = user.run("--check")[1]
     assert checked == user.every("missing")
-    assert said[14:-1] == checked
+    assert said[15:-1] == checked
 
 
 def test_the_doctor_prints_the_units_once_they_are_due_as_check_does(user):
@@ -326,3 +329,139 @@ def test_the_doctor_says_when_the_private_patterns_are_missing_and_when_they_are
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
     assert line_for(said, "patterns") == [f"missing optional patterns {user.patterns}"]
+
+
+PRIME = "claudeAgent_claude_prime"
+CODEX = {"driver": "codex", "enabled": True, "config": {"setupMode": "managed"}}
+CURSOR = {"driver": "cursor", "displayName": "Cursor", "enabled": True}
+
+
+def prime(home="~/.claude_prime", **more):
+    return {"driver": "claudeAgent", "enabled": True, "config": {"homePath": home}} | more
+
+
+def declared(user, listed, inventory=None):
+    """An installed HOME whose inventory declares T3's two instances of today, the built-in
+    Claude one and the second Claude home, and whose T3 settings list `listed`."""
+    user.run()
+    (user.home / ".claude_prime").mkdir()
+    (user.home / ".claude_prime" / "skills").symlink_to(user.home / ".claude" / "skills")
+    inventory = inventory or {
+        "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+        PRIME: prime(),
+        "codex": CODEX,
+    }
+    user.write(user.providers, inventory)
+    user.write(user.t3_settings, {"providerInstances": listed, "other": 1})
+
+
+def test_a_declared_instance_t3_does_not_list_is_missing_and_hard(user):
+    declared(user, {"codex": CODEX, "cursor": CURSOR})
+    code, said = user.doctor()
+    assert (code, said[-1]) == (1, "doctor: not ok, 1 hard")
+    assert line_for(said, "provider") == [
+        "ok optional provider inventory -> 3 declared",
+        "ok hard provider claudeAgent -> T3's built-in instance",
+        f"missing hard provider {PRIME} -> T3 does not list it",
+        "ok hard provider codex",
+    ]
+
+
+def test_a_declared_instance_t3_lists_with_its_home_is_ok(user):
+    listed = {"codex": CODEX, "cursor": CURSOR, PRIME: prime(str(user.home / ".claude_prime"))}
+    declared(user, listed)
+    code, said = user.doctor()
+    assert (code, said[-1]) == (0, "doctor: ok")
+    assert f"ok hard provider {PRIME}" in said
+    assert line_for(said, "skills") == [
+        f"ok hard skills {user.home / '.claude'}",
+        f"ok hard skills {user.home / '.claude_prime'}",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("listed", "why"),
+    [
+        (prime(enabled=False), "T3 lists it disabled"),
+        (prime("~/.claude_other"), "T3's homePath is ~/.claude_other, declared ~/.claude_prime"),
+        (
+            {"driver": "codex", "enabled": True},
+            "T3's driver is codex, declared claudeAgent",
+        ),
+    ],
+)
+def test_a_declared_instance_t3_lists_otherwise_is_old(user, listed, why):
+    declared(user, {"codex": CODEX, PRIME: listed})
+    code, said = user.doctor()
+    assert code == 1
+    assert line_for(said, f"provider {PRIME}") == [f"old hard provider {PRIME} -> {why}"]
+
+
+def test_another_instance_t3_lists_in_a_shape_the_doctor_refuses_changes_no_line(user):
+    declared(user, {"cursor": {"enabled": True}, "codex": CODEX})
+    assert line_for(user.doctor()[1], "provider") == [
+        "ok optional provider inventory -> 3 declared",
+        "ok hard provider claudeAgent -> T3's built-in instance",
+        f"missing hard provider {PRIME} -> T3 does not list it",
+        "ok hard provider codex",
+    ]
+
+
+def test_t3_settings_that_cannot_be_read_make_each_declared_instance_old(user):
+    declared(user, {})
+    user.write(user.t3_settings, "{not json")
+    said = user.doctor()[1]
+    assert line_for(said, f"provider {PRIME}") == [
+        f"old hard provider {PRIME} -> T3's settings cannot be read: {user.t3_settings}"
+    ]
+
+
+def test_an_inventory_that_is_not_an_object_of_instances_is_old_and_declares_nothing(user):
+    user.write(user.providers, ["claudeAgent"])
+    code, said = user.doctor()
+    assert line_for(said, "provider") == [
+        "old optional provider inventory -> it is not an object of provider instances"
+    ]
+
+
+def test_a_claude_home_whose_skills_point_outside_the_checkout_is_old(user, tmp_path):
+    declared(user, {PRIME: prime()})
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    skills = user.home / ".claude_prime" / "skills"
+    skills.unlink()
+    skills.symlink_to(elsewhere)
+    code, said = user.doctor()
+    assert code == 1
+    assert line_for(said, "skills") == [
+        f"ok hard skills {user.home / '.claude'}",
+        f"old hard skills {user.home / '.claude_prime'} -> {elsewhere}",
+    ]
+
+
+def test_a_claude_home_whose_own_skill_links_reach_the_checkout_is_ok(user, tmp_path):
+    declared(user, {PRIME: prime()})
+    skills = user.home / ".claude_prime" / "skills"
+    skills.unlink()
+    skills.mkdir()
+    (skills / "crew").symlink_to(REPO / "skills" / "crew")
+    (skills / ".system").mkdir()
+    assert line_for(user.doctor()[1], "skills") == [
+        f"ok hard skills {user.home / '.claude'}",
+        f"ok hard skills {user.home / '.claude_prime'}",
+    ]
+    mine = tmp_path / "mine"
+    mine.mkdir()
+    (skills / "mine").symlink_to(mine)
+    assert line_for(user.doctor()[1], f"skills {user.home / '.claude_prime'}") == [
+        f"old hard skills {user.home / '.claude_prime'} -> {skills / 'mine'} points at {mine}"
+    ]
+
+
+def test_a_claude_home_with_no_skills_is_missing(user):
+    declared(user, {PRIME: prime()})
+    (user.home / ".claude_prime" / "skills").unlink()
+    assert line_for(user.doctor()[1], f"skills {user.home / '.claude_prime'}") == [
+        f"missing hard skills {user.home / '.claude_prime'}"
+        f" -> link it to {user.home / '.claude' / 'skills'}"
+    ]

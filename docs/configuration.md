@@ -2,13 +2,14 @@
 
 jstack runs with none of these files. Each one changes a default or switches on an optional layer. This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the hook entries and the limits file, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
+`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries and the limits file, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
 
 | File | Sets | Written by |
 |---|---|---|
 | `~/.config/jstack/config.toml` | Your name and time zone | You, or `install.sh --setup` once |
 | `~/.config/jstack/roles` | The model for each role | You, or `install.sh --setup` once |
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
+| `~/.config/jstack/providers.json` | The provider instances this machine runs | infra's install, as a link |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
 | `~/.local/state/claude/limits` | The plan's limits | `hooks/limits.sh` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
@@ -106,6 +107,33 @@ Two more paths change what `jbus` does:
 |---|---|---|
 | `~/.local/state/jbus/stop` | Absent | While the file is there, `jbus` launches nothing. The passes go on. |
 | `JBUS_STATE_DIR`, `JBUS_HOME_DIR` | `~/.local/state/jbus`, `~/.local/state/home` | Where `jbus` keeps its own state, and where it reads each home's state. |
+
+## Provider instances
+
+`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in its own home. infra's install writes it and links it there. jstack never writes it, and `install.sh --doctor` only reads it. Its shape is T3's own `providerInstances` in `~/.t3/userdata/settings.json`: an object keyed by instance id.
+
+```json
+{
+  "claudeAgent": {"driver": "claudeAgent", "enabled": true},
+  "claudeAgent_claude_prime": {"driver": "claudeAgent", "enabled": true, "config": {"homePath": "~/.claude_prime"}},
+  "codex": {"driver": "codex", "enabled": true}
+}
+```
+
+The doctor compares each declared instance with what T3's settings list, and reads those settings only. infra renders them. It prints these lines:
+
+| Line | Meaning |
+|---|---|
+| `missing optional provider inventory -> <path>` | There is no inventory, so nothing is declared. The doctor does not fail on it. |
+| `old optional provider inventory -> <why>` | The file is not in T3's shape. The doctor checks no instance. |
+| `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` unlisted when it is declared with no other home. |
+| `missing hard provider <id> -> T3 does not list it` | infra's side has not put the instance into T3's settings yet. |
+| `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
+| `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into the checkout's `skills/`. The home is `config.homePath`, or `~/.claude` for none. |
+| `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
+| `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
+
+`install.sh` links every skill into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`. Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
 

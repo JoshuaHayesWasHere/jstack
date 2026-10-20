@@ -26,7 +26,7 @@ REPO = Path(__file__).parent.parent
 INSTALL = REPO / "install.sh"
 SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"
 SKILLS = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
-ROOTS = (".claude/skills", ".agents/skills")
+ROOTS = (".claude/skills", ".agents/skills", ".codex/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 UNITS = [
     "jbus-ci.service",
@@ -230,6 +230,17 @@ def test_it_puts_every_part_and_says_ok_for_each(user):
     assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
     assert user.said(user.uv_log) == [f"tool install --editable {REPO} --reinstall"]
     assert user.said(user.systemctl_log) == []
+
+
+def test_every_skill_is_linked_into_codexs_home_beside_what_codex_keeps_there(user):
+    system = user.home / ".codex" / "skills" / ".system"
+    system.mkdir(parents=True)
+    user.run()
+    linked = sorted((user.home / ".codex" / "skills").iterdir())
+    assert linked == [system, *(user.home / ".codex" / "skills" / name for name in SKILLS)]
+    assert os.readlink(user.home / ".codex" / "skills" / "pr-review") == str(
+        REPO / "skills" / "pr-review"
+    )
 
 
 def test_a_second_run_changes_nothing(user):
@@ -573,6 +584,7 @@ def test_the_record_holds_the_containers_the_install_created_and_nothing_else(us
             ".claude/skills",
             ".codex",
             ".codex/hooks.json",
+            ".codex/skills",
             ".config",
             ".config/jstack",
             ".config/systemd",

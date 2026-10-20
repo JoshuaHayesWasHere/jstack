@@ -17,6 +17,7 @@ from jinstall.kinds import (
     GhSignIn,
     GitHook,
     GoneLink,
+    HomeSkills,
     HookGroup,
     JbusConfig,
     JbusSignIn,
@@ -27,11 +28,15 @@ from jinstall.kinds import (
     Linux,
     Patterns,
     Program,
+    ProviderInstance,
+    ProviderInventory,
     Roles,
     StatusLine,
     T3Nightly,
     Units,
+    claude_homes,
     dead,
+    declared,
 )
 from jinstall.machine import Machine
 
@@ -59,8 +64,10 @@ class Need:
 
 def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order printed. Nothing is probed here: the list is derived from the
-    checkout (skills/*/SKILL.md, templates/*.service and *.timer, pyproject.toml) and from
-    one listing of each skills root for GoneLink.
+    checkout (skills/*/SKILL.md, templates/*.service and *.timer, pyproject.toml), from
+    one listing of each skills root for GoneLink, and from the provider inventory, which
+    names the instances and the Claude homes to probe. An inventory that cannot be taken
+    names none, and its own line says why.
 
     Only probed:
       hard      linux                         Linux
@@ -77,10 +84,14 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
       optional  lavish-axi                    Program("lavish-axi", hint="npm install -g ...")
+      optional  provider inventory            ProviderInventory
+      hard      provider <id>                 ProviderInstance, for each declared instance
+      hard      skills <home>                 HomeSkills, for each declared Claude home
 
     Carried, in the order they are put. Uninstall walks them backwards:
       hard      ~/.claude/skills/<skill>      Link
-      hard      ~/.agents/skills/<skill>      Link
+      hard      ~/.agents/skills/<skill>      Link, the root Cursor reads beside ~/.claude/skills
+      hard      ~/.codex/skills/<skill>       Link
       hard      <root>/<name>                 GoneLink, for each dead link into this checkout
       hard      hook ~/.claude/settings.json SessionStart      HookGroup("startup", home-start)
       hard      hook ~/.claude/settings.json UserPromptSubmit  HookGroup(None, skill-tips)
@@ -96,7 +107,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     """
     repo, home = machine.checkout, machine.home
     skills = sorted(path.parent.name for path in (repo / "skills").glob("*/SKILL.md"))
-    roots = (home / ".claude" / "skills", home / ".agents" / "skills")
+    roots = (home / ".claude" / "skills", home / ".agents" / "skills", home / ".codex" / "skills")
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
     roles = config.with_name("roles")
@@ -119,6 +130,19 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
+    ]
+    inventory = machine.config_home() / "jstack" / "providers.json"
+    providers = declared(inventory, home)
+    providers = {} if isinstance(providers, str) else providers
+    t3 = home / ".t3" / "userdata" / "settings.json"
+    found.append(Need("provider inventory", Level.OPTIONAL, ProviderInventory(inventory)))
+    found += [
+        Need(f"provider {name}", Level.HARD, ProviderInstance(name, instance, t3))
+        for name, instance in providers.items()
+    ]
+    found += [
+        Need(f"skills {each}", Level.HARD, HomeSkills(each, roots[0], repo / "skills"))
+        for each in claude_homes(providers, home)
     ]
     found += [
         Need(str(root / skill), Level.HARD, Link(root / skill, repo / "skills" / skill))
