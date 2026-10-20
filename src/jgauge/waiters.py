@@ -89,10 +89,14 @@ def _read(locks: Path) -> list[Waiter]:
         ]
     except (OSError, ValueError, TypeError, KeyError):
         return []
-    first: dict[str, Waiter] = {}
+    kept: dict[str, Waiter] = {}
     for one in sorted(read, key=lambda one: (one.since, one.id)):
-        first.setdefault(one.thread, one)
-    return [one for one in read if first[one.thread] is one]
+        older = kept.get(one.thread)
+        if older is None:
+            kept[one.thread] = one
+        elif older.woken and not one.woken:
+            kept[one.thread] = replace(one, since=older.since)
+    return list(kept.values())
 
 
 def _write(locks: Path, waiters: list[Waiter]) -> None:
