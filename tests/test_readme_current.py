@@ -31,7 +31,7 @@ import jbus
 import jsettings
 from jbus import alert, wake
 from jinstall import needs as listed
-from jinstall.kinds import HookGroup, Program, StatusLine
+from jinstall.kinds import HomeSkills, HookGroup, Program, ProviderInstance, StatusLine
 from jinstall.machine import Machine
 from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
@@ -65,7 +65,7 @@ OPTIONAL = {
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "`lavish-axi`": ("lavish-axi",),
 }
-NO_REQUIREMENT = ("config", "roles", "patterns")
+NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory")
 NAMED = (
     "ci-paths.txt",
     "fresh-check",
@@ -339,7 +339,8 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     found = {}
     for need in listed.needs(Machine.here(REPO)):
         name = " ".join(word for word in need.name.split() if not word.startswith("/"))
-        if not name.startswith(("hook", "commands")) and name:
+        declared = isinstance(need.kind, (ProviderInstance, HomeSkills))
+        if not name.startswith(("hook", "commands")) and name and not declared:
             found[name] = need
     for name in ("git", "jq"):
         kind = found[name].kind
