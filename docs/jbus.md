@@ -24,6 +24,7 @@ No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty
 - [Measure the CI](jbus/measure-the-ci.md)
 - [Questions](jbus/questions.md)
 - [Set up jbus](jbus/set-up-jbus.md)
+- [The health check](jbus/the-health-check.md)
 - [The plan](jbus/the-plan.md)
 - [The queue](jbus/the-queue.md)
 - [The relay](jbus/the-relay.md)
