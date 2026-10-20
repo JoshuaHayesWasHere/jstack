@@ -78,8 +78,6 @@ def test_the_command_that_owns_a_feature_is_one_jbus_runs(feature, command, frag
     assert ran.stdout.startswith(f"usage: jbus {verb} ")
 
 
-# A row the fragment cannot catch: each block of the feature is run, and a check in front of
-# the command, whatever its words, stops the lines before the command.
 FENCED = re.compile(r"^([ \t]*)```sh\n(.*?)^\1```", re.M | re.S)
 NOT_ONE_GATE = """\
 ## Gate <n>: <the question>
@@ -133,6 +131,8 @@ def run(tmp_path, command, block):
 def test_each_block_of_a_feature_leaves_its_checks_to_the_command(
     tmp_path, feature, command, placeholder, lines
 ):
+    """A check no fragment names is caught too: each block of the feature is run, and a check
+    in front of the command, whatever its words, stops the lines before the command."""
     found = list(blocks(placeholder))
     assert found, f"no skill has a block for {feature}: the placeholder {placeholder} moved"
     for where, block in found:
