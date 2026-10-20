@@ -1418,7 +1418,8 @@ def test_the_findings_go_to_the_thread_line_with_a_home_or_with_none(
     if home is not None:
         (reviewer.state / "home-id").write_text(home)
     assert where(reviewer, "findings").split(": ")[0] == goes
-    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == ([told] if told else [])
+    told_now = reviewer.output("### Telling the home", B=str(reviewer.brief))
+    assert told_now == ([told] if told else [])
 
 
 DONE = f"\n## Result\nStatus: done\nBranch: a-task   Pull request: {URL}\n"

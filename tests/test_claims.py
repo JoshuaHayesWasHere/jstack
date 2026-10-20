@@ -190,8 +190,9 @@ def test_a_thread_finds_a_brief_the_home_jmerge_gives_it(claims, reader, scope):
     by_jmerge = [line.split()[2] for line in claims.run()]
 
     block = about_the_home_id(reader)
-    asked = 'jbus home --directory "$B")\nif [ "$D" = "$H" ]; then echo root; else echo "${D##*/}"; fi'
-    block = block.replace('uv run --project "$T/.." jbus home "$B"', f'D=$(uv run --project "$T/.." {asked}')
+    asked = 'uv run --project "$T/.." jbus home'
+    named = 'if [ "$D" = "$H" ]; then echo root; else echo "${D##*/}"; fi'
+    block = block.replace(f'{asked} "$B"', f'D=$({asked} --directory "$B")\n{named}')
     by_thread = [
         claims.home.sh(f'{paths(reader)}\nB="$H/tasks/brief-{at}.md"\n{block}')
         for at in range(len(LINES))
