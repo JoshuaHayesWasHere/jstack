@@ -158,6 +158,12 @@
       "source": "pstack"
     },
     {
+      "name": "arena",
+      "kind": "skill",
+      "path": "skills/arena/SKILL.md",
+      "source": "pstack"
+    },
+    {
       "name": "automate-me",
       "kind": "skill",
       "path": "skills/automate-me/SKILL.md",
@@ -329,6 +335,12 @@
       "name": "show-me-your-work",
       "kind": "skill",
       "path": "skills/show-me-your-work/SKILL.md",
+      "source": "pstack"
+    },
+    {
+      "name": "swarm",
+      "kind": "skill",
+      "path": "skills/swarm/SKILL.md",
       "source": "pstack"
     },
     {

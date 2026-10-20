@@ -425,12 +425,12 @@
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
 <!-- built: skill links, Settle the shape before code -->
-<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-sharpen">sharpen</a><a href="#skill-figure-it-out">figure-it-out</a>
+<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-sharpen">sharpen</a><a href="#skill-arena">arena</a><a href="#skill-figure-it-out">figure-it-out</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Understand what is there</b><div class="names">
 <!-- built: skill links, Understand what is there -->
-<a href="#skill-how">how</a><a href="#skill-why">why</a><a href="#skill-teach">teach</a>
+<a href="#skill-how">how</a><a href="#skill-why">why</a><a href="#skill-teach">teach</a><a href="#skill-swarm">swarm</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Distrust the change</b><div class="names">
@@ -474,6 +474,7 @@
 <article class="card" id="skill-architect"><h4>/architect</h4><p>Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it.</p><p class="when">Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's <code>Design:</code> line names.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a crewmate</span></div></article>
 <article class="card" id="skill-in-your-own-words"><h4>/in-your-own-words</h4><p>Restates in its own words what it thinks the operator's goals are and the problem they are trying to solve.</p><p class="when">Reach for it before work starts, to check the goal was heard.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-sharpen"><h4>/sharpen</h4><p>Makes a task deeper, not bigger: what an expert would do, from what raw material, with which methods and tools, and what outside the agent shows the result is right. Then it rewrites the prompt to ask for that, and does not do the task.</p><p class="when">Reach for it before a research, perf, analysis or outcome task goes out.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-arena"><h4>/arena</h4><p>Makes one artifact twice, apart, as two runner crews. A judge crew scores both, and a graft crew picks a base, grafts the other's best into it and opens the one pull request.</p><p class="when">Reach for it in a home when one attempt would lock in the wrong shape.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <article class="card" id="skill-figure-it-out"><h4>/figure-it-out</h4><p>Frames a task no playbook fits: done as a check that can fail, the scope counted, the rigor and why, the riskiest unit first and the check built before the work. In a home it plans the units as entries, each crewmate keeping a decision log.</p><p class="when">Reach for it when a large or many-part task matches no playbook.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <!-- built: end -->
 </div></div>
@@ -482,6 +483,7 @@
 <article class="card" id="skill-how"><h4>/how</h4><p>Explains how a subsystem works: its architecture, its runtime flow and where things live.</p><p class="when">Reach for it when you are about to change something, or ask which layer owns it.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>architect</code></span></div></article>
 <article class="card" id="skill-why"><h4>/why</h4><p>Explains why something was built this way, with a cited read of the decisions and tradeoffs from source control, issues and docs.</p><p class="when">Reach for it when you need the rationale, or are looking into a regression.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>architect</code></span></div></article>
 <article class="card" id="skill-teach"><h4>/teach</h4><p>Runs <code>how</code> and <code>why</code> and weaves what they find into one plain explanation.</p><p class="when">Reach for it when a person has to really understand a change or a subsystem.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-swarm"><h4>/swarm</h4><p>Fans a task out to up to ten threads a step, a scout for each slice that reads and a crewmate for each that writes, and builds one table from what they found.</p><p class="when">Reach for it in a home when slices need no one worker to hold them together, or several workers race one brief.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Distrust the change <small>Evidence that a change is safe, in place of a write-up.</small></h3><div class="cards">
@@ -535,6 +537,11 @@
 <a href="#playbook-autopilot-full">autopilot-full</a><a href="#playbook-autopilot-stack">autopilot-stack</a><a href="#playbook-orchestrate">orchestrate</a>
 <!-- built: end -->
 </div>
+<small>Fan out to threads</small><div class="names">
+<!-- built: playbook links, Fan out to threads -->
+<a href="#playbook-arena">arena</a><a href="#playbook-swarm">swarm</a>
+<!-- built: end -->
+</div>
 <small>Land and resume</small><div class="names">
 <!-- built: playbook links, Land and resume -->
 <a href="#playbook-shipping">shipping</a><a href="#playbook-session-pickup">session-pickup</a>
@@ -556,7 +563,7 @@
 </div>
 <small>Decide by building</small><div class="names">
 <!-- built: playbook links, Decide by building -->
-<a href="#playbook-prototype">prototype</a><a href="#playbook-arena">arena</a><a href="#playbook-eval">eval</a>
+<a href="#playbook-prototype">prototype</a><a href="#playbook-eval">eval</a>
 <!-- built: end -->
 </div>
 <small>Diagnose, fix nothing</small><div class="names">
@@ -566,7 +573,7 @@
 </div>
 <small>Long or wide runs</small><div class="names">
 <!-- built: playbook links, Long or wide runs -->
-<a href="#playbook-autonomous-run">autonomous-run</a><a href="#playbook-hillclimb">hillclimb</a><a href="#playbook-swarm">swarm</a>
+<a href="#playbook-autonomous-run">autonomous-run</a><a href="#playbook-hillclimb">hillclimb</a>
 <!-- built: end -->
 </div>
 <small>Work on jstack itself</small><div class="names">
@@ -603,6 +610,13 @@
 <article class="card" id="playbook-orchestrate"><h4>orchestrate</h4><p>For: A standing program: many entries toward one goal that outlives a single home, worked to a predicate that can be counted.</p></article>
 <!-- built: end -->
 </div>
+<p class="sub">Fan out to threads</p>
+<div class="cards">
+<!-- built: playbook cards, Fan out to threads -->
+<article class="card" id="playbook-arena"><h4>arena</h4><p>For: One artifact where a single attempt would lock in the wrong shape. Two runner crews make it apart, a judge crew scores both, and a graft crew picks a base and grafts the other's best into it.</p></article>
+<article class="card" id="playbook-swarm"><h4>swarm</h4><p>For: A task that splits into slices no one worker has to hold together, or a race of several workers on one brief. A scout takes each slice that reads, a crewmate each slice that writes, and the home builds the one table.</p></article>
+<!-- built: end -->
+</div>
 <p class="sub">Land and resume</p>
 <div class="cards">
 <!-- built: playbook cards, Land and resume -->
@@ -634,7 +648,6 @@
 <div class="cards">
 <!-- built: playbook cards, Decide by building -->
 <article class="card" id="playbook-prototype"><h4>prototype</h4><p>For: A design decision that only something built and looked at can settle: which layout, which interaction, which timing.</p><div class="who"><span class="chip plain"><code>Pull request: ask first</code></span><span class="chip plain"><code>Review: none</code></span></div></article>
-<article class="card" id="playbook-arena"><h4>arena</h4><p>For: One artifact where a single attempt would lock in the wrong shape. Two runners make it apart, a judge reads both, the crewmate picks and grafts.</p></article>
 <article class="card" id="playbook-eval"><h4>eval</h4><p>For: Finding out whether a variant a model reaches by reading files (a playbook, a principle, a doc) changes what it does.</p><div class="who"><span class="chip plain"><code>Candidates:</code></span><span class="chip plain"><code>Judge:</code></span><span class="chip plain"><code>Pull request: ask first</code></span></div></article>
 <!-- built: end -->
 </div>
@@ -649,7 +662,6 @@
 <!-- built: playbook cards, Long or wide runs -->
 <article class="card" id="playbook-autonomous-run"><h4>autonomous-run</h4><p>For: One task driven to its "Done when" with nobody watching, where each line of it can be checked by a command.</p></article>
 <article class="card" id="playbook-hillclimb"><h4>hillclimb</h4><p>For: Moving one measurable thing toward a target over many attempts. The brief's "Done when" has the target as a number.</p></article>
-<article class="card" id="playbook-swarm"><h4>swarm</h4><p>For: A task that splits into slices no one worker has to hold together, or a race of several workers on one brief.</p></article>
 <!-- built: end -->
 </div>
 <p class="sub">Work on jstack itself</p>
