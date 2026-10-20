@@ -11,6 +11,7 @@ It never rebases under a review that is running either. A reviewer launched from
 Before it rebases, the block keeps the head under `refs/jstack/pre-rebase/<slug>/<the head's first 12 characters>`. A worktree shares its refs with the main checkout, so `jmerge` always finds the commit before the rebase there, and `jmerge --sweep` deletes only branches and the gate's refs, so the ref outlives the branch. These refs are never pushed, and they are removed only by hand.
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 G=$(git rev-parse --git-dir)
 why='<conflict or stale>'
@@ -91,6 +92,7 @@ The file `crew-before-rebase` in the git directory is the record of a rebase fro
 If it stops, resolve the files it names and run `git rebase --continue` until the rebase is finished. A file that a command writes is never resolved by hand. The repo's `notes.md` names each one on a line `Generated: <file> -> <command>`, as jstack's does with `Generated: uv.lock -> uv lock`, and where it has no such line `uv.lock` is made by `uv lock`. Run this each time the rebase stops, with the block at the top. It names the files to resolve by hand first. Once those are resolved and added it takes the base's version of each generated file (during a rebase, `--ours` is the base being rebased onto) and runs its command, so the file is made from what both sides now ask for:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 G=$(git rev-parse --git-dir)
 table=$(sed -n 's/^[-* ]*Generated:[[:space:]]*//p' "$H/notes.md" 2> /dev/null | tr -d '`')
 if [ -z "$table" ]; then table='uv.lock -> uv lock'; fi
@@ -132,6 +134,7 @@ On `not made`, run the command yourself and read what it says: the file is still
 Once the rebase is finished, prove that it lost no line, before the check command. Run this. For each file the patch changes, before the rebase or after it, it looks in the head for two sets of lines. The default branch's are the ones it added between where the branch left it before the rebase and where it leaves it now. Its own are the ones the patch added before the rebase. Each must be in the file at the head, unless the other side's diff removes that same line, which is a deletion that was meant. Lines are compared as text with the white space at their end left off, they are counted, so a line that is there once does not stand for two, and blank lines are skipped. It is the rule `jmerge` holds a rebased pull request to:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 G=$(git rev-parse --git-dir)
 if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
     echo "the rebase is not finished: resolve, git rebase --continue, then run this again"
@@ -193,6 +196,7 @@ On `Kept: every line, in <files>`, go on. On `could not look`, nothing is proved
 Then run the check command, and push with this. It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named. The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 G=$(git rev-parse --git-dir)
 branch=$(git symbolic-ref -q --short HEAD)
 pushed=

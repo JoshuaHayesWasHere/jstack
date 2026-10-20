@@ -24,6 +24,7 @@
    Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`. Run this with the block at the top. It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    for f in "$T"/../playbooks/*.md; do
        if [ -f "$f" ]; then
            printf '%s | %s\n' "$(basename "$f" .md)" "$(sed -n 's/^Run by: //p' "$f" | head -n 1)"
@@ -37,6 +38,7 @@
    Then ask for the deeper version of the task, not a bigger one (`$T/../principles/principle-depth-over-breadth.md`). Run this, for a brief or a scout's request alike, with the playbook you picked in place of the words in angle brackets. Put the kind of work there instead, `research`, `perf`, `analysis`, `outcome` or `other`, where you picked `none`, and where the playbook hides the kind: an outcome under `feature` or `autonomous-run` is `outcome`, and a bug whose cause is not proven is `analysis`, whatever the playbook:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    picked='<the playbook picked, or for none the kind of work>'
    case $picked in
    *'<'* | *'>'* | '') echo "not filled in: put the playbook or the kind of work in place of the placeholder" ;;
@@ -89,6 +91,7 @@
 3. Add the line `Thread: <threadId>` to the brief. Run this with the block at the top, with `tasks` or, for a scout's request, `scouts` in place of `<tasks or scouts>`, and the id the launch returned in place of `<the launched thread>`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/<tasks or scouts>/<slug>.md"
    line='Thread: <the launched thread>'
    case $line in
@@ -115,6 +118,7 @@
    The line goes above the Result, when a fast crewmate has written one by then, and takes the place of the line of an earlier launch from the same brief: a review's findings go to the thread it names. Briefs and requests are in the repo's directory, whichever home launches from them. Write no status in the plan. A launch by this section adds no row to the queue, and `jbus plan` counts an entry from its rows, so where the brief has no row yet, add one for its entry. Run this in the main checkout with the block at the top, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    if command -v jbus > /dev/null && jbus plan > /dev/null 2>&1; then
        if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < "$H/tasks/<slug>.md" 2>&1); then
            echo "added: the row <slug>, of the entry <entry>"
@@ -133,6 +137,7 @@ No fixed count limits the threads out, crewmates and durable scouts together, an
 The machine is shared with the homes of other repos, so check it before every launch:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 uv run --project "$T/.." jgauge room || echo "wait: jgauge room did not run"
 ```
 

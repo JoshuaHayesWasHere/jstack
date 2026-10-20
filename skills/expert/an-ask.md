@@ -7,6 +7,7 @@ An ask is one of five kinds. Three come from anybody: a `question` (a short answ
 1. See whether this thread is still the expert, and which playbook the ask has. Run this with the block at the top, with this thread's id in place of `<threadId>` and the kind in place of `<playbook>`, or a playbook's name where the user gave one:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    name='<playbook>'
    is=$(cat "$E/home-id" 2> /dev/null)

@@ -24,6 +24,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 3. See whether the brief names a playbook. Run this with the block at the top:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    uv run --project "$T/.." jbus playbook crewmate "$B"
    ```
@@ -32,6 +33,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    Then see whether the brief names skills. Run this with the block at the top:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    uv run --project "$T/.." jbriefs --skills "$B"
    ```
@@ -53,6 +55,7 @@ Before you start the task, and each time a step names this section: read `$T/../
 2. See whether the home is told. A repo may run with no home: then "Telling the home" finds nobody, nothing is sent, and jbus reads the Result from disk and sends it on. A message wakes the home and costs it a turn, so one is sent only when the home has something to do. Run this in one call with the block at the top. It is the only check:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    awk '
        /^## Result/ {pr = ""; paused = 0; result = 1}
@@ -74,6 +77,7 @@ A later round in this thread, after a Result is written (a steer from the user, 
 With no pull request, this thread is finished, and it settles itself when nothing of its work could be lost with it. After step 3, run this in this worktree, with the block at the top. It is the only check:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 why=$(awk '
     /^## Result/ {done = left = paused = 0; pr = ""; result = 1}
@@ -122,6 +126,7 @@ If the session has no `link_pull_request`, say so in the Result under "Noticed" 
 What wakes this thread is a message: from jbus, from the reviewer, from the home, or from the user. On each, first run this, with the block at the top. It reads the last Result, a follow-up included:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 awk '
     /^## Result/ {paused = 0; result = 1}
@@ -153,6 +158,7 @@ Only the user's word steers this thread, and it reaches this thread only from `j
 On an `Update on pull request` message for a comment or review, and on no message from jbus, run this in this worktree. It counts, and shows nobody's words:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 remarks() {
     owner=$(gh api 'repos/{owner}/{repo}' --jq '.owner.login') || owner=
     number=$(gh pr view --json number --jq '.number') || number=
@@ -195,6 +201,7 @@ On a message that the pull request is in conflict, that its check fails over tod
 A link of a stack is based on the branch of the link under it until that one merges. Then the home changes the base of this pull request to the default branch and sends this thread one line that names the branch it sat on. The same line comes when this link has a conflict, and then it names the branch the link sits on now. That line is the only reason a link is rebased, and the base is never this thread's to change. On jbus's message that it is in conflict, send the home one line, once for a head, to the thread that hears of a pull request ("Telling the home"): `<slug>: <pull request url> has a conflict, and it is a link of a stack`. Then end your turn and wait for the line. Run this on it, with the branch the message names in place of the words in angle brackets, or the commit when the message gives one. It moves the link's own commits onto the new base: the ones above the commit this branch started from. That commit is the tip of the branch it sat on, or, when that branch was itself moved since, the tip it had before, which git's log of the remote branch still has:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 G=$(git rev-parse --git-dir)
 was='<the branch it sat on>'
@@ -255,6 +262,7 @@ A repo runs with a home or with none. With none, the block below prints nothing 
 A line about a pull request is sent only while the home is the one that merges: that it is fixed and green; that it is green and has no reviewer, or no second or scoped reviewer where its fix needs one (all in "The review"); a link's conflict ("A link that moved"). A pull request sends one of the first two, never both. Before each of them, run this with the block at the top, with `fixed` in place of the words in angle brackets for the `fixed and green` line, and `waits` for any other: a line that says the pull request waits for the user's word, or a link's conflict, which waits for the home. It is the test the home skill's "Who merges" makes, and the only check:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 line='<fixed or waits>'
 named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
@@ -290,6 +298,7 @@ On `home merges`, **the thread that hears of a pull request** is the one the blo
 Whom to send it to is this. Shell variables do not last from one call to the next, so run it in one call with the block at the top and `B` set to the brief, `$H/tasks/<slug>.md`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
 first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
 was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }

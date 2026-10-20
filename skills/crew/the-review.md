@@ -7,6 +7,7 @@ The time to launch is when the pull request is open, straight after the Result n
 Which of these it is, is what this prints, run with the first line of what the block of "The checks" printed in place of the words in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 checked='<the line the block of "The checks" printed>'
 case ${checked%%:*} in
 passed) echo "launch: run the block below and do what it prints" ;;
@@ -20,6 +21,7 @@ esac
 What decides whether there is a reviewer to launch is this, run with the block at the top. It is the only check: do not go by what you remember of earlier messages.
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 mode=$(awk '/^Review:/ {print $(2); exit}' "$B")
 case $mode in
@@ -48,6 +50,7 @@ If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool 
 A pull request with no reviewer never turns ready and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open. So it tells the home, once. Run this before adding the `Reviewer: none` line, with the block at the top:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 if grep -q '^Reviewer: none' "$B"; then
     echo "send nothing: the home was told of this pull request when that line was written"
@@ -63,6 +66,7 @@ The findings come back as a message in this thread, one from each reviewer. With
 Every finding ends one of two ways, and none is left unanswered. The findings have ids, `F1`, `F2`, ..., which no reviewer writes: two reviewers' findings of one place are one id, and this lists them, merged and triaged, each with its bucket, its reviewers and the answer it has so far. Run it with the block at the top:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md"
 ```
 
@@ -82,6 +86,7 @@ A finding's bucket is the lead's reading, and it sets the default; its severity 
 Then run this, with the block at the top. It reads the same list, and says what is left:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md" --left
 ```
 

@@ -7,6 +7,7 @@ pstack's two reviewers are one reading here, so that a pull request has one revi
 **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 BRIEF="$H/tasks/<slug>.md"
 [ "$(awk '/^Review:/ {print $(2); exit}' "$BRIEF")" = none ] && exit 78
 W="${TMPDIR:-/tmp}/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
@@ -121,6 +122,7 @@ echo "$D/prompt.md"
 **5. The one safety fact.** Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head. Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 D='<the directory of the prompt file>'
 kept='<the head kept at the start>'
 : "${T:?is not set: send this with the block at the top}"

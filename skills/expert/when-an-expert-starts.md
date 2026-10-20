@@ -5,6 +5,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 1. See what there is to read. Run this with the block at the top:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    printf 'expert %s\ntitle: expert: %s\n' "$N" "$N"
    for f in "$X/README.md" "$E/CHARTER.md" "$E/sources.md" "$E/notes/INDEX.md" "$E/corrections.md"; do
        if [ -f "$f" ]; then echo "read: $f"; else echo "missing: $f"; fi
@@ -30,6 +31,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 3. Put this thread's id in the folder. The `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). Run this with the block at the top, with the id in place of `<threadId>`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    case $ME in
    '' | *'<'* | *'>'* | *' '*) echo "not written: put this thread's id in place of the placeholder" ;;
@@ -54,6 +56,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 4. See to the webhook. An ask from another thread comes in through it, and it has to be made here: one made for this expert by another thread starts a new thread on each request. Run this with the block at the top, with the id in place of `<threadId>`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    id=
    by=
@@ -82,6 +85,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    Nothing else in the call: the webhook keeps its address, so whoever holds it is told nothing. Then see where it posts now, whatever the call answered: call `list_scheduled_tasks` with no arguments, and run this with the block at the top, with this thread's id in place of `<threadId>` and the whole reply in place of the line in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    id=
    by=
@@ -134,6 +138,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    After a create, keep what is so. Run this with the block at the top, with the two values the call returned and this thread's id in their places. A call that returned no `webhookUrl` gets nothing in that place:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    id='<scheduledTaskId>'
    url='<webhookUrl>'

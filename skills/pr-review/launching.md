@@ -3,6 +3,7 @@
 The brief's reviewer, if a thread has already launched one and written it in the result:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 awk '/^Reviewer:/ && $(2) !~ /^none/ {print $(2); exit}' "$H/tasks/<slug>.md"
 ```
 
@@ -11,6 +12,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
 1. Find the briefs that are **ready**. Run this with the block at the top, in a home with no slug with `*` for `<slug>`. It is the only check:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    PASS=first
    checks() {
        view=$(gh pr view ${1:+"${1}"} --json headRefOid,statusCheckRollup) || { echo "wait: could not ask GitHub"; return; }
@@ -120,6 +122,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
 `Review: none` is the home's choice for a task it took to be text only or throwaway. A user who types `/pr-review <slug>` has asked for that brief's review by name, and their word outranks the line. So with a slug, and only then, run this before the readiness check:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 if [ "$(awk '/^Review:/ {print $(2); exit}' "$B")" = none ]; then
     awk '/^Review:/ && !seen {seen = 1; print "Review: review (was none: the user asked for this review by name)"; next} {print}' "$B" > "$B.named" &&

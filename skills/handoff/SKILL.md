@@ -63,6 +63,7 @@ A party that is no repo's home hands off too. Its folder is `~/.local/state/home
 Before step 1, see which home this is:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if ! this_home '<threadId>' > /dev/null && party_home '<threadId>'; then
     printf 'party %s\nhandoff: %s\nwrite: %s\n' "$P" "$M/handoff.md" "$M/handoff.next.md"
     exit
@@ -95,6 +96,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
 3. **Close.** Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments. Then run this with the block at the top, with this thread's id in place of `<threadId>` and the whole reply in place of the line in angle brackets. In a session with no such tool, leave the line as it is:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    N=10 # lines a note has at most, its gates not counted
    again=
@@ -260,6 +262,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
 2. **Close, and start the next thread.** Run this with the block at the top:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    again=
    if ! party_home "$ME"; then
@@ -320,6 +323,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
 The message that started this thread sent it here. This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part. Get this thread's id from the `t3-code` server's `t3_thread_configuration` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first). Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ME='<threadId>'
 P='<party>'
 M=${H%/*}/_$P
@@ -358,6 +362,7 @@ Then go on as the message says, from the party's handoff and its restart page.
 A home that has handed off does nothing more. Its briefs name no thread, and a thread or a party that sends to the repo's home reads its `home-id` first, so a message should not reach it. If one still does (a thread that kept an old id, a direct message, the user), run this with the block at the top before anything else:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ME='<threadId>'
 case $ME in
 '' | *'<'* | *'>'*)

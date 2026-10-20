@@ -7,6 +7,7 @@ import subprocess
 import pytest
 
 import test_scout as scout
+from skill_blocks import GUARD
 from test_grill_page import a_path_of
 from test_sweep import REPORT, settles
 
@@ -67,7 +68,8 @@ def test_the_block_named_for_a_closed_tab_serves_the_page_again(scene, stub):
     """The sentence on `browser_disconnected` names a section and a command: that block is run."""
     (said,) = [line for line in scout.SKILL.read_text().splitlines() if DISCONNECTED in line]
     section, command = re.search(r'the block of "([^"]+)" that runs `([^`]+)`', said).groups()
-    assert [block.strip() for block in scout.given(section)].count(command) == 1
+    given = [block.replace(GUARD, "").strip() for block in scout.given(section)]
+    assert given.count(command) == 1
     page = scene.home_dir / "reports" / f"{scout.SLUG}.html"
     ran = run(scene, stub, command)
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, f"served: {page}\n", "")

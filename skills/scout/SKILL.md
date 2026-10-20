@@ -27,6 +27,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 2. Note what the checkout holds before you touch anything. Shell variables do not last from one call to the next, so run this in one call with the block at the top and `S` set to the slug:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    git status --porcelain > "$H/scouts/$S.start"
    cat "$H/scouts/$S.start"
    ```
@@ -35,6 +36,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 3. See whether the request names a playbook. Run this in one call with the block at the top and `S` set to the slug:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/scouts/$S.md"
    uv run --project "$T/.." jbus playbook scout "$B"
    ```
@@ -43,6 +45,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    Then see whether the request names skills. Run this with the block at the top and `S` set to the slug:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/scouts/$S.md"
    uv run --project "$T/.." jbriefs --skills "$B"
    ```
@@ -70,6 +73,7 @@ The user may steer in this thread at any time. What they say here overrides the 
 A question only the user can answer does not wait. A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in. The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Do not act on that one. Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer. Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept. A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or closes it with its default when the user has not answered in 2 hours and it has no `Holds:` line. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. Run this in this checkout, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 gate=$(cat << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
@@ -114,6 +118,7 @@ Do not start the crewmate. The home does that.
 **A visual page, when the request asks for one.** Before building it, run this:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if command -v lavish-axi > /dev/null; then
     echo "page: lavish-axi is installed"
 else
@@ -126,6 +131,7 @@ On `no page`, build none. Write `Page: none, lavish-axi is not installed` in the
 On `page`, build one HTML file at `$H/reports/<slug>.html`, with anything it loads beside it, then serve it, in one call with the block at the top and `S` set to the slug. It prints the page's address:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 lavish-axi "$H/reports/$S.html"
 ```
 
@@ -136,6 +142,7 @@ lavish-axi "$H/reports/$S.html"
 1. Check the checkout against the note of the start, in one call with the block at the top and `S` set to the slug, and show what it prints:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    echo "There at the start:"
    git status --porcelain | grep -Fxf "$H/scouts/$S.start"
    echo "New since the start:"
@@ -147,6 +154,7 @@ lavish-axi "$H/reports/$S.html"
 3. Tell the home that launched this thread, if there is one to tell. In one call with the block at the top and `B` set to the request, `$H/scouts/<slug>.md`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
    first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
    was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }
@@ -170,12 +178,14 @@ lavish-axi "$H/reports/$S.html"
    Besides a gate jbus could not take, this is the one message a scout sends its home. Note the report it was told of, in one call with the block at the top and `S` set to the slug:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    sed -n '/^## Report/,$p' "$H/scouts/$S.md" | cksum > "$H/scouts/$S.told"
    ```
 4. Say the same thing in this thread in at most five lines.
 5. See whether this thread settles itself. Its work is the report, which is on disk, so nothing is lost with the thread. In one call with the block at the top and `S` set to the slug. It is the only check:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    awk '
        /^## Report/ {report = 1; done = 0; page = ""}
        report && $(1) == "Status:" {done = ($(2) == "done")}
@@ -193,6 +203,7 @@ lavish-axi "$H/reports/$S.html"
 Then stop, unless there is a page. With a page, stay, and hold the poll inside this turn. Run this as a tracked command, in one call with the block at the top and `S` set to the slug:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 lavish-axi poll "$H/reports/$S.html"
 ```
 
@@ -201,6 +212,7 @@ A tracked command is one whose end your harness gives back to this turn: the cal
 When it returns, change the page as the user's feedback asks, update the report when a finding or the recommendation changes, and run it again until the session ends. Send the home nothing while the session lasts. A poll that returns `status: browser_disconnected` is a closed tab, and no answer: each choice the page still asked stays at its default in the report. End the session with `lavish-axi end "$H/reports/<slug>.html"`, go on as when the user ends it, and say here that the page opens again on their word. On that word, serve it again with the block of "Write it down" that runs `lavish-axi "$H/reports/$S.html"`, in one call with the block at the top and `S` set to the slug, then run the poll above. When the user ends it, run this, in one call with the block at the top and `S` set to the slug:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if sed -n '/^## Report/,$p' "$H/scouts/$S.md" | cksum | cmp -s - "$H/scouts/$S.told"; then
     echo "send nothing: the report is the one the home was told of"
 else

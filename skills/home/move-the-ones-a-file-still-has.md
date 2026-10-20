@@ -1,6 +1,7 @@
 **Move the ones a file still has** at the start, before the open ones are shown. A home started before jbus kept the questions wrote them in `$M/gates.md`. This block pipes each open one to jbus and then takes the file out of jbus's sight, so that a gate is listed once, as its question:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${SEP:?run the block that reads jbus first}"
 G="$M/gates.md"
 if [ ! -s "$G" ]; then

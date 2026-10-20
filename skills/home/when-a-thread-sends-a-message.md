@@ -31,6 +31,7 @@ On each message, do this without waiting for a word from the user.
    The launch check names the briefs still out whose `Where:` meets the task's, of any home of this repo. A file another brief names never holds a launch: the overlap is information for the user, and the second pull request to merge rebases. Run it from the main checkout, in one call with the block at the top, with the task's slug in place of the word in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    slug='<slug>'
    if [ -f "$H/scouts/$slug.md" ] && ! [ -f "$H/tasks/$slug.md" ]; then
        echo "go: a scout changes no files, so it overlaps nothing"
@@ -90,6 +91,7 @@ When the user asks for status, run the merge step of "Merging a pull request tha
 Once a week the root home's status also says where changes collide. Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines or changed the patch) and stamps the run, and otherwise it prints nothing. Show what it prints. A file high in all three is one to split, and never a reason to hold a launch.
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
     uv run --project "$T/.." "$T/../scripts/hot_files.py" --since "$(date -d '7 days ago' +%F)" --home "$H" --top 5 &&
         touch "$H/hot-files.stamp"

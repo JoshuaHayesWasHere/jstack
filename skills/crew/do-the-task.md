@@ -6,6 +6,7 @@
 - While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
 
   ```sh
+  if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
   uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the targeted tests>
   ```
 
@@ -15,6 +16,7 @@
 - Once every **Done when** line holds, run the repo's check command (`notes.md` names it), once, under a test slot. It is that command and no other, whatever command a brief's **Done when** names for it. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets. Every run of the check command this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
+  if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
   G=$(git rev-parse --path-format=absolute --git-dir)
   C="$G/crew-check"
   limit=540
@@ -76,6 +78,7 @@
   Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
 
   ```sh
+  if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
   uv run --project "$T/.." jmerge --scope <slug>
   ```
 
@@ -91,6 +94,7 @@
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 
   ```sh
+  if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
   B="$H/tasks/<slug>.md"
   line=$(awk '/^## / {exit} /^Stack:/ {print; exit}' "$B")
   if [ -n "$line" ]; then
@@ -112,6 +116,7 @@ The user may steer in this thread at any time. What they say here overrides the 
 A question only the user can answer does not wait. A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in. The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Do not act on that one. Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer. Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept. A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or closes it with its default when the user has not answered in 2 hours and it has no `Holds:` line. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. Run this in this worktree, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 gate=$(cat << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>

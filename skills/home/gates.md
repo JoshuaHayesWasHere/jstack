@@ -20,6 +20,7 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 **The block that reads jbus** is run in the same call as every block of this section but the last two, after the block at the top and the block that finds this home, from the main checkout:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${M:?run the block that finds this home first}"
 SEP=$(printf '\001')
 own=home
@@ -71,6 +72,7 @@ It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the
 **Ask one** when the question is this home's own. Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and act on it only once the user answers. Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. With the entry in place of the line in angle brackets, and `own` left as it is:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${SEP:?run the block that reads jbus first}"
 slug='own'
 gate=$(cat << 'THE_GATE_ENDS_HERE'
@@ -105,6 +107,7 @@ The same block hands jbus a gate another thread wrote out in full, the lines of 
 **Show the open ones** in the start's summary, when the user asks for status, and when nothing is left planned or out:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${SEP:?run the block that reads jbus first}"
 if [ -n "$WHY" ]; then
     echo "$WHY"
@@ -139,6 +142,7 @@ On `no open questions`, say nothing about gates. On `no jbus`, `no project` and 
 Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${SEP:?run the block that reads jbus first}"
 open=$(printf '%s\n' "$OPEN" | grep -c .)
 last=$(printf '%s\n' "$OPEN" | cut -d "$SEP" -f 1 | sort -n | tail -n 1)
@@ -185,6 +189,7 @@ On `round written:`, each open question is a question `gate-<n>` on the page, it
 When the poll returns answers, put what it printed, all of it, in place of `<what the poll printed>`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 awk '
     function plain(s,    out, i, c) {
         out = ""
@@ -222,6 +227,7 @@ Run "Close one" for each `default`, `noted` and `differs` line, with the words a
 **Close one** when the user answers it, here or on a page. Put the question's number, the user's name, the time they answered, `default` or `differs`, and their words, as they said them, in place of the five placeholders:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 n='<number>'
 by="<the user's name>"
 at='<YYYY-MM-DD HH:MM ZONE>'

@@ -16,6 +16,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 1. Run this in this worktree, with the two ranges of the message in place of the words in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    old='<old range>'
    new='<new range>'
    head=$(git rev-parse HEAD)
@@ -44,6 +45,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 4. Rule on the lines the rebase dropped on purpose. Run this in this worktree, with the block at the top. It prints one line for each `Dropped on rebase:` line the brief has at this head, and for each the diff of that file from the head before the rebase, which the crewmate kept under `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, to this one. The `Rebase:` line, where the brief has one, names that head; the crew's keep step writes the ref and no such line, so with none the block takes the newest ref of the slug, by commit date, which is the head before the last rebase:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    head=$(git rev-parse HEAD)
    short=$(printf %s "$head" | cut -c1-12)

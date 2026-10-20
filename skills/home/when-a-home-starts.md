@@ -11,6 +11,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 1. Work out which home this is, and make `$H` if this is the repo's first home. `plan.md` is what says a home has started: `$H/plan.md` the root home, for this step and for the hook alike, and `$H/<scope>/plan.md` a scoped one. Run this with the block at the top, with everything typed after `/home` in place of `<the text after /home>`, or nothing when nothing was typed after it or nobody typed `/home`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    here=$(pwd -P)/
    root=$(cd "${H%/*}" 2> /dev/null && pwd -P || echo /dev/null)
    case $here in
@@ -64,6 +65,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 3. Put this thread's id on disk, so the threads this home sends out can report back to it and the block that finds this home can find it. The `t3-code` server's `t3_thread_configuration` with no arguments gives the id as `threadId` (if your harness defers it, load it first). Shell variables do not last from one call to the next, so run this in one call with the block at the top, with the id in place of `<threadId>` and the first line step 1 printed, `root` or `scope <word>`, in place of `<which home>`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    ME='<threadId>'
    home='<which home>'
    M=
@@ -94,6 +96,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 4. See where things stand. Read `$H/standing.md` and `$M/handoff.md` whole, the user's standing rules and the note the last home left: the block below prints the path of each that is there. Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those two: read it whole as well. It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it. When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then `$H/notes.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked". A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`. A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and `$T/../docs/context.md` says how a pack is checked and pruned. Then run it in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"), in the main checkout:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    : "${SEP:?run the block that reads jbus first}"
    W=110 # characters a line is cut at
    clip() { awk -v w="${1:-$W}" '{ if (length($(0)) > w) print substr($(0), 1, w - 3) "..."; else print }'; }
@@ -204,6 +207,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    **Mark what was read**, with the block at the top and the block that finds this home, with the lines step 4 printed under its last part that you read, as printed, in place of the line in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    S="${M:?run the block that finds this home first}/read-seen"
    grep -E '^(tasks|scouts)/[^/: ]+\.md: ## (Result|Report)' << 'READ' | while IFS= read -r line; do
    <the lines step 4 printed that you read>
@@ -221,6 +225,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 Every repo with a home is a project of jbus's config: jbus launches, merges, keeps the questions and carries the user's word only for a project it has. `/new-home` adds the repo, and a home started by `/home` in a repo, or before that step was there, did not. So a home that finds its repo missing adds it, before step 5 merges or launches anything. Run this in the main checkout, in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"):
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${SEP:?run the block that reads jbus first}"
 C=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 if [ -n "$P" ]; then
@@ -247,6 +252,7 @@ A handoff leaves two things that only the next home can see to. Both go by the `
 **Its scheduled tasks.** Step 3 sends the start here. A scheduled task posts into the thread that made it until another thread takes it, and each run of it makes that thread active again, settled or not. Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments. Then run this in one call with the block at the top and the block that finds this home, with the whole reply in place of the line in angle brackets, and nothing in place of `<the ids a call was refused for>`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 refused='<the ids a call was refused for>'
 case $refused in
 *'<'* | *'>'*) refused= ;;
@@ -298,6 +304,7 @@ After the calls, list the tasks again and run the block again, with the id of ea
 Then run this in one call with the same two blocks, with the whole reply in place of the line in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 was=$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$M/handoff.md" 2> /dev/null | head -n 1)
 if [ -z "$was" ] || [ "$was" = "$ME" ]; then
     echo "no home before this one: $M/handoff.md names none, so no thread is looked for"

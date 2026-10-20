@@ -3,6 +3,7 @@
 1. Check the head again, and name the patch that was reviewed. Run this in this worktree, with the head kept at the start in place of the words in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    kept='<the head kept at the start>'
    if ! view=$(gh pr view <url> --json baseRefName,headRefOid); then
        echo "Head: $kept   Unchanged by the review: not checked, could not ask GitHub"
@@ -30,6 +31,7 @@
 4. See where the findings go, in one call with the block at the top, with this pass's verdict in place of the words in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    verdict='<clean, findings or not run>'
    thread=$(awk '/^Thread:/ {print $(2); exit}' "$B")
@@ -91,6 +93,7 @@
 5. Read `$T/review.md` now. Append it, filled in, to `$H/tasks/<slug>.md`, with the `By:` line Start printed under its heading, before anything is sent: the brief is where `jmerge` and jbus read the review, and a message is only the notice of it. A reviewer that sent first and was cut off, or whose append failed, left a verdict in one thread and none in the brief, and the pull request waited for a section nobody was going to write. Where step 4 printed `nobody`, run its block once more now that the section is on disk: the crewmate's thread puts a rebase off while a review's section is not written, and one may have come since step 4. If it no longer prints `nobody`, send the thread it names one line saying the review is clean, and the `Proof:` line. The section stays as it is. Then run this with the block at the top, with the head kept at the start in place of the words in angle brackets. It is the only gate on a send, and on settling:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    kept='<the head kept at the start>'
    by='<the By: line Start printed>'

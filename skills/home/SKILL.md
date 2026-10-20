@@ -42,6 +42,7 @@ That is **the block at the top**. Every block below is sh, and its last line mak
 A repo has one root home, and may have scoped homes beside it, each for one goal. A scope is a directory under `$H` that holds a `plan.md`, and never `tasks`, `scouts`, `reports` or `log`. `$M` is this home's own directory: `$H` for the root home, `$H/<scope>` for a scoped one. **The block that finds this home** sets it, from the one `home-id` that holds this thread's id:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ME='<threadId>'
 M=
 case $ME in
@@ -125,6 +126,7 @@ Before writing a brief, when a task may need research first, and when a step els
 A row `the home` runs, in what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, is steps for this thread: how to run a queue of tasks, not how to do one. Its name is kept on a `Playbook:` line in the head of `$M/plan.md`, above the first `## ` heading, so the next home works by it too. Open it when a home starts with that line in its plan, and when you take one up. Run this after the block at the top and the block that finds this home, with the playbook's name in place of `<name>`, or with nothing in its place to take the name the plan has:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 name='<name>'
 uv run --project "$T/.." jbus playbook home "$M/plan.md" --name "$name"
 ```

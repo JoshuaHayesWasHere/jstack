@@ -5,6 +5,7 @@ A queue is a plan the user approved once, worked to its end with no further word
 While a queue is out, and only then, the home has one scheduled run: the audit, once an hour. It is the one exception to "the home does not poll". Its id is kept in `$M/audit`, one line, the id and then the thread it posts into. Run this at the start of a home, when a queue playbook is taken up, on each tick, and when the last entry is set to done, in one call with the block at the top and the block that finds this home:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 A="${M:?run the block that finds this home first}/audit"
 name=$(uv run --project "$T/.." jbus playbook home "$M/plan.md" --named 2> /dev/null)
 case $name in
@@ -61,6 +62,7 @@ Leave `bindToCurrentThread` out: each run then posts into this thread. A run in 
 After either call, keep what is so. In one call with the same two blocks, with the id the schedule call returned in place of `<scheduledTaskId>`, or with nothing in its place after a delete:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 A="${M:?run the block that finds this home first}/audit"
 id='<scheduledTaskId>'
 case $id in
@@ -79,6 +81,7 @@ esac
 3. Judge each thread out by its side effects, not by its state. In one call with the same two blocks, from the main checkout:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    S="${M:?run the block that finds this home first}/audit-seen"
    TICKS=2 # ticks in a row with nothing written or pushed before a thread is stuck
    mine=root

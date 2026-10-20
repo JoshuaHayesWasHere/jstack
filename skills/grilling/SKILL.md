@@ -57,6 +57,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 1. Make the file. A file that is there is kept: it is this grill's, from an earlier round. On `no page`, there is nothing to serve a page with and no file is made: ask this round, and every later one, as text.
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    if ! command -v lavish-axi > /dev/null; then
        echo "no page: lavish-axi is not installed"
        exit 0
@@ -69,6 +70,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 3. Open the session, once per grill. The block prints the session's status, any warning Lavish gave, and on its last line the address Lavish printed: give the user that one, as it is. If it exits with `no session`, it has printed what Lavish said: the grill goes on as text. On `status: user-ended` the user closed this page and it was not opened again: give no address, and go on as text.
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    out=$(lavish-axi "$F" --no-open 2>&1)
    at=$(printf '%s\n' "$out" | sed -n 's|.*url: "\(http[^"]*/session/[0-9a-f]*\)".*|\1|p' | head -n 1)
    if [ -z "$at" ]; then
@@ -83,6 +85,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 4. Hold one poll for the round, as a tracked background command (the Bash tool's `run_in_background`), and end your turn. It is one wait that returns once, when the user presses "Send to Claude", and its return wakes this thread. Never a loop, `&` or `nohup`, and never a second poll while one is out.
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    lavish-axi poll "$F"
    ```
 
@@ -91,6 +94,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    Where the answer is the user's go for rows of the queue, the go is the send itself, and jbus reads it from Lavish's state file: the poll's text is the agent's report of it, and approves nothing. This prints the send's reference, `<session key>/<entry id>`, the last entry of the page's session whose role is `user`:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    S="${LAVISH_AXI_STATE_DIR:-$HOME/.lavish-axi}/state.json"
    at=$(realpath "$F" 2> /dev/null || echo "$F")
    if ! jq -e . "$S" > /dev/null 2>&1; then
@@ -112,5 +116,6 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 7. On that confirmation, write the Decisions as "In a home" says. Each line carries the date, the question's `id`, the option's label and the note, word for word. An answer with no note is a picked choice: say so, and do not pass the label off as the user's wording. Then end the session. The file stays.
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    lavish-axi end "$F"
    ```

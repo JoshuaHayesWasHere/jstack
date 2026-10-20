@@ -13,6 +13,7 @@ A path listed in `src/jmerge/guarded.txt` gets the stricter gate that `docs/jmer
 What decides is this, run with the block at the top, in this worktree. Run it once the findings are handled and the fix, if there is one, is pushed, before the `Fixed:` line is written, and on each wake that finds the pull request green after that. It is the only check:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 read -r passes saw written declined << EOF
 $(uv run --project "$T/.." jbriefs --findings "$B" --rounds)

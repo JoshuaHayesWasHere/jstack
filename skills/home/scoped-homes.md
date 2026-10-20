@@ -12,6 +12,7 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 **Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 scope='<scope>'
 prefix='<prefix>'
 owns=$(paste -sd ' ' - << 'WHAT_IT_OWNS_ENDS_HERE'
@@ -87,6 +88,7 @@ On `not made:` nothing is written: tell the user what the line says. A name or a
 **Reading the scopes** is the root home's too, when the user asks for status. In one call with the block at the top and the block that finds this home:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if [ "${M:?run the block that finds this home first}" = "$H" ]; then
     for plan in "$H"/*/plan.md; do
         [ -f "$plan" ] || continue

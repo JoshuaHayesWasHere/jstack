@@ -7,6 +7,7 @@ The home merges nothing itself. One command does all of it, with no model: `jmer
 **Who merges** is what `$H/home-thread` says, and this block is the one the three blocks below go by. It is the test jbus makes (`src/jbus/merge.py`), and the one the start of a home makes for its warning:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then merges=home; else merges=jbus; fi
 echo "$merges merges"
 ```
@@ -16,6 +17,7 @@ It prints `home merges` when the file holds an id, and `jbus merges` when it is 
 **The merge step** is run on a crewmate's `fixed and green` line, which is sent for it to be run while the home merges, when the user asks for status, and once at the start of a home. On any other message it is step 2 of "When a thread sends a message", so nothing that turned ready is left waiting. Run it from the main checkout, in one call with the block at the top, the block that finds this home and the block of "Who merges", with this thread's id in place of `<threadId>`. On `home merges` it is the only check: do not go by what a report said, or by what you remember.
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 : "${merges:?run the block of "Who merges" first}"
 flags=''
 L="$H/merge.log"
@@ -127,6 +129,7 @@ On `jbus merges` the merge step then prints `not landed` before its other lines,
 A merge clears up after itself only when all is clean at that moment. What is left then, and what never had a merge by this command, is the sweep's: a `kept:` of a merge, a pull request merged by hand, a crewmate that ended with no pull request, a scout's worktree, the gate's ref. The same command does it, with no model. Run it once at the start of a home, after the merge step, from the main checkout, in one call with the block at the top and the block of "Who merges":
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 case ${merges:?run the block of "Who merges" first} in
 home) uv run --project "$T/.." jmerge --sweep ;;
 *) echo "no sweep: jbus merges here, and this home runs no jmerge" ;;

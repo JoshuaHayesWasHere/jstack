@@ -3,6 +3,7 @@
 Whether a pull request's checks have passed is never read off a message or remembered: it is what this prints, run in this worktree with the block at the top. It is the only check:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 checks() {
     view=$(gh pr view ${1:+"${1}"} --json headRefOid,statusCheckRollup) || { echo "wait: could not ask GitHub"; return; }
     never=$(printf '%s\n' "$view" |
@@ -43,6 +44,7 @@ Its first word is one of four answers:
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 B="$H/tasks/<slug>.md"
 here='<failed or passed>'
 if [ "$here" != failed ] && [ "$here" != passed ]; then

@@ -38,6 +38,7 @@ Only a launcher sends the `run` form. `git rev-parse --git-dir` and `--git-commo
 A brief may carry one line that says whether its pull request gets a review. The home writes it, when it writes the brief; nothing here changes it, but for the one case under "A brief the user names". It is a field of its own, like `Thread:`: a line that starts with `Review:`, and its value is the word after that. The same words inside the task's text, a `Done when` line or a result do not count. Read it with this, and no other way:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 awk '/^Review:/ {print $(2); exit}' "$H/tasks/<slug>.md"
 ```
 
@@ -91,6 +92,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on. Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first). Run this with the block at the top, with what it printed, whole, and the message this thread was started with in place of the words in angle brackets. Keep what it prints, the `By:` line:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    asked='<the message this thread was started with, whole>'
    config='<what t3_thread_configuration printed, or nothing where this session has no such tool>'
    case $config in "<"*) config= ;; esac
@@ -106,6 +108,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value, so two reviewers of one pull request have two `By:` lines: `By: codex gpt-6-sol xhigh` and `By: cursor grok-4.7 xhigh`. Only a session with no `t3_thread_configuration` falls back on the line of the role map's review list the message's number names, as `jroles review` prints it now, and on `By: inherit` where it prints none. Then decide whether this message may start a review, with this, with the same message and that `By:` line in place of the words in angle brackets:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    asked='<the message this thread was started with, whole>'
    by='<the By: line the block above printed>'
@@ -154,6 +157,7 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
    For a scoped pass, `scope` is the `Scope:` line step 1 of "A scoped pass" printed, and for any other pass it is left empty:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    kept='<the head kept at the start>'
    why='<the last line the block of step 1 printed>'
@@ -204,6 +208,7 @@ When step 2 of "After the review" drops what is outside the diff, and whenever a
 ### Wider than the brief
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 uv run --project "$T/.." jmerge --scope <slug>
 ```
 
@@ -219,6 +224,7 @@ A finding can be wider than the brief in a second way: it is about a changed lin
 ### In flight
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 BRIEF="$H/tasks/<slug>.md"
 PR=$(gh pr view <url> --json number,files) || exit 1
 OPEN=$(gh pr list --state open --json number,title,files) || exit 1
@@ -249,6 +255,7 @@ A repo runs with a home or with none, and a reviewer needs neither. It sends the
 Whom to send it to, in one call with the block at the top and `B` set to that brief, `$H/tasks/<slug>.md`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
 first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
 was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }

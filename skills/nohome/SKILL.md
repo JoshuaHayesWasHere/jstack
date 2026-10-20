@@ -28,6 +28,7 @@ Say so in one line, then carry on with what the user asked. If the thread had al
 Run this with the block at the top. It also works in a repo where no home has ever started:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 mkdir -p "$H" && touch "$H/off"
 ```
 
@@ -38,6 +39,7 @@ New threads in this repo start as ordinary threads until it is switched back on.
 Run this with the block at the top:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 rm -f "$H/off"
 ```
 
@@ -48,6 +50,7 @@ New threads in this repo start as homes again. This thread does not change: type
 Every repo is merged automatically until it is switched off: `jmerge` merges each pull request that is reviewed, fixed and green. Run this with the block at the top to switch that off for this repo. It also works in a repo where no home has ever started:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 mkdir -p "$H" && : > "$H/merge-off"
 ```
 
@@ -58,6 +61,7 @@ From then on `jmerge` merges nothing in this repo, whether a home runs it or `jb
 Run this with the block at the top:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if [ -e "$H/merge-off" ]; then rm "$H/merge-off"; fi
 ```
 

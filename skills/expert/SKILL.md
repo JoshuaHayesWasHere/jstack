@@ -79,6 +79,7 @@ A note that a correction or the source contradicts is wrong: fix the note, in th
 A finding that something should change goes to jbus as a gate: jbus keeps it as a numbered question for the user, and the root home of the owning repo shows it with its own. Read `$T/gates.md` now and fill it in, its `<n>` left as it is, with the finding as the question and "nothing was changed" as the default. The block writes the slug on its `Asked by:` line, the one the gate is sent under: jbus tells one gate from another by it. Then run this with the block at the top, with the owning repo's name in jbus in place of `<project>`, two or three words joined by hyphens in place of `<about>`, and the filled-in lines in place of the line in angle brackets:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 project='<project>'
 about='<about>'
 gate=$(cat << 'THE_GATE_ENDS_HERE'
@@ -124,6 +125,7 @@ An expert's thread is replaced by a fresh one when either of these is true, and 
 Answer the ask in hand first, and write down what it taught: nothing is carried over but the folder. Then run this with the block at the top, with this thread's id in place of `<threadId>`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ME='<threadId>'
 case $ME in
 '' | *'<'* | *'>'* | *' '*) echo "not filled in: put this thread's id in place of the placeholder" ;;
