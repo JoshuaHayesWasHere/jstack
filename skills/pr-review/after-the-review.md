@@ -88,12 +88,18 @@
    On `nobody`, send no message, to the crewmate or to anyone, and write `Sent to: not sent, clean` in the section. It is printed only for a second or scoped pass whose verdict is `clean`, on a pull request `jmerge` can merge with no further line from the crewmate: the `Fixed:` line is written and stays as it is, jbus merges, GitHub says `MERGEABLE`, no check is red, and jbus has asked for no rebase at this head. A message there would wake a thread that has nothing to push and nothing to launch. `jmerge` reads the section from the brief, and jbus's relay passes on no section whose verdict is `clean`. The lines for work in flight and a head that moved under the review are then in the section alone. A clean first review is still sent, and so is a clean later pass that leaves the crewmate something to do. On `not filled in`, nothing was decided: fill in the verdict and run it again.
 
    On `crewmate` and on `home`, nothing is sent yet: step 5 writes the section first, and sends after it.
-5. Read `$T/review.md` now. Append it, filled in, to `$H/tasks/<slug>.md`, before anything is sent: the brief is where `jmerge` and jbus read the review, and a message is only the notice of it. A reviewer that sent first and was cut off, or whose append failed, left a verdict in one thread and none in the brief, and the pull request waited for a section nobody was going to write. Where step 4 printed `nobody`, run its block once more now that the section is on disk: the crewmate's thread puts a rebase off while a review's section is not written, and one may have come since step 4. If it no longer prints `nobody`, send the thread it names one line saying the review is clean, and the `Proof:` line. The section stays as it is. Then run this with the block at the top, with the head kept at the start in place of the words in angle brackets. It is the only gate on a send, and on settling:
+5. Read `$T/review.md` now. Append it, filled in, to `$H/tasks/<slug>.md`, with the `By:` line Start printed under its heading, before anything is sent: the brief is where `jmerge` and jbus read the review, and a message is only the notice of it. A reviewer that sent first and was cut off, or whose append failed, left a verdict in one thread and none in the brief, and the pull request waited for a section nobody was going to write. Where step 4 printed `nobody`, run its block once more now that the section is on disk: the crewmate's thread puts a rebase off while a review's section is not written, and one may have come since step 4. If it no longer prints `nobody`, send the thread it names one line saying the review is clean, and the `Proof:` line. The section stays as it is. Then run this with the block at the top, with the head kept at the start in place of the words in angle brackets. It is the only gate on a send, and on settling:
 
    ```sh
    B="$H/tasks/<slug>.md"
    kept='<the head kept at the start>'
-   if awk -v kept="$kept" '/^## / {review = ($(0) == "## Review")} review && $(1) == "Head:" && $(2) == kept {found = 1} END {exit !found}' "$B"; then
+   by='<the By: line Start printed>'
+   case $by in "<"*) by= ;; esac
+   if awk -v kept="$kept" -v by="$by" '
+       /^## / {if (head && (by == "" || mine)) found = 1; review = ($(0) == "## Review"); head = mine = 0}
+       review && $(1) == "Head:" && $(2) == kept {head = 1}
+       review && $(0) == by {mine = 1}
+       END {if (head && (by == "" || mine)) found = 1; exit !found}' "$B"; then
        echo "written: the brief has a ## Review of $kept, so what step 4 named may be sent"
    else
        echo "not yet: the brief has no ## Review of $kept: append the section first, and send nothing before it is there"

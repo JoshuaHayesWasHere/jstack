@@ -86,16 +86,36 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
 
 1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. Then decide whether this message may start a review, with this, putting the message this thread was started with, whole, in place of the words in angle brackets:
 
+   Who this reviewer is goes on the section's `By:` line, under its heading: the line of the role map's review list it was launched on. Run this with the block at the top, with the message this thread was started with, whole, in place of the words in angle brackets. Keep what it prints, the `By:` line:
+
+   ```sh
+   asked='<the message this thread was started with, whole>'
+   n=$(printf '%s\n' "$asked" | awk '$(4) ~ /^[0-9]+$/ {print $(4); exit} {print 1}')
+   by=$(uv run --project "$T/.." jroles review 2> /dev/null | sed -n "${n}p" |
+       jq -r '[.provider, .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
+   echo "By: ${by:-inherit}"
+   ```
+
+   `By: inherit` is a reviewer on the model of the thread that launched it, which the role map does not name. Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value, so two reviewers of one pull request have two `By:` lines: `By: codex gpt-6-sol xhigh` and `By: cursor grok-4.7 xhigh`. A reviewer sent `again` keeps the number of the message it was started with.
+
    ```sh
    B="$H/tasks/<slug>.md"
    asked='<the message this thread was started with, whole>'
+   by='<the By: line the block above printed>'
    case $asked in
    "/pr-review run <slug> scoped "*) echo "go: a scoped pass, as \"A scoped pass\" says" ;;
+   *" again") echo "go: a second pass, or the review the brief is still owed, the message ends in again" ;;
+   "/pr-review run <slug> "[0-9]*)
+       if awk -v by="$by" '/^## / {review = ($(0) == "## Review")} review && $(0) == by {found = 1} END {exit !found}' "$B"; then
+           echo "stop: the brief has a ## Review with $by, and a reviewer writes one section for its line"
+           echo "the line I accept: /pr-review run <slug> again"
+           sed 's|{slug}|<slug>|g' "$T/rerun.md"
+       else
+           echo "go: the brief has no ## Review with $by, so this is that line's review"
+       fi ;;
    *)
        if ! grep -qx '## Review' "$B"; then
            echo "go: the brief has no ## Review, so this is the review it is owed"
-       elif [ "${asked##* }" = again ]; then
-           echo "go: a second pass, the brief has a ## Review and the message ends in again"
        else
            echo "stop: the brief has a ## Review and the message does not end in again"
            echo "the line I accept: /pr-review run <slug> again"
@@ -104,7 +124,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    esac
    ```
 
-   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none. On `stop`, say what it printed, the line it would accept included, and end: no review, no section. On `go`, go on. `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works. The message of a first launch is the plain `/pr-review run <slug>`.
+   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none. A message that ends in a number is one reviewer of several, launched on that line of the role map's review list: it writes its own section beside the others', at the same head, and it is refused only where a section with its own `By:` line is there. On `stop`, say what it printed, the line it would accept included, and end: no review, no section. On `go`, go on. `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works. The message of a first launch is the plain `/pr-review run <slug>`.
    - Read the brief's `Review:` line as above. If it is `none`, say that its brief asks for no review, and stop: no review, no message to the crewmate, no section.
 2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
 3. Check the ground, and stop with the reason if any line fails:
