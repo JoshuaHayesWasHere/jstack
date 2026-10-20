@@ -19,7 +19,7 @@ You write the generator's output for the next agent, not for a human: it will be
 
 Run it in a durable thread, never in a subagent: the interview, the generated files and the proof run take many turns, and the skill is what has to outlive them.
 A crewmate does it under a brief with `Playbook: authoring-a-skill`, in its own worktree, and every file it writes lands there.
-The playbook's steps are this skill's: its step 1 is section 1 below, its step 2 is sections 2 and 3, its step 3 is section 4, its step 4 tests a helper script the skill ships where the repo has tests, and its step 5 opens the one pull request.
+The playbook's steps are this skill's: its step 1 is section 1 below, its step 2 is sections 2 and 3, its step 3 is section 4, its step 4 is a test that runs a block or a helper script of the generated skill, or a skip the Result names when the change is wording alone, and its step 5 opens the one pull request.
 The proof run of section 4 goes in the Result's `Proof:` line: the launch, the Doctor's last line, the one feature driven, the cleanup, and a listing of the evidence after the cleanup.
 A scout may do section 1 alone, read-only, and report the surface, the run command, the harness and the isolation it found, so that the crewmate's brief rests on it.
 
