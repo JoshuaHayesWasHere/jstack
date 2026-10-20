@@ -748,3 +748,41 @@ def test_a_pytest_killed_outright_leaves_no_relay(tmp_path):
         pytest_run.kill()
         pytest_run.communicate()
         put_away(relay_pid(tmp_path))
+
+
+def beat(relay) -> dict:
+    return json.loads((relay.state / "heartbeat.json").read_text())
+
+
+def test_the_heartbeat_names_the_last_body_heard_and_the_silence_it_is_held_to(hooks, tmp_path):
+    relay = Relay({**env_for(hooks), "RELAY_SILENT_MINUTES": "45"}, tmp_path / "state").up()
+    until(lambda: (relay.state / "heartbeat.json").exists())
+    first = beat(relay)
+    assert first["heard"] is None and first["silent_minutes"] == 45 and first["failing"] == []
+    relay.send(body(event("gate", "user")))
+    until(lambda: beat(relay)["heard"] is not None)
+    heard = datetime.fromisoformat(beat(relay)["heard"])
+    assert abs(datetime.now(UTC) - heard) < timedelta(seconds=30)
+    relay.stop()
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: beat(again)["silent_minutes"] == 90)
+    assert beat(again)["heard"] == heard.isoformat() and beat(again)["silent_minutes"] == 90
+    again.stop()
+
+
+def test_the_heartbeat_names_a_route_whose_posts_fail_until_one_goes(relay, hooks):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 503
+    relay.send(body(event("gate", "user")))
+    until(lambda: any(one["route"] == "blocking" for one in beat(relay)["failing"]))
+    (failing,) = [one for one in beat(relay)["failing"] if one["route"] == "blocking"]
+    assert failing["why"] == "HTTP 503" and failing["waiting"] == 1
+    sous_chef.answer = 200
+    relay.send(body(event("stall", "user", "beta")))
+    until(lambda: beat(relay)["failing"] == [] and relay.spooled("blocking") == [])
+
+
+def test_a_silence_that_is_not_a_number_fails_the_start(hooks, tmp_path):
+    started = Relay({**env_for(hooks), "RELAY_SILENT_MINUTES": "soon"}, tmp_path / "state")
+    assert started.process.wait(timeout=10) == 2
+    assert "RELAY_SILENT_MINUTES" in started.process.stdout.read()
