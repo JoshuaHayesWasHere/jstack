@@ -1,5 +1,7 @@
 """docs/limits.md stays true: a row whose Where is a `path:line` of this repo has, as its
-Value, the text on that line, and every machine size and room line has a row."""
+Value, text that file holds, and every machine size and room line has a row. The line number
+is a pointer and is not held: a change to any other line of the file would move it, and a
+test that pinned it would fail every pull request that touched that file."""
 
 import re
 from pathlib import Path
@@ -19,17 +21,15 @@ def rows():
             yield cells
 
 
-def test_each_row_that_names_a_line_of_this_repo_gives_the_text_on_it():
+def test_each_row_that_names_a_file_of_this_repo_gives_text_it_holds():
     checked = 0
     for name, where, value, *_ in rows():
         places = [found for cell in CELL.findall(where) if (found := PLACE.match(cell))]
         if not places:
             continue
-        path, number = places[0][1], int(places[0][2])
+        path = places[0][1]
         (shown,) = CELL.findall(value)
-        lines = (REPO / path).read_text().splitlines()
-        assert number <= len(lines), f"{name}: {path} has no line {number}"
-        assert shown in lines[number - 1], f"{name}: {path}:{number} is {lines[number - 1]!r}"
+        assert shown in (REPO / path).read_text(), f"{name}: {path} has no {shown!r}"
         checked += 1
     assert checked >= 50
 

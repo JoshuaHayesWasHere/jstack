@@ -9,7 +9,7 @@ Three of the numbers are sizes of the machine, and `jgauge.limits` derives them 
 A local value goes in `~/.config/jstack/machine.toml`, or `max_running` in `~/.config/jbus/config.toml`, and nowhere in jstack.
 Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system, and says so.
 
-A row whose Where is a `path:line` of this repo has, as its Value, the text on that line: `tests/test_limits_doc.py` holds the two to each other.
+A row whose Where is a `path:line` of this repo has, as its Value, text on that line, and `tests/test_limits_doc.py` holds the file to the value; the line number is where it was when this page was written.
 
 ## The measurements
 
