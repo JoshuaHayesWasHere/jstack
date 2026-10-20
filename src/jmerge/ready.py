@@ -79,6 +79,7 @@ DRAFT = Reason("", "draft")
 RULES = "src/jmerge/"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
 MAIN_MOVED = Reason("check", "main moved while it was judged")
+MERGE_FAILED = Reason("check", "the merge failed")
 KEPT = "every line kept"
 PASSED = "passed"
 FAILED = "failed"
