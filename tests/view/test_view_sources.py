@@ -3,6 +3,7 @@ missing or does not parse said."""
 
 import json
 import os
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from view.scene import (
     NOW,
     OPAQUE,
     PULL,
+    REPO,
     RUN,
     TIMER,
     UNREAD,
@@ -290,3 +292,12 @@ def test_a_second_project_is_asked_for_by_name(tmp_path, monkeypatch):
         assert served.ask("/task/fig-jam/github")[0] == 404
     finally:
         served.close()
+
+
+def test_the_tests_of_the_view_hold_no_url_a_key_or_a_token():
+    allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
+    for path in sorted((REPO / "tests" / "view").rglob("*.py")):
+        text = path.read_text()
+        for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
+            assert allowed.match(host) or host == "", f"{path.name}: {host}"
+        assert not re.search(r"Bearer [A-Za-z0-9_-]{20,}", text), path.name
