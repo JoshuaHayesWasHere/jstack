@@ -365,8 +365,9 @@ checks() {
             if gh api "repos/$repo/actions/jobs/$job" | jq -e '.steps | type == "array" and length == 0' > /dev/null; then echo "$url"; fi
         done)
     printf '%s\n' "$view" | jq -r --arg never "$never" '
+        def when: [.startedAt, .completedAt] | map(if (. // "") == "" or startswith("0001-") then "~" else . end);
         ($never | split("\n")) as $never
-        | [.statusCheckRollup[]? |
+        | [.statusCheckRollup // [] | group_by(.name // .context)[] | (map(when) | max) as $last | .[] | select(when == $last) |
             if .state then (if .state == "SUCCESS" then "passed" elif (.state | IN("PENDING", "EXPECTED")) then "pending" else "failed" end)
             elif .status != "COMPLETED" then "pending"
             elif (.conclusion | IN("SUCCESS", "NEUTRAL")) then "passed"
@@ -390,7 +391,7 @@ Its first word is one of four answers:
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked. End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
-**Green**, everywhere in this skill, is `passed` and nothing else. `checks` is the pr-review skill's function too: change it in both, and the tests run each copy over the same rollups. A failed check whose job GitHub will not give counts as one that ran. The merge is stricter still, and goes by one check: `jmerge` merges only when the check named `check` passed at the head, whatever the other checks say.
+**Green**, everywhere in this skill, is `passed` and nothing else. `checks` is the pr-review skill's function too: change it in both, and the tests run each copy over the same rollups. A failed check whose job GitHub will not give counts as one that ran. A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way. The merge is stricter still, and goes by one check: `jmerge` merges only when the check named `check` passed at the head, whatever the other checks say.
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
 
