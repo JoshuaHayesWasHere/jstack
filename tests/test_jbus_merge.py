@@ -12,7 +12,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+import jsettings
 from jbus import merge
+from jbus.view import state as view_state
 from jmerge import ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
 from test_jbus_leftover import loud
@@ -368,6 +370,26 @@ def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: another reason nobody has printed\n")
     kitchen.poll(NOW + timedelta(minutes=2))
     assert len(sends(kitchen)) == 2
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        'the merge failed: non-200 OK status code: 502 Bad Gateway body: "<html>..."',
+        "the merge failed: GraphQL: Merge already in progress (mergePullRequest)",
+    ],
+)
+def test_a_merge_github_refused_is_on_the_check_step_and_not_unknown(kitchen, said):
+    """context-packs #56, 2026-10-20: GitHub refused the merge call, with a 502 and then
+    with a merge already in progress, and the next run looks again. The view placed the
+    pull request in the Unknown lane and told its home, since no rule named the reason."""
+    unplaced(kitchen, said)
+    kitchen.poll()
+    sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
+    built = view_state.build(sources, "demo", NOW, lambda _: {})
+    (alpha,) = [one for one in built["tasks"] if one["slug"] == "alpha"]
+    assert (alpha["step"], alpha["state"]["say"]) == ("check", said)
+    assert sends(kitchen) == []
 
 
 def test_a_row_on_its_step_or_of_another_home_tells_its_home_nothing(kitchen):
