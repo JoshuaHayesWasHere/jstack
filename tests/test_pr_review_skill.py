@@ -18,6 +18,7 @@ import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
 from jmerge import ready
+from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 from test_room import BIN, IDLE, machine, says, uv
@@ -104,8 +105,14 @@ FENCED = re.compile(r"^[ \t]*```(\w+)\n(.*?)^[ \t]*```$", re.M | re.S)
 
 
 def section(heading):
-    after = SKILL.read_text().split(f"{heading}\n", 1)[1]
-    return re.split(r"^#{2,3} ", after, maxsplit=1, flags=re.M)[0]
+    """The text under `heading`, as an agent reads the skill: under a stub's heading is its
+    trigger line, and then the side file, which opens with the same heading."""
+    after = as_read(SKILL).split(f"{heading}\n", 1)[1]
+    under = re.split(r"^#{2,3} ", after, maxsplit=1, flags=re.M)[0]
+    if NAMED.search(under):
+        after = after.split(f"{heading}\n", 1)[1]
+        under = re.split(r"^#{2,3} ", after, maxsplit=1, flags=re.M)[0]
+    return under
 
 
 def block(heading, about="", kind="sh"):
@@ -506,7 +513,7 @@ def room_calls(tmp_path, **readings):
     uv(tmp_path / "stub")
     said = []
     for skill, more in (("home", ""), ("pr-review", '\nprintf "%s\\n" "$said"')):
-        text = (REPO / "skills" / skill / "SKILL.md").read_text()
+        text = as_read(REPO / "skills" / skill / "SKILL.md")
         (call,) = [line for line in text.splitlines() if "jgauge room" in line and "`" not in line]
         assert call.count('uv run --project "$T/.." jgauge room') == 1
         said.append(says(env, call.replace("--wait 540", "--wait 0") + more))
@@ -710,7 +717,7 @@ def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):
     assert [each["description"] for each in calls((INTERROGATE / "SKILL.md").read_text())] == [
         "interrogate reviewer"
     ]
-    made = calls(SKILL.read_text())
+    made = calls(as_read(SKILL))
     assert [each for each in made if "subagent_type" in each or "description" in each] == []
     assert {each["message"] for each in made} == {"/pr-review run <slug>"}
     assert reviewer.prompt().is_file()
@@ -1455,7 +1462,7 @@ def test_jmerge_reads_a_guarded_fixs_clean_scoped_pass_nobody_was_sent_as_ready(
 
 def readiness():
     """The block a launcher finds the ready briefs with, as an agent reads it."""
-    (found,) = [text for text in SKILL.read_text().split("```") if "PASS=first" in text]
+    (found,) = [text for text in as_read(SKILL).split("```") if "PASS=first" in text]
     return textwrap.dedent(found.removeprefix("sh\n"))
 
 

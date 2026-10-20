@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from test_home_thread import as_read
 from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
@@ -167,7 +168,7 @@ def test_a_plan_limit_that_is_not_known_launches_and_is_a_note_once_a_day(kitche
 
 def where_the_findings_go(kitchen, slug):
     """What step 4 of the pr-review skill's "After the run" prints for the brief on disk."""
-    skill = (REPO / "skills/pr-review/SKILL.md").read_text()
+    skill = as_read(REPO / "skills/pr-review/SKILL.md")
     (found,) = [text for text in skill.split("```") if "crewmate $thread" in text]
     script = textwrap.dedent(found.removeprefix("sh\n")).replace("<slug>", slug)
     script = script.replace("<clean, findings or not run>", "findings")
