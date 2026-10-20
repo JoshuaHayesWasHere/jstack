@@ -172,20 +172,23 @@ def _write(state: Path, records: list[Record]) -> None:
     write_json(path(state), {"records": [asdict(one) for one in records]})
 
 
-def keep(state: Path, home: Path, now: datetime) -> int:
+def keep(state: Path, home: Path, now: datetime, *, before: frozenset[str] = frozenset()) -> int:
     """Add what is new, and give how many were added. On the first pass every line there is
-    is added as dropped, `FROM_BEFORE`."""
+    is added as dropped, `FROM_BEFORE`, and so is every line of the files `before` names, as
+    `tasks/<slug>.md` or `scouts/<slug>.md`: the ones `mirror.scan` found restored."""
     with _locked(state):
         records = read(state)
         first = records is None
         records = records or []
         known = {one.key for one in records}
         stamp = now.astimezone(UTC).isoformat(timespec="seconds")
-        added = [one for one in found(home, now) if one.key not in known]
-        if first:
-            added = [
-                replace(one, mark=DROPPED, why=FROM_BEFORE, by=JBUS, at=stamp) for one in added
-            ]
+        added = [
+            replace(one, mark=DROPPED, why=FROM_BEFORE, by=JBUS, at=stamp)
+            if first or f"{one.kind}/{one.slug}.md" in before
+            else one
+            for one in found(home, now)
+            if one.key not in known
+        ]
         if added or first:
             _write(state, records + added)
         return len(added)
