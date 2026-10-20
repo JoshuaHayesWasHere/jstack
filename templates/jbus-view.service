@@ -1,20 +1,13 @@
-# jbus view: one small server that shows the bus as a page, on port 4388. It only reads what
-# the passes left, and it runs whether jbus passes or not, so it can say when jbus has stopped.
-# Install: `sh install.sh` in the checkout links this file into ~/.config/systemd/user/, and
-# `systemctl --user enable --now jbus-view.service` starts it. Do not copy this file.
-# It listens on 127.0.0.1. For the tailnet address too, put JBUS_VIEW_HOST=<address> and
-# JBUS_VIEW_NAMES=<host name> in a file under ~/.config/environment.d/. Behind an https proxy
-# that passes the Host header on, as Caddy does, put its origin there too, as
-# JBUS_VIEW_ORIGINS=https://<host name>.
-# It ends by itself, with status 0, when the code it runs is newer on disk and starts:
-# Restart=always is what starts it again then, on the new code.
 [Unit]
 Description=jbus view: the bus as a page, read-only
+Documentation=file:%Y/../docs/jbus.md#the-view
 
 [Service]
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/.local/bin/jbus view
 Restart=always
+RestartForceExitStatus=75
+SuccessExitStatus=75
 RestartSec=5
 
 [Install]

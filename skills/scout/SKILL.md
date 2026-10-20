@@ -174,7 +174,7 @@ On `page`, build one HTML file at `$H/reports/<slug>.html`, with anything it loa
 lavish-axi "$H/reports/$S.html"
 ```
 
-`lavish-axi --help` gives the rules for the page and the playbooks to open before writing it. The page shows what the report says, with the numbers behind it, and puts each open choice as an input the user can answer on the page. A page that asks for picks is made from `$T/grill-page.html`, one card per choice with the recommended pick marked: copy it and write the choices into its `round-data` block as the comment above that block says. What the report says goes in sections of your own inside `<main>`, above the one with the id `settled-sec`. The script, the cards and the send bar stay as they are.
+`lavish-axi --help` gives the rules for the page and the playbooks to open before writing it. The page shows what the report says, with the numbers behind it, and puts each open choice as an input the user can answer on the page. A page that asks for picks is made from `$T/grill-page.html`, one card per choice with the recommended pick marked: copy it and write the choices into its `round-data` block as `$T/grill-round.schema.json` says. What the report says goes in sections of your own inside `<main>`, above the one with the id `settled-sec`. The script, the cards and the send bar stay as they are.
 
 ## End
 
