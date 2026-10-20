@@ -97,8 +97,9 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
                if gh api "repos/$repo/actions/jobs/$job" | jq -e '.steps | type == "array" and length == 0' > /dev/null; then echo "$url"; fi
            done)
        printf '%s\n' "$view" | jq -r --arg never "$never" '
+           def when: [.startedAt, .completedAt] | map(if (. // "") == "" or startswith("0001-") then "~" else . end);
            ($never | split("\n")) as $never
-           | [.statusCheckRollup[]? |
+           | [.statusCheckRollup // [] | group_by(.name // .context)[] | (map(when) | max) as $last | .[] | select(when == $last) |
                if .state then (if .state == "SUCCESS" then "passed" elif (.state | IN("PENDING", "EXPECTED")) then "pending" else "failed" end)
                elif .status != "COMPLETED" then "pending"
                elif (.conclusion | IN("SUCCESS", "NEUTRAL")) then "passed"
