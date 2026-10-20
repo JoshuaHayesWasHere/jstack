@@ -40,12 +40,10 @@ No model reads anything.
 
 from __future__ import annotations
 
-import argparse
 import fcntl
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import jbus
@@ -54,97 +52,28 @@ from jbus import (
     archived,
     dispatch,
     expedite,
-    item,
-    leftover,
     merge,
-    mirror,
-    project,
     questions,
     queue,
     record,
     rotation,
     signin,
-    stall,
     t3,
     threads,
     verbs,
-    view,
     waiting,
     wake,
     watch,
-    word,
     work,
 )
 
-SNAPSHOT_DAYS = 14
-ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 LAUNCH = "the launch"
 REMINDER = "the sign-in reminder"
 
 
-def snapshot(run: wake.Pass, rows: list[queue.Row] | None) -> str:
-    parts = [queue.render(rows) if rows is not None else "queue.json does not parse\n"]
-    since = (run.now - timedelta(days=SNAPSHOT_DAYS)).timestamp()
-    briefs = [p for p in (run.home / "tasks").glob("*.md") if p.stat().st_mtime >= since]
-    for path in sorted(briefs, key=lambda p: p.stat().st_mtime, reverse=True):
-        text = path.read_text(errors="replace")
-        title = text.splitlines()[0] if text.strip() else f"# {path.stem}"
-        parts.append(f"\n{title}\n{mirror.last_result(text) or 'no Result'}\n")
-    return "".join(parts)
-
-
-def expiring(config: jbus.Config, now: datetime) -> str:
-    """What is said of a sign-in within `warn_days` of running out, or nothing."""
-    expires = t3.expiry(config.token_path)
-    if expires is None or expires - now > timedelta(days=config.warn_days):
-        return ""
-    user = config.user
-    return f"T3 sign-in expires {user.day(expires)} {user.word(expires)}, run jbus t3 login"
-
-
-def _hook(config: jbus.Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
-    """What the status file says of one webhook of a project: its streak, its last error and
-    what waits in its outbox."""
-    failing = alert.streak(config.state_dir, key)
-    return {
-        "failed_wakes": failing.count if failing else 0,
-        "last_error": box.marks(route).get("last_error", ""),
-        "outbox": box.waiting(route),
-    }
-
-
-def status(config: jbus.Config, now: datetime) -> dict[str, Any]:
-    """What the status file holds: read back from what the pass left, and the homes not on
-    the bus, which no pass leaves (`project.missing`)."""
-    expires = t3.expiry(config.token_path)
-    projects = {}
-    for one in config.projects:
-        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
-        marks = box.marks()
-        projects[one.name] = {
-            **_hook(config, box, box.routes[0], alert.webhook(one.name)),
-            "sign_in": expiring(config, now),
-            "sweep": marks.get("sweep", ""),
-        }
-        for route in box.routes[1:]:
-            key = alert.top_level(one.name)
-            projects[one.name]["top_level"] = _hook(config, box, route, key)
-        if box.blocking is not None:
-            key = alert.blocking(one.name)
-            projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
-    return {
-        "last_pass": config.user.stamp(now),
-        "token_expires": config.user.stamp(expires) if expires else None,
-        "sign_in_reminder": signin.plan(config, now),
-        "projects": projects,
-        "streaks": alert.streaks(config.state_dir),
-        "homes_off_bus": project.missing(config),
-    }
-
-
 @dataclass
 class Half:
-    """What a project's first half leaves: for its steps, the dispatch, and its second half.
+    """What a project's pass has: for its steps, the dispatch, and its second half.
 
     It is made when the pass starts and filled in as the spine runs, so a step reads what
     the spine had by its slot (`verbs.SLOTS`). `held` is the keys of the questions on
@@ -153,6 +82,11 @@ class Half:
     that cannot tell which slugs were removed, since `removed.json` does not parse: it reads
     no brief, acts on no thread or pull request, and leaves the list of what waits as it
     was. Its crews out are still counted.
+
+    The second half fills in the rest: whether it `derived` the table and `read` every
+    brief, the `states` it judged, the `table` its steps read (derived anew where it was,
+    with what `changed`), what `jmerge` said as the user hears it (`users`), and what
+    `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
     run: wake.Pass
@@ -166,16 +100,33 @@ class Half:
     blind: bool = False
     out: list[threads.Out] | None = None
     gone: frozenset[str] = frozenset()
+    derived: bool = False
+    read: bool = False
+    states: watch.Judging | None = None
+    table: list[queue.Row] | None = None
+    changed: list[queue.Change] = field(default_factory=list)
+    users: merge.Said = field(default_factory=merge.Said)
+    roots: list[waiting.Item] = field(default_factory=list)
+    listed: list[waiting.Item] | None = None
+
+    def answered(self) -> work.Answered:
+        """Which of T3 Code and GitHub answered the pass. With T3 Code silent GitHub is not
+        asked, and with GitHub silent there is no world."""
+        if self.seen.world is not None:
+            return work.Answered.BOTH
+        return work.Answered.NEITHER if self.seen.out is None else work.Answered.T3
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank, each one whose needs the pass has."""
-    has = {
-        "sight": not half.blind,
-        "client": half.client is not None,
-        "world": half.seen.world is not None,
-    }
+    """Run the steps of a slot by rank, each one whose needs the pass has when it comes: a
+    step of `derive` judges the rows that the steps after it need."""
     for step in RANKED[slot]:
+        has = {
+            "sight": not half.blind,
+            "client": half.client is not None,
+            "world": half.seen.world is not None,
+            "rows": half.states is not None,
+        }
         if all(has[need] for need in step.needs):
             step.run(half)
 
@@ -188,7 +139,7 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
     name = run.project.name
     half = Half(run, client)
     steps(half, "before-watch")
-    line = expiring(run.config, run.now)
+    line = signin.expiring(run.config, run.now)
     if line and run.condition(name, line, key=f"sign-in {run.day}"):
         wake.notify(f"{name}: {line}")
     half.said = merge.merge(run)
@@ -223,200 +174,22 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
     return half
 
 
-def share(config: jbus.Config, halves: list[Half], say: Callable[[str], None]) -> None:
-    """Launch across the projects: one count of the crews out, and the free slots in turns.
-
-    The turns start at the project the rotation file names. With the crews out of any
-    project not known, the count is not known, and nothing is launched anywhere.
-    """
-    start = rotation.start(config)
-    turns = [half.turns for half in halves[start:] + halves[:start] if half.turns]
-    out = [half.seen.out for half in halves]
-    known = [count for count in out if count is not None]
-    for half in halves:
-        if half.seen.out is None:
-            say(f"wait: crews out not known ({half.run.project.name}: {half.seen.why})")
-    slots = config.max_running - sum(known) if len(known) == len(out) else None
-    made = dispatch.dispatch(turns, slots)
-    if made:
-        rotation.keep(config, made[-1])
-
-
 def second_half(half: Half, client: t3.Client | None) -> None:
-    """What a project's pass does after the launches: the table, what waits, and the wake."""
+    """What a project's pass does after the launches: the table, what waits, and the wake.
+
+    The spine is written out here, and the steps of each slot run where it is.
+    """
     run, rows, world = half.run, half.rows, half.seen.world
-    name = run.project.name
-    derived = world is not None and client is not None and rows is not None
-    read = half.turns is not None and not half.turns.left
-    states = judged(half, client) if rows is not None and not half.blind else None
-    if derived and states is not None:
-        waits = watch.waits(run, half.said, merge.home_thread(run))
-        unread = watch.unread(run, read)
-
-        def facts(row: queue.Row) -> queue.Row:
-            slug = row["slug"]
-            launched = dispatch.launched(run, slug)
-            found = watch.status(run, world, slug, states.of(row, launched), launched)
-            return {**found, "why": watch.why(run, row, found, waits, unread)}
-
-        at = run.now.astimezone(UTC).isoformat(timespec="seconds")
-        rows, changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)
-        if changed:
-            line = f"queue {run.project.name}: the table changed"
-            run.box.send("", "queue", line, queue.changes(changed))
-        leftover.tell(run, client, world, rows, half.out)
-        stall.unclosed(run, world, rows)
-        unplaced(half, client, rows, states)
-    if states is not None:
-        keep_work(half, rows or [], states)
-        item.follow(run, rows or [])
-    users = half.said.crews(half.crews)
-    roots = stall.tell(run, client, world, rows, users)
-    listed = None
-    if not half.blind:
-        listed = waiting.keep(run, world, rows, users, roots, derived=derived, read_all=read)
-    waiting.cadence(run, listed, rows, world)
-    if world is not None:
-        run.box.began()
-    day = run.box.snapshot_due(run.user.local(run.now))
-    if day:
-        line = f"snapshot {run.project.name}: {day}"
-        run.box.send("", "snapshot", line, snapshot(run, rows), cap=wake.SNAPSHOT_CAP)
-        run.box.snapshot_sent(day)
-        if world is not None:
-            run.box.prune(
-                {
-                    slug
-                    for slug, pull in world.merged.items()
-                    if slug not in world.open
-                    and run.now - watch.when(pull["mergedAt"]) >= wake.PRUNE_AFTER
-                }
-            )
-        run.box.forget(run.now - wake.LOG_KEEP)
-    owed = run.box.sweep_owed()
-    if owed:
-        ran, how = merge.sweep(run)
-        how = f"{owed}: {how}" if ran else f"{owed}: {how}, retrying next pass"
-        if not ran:
-            run.say(f"wait {name}: {how}")
-        run.box.swept(how, ran)
+    half.derived = world is not None and client is not None and rows is not None
+    half.read = half.turns is not None and not half.turns.left
+    half.table = rows
+    steps(half, "derive")
+    steps(half, "after-derive")
+    half.users = half.said.crews(half.crews)
+    steps(half, "close")
     sent = alert.flush(run)
     if sent:
-        run.say(f"woke {name}: {sent} events")
-
-
-def answered(half: Half) -> work.Answered:
-    """Which of T3 Code and GitHub answered the pass. With T3 Code silent GitHub is not
-    asked, and with GitHub silent there is no world."""
-    if half.seen.world is not None:
-        return work.Answered.BOTH
-    return work.Answered.NEITHER if half.seen.out is None else work.Answered.T3
-
-
-def judged(half: Half, client: t3.Client | None) -> watch.Judging:
-    """The state of each row of the queue, judged once (`work.judge`). A row waits on
-    another until that one is merged or ended `done`, by the rule `dispatch` launches by
-    (`watch.final`).
-
-    With GitHub silent and T3 Code answering, the steps that list the threads out did not
-    run, since they act on a world: the threads out are listed here as that step lists them,
-    and `stall.hung` reads them, so a thread's liveness is still judged and a hang told.
-    """
-    run, world, rows = half.run, half.seen.world, half.rows or []
-    if world is None and half.out is None and half.seen.out is not None and client is not None:
-        half.out = threads.out(run, client, stall.watched(run))
-        stall.hung(run, half.out)
-    said = dict(watch.waits(run, half.said, merge.home_thread(run)).said) if world else {}
-    if half.said.failed:
-        for row in rows:
-            number = str(row.get("pr", "")).removeprefix("#")
-            if row.get("status") == "pr" and number and number not in said:
-                said[number] = row.get("why", "")
-    last = work.last(run.state)
-    seen = watch.Seen(half.out, half.gone, said, watch.final(run, world, rows), answered(half))
-    return watch.Judging(run, world, seen, last)
-
-
-def unplaced(half: Half, client: t3.Client, rows: list[queue.Row], states: watch.Judging) -> None:
-    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`),
-    by what `jmerge` said of it in this pass."""
-    run, world = half.run, half.seen.world
-    for row in rows:
-        slug = row["slug"]
-        pull = (world.open if world else {}).get(slug)
-        if pull is None:
-            continue
-        number = str(pull.get("number", ""))
-        said = states.seen.said.get(number, "")
-        home = leftover.home_of(run.home, watch.brief_of(run, slug))
-        merge.unplaced(run, client, slug, number, said, word.home(home))
-
-
-def keep_work(half: Half, rows: list[queue.Row], states: watch.Judging) -> None:
-    """Write `work.json`: the state of every row, and of every thread out that is no row's,
-    each with who holds it (`work.holder`). With no list of the threads out, the threads are
-    the last pass's, not confirmed."""
-    run = half.run
-    held = leftover.read(run.state)
-    listed = []
-    for row in rows:
-        slug = row["slug"]
-        state = states.of(row, dispatch.launched(run, slug))
-        record = held.get(slug)
-        home = bool(record and not record.busy and not leftover.his(record, run.now))
-        after = watch.after_merge(mirror.last_result(watch.brief_of(run, slug)))
-        line = work.entry(
-            state,
-            work.holder(state, home=home, after=after),
-            key=slug,
-            kind="row",
-            slug=slug,
-            thread=row.get("thread", ""),
-            pr=row.get("pr", ""),
-        )
-        listed.append(line)
-    listed += watch.judged(run, half.out, {row["slug"] for row in rows}, answered(half))
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
-    work.write(run.state, at, answered(half), listed)
-
-
-def saw(halves: list[Half]) -> dict[str, dict[str, Any]]:
-    """The open rows and the threads out of each project whose pass had answers from T3
-    Code and GitHub."""
-    found = {}
-    for half in halves:
-        run, world, rows = half.run, half.seen.world, half.rows
-        if world is None or rows is None:
-            continue
-        found[run.project.name] = {
-            "rows": record.rows(world, rows, half.out, half.gone),
-            "threads": record.threads(half.out),
-        }
-    return found
-
-
-def silent(halves: list[Half]) -> dict[str, str]:
-    """The source that did not answer, for each project whose pass could not ask: T3 Code,
-    or GitHub where T3 Code answered. A pass that is blind asked both and is not one."""
-    return {
-        half.run.project.name: "T3 Code" if half.seen.out is None else "GitHub"
-        for half in halves
-        if half.seen.world is None and not (half.blind and half.seen.out is not None)
-    }
-
-
-def heartbeat(run: wake.Pass, last: dict[str, Any]) -> None:
-    """The first pass of each hour says what the status file said, once per project.
-
-    It is quiet: it is in the log, and is never posted.
-    The hour is UTC's, so the hour a clock change repeats is not skipped.
-    """
-    mine = last.get("projects", {}).get(run.project.name, {})
-    line = (
-        f"heartbeat: jbus alive, last pass {last.get('last_pass', '')[11:] or 'none'}, "
-        f"failed wakes {mine.get('failed_wakes', 0)}, last error {mine.get('last_error') or 'none'}"
-    )
-    run.find("", "heartbeat", line, key=f"{run.now.astimezone(UTC):%Y-%m-%d %H}")
+        run.say(f"woke {run.project.name}: {sent} events")
 
 
 def poll(
@@ -435,8 +208,7 @@ def poll(
     pass that cannot be written is said, and the pass does all it does with one.
 
     A config that still has a key nothing reads is said in one line, on each pass until
-    the key is removed. The homes that have no project in the config are said in one line
-    too, on the pass their list changes (`project.missing`).
+    the key is removed. The pass ends by writing the status file (`record.write_status`).
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:
@@ -478,7 +250,7 @@ def poll(
 
         def first(project: jbus.Project) -> Half:
             run = wake.Pass(config, project, now, say)
-            heartbeat(run, last)
+            record.heartbeat(run, last)
             return first_half(run, client)
 
         halves = [guarded(p.name, lambda p=p: first(p)) for p in config.projects]
@@ -486,171 +258,30 @@ def poll(
         if raised:
             say(f"wait: crews out not known ({', '.join(raised)}: the pass raised)")
         else:
-            guarded(LAUNCH, lambda: share(config, halves, say))
+            guarded(LAUNCH, lambda: rotation.share(config, halves, say))
         guarded(REMINDER, lambda: signin.remind(config, now))
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:
-            for key in (alert.PASS, alert.STALE):
-                if raised:
-                    break
-                recovered = alert.ok(config.state_dir, key, user=config.user)
-                for half in halves:
-                    name = half.run.project.name
-                    guarded(name, lambda half=half, line=recovered: alert.deliver(half.run, line))
-                if recovered and not raised:
-                    alert.told(config.state_dir, key)
-        report = status(config, now)
-        if report["homes_off_bus"] != last.get("homes_off_bus", []):
-            say(f"homes not on the bus: {', '.join(report['homes_off_bus']) or 'none'}")
-        for name, why in raised.items():
-            if name in report["projects"]:
-                report["projects"][name]["last_error"] = why
-        jbus.write_json(config.status_path, report, mode=0o600)
-        recorded(lambda: kept.end(saw(halves), silent(halves)))
+            alert.recovered(config, [half.run for half in halves], guarded, raised)
+        record.write_status(config, now, last, raised, say)
+        recorded(lambda: kept.end(record.saw(halves), record.silent(halves)))
     return 1 if raised else 0
-
-
-def alarm(
-    config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
-) -> int:
-    """Count a pass that did not finish. The third in a row alerts every project, once,
-    and the desk (`alert.sound`)."""
-    now = now or datetime.now(UTC)
-    failing = alert.streak(config.state_dir, alert.PASS)
-    say(f"pass failed: {failing.count + 1 if failing else 1} in a row")
-    return alert.sound(config, alert.PASS, ALARM, alert.AFTER, now, say)
-
-
-SPAN = re.compile(r"([1-9][0-9]*)([mhd])")
-UNITS = {"m": "minutes", "h": "hours", "d": "days"}
-SIZES = (("d", 1440), ("h", 60), ("m", 1))
-
-
-def span(given: str) -> timedelta:
-    """A limit as the user types it: a number and m, h or d, as `2h`."""
-    found = SPAN.fullmatch(given)
-    if found is None:
-        raise argparse.ArgumentTypeError(f"a limit is a number and m, h or d, as 2h: not {given}")
-    return timedelta(**{UNITS[found[2]]: int(found[1])})
-
-
-def _shown(limit: timedelta) -> str:
-    """A limit as `span` reads it, in its largest whole unit."""
-    minutes = int(limit.total_seconds() // 60)
-    return next(f"{minutes // size}{unit}" for unit, size in SIZES if minutes % size == 0)
-
-
-def stale(
-    config: jbus.Config,
-    limit: timedelta,
-    now: datetime | None = None,
-    say: Callable[[str], None] = print,
-) -> int:
-    """Look for a pass that ended within `limit`, from a timer of its own, so a `jbus.timer`
-    that is stopped or a `jbus.service` that never starts is seen: `jbus-failed.service` runs
-    only when a pass fails.
-
-    The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
-    one that died. Past the limit, and with no record at all, it counts a failure of the
-    `stale` streak, which alerts at the first, once (`alert.sound`). The next pass in which
-    nothing raised ends the streak, and says it recovered (`poll`).
-    """
-    now = now or datetime.now(UTC)
-    kept = record.read(config)
-    last = kept.get("ended") or kept.get("started")
-    if not isinstance(last, str):
-        say("no pass: none on record")
-        return alert.sound(config, alert.STALE, "no pass on record", 1, now, say)
-    ended = datetime.fromisoformat(last)
-    if now - ended <= limit:
-        say(f"pass seen: last ended {config.user.clock(ended)}")
-        return 0
-    at = config.user.stamp(ended)
-    say(f"no pass: last ended {at}")
-    why = f"no pass ended since {at}, more than {_shown(limit)} ago"
-    return alert.sound(config, alert.STALE, why, 1, now, say)
-
-
-def _stale(shown: argparse.ArgumentParser) -> None:
-    shown.add_argument(
-        "--stale",
-        type=span,
-        metavar="LIMIT",
-        help="look for a pass that ended within LIMIT (as 2h) instead: past it alerts, once",
-    )
-
-
-def run_alarm(args: argparse.Namespace, config: jbus.Config) -> int:
-    return alarm(config) if args.stale is None else stale(config, args.stale)
-
-
-def _port(shown: argparse.ArgumentParser) -> None:
-    shown.add_argument("--port", type=int, default=view.PORT, help="the one port it listens on")
 
 
 VERBS = (
     verbs.Verb(
         "poll", "one pass over every project", verbs.nothing, lambda _, config: poll(config)
     ),
-    verbs.Verb(
-        "alarm",
-        "count a pass that did not finish: the third in a row alerts",
-        _stale,
-        run_alarm,
-    ),
-    verbs.Verb(
-        "view",
-        "serve the bus as a page, read-only",
-        _port,
-        lambda args, _: view.doors(args.port).serve(),
-        abbrev=False,
-        config=False,
-    ),
 )
 DECLARED = verbs.declared(jbus.__path__)
 RANKED = verbs.ranked(jbus.__path__)
 
 
-def _words_left(args: argparse.Namespace, extra: list[str]) -> list[str]:
-    """The user's words that Python 3.12.3's argparse left over, and what is left after them.
-
-    A verb's `words` follow its number and its options. That argparse fills `words` with
-    nothing when it reads the number, and hands the words back unparsed; later 3.12 releases
-    and 3.13 read them as words. So where `words` came back empty, every plain string left
-    over is a word, and so is everything after `--`."""
-    if getattr(args, "words", None) != [] or not extra:
-        return extra
-    words: list[str] = []
-    left: list[str] = []
-    after = False
-    for given in extra:
-        if after or not given.startswith("-"):
-            words.append(given)
-        elif given == "--":
-            after = True
-        else:
-            left.append(given)
-    args.words = words
-    return left
-
-
-def _usage(parser: argparse.ArgumentParser) -> str:
-    """The parser's own usage, as Python 3.13 and later print it: 3.12 puts the ` ...` after
-    the verbs on a line of its own."""
-    usage = parser.format_usage().removeprefix("usage: ").rstrip("\n")
-    return re.sub(r"\n *\.\.\.$", " ...", usage)
-
-
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="jbus", description=__doc__, allow_abbrev=False)
-    parser.add_argument("--project", help="the project's name in the config, when it has several")
-    commands = parser.add_subparsers(dest="command", required=True)
-    for verb in DECLARED.values():
-        verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))
-    parser.usage = _usage(parser)
+    parser = verbs.parser(DECLARED, __doc__)
     args, extra = parser.parse_known_args(argv)
-    extra = _words_left(args, extra)
+    extra = verbs.words_left(args, extra)
     for given in extra:
         column = given.lstrip("-").split("=")[0].replace("-", "_")
         if column in queue.DERIVED:

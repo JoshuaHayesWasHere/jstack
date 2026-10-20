@@ -8,9 +8,14 @@ read, or that names a project the config no longer has, starts at the config's f
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from jbus import Config, read_json, write_json
+from jbus import Config, dispatch, read_json, write_json
+
+if TYPE_CHECKING:
+    from jbus.cli import Half
 
 
 def path(config: Config) -> Path:
@@ -27,3 +32,22 @@ def start(config: Config) -> int:
 def keep(config: Config, last: str) -> None:
     names = [project.name for project in config.projects]
     write_json(path(config), {"next": names[(names.index(last) + 1) % len(names)]})
+
+
+def share(config: Config, halves: list[Half], say: Callable[[str], None]) -> None:
+    """Launch across the projects: one count of the crews out, and the free slots in turns.
+
+    The turns start at the project the rotation file names. With the crews out of any
+    project not known, the count is not known, and nothing is launched anywhere.
+    """
+    first = start(config)
+    turns = [half.turns for half in halves[first:] + halves[:first] if half.turns]
+    out = [half.seen.out for half in halves]
+    known = [count for count in out if count is not None]
+    for half in halves:
+        if half.seen.out is None:
+            say(f"wait: crews out not known ({half.run.project.name}: {half.seen.why})")
+    slots = config.max_running - sum(known) if len(known) == len(out) else None
+    made = dispatch.dispatch(turns, slots)
+    if made:
+        keep(config, made[-1])

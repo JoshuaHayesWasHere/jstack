@@ -31,13 +31,19 @@ the project's rows takes it out.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from jbus import Config, read_json, write_json
+from jbus import Config, alert, project, read_json, signin, t3, wake, write_json
 from jbus.queue import Row
 from jbus.watch import World, checks
+
+if TYPE_CHECKING:
+    from jbus.cli import Half
+
+Say = Callable[[str], None]
 
 
 def clock() -> float:
@@ -188,3 +194,97 @@ def rows(
             "check": _latest(pull) if pull else None,
         }
     return seen
+
+
+def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
+    """What the status file says of one webhook of a project: its streak, its last error and
+    what waits in its outbox."""
+    failing = alert.streak(config.state_dir, key)
+    return {
+        "failed_wakes": failing.count if failing else 0,
+        "last_error": box.marks(route).get("last_error", ""),
+        "outbox": box.waiting(route),
+    }
+
+
+def status(config: Config, now: datetime) -> dict[str, Any]:
+    """What the status file holds: read back from what the pass left, and the homes not on
+    the bus, which no pass leaves (`project.missing`)."""
+    expires = t3.expiry(config.token_path)
+    projects = {}
+    for one in config.projects:
+        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
+        marks = box.marks()
+        projects[one.name] = {
+            **_hook(config, box, box.routes[0], alert.webhook(one.name)),
+            "sign_in": signin.expiring(config, now),
+            "sweep": marks.get("sweep", ""),
+        }
+        for route in box.routes[1:]:
+            key = alert.top_level(one.name)
+            projects[one.name]["top_level"] = _hook(config, box, route, key)
+        if box.blocking is not None:
+            key = alert.blocking(one.name)
+            projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
+    return {
+        "last_pass": config.user.stamp(now),
+        "token_expires": config.user.stamp(expires) if expires else None,
+        "sign_in_reminder": signin.plan(config, now),
+        "projects": projects,
+        "streaks": alert.streaks(config.state_dir),
+        "homes_off_bus": project.missing(config),
+    }
+
+
+def write_status(
+    config: Config, now: datetime, last: dict[str, Any], raised: dict[str, str], say: Say
+) -> None:
+    """Write the status file at the end of a pass, with the error of each project that
+    raised as its `last_error`. The homes that have no project in the config are said in
+    one line, on the pass their list changes (`project.missing`)."""
+    report = status(config, now)
+    if report["homes_off_bus"] != last.get("homes_off_bus", []):
+        say(f"homes not on the bus: {', '.join(report['homes_off_bus']) or 'none'}")
+    for name, why in raised.items():
+        if name in report["projects"]:
+            report["projects"][name]["last_error"] = why
+    write_json(config.status_path, report, mode=0o600)
+
+
+def saw(halves: list[Half]) -> dict[str, dict[str, Any]]:
+    """The open rows and the threads out of each project whose pass had answers from T3
+    Code and GitHub."""
+    found = {}
+    for half in halves:
+        run, world, table = half.run, half.seen.world, half.rows
+        if world is None or table is None:
+            continue
+        found[run.project.name] = {
+            "rows": rows(world, table, half.out, half.gone),
+            "threads": threads(half.out),
+        }
+    return found
+
+
+def silent(halves: list[Half]) -> dict[str, str]:
+    """The source that did not answer, for each project whose pass could not ask: T3 Code,
+    or GitHub where T3 Code answered. A pass that is blind asked both and is not one."""
+    return {
+        half.run.project.name: "T3 Code" if half.seen.out is None else "GitHub"
+        for half in halves
+        if half.seen.world is None and not (half.blind and half.seen.out is not None)
+    }
+
+
+def heartbeat(run: wake.Pass, last: dict[str, Any]) -> None:
+    """The first pass of each hour says what the status file said, once per project.
+
+    It is quiet: it is in the log, and is never posted.
+    The hour is UTC's, so the hour a clock change repeats is not skipped.
+    """
+    mine = last.get("projects", {}).get(run.project.name, {})
+    line = (
+        f"heartbeat: jbus alive, last pass {last.get('last_pass', '')[11:] or 'none'}, "
+        f"failed wakes {mine.get('failed_wakes', 0)}, last error {mine.get('last_error') or 'none'}"
+    )
+    run.find("", "heartbeat", line, key=f"{run.now.astimezone(UTC):%Y-%m-%d %H}")

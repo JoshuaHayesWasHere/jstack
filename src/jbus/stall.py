@@ -39,7 +39,7 @@ import json
 import os
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched, thread_of
@@ -47,6 +47,9 @@ from jbus.merge import parse
 from jbus.t3 import Client
 from jbus.wake import Changed, Depends, Pass, cut, notify
 from jbus.watch import World
+
+if TYPE_CHECKING:
+    from jbus.cli import Half
 
 EVENTS = {"waiting-on-user": "quiet", "stall": "user"}
 EVENT = "waiting-on-user"
@@ -452,6 +455,11 @@ def _keep(run: Pass, line: dict[str, Any]) -> bool:
     return True
 
 
+def _tell(half: Half) -> None:
+    """Tell what waits on the user, and keep the roots for `waiting.keep`."""
+    half.roots = tell(half.run, half.client, half.seen.world, half.table, half.users)
+
+
 STEPS = (
     verbs.Step(
         "tellers",
@@ -460,4 +468,12 @@ STEPS = (
         lambda half: guarded(half.run, half.client, half.seen.world, half.said),
         ("client", "world"),
     ),
+    verbs.Step(
+        "after-derive",
+        20,
+        "stall.unclosed",
+        lambda half: unclosed(half.run, half.seen.world, half.table),
+        ("client", "world", "rows"),
+    ),
+    verbs.Step("close", 10, "stall.tell", _tell),
 )

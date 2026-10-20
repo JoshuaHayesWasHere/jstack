@@ -17,7 +17,7 @@ import pytest
 
 import jbus
 from conftest import OLD_EVENT, OLD_LEVEL
-from jbus import alert, cli, mirror, questions, waiting, wake
+from jbus import alert, alive, mirror, questions, waiting, wake
 from test_jbus_kitchen import (
     ASK,
     KEY,
@@ -126,7 +126,7 @@ def test_an_approval_a_waiting_row_ends_at_is_told_once_and_not_again_each_hour(
 
 def test_the_third_pass_that_did_not_finish_is_an_alert_under_the_project_s_name(kitchen):
     for minute in range(3):
-        assert cli.alarm(jbus.load(), later(minute), lambda _: None) == 0
+        assert alive.alarm(jbus.load(), later(minute), lambda _: None) == 0
     ((said,),) = kitchen.webhook.said
     assert said.startswith("demo: alert: pass failed 3 times in a row since ")
 
