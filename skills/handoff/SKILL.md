@@ -20,7 +20,7 @@ this_home() {
     '') M=$H ;;
     *)
         for f in "$H"/home-id "$H"/*/home-id; do
-            if [ -f "$f" ] && [ "$(cat "$f")" = "${1}" ]; then
+            if [ -f "$f" ] && [ "$(awk 'NF {print $(1); exit}' "$f")" = "${1}" ]; then
                 M=$(dirname "$f")
                 break
             fi
@@ -34,7 +34,7 @@ this_home() {
 handed_off() {
     L=
     for f in "$H"/handoff.md "$H"/*/handoff.md "${H%/*}"/_*/handoff.md; do
-        if [ -n "${1}" ] && [ -f "$f" ] && [ "$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$f" | head -n 1)" = "${1}" ]; then
+        if [ -n "${1}" ] && [ -f "$f" ] && [ "$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "$f" | head -n 1)" = "${1}" ]; then
             L=$(dirname "$f")
             break
         fi
@@ -44,7 +44,7 @@ party_home() {
     M=
     P=
     for f in "${H%/*}"/_*/home-id; do
-        if [ -n "${1}" ] && [ -f "$f" ] && [ ! -f "${f%/*}/CHARTER.md" ] && [ "$(cat "$f")" = "${1}" ]; then
+        if [ -n "${1}" ] && [ -f "$f" ] && [ ! -f "${f%/*}/CHARTER.md" ] && [ "$(awk 'NF {print $(1); exit}' "$f")" = "${1}" ]; then
             M=$(dirname "$f")
             P=${M##*/_}
             break

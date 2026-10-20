@@ -16,26 +16,15 @@ There are no subagents doing the work. Each task is one ordinary thread, and its
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/home/../../templates)
+whose() { if [ -z "${1}" ]; then echo "$H"; else uv run --project "$T/.." jbus home --directory "${1}"; fi; }
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
-word() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
-was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }
-whose() {
-    named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1)
-    found=$H
-    if [ -n "$named" ] && [ "$named" != "$(word "$H/home-id")" ] && [ "$named" != "$(was "$H/handoff.md")" ]; then
-        for d in "$H"/*/; do
-            d=${d%/}
-            id=$(word "$d/home-id")
-            old=$(was "$d/handoff.md")
-            if [ -z "$id$old" ]; then continue; fi
-            if [ "${d##*/}" = "$named" ] || [ "$id" = "$named" ] || [ "$old" = "$named" ]; then found=$d; fi
-        done
-    fi
-    echo "$found"
-}
 ```
 
-That is **the block at the top**. Every block below is sh, and its last line makes zsh read them so: without it zsh stops a call at a pattern that matches no file. `$R` is the repo's name, the same from the main checkout and from any worktree of it. `$H` is the repo's state directory, which every home of the repo shares. `whose` prints the directory of the home a brief or a request is, by `jmerge`'s rule ("Merging a pull request that is ready"): a block below asks it whether one is this home's.
+That is **the block at the top**.
+Every block below is sh, and its last line makes zsh read them so: without it zsh stops a call at a pattern that matches no file.
+`$R` is the repo's name, the same from the main checkout and from any worktree of it.
+`$H` is the repo's state directory, which every home of the repo shares.
+`whose` prints the directory of the home a brief or a request is, by the one rule `jmerge`, jbus and every thread ask (`jbus home`, "Merging a pull request that is ready"): a block below asks it whether one is this home's.
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 
@@ -49,7 +38,7 @@ case $ME in
 *'<'* | *'>'*) ;;
 *)
     for f in "$H"/home-id "$H"/*/home-id; do
-        if [ -f "$f" ] && [ "$(cat "$f")" = "$ME" ]; then
+        if [ -f "$f" ] && [ "$(awk 'NF {print $(1); exit}' "$f")" = "$ME" ]; then
             M=$(dirname "$f")
             break
         fi

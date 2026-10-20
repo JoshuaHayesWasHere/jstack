@@ -79,7 +79,7 @@ class Scene:
         return there, new
 
     def home_id(self, checkout):
-        return self.run(given("End")[1], checkout)
+        return self.run(f'B="$H/scouts/{SLUG}.md"\n{given("End")[1]}', checkout)
 
 
 @pytest.fixture
