@@ -58,7 +58,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
-MAP = ".cursor/skills/verify-jstack/features"
+MAP = ".claude/skills/verify-jstack/features"
 TEST = re.compile(r"tests/(\w+/)*test_\w+\.py")
 EVERYTHING = ("pyproject.toml", "uv.lock", "tests/conftest.py")
 FIXTURES = "tests/fixtures/"
