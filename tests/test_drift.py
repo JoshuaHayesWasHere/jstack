@@ -282,12 +282,12 @@ def own(upstream, *paths):
 def test_own_line_for_each_file_that_is_jstacks_own_after_the_map_and_before_the_new(
     upstream, capsys
 ):
-    own(upstream, "principles/deeper.md", "skills/ours/SKILL.md")
+    own(upstream, "principles/depth.md", "skills/ours/SKILL.md")
     upstream.drift()
     _, lines, _ = run(upstream, capsys)
     assert [line.split()[:2] for line in lines[1:]][3:] == [
         ["same", "pstack/skills/poteto-mode/playbooks/one.md"],
-        ["own", "principles/deeper.md"],
+        ["own", "principles/depth.md"],
         ["own", "skills/ours/SKILL.md"],
         ["new", "pstack/skills/delta"],
         ["new", "pstack/skills/poteto-mode/playbooks/two.md"],
@@ -295,10 +295,10 @@ def test_own_line_for_each_file_that_is_jstacks_own_after_the_map_and_before_the
 
 
 def test_an_own_file_is_no_drift_under_strict(upstream, capsys):
-    own(upstream, "principles/deeper.md")
+    own(upstream, "principles/depth.md")
     code, lines, _ = run(upstream, capsys, "--strict")
     assert code == 0
-    assert lines[-1] == "own principles/deeper.md"
+    assert lines[-1] == "own principles/depth.md"
 
 
 def test_exit_2_with_a_file_that_is_both_mapped_and_jstacks_own(upstream, capsys):

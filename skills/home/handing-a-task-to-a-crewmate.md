@@ -53,7 +53,7 @@
    esac
    ```
 
-   On `deeper`, answer the four from `$H` and what the user said, as for the rest of the brief: an answer that needs the code or the docs is a question for the scout. A brief the step ran on has a `Read:` line with answer 2 and an `Instruments:` line with answer 3, though the home wrote it. A request has no brief to hold 3 and 4: where its "Deliver" list asks for the crewmate's brief, name them on that line, so the scout's brief carries them on `Instruments:` and `Proves it:`. Do not run `/deeper`: it is the user's to type. On `skip`, write the brief as it is. Skip it too for a task whose "Done when" already names its data, its instruments and its outside judge.
+   On `deeper`, answer the four from `$H` and what the user said, as for the rest of the brief: an answer that needs the code or the docs is a question for the scout. A brief the step ran on has a `Read:` line with answer 2 and an `Instruments:` line with answer 3, though the home wrote it. A request has no brief to hold 3 and 4: where its "Deliver" list asks for the crewmate's brief, name them on that line, so the scout's brief carries them on `Instruments:` and `Proves it:`. Do not run `/sharpen`: it is the user's to type. On `skip`, write the brief as it is. Skip it too for a task whose "Done when" already names its data, its instruments and its outside judge.
 
 2. Start the crewmate thread with the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first). The brief must be on disk before this call.
 

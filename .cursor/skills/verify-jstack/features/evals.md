@@ -1,6 +1,6 @@
 # The evals
 
-An eval scores a skill's answers against a key, blind, under `evals/`: the `/deeper` eval and the skill-cut eval, each rerunnable on any branch.
+An eval scores a skill's answers against a key, blind, under `evals/`: the skill-cut eval, rerunnable on any branch, and the retired eval of the depth questions, kept read-only as a record of its two runs.
 
 Paths:
 - `evals/`
