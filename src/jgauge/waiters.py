@@ -20,6 +20,10 @@ sees half a list. A waiter is one wait:
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
 leaves the file (`drop`).
+
+A thread is named one way: T3 Code's id is `mcp:<uuid>`, and an id given without the prefix
+gets it (`thread_id`). Two records for one thread, as a file written before held, are one wait,
+the older, which keeps its place; the file is written so on its next change.
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ NAME = "test-slot-waiters.json"
 LOCK = "test-slot-waiters.lock"
 HOLDS = timedelta(minutes=10)
 FORGOTTEN = timedelta(hours=1)
+PREFIX = "mcp:"
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,11 @@ class Waiter:
     since: str
     id: str
     woken: str = ""
+
+
+def thread_id(text: str) -> str:
+    """The thread's id in T3 Code's form, `mcp:` and its id."""
+    return text if not text or text.startswith(PREFIX) else PREFIX + text
 
 
 def stamp(moment: datetime) -> str:
@@ -73,9 +83,16 @@ def _held(locks: Path) -> Iterator[None]:
 def _read(locks: Path) -> list[Waiter]:
     try:
         raw = json.loads((locks / NAME).read_text())
-        return [Waiter(**{**one, "command": tuple(one["command"])}) for one in raw]
+        read = [
+            Waiter(**{**one, "command": tuple(one["command"]), "thread": thread_id(one["thread"])})
+            for one in raw
+        ]
     except (OSError, ValueError, TypeError, KeyError):
         return []
+    first: dict[str, Waiter] = {}
+    for one in sorted(read, key=lambda one: (one.since, one.id)):
+        first.setdefault(one.thread, one)
+    return [one for one in read if first[one.thread] is one]
 
 
 def _write(locks: Path, waiters: list[Waiter]) -> None:
@@ -106,6 +123,7 @@ def register(
     not yet woken, keeps its wait and its place. One that was woken and is back keeps its place
     in the queue and has a new wait."""
     made: list[Waiter] = []
+    thread = thread_id(thread)
 
     def how(waiters: list[Waiter]) -> list[Waiter]:
         mine = next((one for one in waiters if one.thread == thread), None)
@@ -128,6 +146,7 @@ def drop(locks: Path, thread: str) -> None:
     out of, and none is made."""
     if not (locks / NAME).exists():
         return
+    thread = thread_id(thread)
     _change(locks, lambda waiters: [one for one in waiters if one.thread != thread])
 
 
