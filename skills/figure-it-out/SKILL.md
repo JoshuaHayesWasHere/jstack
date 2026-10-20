@@ -10,7 +10,8 @@ card: "Settle the shape before code | 5 | Frames a task no playbook fits: done a
 
 Source: pstack, `pstack/skills/figure-it-out/SKILL.md`
 
-When a task matches no playbook, frame it, then plan it as entries that crewmates work and a person can audit afterwards. Every unit is a durable thread with its own file: no unit starts a subagent, here or in the threads it plans.
+When a task matches no playbook, frame it, then plan it as entries that crewmates work and a person can audit afterwards.
+Every unit is a durable thread with its own file: no unit starts a subagent, here or in the threads it plans.
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
@@ -19,7 +20,8 @@ T=$(realpath ~/.claude/skills/figure-it-out/../../templates)
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
-That is **the block at the top**. A path such as `playbooks/<name>.md` or `principles/<name>.md` is from `$T/..`, the repo this skill lives in.
+That is **the block at the top**.
+A path such as `playbooks/<name>.md` or `principles/<name>.md` is from `$T/..`, the repo this skill lives in.
 
 ## Where it runs
 
@@ -39,29 +41,39 @@ case ${by%%,*} in
 esac
 ```
 
-On `not a home`, this is a crewmate's thread or a plain one. Write the frame below in this thread and stop: plan nothing, write no brief, and fan nothing out. End with one line: the frame is for a home, and `/home` in the repo's main checkout turns it into entries. On `home: <dir>`, `<dir>` is `$M`, and the rest of this skill is yours.
+On `not a home`, this is a crewmate's thread or a plain one.
+Write the frame below in this thread and stop: plan nothing, write no brief, and fan nothing out.
+End with one line: the frame is for a home, and `/home` in the repo's main checkout turns it into entries.
+On `home: <dir>`, `<dir>` is `$M`, and the rest of this skill is yours.
 
 ## The frame
 
-Ground first: a scout's Report, never your own reading, as `skills/home/SKILL.md` "Sending a scout" says. Then write `$H/reports/frame-<slug>.md` with these five lines, and show them to the user before any entry is written:
+Ground first: a scout's Report, never your own reading, as `skills/home/SKILL.md` "Sending a scout" says.
+Then write `$H/reports/frame-<slug>.md` with these five lines, and show them to the user before any entry is written:
 
 - `Predicate:` done, as a check that can fail on the real thing (`principles/principle-prove-it-works.md`).
 - `Scope:` the units, counted, each with a t-shirt size, and the blockers the scout found.
-- `Rigor:` low, medium or high, biased high, and why. A one-way door or a wide blast radius raises it, and a reversible small step lowers it. Rigor is gates and artifacts, not effort.
-- `Riskiest:` the unit whose unknown could sink the rest. It is planned first (`principles/principle-sequence-verifiable-units.md`).
+- `Rigor:` low, medium or high, biased high, and why.
+  A one-way door or a wide blast radius raises it, and a reversible small step lowers it.
+  Rigor is gates and artifacts, not effort.
+- `Riskiest:` the unit whose unknown could sink the rest.
+  It is planned first (`principles/principle-sequence-verifiable-units.md`).
 - `Harness:` the entry that builds the check before the work, with its baseline taken from the code as it is now, so each later check reads old value against new (`principles/principle-foundational-thinking.md`).
 
-A unit whose design is a one-way door goes by the `arena` line the block printed: on `arena`, its own entry, ahead of the entries that build on it, run as that playbook says; on `no arena`, its entry has `Stage: parked` and the reason, since that playbook's runners are subagents. A unit whose shape is already concrete gets no arena.
+A unit whose design is a one-way door goes by the `arena` line the block printed: on `arena`, its own entry, ahead of the entries that build on it, run as that playbook says; on `no arena`, its entry has `Stage: parked` and the reason, since that playbook's runners are subagents.
+A unit whose shape is already concrete gets no arena.
 
 ## The entries
 
 Open `multi-phase-plan` with the block of "A playbook of the home's own" in `skills/home/SKILL.md`, and work its steps with the frame in hand:
 
-- The harness entry is first in the order paragraph, and each feature entry waits on it. The riskiest unit comes next.
+- The harness entry is first in the order paragraph, and each feature entry waits on it.
+  The riskiest unit comes next.
 - Each entry's `Decisions:` names the frame's path, and its last `Done when` line, or the last entry's, is the frame's `Predicate:`.
 - Each brief names `show-me-your-work` on its `Skills:` line, so its crewmate logs a row as each unit lands and says the log's path in its Result.
 
-Before a brief is queued, run this with the block at the top and the briefs' slugs in place of the words in angle brackets. It runs the brief lint that `jbus queue add` runs:
+Before a brief is queued, run this with the block at the top and the briefs' slugs in place of the words in angle brackets.
+It runs the brief lint that `jbus queue add` runs:
 
 ```sh
 for slug in <the slugs>; do
@@ -78,6 +90,7 @@ for slug in <the slugs>; do
 done
 ```
 
-It prints nothing when every brief passes. Each line it prints is a fault: mend the brief and run it again.
+It prints nothing when every brief passes.
+Each line it prints is a fault: mend the brief and run it again.
 
 **Reply:** the frame's path and its five lines, the entries in order with what each waits on, the rigor and why, and what is still open.
