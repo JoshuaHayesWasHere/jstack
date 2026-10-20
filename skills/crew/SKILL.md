@@ -896,7 +896,7 @@ Where no check ran, the head is not green and the line is not sent: "The checks"
 
 The reviewer reviews once and you fix once. Whether anybody reviews the fix depends on what it changed, whichever files the findings named. A fix that changes a file outside `tests/` gets one scoped review: a reviewer that reads the fix alone. A fix that changes files under `tests/` only, or nothing, gets none: what stands behind it is the pull request's own checks. That review is the last: a fix pushed for its findings gets no further review, and merges on its checks. No fix gets a whole second review.
 
-A path listed in `src/jmerge/guarded.txt`, which is empty today, gets the stricter gate that `docs/jmerge.md` gives under "Protected and guarded paths", and jbus's message says what its fix is owed.
+A path listed in `src/jmerge/guarded.txt` gets the stricter gate that `docs/jmerge.md` gives under "Protected and guarded paths", and jbus's message says what its fix is owed.
 
 What decides is this, run with the block at the top, in this worktree. Run it once the findings are handled and the fix, if there is one, is pushed, before the `Fixed:` line is written, and on each wake that finds the pull request green after that. It is the only check:
 
