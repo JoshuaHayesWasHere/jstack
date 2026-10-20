@@ -20,6 +20,10 @@ thread on to the instance `jroles.pool.choose` names in its pool:
 - none, while every instance of the pool is capped: one `stall` event (user level) that names
   the first reset, and nothing sent. The first pass after that reset goes on as above.
 
+A move onto a mirror instance is asked of `jroles mirror --check` first, as a launch is
+(`dispatch.mirrored`): one that is not mirrored is passed over for the pass, and a thread with
+no other instance left waits, sent nothing, for a later pass. A replay asks nothing of it.
+
 A move happens only on a cap, and it is sticky: nothing moves a thread back once its old
 instance is free, since each move is a handoff that loses context. It moves again only when
 the instance it is on caps.
@@ -264,6 +268,7 @@ def failover(run: Pass, client: Client, world: World) -> None:
         return
     over = _over(run, world)
     sent = read_json(run.state / "sent.json", [])
+    checked: dict[str, bool] = {}
     for thread in listed:
         at, ended = thread["threadId"], thread["latestRunId"]
         mover = found.get(at)
@@ -281,7 +286,7 @@ def failover(run: Pass, client: Client, world: World) -> None:
             if capped is None:
                 continue
             run.limited |= crew
-            handle(run, client, thread, mover, capped, key)
+            handle(run, client, thread, mover, capped, key, checked)
         except T3Refused as error:
             what = "T3 Code refused the failover"
             run.gate(mover.subject(at), what, str(error), key=f"{what} {at} {ended}")
@@ -336,6 +341,7 @@ def plan(
     found: tuple[ledger.Cap, str],
     *,
     fill: bool = False,
+    checked: dict[str, bool] | None = None,
 ) -> Move | None:
     """The move a cap makes of the thread, read and chosen and nothing written: the ledger as
     it is with the cap in it. None for a thread whose configuration names no model.
@@ -343,7 +349,8 @@ def plan(
     With `fill`, a replay's, the cap fills the window the ledger has running for the capped
     instance where that one resets later: a cap moved to now would otherwise lose to it by
     the ledger's rule, the later reset winning, where a real cap carries that window's own
-    reset."""
+    reset. With `checked`, a pass's, an instance that is not mirrored is passed over
+    (`dispatch.mirrored_choice`), which may run the mirror."""
     cap, ran = found
     configuration = client.call("t3_thread_configuration", {"threadId": thread["threadId"]})
     selection = dict(configuration.get("modelSelection") or {})
@@ -356,7 +363,11 @@ def plan(
     if fill and running and running.resets > cap.resets.timestamp():
         cap = replace(cap, resets=datetime.fromtimestamp(running.resets, UTC))
     kept = ledger.merge(ledger.read(instances), [cap.record(capped)])
-    choice = pool.choose(instances, kept, run.now)
+    if checked is None:
+        choice = pool.choose(instances, kept, run.now)
+    else:
+        subject = mover.subject(thread["threadId"])
+        choice = dispatch.mirrored_choice(run, subject, instances, checked, instance, kept)
     return Move(thread, mover, cap, capped, selection, instances, choice)
 
 
@@ -369,6 +380,9 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
     if record and ledger.write(cap.record(move.capped)):
         run.say(f"capped {move.capped}: {cap.window} until {cap.resets.isoformat()}")
     subject = move.mover.subject(at)
+    if choice.instance is None and (choice.until is None or choice.passed):
+        run.say(f"wait {move.mover.name}: no move: {choice.why}")
+        return
     if choice.instance is None:
         if run.find(subject, "stall", line, key=f"capped {choice.until.isoformat()}"):
             run.say(line)
@@ -400,8 +414,9 @@ def handle(
     mover: Mover,
     found: tuple[ledger.Cap, str],
     key: str,
+    checked: dict[str, bool],
 ) -> None:
-    move = plan(run, client, thread, mover, found)
+    move = plan(run, client, thread, mover, found, checked=checked)
     if move is None:
         run.limited.discard(mover.slug if mover.role == "crew" else "")
         return

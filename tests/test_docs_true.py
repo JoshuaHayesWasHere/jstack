@@ -195,11 +195,14 @@ def strays(at, words):
             names = word.split("|")
             if not all(map(is_word, names)):
                 break
-            bad = [name for name in names if name not in at.verbs]
+            bad = [name for name in names if name not in at.verbs and name not in at.choices]
             if bad or len(names) > 1:
                 found += [f"{at.command}: the verb {name}" for name in bad]
                 break
-            at = at.verbs[word]
+            if word in at.choices:
+                placed = True
+            else:
+                at = at.verbs[word]
         elif at.choices and not placed:
             placed = True
             names = word.split("|")
@@ -249,7 +252,8 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
     assert bus.verbs["t3"].choices == ("login", "launch-test") and bus.verbs["t3"].verbs == {}
     assert sorted(trees["jgauge"].verbs) == ["context", "room", "sample", "session", "test-slot"]
     assert trees["jmerge"].flags["--check"] is False and trees["jmerge"].flags["--accept"] is True
-    assert trees["jroles"].verbs == {} and "crew" in trees["jroles"].choices
+    assert sorted(trees["jroles"].verbs) == ["mirror"] and "crew" in trees["jroles"].choices
+    assert trees["jroles"].verbs["mirror"].flags == {"--check": False, "--instance": True}
     assert sum(len(at.verbs) for tree in trees.values() for at in tree.walk()) > 20
     assert sum(len(at.flags) for tree in trees.values() for at in tree.walk()) > 30
 
