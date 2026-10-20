@@ -1,5 +1,5 @@
-"""The machine and the plan: its load, memory, pressure, the file slots of `/tmp` and the
-plan's limits, and the one answer `jgauge room` gives of them.
+"""The machine and the plan: its load, CPU pressure, memory, memory pressure, the file slots
+of `/tmp` and the plan's limits, and the one answer `jgauge room` gives of them.
 
 The limits file is written by a session's status line, so it is old whenever no session ran:
 it says its age, and is no fault of jbus. A limit in it whose reset time has passed is from
@@ -28,6 +28,7 @@ SHAPE = {
         "why": None,
         "cores": None,
         "load": [None],
+        "cpu_pressure": None,
         "memory_gb": None,
         "pressure": None,
         "tmp": {"total": None, "used": None},
@@ -49,6 +50,7 @@ def room_limits() -> dict[str, int]:
     script = ROOM.read_text()
     names = {
         "load": "LOAD",
+        "cpu": "CPU",
         "memory": "MEMORY",
         "pressure": "PRESSURE",
         "slots": "SLOTS",
@@ -125,6 +127,7 @@ def _room(sources: Sources, now: datetime) -> dict[str, Any]:
         "why": text(why) if known else "the room check did not run",
         "cores": os.cpu_count() or 0,
         "load": loads,
+        "cpu_pressure": _number_in(sources.proc / "pressure" / "cpu", r"^some .*avg60=([0-9.]+)"),
         "memory_gb": round(memory / 1048576, 1) if memory is not None else None,
         "pressure": _number_in(sources.proc / "pressure" / "memory", r"^some .*avg60=([0-9.]+)"),
         "tmp": tmp,

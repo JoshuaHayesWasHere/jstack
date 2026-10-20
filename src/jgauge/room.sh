@@ -1,6 +1,7 @@
 #!/bin/sh
 room() (
-  LOAD=85
+  LOAD=200
+  CPU=40
   MEMORY=6
   PRESSURE=10
   CUSHION=100
@@ -23,6 +24,7 @@ room() (
   cores=$(nproc 2> /dev/null)
   memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
   pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
+  stalled=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/cpu" 2> /dev/null)
   read_slots() { df -Pi "$TMPFS" 2> /dev/null | awk 'NR == 2 {print $(2), $(3)}'; }
   slots=$(read_slots)
   if echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
@@ -50,9 +52,9 @@ room() (
       }'
     fi
   fi
-  awk -v busy="$load" -v cores="$cores" -v memory="$memory" -v pressure="$pressure" \
+  awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
     -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
-    -v LOAD="$LOAD" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
+    -v LOAD="$LOAD" -v CPU="$CPU" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
     -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v rows="$rows" -v now="$(date +%s)" 'BEGIN {
       number = "^[0-9]+(\\.[0-9]+)?$"
       window["five_hour"] = "five-hour"
@@ -64,6 +66,8 @@ room() (
         }
       if (light != "1" && (busy !~ number || cores !~ number || cores == 0)) why = "the load or the core count could not be read"
       else if (light != "1" && int(busy * 100 + 0.5) >= cores * LOAD) why = "load " busy " is at or over " LOAD "% of " cores " cores"
+      else if (light != "1" && stalled !~ number) why = "the CPU pressure could not be read"
+      else if (light != "1" && stalled >= CPU) why = "CPU pressure " stalled " is at or over " CPU
       else if (memory !~ number) why = "the available memory could not be read"
       else if (memory < MEMORY * 1048576) why = sprintf("%.1f GB of memory available, under %s", memory / 1048576, MEMORY)
       else if (pressure !~ number) why = "the memory pressure could not be read"
