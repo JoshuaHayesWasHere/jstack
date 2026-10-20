@@ -15,6 +15,7 @@ The source's frontmatter has `paths:` for `**/*.ts` and `**/*.tsx`, which loads 
 Run this first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if R=$(realpath ~/.claude/skills/typescript-best-practices/../.. 2> /dev/null) && [ -f "$R/principles/principle-type-system-discipline.md" ]; then
     echo "$R"
 else

@@ -12,6 +12,7 @@ card: "Run the pipeline | 2 | Makes a thread a crewmate. It does the one task of
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/crew/../../templates)
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.

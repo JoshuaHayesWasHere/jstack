@@ -14,6 +14,7 @@ A new T3 Code thread in any repo's main checkout becomes that repo's home by its
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
 ## `/nohome`: this thread only

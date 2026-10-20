@@ -19,6 +19,7 @@ Your context lives in three records. Your own chat history holds what you did an
 A thread's transcript is one `.jsonl` file under `~/.claude/projects/`, in a directory named for the directory the thread ran in, every character that is not a letter or a digit turned into "-". Every line is one chat message. This prints the transcripts of one directory changed in the window, newest first, without this thread's own:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 DAYS=${DAYS:-7}
 W=${W:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}
 D=~/.claude/projects/$(printf %s "$W" | sed 's/[^A-Za-z0-9]/-/g')
@@ -36,6 +37,7 @@ Run as it is, it reads the directory this thread runs in over the last 7 days. F
 This prints what the home's record holds for the same window, newest first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 DAYS=${DAYS:-7}
 if ! G=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null); then
     echo "no home record: this is not a git repository"

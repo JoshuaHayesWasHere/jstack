@@ -34,6 +34,7 @@ Infer the need from the message. When it is still unclear, ask one multiple-choi
 The pick comes from the tree, not from a list in this file. Run this, with what the user typed after `/poteto-help` in place of the line in angle brackets, as typed:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 said=$(cat << 'THE_ASK_ENDS_HERE'
 <what the user typed after the skill's name>
 THE_ASK_ENDS_HERE

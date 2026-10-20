@@ -100,6 +100,7 @@ Don't mix modes: no reference tables inside a tutorial, no tutorial hand-holding
 `$T` is the `templates/` directory of the repo that this skill lives in:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 T=$(realpath ~/.claude/skills/technical-writing/../../templates)
 ```
 

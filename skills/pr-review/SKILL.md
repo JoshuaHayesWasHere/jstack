@@ -17,6 +17,7 @@ There is one pass per pull request: the reviewer reviews once and the crewmate f
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/pr-review/../../templates)
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.

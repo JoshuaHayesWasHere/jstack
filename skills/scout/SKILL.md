@@ -16,6 +16,7 @@ This thread is a **scout**. It has one request, written by the repo's home. It f
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/scout/../../templates)
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before. The request a home wrote has the shape of `$T/scout-request.md`.

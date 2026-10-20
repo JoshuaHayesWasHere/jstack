@@ -17,6 +17,7 @@ Defer to the hunter's fresh perspective.
 The source starts an agent named Comment Sicko that deletes the comments itself. This repo has no such agent, so its rules are in "The hunter's prompt" below and go to an `Explore` subagent, which has no tool to edit with: it reports, and this thread deletes. No skill named here loads by itself: to run one, read its file and do what it says. Run this first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if R=$(realpath ~/.claude/skills/no-comments/../.. 2> /dev/null) && [ -f "$R/playbooks/opening-a-pr.md" ]; then
     echo "$R"
 else

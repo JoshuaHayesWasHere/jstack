@@ -15,6 +15,7 @@ Spawn two reviewers to adversarially review code changes, each with the same pro
 This is not a pull request's review. That one is launched by the crewmate that opened the pull request and run by a reviewer in a thread of its own, as `skills/crew/SKILL.md` "The review" and `skills/pr-review/SKILL.md` say. This skill launches no reviewer thread and writes no `## Review` section and no `Finding:` line in a brief. Run this first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if R=$(realpath ~/.claude/skills/interrogate/../.. 2> /dev/null) && [ -f "$R/skills/pr-review/SKILL.md" ]; then
     echo "$R"
 else
@@ -56,6 +57,7 @@ Before spawning reviewers, state the intent in one clear paragraph from the user
 Six checks of the source's rubric and five dimensions of its code-quality lens already live in the `SCOPE` text of the pr-review skill, as its questions 4 and 5. They are not copied here. This prints them:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 R=$(realpath ~/.claude/skills/interrogate/../.. 2> /dev/null)
 S=${R:-no root}/skills/pr-review/the-review.md
 asked=$(awk '

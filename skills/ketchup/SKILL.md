@@ -25,6 +25,7 @@ One call can cover many items, such as each PR in a set awaiting merge. For each
 In a repo with a home, a question that waits on the user is parked as a gate, and this prints the open ones:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if ! G=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null); then
     echo "no gates: this is not a git repository"
 else

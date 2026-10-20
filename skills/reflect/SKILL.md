@@ -21,6 +21,7 @@ Skip it, and say so, when the thread is trivial or when everything that went wro
 A thread's transcript is one `.jsonl` file under `~/.claude/projects/`, in a directory named for the directory the thread ran in. This prints it:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 P=~/.claude/projects
 S=${S:-}
 W=${W:-}
@@ -47,6 +48,7 @@ On `no transcript`, stop and say what it printed.
 A transcript is mostly tool output and is too long to hand to a reviewer whole. This writes what was said and done, each turn headed by its line number in the transcript, and prints where:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 F=<the file step 1 printed>
 out=${TMPDIR:-/tmp}/reflect-$(basename "$F" .jsonl).txt
 if jq -r '
@@ -79,6 +81,7 @@ A reviewer changes no file. Two things hold that, and neither is a sentence in i
 The check first. This block is run before the reviewers with `when=before`, and after them with `when=after`:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 when=<before or after>
 G=$(git rev-parse --absolute-git-dir 2> /dev/null)
 state() (

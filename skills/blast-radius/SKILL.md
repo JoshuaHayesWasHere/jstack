@@ -37,6 +37,7 @@ Step 4 is usually one small script that imports the same library the app ships a
 1. Read the change. The diff, the symbols it adds, changes, and deletes, and what it now does differently, including the part the diff doesn't spell out. With no change named, the change is this checkout against the default branch, the working tree and its files not yet added included, and this prints its files:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2> /dev/null || echo main)
    if ! fork=$(git merge-base HEAD "$base" 2> /dev/null); then
        echo "no change to read: this is not a git repository with a branch $base"

@@ -35,6 +35,7 @@ ts	phase	decision	why	evidence	result
 Run this, with the five cells filled in. It prints the log's path and how many rows it holds:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 S=$(realpath -q ~/.claude/skills/crew/../show-me-your-work || true)
 L=${L:-$(git rev-parse --absolute-git-dir 2> /dev/null || pwd)/decisions.tsv}
 if [ ! -f "$S/scripts/log.sh" ]; then

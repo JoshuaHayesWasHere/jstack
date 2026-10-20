@@ -51,6 +51,7 @@ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/grilling/../../templates)
 F="$H/reports/grill-<slug>.html"
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
 1. Make the file. A file that is there is kept: it is this grill's, from an earlier round. On `no page`, there is nothing to serve a page with and no file is made: ask this round, and every later one, as text.

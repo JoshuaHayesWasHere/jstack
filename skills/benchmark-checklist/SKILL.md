@@ -25,6 +25,7 @@ A path such as `playbooks/<name>.md` or `principles/<name>.md` is from the root 
 Run this, with the round count and the commands filled in. One command gives a baseline, two are compared:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 S=$(realpath -q ~/.claude/skills/crew/../benchmark-checklist || true)
 if [ ! -f "$S/scripts/runs.sh" ]; then
     echo "no runs: scripts/runs.sh of this skill was not found by way of ~/.claude/skills/crew"

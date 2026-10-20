@@ -15,6 +15,7 @@ When fixing a bug with a clear, cheap test path, make the broken behavior execut
 Run this first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if R=$(realpath ~/.claude/skills/tdd/../.. 2> /dev/null) && [ -f "$R/playbooks/bug-fix.md" ]; then
     echo "$R"
 else

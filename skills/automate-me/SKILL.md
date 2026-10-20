@@ -21,6 +21,7 @@ This skill orchestrates three others: an inline mining pass (see step 1), the pl
 This prints every mode skill there is, the user's own and this project's:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 found=
 for f in ~/.claude/skills/*-mode/SKILL.md .claude/skills/*-mode/SKILL.md; do
     if [ -f "$f" ]; then

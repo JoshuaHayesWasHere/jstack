@@ -25,6 +25,7 @@ A path such as `playbooks/correct.md` or `principles/<name>.md` is from the root
 Read where corrections are written down. This prints the first two sources, for the repo the thread is in:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 echo "## commits that fix or revert"

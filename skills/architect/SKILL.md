@@ -15,6 +15,7 @@ Sketch types, function signatures, class shapes, and module boundaries with `not
 No skill named here loads by itself. To run one, read its file and do what it says. Run this first:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 if R=$(realpath ~/.claude/skills/architect/../.. 2> /dev/null) && [ -f "$R/playbooks/arena.md" ]; then
     echo "$R"
 else
