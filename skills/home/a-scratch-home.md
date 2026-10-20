@@ -25,7 +25,11 @@ elif [ -z "$NAME" ] && [ "$(printf '%s\n' "$listed" | grep -c .)" != 1 ]; then
     echo "which: name the scratch home, one of: $(printf '%s ' $listed)"
 else
     NAME=${NAME:-$listed}
-    if ! printf '%s\n' "$NAME" | grep -Eqx '[A-Za-z0-9][A-Za-z0-9._-]*'; then
+    case $NAME in
+    [A-Za-z0-9]*) bad=$(printf '%s' "$NAME" | tr -d 'A-Za-z0-9._-'; echo .) && bad=${bad%.} ;;
+    *) bad=x ;;
+    esac
+    if [ -n "$bad" ]; then
         echo "not a name: a scratch home's name is letters, digits, dots, dashes and underscores, and starts with a letter or a digit"
     elif ! printf '%s\n' "$listed" | grep -Fqx -- "$NAME"; then
         echo "not added: jbus has no scratch home ${NAME}: add it with jbus project add ${NAME} --scratch --project-id <the No project id>"

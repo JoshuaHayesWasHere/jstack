@@ -46,7 +46,7 @@ def test_a_named_home_jbus_does_not_list_is_added_first_and_nothing_is_written(t
     assert not (state / "drafts").exists()
 
 
-@pytest.mark.parametrize("name", ["..", "../ab", "a/b"])
+@pytest.mark.parametrize("name", ["..", "../ab", "a/b", "ab\n../x", "ab\n"])
 def test_a_name_with_a_path_in_it_writes_nothing_however_jbus_lists_the_homes(tmp_path, name):
     said, state = run(tmp_path, name=name, scratch=("ab",))
     assert said.startswith("not a name:")
