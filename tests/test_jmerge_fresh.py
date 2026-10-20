@@ -264,7 +264,7 @@ def test_a_file_the_pull_request_renamed_is_one_of_its_paths(kitchen):
     """GitHub lists a rename under its new path alone: the one it left is asked for."""
     kitchen.crew("two", 7, {"b.txt": None, "c.txt": LINES}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("b.txt\n")
-    kitchen.pulls["two"] |= {"files": [merge.file("c.txt", renamed=True)], "changedFiles": 1}
+    kitchen.pulls["two"]["files"] = [merge.file("c.txt", renamed=True)]
     kitchen.checked("two", STARTED)
     kitchen.on_main({"b.txt": "theirs\n" + LINES})
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
@@ -278,104 +278,6 @@ def test_a_main_that_moved_on_other_files_leaves_the_check_standing(kitchen):
     assert said.startswith("merged 7 two ")
 
 
-SELECTOR = Path(__file__).parent.parent / "scripts" / "select_tests.py"
-SELECTED = {
-    "pyproject.toml": "[project]\nname = 'demo'\n",
-    "Makefile": "check:\n",
-    "scripts/select_tests.py": SELECTOR.read_text(),
-    ".cursor/skills/verify-jstack/features/README.md": "Cross-cutting:\n",
-    "src/demo/__init__.py": "",
-    "src/demo/one.py": LINES,
-    "src/demo/two.py": LINES,
-    "tests/conftest.py": "",
-    "tests/test_one.py": "import demo.one\n",
-    "tests/test_two.py": "import demo.two\n",
-    "tests/test_whole.py": "",
-}
-
-
-@pytest.fixture
-def selected(tmp_path):
-    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
-    over the main that changed its module: `src/demo/two.py`, which `tests/test_two.py`
-    imports. No test file is one every change selects."""
-    kitchen = Kitchen(tmp_path, SELECTED)
-    checked = Checked(kitchen, "true", "src/demo/two.py")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    assert checked.known()["7"]["result"] == ready.PASSED
-    return kitchen, checked
-
-
-def test_a_pass_over_an_older_main_stands_when_main_moved_only_off_its_tests(selected):
-    kitchen, checked = selected
-    now = kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
-    kept = (
-        f"fresh: {checked.command} passed on {checked.head[:12]} over {checked.main[:12]}, "
-        f"kept over {now[:12]}: main's change since meets none of its tests"
-    )
-    assert kitchen.run("--check") == [f"ready 7 {checked.head} two two, {kept}"]
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ") and f", {kept}, revert: " in said
-    assert len(checked.ran()) == 1
-
-
-@pytest.mark.parametrize(
-    "theirs",
-    [
-        pytest.param({"tests/test_two.py": "import demo.two\nimport os\n"}, id="its-tests"),
-        pytest.param({"pyproject.toml": "[project]\nname = 'other'\n"}, id="all"),
-    ],
-)
-def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests(selected, theirs):
-    kitchen, checked = selected
-    kitchen.on_main(theirs)
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2 and checked.known()["7"]["main"] == kitchen.tip()
-
-
-def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
-    """Main's checkout has `two.py` import nothing: over the head, `tests/test_two.py`
-    reaches `one.py` too, so main's change to it meets the pull request's tests."""
-    kitchen = Kitchen(tmp_path, SELECTED)
-    checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
-def test_a_test_every_change_selects_is_one_in_common(selected):
-    """A test that reads the whole tree can fail on the two changes together."""
-    kitchen, checked = selected
-    whole = {
-        ".cursor/skills/verify-jstack/features/README.md": "Cross-cutting: `tests/test_whole.py`\n"
-    }
-    write(kitchen.home.main, whole)
-    git(kitchen.home.main, "commit", "-q", "-m", "a whole-tree test")
-    git(kitchen.home.main, "push", "-q")
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
-def test_a_pass_stands_only_in_a_repo_that_says_what_its_tests_select(kitchen):
-    checked = Checked(kitchen, "true")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    kitchen.on_main({"a.txt": "theirs\n" + LINES})
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
 def test_more_than_five_files_are_counted_not_named(kitchen):
     files = {f"f{n}.txt": "ours\n" for n in range(7)}
     kitchen.crew("two", 7, files)
@@ -384,15 +286,12 @@ def test_more_than_five_files_are_counted_not_named(kitchen):
     assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format(named)}"]
 
 
-def test_a_protected_pull_request_is_held_for_the_user_and_starts_no_fresh_check(kitchen):
-    (kitchen.home.state / "fresh-check").write_text("true\n")
+def test_a_protected_pull_request_is_held_for_the_user_only_once_it_is_fresh(kitchen):
     kitchen.crew("two", 7, {"secrets/prod.json": "{}\n", "b.txt": LINES + "ours\n"})
     kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    held = [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
-    assert kitchen.run() == held
-    assert not (kitchen.home.state / "fresh.json").exists()
+    assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
     kitchen.checked("two", AFTER)
-    assert kitchen.run() == held
+    assert kitchen.run() == [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
     assert kitchen.calls() == []
 
 
@@ -516,22 +415,6 @@ def test_a_resolution_that_dropped_a_line_the_pull_request_added_waits_on_its_cr
     assert notes.calls() == []
 
 
-def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
-    """It waits on its crew whatever a check would find: none is run while it waits."""
-    (notes.home.state / "fresh-check").write_text("true\n")
-    notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
-    notes.rebase(
-        "two", {"n.txt": "one\ntwo\nthree\ntheirs\n"}, {"n.txt": "one\ntwo\nthree\nours\n"}
-    )
-    notes.pulls["two"]["statusCheckRollup"] = [STARTED]
-    (notes.home.stub / "list.json").write_text(json.dumps(list(notes.pulls.values())))
-    notes.on_main({"n.txt": "zero\none\ntwo\nthree\ntheirs\n"})
-    held = f"wait 7 {url(7)}: the rebase dropped 1 of main's lines in n.txt {unsaid(notes)}"
-    assert notes.run() == [held]
-    assert not (notes.home.state / "fresh.json").exists()
-    assert not (notes.home.state / "fresh").exists()
-
-
 def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
     """Main moved the line, so its diff adds it, and the pull request's own patch removes
     that same line: the head is right not to have it."""
@@ -633,15 +516,15 @@ class Checked:
     """A repo that asks for a fresh check, with a pull request main changed a file under:
     on other lines, so the two merge. The command is a script that counts its runs."""
 
-    def __init__(self, kitchen, script, path="b.txt", ours=LINES + "ours\n"):
+    def __init__(self, kitchen, script):
         self.kitchen = kitchen
         self.runs = kitchen.tmp / "runs"
         self.script = kitchen.tmp / "check.sh"
         self.wrote(script)
         self.command = f"sh {self.script}"
         (kitchen.home.state / "fresh-check").write_text(f"{self.command}\n")
-        self.head = kitchen.crew("two", 7, {path: ours})
-        self.main = kitchen.on_main({path: "theirs\n" + LINES})
+        self.head = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
+        self.main = kitchen.on_main({"b.txt": "theirs\n" + LINES})
 
     def wrote(self, script):
         self.script.write_text(f'pwd >> "{self.runs}"\n{script}\n')
@@ -799,7 +682,7 @@ def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen
     *_, judged = here.waits(one, "main")
     assert judged.fresh == checked.passed()
     other = cli.Fresh(home.main, home.state)
-    assert other.of(8, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
+    assert other.of(8, checked.head, checked.main) == ("a fresh check is queued", "")
 
 
 def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(kitchen):
@@ -872,9 +755,9 @@ def recorded(kitchen, number, limit=60.0):
 def checked_of(kitchen, fresh, checked):
     """What `Fresh.of` says of the pull request once the check it started has ended."""
     before = known(kitchen)
-    assert fresh.of(7, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
+    assert fresh.of(7, checked.head, checked.main) == (ready.FRESH_QUEUED, "")
     settled(kitchen, before)
-    return fresh.of(7, checked.head, checked.main, ("b.txt",))
+    return fresh.of(7, checked.head, checked.main)
 
 
 def markers(kitchen):

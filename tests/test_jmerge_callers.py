@@ -47,10 +47,7 @@ def test_main_adding_a_caller_of_the_module_a_rename_left_makes_its_check_stale(
     """A rename is the change most likely to break a caller: one of the old module counts."""
     kitchen.crew("two", 7, {"src/pkg/core.py": None, "src/pkg/engine.py": CORE}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("src/pkg/core.py\n")
-    kitchen.pulls["two"] |= {
-        "files": [merge.file("src/pkg/engine.py", renamed=True)],
-        "changedFiles": 1,
-    }
+    kitchen.pulls["two"]["files"] = [merge.file("src/pkg/engine.py", renamed=True)]
     kitchen.checked("two", STARTED)
     kitchen.on_main({"src/pkg/caller.py": CALLER})
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('src/pkg/caller.py')}"]

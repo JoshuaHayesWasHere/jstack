@@ -22,6 +22,7 @@ import test_tool_calls as tools
 from jbriefs import parse as briefs
 from jmerge import cli, rangediff, ready
 from test_jbus_kitchen import NOW, Kitchen
+from test_jmerge_guarded import LISTED
 
 SKILL = Path(__file__).parent.parent / "skills" / "crew" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -272,17 +273,32 @@ class Fix:
         git(self.work, "commit", "-q", "--allow-empty", "-m", message)
         return git(self.work, "rev-parse", "HEAD")
 
-    def says(self, result, reviews=None, shell="sh"):
-        """What the block prints for a Result's lines and the reviews written after it."""
+    def listed(self):
+        """A copy of jmerge's package whose `guarded.txt` is the list the tests write: the
+        shipped one is empty, and the block asks the package it finds first."""
+        copy = self.state / "listed"
+        if not copy.exists():
+            source = SKILL.parents[2] / "src" / "jmerge"
+            ignore = shutil.ignore_patterns("__pycache__")
+            shutil.copytree(source, copy / "jmerge", ignore=ignore)
+            (copy / "jmerge" / "guarded.txt").write_text(LISTED)
+        return str(copy)
+
+    def says(self, result, reviews=None, shell="sh", listed=True):
+        """What the block prints for a Result's lines and the reviews written after it, over
+        the list the tests write, or with `listed` false over the shipped one."""
         brief = BRIEF + result + (self.review if reviews is None else reviews)
         (self.state / "tasks" / "alpha.md").write_text(brief)
         told = {"H": str(self.state), "T": str(SKILL.parents[2] / "templates")}
+        env = {name: value for name, value in os.environ.items() if name != "PYTHONPATH"}
+        if listed:
+            env["PYTHONPATH"] = self.listed()
         ran = subprocess.run(
             [shell, "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
             capture_output=True,
             text=True,
             cwd=self.work,
-            env={**os.environ, **told},
+            env={**env, **told},
             check=True,
         )
         return ran.stdout.splitlines()
@@ -413,8 +429,10 @@ def test_a_fix_after_two_reviews_is_decided_by_what_it_changed_too(tmp_path):
     assert tests.says("", tests.review + tests.review) == [TESTS_ONLY]
 
 
-@pytest.mark.parametrize("path", ["docs/a.md", "skills/crew/SKILL.md"], ids=["docs", "a skill"])
-def test_the_review_of_a_fix_is_the_last_whatever_path_it_changes(path, tmp_path):
+@pytest.mark.parametrize(
+    "path", ["docs/a.md", "skills/crew/SKILL.md"], ids=["not guarded", "guarded"]
+)
+def test_the_review_of_a_fix_is_the_last_but_for_a_guarded_pull_request(path, tmp_path):
     fix = opened(tmp_path, path)
     needed = owed(fix, f"the fix changed {path}")
     assert fix.says("") == [f"write {needed.strip()}"]
@@ -426,17 +444,29 @@ def test_the_review_of_a_fix_is_the_last_whatever_path_it_changes(path, tmp_path
     written = fix.review + fix.reviewed(fix.fixed)
     assert fix.says(launched, written) == [HAD]
     (fix.work / "d.py").write_text("for the scoped review's findings\n")
-    fix.commit("the second fix")
-    assert fix.says(launched, written) == [HAD]
+    again = fix.commit("the second fix")
+    if path == "docs/a.md":
+        assert fix.says(launched, written) == [HAD]
+        return
+    second = f"Scoped review: needed since {fix.fixed}, guarded\n"
+    assert fix.says(launched, written) == [f"write {second.strip()}"]
+    assert fix.says(launched + second, written) == [launch(fix, fix.fixed, again)]
+    proved = written + fix.reviewed(again)
+    assert fix.says(launched + second + f"Scoped reviewer: mcp:4, of {again}\n", proved) == [HAD]
 
 
-def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_check(tmp_path):
+def test_a_fix_under_tests_gets_its_scoped_review_on_a_guarded_pull_request(tmp_path):
+    fix = opened(tmp_path, "skills/crew/SKILL.md", fix=["tests/c.py"])
+    assert fix.says("") == [f"write {owed(fix, 'guarded').strip()}"]
+    assert fix.says("", listed=False) == [TESTS_ONLY]
+
+
+def test_the_launch_of_a_fix_s_review_asks_github_nothing_so_it_waits_for_no_green_check(tmp_path):
     fix = opened(tmp_path, "docs/a.md")
     stub = tmp_path / "stub"
     stub.mkdir()
-    for tool in ("gh", "uv"):
-        (stub / tool).write_text(f"#!/bin/sh\necho {tool} >> {stub}/calls\nexit 1\n")
-        (stub / tool).chmod(0o755)
+    (stub / "gh").write_text(f"#!/bin/sh\necho asked >> {stub}/calls\nexit 1\n")
+    (stub / "gh").chmod(0o755)
     brief = BRIEF + owed(fix, "the fix changed docs/a.md") + fix.review
     (fix.state / "tasks" / "alpha.md").write_text(brief)
     path = f"{stub}{os.pathsep}{os.environ['PATH']}"
@@ -526,11 +556,11 @@ SHELLS = [
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_a_scoped_review_owed_is_launched_once_for_its_head_and_is_the_last(shell, tmp_path):
+def test_a_fix_to_a_guarded_pull_request_gets_a_scoped_review_however_narrow_it_is(shell, tmp_path):
     fix = opened(tmp_path, GUARDED)
-    needed = owed(fix, f"the fix changed {GUARDED}")
-    assert fix.says("", shell=shell) == [f"write {needed.strip()}"]
-    decided = f"{OLD_NONE}\n{needed}"
+    needed = f"Scoped review: needed since {fix.saw}, guarded"
+    assert fix.says("", shell=shell) == [f"write {owed(fix, f'the fix changed {GUARDED}').strip()}"]
+    decided = f"{OLD_NONE}\n{needed}\n"
     launch = (
         "scoped: launch the scoped reviewer, with /pr-review run alpha scoped "
         f"{fix.start}..{fix.saw} {fix.start}..{fix.fixed}"
@@ -552,16 +582,72 @@ def test_a_scoped_review_owed_is_launched_once_for_its_head_and_is_the_last(shel
     proven = fix.review + fix.reviewed(fix.fixed)
     assert fix.says(launched, proven) == ["none: no second pass, as the Result says"]
     (fix.work / GUARDED).write_text("the second fix\n")
-    fix.commit("the second fix")
-    assert fix.says(launched, proven) == ["none: no second pass, as the Result says"]
+    again = fix.commit("the second fix")
+    assert fix.says(launched, proven) == [f"write Scoped review: needed since {fix.fixed}, guarded"]
+    assert fix.says(launched + f"Scoped review: needed since {fix.fixed}, guarded\n", proven) == [
+        "scoped: launch the scoped reviewer, with /pr-review run alpha scoped "
+        f"{fix.start}..{fix.fixed} {fix.start}..{again}"
+    ]
 
 
-@pytest.mark.parametrize("path", ["docs/a.md", GUARDED], ids=["docs", "a skill"])
-def test_a_fix_is_decided_by_what_it_changed_whatever_path_the_pull_request_changes(path, tmp_path):
-    fix = opened(tmp_path, path)
-    assert fix.says("") == [f"write {owed(fix, f'the fix changed {path}').strip()}"]
+def test_a_fix_to_a_guarded_pull_request_after_two_passes_gets_a_scoped_review(tmp_path):
+    fix = opened(tmp_path, GUARDED, fix=["tests/c.py"])
+    scoped = f"write Scoped review: needed since {fix.saw}, guarded"
+    assert fix.says("", fix.review + fix.review) == [scoped]
+    wide = opened(tmp_path / "wide", GUARDED, fix=[GUARDED, "b.py", "c.py"])
+    needed = f"Second pass: needed since {wide.saw}, the fix also changed c.py\n"
+    second = wide.review + wide.reviewed(wide.fixed)
+    had = ["had: the second pass is written, and it is the last"]
+    assert wide.says(needed + "Second reviewer: mcp:2222-bbbb\n", second) == had
+    (wide.work / "d.py").write_text("for the second pass\n")
+    wide.commit("the second fix")
+    assert wide.says(needed + "Second reviewer: mcp:2222-bbbb\n", second) == [
+        f"write Scoped review: needed since {wide.fixed}, guarded"
+    ]
+
+
+def test_a_guarded_check_that_did_not_run_is_said_and_a_file_moved_away_is_guarded(tmp_path):
+    fix = opened(tmp_path, "docs/a.md", fix=["tests/c.py"])
+    (fix.state / "tasks" / "alpha.md").write_text(BRIEF + fix.review)
+    stub = tmp_path / "stub"
+    stub.mkdir()
+    (stub / "uv").write_text("#!/bin/sh\nexit 2\n")
+    (stub / "uv").chmod(0o755)
+    path = f"{stub}{os.pathsep}{os.environ['PATH']}"
+    ran = subprocess.run(
+        ["sh", "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
+        capture_output=True,
+        text=True,
+        cwd=fix.work,
+        env={**os.environ, "H": str(fix.state), "PATH": path},
+        check=True,
+    )
+    assert ran.stdout.splitlines() == [
+        "scoped: jmerge could not be asked whether this pull request changes a guarded path",
+    ]
+    moved = Fix(tmp_path / "moved", [], ["warning docs/a.md:3 it"], ("docs/a.md",), opened=True)
+    git(moved.work, "update-ref", "refs/remotes/origin/main", moved.saw)
+    git(moved.work, "mv", "docs/a.md", "docs/b.md")
+    moved.commit("moved away")
+    assert moved.says("Second pass: none, it stayed inside\n") == [
+        "none: no second pass, as the Result says"
+    ]
+    (moved.work / GUARDED).parent.mkdir(parents=True)
+    git(moved.work, "mv", "docs/b.md", GUARDED)
+    start = moved.commit("into a guarded path")
+    git(moved.work, "update-ref", "refs/remotes/origin/main", start)
+    git(moved.work, "mv", GUARDED, "docs/c.md")
+    moved.commit("and away again")
+    assert moved.says("Second pass: none, it stayed inside\n") == [
+        f"write Scoped review: needed since {moved.saw}, guarded"
+    ]
+
+
+def test_a_fix_to_a_pull_request_that_is_not_guarded_keeps_the_rule_it_had(tmp_path):
+    fix = opened(tmp_path, "docs/a.md")
+    assert fix.says("") == [f"write {owed(fix, 'the fix changed docs/a.md').strip()}"]
     assert fix.says("", fix.review + fix.review) == [
-        f"write {owed(fix, f'the fix changed {path}').strip()}"
+        f"write {owed(fix, 'the fix changed docs/a.md').strip()}"
     ]
     assert fix.says("Second pass: none, the fix stayed inside\n") == [
         "none: no second pass, as the Result says"
@@ -570,28 +656,65 @@ def test_a_fix_is_decided_by_what_it_changed_whatever_path_the_pull_request_chan
 
 def test_the_shipped_list_guards_no_path_so_a_fix_to_a_skill_is_asked_no_scoped_review(tmp_path):
     fix = opened(tmp_path, GUARDED, fix=["tests/c.py"])
-    assert fix.says("") == [TESTS_ONLY]
-    assert fix.says("Second pass: none, the fix stayed inside\n") == [
+    assert fix.says("", listed=False) == [TESTS_ONLY]
+    assert fix.says("Second pass: none, the fix stayed inside\n", listed=False) == [
         "none: no second pass, as the Result says"
+    ]
+    assert fix.says("Second pass: none, the fix stayed inside\n") == [
+        f"write Scoped review: needed since {fix.saw}, guarded"
     ]
 
 
 @pytest.mark.parametrize(
-    "moved",
+    ("moved", "after_a_fix"),
     [
-        "CI fix: {fixed}, after the review of {saw}\n",
-        "Rebase: patch unchanged, before {saw}, head {fixed}\n",
-        "Rebase: patch changed in a.py, before {saw}, head {fixed}\n",
+        ("CI fix: {fixed}, after the review of {saw}\n", False),
+        ("Rebase: patch unchanged, before {saw}, head {fixed}\n", False),
+        ("Rebase: patch changed in a.py, before {saw}, head {fixed}\n", True),
     ],
     ids=["a push for a failed check", "a rebase", "a rebase that changed the patch"],
 )
-def test_a_head_jmerge_compares_by_range_diff_is_asked_no_scoped_review_here(moved, tmp_path):
+def test_a_head_jmerge_compares_by_range_diff_is_asked_no_scoped_review_here(
+    moved, after_a_fix, tmp_path
+):
     fix = opened(tmp_path, GUARDED)
     none = ["none: no second pass, as the Result says"]
+    scoped = [f"write Scoped review: needed since {fix.saw}, guarded"]
     result = "Second pass: none, nothing was pushed\n" + moved.format(fixed=fix.fixed, saw=fix.saw)
-    for fixed in ("", f"Fixed: {fix.fixed}\n"):
-        assert fix.says(fixed + result) == none
-        assert fix.says(result + fixed) == none
+    assert fix.says(result) == none
+    for fixed in (f"Fixed: {fix.fixed}\n{result}", f"{result}Fixed: {fix.fixed}\n"):
+        assert fix.says(fixed) == (none if after_a_fix else scoped)
+    assert fix.says("Second pass: none, nothing was pushed\n") == scoped
+
+
+def test_a_rebase_jmerge_compares_with_the_reviewed_head_is_asked_no_scoped_review(tmp_path):
+    fix = opened(tmp_path, GUARDED)
+    none = ["none: no second pass, as the Result says"]
+    other = "d" * 40
+    again = f"Rebase: patch changed in a.py, before {other}, head {fix.fixed}\n"
+    clean = "Second pass: none, nothing was pushed\nFixed: none needed, a clean review\n"
+    assert fix.says(clean + again) == none
+    checked = (
+        f"Second pass: none, nothing was pushed\nCI fix: {other}, after the review of {fix.saw}\n"
+    )
+    assert fix.says(checked + again) == none
+    not_run = fix.review + fix.reviewed(other).replace("Verdict: findings", "Verdict: not run")
+    assert fix.says(f"{clean}Fixed: {fix.fixed}\n{again}", not_run) == [
+        f"write Scoped review: needed since {fix.saw}, guarded"
+    ]
+
+
+def test_a_rebase_of_a_fix_no_review_proved_is_asked_for_here(tmp_path):
+    fix = opened(tmp_path, GUARDED)
+    (fix.work / GUARDED).write_text("the fix, rebased\n")
+    rebased = fix.commit("the rebase")
+    result = (
+        f"Second pass: none, it stayed inside\nFixed: {rebased}\n"
+        f"Rebase: patch changed in {GUARDED}, before {fix.fixed}, head {rebased}\n"
+    )
+    assert fix.says(result) == [f"write Scoped review: needed since {fix.saw}, guarded"]
+    proved = fix.review + fix.reviewed(fix.fixed)
+    assert fix.says(result, proved) == ["none: no second pass, as the Result says"]
 
 
 @pytest.mark.parametrize("endings", ["", FIXED_ONE + ANSWERED_ONE])
@@ -784,10 +907,8 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
 
 
-def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
-    """The thread's turn then ends with the one line, and jbus wakes it: the file has it. The
-    full lane is the default two slots, whatever `TEST_SLOTS` the machine sets."""
-    monkeypatch.delenv("TEST_SLOTS", raising=False)
+def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path):
+    """The thread's turn then ends with the one line, and jbus wakes it: the file has it."""
     (tmp_path / "stub").mkdir()
     room.uv(tmp_path / "stub")
     home = tmp_path / "home"
