@@ -10,6 +10,7 @@ import test_home_merge as merge
 import test_tool_calls as tools
 from crew.helpers import BRIEF, ROLLUPS, SKILL, block, git, said, sections, stub_gh
 from jmerge import ready
+from test_home_thread import as_read
 
 
 class Pushed:
@@ -137,7 +138,7 @@ def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
 
 
 def test_the_ci_fix_line_the_skill_asks_for_is_one_jmerge_reads():
-    (line,) = set(re.findall(r"`(CI fix: <[^`]+)`", SKILL.read_text()))
+    (line,) = set(re.findall(r"`(CI fix: <[^`]+)`", as_read(SKILL)))
     head, reviewed = "b" * 40, "a" * 40
     filled = re.sub(r"<[^>]+>", "{}", line).format(head, reviewed)
     brief = merge.brief(merge.review("clean", reviewed), filled + "\n")
