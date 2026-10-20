@@ -200,7 +200,9 @@ def parser() -> argparse.ArgumentParser:
         help="run a command while holding one of N machine-wide test slots, waiting for one",
         usage="jgauge test-slot [--slots N | --short] [--thread ID | --waiters] -- command ...",
     )
-    held.add_argument("--slots", metavar="N", help="how many slots (default: TEST_SLOTS, else 2)")
+    held.add_argument(
+        "--slots", metavar="N", help=f"how many slots (default: TEST_SLOTS, else {slot.DEFAULT})"
+    )
     held.add_argument(
         "--short",
         action="store_true",
