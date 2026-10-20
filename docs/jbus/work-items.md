@@ -30,7 +30,7 @@ An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an o
 
 ## Steering an item
 
-`jbus item steer` is the one way an item is steered, from chat, the view or the command, and `item.steer` decides it.
+`jbus item steer` is the one way an item is steered, from chat, the view or the command, and `jbus.steer` decides it.
 A steer is one line, `steered`, with its `action`, and one quiet event `item.steered`.
 `--seen` is the item's last line as the steerer saw it.
 A steer whose `--seen` is not the item's last line is refused, quotes the line that came after, and writes nothing.

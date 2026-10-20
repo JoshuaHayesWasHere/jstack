@@ -19,7 +19,20 @@ from typing import Any
 
 import jbus
 from jbriefs import parse as briefs
-from jbus import dispatch, item, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
+from jbus import (
+    dispatch,
+    item,
+    lavish,
+    questions,
+    queue,
+    steer,
+    t3,
+    verbs,
+    waiting,
+    wake,
+    watch,
+    word,
+)
 from jmerge.asked import Silent
 
 
@@ -102,7 +115,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         text = sys.stdin.read()
         for _, verb in queue.parse(text):
             if isinstance(verb, queue.Approve):
-                item.approvable(state, verb.slug)
+                steer.approvable(state, verb.slug)
         print("\n".join(queue.apply(state, text, config.user, asks)))
         return 0
     if args.verb == "verify":
@@ -131,7 +144,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             item.link(state, box, row, args.item or "", by, config.user.user)
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
-        item.approvable(state, args.slug)
+        steer.approvable(state, args.slug)
         queue.approve(state, args.slug, rests, args.sha, config.user, _asks(config, project))
     elif args.verb == "hold":
         held = queue.hold(state, args.slug)
