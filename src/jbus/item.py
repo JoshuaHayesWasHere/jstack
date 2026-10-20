@@ -25,6 +25,12 @@ that state is not the item's, and only a move the facts show: so a pass with not
 writes nothing. `work.py` stays the one judge of the row.
 
 `risk` is `review` where a person must look before anything is done, and `routine` else.
+
+Each line is also a card for Sous Chef's chat (`card`): one body of the kind `item`, whose
+`id` is the project and the line's id, so the relay sends each once and Sous Chef replaces the
+item's card with the newest. A pass posts the lines no card went for yet (`post_cards`), to
+each webhook route that is the relay (`relayed`), and a route's first pass posts one card for
+each live item instead of the whole log.
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ import fcntl
 import json
 import os
 import re
+import urllib.parse
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -41,6 +48,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbus import Refused, questions, queue, read_json, verbs, wake, work, write_json
 
 EVENTS = {
@@ -673,8 +681,147 @@ def listed(item: Item) -> str:
     return f"{item.id} {item.state} {item.risk} {item.slug or '-'} {item.title}"
 
 
+CARD = "item"
+CARDS = "cards.json"
+VIEW_PORT = 4388
+RELAY_PORT = 4390
+LOOPBACK = ("127.0.0.1", "localhost", "::1")
+ACTIONS: dict[Move, str] = {Verb.APPROVE: "approve", Steer.MESSAGE: "message", Steer.HOLD: "hold"}
+"""What a card offers, in order, by the name its button sends as the `verb` of the relay's
+`POST /item`."""
+SAID: dict[Move, str] = {
+    Verb.PROPOSE: "Proposed",
+    Verb.LINK: "Linked to its row",
+    Verb.APPROVE: "Approved",
+    Verb.QUEUE: "Queued",
+    Verb.LAUNCH: "Launched",
+    Verb.WAIT: "Waiting on you",
+    Verb.RESUME: "Resumed",
+    Verb.HOLD: "Held",
+    Verb.DONE: "Done",
+    Verb.DROP: "Dropped",
+    Verb.STEER: "Steered",
+    Steer.MESSAGE: "Messaged",
+    Steer.HOLD: "Held",
+    Steer.REDIRECT: "Redirected",
+}
+SAID_IN = {Where.VIEW: " in jbus view", Where.CHAT: " in chat", Where.CLI: " from the command line"}
+
+
+def actions(item: Item) -> list[str]:
+    """What the card offers: nothing for a review item, which is decided in the view, and
+    else each of `ACTIONS` that `MOVES` has from the item's state. A redirected item is
+    approved only by its id in the view or the command, so its card offers no approval."""
+    if item.risk is Risk.REVIEW:
+        return []
+    offered = [one for one in ACTIONS if (item.state, one) in MOVES]
+    return [ACTIONS[one] for one in offered if not (one is Verb.APPROVE and item.redirect)]
+
+
+def last(line: dict[str, Any], user: jsettings.Settings) -> str:
+    """The line in one sentence for the card, as "Approved in jbus view by Josh, 11:52 EDT"."""
+    where = Where(line["where"])
+    said = f"{SAID[move_of(line)]}{SAID_IN.get(where, '')} by {line['by']}"
+    return f"{said}, {user.clock(datetime.fromisoformat(line['at']))}"
+
+
+def view_link(project: str, name: str) -> str:
+    """The item's page in jbus view: at the first origin `JBUS_VIEW_ORIGINS` gives, the
+    proxy the view is reached through, else at the first name `JBUS_VIEW_NAMES` gives, else
+    the address `JBUS_VIEW_HOST` gives, else 127.0.0.1, at the view's port."""
+    page = f"/#/{project}/item/{name}"
+    origins = [one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(",")]
+    origin = next((one for one in origins if one), "")
+    if origin:
+        return origin.rstrip("/") + page
+    names = [one.strip() for one in os.environ.get("JBUS_VIEW_NAMES", "").split(",")]
+    host = next((one for one in names if one), os.environ.get("JBUS_VIEW_HOST") or "127.0.0.1")
+    return f"http://{host}:{VIEW_PORT}{page}"
+
+
+def card(item: Item, line: dict[str, Any], user: jsettings.Settings) -> dict[str, Any]:
+    """The card of one line: the item as it stood after the line, with its risk now. Its
+    `id` is the project and the line's id, since an item's id is the project's own."""
+    return {
+        "kind": CARD,
+        "id": f"{item.project}.{line['id']}",
+        "item": item.id,
+        "project": item.project,
+        "title": item.title,
+        "state": str(item.state),
+        "owner": item.owner,
+        "risk": str(item.risk),
+        "last": last(line, user),
+        "actions": actions(item),
+        "view": view_link(item.project, item.id),
+    }
+
+
+def relayed(route: wake.Route) -> bool:
+    """Whether the route is the relay, on this machine at `RELAY_PORT` (4390, or the
+    `RELAY_PORT` of the environment): the one door to Sous Chef's chat, where a card goes."""
+    if not route.url or route.blocking:
+        return False
+    try:
+        parts = urllib.parse.urlsplit(route.url)
+        port = int(os.environ.get("RELAY_PORT") or RELAY_PORT)
+        return parts.hostname in LOOPBACK and parts.port == port
+    except ValueError:
+        return False
+
+
+def cards(
+    state: Path, lines: list[dict[str, Any]], user: jsettings.Settings, after: int | None
+) -> list[dict[str, Any]]:
+    """The cards owed after the first `after` of the log's `lines`, in order. With None, no
+    card went yet: one for each live item, at its last line, and not the whole log."""
+    risks: dict[str, Risk] = {}
+    found: dict[str, Item] = {}
+    made: list[tuple[Item, dict[str, Any]]] = []
+    for at, line in enumerate(lines):
+        try:
+            found[line["item"]] = advance(found.get(line["item"]), line)
+        except (Refused, KeyError, ValueError, TypeError):
+            continue
+        if after is not None and at >= after:
+            made.append((found[line["item"]], line))
+    if after is None:
+        by_id = {one.get("id"): one for one in lines}
+        made = [(one, by_id[one.last_event]) for one in found.values() if one.state in LIVE]
+    for one, _ in made:
+        if one.id not in risks:
+            risks[one.id] = judged(state, found[one.id]).risk
+    return [card(replace(one, risk=risks[one.id]), line, user) for one, line in made]
+
+
+def post_cards(run: wake.Pass) -> int:
+    """The pass's step: post each card owed to each route that is the relay, in order, and
+    keep in the route's `cards.json` how many lines of the log are carded. A POST that fails
+    ends that route's turn, and the next pass posts from it again. The answer is how many
+    went."""
+    state, sent = run.state, 0
+    for route in run.box.routes:
+        if not relayed(route):
+            continue
+        mark = route.folder / CARDS
+        after = read_json(mark, {}).get("carded")
+        after = after if isinstance(after, int) else None
+        lines = read(state)
+        for one in cards(state, lines, run.user, after):
+            why = wake._post(route, one)
+            if why:
+                run.say(f"cards {run.project.name}: card {one['id']} did not go: {why}")
+                break
+            sent += 1
+        else:
+            route.folder.mkdir(parents=True, exist_ok=True)
+            write_json(mark, {"carded": len(lines)})
+    return sent
+
+
 STEPS = (
     verbs.Step(
         "after-derive", 50, "item.follow", lambda half: follow(half.run, half.table), ("rows",)
     ),
+    verbs.Step("close", 80, "item.cards", lambda half: post_cards(half.run)),
 )

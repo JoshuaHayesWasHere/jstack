@@ -57,6 +57,7 @@ AGENTS = (
 )
 CONFIRM = "refused: a hold takes --confirm: it takes the row's go back, and nothing is written"
 BASES = ("message", "word", "answer")
+CHAT = "chat"
 
 
 @dataclass(frozen=True)
@@ -122,17 +123,7 @@ def steer(
         raise Refused(CONFIRM)
     if action is Steer.REDIRECT and not said.strip():
         raise Refused("refused: a redirect has the new brief on stdin")
-    more: dict[str, Any] = {"action": str(action), "ran_by": queue.runner()}
-    if basis is not None:
-        heard = basis.said
-        more.update(
-            basis=basis.kind,
-            ref=basis.ref,
-            said=heard.words,
-            said_at=heard.said_at,
-            said_in=heard.said_in,
-            checked=heard.checked,
-        )
+    more: dict[str, Any] = {"action": str(action), "ran_by": queue.runner(), **rests(basis)}
     with _locked(state):
         item = _current(read(state), id, action, seen)
         if action is Steer.MESSAGE:
@@ -151,6 +142,28 @@ def steer(
             made = {**made, "line": f"{line}; {_redirect(state, made)}"}
     told(box, made)
     return made
+
+
+def rests(basis: Basis | None) -> dict[str, Any]:
+    """What a line keeps of the word of the user's it rests on: nothing where there is none."""
+    if basis is None:
+        return {}
+    heard = basis.said
+    return {
+        "basis": basis.kind,
+        "ref": basis.ref,
+        "said": heard.words,
+        "said_at": heard.said_at,
+        "said_in": heard.said_in,
+        "checked": heard.checked,
+    }
+
+
+def chat(message: str, words: str, user: jsettings.Settings, now: datetime) -> Basis:
+    """The user's words as Sous Chef's chat quotes them, by the chat message's id or link.
+    Nothing reads them back from the chat, so they are kept with `checked: false`."""
+    said = queue.Said(" ".join(words.split()), user.stamp(now), "chat", False, message)
+    return Basis(CHAT, message, said)
 
 
 def _redirectable(state: Path, item: Item, text: str) -> None:
@@ -241,20 +254,22 @@ def approve(
     seen: str | None,
     user: jsettings.Settings,
     project: str,
+    basis: Basis | None = None,
 ) -> dict[str, Any]:
     """The user's go for an item, by its id. The answer is the `approved` line.
 
     From chat it is taken only where the words name the item and its risk is `routine`: a
     review item is approved in the view, whose link the refusal names, and so is one that
-    was redirected. Its line has `by_id`, which ends a redirect (`Item.redirect`). Before
-    it ends one, it finishes the redirect's row change where a steer died before making it
-    (`_redirect`), under the same lock: once the mark is gone, `settle` no longer looks.
+    was redirected. Its line has `by_id`, which ends a redirect (`Item.redirect`), and the
+    word it rests on, where one is named (`rests`). Before it ends one, it finishes the
+    redirect's row change where a steer died before making it (`_redirect`), under the same
+    lock: once the mark is gone, `settle` no longer looks.
     """
     where = Where(where)
     if by != user.user:
         raise Refused(f"refused: only {user.user} approves an item, not {by}")
     said = f"approve by {by}" + (f": {words}" if words else "")
-    more: dict[str, Any] = {"by_id": True, **({"words": words} if words else {})}
+    more: dict[str, Any] = {"by_id": True, **({"words": words} if words else {}), **rests(basis)}
     with _locked(state):
         if where is Where.CHAT:
             _from_chat(state, id, words, project)
