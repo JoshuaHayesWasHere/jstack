@@ -3,8 +3,9 @@
 A feature adds a verb (`verbs.Verb`) or a step (`verbs.Step`) in its own module, and no line
 in `jbus.cli`: so the file has at most `LINES` lines, and the modules it imports from jbus
 are `IMPORTS` or fewer. `IMPORTS` is what it imported once its second half became slots of
-steps, six fewer than before; a name may leave it, and none may join it, as no verb joins
-`verbs.FIRST`.
+steps, seven fewer than before; a name may leave it, and none may join it, as no verb joins
+`verbs.FIRST`. A name that leaves `jbus.cli` leaves `IMPORTS` in the same change, so it
+cannot join again unseen.
 """
 
 import ast
@@ -24,7 +25,6 @@ IMPORTS = (
     "record",
     "rotation",
     "signin",
-    "stall",
     "t3",
     "threads",
     "verbs",
@@ -57,6 +57,11 @@ def test_cli_has_at_most_its_lines():
 def test_cli_imports_no_module_of_jbus_its_frozen_imports_do_not_name():
     joined = sorted(set(imported(SOURCE.read_text())) - set(IMPORTS))
     assert joined == [], f"src/jbus/cli.py imports {joined}: declare a step or a verb instead"
+
+
+def test_imports_names_only_what_cli_imports():
+    left = sorted(set(IMPORTS) - set(imported(SOURCE.read_text())))
+    assert left == [], f"src/jbus/cli.py no longer imports {left}: take them out of IMPORTS"
 
 
 def test_a_name_that_joins_the_imports_is_found():
