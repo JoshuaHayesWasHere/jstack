@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A round of a grill",
+  "description": "The round-data block of grill-page.html, the only part of the page a thread writes for a grill. Text is shown as written, never as markup: a word between backticks is shown as code, and a blank line in a body starts a new paragraph. No two questions share an id, and no two options of one question do: the page says so itself when that is broken.",
+  "type": "object",
+  "required": ["slug", "round", "title", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "slug": {
+      "description": "The page's name, as in grill-<slug>.html.",
+      "type": "string",
+      "minLength": 1
+    },
+    "round": {
+      "description": "The number of the open round, from 1.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "description": "The page's heading.",
+      "type": "string"
+    },
+    "lead": {
+      "description": "One paragraph under the heading.",
+      "type": "string"
+    },
+    "settled": {
+      "description": "The answers of the earlier rounds, oldest first.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/settled" }
+    },
+    "questions": {
+      "description": "The open round.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "settled": {
+      "type": "object",
+      "required": ["round", "id", "title", "answer", "left_as_recommended", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "round": { "type": "integer", "minimum": 1 },
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string" },
+        "answer": { "type": "string" },
+        "left_as_recommended": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["id", "title", "body", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "What the question decides.",
+          "$ref": "#/$defs/id"
+        },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "built_on": {
+          "description": "A gate's: what was built on its default.",
+          "type": "string"
+        },
+        "undo": {
+          "description": "A gate's: how to undo its default.",
+          "type": "string"
+        },
+        "options": {
+          "description": "Exactly one option is recommended, and it is checked when the page opens.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/option" },
+          "contains": { "required": ["recommended"] },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["id", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" },
+        "why": { "type": "string" },
+        "recommended": { "const": true }
+      }
+    }
+  }
+}
