@@ -31,7 +31,7 @@ Before this launch, run `uv run --project "$T/.." jroles crew` with the block at
 }
 ```
 
-The rest of a launch is as "Handing a task to a crewmate" has it: the brief on disk first, `room`, the `Thread:` line, the link to the user. One line of the launch check does not hold a link back: that of a link under it in the same stack, which holds the same files by design and has stopped writing.
+The rest of a launch is as "Handing a task to a crewmate" has it: the brief on disk first, `room`, the `Thread:` line, the link to the user.
 
 **A link moves** when the link under it has merged, and not before. Its base is then a branch that is merged and kept. Only this home changes it, for one link at a time, the new bottom:
 
