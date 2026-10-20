@@ -219,7 +219,7 @@ class Fresh:
         "import json, sys; sys.path.insert(0, sys.argv[1]); import select_tests as s; "
         "ours, _ = s.selection(json.loads(sys.argv[2])); "
         "theirs, _ = s.selection(json.loads(sys.argv[3])); "
-        "both = set(ours) & set(theirs) - set(s.cross_cutting()); "
+        "both = set(ours) & set(theirs); "
         "print('apart' if 'all' not in ours + theirs and not both else 'meet')"
     )
     UNIT_OWN = {"INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID"}
@@ -273,8 +273,9 @@ class Fresh:
         main's change since and the pull request's `files` select no test file in common
         and neither selects `all`, by the repo's own `scripts/select_tests.py` run in a
         worktree of the head merged over `tip`, so a module either side imports there is
-        read. The test files every change selects (`Cross-cutting:`) are left out, or no
-        two changes would ever be apart. Where any of it cannot be told, it does not."""
+        read. A test file every change selects (`Cross-cutting:`) is one in common too, so
+        in a repo that has one no pass is kept. Where any of it cannot be told, it does
+        not."""
         older = str(was.get("main") or "")
         mine = (was.get("result"), was.get("head"), was.get("command"))
         if not files or not older or mine != (ready.PASSED, head, self.command):

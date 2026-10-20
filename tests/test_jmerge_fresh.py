@@ -283,7 +283,7 @@ SELECTED = {
     "pyproject.toml": "[project]\nname = 'demo'\n",
     "Makefile": "check:\n",
     "scripts/select_tests.py": SELECTOR.read_text(),
-    ".cursor/skills/verify-jstack/features/README.md": "Cross-cutting: `tests/test_whole.py`\n",
+    ".cursor/skills/verify-jstack/features/README.md": "Cross-cutting:\n",
     "src/demo/__init__.py": "",
     "src/demo/one.py": LINES,
     "src/demo/two.py": LINES,
@@ -298,7 +298,7 @@ SELECTED = {
 def selected(tmp_path):
     """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
     over the main that changed its module: `src/demo/two.py`, which `tests/test_two.py`
-    imports. Every change also selects `tests/test_whole.py`, which reads the whole tree."""
+    imports. No test file is one every change selects."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
@@ -344,6 +344,21 @@ def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_p
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
     settled(kitchen)
     kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
+    before = known(kitchen)
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen, before)
+    assert len(checked.ran()) == 2
+
+
+def test_a_test_every_change_selects_is_one_in_common(selected):
+    """A test that reads the whole tree can fail on the two changes together."""
+    kitchen, checked = selected
+    whole = {
+        ".cursor/skills/verify-jstack/features/README.md": "Cross-cutting: `tests/test_whole.py`\n"
+    }
+    write(kitchen.home.main, whole)
+    git(kitchen.home.main, "commit", "-q", "-m", "a whole-tree test")
+    git(kitchen.home.main, "push", "-q")
     before = known(kitchen)
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
     settled(kitchen, before)
