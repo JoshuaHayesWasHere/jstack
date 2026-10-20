@@ -124,7 +124,7 @@ OTHER_SHAPES = [
 def test_a_pattern_with_a_slash_or_a_glob_in_a_directory_protects_what_it_names(
     pattern, protected, near
 ):
-    assert ready.patterns_of(f"# more\n{pattern}\n") == (pattern,)
+    assert ready.patterns_of(f"{pattern}\n") == (pattern,)
     assert ready.needs_the_user(pull_request(protected), (pattern,), user=jsettings.DEFAULTS) == (
         f"needs user, touches {protected}"
     )
@@ -136,8 +136,20 @@ UNREADABLE = ["**/secrets/", "src/**", "!skills/keep.md", "a//b", "/", "./skills
 
 @pytest.mark.parametrize("pattern", UNREADABLE)
 def test_a_pattern_that_cannot_be_read_is_refused_and_not_ignored(pattern):
-    with pytest.raises(ValueError, match=re.escape(pattern)):
+    with pytest.raises(ValueError, match=re.escape(f"{pattern} (the grammar: {ready.GRAMMAR})")):
         ready.patterns_of(f"skills/\n{pattern}\n")
+
+
+def test_the_refusal_names_the_section_of_the_jmerge_page_that_has_the_grammar():
+    page, anchor = ready.GRAMMAR.split("#")
+    headings = re.findall(r"^#+ (.+)$", (SOURCE.parents[1] / page).read_text(), re.M)
+    assert anchor in {heading.lower().replace(" ", "-") for heading in headings}
+
+
+def test_the_shipped_lists_hold_patterns_and_nothing_else():
+    for name in LISTS:
+        lines = (SOURCE / name).read_text().splitlines()
+        assert ready.patterns_of("\n".join(lines)) == tuple(lines), name
 
 
 LISTS = ["protected.txt", "guarded.txt", "ci-paths.txt"]
@@ -158,6 +170,7 @@ def test_jmerge_merges_nothing_while_a_list_has_a_pattern_it_cannot_read(
     assert merged.home.code != 0
     assert merged.home.stderr.strip().endswith(
         f"{name} has a pattern that cannot be read, so nothing is merged: src/**/keys"
+        " (the grammar: docs/jmerge.md#patterns)"
     )
     assert merged.untouched()
 

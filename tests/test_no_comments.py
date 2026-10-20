@@ -1,7 +1,9 @@
 """No swept file holds a plain comment: a new one fails here, with its file and line.
 
 A Python file is read with `tokenize`, so a `#` in a string is no comment, and a shell file
-character by character, so a `#` in quotes is none either. What a tool reads as an instruction
+character by character, so a `#` in quotes is none either. A systemd unit and a list of
+jmerge's paths are read line by line: a line that starts with `#` is a comment, and in a unit
+one that starts with `;` too. What a tool reads as an instruction
 is let through: a shebang, `# type:` and `# pragma`. A `# noqa` is not: what it silences is
 written so that ruff has nothing to say.
 
@@ -27,6 +29,10 @@ SWEPT = (
     "scripts/*.sh",
     "install.sh",
     "tests/*.py",
+    "templates/*.service",
+    "templates/*.timer",
+    "templates/*.html",
+    "src/jmerge/*.txt",
 )
 READ_BY_A_TOOL = ("# type:", "# pragma")
 LINKED = "https://"
@@ -116,7 +122,23 @@ def page_comments(text):
     ]
 
 
-READERS = {".py": python_comments, ".js": script_comments, ".html": page_comments}
+def line_comments(text, marks=("#",)):
+    lines = enumerate(text.splitlines(), 1)
+    return [(at, line.strip()) for at, line in lines if line.lstrip().startswith(marks)]
+
+
+def unit_comments(text):
+    return line_comments(text, ("#", ";"))
+
+
+READERS = {
+    ".py": python_comments,
+    ".js": script_comments,
+    ".html": page_comments,
+    ".service": unit_comments,
+    ".timer": unit_comments,
+    ".txt": line_comments,
+}
 
 
 def plain_comments(path, root=REPO):
@@ -147,6 +169,14 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         files
     )
     assert {"src/jgauge/room.sh", "tests/conftest.py", "tests/test_no_comments.py"} <= set(files)
+    assert {
+        "templates/jbus.service",
+        "templates/jbus.timer",
+        "templates/grill-page.html",
+        "src/jmerge/protected.txt",
+        "src/jmerge/guarded.txt",
+        "src/jmerge/ci-paths.txt",
+    } <= set(files)
 
 
 @pytest.mark.parametrize("name", swept())
@@ -184,6 +214,13 @@ def test_a_swept_file_holds_no_plain_comment(name):
         ("unclosed_second.js", "x/* why", ["unclosed_second.js:1: /* why"]),
         ("unclosed.html", "<script>\n/* why</script>\n", ["unclosed.html:2: /* why"]),
         (
+            "quoted.service",
+            "[Unit]\nDescription=the homes' state\n# why\n  ; and why\n",
+            ["quoted.service:3: # why", "quoted.service:4: ; and why"],
+        ),
+        ("own_line.timer", "# why\n[Timer]\n", ["own_line.timer:1: # why"]),
+        ("list.txt", "secrets/\n  # why\n/dns/\n", ["list.txt:2: # why"]),
+        (
             "page.html",
             "<p>it's</p>\n<style>\n  a { b: c; } /* why */\n</style>\n"
             "<script>\n// why\n</script>\n",
@@ -216,6 +253,8 @@ def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, na
         ("linked.js", "/* Chromium drops a write past 200: https://example.org/spec */\nx();\n"),
         ("css.html", '<style>\n  .a::before { content: "/" / ""; }\n</style>\n'),
         ("prose.html", "<p>a // b, and /* c */ in words</p>\n"),
+        ("specifier.service", "[Unit]\nDocumentation=file:%Y/../docs/jbus.md#the-view\n"),
+        ("pattern.txt", ".env.*\n/src/a#b.py\n"),
     ],
 )
 def test_what_a_tool_reads_and_a_hash_that_opens_no_comment_pass(tmp_path, name, text):
