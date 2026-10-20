@@ -386,26 +386,25 @@ def proven(text: str) -> str:
 
 
 CHECKS = (
-    ("Design", "no design", designed),
-    ("Proves it", "no proof", proven),
-    ("Skills", "unknown skill", skills.unknown),
-    ("Size", "no size", sized),
-    ("Playbook", "no playbook", playbook),
+    ("Design", designed),
+    ("Proves it", proven),
+    ("Skills", skills.unknown),
+    ("Size", sized),
+    ("Playbook", playbook),
 )
-LAUNCH = CHECKS[:3]
-SHAPE = CHECKS[3:]
 _SAYS_MISSING = ("Design", "Size", "Skills")
 
 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
-    It is each field `REQUIRED` filled in, then, for a field that is, every check a launch
-    makes of it (`CHECKS`), which `jbus.dispatch` runs from the same table. `Design`, `Size`
-    and `Skills` are left to their checks, which say when the line is missing or, for
-    `Skills`, that a brief with none names no skill. A brief with no fault is complete.
+    It is each field `REQUIRED` filled in, then, for a field that is, every check of it
+    (`CHECKS`). `Design`, `Size` and `Skills` are left to their checks, which say when the
+    line is missing or, for `Skills`, that a brief with none names no skill. A brief with no
+    fault is complete. It runs when a row is first queued and not again at a launch: a brief
+    with a go is grandfathered (`jbus.queue`).
     """
-    checks = {label: check for label, _, check in CHECKS}
+    checks = dict(CHECKS)
     found = []
     for label in (*REQUIRED, *(label for label in checks if label not in REQUIRED)):
         fault = "" if label in _SAYS_MISSING else _filled(text, label)

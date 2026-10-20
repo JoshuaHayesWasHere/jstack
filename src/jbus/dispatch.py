@@ -17,26 +17,11 @@ Before a launch the machine and the plan are asked for room, with `jgauge room`,
 a home makes. A row with no room waits, and so does every row after it in the pass, in
 every project.
 
-A brief is launched only with its design call in it: a `Design:` line in its head, which
-`/architect` leaves, or `Design: none, <why>` for a task that needs none. An approved row
-whose brief has neither is a gate, once for that brief.
-
-Nor is one whose `Proves it:` line names nothing outside the agent: no test, command,
-metric, dataset, external judge or the user. A brief with no such line was written before
-the line was asked for, and is launched as it was approved: refusing it would strand every
-row approved before.
-
-Nor is one whose `Skills:` line names a skill or principle that jstack does not have
-(`jbriefs.skills`): the gate names it. A brief with no such line names none, and launches.
-
-Nor is one with no t-shirt size on a `Size:` line, or whose `Playbook:` line names no file
-of `playbooks/` and is not `none` (`jbriefs.parse`). The first pass that asks for the two
-writes its time in `shaped.json` (`shaped_since`). A row whose go was run before that time,
-or that holds only a typed go, was approved before the two were asked for, and is launched
-as it was approved.
-
-`jbus queue add` makes the same checks before a row is queued (`jbriefs.parse.faults`), so
-these are a backstop for a row queued before it did.
+A brief is not linted here. `jbus queue add` runs the lints (`jbriefs.parse.faults`) when a
+row is first queued, and a row with a go is grandfathered: a lint added after its approval
+does not refuse it, whatever its `Design:`, `Proves it:`, `Skills:`, `Size:` or `Playbook:`
+line says, and `jbus queue show` lists such rows. What stops a launch is a brief that the go
+no longer holds for (`jbriefs.meaning`).
 
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
@@ -49,11 +34,9 @@ import os
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jbriefs import parse
 from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
@@ -62,7 +45,6 @@ from jbus.watch import TITLE, End, World, crew_threads, ended
 EVENTS = {"overlap": "quiet"}
 _PATH = re.compile(r"`([^`\s]+)`")
 OVERLAP_PATHS = 5
-SHAPED = "shaped.json"
 
 
 def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
@@ -145,46 +127,6 @@ def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
     if run.config.model_selection:
         made["modelSelection"] = run.config.model_selection
     return made
-
-
-def shaped_since(run: Pass) -> datetime:
-    """When a brief was first asked for its size and a real playbook: the first pass that
-    asked, which wrote its time in `shaped.json` beside the queue and is read from it since.
-
-    A pass that finds the file is what keeps every row approved before the rule merged
-    launching as it was approved, whenever that merge was.
-    """
-    path = run.state / SHAPED
-    kept = read_json(path, {}).get("since")
-    if kept:
-        return datetime.fromisoformat(kept)
-    write_json(path, {"since": run.now.isoformat()})
-    return run.now
-
-
-def approved_at(run: Pass, row: queue.Row) -> datetime | None:
-    """When a row's go was run, by its record, in the zone the user's settings name.
-
-    A typed go has no time, and neither has a stamp that does not parse: both are None.
-    """
-    try:
-        at = datetime.strptime(queue.ran_at(row)[:16], "%Y-%m-%d %H:%M")
-    except ValueError:
-        return None
-    return run.user.local(at)
-
-
-def short_of(brief: str, shaped: bool) -> tuple[str, str]:
-    """The first reason a brief may not be launched, in one line, and its kind, or two blanks.
-
-    The size and the playbook are asked of it only where `shaped`: its go was run since the
-    rule.
-    """
-    for _, kind, check in parse.LAUNCH + (parse.SHAPE if shaped else ()):
-        why = check(brief)
-        if why:
-            return why, kind
-    return "", ""
 
 
 def where(brief: str) -> set[str]:
@@ -315,7 +257,6 @@ class Turns:
     client: Client
     world: World
     left: list[queue.Row]
-    since: datetime
     waited: dict[str, Any] = field(default_factory=dict)
 
     def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str]]:
@@ -352,14 +293,6 @@ class Turns:
                 if not full:
                     run.gate(slug, "brief changed after approval", key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now)
-                continue
-            at = approved_at(run, row)
-            short, kind = short_of(brief, at is not None and at > self.since)
-            if short:
-                if not full:
-                    run.gate(slug, short, key=f"{kind}, brief {queue.brief_sha(brief)[:12]}")
-                else:
-                    run.held.add(slug)
                 continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
@@ -480,7 +413,7 @@ class Turns:
 
 def turns(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> Turns:
     settle_lost(run, client)
-    return Turns(run, client, world, sorted(rows, key=queue.order), shaped_since(run))
+    return Turns(run, client, world, sorted(rows, key=queue.order))
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:

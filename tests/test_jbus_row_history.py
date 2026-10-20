@@ -10,7 +10,7 @@ import pytest
 import jbus
 from jbus import cli
 from test_jbus_kitchen import NOW, RESULT
-from test_jbus_queue import add, brief, go, queued_before, rows, sha12
+from test_jbus_queue import add, brief, go, queued_before, rows, sha12, widened
 
 FIRST, SECOND = "2026-10-12 11:00 ET", "2026-10-12 11:03 ET"
 LATER = NOW + timedelta(minutes=3)
@@ -125,7 +125,7 @@ def test_a_row_not_launched_says_which_of_the_reasons_stopped_it(kitchen):
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)
-    changed = brief("alpha", "One more line.\n")
+    changed = widened("alpha")
     add(kitchen, "alpha", priority=1, approve=False, text=changed)
     add(kitchen, "beta", priority=3)
     add(kitchen, "gamma", priority=2)
@@ -140,7 +140,8 @@ def test_a_row_not_launched_says_which_of_the_reasons_stopped_it(kitchen):
 
 def test_in_a_full_pass_a_row_says_no_slot_only_where_a_slot_is_all_that_stops_it(kitchen):
     """`other` holds the one slot. `alpha` is the first row a slot stops, so the rows after
-    it are read with no gate sent: of those, only `delta` waits for a slot."""
+    it are read with no gate sent: of those, `gamma` and `delta` wait for a slot. `gamma`'s
+    brief has no `Design:` line, which a launch no longer asks for: its go stands."""
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)
@@ -153,7 +154,7 @@ def test_in_a_full_pass_a_row_says_no_slot_only_where_a_slot_is_all_that_stops_i
     assert {slug: (row["status"], row["why"]) for slug, row in rows(kitchen).items()} == {
         "alpha": ("queued", "no slot"),
         "beta": ("queued", ""),
-        "gamma": ("queued", ""),
+        "gamma": ("queued", "no slot"),
         "delta": ("queued", "no slot"),
     }
 
