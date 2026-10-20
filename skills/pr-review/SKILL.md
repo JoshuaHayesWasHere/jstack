@@ -194,7 +194,12 @@ When step 2 of "After the review" drops what is outside the diff, and whenever a
 uv run --project "$T/.." jmerge --scope <slug>
 ```
 
-It asks `jmerge` which changed files the brief's `Where:` does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside. A file it prints as `outside: <path>` has no `Wider:` line in the last Result, and each is a finding, a warning with no line: the pull request is wider than its brief. If the reading already raised the same file, keep one. A file it prints as `wider: <path>: <why>` is one the crewmate gave a reason for: it is no finding by itself, and is one only if the reason is false for the diff. Do not judge the width by reading the diff: the command's answer is the answer. A command that exits with something other than 0 (the brief's `Where:` names no path, or neither the branch nor the pull request can be read) printed why on stderr: say so in the section, not that the pull request is no wider.
+It asks `jmerge` which changed files the brief's `Where:` does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside.
+A file it prints as `outside: <path>` has no `Wider:` line in the last Result, and each is a finding, a warning with no line: the pull request is wider than its brief.
+If the reading already raised the same file, keep one.
+A file it prints as `wider: <path>: <why>` is one the crewmate gave a reason for: it is no finding by itself, and is one only if the reason is false for the diff.
+Do not judge the width by reading the diff: the command's answer is the answer.
+A command that exits with something other than 0 (the brief's `Where:` names no path, or neither the branch nor the pull request can be read) printed why on stderr: say so in the section, not that the pull request is no wider.
 
 A finding can be wider than the brief in a second way: it is about a changed line, and what it asks for is not in the brief's `Where`. That happens with the fifth question's things to look for (a restructuring, a file to split, a branch to move into a module of its own, a wrapper to remove, logic to move to its canonical layer), when the remedy would change a file outside `Where`. The `SCOPE` text asks the reading to say so in the finding. Such a finding is kept, sent and recorded like any other, with these words at the end of its line: `for Noticed, not this pull request`. It asks the crewmate for no fix: the crewmate writes it in the Result under "Noticed", where the home sees it as a possible plan entry. A finding whose remedy stays inside `Where` is an ordinary finding.
 
