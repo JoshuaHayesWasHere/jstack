@@ -22,8 +22,9 @@ lane and not yet woken, changes nothing but the command it will run. A thread th
 leaves the file (`drop`).
 
 A thread is named one way: T3 Code's id is `mcp:<uuid>`, and an id given without the prefix
-gets it (`thread_id`). Two records for one thread, as a file written before held, are one wait,
-the older, which keeps its place; the file is written so on its next change.
+gets it (`thread_id`). Two records for one thread, as a file written before held, are one wait
+that keeps the older one's place: the older, or where it was woken and the later was not, the
+later with the older `since`. The file is written so on its next change.
 """
 
 from __future__ import annotations

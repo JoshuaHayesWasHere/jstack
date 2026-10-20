@@ -214,3 +214,28 @@ def test_records_on_disk_under_both_forms_collapse_to_the_older_on_the_next_chan
     on_disk = [(one["thread"], one["id"]) for one in json.loads(path.read_text())]
     assert on_disk[0] == (THREAD, "older") and len(on_disk) == 2
     assert on_disk[1][0] == "mcp:other"
+
+
+def test_an_older_woken_record_and_a_later_unwoken_one_keep_the_live_wait_in_its_place(tmp_path):
+    def record(thread, since, id, woken=""):
+        made = waiters.Waiter(thread, "full", 2, ("make", "check"), since, id, woken)
+        return {**vars(made), "command": list(made.command)}
+
+    (tmp_path / waiters.NAME).write_text(
+        json.dumps(
+            [
+                record("thread-9", "2026-10-12T15:00:40Z", "older", "2026-10-12T15:05:00Z"),
+                record(THREAD, "2026-10-12T15:06:00Z", "later"),
+            ]
+        )
+    )
+    (one,) = waiters.read(tmp_path)
+    assert (one.thread, one.id, one.since, one.woken) == (
+        THREAD,
+        "later",
+        "2026-10-12T15:00:40Z",
+        "",
+    )
+    waiters.woken(tmp_path, "later", NOW)
+    (woken,) = waiters.read(tmp_path)
+    assert (woken.id, woken.woken) == ("later", waiters.stamp(NOW))
