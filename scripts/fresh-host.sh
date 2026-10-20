@@ -44,7 +44,7 @@ grep -v '^already \|^needs you ' /tmp/second && fail="$fail; the second run wrot
 diff /tmp/before /tmp/after || fail="$fail; the second run changed the files under HOME"
 [ "$record" = "$(cat "$HOME/.local/state/jstack/created" "$HOME/.local/state/jstack/seeded" | sha256sum)" ] ||
     fail="$fail; the records changed"
-left=$(sed -n 's/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
+left=$(sed -n '/^needs you state repo /d; s/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
 [ "$left" = "claude,jbus t3 login" ] || fail="$fail; needs you left: $left"
 if [ -n "$fail" ]; then
     echo "fresh host: failed${fail}"

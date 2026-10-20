@@ -4,8 +4,9 @@ The tree is the config's `home_dir`, `~/.local/state/home`, a git repo. A snapsh
 everything (`git add -A`). With something staged, gitleaks reads it, and one secret in it
 unstages it all and commits nothing; otherwise it commits `snapshot <YYYY-MM-DD HH:MM ET>`,
 in the user's zone, followed by `: <why>` when `--why` says what changed. Then it pushes to
-`origin` when the repo has one, whether or not it committed, so a push that failed is made
-again by the next run.
+`origin`, whether or not it committed, so a push that failed is made again by the next run.
+A tree with no `origin` keeps its commit and fails: a snapshot kept on this machine alone is
+no backup.
 
 `jbus-snapshot.timer` runs it at 08:30 and 17:30, and a home runs it with `--why` right after
 each edit to a `standing.md`, so that edit is a commit of its own and can be undone. A
@@ -87,7 +88,7 @@ def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) 
         _commit(tree, f"snapshot {user.stamp(now)}" + (f": {why}" if why else ""))
     done = "committed" if staged else "nothing changed"
     if _git(tree, "remote", "get-url", "origin").returncode:
-        return f"snapshot: {done}, no remote to push to"
+        raise Failed(f"no remote: {tree} has no origin to push to")
     _must(_git(tree, "push", "-q", "origin", "HEAD"), "git push")
     return f"snapshot: {done}, pushed"
 
