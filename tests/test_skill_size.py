@@ -10,8 +10,9 @@ from test_home_thread import NAMED, named
 
 REPO = Path(__file__).parent.parent
 CAP = 400
-OVER = {"crew", "handoff", "home"}
-SKILLS = sorted((REPO / "skills").glob("*/SKILL.md"))
+ROLES = REPO / "skills"
+OVER = {ROLES / "crew", ROLES / "handoff", ROLES / "home"}
+SKILLS = sorted(ROLES.glob("*/SKILL.md"))
 SIDES = sorted(side for skill in SKILLS for side in skill.parent.glob("*.md") if side != skill)
 
 
@@ -22,14 +23,14 @@ def ids(path):
 @pytest.mark.parametrize("skill", SKILLS, ids=ids)
 def test_a_skill_md_stays_within_the_cap_or_is_on_the_allowlist(skill):
     lines = len(skill.read_text().splitlines())
-    if skill.parent.name in OVER:
+    if skill.parent in OVER:
         assert lines > CAP, f"{ids(skill)} is within {CAP} lines now: take it off OVER"
     else:
         assert lines <= CAP, f"{ids(skill)} has {lines} lines: move a long section beside it"
 
 
 def test_every_skill_on_the_allowlist_is_there():
-    assert sorted(OVER - {skill.parent.name for skill in SKILLS}) == []
+    assert sorted(OVER - {skill.parent for skill in SKILLS}) == []
 
 
 @pytest.mark.parametrize("side", SIDES, ids=ids)

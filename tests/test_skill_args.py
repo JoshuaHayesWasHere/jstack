@@ -4,8 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read
-
 REPO = Path(__file__).parent.parent
 SKILLS = sorted((REPO / "skills").glob("*/SKILL.md"))
 
@@ -135,7 +133,7 @@ def test_the_blocks_of_a_skill_are_found():
     ids=lambda value: value.parent.name if isinstance(value, Path) else value,
 )
 def test_a_skill_typed_with_arguments_keeps_its_blocks(skill, typed):
-    text = as_read(skill)
+    text = skill.read_text()
     if re.search(r"^[ \t]*```", text, re.M):
         assert blocks(text) != []
     assert blocks(loaded(text, typed, argument_names(text))) == blocks(text)
