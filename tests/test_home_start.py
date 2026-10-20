@@ -6,18 +6,16 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read
+from skill_blocks import skill_blocks as blocks
 from test_jbus_kitchen import complete
 
 REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "home-start.sh"
 NAME = "demo"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 MARK = "$first"
@@ -27,12 +25,6 @@ FIRST, USUAL, *REST = (REPO / "templates" / "hook-message.md").read_text().split
 def filled(text, **values):
     """A template's text with its variables filled in, each once, as the hook fills them."""
     return re.sub(r"\$(repo|home_dir|skills)", lambda found: values[found.group(1)], text)
-
-
-def blocks(skill):
-    """Every shell block the skill gives, as an agent reads it."""
-    text = as_read(REPO / "skills" / skill / "SKILL.md")
-    return [textwrap.dedent(block) for block in FENCED.findall(text)]
 
 
 def block(skill, holding):

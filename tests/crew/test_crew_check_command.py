@@ -8,8 +8,9 @@ import subprocess
 import time
 
 import test_room as room
-from crew.helpers import FENCED, SKILL, block, held_open, sections
+from crew.helpers import SKILL, block, held_open, sections
 from jbriefs import parse as briefs
+from skill_blocks import blocks
 
 
 def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
@@ -169,9 +170,9 @@ def slot_script(text, home):
 def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     """The full run is the crewmate's: the block that read the brief and the notes has gone.
     The two blocks that take a slot each run their command, with a slot free."""
-    blocks = FENCED.findall(sections()["Do the task"])
-    assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
-    assert len([text for text in blocks if "jgauge test-slot" in text]) == 2
+    found = blocks(sections()["Do the task"])
+    assert [text for text in found if "full run" in text.lower() or "Review:" in text] == []
+    assert len([text for text in found if "jgauge test-slot" in text]) == 2
     said, code, _ = checked(tmp_path, "echo ran")
     assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
     ran = slot_script(

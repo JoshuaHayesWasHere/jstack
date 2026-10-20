@@ -9,17 +9,15 @@ import re
 import shlex
 import shutil
 import subprocess
-import textwrap
 from datetime import date, datetime
 from pathlib import Path
 
 import pytest
 
 import repo_template
-from test_home_thread import as_read
+from skill_blocks import as_read, blocks, top
 
 SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "a demo repo"
 URL = "https://example.test/pull/7"
 REVIEWED = "a" * 40
@@ -133,14 +131,14 @@ esac
 
 def block(about):
     """The one `sh` block of the skill that has a word in it, as an agent reads it."""
-    (found,) = [text for text in FENCED.findall(as_read(SKILL)) if about in text]
-    return textwrap.dedent(found)
+    (found,) = [text for text in blocks(as_read(SKILL)) if about in text]
+    return found
 
 
 def paths():
     """The block at the top of the skill, which sets `$H`."""
-    (found,) = [text for text in FENCED.findall(as_read(SKILL)) if re.search(r"^H=", text, re.M)]
-    return textwrap.dedent(found)
+    (found,) = [text for text in blocks(as_read(SKILL)) if re.search(r"^H=", text, re.M)]
+    return found
 
 
 def git(cwd, *args):
@@ -279,11 +277,9 @@ class Home:
     def nohome(self, typed):
         """Run the block the nohome skill gives under the heading for what the user typed,
         after the block at its top."""
-        text = NOHOME.read_text()
-        top, *_ = FENCED.findall(text)
-        section = text.split(f"## `{typed}`:")[1].split("\n## ")[0]
-        (found,) = FENCED.findall(section)
-        said = self.sh(f"{textwrap.dedent(top)}\n{textwrap.dedent(found)}")
+        section = NOHOME.read_text().split(f"## `{typed}`:")[1].split("\n## ")[0]
+        (found,) = blocks(section)
+        said = self.sh(f"{top('nohome')}\n{found}")
         assert (self.code, self.stderr, said) == (0, "", [])
 
     def ready(self, *flags):

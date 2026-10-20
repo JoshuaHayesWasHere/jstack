@@ -5,10 +5,12 @@ the skill that gives it."""
 import os
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
+
+from skill_blocks import block
+from skill_blocks import skill_blocks as blocks
 
 REPO = Path(__file__).parent.parent
 NAME = "a demo repo"
@@ -21,47 +23,11 @@ NOT_THE_HOME = "not the home: start nothing, tell the user\n"
 READERS = ["scout", "crew", "pr-review"]
 TYPED = "<the text after /home>"
 WHICH = "<which home>"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
-NAMED = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
-
-
-def beside(line, path):
-    """The files beside the skill at `path` that `line` says to read now."""
-    return [
-        path.parent / name
-        for skill, name in NAMED.findall(line)
-        if skill == path.parent.name and name != "SKILL.md"
-    ]
-
-
-def named(path):
-    """Every file beside the skill at `path` that one of its lines says to read now."""
-    return [found for line in path.read_text().splitlines() for found in beside(line, path)]
-
-
-def as_read(path):
-    """A skill's text as an agent reads it: each file beside it that a line says to read now
-    follows that line. A file the line names that is not there fails the test."""
-    out = []
-    for line in path.read_text().splitlines(keepends=True):
-        out += [line, *("\n" + found.read_text() for found in beside(line, path))]
-    return "".join(out)
-
-
-def blocks(skill):
-    """Every shell block the skill gives, as an agent reads it."""
-    text = as_read(REPO / "skills" / skill / "SKILL.md")
-    return [textwrap.dedent(block) for block in FENCED.findall(text)]
 
 
 def paths(skill):
     """The block at the top of the skill, which sets `$H`."""
     (found,) = [block for block in blocks(skill) if re.search(r"^H=", block, re.M)]
-    return found
-
-
-def block(skill, holding):
-    (found,) = [text for text in blocks(skill) if holding in text]
     return found
 
 

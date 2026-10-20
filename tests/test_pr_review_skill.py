@@ -18,7 +18,7 @@ import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
 from jmerge import ready
-from test_home_thread import NAMED, as_read
+from skill_blocks import NAMED, as_read, blocks
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 from test_room import BIN, IDLE, machine, says, uv
@@ -101,7 +101,7 @@ BRIEFS = {
     "only quoted": BRIEF.replace("- one\n", "- one, with `Review: none` quoted\n"),
     "said again in a result": BRIEF + "Review: review\n\n## Result\nReview: none\n",
 }
-FENCED = re.compile(r"^[ \t]*```(\w+)\n(.*?)^[ \t]*```$", re.M | re.S)
+JSON = re.compile(r"^[ \t]*```json\n(.*?)^[ \t]*```$", re.M | re.S)
 
 
 def section(heading):
@@ -115,9 +115,8 @@ def section(heading):
     return under
 
 
-def block(heading, about="", kind="sh"):
-    found = [body for fence, body in FENCED.findall(section(heading)) if fence == kind]
-    return textwrap.dedent(next(body for body in found if about in body))
+def block(heading, about=""):
+    return next(body for body in blocks(section(heading)) if about in body)
 
 
 @pytest.fixture
@@ -547,7 +546,7 @@ def test_the_prompt_is_the_interrogate_template_filled_with_what_this_review_rea
 def test_the_two_questions_are_the_ones_the_interrogate_skill_reads_out_of_this_block(reviewer):
     """Interrogate's own step 3 reads questions 4 and 5 out of this skill, by where they start."""
     text = (INTERROGATE / "SKILL.md").read_text()
-    (reads,) = [body for kind, body in FENCED.findall(text) if kind == "sh" and "asked=" in body]
+    (reads,) = [body for body in blocks(text) if "asked=" in body]
     home = reviewer.state / "user"
     (home / ".claude" / "skills").mkdir(parents=True)
     (home / ".claude" / "skills" / "interrogate").symlink_to(INTERROGATE)
@@ -817,11 +816,7 @@ def test_each_review_builds_in_a_directory_of_its_own(reviewer):
 
 def calls(text):
     """Every JSON block of a skill, as an agent sends it, with its placeholders filled."""
-    return [
-        json.loads(body.replace("<model selection>", "null"))
-        for kind, body in FENCED.findall(text)
-        if kind == "json"
-    ]
+    return [json.loads(body.replace("<model selection>", "null")) for body in JSON.findall(text)]
 
 
 def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):

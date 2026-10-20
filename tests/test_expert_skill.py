@@ -7,7 +7,6 @@ import os
 import re
 import stat
 import sys
-import textwrap
 from pathlib import Path
 from subprocess import run
 
@@ -18,14 +17,13 @@ import test_playbook_wiring as wiring
 import test_tool_calls as calls
 import test_understanding_skills as added
 from jbus import mirror
+from skill_blocks import skill_blocks
 from test_handoff_pin import T3
-from test_home_thread import as_read
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "expert" / "SKILL.md"
 TEMPLATE = REPO / "templates" / "expert-answer.md"
 TIERS = REPO / "skills" / "why" / "references" / "epistemics.md"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "sage"
 THREAD = "mcp:thread-one"
 OTHER = "mcp:thread-two"
@@ -57,7 +55,7 @@ Option: add the step: a release can be rolled back
 
 
 def blocks():
-    return [textwrap.dedent(found) for found in FENCED.findall(as_read(SKILL))]
+    return skill_blocks("expert")
 
 
 def block(which):

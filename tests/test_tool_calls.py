@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from test_home_thread import named
+from skill_blocks import named
 
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"

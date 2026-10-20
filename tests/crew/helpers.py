@@ -6,16 +6,12 @@ import os
 import re
 import shlex
 import subprocess
-import textwrap
 from pathlib import Path
 
 from jmerge import rangediff, ready
-from test_home_thread import as_read
+from skill_blocks import as_read, blocks
 
 SKILL = Path(__file__).parent.parent.parent / "skills" / "crew" / "SKILL.md"
-
-
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 
 def sections():
@@ -31,8 +27,8 @@ def sections():
 
 def block(heading, about):
     """The one `sh` block under a heading that has a word in it, as an agent reads it."""
-    (found,) = [text for text in FENCED.findall(sections()[heading]) if about in text]
-    return textwrap.dedent(found)
+    (found,) = [text for text in blocks(sections()[heading]) if about in text]
+    return found
 
 
 BRIEF = """\

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read
+from skill_blocks import as_read
 from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 

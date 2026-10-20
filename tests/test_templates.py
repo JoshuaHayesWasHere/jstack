@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read, named
+from skill_blocks import as_read, named
 
 REPO = Path(__file__).parent.parent
 TEMPLATES = REPO / "templates"

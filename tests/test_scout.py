@@ -1,17 +1,17 @@
 import os
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
+
+from skill_blocks import blocks
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "scout" / "SKILL.md"
 TEMPLATES = REPO / "templates"
 NAME = "a demo repo"
 SLUG = "find-out"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 
 def given(section=None):
@@ -21,7 +21,7 @@ def given(section=None):
         _, found, text = text.partition(f"\n## {section}\n")
         assert found, f"the scout skill has no section {section}"
     body = re.split(r"^## ", text, flags=re.M)[0]
-    return [textwrap.dedent(block) for block in FENCED.findall(body)]
+    return blocks(body)
 
 
 def git(cwd, *args):

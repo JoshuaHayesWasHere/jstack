@@ -2,11 +2,12 @@
 folder in a temporary directory, by itself and by the block the `expert-study` playbook gives.
 """
 
-import re
 import subprocess
 from pathlib import Path
 
 import pytest
+
+from skill_blocks import blocks
 
 REPO = Path(__file__).parent.parent
 LINT = REPO / "src" / "jpack" / "lint-notes.sh"
@@ -257,7 +258,7 @@ def test_no_folder_named_is_refused():
 def step_six():
     """The shell block of the playbook's step that checks the pass."""
     step = PLAYBOOK.read_text().split("\n6. Check the pass.")[1].split("\n7. ")[0]
-    return re.search(r"```sh\n(.*?)```", step, re.S).group(1)
+    return blocks(step)[0]
 
 
 @pytest.mark.parametrize(

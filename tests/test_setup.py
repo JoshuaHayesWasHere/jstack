@@ -3,7 +3,6 @@ whose doctor says ok. Each test runs the script under a temporary `HOME`, with t
 `test_doctor` for every program the doctor asks, and a `git` that knows a name."""
 
 import os
-import re
 import stat
 import subprocess
 import tomllib
@@ -11,6 +10,7 @@ import tomllib
 import pytest
 
 from jinstall.__main__ import setup as run_setup
+from skill_blocks import blocks
 from test_doctor import NIGHTLY, Doctored
 from test_install import REPO, SCRUBBED, UNITS, line_for, machine, worktree
 
@@ -214,7 +214,7 @@ def test_usage_names_setup(user):
 
 def skill_block():
     text = (REPO / "skills" / "setup-pstack" / "SKILL.md").read_text()
-    (found,) = re.findall(r"^```sh\n(.*?)^```$", text, re.M | re.S)
+    (found,) = blocks(text)
     return found
 
 

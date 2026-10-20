@@ -62,6 +62,13 @@ def test_a_skill_with_no_block_at_the_top_has_the_guard_in_each_block():
     assert unguarded(text) == ["echo b"]
 
 
+def test_a_block_inside_a_list_is_found_with_its_indent_taken_off():
+    text = (
+        "1. a\n\n   ```sh\n   if true; then\n       echo b\n   fi\n   ```\n\n```sh\necho c\n```\n"
+    )
+    assert blocks(text) == ["if true; then\n    echo b\nfi\n", "echo c\n"]
+
+
 PLAYBOOK = "Run by: a scout, with a request.\n\n1. Read principles/a.md and principles/b.md.\n"
 
 

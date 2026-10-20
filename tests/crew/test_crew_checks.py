@@ -10,7 +10,7 @@ import test_home_merge as merge
 import test_tool_calls as tools
 from crew.helpers import BRIEF, ROLLUPS, SKILL, block, git, said, sections, stub_gh
 from jmerge import ready
-from test_home_thread import as_read
+from skill_blocks import as_read
 
 
 class Pushed:

@@ -6,12 +6,12 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
 
 from jbriefs import pick
+from skill_blocks import blocks
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
@@ -141,8 +141,8 @@ def test_every_skill_and_playbook_printed_is_a_file(home):
 
 
 def skill_block():
-    (found,) = re.findall(r"^```sh\n(.*?)^```$", SKILL.read_text(), re.M | re.S)
-    return textwrap.dedent(found)
+    (found,) = blocks(SKILL.read_text())
+    return found
 
 
 def run_block(user, cwd, typed):

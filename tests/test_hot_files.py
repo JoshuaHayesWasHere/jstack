@@ -7,20 +7,17 @@ two briefs. The home skill's weekly block is run too, with the same fake `gh`.""
 
 import json
 import os
-import re
 import subprocess
 import sys
-import textwrap
 import time
 from pathlib import Path
 
 from jmerge import ready
-from test_home_thread import as_read
+from skill_blocks import block
 
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "hot_files.py"
 SKILL = REPO / "skills" / "home" / "SKILL.md"
-FENCED = re.compile(r"^```sh\n(.*?)^```", re.M | re.S)
 URL = "https://github.com/o/r"
 SHA = {name: name * 40 for name in "0123456789abcdef"}
 
@@ -237,8 +234,7 @@ def test_with_no_home_the_third_table_says_so(tmp_path):
 
 def weekly(home):
     """The home skill's weekly block, with `$H` the home and `$T` this repo's templates."""
-    (found,) = [text for text in FENCED.findall(as_read(SKILL)) if "hot_files.py" in text]
-    return f'H="{home}"\nT="{REPO / "templates"}"\n' + textwrap.dedent(found)
+    return f'H="{home}"\nT="{REPO / "templates"}"\n' + block("home", "hot_files.py")
 
 
 def test_the_status_runs_it_once_a_week(tmp_path):

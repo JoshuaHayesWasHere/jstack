@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from test_home_thread import as_read
+from skill_blocks import as_read
 from test_writing import skill_problems
 
 REPO = Path(__file__).parent.parent

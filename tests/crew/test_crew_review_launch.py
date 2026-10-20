@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from crew.helpers import BRIEF, SKILL, said, with_field
-from test_home_thread import as_read
+from skill_blocks import as_read
 
 
 def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):

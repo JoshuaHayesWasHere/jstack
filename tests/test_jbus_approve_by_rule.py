@@ -15,7 +15,7 @@ import pytest
 import jbus
 from jbus import digest, queue
 from jbus.view import state as view_state
-from test_home_thread import as_read
+from skill_blocks import as_read
 from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12, widened
 

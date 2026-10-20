@@ -12,7 +12,6 @@ import re
 import shutil
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -20,13 +19,12 @@ import pytest
 import crew.helpers as crew
 import test_home_merge as merge
 import test_playbooks as shape
-from test_home_thread import as_read
+from skill_blocks import as_read, blocks
 
 REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATES = REPO / "templates"
 NAMES = sorted(path.stem for path in PLAYBOOKS.glob("*.md"))
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 SLUG = "alpha"
 READERS = {"crew": ("tasks", "brief.md"), "scout": ("scouts", "scout-request.md")}
 READERS_OF = {"a crewmate": "crew", "a scout": "scout"}
@@ -53,14 +51,12 @@ def opening(skill):
     that block whole."""
     text = as_read(REPO / "skills" / skill / "SKILL.md")
     (block,) = [
-        found
-        for found in FENCED.findall(text)
-        if "jbus playbook" in found and "--named" not in found
+        found for found in blocks(text) if "jbus playbook" in found and "--named" not in found
     ]
     (setting,) = [line for line in text.splitlines() if line.startswith("T=")]
     if skill == "expert":
-        (setting,) = [found for found in FENCED.findall(text) if f"\n{setting}\n" in found]
-    return textwrap.dedent(setting), textwrap.dedent(block)
+        (setting,) = [found for found in blocks(text) if f"\n{setting}\n" in found]
+    return setting, block
 
 
 def uv(where):
@@ -282,11 +278,9 @@ def rows(templates):
     """What the home's block prints with `$T` at `templates`: a row for each file in the
     `playbooks/` beside it, as the name and what follows `Run by:`."""
     text = as_read(REPO / "skills" / "home" / "SKILL.md")
-    (block,) = [
-        found for found in FENCED.findall(text) if "Run by:" in found and "Playbook:" not in found
-    ]
+    (block,) = [found for found in blocks(text) if "Run by:" in found and "Playbook:" not in found]
     ran = subprocess.run(
-        ["sh", "-c", textwrap.dedent(block)],
+        ["sh", "-c", block],
         capture_output=True,
         text=True,
         env={**os.environ, "T": str(templates)},

@@ -7,17 +7,15 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
 
 import jsettings
 from jmerge import claims, cli, ready
-from test_home_thread import as_read, named
+from skill_blocks import as_read, located, named
 
 SKILLS = Path(__file__).parent.parent / "skills"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 RUNS = re.compile(r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:claims|scope)\b)", re.M)
 FILLED = re.compile(r"'<[^'<>\n]+>'")
 NAME = "demo"
@@ -53,11 +51,7 @@ cat "$OPEN"
 def blocks(skill, read=Path.read_text):
     """Each `sh` block of a skill, with the line it starts on: of the file alone, or with
     `as_read`, of the skill as an agent reads it."""
-    text = read(skill)
-    return [
-        (text.count("\n", 0, found.start(1)) + 1, textwrap.dedent(found.group(1)))
-        for found in FENCED.finditer(text)
-    ]
+    return located(read(skill))
 
 
 def first(skill):

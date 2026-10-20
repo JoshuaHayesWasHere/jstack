@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read
+from skill_blocks import block, blocks
 
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
@@ -79,17 +79,10 @@ def problems(directory):
     return found
 
 
-def blocks(text, language):
-    """The body of every fenced block of `language` in a skill, indent taken off, in order."""
-    found = re.findall(rf"^([ \t]*)```{language}\n(.*?)^\1```$", text, re.M | re.S)
+def json_blocks(text):
+    """The body of every `json` block in a skill, indent taken off, in order."""
+    found = re.findall(r"^([ \t]*)```json\n(.*?)^\1```$", text, re.M | re.S)
     return [textwrap.dedent(body) for _, body in found]
-
-
-def block(skill, marker):
-    """The one `sh` block of the skill named `skill`, as an agent reads it, that has `marker`
-    in it."""
-    (found,) = [b for b in blocks(as_read(SKILLS / skill / "SKILL.md"), "sh") if marker in b]
-    return found
 
 
 def named_files(skill):
@@ -188,7 +181,7 @@ def test_every_file_an_added_skill_names_is_there(name):
     [
         pytest.param(name, body, id=f"{name}:{number}")
         for name in ADDED
-        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "sh"), 1)
+        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text()), 1)
     ],
 )
 def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo, home):
@@ -200,7 +193,7 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
     [
         pytest.param(name, body, id=f"{name}:{number}")
         for name in ADDED
-        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "json"), 1)
+        for number, body in enumerate(json_blocks((SKILLS / name / "SKILL.md").read_text()), 1)
     ],
 )
 def test_a_subagent_an_added_skill_starts_is_read_only_on_this_sessions_model(name, body):
@@ -378,10 +371,3 @@ def test_an_em_dash_in_a_file_beside_the_skill_is_a_problem(tmp_path):
     reference.parent.mkdir()
     reference.write_text(f"One thing {EM_DASH} and another.\n")
     assert problems(tmp_path / "a-skill") == ["prompt.md has an em dash on line [1]"]
-
-
-def test_a_block_inside_a_list_is_found_with_its_indent_taken_off():
-    text = (
-        "1. a\n\n   ```sh\n   if true; then\n       echo b\n   fi\n   ```\n\n```sh\necho c\n```\n"
-    )
-    assert blocks(text, "sh") == ["if true; then\n    echo b\nfi\n", "echo c\n"]

@@ -48,9 +48,9 @@ def blocks(text):
 
 
 def located(text):
-    """Each `sh` block of `text` with the number of its fence's line, in order."""
+    """Each `sh` block of `text` with the number of its first line, in order."""
     return [
-        (text.count("\n", 0, found.start()) + 1, textwrap.dedent(found.group(2)))
+        (text.count("\n", 0, found.start(2)) + 1, textwrap.dedent(found.group(2)))
         for found in FENCED.finditer(text)
     ]
 

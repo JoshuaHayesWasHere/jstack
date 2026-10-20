@@ -14,6 +14,7 @@ import pytest
 import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
+from skill_blocks import blocks
 from test_jbus_queue import add, brief, gates, queued_before
 
 REPO = Path(__file__).parent.parent
@@ -166,7 +167,7 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
     task = tmp_path / "alpha.md"
     task.write_text(brief("alpha", NAMED))
     text = (REPO / "skills" / "crew" / "SKILL.md").read_text()
-    (code,) = [one for one in re.findall(r"```sh\n(.*?)```", text, re.S) if "--skills" in one]
+    (code,) = [one for one in blocks(text) if "--skills" in one]
     script = f"H={tmp_path}\nT={REPO / 'templates'}\n" + code.replace(
         '"$H/tasks/<slug>.md"', str(task)
     )

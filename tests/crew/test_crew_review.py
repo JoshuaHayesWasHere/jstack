@@ -24,7 +24,7 @@ from crew.helpers import (
     said,
     with_field,
 )
-from test_home_thread import as_read
+from skill_blocks import as_read
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 

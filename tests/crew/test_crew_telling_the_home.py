@@ -3,13 +3,12 @@
 import hashlib
 import os
 import subprocess
-import textwrap
 from datetime import timedelta
 
 import pytest
 
 from crew.helpers import BRIEF, SKILL, said
-from test_home_thread import as_read
+from skill_blocks import as_read, blocks
 from test_jbus_kitchen import NOW, Kitchen
 
 
@@ -49,9 +48,9 @@ def where_the_findings_go(home):
         ("### After the review", "crewmate $thread"),
         ("### Telling the home", ""),
     ):
-        under = skill.split(f"{heading}\n", 1)[1].split("```sh\n")[1:]
-        found = next(text for text in under if about in text).split("```", 1)[0]
-        script = 'B="$H/tasks/alpha.md"\n' + textwrap.dedent(found).replace("<slug>", "alpha")
+        under = blocks(skill.split(f"{heading}\n", 1)[1])
+        found = next(text for text in under if about in text)
+        script = 'B="$H/tasks/alpha.md"\n' + found.replace("<slug>", "alpha")
         script = script.replace("<clean, findings or not run>", "findings")
         ran = subprocess.run(
             ["sh", "-c", script],

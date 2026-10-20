@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from jbus import threads
-from test_home_thread import NAME, Scene, as_read
+from skill_blocks import as_read
+from test_home_thread import NAME, Scene
 from test_tool_calls import CALLS, FILLED, errors
 
 REPO = Path(__file__).parent.parent

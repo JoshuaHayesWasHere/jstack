@@ -8,13 +8,13 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 from datetime import date
 from types import SimpleNamespace
 
 import pytest
 
-from test_home_thread import FENCED, REPO, TYPED, block, git, paths
+from skill_blocks import blocks
+from test_home_thread import REPO, TYPED, block, git, paths
 from test_tool_calls import CALLS, errors
 
 DESK = "mcp:the-desk-home"
@@ -349,7 +349,7 @@ def test_a_reply_that_is_not_the_list_is_not_read(party):
 
 def test_the_path_runs_nothing_of_a_home_and_launches_only_its_own_next_thread(party):
     (section,) = SECTION.findall((REPO / "skills/handoff/SKILL.md").read_text())
-    in_the_section = [textwrap.dedent(text) for text in FENCED.findall(section)]
+    in_the_section = blocks(section)
     assert len(in_the_section) == 2
     on_the_path = [paths("handoff"), block("handoff", WHERE), *in_the_section]
     commands = [

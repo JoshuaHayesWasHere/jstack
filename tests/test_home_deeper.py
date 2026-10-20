@@ -4,24 +4,20 @@ to a crewmate", lifted from it and run here: for those kinds it prints its own c
 questions of `/sharpen`, each with the line of the brief its answer goes on, and for a mechanical
 fix, a docs change or a bug fix with a known cause it prints `skip`."""
 
-import re
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
 
-from test_home_thread import as_read
+from skill_blocks import block as skill_block
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "home" / "SKILL.md"
-FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 KINDS = ("research", "perf", "analysis", "outcome")
 
 
 def block():
-    (found,) = [one for one in FENCED.findall(as_read(SKILL)) if "picked=" in one]
-    return textwrap.dedent(found)
+    return skill_block("home", "picked=")
 
 
 def run(picked):

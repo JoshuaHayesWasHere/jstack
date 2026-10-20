@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from skill_blocks import blocks
+
 REPO = Path(__file__).parent.parent
 SKILLS = {name: REPO / "skills" / name / "SKILL.md" for name in ("correct", "reflect")}
 FIXTURE = Path(__file__).parent / "fixtures" / "lessons" / "projects"
@@ -20,12 +22,8 @@ HOME_SESSION = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 OTHER_SESSION = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 
 
-def sh_blocks(text):
-    return re.findall(r"^```sh\n(.*?)^```$", text, re.M | re.S)
-
-
 def block(skill, marker):
-    (found,) = [body for body in sh_blocks(SKILLS[skill].read_text()) if marker in body]
+    (found,) = [body for body in blocks(SKILLS[skill].read_text()) if marker in body]
     return found
 
 

@@ -22,6 +22,7 @@ import pytest
 
 import jbus
 from jbus import snapshot
+from skill_blocks import blocks
 from test_jbus_kitchen import NOW, REPO
 
 UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer", "jbus-snapshot-failed.service")
@@ -316,7 +317,7 @@ def undo_section():
     """The shell lines of the section of docs/state.md that undoes an edit to standing.md."""
     text = (REPO / "docs" / "state.md").read_text()
     section = text.split("## Undo an edit to standing.md\n", 1)[1].split("\n## ", 1)[0]
-    block = section.split("```sh\n", 1)[1].split("```", 1)[0]
+    block = blocks(section)[0]
     return [line for line in block.splitlines() if line and not line.startswith("#")]
 
 

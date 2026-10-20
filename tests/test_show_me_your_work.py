@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from skill_blocks import blocks
+
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
 LOG = SKILLS / "show-me-your-work" / "scripts" / "log.sh"
@@ -72,9 +74,7 @@ def block(skill, tmp_path, cells, before=""):
     """Run the one `sh` block of a skill with its placeholders filled, as a crewmate has it:
     the crew skill is a symlink under ~/.claude/skills, this skill has no link of its own,
     and the work is in another repo. Gives what it printed, and that repo."""
-    (body,) = re.findall(
-        r"^```sh\n(.*?)^```$", (SKILLS / skill / "SKILL.md").read_text(), re.M | re.S
-    )
+    (body,) = blocks((SKILLS / skill / "SKILL.md").read_text())
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / "crew").symlink_to(SKILLS / "crew")

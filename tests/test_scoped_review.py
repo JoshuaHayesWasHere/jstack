@@ -7,14 +7,13 @@ which merges the rebased head on it."""
 import os
 import re
 import subprocess
-import textwrap
 
 import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
 import test_pr_review_skill as reviews
 from jbus import rebase
-from test_home_merge import FENCED, git, review
-from test_home_thread import as_read
+from skill_blocks import as_read, blocks
+from test_home_merge import git, review
 
 SKILL = reviews.SKILL
 
@@ -35,8 +34,8 @@ def asked(number, command):
 
 def scoped(tree, old, new):
     """Run the section's block in a worktree, with the two ranges of the message."""
-    (block,) = [body for body in FENCED.findall(SECTION) if "<old range>" in body]
-    script = textwrap.dedent(block).replace("<old range>", old).replace("<new range>", new)
+    (block,) = [body for body in blocks(SECTION) if "<old range>" in body]
+    script = block.replace("<old range>", old).replace("<new range>", new)
     assert "<" not in script.replace("<<", "")
     ran = subprocess.run(["sh", "-c", script], cwd=tree, capture_output=True, text=True)
     assert (ran.returncode, ran.stderr) == (0, "")

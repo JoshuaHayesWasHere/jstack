@@ -23,8 +23,8 @@ import test_jmerge_rangediff as rangediff
 from jbriefs import parse
 from jbus import stall
 from jmerge import proof, ready
+from skill_blocks import as_read
 from test_briefs import TEMPLATE
-from test_home_thread import as_read
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven

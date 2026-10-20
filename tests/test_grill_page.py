@@ -5,11 +5,12 @@ import os
 import re
 import shutil
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+
+from skill_blocks import blocks
 
 REPO = Path(__file__).parent.parent
 TEMPLATE = REPO / "templates" / "grill-page.html"
@@ -335,8 +336,7 @@ def test_with_no_lavish_axi_step_one_says_there_is_no_page_and_makes_no_file(tmp
     checkout.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(checkout)], check=True)
     bare = a_path_of(tmp_path, "sh", "git", "basename", "dirname", "realpath", "mkdir", "cp")
-    found = re.findall(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", on_a_page(), re.M | re.S)
-    top, make, *_ = [textwrap.dedent(block) for block in found]
+    top, make, *_ = blocks(on_a_page())
     ran = subprocess.run(
         ["sh", "-c", "\n".join([top, make]).replace("<slug>", "cutover")],
         capture_output=True,
@@ -373,18 +373,17 @@ def test_the_skills_blocks_make_the_page_from_the_template_and_hold_one_session(
     )
     stub.chmod(0o755)
     env = {**os.environ, "HOME": str(user), "PATH": f"{bin_}:{os.environ['PATH']}"}
-    found = re.findall(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", on_a_page(), re.M | re.S)
-    blocks = [textwrap.dedent(block) for block in found]
+    found = blocks(on_a_page())
     done = [
         subprocess.run(
-            ["sh", "-c", "\n".join([blocks[0], block]).replace("<slug>", "cutover")],
+            ["sh", "-c", "\n".join([found[0], block]).replace("<slug>", "cutover")],
             capture_output=True,
             text=True,
             env=env,
             cwd=checkout,
             check=True,
         ).stdout
-        for block in blocks[1:]
+        for block in found[1:]
     ]
     made = user / ".local" / "state" / "home" / "alpha" / "reports" / "grill-cutover.html"
     assert made.read_text() == TEMPLATE.read_text()
@@ -395,11 +394,11 @@ def test_the_skills_blocks_make_the_page_from_the_template_and_hold_one_session(
         f"end {made}",
     ]
     made.write_text("round 2")
-    first = "\n".join(blocks[:2]).replace("<slug>", "cutover")
+    first = "\n".join(found[:2]).replace("<slug>", "cutover")
     subprocess.run(["sh", "-c", first], capture_output=True, env=env, cwd=checkout, check=True)
     assert made.read_text() == "round 2"
     (user / "down").write_text("")
-    opening = "\n".join([blocks[0], blocks[2]]).replace("<slug>", "cutover")
+    opening = "\n".join([found[0], found[2]]).replace("<slug>", "cutover")
     failed = subprocess.run(
         ["sh", "-c", opening], capture_output=True, text=True, env=env, cwd=checkout, check=False
     )
@@ -480,9 +479,8 @@ def test_the_skills_block_names_the_last_send_by_the_user_on_the_page(tmp_path, 
     if sessions is not None:
         text = json.dumps({"sessions": sessions}).replace('"PAGE"', json.dumps(str(page)))
         (lavish / "state.json").write_text(text)
-    found = re.findall(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", on_a_page(), re.M | re.S)
-    top, *_ = blocks = [textwrap.dedent(block) for block in found]
-    (named,) = [block for block in blocks if "no entry:" in block]
+    top, *_ = found = blocks(on_a_page())
+    (named,) = [block for block in found if "no entry:" in block]
     ran = subprocess.run(
         ["sh", "-c", "\n".join([top, named]).replace("<slug>", "cutover")],
         capture_output=True,

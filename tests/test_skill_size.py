@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from test_home_thread import NAMED, named
+from skill_blocks import NAMED, named
 
 REPO = Path(__file__).parent.parent
 CAP = 400

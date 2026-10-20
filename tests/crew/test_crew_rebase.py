@@ -26,7 +26,7 @@ from crew.helpers import (
     with_field,
 )
 from jmerge import cli, ready
-from test_home_thread import as_read
+from skill_blocks import as_read
 
 REVIEWING = "a review of {} is running: rebase after its section is written"
 
