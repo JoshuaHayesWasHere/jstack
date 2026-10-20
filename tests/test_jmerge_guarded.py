@@ -274,13 +274,13 @@ def pull_request(*files, head=merge.PUSHED, checks=(STARTED,)):
     return ready.pull_request(listed)
 
 
-def test_the_start_of_a_check_is_its_earliest_run_named_check():
+def test_the_start_of_a_check_is_its_latest_run_named_check():
     runs = (
         {**merge.PASSED, "startedAt": "2026-10-11T22:05:00Z"},
         {**merge.PASSED, "startedAt": "2026-10-11T22:01:00Z"},
-        {**merge.OTHER_PASSED, "startedAt": "2026-10-11T21:00:00Z"},
+        {**merge.OTHER_PASSED, "startedAt": "2026-10-11T23:00:00Z"},
     )
-    assert pull_request("a.txt", checks=runs).started == datetime(2026, 10, 11, 22, 1, tzinfo=UTC)
+    assert pull_request("a.txt", checks=runs).started == datetime(2026, 10, 11, 22, 5, tzinfo=UTC)
     assert pull_request("a.txt", checks=(merge.OTHER_PASSED,)).started is None
 
 
