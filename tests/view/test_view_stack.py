@@ -32,6 +32,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "token_expires": demo["jbus"]["status"]["token_expires"],
         "streaks": {},
         "homes_off_bus": [],
+        "scratch": [],
     }
     same = {key: one for key, one in demo["room"].items() if key != "tmp"}
     assert {key: one for key, one in stack["machine"]["room"].items() if key != "tmp"} == same
@@ -121,6 +122,28 @@ def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path,
     assert stack["machine"]["jbus"]["status"]["homes_off_bus"] == off
     assert demo["jbus"]["status"]["homes_off_bus"] == off
     assert all("homes_off_bus" not in json.dumps(one) for one in stack["projects"])
+
+
+def test_a_scratch_home_is_on_the_machine_with_its_thread_and_has_no_lane(tmp_path, monkeypatch):
+    """A scratch home is on the machine row with its home thread, and the words jbus keeps
+    for it give it no project's lane: it has no queue."""
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    status = json.loads((scene.state_dir / "status.json").read_text())
+    status["scratch"] = {"scratch": {"project_id": "mcp:no-project", "home_thread": "mcp:t"}}
+    scene.write("status.json", status, scene.state_dir)
+    (scene.state_dir / "scratch").mkdir()
+    scene.write("words.json", [], scene.state_dir / "scratch")
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        demo = served.json("/state.json?project=demo")
+    finally:
+        served.close()
+    shown = [{"name": "scratch", "home_thread": "mcp:t"}]
+    assert stack["machine"]["jbus"]["status"]["scratch"] == shown
+    assert demo["jbus"]["status"]["scratch"] == shown
+    assert "scratch" not in [one["name"] for one in stack["projects"]]
 
 
 def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_row(

@@ -52,7 +52,7 @@ import fcntl
 import hashlib
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
@@ -282,10 +282,12 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     words are typed with `--by` and `--at`, or are those of the message `--message` names,
     which jbus reads from T3 Code with its time. A word said in a project's home thread, or
     recorded by it (`--from`), is kept there as sent and posted to nobody (`keep`).
+    `--to` names a project or a scratch home (`jbus.Scratch`), and `--all` is every project:
+    a scratch home is for no word about the repos.
     A project that refuses, as one whose `words.json` does not parse, is said and passed
     over: the others still get it, and the answer is then 1.
     """
-    projects = config.projects if args.all else (config.project(args.to),)
+    projects = config.projects if args.all else (config.addressee(args.to),)
     heard = typed(args, config, "word")
     by, at = (config.user.user, heard.said_at) if heard else (args.by, args.at)
     words = said(heard.words if heard else " ".join(args.words), by, at, config.user)
@@ -309,7 +311,9 @@ def _word(args: argparse.Namespace, config: Config) -> int:
 
 def _down(down: argparse.ArgumentParser) -> None:
     homes = down.add_mutually_exclusive_group(required=True)
-    homes.add_argument("--to", metavar="PROJECT", help="the project whose home it is for")
+    homes.add_argument(
+        "--to", metavar="PROJECT", help="the project or the scratch home whose home it is for"
+    )
     homes.add_argument("--all", action="store_true", help="the home of every project")
     down.add_argument("--by", help="the user's name, with --at, for words that were typed")
     down.add_argument(
@@ -349,4 +353,20 @@ def _deliver(half: Half) -> None:
         half.run.gate(half.run.project.name, "words.json does not parse", str(path(half.run.state)))
 
 
+def scratch(
+    config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
+) -> None:
+    """The whole pass of each scratch home, a chore of the pass: its words that wait go to its
+    thread. A scratch home is no project of the pass (`jbus.load`), so it is no step of one.
+    One whose `words.json` does not parse is said, and is no gate: a scratch home has no
+    webhook to ask it on."""
+    for one in config.scratch:
+        run = Pass(config, one.addressee(), now, say)
+        try:
+            deliver(run, client)
+        except Unparsable as error:
+            say(f"wait {one.name}: {error}")
+
+
 STEPS = (verbs.Step("before-watch", 10, "word.deliver", _deliver),)
+CHORES = (verbs.Chore(20, "the scratch homes", scratch),)

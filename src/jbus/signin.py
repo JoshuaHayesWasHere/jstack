@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import jsettings
-from jbus import Config, read_json, t3, wake, write_json
+from jbus import Config, read_json, t3, verbs, wake, write_json
 
 EVENTS = {"sign-in": "user"}
 WEEK = 7
@@ -141,3 +141,6 @@ def expiring(config: Config, now: datetime) -> str:
         return ""
     user = config.user
     return f"T3 sign-in expires {user.day(expires)} {user.word(expires)}, run jbus t3 login"
+
+
+CHORES = (verbs.Chore(10, "the sign-in reminder", lambda config, _, now, __: remind(config, now)),)

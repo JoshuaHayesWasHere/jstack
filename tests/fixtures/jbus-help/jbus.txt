@@ -36,9 +36,11 @@ rewriting the status file, which `jbus status` prints: what a webhook that is
 down cannot say. `jbus view` is no pass: it is a server that shows what the
 passes left, and it reads no config (`jbus.view`). `jbus project add` is no
 pass either: it adds one project's table to the config, and the next pass
-loads it (`jbus.project`). Beside the status file is the record of the pass
-(`record`), written when the pass starts and again when it ends. No model
-reads anything.
+loads it (`jbus.project`). A scratch home of the config is no project of the
+pass, and no repo step is run for it (`jbus.load`): its words go to its thread
+in a chore of the pass (`word.scratch`). Beside the status file is the record
+of the pass (`record`), written when the pass starts and again when it ends.
+No model reads anything.
 
 positional arguments:
   {poll,alarm,status,events,digest,view,word,queue,plan,gate,answer,done,project,t3}
