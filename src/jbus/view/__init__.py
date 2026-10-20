@@ -1,5 +1,5 @@
-"""`jbus view`: one small server that shows the bus as the line, and takes one write, the
-user's answer to a question.
+"""`jbus view`: one small server that shows the bus as the line, and takes two writes, the
+user's answer to a question and the user's steer of a work item.
 
 It is one process on the standard library's `http.server`, on one port, `PORT`. It always
 listens on `127.0.0.1`, and on the address in `JBUS_VIEW_HOST` too when that is set: an
@@ -23,20 +23,33 @@ The routes that read are `routes()`, all `GET`:
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
-The one write is `WRITE`, `POST /answer`, of the one project `?project=` names: a write
-that names none, or one the state directory does not have, is 404. Its
-body is JSON: `numbers`, the questions to close, and for one question alone the `option`
-picked, by its name, and the user's own `words`. Each number is closed through
-`questions.answer`, by the user of the settings, at the server's clock, in `WHERE`: who may
-answer and that a question is answered once are that function's rules, and the server has
-no copy of them. An answer keeps the default when it has no words and its option is the
-default that was taken, or none: so says the record, never the page. More than one number
-is a batch, and a batch only takes defaults. An answer that does not keep the default is
-sent in the same request (`questions.carry`), once, to the thread that asked. Where it
-does not go, the record is closed all the same, the answer says why, and the next pass
-sends it. What comes back is `closed` and `refused`, each a list by number with one
-sentence, `say`: a question answered before is refused with its `first` answer. The status
-is 200 where a question closed and 409 where none did.
+The two writes are `WRITES`, `POST /answer` and `POST /steer`, each of the one project
+`?project=` names: a write that names none, or one the state directory does not have, is
+404. The body of `/answer` is JSON: `numbers`, the questions to close, and for one question
+alone the `option` picked, by its name, and the user's own `words`. Each number is closed
+through `questions.answer`, by the user of the settings, at the server's clock, in `WHERE`:
+who may answer and that a question is answered once are that function's rules, and the
+server has no copy of them. An answer keeps the default when it has no words and its option
+is the default that was taken, or none: so says the record, never the page. More than one
+number is a batch, and a batch only takes defaults. An answer that does not keep the default
+is sent in the same request (`questions.carry`), once, to the thread that asked. Where it
+does not go, the record is closed all the same, the answer says why, and the next pass sends
+it. What comes back is `closed` and `refused`, each a list by number with one sentence,
+`say`: a question answered before is refused with its `first` answer. The status is 200
+where a question closed and 409 where none did.
+
+The body of `STEER`, `POST /steer`, is JSON: the `item`, by its id, the `action`, one of
+`jbus.item.Steer`, the user's `words`, which are a redirect's new brief, the `seen_event`,
+the item's last line as the page showed it, and `confirm`, which a hold takes. The server
+decides nothing of it: it calls `jbus.steer.steer`, by the user of the settings, in the
+view, on the basis of these words said in the view at the server's clock, and that
+function's rules are the only ones. A steer whose `seen_event` is not the item's last line
+is refused with the line that came after it, so the same steer sent twice is written once,
+and that and any other refusal is 409, but a hold with no `confirm`, which is 400. A message
+is sent to the home in the same request (`jbus.steer.deliver`), as the command sends it, and
+where it does not go, the line is recorded all the same, the answer says why, and the next
+pass sends it. What comes back is `at`, the `item`, one sentence, `say`, and the item's
+`state` and `last_event` as the record has them after the write, or after the refusal.
 
 Anything else is 404, another method 405, and a request whose `Host` header is not one of
 the server's own names is 403: the two addresses, `localhost`, and each name in
@@ -44,17 +57,18 @@ the server's own names is 403: the two addresses, `localhost`, and each name in
 with the scheme's default port or none. That is a proxy's origin, as
 `https://<host name>`, for a proxy that passes the `Host` header on: an origin
 that is not `http://` or `https://`, a host and an optional port is refused at the start
-(`origin`). A write is 403 too unless its `Origin` header is the server's own address, the
+(`origin`). Either write is 403 too unless its `Origin` header is the server's own address, the
 one its `Host` header names, `http://<Host>`, or for the host of an origin that origin
 exactly: only the server's own page writes. No answer has a CORS header, and none may be
-stored. There is no sign-in: who reaches the port is who may answer, as any shell of this
-machine may with `jbus answer`.
+stored. There is no sign-in: who reaches the port is who may answer and steer, as any shell of
+this machine may with `jbus answer` and `jbus item steer`.
 
 To read, it reads no config of jbus and no secret. `reader` is the `Config` the digest is
 built with: its config directory is `os.devnull`, under which there is no file, and its
 projects are the ones the state directory names. The one file of settings it reads is
 jstack's own (`jsettings`): the user's time zone, which a time with no zone is in, and the
-user's name, which an answer is given by. Only a write that has an answer to send loads
+user's name, which an answer and a steer are given by. Only a write that has an answer or
+a message to send loads
 jbus's config and the stored sign-in to T3 Code, as a pass does, and neither is in any
 answer: what T3 Code said has the config's secrets taken out (`jbus.redact`). A slug in an
 address must be a slug of the queue. What an answer may hold is in `jbus.view.clean`.
@@ -97,7 +111,7 @@ from urllib.parse import parse_qs
 
 import jbus
 import jsettings
-from jbus import Refused, digest, questions, record, t3, verbs, wake
+from jbus import Refused, digest, item, questions, queue, record, steer, t3, verbs, wake
 from jbus.view import panels, state
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
@@ -126,6 +140,8 @@ FIXED = (
     "/healthz",
 )
 WRITE = "/answer"
+STEER = "/steer"
+WRITES = (WRITE, STEER)
 WHERE = "jbus view"
 BODY = 65536
 BATCH = 200
@@ -519,10 +535,16 @@ class App:
         }
 
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
-        """The one write: close each question the body numbers with the user's answer."""
+        """One of the two writes: an answer, or a steer."""
         name = self._project(query)
-        if path != WRITE or not name:
+        if path not in WRITES or not name:
             return NOT_FOUND
+        if path == STEER:
+            return self._steer(name, body)
+        return self._answer(name, body)
+
+    def _answer(self, name: str, body: bytes) -> Answer:
+        """Close each question the body numbers with the user's answer."""
         try:
             asked = json.loads(body)
             numbers, option, words = asked["numbers"], asked.get("option"), asked.get("words")
@@ -548,6 +570,95 @@ class App:
             (closed if went else refused).append(told)
         answer = {"at": state.iso(now), "closed": closed, "refused": refused}
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
+
+    def _steer(self, name: str, body: bytes) -> Answer:
+        """Steer one item, through `steer.steer`, by the user of the settings, in the view."""
+        try:
+            asked = json.loads(body)
+            id, action, seen = asked["item"], asked["action"], asked["seen_event"]
+            words, confirm = asked.get("words", ""), asked.get("confirm", False)
+            shaped = (
+                isinstance(id, str)
+                and 0 < len(id) <= 64
+                and action in {str(one) for one in item.Steer}
+                and isinstance(seen, str)
+                and bool(seen)
+                and isinstance(words, str)
+                and isinstance(confirm, bool)
+            )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            shaped = False
+        if not shaped:
+            return said(400, {"error": "a steer is an item, an action, words, seen_event, confirm"})
+        user, state_dir, now = self.sources.user, self.sources.state(name), self.clock()
+        box = wake.Box(state_dir, reader(self.sources).project(name))
+        basis = steer.Basis("view", state.iso(now), queue.Said(words, state.iso(now), WHERE, True))
+        try:
+            made = steer.steer(
+                state_dir,
+                box,
+                id,
+                action,
+                words,
+                seen,
+                user.user,
+                item.Where.VIEW,
+                confirm,
+                user=user,
+                basis=basis,
+            )
+        except Refused as error:
+            status = 400 if str(error) == steer.CONFIRM else 409
+            say = str(error).removeprefix("refused: ").replace("--confirm", "confirm")
+            return self._steered(name, status, id, say, now)
+        say = f"{id} {action} at {user.clock(now)}: {made['line']}"
+        if action == item.Steer.MESSAGE:
+            say = f"{say}. {self._message(name, made['id'], now)}"
+        return self._steered(name, 200, id, say, now)
+
+    def _message(self, name: str, line: str, now: datetime) -> str:
+        """Send a message steer's line to the item's home, as the command does. The answer
+        says whether it went, and where it did not, why, with no secret in it."""
+        hidden: tuple[str, ...] = ()
+        state_dir = self.sources.state(name)
+        try:
+            config = replace(
+                self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
+            )
+            hidden = config.secrets()
+            project = config.project(name)
+            client = t3.Client(config.server, config.token_path, timeout=SEND)
+            went = steer.deliver(
+                state_dir,
+                wake.Box(state_dir, project),
+                config.home(project),
+                client,
+                self.sources.user.user,
+                now,
+            )
+            one = went.get(line) or steer.sends(state_dir).get(line, {})
+            why = one.get("waits", "")
+        except (Refused, OSError) as error:
+            one, why = {}, str(error).removeprefix("refused: ")
+        except Exception as error:
+            traceback.print_exc(file=sys.stderr)
+            one, why = {}, f"the send failed ({type(error).__name__})"
+        if one.get("sent_at"):
+            return f"It went to the home's thread, {one['thread']}."
+        why = jbus.redact(why, hidden) or "it was not sent"
+        return f"The line is recorded and not yet sent, since {why}: the next pass sends it."
+
+    def _steered(self, name: str, status: int, id: str, say: str, now: datetime) -> Answer:
+        """What a steer's answer says: the sentence, and the item as the record has it now."""
+        now_is = item.items(self.sources.state(name)).get(id)
+        answer = {
+            "at": state.iso(now),
+            "item": id,
+            "say": say,
+            "state": str(now_is.state) if now_is else None,
+            "last_event": now_is.last_event if now_is else None,
+        }
+        return said(status, clean(answer, (state.repo(self.sources, name),)))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -599,7 +710,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path, _, query = self.path.partition("?")
-        if path != WRITE:
+        if path not in WRITES:
             self._refuse()
             return
         if not self._known():
@@ -623,7 +734,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(answer)
 
     def _refuse(self) -> None:
-        only = "POST" if self.path.partition("?")[0] == WRITE else "GET"
+        only = "POST" if self.path.partition("?")[0] in WRITES else "GET"
         self._send(said(405, {"error": f"this address only takes {only}"}), allow=only)
 
     def __getattr__(self, name: str) -> Any:
