@@ -85,16 +85,18 @@ Read: first $(reads); only after the scores are written, the judge's Result in \
 $(home)
 EOF
 }
-# The head of a brief as this script wrote it: the `Thread:` line jbus adds at a launch is
-# not the frame's.
-headof() { awk '/^## / {exit} !/^Thread:/ {print}' "${1}"; }
+# The head of a brief, and the head as jbus reads it for a brief's sha (`body` in
+# src/jbus/queue.py): with no `Home:`, `Thread:` or `Green main:` line, which a home and a
+# launch write in.
+headof() { awk '/^## / {exit} {print}' "${1}"; }
+bare() { grep -v '^Home:\|^Thread:\|^Green main:'; }
 # A brief is written when it is not there, kept as it was when its head is the same, and
 # written again for a new `have` only while its seat has not started: no Thread: line and
 # no Result yet.
 put() {
     if [ ! -e "${2}" ]; then
         printf '%s\n' "${1}" > "${2}" && echo "written: ${2##*/}"
-    elif [ "$(headof "${2}")" = "${1}" ]; then
+    elif [ "$(headof "${2}" | bare)" = "$(printf '%s\n' "${1}" | bare)" ]; then
         echo "as it was: ${2##*/}"
     elif [ "${3}" = again ] && ! grep -q '^Thread:\|^## Result' "${2}"; then
         printf '%s\n' "${1}" > "${2}" && echo "written again: ${2##*/}"
