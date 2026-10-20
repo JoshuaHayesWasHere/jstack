@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+from jbriefs import parse as briefs
 from jbus import dispatch, item, lavish, questions, queue, t3, verbs, waiting, wake, watch, word
 from jmerge.asked import Silent
 
@@ -112,6 +113,13 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         )
         if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
             print(said)
+        try:
+            notes = (config.home(project) / "notes.md").read_text()
+        except OSError:
+            notes = ""
+        warned = briefs.check_asked(text, notes)
+        if warned:
+            print(f"warning: {args.slug}'s {warned}")
         row = queue.fresh(state, args.slug)
         if row is not None:
             by = queue.who(queue.runner())
