@@ -225,7 +225,7 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
     return True
 
 
-def send(client: Client | None, thread: str, message: str, key: str) -> str:
+def post(client: Client | None, thread: str, message: str, key: str) -> str:
     """Send one queued message to a home's thread, under the retry key `key`, so a second
     send of the same key is the first. The answer is why it did not go, or nothing where T3
     Code took it. `jbus.item` sends a steer's message through here too."""
@@ -252,7 +252,7 @@ def deliver(run: Pass, client: Client | None) -> None:
             continue
         thread, name = home(run.home), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
-        waits = send(client, thread, MESSAGE.format(**asdict(one)), key)
+        waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
         if not waits:
             at = run.now.astimezone(UTC).isoformat(timespec="seconds")
             if _change(run, one, thread=thread, sent_at=at, waits=""):

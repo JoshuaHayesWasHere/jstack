@@ -852,7 +852,7 @@ def deliver(
     now: datetime,
 ) -> dict[str, dict[str, str]]:
     """Send each message steer that has not gone to the thread of the item's home, as one
-    queued message under the retry key `item|<project>|<id>|<line id>`, through `word.send`:
+    queued message under the retry key `item|<project>|<id>|<line id>`, through `word.post`:
     the command and a pass may both send one, and T3 Code takes it once. The answer is what
     became of each it tried, by line id. Why one waits is written once, and again when the
     reason changes, each time with a quiet event."""
@@ -874,7 +874,7 @@ def deliver(
         )
         thread = word.home(home)
         key = f"item|{project}|{line['item']}|{line['id']}"
-        waits = word.send(client, thread, message, key)
+        waits = word.post(client, thread, message, key)
         at = "" if waits else now.astimezone(UTC).isoformat(timespec="seconds")
         now_is = {"thread": thread if not waits else "", "sent_at": at, "waits": waits}
         tried[line["id"]] = now_is
