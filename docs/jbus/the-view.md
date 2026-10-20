@@ -1,6 +1,6 @@
 # The view
 
-`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it.
+`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it. The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit. When the code on disk is newer than the code the view runs, and starts, the view ends with status 75 (`NEWER_CODE` in `src/jbus/view/__init__.py`): the unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
 
 | Variable | What it does |
 |---|---|

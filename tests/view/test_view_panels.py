@@ -206,7 +206,7 @@ def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, pr
     assert process.ask("/panel/pulse.json?project=demo")["panel"] == "pulse"
     assert "sample" not in raw(process, "/")[1]
     (made / "panel.py").write_text(SAMPLE)
-    assert process.run.wait(timeout=20) == 0
+    assert process.run.wait(timeout=20) == view.NEWER_CODE
     process.start()
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
 
@@ -232,7 +232,7 @@ def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(s
     assert process.ask("/panel/sample.json?project=demo") is None
     assert process.code()["stale"] is False
     (made / "panel.js").write_text(LINKED)
-    assert process.run.wait(timeout=20) == 0
+    assert process.run.wait(timeout=20) == view.NEWER_CODE
     process.start()
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
     assert process.code()["stale"] is False

@@ -1,7 +1,6 @@
-# Runs when jbus.service fails: a pass that raised, or one stopped at its start timeout.
-# It tells every project's webhook, at most once an hour.
 [Unit]
 Description=jbus: tell the Chef that the last pass did not finish
+Documentation=file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Service]
 Type=oneshot
