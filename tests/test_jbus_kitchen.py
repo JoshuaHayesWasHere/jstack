@@ -14,7 +14,6 @@ import inspect
 import io
 import json
 import os
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -24,13 +23,14 @@ import traceback
 import urllib.parse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import NamedTuple
 
 import pytest
 
 import jbus
+import repo_template
 from jbriefs import meaning
 from jbus import cli, live, queue, t3, wake, word
+from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
 
 REPO = Path(__file__).parent.parent
@@ -485,69 +485,6 @@ def on_path(name):
     return ""
 
 
-IDENTITY = ("-c", "user.name=t", "-c", "user.email=t@example.com")
-
-
-class Template(NamedTuple):
-    """The repos a test copies in place of building its own, all at one commit of `main`.
-
-    `plain` is a checkout with that one commit and no remote, as `test_home_merge`'s `Home`
-    makes. `checkout` is the same with `origin`, a bare repo that has `main` as its default.
-    """
-
-    plain: Path
-    checkout: Path
-    origin: Path
-    main: str
-
-
-def built(root):
-    """The template, made in `root` by the git processes a kitchen's `repo` started each time.
-
-    The fetch names the origin's path in FETCH_HEAD, which a copy would keep, so the file
-    goes: nothing in the kitchen reads it. A build that failed partway leaves its files in
-    `root`, so the root is emptied first, and the next try fails on its own cause.
-    """
-    plain, checkout, origin = root / "plain", root / "checkout", root / "origin.git"
-    shutil.rmtree(root, ignore_errors=True)
-    root.mkdir(parents=True)
-    for args, cwd in (
-        (("init", "-q", "-b", "main", str(plain)), root),
-        (("commit", "-q", "--allow-empty", "-m", "start"), plain),
-    ):
-        subprocess.run(["git", *IDENTITY, *args], cwd=cwd, check=True)
-    shutil.copytree(plain, checkout, symlinks=True)
-    for args, cwd in (
-        (("init", "-q", "--bare", "-b", "main", str(origin)), root),
-        (("remote", "add", "origin", str(origin)), checkout),
-        (("push", "-q", "origin", "main"), checkout),
-        (("fetch", "-q", "origin"), checkout),
-        (("remote", "set-head", "origin", "main"), checkout),
-    ):
-        subprocess.run(["git", *IDENTITY, *args], cwd=cwd, check=True)
-    (checkout / ".git" / "FETCH_HEAD").unlink()
-    main = subprocess.run(
-        ["git", "rev-parse", "main"], cwd=plain, check=True, capture_output=True, text=True
-    )
-    return Template(plain, checkout, origin, main.stdout.strip())
-
-
-def copied(template, checkout, origin):
-    """The template's checkout and origin, copied to these paths, with no process started.
-
-    The copy's `remote.origin.url` is the one path the template wrote into it, and it is
-    pointed at the copy's own origin, so a push or a fetch never reaches the template. The
-    template has no worktree, so there is no `gitdir` to point anywhere.
-    """
-    shutil.copytree(template.checkout, checkout, symlinks=True, dirs_exist_ok=True)
-    shutil.copytree(template.origin, origin, symlinks=True, dirs_exist_ok=True)
-    config = checkout / ".git" / "config"
-    text, was = config.read_text(), f"\turl = {template.origin}\n"
-    if text.count(was) != 1:
-        raise AssertionError(f"the template's config names its origin {text.count(was)} times")
-    config.write_text(text.replace(was, f"\turl = {origin}\n"))
-
-
 class Side:
     """A second project of a kitchen: its own checkout, state, `projectId` and webhook."""
 
@@ -563,12 +500,8 @@ class Kitchen:
 
     `second` adds another project to the same config, T3 Code server, `gh` and `jmerge`.
 
-    Its repo is a copy of the worker's `template`, built in `template_root` on the worker's
-    first `repo`. conftest's `kitchen_template` gives the root.
+    Its repo is a copy of the worker's template (`repo_template`).
     """
-
-    template = None
-    template_root = None
 
     def __init__(self, tmp_path, monkeypatch):
         tmp_path.mkdir(exist_ok=True)
@@ -666,16 +599,7 @@ class Kitchen:
 
         It is a copy of the worker's template.
         """
-        copied(Kitchen.templated(), checkout, origin)
-
-    @classmethod
-    def templated(cls):
-        """The worker's template, built on the first call."""
-        if cls.template is None:
-            if cls.template_root is None:
-                raise RuntimeError("no template root: conftest's kitchen_template gives it")
-            cls.template = built(cls.template_root)
-        return cls.template
+        repo_template.copied(repo_template.templated(), checkout, origin)
 
     def second(self, name="other"):
         """Add a project to the config, after the ones it has. The answer is where it is.
@@ -1007,7 +931,7 @@ def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
     """Two kitchens push a commit each and see only their own. The template's origin is at the
     commit it was built with, after every test this worker ran before this one, and after this.
     """
-    kitchen_template = Kitchen.templated()
+    kitchen_template = repo_template.templated()
     assert said(kitchen_template.origin, "rev-parse", "main") == kitchen_template.main
     kitchens = {name: Kitchen(tmp_path / name, monkeypatch) for name in ("one", "two")}
     try:

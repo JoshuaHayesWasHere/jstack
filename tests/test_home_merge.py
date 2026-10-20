@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
+import repo_template
 from test_home_thread import as_read
-from test_jbus_kitchen import Kitchen
 
 SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -206,7 +206,9 @@ class Home:
         (self.stub / "gh").chmod(0o755)
         self.main = tmp_path / "code" / NAME
         self.main.mkdir(parents=True)
-        shutil.copytree(Kitchen.templated().plain, self.main, symlinks=True, dirs_exist_ok=True)
+        shutil.copytree(
+            repo_template.templated().plain, self.main, symlinks=True, dirs_exist_ok=True
+        )
         self.code = None
 
     def open_pull_request(
@@ -844,7 +846,7 @@ class Merged:
     def __init__(self, home, tmp_path):
         self.home = home
         self.origin = home.origin
-        template, git_dir = Kitchen.templated(), home.main / ".git"
+        template, git_dir = repo_template.templated(), home.main / ".git"
         if (git_dir / "refs" / "heads" / "main").read_text().strip() != template.main:
             raise AssertionError("Merged is built on a Home whose main has moved")
         shutil.copytree(template.origin, self.origin, symlinks=True)

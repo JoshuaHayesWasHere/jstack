@@ -21,7 +21,8 @@ that is killed takes its daemons with it (`tests/daemons.py` says how).
 
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
 one project. Its repo, a checkout and its origin, is a copy of one built once for each worker
-in the directory `kitchen_template` gives, so a kitchen starts no git process to make it.
+in the directory `kitchen_template` gives (`repo_template`), so a kitchen starts no git
+process to make it.
 
 A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`;
 one of a guarded path asks for `rules`, the package with a list that guards five paths, and
@@ -36,6 +37,7 @@ import os
 import pytest
 
 import daemons
+import repo_template
 from jbus import item, record
 from test_jbus_kitchen import Kitchen
 
@@ -111,9 +113,9 @@ def kitchen_template(tmp_path_factory):
 
     They are built on the first copy, so a run that asks for none starts no git process.
     """
-    Kitchen.template_root = tmp_path_factory.mktemp("kitchen-template")
+    repo_template.root = tmp_path_factory.mktemp("kitchen-template")
     yield
-    Kitchen.template, Kitchen.template_root = None, None
+    repo_template.template, repo_template.root = None, None
 
 
 @pytest.fixture
