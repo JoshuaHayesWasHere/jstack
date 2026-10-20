@@ -12,7 +12,7 @@ A step you do not do stays in the list as `skip: <reason>`.
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
 Read a principle in full when a step you are doing names it.
 
-**You own the frame and the one table.** Every worker is a thread of its own with its file under `$H`: a scout, `scouts/<slug>-<n>.md`, for a slice that only reads, and a crewmate, `tasks/<slug>-<n>.md`, for one that writes.
+**You own the frame and the one table**, and every worker is a thread of its own with its file under `$H`: a scout, `scouts/<slug>-<n>.md`, for a slice that only reads, and a crewmate, `tasks/<slug>-<n>.md`, for one that writes.
 Each is a thread the user can open, and a worker whose answer falls short is asked again in its own thread, where its context still is.
 No worker is a subagent.
 Each section named below is in `skills/home/SKILL.md`.
@@ -48,11 +48,11 @@ Each section named below is in `skills/home/SKILL.md`.
 
 Never done here, and who does it:
 
-- **A worker run as a subagent.** Nobody does: every worker is a scout or a crewmate, so its work and its reasons stay on disk.
-- **An eleventh thread in one step.** Nobody does: the next ten start when these are drained.
-- **A worker that starts workers, or opens a pull request.** Nobody does: the brief of step 6 opens the swarm's one pull request, or none is opened.
-- **A suite run by every worker.** Nobody does: the check command runs once, in the crewmate of step 6.
-- **Reading the workers' diffs.** The crewmate of step 6 does, and the home reads only the Reports and Results.
-- **A wait in a loop, or a stack of pull requests.** Nobody does: each thread's end wakes this one, and the swarm ends in one pull request or none.
+- **A worker run as a subagent**: nobody does, since every worker is a scout or a crewmate, so its work and its reasons stay on disk.
+- **An eleventh thread in one step**: nobody does, since the next ten start when these are drained.
+- **A worker that starts workers, or opens a pull request**: nobody does, since the brief of step 6 opens the swarm's one pull request, or none is opened.
+- **A suite run by every worker**: nobody does, since the check command runs once, in the crewmate of step 6.
+- **Reading the workers' diffs**: the crewmate of step 6 does, and the home reads only the Reports and Results.
+- **A wait in a loop, or a stack of pull requests**: nobody does, since each thread's end wakes this one, and the swarm ends in one pull request or none.
 
 **Hand over:** in this thread, to the user, when the last worker of the last step ended: the done predicate, the shape and the rule for a race, the table, each issue on one line with its evidence, every gap or dropout, and the pull request of step 6 if there is one.

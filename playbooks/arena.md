@@ -12,7 +12,7 @@ A step you do not do stays in the list as `skip: <reason>`.
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
 Read a principle in full when a step you are doing names it.
 
-**You own the frame, never the artifact.** Every seat is a crewmate of its own, a T3 thread with its brief in `$H/tasks/`, launched by jbus from its queue row: two runners, one judge and one graft.
+**You own the frame, never the artifact**, and every seat is a crewmate of its own, a T3 thread with its brief in `$H/tasks/`, launched by jbus from its queue row: two runners, one judge and one graft.
 Each is a thread the user can open, and its brief and Result outlast it.
 No seat is a subagent.
 
@@ -156,12 +156,12 @@ On `no row`, launch the runners by "Handing a task to a crewmate", and each late
 
 Never done here, and who does it:
 
-- **A seat run as a subagent.** Nobody does: every seat is a crewmate, so its work and its reasons stay on disk.
-- **A third runner or a second judge.** Nobody does: two runners and one judge.
+- **A seat run as a subagent**: nobody does, since every seat is a crewmate, so its work and its reasons stay on disk.
+- **A third runner or a second judge**: nobody does, since there are two runners and one judge.
   A task that needs more directions is two arenas.
-- **The rubric shown to a runner.** Nobody does: it is on the judge's and the graft's briefs only.
-- **The judge's pick taken unread.** The graft scores both before it reads the judge's Result, as its first **Done when** line says.
-- **A pull request from a runner or the judge.** Nobody opens one: the graft's is the arena's one pull request.
-- **Writing, reading or landing the artifact.** The crewmates write and read it, and `jmerge` merges the graft's pull request.
+- **The rubric shown to a runner**: nobody does, since it is on the judge's and the graft's briefs only.
+- **The judge's pick taken unread**: the graft scores both before it reads the judge's Result, as its first **Done when** line says.
+- **A pull request from a runner or the judge**: nobody opens one, since the graft's is the arena's one pull request.
+- **Writing, reading or landing the artifact**: the crewmates write and read it, and `jmerge` merges the graft's pull request.
 
 **Hand over:** in this thread, to the user, when the graft merges: the rubric, the base and why, the judge's verdict and where it differed, each graft with its candidate, any dropout or agreement, and the runner branches left to remove.
