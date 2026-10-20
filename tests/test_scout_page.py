@@ -8,6 +8,7 @@ import pytest
 
 import test_scout as scout
 from test_grill_page import a_path_of
+from test_prose_lines import unwrapped
 from test_sweep import REPORT, settles
 
 DISCONNECTED = "`status: browser_disconnected`"
@@ -65,7 +66,7 @@ def test_with_lavish_axi_the_built_page_is_served(scene, stub):
 
 def test_the_block_named_for_a_closed_tab_serves_the_page_again(scene, stub):
     """The sentence on `browser_disconnected` names a section and a command: that block is run."""
-    (said,) = [line for line in scout.SKILL.read_text().splitlines() if DISCONNECTED in line]
+    (said,) = [line for line in unwrapped(scout.SKILL.read_text()) if DISCONNECTED in line]
     section, command = re.search(r'the block of "([^"]+)" that runs `([^`]+)`', said).groups()
     assert [block.strip() for block in scout.given(section)].count(command) == 1
     page = scene.home_dir / "reports" / f"{scout.SLUG}.html"

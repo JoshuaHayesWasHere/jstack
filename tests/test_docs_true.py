@@ -32,6 +32,8 @@ from pathlib import Path
 
 import pytest
 
+from test_prose_lines import unwrapped
+
 REPO = Path(__file__).parent.parent
 README = REPO / "README.md"
 DOCS = REPO / "docs"
@@ -127,7 +129,7 @@ def missing(tree, page):
     for at in tree.walk():
         if at is not tree and not has(page, at.command):
             lacks.append(f"{at.command}: the verb")
-        beside = page.splitlines() if at is not tree else [page]
+        beside = unwrapped(page) if at is not tree else [page]
         named = [line for line in beside if has(line, at.command)]
         for word in (*at.flags, *at.choices):
             if not any(has(line, word) for line in named):
