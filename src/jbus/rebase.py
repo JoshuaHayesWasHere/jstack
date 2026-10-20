@@ -8,11 +8,10 @@ rewrites and a lease that names it, so a rebase never loses what was there.
 
 The message's key, `rebase|<slug>|<head 12>`, is its retry key at T3 Code and its mark in
 `sent.json`, so a pass that got no answer tries again and a head that was told is not told
-twice. A pull request is told to rebase once: a crew that rebased and is stale again at a new
-head gets a gate (`SECOND`), with the default that the pull request waits, and no second
-rebase. Main moving under a pull request's files is not told where `jmerge` can run the
-fresh check (`_CHECKABLE`): it tests the head over today's main itself, and a rebase is asked
-for by what that finds, a conflict or a failure.
+twice. A pull request is told to rebase once for main moving or a failure: a crew that
+rebased and is stale or failing again at a new head gets a gate (`SECOND`), with the default
+that the pull request waits, and no second rebase. A conflict with its base is told at every
+head: nothing but a rebase resolves it.
 
 A rebase that changed what the patch says is the other line `tell` reads. `jmerge` carries
 a review over a rebase whose range-diff changes no content, and waits on one that does:
@@ -79,19 +78,8 @@ EVENTS = {
 }
 _WAIT = re.compile(r"^wait (\d+) \S+: (.+)$")
 _HEAD = re.compile(r"\bfails on ([0-9a-f]{12}) over today's main")
-STALE = (
-    re.compile(r"\bchanged .+ after its check started"),
-    _HEAD,
-    re.compile(r"\bconflicts with its base"),
-)
-_CHECKABLE = re.compile(
-    re.escape(ready.MAIN_CHANGED)
-    .replace(r"\{default\}", r"\S+")
-    .replace(r"\{paths\}", ".+")
-    .replace(r"\{since\}", ".+")
-    .replace(r"\{needs\}", re.escape(ready.FRESH_CHECK))
-    + "$"
-)
+CONFLICT = re.compile(r"\bconflicts with its base")
+STALE = (re.compile(r"\bchanged .+ after its check started"), _HEAD, CONFLICT)
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
@@ -232,24 +220,9 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
     """Send each crew whose pull request `jmerge` calls stale, rebased with its content
-    changed, or short of lines nobody explained, one message, once per head.
-
-    A path main changed under a pull request is no reason to move its branch where `jmerge`
-    can run the fresh check: it tests the head over today's main itself, and a rebase is
-    asked for by what that finds. A repo that asks for the check has a `fresh-check` file.
-    """
-    fresh = ready.fresh_command(_read(run.home / "fresh-check"))
+    changed, or short of lines nobody explained, one message, once per head."""
     for number, reason, ask in filter(None, map(asks, lines)):
-        if fresh and _CHECKABLE.search(reason):
-            continue
         deliver(run, client, world, number, reason, ask)
-
-
-def _read(path) -> str:
-    try:
-        return path.read_text(errors="replace")
-    except OSError:
-        return ""
 
 
 def github(run: Pass, client: Client, world: World) -> None:
@@ -387,7 +360,8 @@ def post(
         return None
     if ask.head and not head.startswith(ask.head):
         return None
-    if ask.kind == "rebase" and any(mark.startswith(f"rebase|{slug}|") for mark in sent):
+    again = any(mark.startswith(f"rebase|{slug}|") for mark in sent)
+    if ask.kind == "rebase" and again and not CONFLICT.search(reason):
         run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
     try:

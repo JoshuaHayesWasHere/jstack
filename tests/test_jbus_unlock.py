@@ -178,7 +178,6 @@ def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_is_a_gate_not_a_
     assert gates(launched) == ["condition alpha: stale again after its one rebase"]
 
 
-
 @pytest.mark.parametrize(
     "first",
     [CHANGED + ": it needs a rebase", "it conflicts with its base"],
@@ -197,28 +196,6 @@ def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launc
     assert gates(launched) == []
 
 
-def checking(kitchen):
-    """The repo asks `jmerge` for a fresh check: its state has a `fresh-check` file."""
-    (kitchen.home / "fresh-check").write_text("make check\n")
-
-
-@pytest.mark.parametrize(
-    "reason",
-    [
-        "main changed src/jbus/cli.py after its check started at 09:41 EDT; it needs a fresh check",
-        "main changed a.py b.py c.py d.py e.py and 3 more after its check started at 09:41 EDT"
-        "; it needs a fresh check",
-    ],
-    ids=["one path", "many paths"],
-)
-def test_main_moving_under_a_pull_request_jmerge_can_check_tells_its_crew_nothing(launched, reason):
-    checking(launched)
-    out(launched, reason=reason)
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert sends(launched) == [] and launched.lines("rebase") == [] and gates(launched) == []
-
-
 @pytest.mark.parametrize(
     "reason",
     [
@@ -228,17 +205,13 @@ def test_main_moving_under_a_pull_request_jmerge_can_check_tells_its_crew_nothin
     ],
     ids=["guarded", "fails over main", "conflict"],
 )
-def test_a_real_conflict_or_failure_still_tells_the_crew_to_rebase_where_jmerge_checks(
-    launched, reason
-):
-    checking(launched)
+def test_a_real_conflict_or_failure_tells_the_crew_to_rebase(launched, reason):
     out(launched, reason=reason)
     launched.poll()
     assert [given["clientRequestId"] for given in sends(launched)] == ["rebase|alpha|cccccccccccc"]
 
 
 def test_a_fresh_check_that_is_queued_tells_its_crew_nothing(launched):
-    checking(launched)
     out(launched, reason="a fresh check is queued")
     launched.poll()
     assert sends(launched) == [] and gates(launched) == []
