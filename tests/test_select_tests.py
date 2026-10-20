@@ -489,6 +489,14 @@ def test_a_line_that_holds_two_entries_is_refused(label, lines):
         select.listed(text, label)
 
 
+@pytest.mark.parametrize("line", ["* `src/b/`", "-`src/b/`", "  - `src/b/`", "src/b/"])
+def test_a_list_line_that_is_not_an_entry_is_refused_and_does_not_end_the_list(line):
+    text = f"Paths:\n- `src/a/`\n{line}\n- `src/c/`\n"
+
+    with pytest.raises(select.Unread, match="not one entry"):
+        select.listed(text, "Paths")
+
+
 def test_a_map_line_with_two_entries_selects_all(tmp_path):
     two = ALPHA.replace("- `src/alpha/`\n- `docs/alpha.md`", "- `src/alpha/`, `docs/alpha.md`")
     repo = Repo(tmp_path, features={"README.md": README, "alpha.md": two, "beta.md": BETA})

@@ -43,7 +43,6 @@ selects more and never less.
 """
 
 import ast
-import itertools
 import os
 import re
 import subprocess
@@ -58,6 +57,7 @@ TEST = re.compile(r"tests/test_\w+\.py")
 EVERYTHING = ("pyproject.toml", "uv.lock", "tests/conftest.py")
 FIXTURES = "tests/fixtures/"
 BACKTICKED = re.compile(r"`([^`]+)`")
+LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 
@@ -79,16 +79,19 @@ def ready():
 
 def listed(text, label):
     """The entries under the first line of `text` that starts with `label`: one backticked entry
-    on each `- ` line after it, up to the first line that is not one. A label line that holds an
-    entry, or a `- ` line that holds other than one, is a map no line per entry keeps apart."""
+    on each `- ` line after it, up to a blank line, the next `<Label>:` line or the end. A label
+    line that holds an entry, or any other line before the list ends, is a map no line per entry
+    keeps apart."""
     lines = text.splitlines()
     for at, line in enumerate(lines):
         if line.startswith(f"{label}:"):
             if BACKTICKED.search(line):
-                raise Unread(f"{label}: holds an entry on its own line: {line}")
+                raise Unread(f"{label}: holds an entry on the label line: {line}")
             entries = []
-            for item in itertools.takewhile(lambda one: one.startswith("- "), lines[at + 1 :]):
-                found = BACKTICKED.fullmatch(item[2:])
+            for item in lines[at + 1 :]:
+                if not item.strip() or LABEL.match(item):
+                    break
+                found = BACKTICKED.fullmatch(item[2:]) if item.startswith("- ") else None
                 if not found:
                     raise Unread(f"{label}: has a line that is not one entry: {item}")
                 entries.append(found[1])
