@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from jbus import mirror
+from jmerge import green
 
 WORKTREE = "the worktree"
 LOCAL = "the local branch"
@@ -19,7 +20,7 @@ GATE = "the gate's ref"
 
 PAUSED = "paused"
 
-MARKERS = "refs/jstack/green-tree/"
+MARKERS = green.REF
 MARKER_DAYS = 7
 
 

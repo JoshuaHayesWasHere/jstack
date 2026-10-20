@@ -714,3 +714,56 @@ def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_te
     repo.base = repo.commit()
 
     assert "tests/test_beta.py" in repo.selected(repo.change(["src/beta/b.py"]))
+
+
+SMALL = {
+    "tests/conftest.py": "",
+    "tests/test_tree.py": "def test_tree():\n    pass\n",
+    **{f"tests/test_{name}.py": "def test_it():\n    pass\n" for name in "abcd"},
+}
+
+
+def outputs(repo, head, tmp_path):
+    """What the selection printed, its summary line, and what it gave the step's outputs."""
+    file, output = tmp_path / "summary.md", tmp_path / "output"
+    env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file), "GITHUB_OUTPUT": str(output)}
+    ran = repo.run(repo.base, head, env=env)
+    assert ran.returncode == 0, ran.stderr
+    given = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    return ran.stdout.splitlines(), SUMMARY.fullmatch(file.read_text().strip()), given
+
+
+def test_a_selection_of_four_fifths_of_the_test_files_or_more_is_the_whole_suite(tmp_path):
+    """Five test files: three changed and the cross-cutting one are four of them, 80%."""
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"])
+
+    printed, line, given = outputs(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert (line["selection"], line["files"], line["of"], line["forced"]) == (
+        "all",
+        "5",
+        "5",
+        "share",
+    )
+    assert given == {"selection": "all"}
+
+
+def test_a_selection_under_four_fifths_runs_only_what_it_selected(tmp_path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["tests/test_a.py", "tests/test_b.py"])
+
+    printed, line, given = outputs(repo, head, tmp_path)
+
+    assert printed == ["tests/test_a.py", "tests/test_b.py", "tests/test_tree.py"]
+    assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
+    assert given == {"selection": "some"}
+
+
+def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
+    head = repo.change(["pyproject.toml"])
+
+    printed, line, given = outputs(repo, head, tmp_path)
+
+    assert (printed, line["forced"], given) == (["all"], "pyproject.toml", {"selection": "all"})

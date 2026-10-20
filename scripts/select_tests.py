@@ -26,7 +26,9 @@ selects the `Tests:` of each feature that owns it. An edit to a feature file sel
 feature's tests: its `Tests:` and every test file that imports a module it owns. Its README
 lists the test files that read the whole tree (`Cross-cutting:`), which every change runs.
 
-It prints `all` when a changed path is one every test rests on: `pyproject.toml`, `uv.lock`,
+It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more: such
+a run costs about what the whole suite does, and run whole it leaves the tree's marker. And
+it prints `all` when a changed path is one every test rests on: `pyproject.toml`, `uv.lock`,
 `tests/conftest.py`, or a test module `tests/conftest.py` uses at its top level or in an
 autouse fixture. A test module only other fixtures use selects the tests that ask for those
 fixtures, directly or through fixtures that use them. A test file the change deleted is not
@@ -37,7 +39,9 @@ With `$GITHUB_STEP_SUMMARY` set it adds one line to that file: `check-fast selec
 files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n>
 forced-by=<path>`: the keys are always these, in this order, each cause's count is the files
 it selected on its own (they overlap), and `forced-by` is `-` unless the path it names made
-the selection `all`. A collector reads that line.
+the selection `all`, or `share` where its size did. A collector reads that line. With
+`$GITHUB_OUTPUT` set it gives the step the output `selection`, `all` or `some`: the check
+workflow leaves the tree's marker on a pass of `all`.
 
 The diff is two-dot, so for a pull request `<base>` is where it left main (`git merge-base`)
 or the parent of its merge commit: a base main has moved past adds main's own changes, which
@@ -445,15 +449,27 @@ def selection(changed):
 
 
 CAUSES = ("imports", "names", "features", "cross-cutting")
+WHOLE = 0.8
+
+
+def total():
+    return len([one for one in modules().values() if TEST.fullmatch(one)])
+
+
+def whole(tests, why):
+    """The selection as it is run: `all` where it is `WHOLE` of the test files or more, which
+    costs about what the whole suite does and, run whole, leaves the tree's marker."""
+    if tests != ["all"] and len(tests) >= WHOLE * total():
+        return ["all"], {**why, "forced-by": "share"}
+    return tests, why
 
 
 def summary(tests, why, changed):
-    total = len([one for one in modules().values() if TEST.fullmatch(one)])
     chosen = "all" if tests == ["all"] else "some"
-    count = total if chosen == "all" else len(tests)
+    count = total() if chosen == "all" else len(tests)
     causes = " ".join(f"{key}={why.get(key, 0)}" for key in CAUSES)
     return (
-        f"check-fast selection={chosen} files={count} of={total} changed={len(changed)} "
+        f"check-fast selection={chosen} files={count} of={total()} changed={len(changed)} "
         f"{causes} forced-by={why.get('forced-by', '-')}"
     )
 
@@ -475,10 +491,14 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
+    tests, why = whole(tests, why)
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             file.write(summary(tests, why, changed) + "\n\n")
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+            file.write(f"selection={'all' if tests == ['all'] else 'some'}\n")
 
 
 if __name__ == "__main__":

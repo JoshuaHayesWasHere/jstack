@@ -54,10 +54,44 @@ jobs:
           version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
-      # A fast run leaves no marker and asks for none: a marker says the full suite passed.
-      # scripts/select_tests.py adds its selection to the job summary, as one line.
+      # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
+      - name: green tree
+        id: tree
+        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # scripts/select_tests.py adds its selection to the job summary, as one line, and gives
+      # this step the output `selection`: `all` where it ran the whole suite, which it does
+      # when its selection is 80% of the test files or more.
       - name: make check-fast
+        id: suite
         run: make check-fast BASE=HEAD^1
+      # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
+      # tree, and a fast run leaves none, since a marker says the full suite passed. A later
+      # run of the same tree, main's after a squash merge or jmerge's fresh check, skips the
+      # suite on it. A marker that cannot be kept costs that skip and nothing else.
+      - name: green tree marker
+        id: marker
+        if: steps.suite.outcome == 'success' && steps.suite.outputs.selection == 'all'
+        env:
+          NAME: ${{ steps.tree.outputs.name }}
+        run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload
+        if: steps.marker.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ steps.tree.outputs.name }}
+          path: ${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}
+          retention-days: 7
+          if-no-files-found: error
+      # Whether the suite ran whole, and on which tree, in the job summary and as the job's
+      # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had.
+      - name: full suite
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        continue-on-error: true
+        env:
+          FULL: ${{ steps.suite.outputs.selection == 'all' }}
+          NAME: ${{ steps.tree.outputs.name }}
+        run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}"'
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
   # real browser are not in it: browser.yml runs them, nightly and on a release.
   full:
