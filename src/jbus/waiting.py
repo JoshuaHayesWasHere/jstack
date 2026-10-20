@@ -165,7 +165,7 @@ def verb(name: str) -> str:
     return next(one.verb for one in KINDS if one.name == name)
 
 
-def shown() -> list[dict[str, str]]:
+def shown() -> list[dict[str, Any]]:
     """The kinds as the page has them, in the order it shows them."""
     return [asdict(one) for one in sorted(KINDS, key=lambda one: one.shown)]
 
