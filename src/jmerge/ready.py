@@ -109,6 +109,7 @@ _REFUSED = "{file}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
+_FRESH_KEPT = ", kept over {tip}: main's change since meets none of its tests"
 
 
 @dataclass(frozen=True)
@@ -1026,6 +1027,12 @@ def short_on_main(
 def fresh_note(command: str, head: str, tip: str) -> str:
     """What a `ready` or `merged` line says of a local check that stood in for a stale one."""
     return _FRESH_NOTE.format(command=command, passed=PASSED, head=head[:12], tip=tip[:12])
+
+
+def fresh_kept(command: str, head: str, was: str, tip: str) -> str:
+    """What a `ready` or `merged` line says of a local check that passed over an older main,
+    which still stands since main's change after it meets none of the pull request's tests."""
+    return fresh_note(command, head, was) + _FRESH_KEPT.format(tip=tip[:12])
 
 
 def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:

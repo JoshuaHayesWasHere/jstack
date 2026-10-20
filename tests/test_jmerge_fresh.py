@@ -264,7 +264,7 @@ def test_a_file_the_pull_request_renamed_is_one_of_its_paths(kitchen):
     """GitHub lists a rename under its new path alone: the one it left is asked for."""
     kitchen.crew("two", 7, {"b.txt": None, "c.txt": LINES}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("b.txt\n")
-    kitchen.pulls["two"]["files"] = [merge.file("c.txt", renamed=True)]
+    kitchen.pulls["two"] |= {"files": [merge.file("c.txt", renamed=True)], "changedFiles": 1}
     kitchen.checked("two", STARTED)
     kitchen.on_main({"b.txt": "theirs\n" + LINES})
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
@@ -327,15 +327,27 @@ def test_a_pass_over_an_older_main_stands_when_main_moved_only_off_its_tests(sel
         pytest.param({"pyproject.toml": "[project]\nname = 'other'\n"}, id="all"),
     ],
 )
-def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests(
-    selected, theirs
-):
+def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests(selected, theirs):
     kitchen, checked = selected
     kitchen.on_main(theirs)
     before = known(kitchen)
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
     settled(kitchen, before)
     assert len(checked.ran()) == 2 and checked.known()["7"]["main"] == kitchen.tip()
+
+
+def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
+    """Main's checkout has `two.py` import nothing: over the head, `tests/test_two.py`
+    reaches `one.py` too, so main's change to it meets the pull request's tests."""
+    kitchen = Kitchen(tmp_path, SELECTED)
+    checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen)
+    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
+    before = known(kitchen)
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen, before)
+    assert len(checked.ran()) == 2
 
 
 def test_a_pass_stands_only_in_a_repo_that_says_what_its_tests_select(kitchen):
@@ -357,12 +369,15 @@ def test_more_than_five_files_are_counted_not_named(kitchen):
     assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format(named)}"]
 
 
-def test_a_protected_pull_request_is_held_for_the_user_only_once_it_is_fresh(kitchen):
+def test_a_protected_pull_request_is_held_for_the_user_and_starts_no_fresh_check(kitchen):
+    (kitchen.home.state / "fresh-check").write_text("true\n")
     kitchen.crew("two", 7, {"secrets/prod.json": "{}\n", "b.txt": LINES + "ours\n"})
     kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
+    held = [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
+    assert kitchen.run() == held
+    assert not (kitchen.home.state / "fresh.json").exists()
     kitchen.checked("two", AFTER)
-    assert kitchen.run() == [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
+    assert kitchen.run() == held
     assert kitchen.calls() == []
 
 
@@ -603,14 +618,14 @@ class Checked:
     """A repo that asks for a fresh check, with a pull request main changed a file under:
     on other lines, so the two merge. The command is a script that counts its runs."""
 
-    def __init__(self, kitchen, script, path="b.txt"):
+    def __init__(self, kitchen, script, path="b.txt", ours=LINES + "ours\n"):
         self.kitchen = kitchen
         self.runs = kitchen.tmp / "runs"
         self.script = kitchen.tmp / "check.sh"
         self.wrote(script)
         self.command = f"sh {self.script}"
         (kitchen.home.state / "fresh-check").write_text(f"{self.command}\n")
-        self.head = kitchen.crew("two", 7, {path: LINES + "ours\n"})
+        self.head = kitchen.crew("two", 7, {path: ours})
         self.main = kitchen.on_main({path: "theirs\n" + LINES})
 
     def wrote(self, script):
@@ -769,7 +784,7 @@ def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen
     *_, judged = here.waits(one, "main")
     assert judged.fresh == checked.passed()
     other = cli.Fresh(home.main, home.state)
-    assert other.of(8, checked.head, checked.main) == ("a fresh check is queued", "")
+    assert other.of(8, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
 
 
 def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(kitchen):
@@ -842,9 +857,9 @@ def recorded(kitchen, number, limit=60.0):
 def checked_of(kitchen, fresh, checked):
     """What `Fresh.of` says of the pull request once the check it started has ended."""
     before = known(kitchen)
-    assert fresh.of(7, checked.head, checked.main) == (ready.FRESH_QUEUED, "")
+    assert fresh.of(7, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
     settled(kitchen, before)
-    return fresh.of(7, checked.head, checked.main)
+    return fresh.of(7, checked.head, checked.main, ("b.txt",))
 
 
 def markers(kitchen):
