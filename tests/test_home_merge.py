@@ -308,7 +308,7 @@ def pushed_on(home):
 
 def test_a_pull_request_fixed_after_its_findings_is_ready_at_the_fixed_head(home):
     real = pushed_on(home)
-    text = brief(review("findings"), f"Fixed: {PUSHED}\n")
+    text = brief(review("findings"), f"{ENDED}Fixed: {PUSHED}\n")
     (home.tasks / "alpha.md").write_text(real(text))
     home.open_pull_request(real(PUSHED))
     assert home.ready() == [f"ready 7 {real(PUSHED)} alpha alpha"]
@@ -347,7 +347,10 @@ def test_a_rebase_hold_that_is_lifted_or_of_another_head_holds_nothing(home):
 
 
 def test_findings_all_declined_are_ready_at_the_reviewed_head(home):
-    result = "Fixed: none needed, the finding is about code the task does not own\n"
+    result = (
+        "Finding: not fixed, it is wrong, because the task does not own it\n"
+        "Fixed: none needed, the finding is about code the task does not own\n"
+    )
     (home.tasks / "alpha.md").write_text(brief(review("findings"), result))
     home.open_pull_request(REVIEWED)
     assert home.ready() == [f"ready 7 {REVIEWED} alpha alpha"]
@@ -388,7 +391,8 @@ LATER = "c" * 40
 
 SECOND_PASS = {
     "a fix inside the files the findings named": (
-        f"Fixed: {PUSHED}\nSecond pass: none, the fix stayed inside the files the findings named\n",
+        f"{ENDED}Fixed: {PUSHED}\n"
+        "Second pass: none, the fix stayed inside the files the findings named\n",
         review("findings"),
         PUSHED,
     ),
@@ -425,7 +429,7 @@ NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written
 
 FIX_REVIEW = {
     "a fix under tests only": (
-        f"Fixed: {PUSHED}\nScoped review: none, the fix changed files under tests/ only\n",
+        f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed files under tests/ only\n",
         review("findings"),
         PUSHED,
     ),
@@ -474,7 +478,7 @@ def test_a_fix_whose_review_is_owed_waits_for_it_and_then_for_each_of_its_findin
     assert ready.short_of(brief(unnamed, no_head), PUSHED) == NO_FIX_REVIEW
 
 
-FIXED = brief(review("findings"), f"Fixed: {PUSHED}\n")
+FIXED = brief(review("findings"), f"{ENDED}Fixed: {PUSHED}\n")
 NO_ORIGIN = "main could not be fetched to see what its rebase kept"
 
 SHORT = {
@@ -484,7 +488,7 @@ SHORT = {
         "its findings are not handled: the Result has no Fixed line",
     ),
     "a head that moved after the fixed line, and a finding with no ending": (
-        FIXED,
+        brief(review("findings"), f"Fixed: {PUSHED}\n"),
         {"head": "c" * 40},
         "its findings are not handled: 1 of 1 have no Finding line",
     ),
@@ -516,7 +520,9 @@ SHORT = {
     "findings declined, then a push after the rebase": (
         brief(
             review("findings"),
-            f"Rebase: changed a.py, head {PUSHED}\nFixed: none needed, not this task's code\n",
+            f"Rebase: changed a.py, head {PUSHED}\n"
+            "Finding: not fixed, it is wrong, because a.py:1 is not this task's code\n"
+            "Fixed: none needed, not this task's code\n",
         ),
         {"head": "c" * 40},
         NO_ORIGIN,
@@ -1366,7 +1372,7 @@ def test_a_rebase_that_changed_the_patch_and_says_it_did_not_waits(merged):
     rebased = Rebased(merged, "a.txt")
     why = "its Rebase line says the patch is unchanged, and the rebase changed it"
     assert rebased.says(UNCHANGED) == f"wait 7 {URL}: {why}"
-    fixed = f"Fixed: {rebased.head}\n"
+    fixed = f"{ENDED}Fixed: {rebased.head}\n"
     assert rebased.says(UNCHANGED, reviewed="findings", more=fixed) == f"wait 7 {URL}: {why}"
     assert rebased.says(CHANGED, "--check", reviewed="findings", more=fixed) == (
         scoped(merged, rebased)
@@ -1378,7 +1384,7 @@ def test_a_rebase_between_commits_the_main_checkout_does_not_have_waits(merged, 
     rebased = Rebased(merged, "b.txt")
     missing = "c" * 40
     line = UNCHANGED.replace(f"{{{gone}}}", missing)
-    more = f"Fixed: {rebased.head}\n" if gone == "head" else ""
+    more = f"{ENDED}Fixed: {rebased.head}\n" if gone == "head" else ""
     assert rebased.says(line, more=more, reviewed="findings" if more else "clean") == (
         f"wait 7 {URL}: its Rebase line cannot be checked: "
         f"the patch of {missing} cannot be worked out in the main checkout"

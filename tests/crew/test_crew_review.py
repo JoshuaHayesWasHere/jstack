@@ -97,7 +97,7 @@ ANSWERED_ONE = "Finding: not fixed, the file as a whole, because it is the brief
     ],
 )
 def test_every_finding_has_its_ending_before_the_fixed_line_is_written(brief, says, tmp_path):
-    assert said(tmp_path, "The review", "Finding:", brief) == [says]
+    assert said(tmp_path, "The review", "--left", brief) == [says]
 
 
 def by(who, findings, head="a" * 40):
@@ -158,7 +158,7 @@ LAUNCHED = "Reviewer: mcp:codex\nReviewer: mcp:cursor\n"
     ],
 )
 def test_with_two_reviewers_the_findings_wait_for_both_and_are_one_review(brief, says, tmp_path):
-    assert said(tmp_path, "The review", "Finding:", brief) == [says]
+    assert said(tmp_path, "The review", "--left", brief) == [says]
 
 
 OLD_NONE = "Second pass: none, the fix stayed inside the files the findings named"
@@ -314,7 +314,7 @@ def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_chec
     fix = opened(tmp_path, "docs/a.md")
     stub = tmp_path / "stub"
     stub.mkdir()
-    for tool in ("gh", "uv"):
+    for tool in ("gh",):
         (stub / tool).write_text(f"#!/bin/sh\necho {tool} >> {stub}/calls\nexit 1\n")
         (stub / tool).chmod(0o755)
     brief = BRIEF + owed(fix, "the fix changed docs/a.md") + fix.review
@@ -325,7 +325,12 @@ def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_chec
         capture_output=True,
         text=True,
         cwd=fix.work,
-        env={**os.environ, "H": str(fix.state), "PATH": path},
+        env={
+            **os.environ,
+            "H": str(fix.state),
+            "T": str(SKILL.parents[2] / "templates"),
+            "PATH": path,
+        },
         check=True,
     )
     assert ran.stdout.splitlines() == [launch(fix, fix.saw, fix.fixed)]
@@ -352,7 +357,7 @@ def declined(findings=INFO):
 def test_a_review_of_info_findings_all_declined_pushes_nothing_and_is_handled(tmp_path):
     fix = Fix(tmp_path, [], INFO)
     brief = merge.brief(fix.review, declined())
-    assert said(fix.state, "The review", "Finding:", brief) == [NONE_FIXED]
+    assert said(fix.state, "The review", "--left", brief) == [NONE_FIXED]
     assert said(fix.state, "The review", "Second pass:", brief, cwd=fix.work) == [NOTHING_PUSHED]
     home = merge.Home(tmp_path)
     handled = f"{NOTHING_PUSHED.removeprefix('write ')}\n{ALL_INFO}"
@@ -364,7 +369,7 @@ def test_a_review_of_info_findings_all_declined_pushes_nothing_and_is_handled(tm
 def test_a_warning_fixed_beside_info_findings_declined_gets_the_review_of_its_fix(tmp_path):
     fix = Fix(tmp_path, ["a.py"], ["warning a.py:3 it runs twice", *INFO])
     brief = merge.brief(fix.review, FIXED_ONE + declined())
-    assert said(fix.state, "The review", "Finding:", brief) == [
+    assert said(fix.state, "The review", "--left", brief) == [
         "write Fixed: <the head you pushed>, 3 findings each have their ending"
     ]
     assert said(fix.state, "The review", "Second pass:", brief, cwd=fix.work) == [
@@ -384,7 +389,7 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
     reviews = guarded.proven("clean", rebased.before) + section
     rebased.brief(reviews, declined())
     state, brief = proven_merged.home.state, (proven_merged.home.tasks / "alpha.md").read_text()
-    assert said(state, "The review", "Finding:", brief) == [NONE_FIXED]
+    assert said(state, "The review", "--left", brief) == [NONE_FIXED]
     assert said(state, "The review", "Second pass:", brief, cwd=proven_merged.tree) == [
         NOTHING_PUSHED
     ]
