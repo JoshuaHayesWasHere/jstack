@@ -46,6 +46,10 @@ class Quiet(Scene):
         super().__init__(tmp_path)
         self.bin = tmp_path / "bin"
         self.bin.mkdir()
+        tools = Path(sys.executable).parent
+        stub = f'#!/bin/sh\n[ "$1 $2" = "run --project" ] || exit 64\nshift 3\nexec "{tools}/$@"\n'
+        (self.bin / "uv").write_text(stub)
+        (self.bin / "uv").chmod(0o755)
         self.switch = self.home_dir / "home-thread"
         (self.home_dir / "tasks").mkdir()
         self.brief = self.home_dir / "tasks" / f"{SLUG}.md"
@@ -55,9 +59,6 @@ class Quiet(Scene):
     def jbus(self, repo=NAME):
         """The real `jbus`, with one project: the repo whose home's directory is `repo`."""
         (self.bin / "jbus").symlink_to(Path(sys.executable).parent / "jbus")
-        stub = '#!/bin/sh\n[ "$1 $2" = "run --project" ] || exit 64\nshift 3\nexec "$@"\n'
-        (self.bin / "uv").write_text(stub)
-        (self.bin / "uv").chmod(0o755)
         config = self.user / ".config" / "jbus" / "config.toml"
         config.parent.mkdir(parents=True)
         config.write_text(
