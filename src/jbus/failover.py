@@ -33,7 +33,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import jroles
-from jbus import dispatch, mirror, read_json, verbs
+from jbus import dispatch, mirror, read_json, threads, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import World, unfinished
@@ -47,8 +47,7 @@ CARRY_ON = (
     "over."
 )
 CREW = (
-    "read `tasks/{slug}.md` and your worktree's `git status` and `git log` first, keep what is "
-    "committed."
+    "read `{brief}` and your worktree's `git status` and `git log` first, keep what is committed."
 )
 HOME = "read your handoff and `jbus`'s view of your queue first."
 _WORD = re.compile(r"\S+")
@@ -230,8 +229,16 @@ def handle(
         client.moves[at] = (selection, instances)
         moved = {**selection, "instanceId": choice.instance}
         client.call("t3_thread_configure", {"threadId": at, "modelSelection": moved})
-    where = CREW.format(slug=slug) if slug else HOME
-    message = CARRY_ON.format(text=cap.text, instance=choice.instance, where=where)
+    where = CREW.format(brief=run.home / "tasks" / f"{slug}.md") if slug else HOME
+    message = threads.resume_message(
+        CARRY_ON,
+        str(thread.get("title", "")),
+        run.home,
+        text=cap.text,
+        instance=choice.instance,
+        where=where,
+        slug=slug,
+    )
     asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
     client.call("t3_thread_send", asked)
     options = ", ".join(f"{o.get('id')}={o.get('value')}" for o in selection.get("options") or [])

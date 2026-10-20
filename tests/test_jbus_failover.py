@@ -86,7 +86,10 @@ def test_the_16th_weekly_failure_moves_the_thread_once_to_prime_with_its_model(k
     assert carry["threadId"] == THREAD and carry["mode"] == "queue"
     assert carry["clientRequestId"] == f"failover|{THREAD}|run-1"
     assert WEEKLY in carry["message"] and f"now on {PRIME}" in carry["message"]
-    assert "read `tasks/alpha.md`" in carry["message"]
+    brief = kitchen.home / "tasks" / "alpha.md"
+    assert f"read `{brief}`" in carry["message"]
+    assert "skills/crew/SKILL.md" in carry["message"]
+    assert f"jbriefs --skills {brief}" in carry["message"]
     line = (
         f"failover alpha: seven_day limit until {WEEKLY_RESET.isoformat()}, carry-on on "
         f"claudeAgent to {PRIME}, model claude-sonnet-5-5, effort=high, fastMode=True"

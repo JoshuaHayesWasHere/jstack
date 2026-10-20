@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import jroles
 from jbus import Config, Refused, queue, read_json, verbs, write_json
 from jroles import pool
 
@@ -427,8 +428,14 @@ def _t3(args: argparse.Namespace, config: Config) -> int:
     }
     if config.runtime_mode:
         arguments["runtimeMode"] = config.runtime_mode
-    routed = pool.route("crew", datetime.now(UTC))
-    if routed and routed.choice.instance:
+    try:
+        routed = pool.route("crew", datetime.now(UTC))
+    except jroles.Refused as error:
+        raise Refused(f"refused: {error}") from error
+    if routed and routed.choice.instance is None:
+        print(f"no launch: {routed.choice.why}")
+        return pool.WAIT
+    if routed:
         arguments["modelSelection"] = routed.as_json()
     made = client.call("t3_thread_launch", arguments)
     print(made.get("threadId") or made)
