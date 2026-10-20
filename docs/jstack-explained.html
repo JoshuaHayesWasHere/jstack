@@ -425,7 +425,7 @@
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
 <!-- built: skill links, Settle the shape before code -->
-<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-sharpen">sharpen</a>
+<a href="#skill-grilling">grilling</a><a href="#skill-architect">architect</a><a href="#skill-in-your-own-words">in-your-own-words</a><a href="#skill-sharpen">sharpen</a><a href="#skill-figure-it-out">figure-it-out</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Understand what is there</b><div class="names">
@@ -435,7 +435,7 @@
 </div></div>
 <div class="tile"><b>Distrust the change</b><div class="names">
 <!-- built: skill links, Distrust the change -->
-<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a><a href="#skill-create-formal-verification-skill">create-formal-verification-skill</a>
+<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a><a href="#skill-create-formal-verification-skill">create-formal-verification-skill</a><a href="#skill-create-verification-skill">create-verification-skill</a><a href="#skill-maintain-verification-skill">maintain-verification-skill</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Catch up and keep track</b><div class="names">
@@ -474,6 +474,7 @@
 <article class="card" id="skill-architect"><h4>/architect</h4><p>Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it.</p><p class="when">Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's <code>Design:</code> line names.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a crewmate</span></div></article>
 <article class="card" id="skill-in-your-own-words"><h4>/in-your-own-words</h4><p>Restates in its own words what it thinks the operator's goals are and the problem they are trying to solve.</p><p class="when">Reach for it before work starts, to check the goal was heard.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-sharpen"><h4>/sharpen</h4><p>Makes a task deeper, not bigger: what an expert would do, from what raw material, with which methods and tools, and what outside the agent shows the result is right. Then it rewrites the prompt to ask for that, and does not do the task.</p><p class="when">Reach for it before a research, perf, analysis or outcome task goes out.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-figure-it-out"><h4>/figure-it-out</h4><p>Frames a task no playbook fits: done as a check that can fail, the scope counted, the rigor and why, the riskiest unit first and the check built before the work. In a home it plans the units as entries, each crewmate keeping a decision log.</p><p class="when">Reach for it when a large or many-part task matches no playbook.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Understand what is there <small>Read before changing.</small></h3><div class="cards">
@@ -490,6 +491,8 @@
 <article class="card" id="skill-tdd"><h4>/tdd</h4><p>Fixes a bug test-first: a focused regression test that fails before the fix and passes after it.</p><p class="when">Reach for it when a bug has a clear, cheap test path.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-benchmark-checklist"><h4>/benchmark-checklist</h4><p>Vets a measured number before it is reported: its limiter, its tuning, its errors, whether it repeats, and whether the work happened.</p><p class="when">Reach for it when a speedup, a regression or an eval result is about to be believed.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>perf-issue</code>, <code>hillclimb</code></span></div></article>
 <article class="card" id="skill-create-formal-verification-skill"><h4>/create-formal-verification-skill</h4><p>Finds the part of the code where a bug costs the most and tests reach the least, verifies one property of it with the tool that fits, and leaves a project-local skill that rechecks it on every change.</p><p class="when">Reach for it when a race, a retry, a state machine, a parser or unsafe code needs more than tests.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-create-verification-skill"><h4>/create-verification-skill</h4><p>Writes the repo's verify skill in <code>.claude/skills/verify-&lt;app&gt;/</code>: how to launch the app, check it, drive each feature the way a user does, keep the evidence and clean up, with a map of the features. It runs the skill once end to end before it hands it over.</p><p class="when">Reach for it when a repo has no scripted way to prove a change works in the real app.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a brief with the <code>authoring-a-skill</code> playbook</span></div></article>
+<article class="card" id="skill-maintain-verification-skill"><h4>/maintain-verification-skill</h4><p>Keeps the repo's verify skill honest: one scout per feature file reads the feature from source and reports the drift, then one crewmate drives every feature live and ships at most one pull request of proven corrections.</p><p class="when">Reach for it, in the home, when the app has changed since the verify skill was written or last checked.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Catch up and keep track <small>For the operator after time away.</small></h3><div class="cards">

@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own the contract. The structure changes. The behaviour does not.** This is not `playbooks/feature.md`, which adds behaviour, nor `playbooks/bug-fix.md`, which corrects it.
 
 1. Pin the behaviour contract first. Learn the contract from the files the brief names, then write a characterization test, a snapshot, or an equivalence harness that captures what the code does now, before any structure moves (`principles/principle-test-behavior-not-implementation.md`). If the area has no coverage, write the pin before touching structure. Type check and lint are not a pin. Run the pin and see it pass on the untouched code.

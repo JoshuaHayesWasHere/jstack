@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own the design decision, not the code.** The prototype is a throwaway instrument, and the real build is another task. This is the one playbook where the smallest change of `principles/principle-laziness-protocol.md` and the usual bar of proof turn over: speed over polish, code quality does not matter, no planning. The rigour is in picking the right design cheaply. Propose a variant nobody asked for, throw an approach away and try another.
 
 1. Write the decision the prototype exists to make, in one line, and what you would have to see to settle it. No decision, no prototype: a brief that asks for a thing to be built is `playbooks/feature.md`'s. Stop and say so in the Result.

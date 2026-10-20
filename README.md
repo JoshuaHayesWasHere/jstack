@@ -135,7 +135,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 34 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`skills/` holds 36 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -148,7 +148,7 @@ Each command has one page.
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
 | `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. For a brief, a scout's request or a plain question it runs `jbriefs pick` and names the role to type (`/crew <slug>`, `/scout <slug>` or `/home`), the playbook and the skills the words call for, each with its file. "Get set up" points at the Quickstart above. |
 
-The other 26 are loaded by name. `/setup-pstack` runs `install.sh --setup` on this machine and reports what is left for you, `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
+The other 28 are loaded by name. `/setup-pstack` runs `install.sh --setup` on this machine and reports what is left for you, `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
 
 ## What is in the repo
 
@@ -163,7 +163,7 @@ The other 26 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `install.sh` | Installs, checks and removes jstack on a machine. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
-| `.cursor/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
+| `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
 
 ## Develop
 
@@ -179,7 +179,7 @@ The Python code is one `uv` project.
 
 `tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` (`.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook. Its `launch.sh` prints `ready:` only after `jbus --project demo queue show` and `jmerge --check` have run there. Its `doctor.sh` fails a feature whose seed the sandbox lacks: `bad  <feature>: seed lacks <x>`.
+`verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook. Its `launch.sh` prints `ready:` only after `jbus --project demo queue show` and `jmerge --check` have run there. Its `doctor.sh` fails a feature whose seed the sandbox lacks: `bad  <feature>: seed lacks <x>`.
 
 ## License
 

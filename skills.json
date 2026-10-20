@@ -194,6 +194,12 @@
       "source": "pstack"
     },
     {
+      "name": "create-verification-skill",
+      "kind": "skill",
+      "path": "skills/create-verification-skill/SKILL.md",
+      "source": "pstack"
+    },
+    {
       "name": "crew",
       "kind": "skill",
       "path": "skills/crew/SKILL.md",
@@ -251,6 +257,12 @@
       "name": "ketchup",
       "kind": "skill",
       "path": "skills/ketchup/SKILL.md",
+      "source": "pstack"
+    },
+    {
+      "name": "maintain-verification-skill",
+      "kind": "skill",
+      "path": "skills/maintain-verification-skill/SKILL.md",
       "source": "pstack"
     },
     {
