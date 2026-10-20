@@ -39,7 +39,7 @@ Every thread is sent one queued carry-on with the retry key `failover|<thread>|<
 A thread that did not fail on a limit is never moved, and nothing moves a working thread: a thread stays on its account until a cap stops it, and is not moved back once the other account is free.
 While every instance of the pool is capped nothing is sent: one `stall` alert, a user level event keyed by the first reset, names it, and the first pass after that reset sends the carry-on.
 The threads it moves are every unsettled thread of the project that failed: a crew, a reviewer or a scout by its title (`crew: `, `review: `, `scout: `), a crew a brief names on a `Thread:` line, and the homes in a `home-id`.
-It leaves one that owes nothing: a crew whose task merged or ended clean, a reviewer whose brief's last Review has a verdict, a scout whose Report is written.
+It leaves one that owes nothing: a crew whose task merged or ended clean, a reviewer whose task is over and whose brief's last Review has a verdict (a scoped or second-pass reviewer of a task still out owes its own pass), a scout whose Report is written.
 A reviewer's or a scout's `failover` and `stall` events are kept under its thread's id, so they are never its crew's.
 `jbus failover --replay <items.json> --thread <id>` runs one recorded cap through the same move for one live thread and prints it, with the reset moved to as far from now as it was from the recording and the cap kept out of the ledger; with `--dry-run` it prints the move and writes nothing.
 

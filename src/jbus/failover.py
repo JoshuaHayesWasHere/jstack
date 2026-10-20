@@ -25,17 +25,17 @@ instance is free, since each move is a handoff that loses context. It moves agai
 the instance it is on caps.
 
 Which threads (`movers`): every thread of the project that is not settled and failed, by its
-title, a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `), a crew a brief
-names on a `Thread:` line, and the homes in a `home-id`, the root home's and each scope's.
-Every project of the config is passed over, so this is every jbus project. A thread that owes
-nothing is left: a crew whose task merged or ended clean, a reviewer whose brief's last Review
-has a verdict, a scout whose Report is written. Each failed run is handled once: its key,
-`failover|<thread>|<run>`, is kept in `sent.json` after the carry-on is queued, and the stall
-has its own key, the reset. A crash between the two calls is safe: the configure sets the same
-selection again, and the send has the key as its retry key. A crew's slug read here is in
-`Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a limit. A
-reviewer's or a scout's events are kept under its thread's id, not its slug, so they are never
-its crew's.
+title, a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `), a crew a brief names
+on a `Thread:` line, and the homes in a `home-id`, the root home's and each scope's. Every
+project of the config is passed over, so this is every jbus project. A thread that owes nothing
+is left: a crew whose task merged or ended clean, a reviewer whose task is over and whose
+brief's last Review has a verdict, a scout whose Report is written. Each failed run is handled
+once: its key, `failover|<thread>|<run>`, is kept in `sent.json` after the carry-on is queued,
+and the stall has its own key, the reset. A crash between the two calls is safe: the configure
+sets the same selection again, and the send has the key as its retry key. A crew's slug read
+here is in `Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a
+limit. A reviewer's or a scout's events are kept under its thread's id, not its slug, so they
+are never its crew's.
 
 `jbus failover --replay <items.json> --thread <id>` is the instrument: one recorded cap,
 moved to now (`recorded`) and filling the window the ledger has running, through the same
@@ -57,7 +57,7 @@ from typing import Any
 
 import jbus
 import jroles
-from jbus import dispatch, mirror, read_json, threads, verbs
+from jbus import dispatch, read_json, threads, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import World
@@ -83,8 +83,8 @@ WHERE = {
     "home": ("", HOME),
 }
 MAP_ROLE = {"crew": "crew", "reviewer": "review", "scout": "scout", "home": "home"}
-REVIEW = threads.REVIEW
 _WORD = re.compile(r"\S+")
+_NUMBER = re.compile(r",\s*\d+$")
 
 
 @dataclass(frozen=True)
@@ -143,7 +143,8 @@ def _named(run: Pass) -> dict[str, str]:
 def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
     """Each of the `listed` threads failover may move, by its id: a home in a `home-id`, a
     crew a brief names on its `Thread:` line, and a crew, a reviewer or a scout by its title.
-    A thread whose title names none of them, a `home: ` title included, is not one."""
+    A thread whose title names none of them, a `home: ` title included, is not one. A
+    reviewer's title may end in its number, `review: <slug>, <n>`, which is not its slug."""
     homes, named = _homes(run), _named(run)
     found = {}
     for thread in listed:
@@ -154,25 +155,18 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
         elif at in named:
             found[at] = Mover("crew", named[at])
         elif role in WHERE and role != "home" and slug:
-            found[at] = Mover(role, slug)
+            found[at] = Mover(role, _NUMBER.sub("", slug) if role == "reviewer" else slug)
     return found
 
 
 def _over(run: Pass, world: World) -> dict[str, set[str]]:
-    """The slugs, by role, whose threads owe nothing: a crew whose task merged or ended clean,
-    a scout whose Report is written and waits on nobody (`threads.finished`), and a reviewer
-    whose brief's last Review has a verdict."""
+    """The slugs, by role, whose threads owe nothing, by the rule jbus settles them by
+    (`threads.finished`): a crew whose task merged or ended clean, a reviewer whose task is
+    over and whose brief's last Review has a verdict, and a scout whose Report is written and
+    waits on nobody. A verdict alone is not enough for a reviewer: a scoped or second-pass
+    reviewer is launched because one is written, and owes its own pass."""
     done = threads.finished(run, world)
-    reviewed = set()
-    for path in (run.home / "tasks").glob("*.md"):
-        try:
-            whole = mirror.sections(path.read_text(errors="replace"), gates_inside=True)
-        except OSError:
-            continue
-        verdicts = [mirror.field(body, "Verdict") for head, body in whole if head == REVIEW]
-        if verdicts and verdicts[-1] in ("clean", "findings"):
-            reviewed.add(path.stem)
-    return {"crew": done["crew: "], "scout": done["scout: "], "reviewer": reviewed}
+    return {"crew": done["crew: "], "reviewer": done["review: "], "scout": done["scout: "]}
 
 
 def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:

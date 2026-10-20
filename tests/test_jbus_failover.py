@@ -490,8 +490,9 @@ DONE = "## Result\nStatus: done\nLeft: none\nBranch: alpha, no pull request\n"
     ("title", "kind", "text"),
     [
         ("crew: alpha", "tasks", DONE),
-        ("review: alpha", "tasks", REVIEWED),
-        ("review: alpha, scoped", "tasks", REVIEWED),
+        ("review: alpha", "tasks", DONE + REVIEWED),
+        ("review: alpha, scoped", "tasks", DONE + REVIEWED),
+        ("review: alpha, 2", "tasks", DONE + REVIEWED),
         ("scout: alpha", "scouts", REPORTED),
     ],
 )
@@ -615,3 +616,28 @@ def test_the_replay_fills_the_window_the_ledger_has_running(kitchen):
     assert code == 0
     until = datetime.fromtimestamp(int(running.timestamp()), UTC).isoformat()
     assert f"five_hour limit until {until}, carry-on on claudeAgent to {PRIME}" in out
+
+
+@pytest.mark.parametrize("title", ["review: alpha, scoped", "review: alpha, second pass"])
+def test_a_scoped_or_second_reviewer_of_a_task_still_out_moves_though_a_verdict_is_written(
+    kitchen, title
+):
+    """Such a reviewer is launched because the brief has a verdict: it owes its own pass
+    until the task is over."""
+    kitchen.brief("alpha", REVIEWED)
+    thread = kitchen.t3.thread("alpha", "failed", title=title)
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    (given,) = configures(kitchen)
+    assert given["modelSelection"]["instanceId"] == PRIME
+    assert len(sends(kitchen)) == 1
+
+
+def test_a_numbered_reviewer_is_told_to_read_its_brief(kitchen):
+    thread = kitchen.t3.thread("alpha", "failed", title="review: alpha, 2")
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    (carry,) = sends(kitchen)
+    assert f"read `{kitchen.home / 'tasks' / 'alpha.md'}` and the pull request" in carry["message"]
+    assert f"jbriefs --skills {kitchen.home / 'tasks' / 'alpha.md'}" in carry["message"]
+    assert failovers(kitchen)[0].startswith("failover review alpha: five_hour limit")

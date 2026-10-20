@@ -54,7 +54,7 @@ A launch goes to the first instance of the pool with headroom in the ledger, and
 
 The move goes both ways: a thread capped on `claudeAgent` goes on to `claudeAgent_claude_prime`, and one capped on `claudeAgent_claude_prime` goes back to `claudeAgent` while that one has headroom.
 The threads that move are every thread of every project in `~/.config/jbus/config.toml` that failed on a usage limit and is not settled: a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `) by its title, and the homes in a `home-id`, the root home's and each scope's.
-A thread that owes nothing stays where it is: a crew whose task merged or ended clean, a reviewer whose brief's last Review has a verdict, a scout whose Report is written.
+A thread that owes nothing stays where it is: a crew whose task merged or ended clean, a reviewer whose task is over and whose brief's last Review has a verdict (a scoped or second-pass reviewer of a task still out owes its own pass), a scout whose Report is written.
 A thread's pool is the first line of the map that names its instance, its own role's lines first and then every other role's.
 So a Claude reviewer whose `review` lines name Codex and Cursor moves in the `crew` line's Claude pool, and a thread on an instance no line names is a pool of one and waits for its reset.
 A move happens only on a cap, and it is sticky: a thread stays on the account it moved to until that account caps, and nothing moves it back once the first one is free, since each move is a handoff that loses some context.
