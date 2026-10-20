@@ -14,7 +14,7 @@ import pytest
 from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
-FULL = "load 30.00 is at or over 85% of 12 cores"
+FULL = "load 30.00 is at or over 200% of 12 cores"
 
 
 LATER = [NOW + timedelta(minutes=3 * n) for n in range(40)]

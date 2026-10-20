@@ -165,7 +165,8 @@ def parser() -> argparse.ArgumentParser:
     room.add_argument(
         "--light",
         action="store_true",
-        help="skip the load reading, for a thread that adds almost no CPU, such as a review:"
+        help="skip the load and CPU pressure readings, for a thread that adds almost no CPU,"
+        " such as a review:"
         " memory, memory pressure, /tmp and the plan still hold it",
     )
     room.add_argument(

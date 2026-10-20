@@ -52,7 +52,7 @@ def put(path, text, mode=0o644):
     part.replace(path)
 
 
-def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY):
+def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="0.00"):
     """A machine made of files, as `room` reads one, and the environment that points it there.
     It can be written anew while `room` reads it."""
     proc, stub, tmp = where / "proc", where / "stub", where / "stub" / "tmp"
@@ -77,6 +77,11 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY):
         proc / "pressure" / "memory",
         f"some avg10=0.00 avg60={pressure} avg300=0.00 total=58137000\n"
         "full avg10=0.00 avg60=77.00 avg300=0.00 total=27343911\n",
+    )
+    put(
+        proc / "pressure" / "cpu",
+        f"some avg10=0.00 avg60={cpu} avg300=0.00 total=1812999696\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
     )
     put(stub / "nproc", f"#!/bin/sh\necho {cores}\n", 0o755)
     if plan is None:
@@ -115,13 +120,22 @@ def test_an_idle_machine_has_room(tmp_path):
     assert says(machine(tmp_path, **IDLE)) == "go"
 
 
+def test_yelenas_busiest_load_with_little_cpu_pressure_goes(tmp_path):
+    """Load 29 on 24 cores with CPU pressure at 8, as yelena ran on 2026-10-19: busy, and
+    nothing waiting long for a core."""
+    busy = {**IDLE, "load": "29.00", "cores": "24", "cpu": "8.00"}
+    assert says(machine(tmp_path, **busy)) == "go"
+
+
 @pytest.mark.parametrize(
     ("reading", "value", "said"),
     [
-        ("load", "10.20", "wait: load 10.20 is at or over 85% of 12 cores"),
-        ("load", "10.21", "wait: load 10.21 is at or over 85% of 12 cores"),
-        ("load", "30.00", "wait: load 30.00 is at or over 85% of 12 cores"),
+        ("load", "24.00", "wait: load 24.00 is at or over 200% of 12 cores"),
+        ("load", "24.01", "wait: load 24.01 is at or over 200% of 12 cores"),
+        ("load", "99.00", "wait: load 99.00 is at or over 200% of 12 cores"),
         ("cores", "4", None),
+        ("cpu", "40.00", "wait: CPU pressure 40.00 is at or over 40"),
+        ("cpu", "71.30", "wait: CPU pressure 71.30 is at or over 40"),
         ("memory", 6 * KB_PER_GB - 1, "wait: 6.0 GB of memory available, under 6"),
         ("memory", 2 * KB_PER_GB, "wait: 2.0 GB of memory available, under 6"),
         ("pressure", "10.00", "wait: memory pressure 10.00 is at or over 10"),
@@ -129,16 +143,21 @@ def test_an_idle_machine_has_room(tmp_path):
     ],
 )
 def test_a_reading_past_its_threshold_waits_and_says_which(tmp_path, reading, value, said):
-    idle = {**IDLE, "load": "3.50"}
+    idle = {**IDLE, "load": "8.50"}
     assert says(machine(tmp_path, **idle)) == "go"
     assert says(machine(tmp_path, **{**idle, reading: value})) == (
-        said or "wait: load 3.50 is at or over 85% of 4 cores"
+        said or "wait: load 8.50 is at or over 200% of 4 cores"
     )
 
 
 @pytest.mark.parametrize(
     ("reading", "value"),
-    [("load", "10.19"), ("memory", 6 * KB_PER_GB), ("pressure", "9.99")],
+    [
+        ("load", "23.99"),
+        ("cpu", "39.99"),
+        ("memory", 6 * KB_PER_GB),
+        ("pressure", "9.99"),
+    ],
 )
 def test_a_reading_just_inside_its_threshold_goes(tmp_path, reading, value):
     assert says(machine(tmp_path, **{**IDLE, reading: value})) == "go"
@@ -146,9 +165,9 @@ def test_a_reading_just_inside_its_threshold_goes(tmp_path, reading, value):
 
 @pytest.mark.parametrize("cores", ["4", "12", "20"])
 def test_a_load_at_its_threshold_waits_on_any_core_count(tmp_path, cores):
-    at = f"{int(cores) * 0.85:.2f}"
+    at = f"{int(cores) * 2:.2f}"
     assert says(machine(tmp_path, **{**IDLE, "cores": cores, "load": at})) == (
-        f"wait: load {at} is at or over 85% of {cores} cores"
+        f"wait: load {at} is at or over 200% of {cores} cores"
     )
 
 
@@ -161,19 +180,22 @@ def test_a_threshold_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
 
 
 def test_the_first_reading_with_no_room_is_the_one_named(tmp_path):
-    full = {"load": "30.00", "cores": "12", "memory": KB_PER_GB, "pressure": "54.31"}
+    full = {"load": "30.00", "cores": "12", "memory": KB_PER_GB, "pressure": "54.31", "cpu": "90"}
     assert says(machine(tmp_path, **full)).startswith("wait: load ")
-    assert says(machine(tmp_path, **{**full, "load": "0.42"})).startswith("wait: 1.0 GB ")
+    assert says(machine(tmp_path, **{**full, "load": "0.42"})).startswith("wait: CPU pressure ")
+    assert says(machine(tmp_path, **{**full, "load": "0.42", "cpu": "1"})).startswith(
+        "wait: 1.0 GB "
+    )
 
 
-@pytest.mark.parametrize("gone", ["loadavg", "meminfo", "pressure/memory"])
+@pytest.mark.parametrize("gone", ["loadavg", "pressure/cpu", "meminfo", "pressure/memory"])
 def test_a_file_that_cannot_be_read_waits(tmp_path, gone):
     env = machine(tmp_path, **IDLE)
     (tmp_path / "proc" / gone).unlink()
     assert says(env).startswith("wait: ")
 
 
-@pytest.mark.parametrize("file", ["loadavg", "meminfo", "pressure/memory"])
+@pytest.mark.parametrize("file", ["loadavg", "pressure/cpu", "meminfo", "pressure/memory"])
 def test_a_file_with_no_reading_in_it_waits(tmp_path, file):
     env = machine(tmp_path, **IDLE)
     (tmp_path / "proc" / file).write_text("nothing here\n")
@@ -466,7 +488,7 @@ def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path
 
 
 def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "load": "11.00"})
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     room = threading.Timer(0.4, machine, [tmp_path], IDLE)
     room.start()
     try:
@@ -479,14 +501,14 @@ def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
 
 
 def test_a_wait_for_room_that_never_comes_ends_at_its_limit_with_the_last_reason(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "load": "11.00"})
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     started = time.monotonic()
-    assert waited(env, "0.5") == (["wait: load 11.00 is at or over 85% of 12 cores"], 75)
+    assert waited(env, "0.5") == (["wait: load 24.00 is at or over 200% of 12 cores"], 75)
     assert 0.5 <= time.monotonic() - started < 10
 
 
 def test_the_reason_a_wait_ends_with_is_the_one_of_its_last_look(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "load": "11.00"})
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     short = threading.Timer(0.3, machine, [tmp_path], {**IDLE, "memory": 2 * KB_PER_GB})
     short.start()
     try:
@@ -503,7 +525,7 @@ def test_a_wait_of_no_seconds_looks_once_and_still_tells_go_from_wait(tmp_path):
 
 
 def test_a_wait_says_a_limit_that_is_not_known_once_whatever_the_number_of_looks(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "load": "11.00"}, plan=None)
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"}, plan=None)
     room = threading.Timer(0.3, machine, [tmp_path], {**IDLE, "plan": None})
     room.start()
     try:
@@ -524,14 +546,14 @@ def test_a_wait_that_is_not_a_number_of_seconds_is_refused_before_any_look(tmp_p
 
 @pytest.mark.parametrize("every", ["0", "-1", "often"])
 def test_a_wait_that_would_look_with_no_pause_is_refused_before_any_look(tmp_path, every):
-    busy = machine(tmp_path, **{**IDLE, "load": "11.00"})
+    busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
     assert waited(busy, "5", every=every) == ([], 2)
 
 
 def test_a_room_asked_with_no_wait_answers_at_once_and_exits_0_as_before(tmp_path):
-    busy = machine(tmp_path, **{**IDLE, "load": "11.00"})
+    busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
     ran = subprocess.run([str(BIN / "jgauge"), "room"], env=busy, capture_output=True, text=True)
-    assert (ran.stdout, ran.returncode) == ("wait: load 11.00 is at or over 85% of 12 cores\n", 0)
+    assert (ran.stdout, ran.returncode) == ("wait: load 24.00 is at or over 200% of 12 cores\n", 0)
 
 
 STALE = 21 * 60
@@ -686,11 +708,11 @@ def light(env, *more):
 
 
 @pytest.mark.parametrize(
-    ("load", "cores"), [("10.20", "12"), ("20.40", "24"), ("30.00", "24"), ("99.00", "4")]
+    ("load", "cores"), [("24.00", "12"), ("48.00", "24"), ("60.00", "24"), ("99.00", "4")]
 )
 def test_a_light_look_goes_at_a_load_that_holds_a_launch(tmp_path, load, cores):
     env = machine(tmp_path, **{**IDLE, "load": load, "cores": cores})
-    assert says(env).startswith(f"wait: load {load} is at or over 85% of {cores} cores")
+    assert says(env).startswith(f"wait: load {load} is at or over 200% of {cores} cores")
     assert light(env) == (["go"], 0)
     started = time.monotonic()
     assert light(env, "--wait", "15") == (["go"], 0)
@@ -701,6 +723,15 @@ def test_a_light_look_needs_no_load_it_cannot_read(tmp_path):
     env = machine(tmp_path, **IDLE)
     (tmp_path / "proc" / "loadavg").unlink()
     assert says(env) == "wait: the load or the core count could not be read"
+    assert light(env) == (["go"], 0)
+
+
+def test_a_light_look_skips_cpu_pressure_as_it_skips_the_load(tmp_path):
+    env = machine(tmp_path, **{**IDLE, "cpu": "90.00"})
+    assert says(env) == "wait: CPU pressure 90.00 is at or over 40"
+    assert light(env) == (["go"], 0)
+    (tmp_path / "proc" / "pressure" / "cpu").unlink()
+    assert says(env) == "wait: the CPU pressure could not be read"
     assert light(env) == (["go"], 0)
 
 
@@ -719,7 +750,7 @@ def test_a_light_look_needs_no_load_it_cannot_read(tmp_path):
 def test_a_light_look_still_waits_on_every_other_reading_with_the_same_reason(
     tmp_path, readings, said
 ):
-    env = machine(tmp_path, **{**IDLE, "load": "30.00", "cores": "24", **readings})
+    env = machine(tmp_path, **{**IDLE, "load": "60.00", "cores": "24", "cpu": "90", **readings})
     said = said.format(env["TMPFS"])
     assert light(env) == ([said], 0)
     assert light(env, "--wait", "0.2", "--every", "0.05") == ([said], 75)
@@ -727,9 +758,9 @@ def test_a_light_look_still_waits_on_every_other_reading_with_the_same_reason(
 
 
 def test_a_look_with_no_flag_reads_the_load_whatever_its_environment_says(tmp_path):
-    env = {**machine(tmp_path, **{**IDLE, "load": "11.00"}), "SKIP_LOAD": "1"}
-    assert says(env) == "wait: load 11.00 is at or over 85% of 12 cores"
-    assert waited(env, "0") == (["wait: load 11.00 is at or over 85% of 12 cores"], 75)
+    env = {**machine(tmp_path, **{**IDLE, "load": "24.00"}), "SKIP_LOAD": "1"}
+    assert says(env) == "wait: load 24.00 is at or over 200% of 12 cores"
+    assert waited(env, "0") == (["wait: load 24.00 is at or over 200% of 12 cores"], 75)
 
 
 PRIME = "claudeAgent_claude_prime"
