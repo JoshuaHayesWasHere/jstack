@@ -344,15 +344,16 @@ def test_a_reason_of_jmerge_is_on_the_step_its_first_rule_names(said, step):
 UNPLACED = "a reason nobody has printed before"
 
 
-def unplaced(kitchen, reason=UNPLACED):
-    """Alpha, whose pull request #9 is open and on no step: `jmerge` says a reason no rule
-    names. Its home has a thread."""
+def unplaced(kitchen, reason=UNPLACED, number=9):
+    """Alpha, whose pull request (#9 unless named) is open and on no step: `jmerge` says a
+    reason no rule names. Its home has a thread."""
     thread = kitchen.t3.thread("demo", "completed", title="home: demo")
     (kitchen.home / "home-id").write_text(thread["threadId"] + "\n")
     add(kitchen, "alpha")
-    kitchen.brief("alpha", result("none", pull=PULL))
-    kitchen.set("open.json", [kitchen.opened("alpha", 9)])
-    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {reason}\n")
+    opened = kitchen.opened("alpha", number)
+    kitchen.brief("alpha", result("none", pull=opened["url"]))
+    kitchen.set("open.json", [opened])
+    kitchen.set("jmerge.txt", f"wait {number} {opened['url']}: {reason}\n")
     return thread
 
 
@@ -383,7 +384,7 @@ def test_a_merge_github_refused_is_on_the_check_step_and_not_unknown(kitchen, sa
     """context-packs #56, 2026-10-20: GitHub refused the merge call, with a 502 and then
     with a merge already in progress, and the next run looks again. The view placed the
     pull request in the Unknown lane and told its home, since no rule named the reason."""
-    unplaced(kitchen, said)
+    unplaced(kitchen, said, number=56)
     kitchen.poll()
     sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
     built = view_state.build(sources, "demo", NOW, lambda _: {})
