@@ -3,32 +3,7 @@
 Whether a pull request's checks have passed is never read off a message or remembered: it is what this prints, run in this worktree with the block at the top. It is the only check:
 
 ```sh
-checks() {
-    view=$(gh pr view ${1:+"${1}"} --json headRefOid,statusCheckRollup) || { echo "wait: could not ask GitHub"; return; }
-    never=$(printf '%s\n' "$view" |
-        jq -r '.statusCheckRollup[]? | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | .detailsUrl // empty' |
-        sed -n 's|^https://[^/]*/\([^/]*/[^/]*\)/actions/runs/[0-9]*/job/\([0-9]*\)$|& \1 \2|p' |
-        while read -r url repo job; do
-            if gh api "repos/$repo/actions/jobs/$job" | jq -e '.steps | type == "array" and length == 0' > /dev/null; then echo "$url"; fi
-        done)
-    printf '%s\n' "$view" | jq -r --arg never "$never" '
-        def when: [.startedAt, .completedAt] | map(if (. // "") == "" or startswith("0001-") then "~" else . end);
-        ($never | split("\n")) as $never
-        | [.statusCheckRollup // [] | group_by(.name // .context)[] | (map(when) | max) as $last | .[] | select(when == $last) |
-            if .state then (if .state == "SUCCESS" then "passed" elif (.state | IN("PENDING", "EXPECTED")) then "pending" else "failed" end)
-            elif .status != "COMPLETED" then "pending"
-            elif (.conclusion | IN("SUCCESS", "NEUTRAL")) then "passed"
-            elif .conclusion == "SKIPPED" then "skipped"
-            elif (.detailsUrl // "" | IN($never[])) then "unstarted"
-            else "failed" end] as $each
-        | if ($each | length) == 0 then "wait: no check is reported yet"
-          elif ($each | index("failed")) then "failed: a check ran and failed"
-          elif ($each | index("pending")) then "wait: a check has not finished"
-          elif ($each | index("passed") | not) then "unrun: no check ran at \(.headRefOid)"
-          elif ($each | index("unstarted")) then "failed: a check never started beside checks that ran"
-          else "passed: every check passed at \(.headRefOid)" end'
-}
-checks
+uv run --project "$T/.." jmerge --checks
 ```
 
 Its first word is one of four answers:
@@ -38,7 +13,11 @@ Its first word is one of four answers:
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked. End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
-**Green**, everywhere in this skill, is `passed` and nothing else. `checks` is the pr-review skill's function too: change it in both, and the tests run each copy over the same rollups. A failed check whose job GitHub will not give counts as one that ran. A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way. The merge is stricter still, and goes by one check: `jmerge` merges only when the check named `check` passed at the head, whatever the other checks say.
+**Green**, everywhere in this skill, is `passed` and nothing else.
+`jmerge --checks` is the one reading of a pull request's checks: the pr-review skill and jbus call the same one.
+A failed check whose job GitHub will not give counts as one that ran.
+A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way.
+The merge is stricter still, and goes by one check: `jmerge` merges only when the check named `check` passed at the head, whatever the other checks say.
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
 
@@ -69,7 +48,7 @@ else
         echo "stuck: the failed check at $head is not a workflow run, so there is nothing to run again"
     else
         started=
-        for run in $runs; do
+        for run in $(printf '%s' "$runs"); do
             if gh run rerun "$run" > /dev/null 2>&1; then started="${started:+$started }$run"; fi
         done
         if [ -n "$started" ]; then

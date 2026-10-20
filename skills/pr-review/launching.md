@@ -12,31 +12,6 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
 
    ```sh
    PASS=first
-   checks() {
-       view=$(gh pr view ${1:+"${1}"} --json headRefOid,statusCheckRollup) || { echo "wait: could not ask GitHub"; return; }
-       never=$(printf '%s\n' "$view" |
-           jq -r '.statusCheckRollup[]? | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | .detailsUrl // empty' |
-           sed -n 's|^https://[^/]*/\([^/]*/[^/]*\)/actions/runs/[0-9]*/job/\([0-9]*\)$|& \1 \2|p' |
-           while read -r url repo job; do
-               if gh api "repos/$repo/actions/jobs/$job" | jq -e '.steps | type == "array" and length == 0' > /dev/null; then echo "$url"; fi
-           done)
-       printf '%s\n' "$view" | jq -r --arg never "$never" '
-           def when: [.startedAt, .completedAt] | map(if (. // "") == "" or startswith("0001-") then "~" else . end);
-           ($never | split("\n")) as $never
-           | [.statusCheckRollup // [] | group_by(.name // .context)[] | (map(when) | max) as $last | .[] | select(when == $last) |
-               if .state then (if .state == "SUCCESS" then "passed" elif (.state | IN("PENDING", "EXPECTED")) then "pending" else "failed" end)
-               elif .status != "COMPLETED" then "pending"
-               elif (.conclusion | IN("SUCCESS", "NEUTRAL")) then "passed"
-               elif .conclusion == "SKIPPED" then "skipped"
-               elif (.detailsUrl // "" | IN($never[])) then "unstarted"
-               else "failed" end] as $each
-           | if ($each | length) == 0 then "wait: no check is reported yet"
-             elif ($each | index("failed")) then "failed: a check ran and failed"
-             elif ($each | index("pending")) then "wait: a check has not finished"
-             elif ($each | index("passed") | not) then "unrun: no check ran at \(.headRefOid)"
-             elif ($each | index("unstarted")) then "failed: a check never started beside checks that ran"
-             else "passed: every check passed at \(.headRefOid)" end'
-   }
    for B in "$H"/tasks/<slug>.md; do
        past= why=
        pr=$(awk '/^## Result/ {pr = ""; done = 0; result = 1} result && /^Status: done/ {done = 1} result && $(1) == "Branch:" {pr = $(NF)} END {if (done) print pr}' "$B")
@@ -59,7 +34,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        elif [ "$(awk '/^Review:/ {print $(2); exit}' "$B")" = none ]; then
            why="its brief asks for no review"
        else
-           said=$(checks "$pr")
+           said=$(uv run --project "$T/.." jmerge --checks "$pr")
            case $said in
            passed*) head=${said##* } ;;
            "wait: a check has not finished" | "wait: no check is reported yet")
@@ -81,7 +56,12 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    - it has no `## Review` section and no reviewer: no `Reviewer:` line but one that says `none`, which the block above reads the same way;
    - that pull request is open;
    - its `Review:` line, read as above, is not `none`;
-   - the pull request's checks are not red. `checks` is the crew skill's function, the same text, and prints its four answers: `passed`, `failed`, `wait`, `unrun` (the crew skill, "The checks"). `passed` and `wait` are ready: a review runs beside the checks, and green is what `jmerge` merges on, not what a review waits for. The `wait` of a GitHub that could not be asked is not ready: no rollup was read. `failed` is never ready: a red pull request is fixed first, and its reviewer is launched on the push. `unrun` means no check ran, every one failed with no step run or was skipped, because the repo's CI starts no job: nothing stands in for a check that did not run, so the brief is not ready, whatever its Result says of a check command that passed in the crewmate's worktree.
+   - the pull request's checks are not red.
+     `jmerge --checks` prints its four answers: `passed`, `failed`, `wait`, `unrun` (the crew skill, "The checks").
+     `passed` and `wait` are ready: a review runs beside the checks, and green is what `jmerge` merges on, not what a review waits for.
+     The `wait` of a GitHub that could not be asked is not ready: no rollup was read.
+     `failed` is never ready: a red pull request is fixed first, and its reviewer is launched on the push.
+     `unrun` means no check ran, every one failed with no step run or was skipped, because the repo's CI starts no job: nothing stands in for a check that did not run, so the brief is not ready, whatever its Result says of a check command that passed in the crewmate's worktree.
 
    One thing the block cannot see: `t3_thread_list` with `titleContains: "review: <slug>"` finds no thread. Check it for each brief printed as ready.
 

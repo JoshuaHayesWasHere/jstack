@@ -1688,6 +1688,7 @@ class Launcher:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
+                "T": str(REPO / "templates"),
             },
             check=True,
         )

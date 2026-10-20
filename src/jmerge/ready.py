@@ -205,8 +205,8 @@ def _at(text: str | None) -> datetime | None:
     return at if at.tzinfo is not None and at.year > 1 else None
 
 
-def latest(rollup: list[dict]) -> list[dict]:
-    named = [one for one in rollup if REQUIRED in (one.get("name"), one.get("context"))]
+def latest(rollup: list[dict], name: str | None = REQUIRED) -> list[dict]:
+    named = [one for one in rollup if (one.get("name") or one.get("context")) == name]
     end = datetime.max.replace(tzinfo=UTC)
 
     def when(one: dict) -> tuple[datetime, datetime]:

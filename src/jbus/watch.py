@@ -40,6 +40,7 @@ from jbus.mirror import last_result, sections
 from jbus.t3 import Client, T3Error
 from jbus.wake import Changed, Depends, Pass, Slot, cut
 from jgauge import slot, waiters
+from jmerge import checks as reading
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -261,20 +262,10 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
 
 
 def checks(pull: dict[str, Any]) -> str:
-    """A pull request's checks in one word. `jmerge` is what decides a merge, not this."""
-    each = []
-    for check in pull.get("statusCheckRollup") or []:
-        state = check.get("state") or check.get("conclusion") or ""
-        if check.get("status", "COMPLETED") != "COMPLETED" or state in ("PENDING", "EXPECTED", ""):
-            each.append("pending")
-        elif state in ("SUCCESS", "NEUTRAL", "SKIPPED"):
-            each.append("passed")
-        else:
-            each.append("failed")
-    for word in ("failed", "pending", "passed"):
-        if word in each:
-            return word
-    return "none"
+    """A pull request's checks in one word, `jmerge --checks`'s reading (`jmerge.checks`), with
+    no job asked for: a check that never started reads as failed here. `jmerge` is what
+    decides a merge, not this."""
+    return reading.checks(pull.get("statusCheckRollup") or [])
 
 
 def brief_of(run: Pass, slug: str) -> str:

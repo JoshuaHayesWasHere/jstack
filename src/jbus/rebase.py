@@ -65,6 +65,7 @@ from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, TITLE, World, checks, crew_threads
 from jmerge import ready
+from jmerge.checks import check_state, latest_of_each
 
 EVENTS = {
     "rebase": "quiet",
@@ -148,7 +149,6 @@ _REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
 _MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
 _FIXED = re.compile(r"^Fixed: \S", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
-_FAILING = ("SUCCESS", "NEUTRAL", "SKIPPED", "PENDING", "EXPECTED", "")
 
 
 @dataclass(frozen=True)
@@ -302,9 +302,8 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
     if checks(pull) != "failed":
         return "", 0
     names, attempt = [], 1
-    for check in pull.get("statusCheckRollup") or []:
-        state = check.get("state") or check.get("conclusion") or ""
-        if check.get("status", "COMPLETED") != "COMPLETED" or state in _FAILING:
+    for check in latest_of_each(pull.get("statusCheckRollup") or []):
+        if check_state(check) != "failed":
             continue
         job = _JOB.match(urlsplit(check.get("detailsUrl") or "").path)
         given = _job(run, *job.groups()) if job else {}
