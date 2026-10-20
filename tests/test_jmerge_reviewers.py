@@ -69,3 +69,16 @@ def test_one_reviewer_and_a_section_with_no_by_line_read_as_before():
     brief = RESULT + "Reviewer: mcp:9\n" + "\n## Review\nVerdict: clean\nHead: " + SAW + "\n"
     assert ready.short_of(brief, SAW) == ""
     assert ready.said_of(brief).ran == 1
+
+
+def test_a_reviewer_run_again_at_one_head_replaces_its_own_earlier_section():
+    """A section that was not run, then the same reviewer's clean re-run at the same head, is
+    a clean review: within a round each reviewer's last section is its word."""
+    one = RESULT + "Reviewer: mcp:9\n" + "\n## Review\nVerdict: not run\nHead: " + SAW + "\n"
+    again = one + "\n## Review\nVerdict: clean\nHead: " + SAW + "\n"
+    assert ready.short_of(one, SAW) == ready.NO_VERDICT
+    assert ready.said_of(again).verdict == "clean"
+    assert ready.short_of(again, SAW) == ""
+    pair = RESULT + TWO + section(CODEX, "not run") + section(CURSOR, "clean")
+    assert ready.short_of(pair, SAW) == ready.NO_VERDICT
+    assert ready.short_of(pair + section(CODEX, "clean"), SAW) == ""

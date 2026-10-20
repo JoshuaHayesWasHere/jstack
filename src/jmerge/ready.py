@@ -484,17 +484,20 @@ def said_of(text: str) -> Said:
 
 
 def _round(said: Said) -> None:
-    """The verdict of the last round and the count of rounds that ran. A round waits for
+    """The verdict of the last round and the count of rounds that ran. Within a round each
+    reviewer's last section is its word: a re-run at the same head replaces what it wrote
+    before, a `Verdict: not run` included. A round waits for
     every reviewer the `Reviewer:` lines name: the reviewers are told apart by their `By:`
     lines, whichever head each saw, and until each has written the review has no verdict."""
     if not said.rounds:
         return
-    heads: dict[str, list[str]] = {}
+    heads: dict[str, dict[str, str]] = {}
     for number, one in enumerate(said.rounds):
-        heads.setdefault(one.head or f"#{number}", []).append(one.verdict)
-    said.verdict = _worst(heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"])
+        heads.setdefault(one.head or f"#{number}", {})[one.by] = one.verdict
+    last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
+    said.verdict = _worst(list(last.values()))
     said.ran = sum(
-        any(verdict in ("clean", "findings") for verdict in one) for one in heads.values()
+        any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
     )
     if len({one.by for one in said.rounds if one.by}) < said.reviewers > 1:
         said.verdict = ""

@@ -260,15 +260,20 @@ DUAL = "review: codex gpt-6-sol effort=xhigh\nreview: cursor grok-4.7 effort=xhi
 CODEX, CURSOR = "By: codex gpt-6-sol xhigh", "By: cursor grok-4.7 xhigh"
 
 
-def by(reviewer, asked, roles=None):
-    """The `By:` line Start's first block prints for a message, over a role map or none."""
+CONFIG = "<what t3_thread_configuration printed, or nothing where this session has no such tool>"
+
+
+def by(reviewer, asked, roles=None, thread=None):
+    """The `By:` line Start's first block prints for a message, from the thread's own
+    configuration where it is given, else over a role map or none."""
     config = reviewer.state / "config"
     if roles is not None:
         (config / "jstack").mkdir(parents=True, exist_ok=True)
         (config / "jstack" / "roles").write_text(roles)
-    (said,), code = reviewer(
-        "### Start", "jroles review", fill={ASKED: asked}, XDG_CONFIG_HOME=str(config)
-    )
+    fill = {ASKED: asked}
+    if thread is not None:
+        fill[CONFIG] = json.dumps(thread)
+    (said,), code = reviewer("### Start", "jroles review", fill=fill, XDG_CONFIG_HOME=str(config))
     assert code == 0
     return said
 
@@ -282,6 +287,34 @@ def test_each_reviewer_names_the_line_of_the_review_list_it_was_launched_on(revi
         "By: inherit"
     )
     assert by(reviewer, "/pr-review run a-task", "review: inherit\n") == "By: inherit"
+
+
+def test_the_by_line_is_read_from_the_thread_itself_whatever_the_map_says_now(reviewer):
+    """A capped pool, a refused map or one edited after the launch changes nothing: the
+    thread's own configuration names its provider, model and effort."""
+    cursor = {
+        "threadId": "mcp:2",
+        "modelSelection": {
+            "instanceId": "cursor",
+            "model": "grok-4.7",
+            "options": [
+                {"id": "reasoning_effort", "value": "xhigh"},
+                {"id": "fastMode", "value": False},
+            ],
+        },
+    }
+    assert by(reviewer, "/pr-review run a-task 2", "review: inherit\n", cursor) == CURSOR
+    codex = {
+        "modelSelection": {
+            "provider": "codex",
+            "instanceId": "codex",
+            "model": "gpt-6-sol",
+            "options": [{"id": "reasoningEffort", "value": "xhigh"}],
+        }
+    }
+    assert by(reviewer, "/pr-review run a-task again", DUAL, codex) == CODEX
+    claude = {"modelSelection": {"instanceId": "claudeAgent", "model": "claude-opus-5-5"}}
+    assert by(reviewer, "/pr-review run a-task", None, claude) == "By: claudeAgent claude-opus-5-5"
 
 
 def numbered(reviewer, asked, mine, brief):
