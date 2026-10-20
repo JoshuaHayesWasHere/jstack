@@ -640,7 +640,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
    `jbus plan` answers only for the repo it is run in, and `jbus queue add` with no project takes the config's only project whatever the repo: so the row is added only where `jbus plan` answered, and on `no row` none is, since it would be another repo's row. On `refused:`, nothing is queued: mend the brief as the lines under it say, and run it again. A row with no approval is never launched again. Then give the user the link: `[<slug>](t3-thread://v1/<threadId>)`.
 
-No fixed count limits the threads out, crewmates and durable scouts together. Two things do: only tasks that do not touch the same files are out together, and the machine has to have room.
+No fixed count limits the threads out, crewmates and durable scouts together, and no file does: each crew has its own worktree and branch, and two pull requests that change the same file are settled at the merge, where the second to merge rebases. What holds a launch is the machine: it has to have room.
 
 The machine is shared with the homes of other repos, so check it before every launch:
 
@@ -681,16 +681,62 @@ On each message, do this without waiting for a word from the user.
    - its plan entry's `Stage:` line says `planned`, its own brief is not out (`tasks/<slug>.md` has no `Thread:` line, and its row, where it has one, is still `queued`), and nothing it waits on is unmerged: a task is never stacked on another's branch, but in a plan whose head names `autopilot-stack` ("A stack the user lands");
    - no answer from the user is outstanding for it: an open decision in its entry, or a scout's brief that "Sending a scout" says to show first and the user has not yet seen;
    - its work is in this repo;
-   - none of the files in its `Where:` is held by another brief still out, of any home of this repo: the launch check, under this list, prints them;
+   - the launch check, under this list, does not say `wait`;
    - `room` says `go`.
 
-   The launch check is one command, with no model. Run it from the main checkout, in one call with the block at the top:
+   The launch check names the briefs still out whose `Where:` meets the task's, of any home of this repo. A file another brief names never holds a launch: the overlap is information for the user, and the second pull request to merge rebases. Run it from the main checkout, in one call with the block at the top, with the task's slug in place of the word in angle brackets:
 
    ```sh
-   uv run --project "$T/.." jmerge --claims
+   slug='<slug>'
+   if [ -f "$H/scouts/$slug.md" ] && ! [ -f "$H/tasks/$slug.md" ]; then
+       echo "go: a scout changes no files, so it overlaps nothing"
+   elif ! said=$(uv run --project "$T/.." jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
+       case $said in
+       wait:*) printf '%s\n' "$said" ;;
+       *) echo "wait: jmerge --claims did not finish, no overlap was read" ;;
+       esac
+   else
+       printf '%s\n' "$said" | awk -v slug="$slug" '
+           function paths(where, into,    n, i, part) {
+               n = split(where, part, "`")
+               for (i = 2; i <= n; i += 2) if (part[i] ~ /[\/.]/) into[part[i]] = 1
+           }
+           function under(path, directory) {
+               sub(/\/+$/, "", directory)
+               return index(path, directory "/") == 1
+           }
+           {
+               at = index($(0), " Where: ")
+               if (!at) next
+               head = substr($(0), 1, at - 1)
+               if ($(1) == slug) { paths(substr($(0), at), mine); own = 1; next }
+               if (substr(head, length($(1)) + 2, 13) == "not launched ") next
+               state = substr(head, length($(1)) + 2)
+               sub(/ [^ ]+$/, "", state)
+               sub(/^(paused )?pull request /, "#", state)
+               out[$(1)] = state
+               where[$(1)] = substr($(0), at)
+           }
+           END {
+               if (!own) {
+                   print "wait: jmerge --claims has no line for " slug ": write its brief first, then run this again"
+                   exit
+               }
+               for (other in out) {
+                   split("", theirs)
+                   paths(where[other], theirs)
+                   named = ""
+                   for (path in mine) for (their in theirs)
+                       if (path == their || under(path, their) || under(their, path))
+                           named = named (named == "" ? "" : ", ") "`" (length(path) >= length(their) ? path : their) "`"
+                   if (named != "") print "overlaps " other " (" out[other] ") on " named ": the second to merge rebases"
+               }
+               print "go: an overlap holds nothing, name each one in the launch message"
+           }'
+   fi
    ```
 
-   It prints one line for each brief that still holds files, whichever home of this repo wrote it: `<slug> <not launched | out | pull request <number>> <home> Where: <the brief's Where: line>`. The home is `root` or the scope's name. A brief whose pull request is merged or closed, or whose task ended with none, prints nothing. The task's own brief is one of the lines: leave it out. A file or a directory of the task's `Where:` that another line names holds the task back until that slug's line is gone. On `wait: could not ask GitHub` nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
+   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. A scout's request, in `scouts/` with no brief in `tasks/`, gets `go` alone. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
 4. Tell the user in a few lines, here: what landed, what was merged, what was launched with its link, what was parked, and what waits and why. When nothing is left planned or out, say that the planned work is done and show the open questions ("Gates").
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
