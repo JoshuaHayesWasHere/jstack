@@ -1,0 +1,352 @@
+{
+  "source": "~/.t3/userdata/statev2.sqlite, orchestration_v2_projection_turn_items where turn_item_id like %1792470600%, with each item's thread title and run; each thread's id is replaced by 00000000-0000-4000-8000-<n>, everywhere it appears, and nothing else is changed; a raw thread id is mcp:tonight-<n>",
+  "items": [
+    {
+      "threadId": "mcp:tonight-01",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000001:ordinal:3",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000001%25253Aordinal%25253A3%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:31.250Z"
+    },
+    {
+      "threadId": "mcp:tonight-02",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000002:ordinal:1",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000002%25253Aordinal%25253A1%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:31.792Z"
+    },
+    {
+      "threadId": "mcp:tonight-03",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000003:ordinal:4",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000003%25253Aordinal%25253A4%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:33.337Z"
+    },
+    {
+      "threadId": "mcp:tonight-04",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000004:ordinal:6",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000004%25253Aordinal%25253A6%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:33.339Z"
+    },
+    {
+      "threadId": "mcp:tonight-05",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000005:ordinal:1",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000005%25253Aordinal%25253A1%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:34.223Z"
+    },
+    {
+      "threadId": "mcp:tonight-06",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000006:ordinal:4",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000006%25253Aordinal%25253A4%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:36.150Z"
+    },
+    {
+      "threadId": "mcp:tonight-07",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000007:ordinal:3",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000007%25253Aordinal%25253A3%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:37.721Z"
+    },
+    {
+      "threadId": "mcp:tonight-08",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000008:ordinal:1",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000008%25253Aordinal%25253A1%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:41.949Z"
+    },
+    {
+      "threadId": "mcp:tonight-09",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000009:ordinal:4",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000009%25253Aordinal%25253A4%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:42.810Z"
+    },
+    {
+      "threadId": "mcp:tonight-10",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000010:ordinal:3",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000010%25253Aordinal%25253A3%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:43.760Z"
+    },
+    {
+      "threadId": "mcp:tonight-11",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000011:ordinal:4",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000011%25253Aordinal%25253A4%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 17m.",
+      "updatedAt": "2026-10-20T04:13:44.333Z"
+    },
+    {
+      "threadId": "mcp:tonight-10",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000010:ordinal:4",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000010%25253Aordinal%25253A4%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "updatedAt": "2026-10-20T04:14:23.963Z"
+    },
+    {
+      "threadId": "mcp:tonight-12",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000012:ordinal:7",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000012%25253Aordinal%25253A7%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "updatedAt": "2026-10-20T04:14:24.201Z"
+    },
+    {
+      "threadId": "mcp:tonight-03",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000003:ordinal:6",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000003%25253Aordinal%25253A6%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 16m.",
+      "updatedAt": "2026-10-20T04:14:36.114Z"
+    },
+    {
+      "threadId": "mcp:tonight-11",
+      "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000011:ordinal:5",
+      "itemId": "turn-item:provider:claudeAgent:native-item:usage-limit%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Amcp%2525253A00000000-0000-4000-8000-000000000011%25253Aordinal%25253A5%253Aattempt%253A1%3Afive_hour%3A1792470600",
+      "type": "system_notice",
+      "status": "completed",
+      "title": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 15m.",
+      "text": "Claude usage limit reached. This turn is paused until the 5-hour limit resets in 15m.",
+      "updatedAt": "2026-10-20T04:15:27.240Z"
+    }
+  ],
+  "threads": {
+    "mcp:tonight-01": {
+      "title": "crew: dual-reviewer",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000001:ordinal:3",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:31.274Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-02": {
+      "title": "review: hot-skill-sections-crew, scoped",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000002:ordinal:1",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:31.813Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-03": {
+      "title": "crew: hot-skill-sections-home",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000003:ordinal:4",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:33.388Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        },
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000003:ordinal:6",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:14:36.131Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-04": {
+      "title": "crew: hot-skill-sections-crew",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000004:ordinal:6",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:33.368Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-05": {
+      "title": "review: hot-jbus-docs-dir, scoped",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000005:ordinal:1",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:34.238Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-06": {
+      "title": "crew: ci-git-template",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000006:ordinal:4",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:36.169Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-07": {
+      "title": "crew: ci-one-suite-per-tree",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000007:ordinal:3",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:37.740Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-08": {
+      "title": "review: hot-semantic-lines, scoped",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000008:ordinal:1",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:41.963Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-09": {
+      "title": "crew: snapshot-no-remote-alerts",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000009:ordinal:4",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:42.826Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-10": {
+      "title": "crew: hot-one-declaration",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000010:ordinal:3",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:43.778Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        },
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000010:ordinal:4",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:14:23.979Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-11": {
+      "title": "crew: hot-tests-per-feature",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000011:ordinal:4",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:13:44.348Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        },
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000011:ordinal:5",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:15:27.256Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    },
+    "mcp:tonight-12": {
+      "title": "crew: hot-semantic-lines",
+      "runs": [
+        {
+          "runId": "run:thread:mcp%3A00000000-0000-4000-8000-000000000012:ordinal:7",
+          "providerInstanceId": "claudeAgent",
+          "completedAt": "2026-10-20T04:14:24.216Z",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-opus-5-5"
+          }
+        }
+      ]
+    }
+  }
+}

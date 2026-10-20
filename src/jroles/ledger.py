@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import urllib.parse
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -158,12 +159,13 @@ def cap_of(items: Iterable[Mapping[str, object]], now: datetime) -> Cap | None:
     """The usage limit a run's items report, or None for a run that hit none.
 
     T3 Code ends such a run with a `system_notice` whose itemId ends `:<window>:<reset>`,
-    which is read first. Where no item has one, the text is read: `You've hit your weekly
+    which is read first, once its percent-encoding is undone: T3 Code writes the colons of
+    the provider's own id as `%3A`. Where no item has one, the text is read: `You've hit your weekly
     limit · resets Oct 18, 4pm (America/New_York)`, `weekly` the seven-day window and any
     other the five-hour one, the reset in the zone it names. A text whose reset cannot be read
     holds for `BLIND` from `now`."""
     items = list(items)
-    noted = (_ITEM.search(str(item.get("itemId") or "")) for item in items)
+    noted = (_ITEM.search(urllib.parse.unquote(str(item.get("itemId") or ""))) for item in items)
     said = next(
         (found for item in items if (found := _LIMIT.search(str(item.get("text") or "")))), None
     )
