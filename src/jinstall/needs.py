@@ -31,6 +31,7 @@ from jinstall.kinds import (
     ProviderInstance,
     ProviderInventory,
     Roles,
+    StateRepo,
     StatusLine,
     T3Nightly,
     Units,
@@ -84,6 +85,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
       optional  lavish-axi                    Program("lavish-axi", hint="npm install -g ...")
+      optional  state repo <path>             StateRepo
       optional  provider inventory            ProviderInventory
       hard      provider <id>                 ProviderInstance, for each declared instance
       hard      skills <home>                 HomeSkills, for each declared Claude home
@@ -111,6 +113,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
     roles = config.with_name("roles")
+    state = _state_tree(machine)
     found = [
         Need("linux", Level.HARD, Linux()),
         Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
@@ -130,6 +133,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
+        Need(f"state repo {state}", Level.OPTIONAL, StateRepo(state)),
     ]
     inventory = machine.config_home() / "jstack" / "providers.json"
     providers = declared(inventory, home)
@@ -197,6 +201,12 @@ def _jbus_config(machine: Machine) -> Path:
     """Where jbus reads its config, as `jbus.config_dir` finds it."""
     named = machine.env.get("JBUS_CONFIG_DIR")
     return (Path(named) if named else machine.home / ".config" / "jbus") / "config.toml"
+
+
+def _state_tree(machine: Machine) -> Path:
+    """The homes' state tree, as `jbus.load` finds its `home_dir`."""
+    named = machine.env.get("JBUS_HOME_DIR")
+    return Path(named) if named else machine.home / ".local" / "state" / "home"
 
 
 def _limits(machine: Machine) -> Path:

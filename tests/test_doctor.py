@@ -309,9 +309,7 @@ def test_the_state_repo_is_ok_with_an_origin_and_missing_with_no_repo_or_no_remo
     assert user.line("state repo") == f"missing {part} -> no remote"
     url = "https://github.com/someone/state.git"
     subprocess.run(["git", "-C", str(user.state), "remote", "add", "origin", url], check=True)
-    code, said = user.doctor()
-    assert (code, said[-1]) == (0, "doctor: ok")
-    assert line_for(said, "state repo") == [f"ok {part} -> {url}"]
+    assert user.line("state repo") == f"ok {part} -> {url}"
 
 
 def test_a_jstack_config_the_loader_takes_is_ok_and_one_it_refuses_is_old(user):

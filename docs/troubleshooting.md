@@ -50,6 +50,8 @@ Find your line in the tables. A word in angle brackets stands for a value on you
 | `missing hard gh` | The GitHub CLI is not on `PATH`. | Install `gh`. |
 | `missing hard gh sign-in -> gh auth login` | `gh auth token` exited non-zero. | Run `gh auth login`. |
 | `missing optional lavish-axi -> npm install -g lavish-axi` | `lavish-axi` is not on `PATH`. A scout writes no visual page, and a question round is asked as text. | Run `npm install -g lavish-axi`, or leave it. |
+| `missing optional state repo <path> -> not a git repo` | The homes' state tree is not a git repo, so `jbus snapshot` fails and alerts. | Run `git init <path>`, then add the remote as the next line says. |
+| `missing optional state repo <path> -> no remote` | The state tree has no `origin`. Each `jbus snapshot` commits and then fails, and the first failure alerts. | Run `git -C <path> remote add origin <url>`, with a private repository of your own. |
 
 ## The skill links
 
@@ -140,6 +142,7 @@ A status line of your own gets no line. [Configuration](configuration.md#the-lim
 | `needs you gh sign-in -> gh auth login` | `gh` is not signed in. | Run `gh auth login`. |
 | `needs you jbus sign-in <path> -> jbus t3 login` | `jbus` has its config and no sign-in. | Run `jbus t3 login`, as [Set up jbus](jbus.md#set-up-jbus) says. |
 | `needs you limits <path> -> claude` | Only Claude Code's status line writes the limits file. | Start one Claude Code session. |
+| `needs you state repo <path> -> git -C <path> remote add origin <url>` | The state tree has no remote, or with `git init <path> && ` first, is not a git repo. | Run it with a private repository of your own as `<url>`. |
 | `needs you <name> -> <why>` | A file is there and its loader refuses it, or a part the install puts could not be put. Setup never writes over a file. | Find the doctor's line for `<name>` above and do what it says. |
 
 Setup writes three configs, each only where no file is: `~/.config/jstack/config.toml`, with `user` from the first word of `git config user.name` and `timezone` from the machine, `~/.config/jstack/roles` with every role `inherit`, and `~/.config/jbus/config.toml`, mode 600, with `server` from the T3 sign-in beside it, else `http://127.0.0.1:3773`, and `dispatch = false`. The units are linked in the same run, since the jbus config is then there. `--uninstall` removes each of the three only while its bytes are the ones setup wrote, and says `kept <name> -> yours, it is not as setup wrote it` for one you changed.
