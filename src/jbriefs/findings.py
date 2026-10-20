@@ -152,7 +152,7 @@ class Finding:
     def severity(self) -> str:
         ranks = ("error", "warning", "info")
         return min(
-            (one.severity for one in self.raised),
+            (one.severity for one in self.standing),
             key=lambda value: ranks.index(value) if value in ranks else len(ranks),
         )
 
@@ -170,7 +170,7 @@ class Finding:
 
     @property
     def risk(self) -> str:
-        return next((one.risk for one in self.raised if one.risk), "")
+        return next((one.risk for one in self.standing if one.risk), "")
 
     @property
     def sent(self) -> bool:
@@ -329,7 +329,9 @@ def _same(finding: Finding, one: Raised) -> int | None:
         return None
     if DISMISSED in (lead.bucket, one.bucket) or lead.head != one.head:
         return None
-    if one.reviewer in finding.reviewers:
+    if one.reviewer in (
+        line.reviewer for line in finding.raised if line.section not in finding.stale
+    ):
         return None
     return _near(lead, one)
 

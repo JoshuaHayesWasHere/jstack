@@ -219,10 +219,12 @@ def test_a_re_run_at_one_head_moves_no_id_and_no_answer():
     before = RESULT + section([a], CODEX) + section([b, d], CURSOR)
     before += "Finding F1: fixed, x\nFinding F2: fixed, z\n"
     after = before + section([a], CODEX)
-    ids = [(one.id, one.path, one.superseded) for one in findings.triage(after).findings]
-    assert ids[:2] == [("F1", "src/a.py", False), ("F2", "src/d.py", False)]
-    assert ids[2] == ("F3", "src/a.py", False)
-    assert findings.triage(after).answers["F2"].what == "z"
+    triage = findings.triage(after)
+    ids = [(one.id, one.path, one.superseded) for one in triage.findings]
+    assert ids == [("F1", "src/a.py", False), ("F2", "src/d.py", False)]
+    assert triage.findings[0].reviewers == (CODEX, CURSOR, CODEX)
+    assert triage.answers["F2"].what == "z"
+    assert triage.blocking() == ()
 
 
 def test_a_risky_consider_finding_blocks_and_its_decline_needs_a_gate():
@@ -231,3 +233,12 @@ def test_a_risky_consider_finding_blocks_and_its_decline_needs_a_gate():
     triage = findings.triage(RESULT + section([risky], CODEX) + declined)
     (one,) = triage.blocking()
     assert one.refused == findings.UNASKED
+
+
+def test_a_risk_tag_on_a_line_its_reviewer_wrote_again_holds_nothing():
+    risky = tagged("error src/a.py:10 x", "Consider", principle="model-the-domain", risk="auth")
+    near = tagged("warning src/a.py:12 y", "Consider", principle="model-the-domain")
+    brief = RESULT + section([risky], CODEX) + section([near], CURSOR) + section([], CODEX)
+    brief += "Finding F1: not fixed, y, because consider: left for a follow-up\n"
+    (one,) = findings.triage(brief).findings
+    assert (one.risk, one.severity, one.blocks, one.refused) == ("", "warning", False, "")
