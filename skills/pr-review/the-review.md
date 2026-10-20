@@ -59,29 +59,8 @@ INTENT=$(
     printf '\nSkills: %s. The crewmate loaded each in full and ran it, and its Result owes one artifact for each under Skills run:, the one templates/skill-artifacts.md names. jmerge waits on one that is missing, empty or a placeholder. Judge whether each is the real one: an artifact that restates the brief, or that running the skill plainly did not produce, is a finding about the change as a whole.\n' "$skills"
     printf 'What the Results hold under Skills run:, as jmerge reads it:\n%s\n' "$run"
   fi
-  play=$(awk '/^Playbook:/ {print $(2); exit}' "$BRIEF")
-  P="$T/../playbooks/$play.md"
-  case $play in
-  "" | none) ;;
-  *)
-    if [ "${play#*/}" != "$play" ] || [ ! -f "$P" ]; then
-      printf '\nPlaybook: %s, which is no playbook here: the crewmate worked with none.\n' "$play"
-    elif by=$(sed -n 's/^Run by: //p' "$P" | head -n 1) && [ "${by%%,*}" != "a crewmate" ]; then
-      printf '\nPlaybook: %s, which is for %s and not a crewmate: the crewmate worked with none.\n' "$play" "${by%%,*}"
-    else
-      cited=$(grep -o 'principles/[a-z0-9-]*\.md' "$P" | awk '!seen[$(0)]++' | while read -r file; do
-        [ -f "$T/../$file" ] || continue
-        name=${file#principles/}
-        awk -v name="${name%.md}" '
-          /^# / {head = 1; next}
-          head && NF {printf "%s%s", (on++ ? " " : "- " name ": "), $(0); next}
-          on {exit}
-          END {if (on) print ""}' "$T/../$file"
-      done)
-      printf '\nPlaybook: %s, the steps the crewmate worked by.\n' "$play"
-      if [ -n "$cited" ]; then printf 'The principles it cites, and when each applies:\n%s\n' "$cited"; fi
-    fi ;;
-  esac
+  play=$(uv run --project "$T/.." jbus playbook reviewer "$BRIEF")
+  if [ -n "$play" ]; then printf '\n%s\n' "$play"; fi
   printf '\n%s\n' "$SCOPE"
 )
 I="$T/../skills/interrogate/references"

@@ -24,50 +24,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
    ```sh
    B="$H/tasks/<slug>.md"
-   name=$(awk '/^Playbook:/ {print $(2); exit}' "$B")
-   case $name in
-   "" | none) ;;
-   *)
-       f="$T/../playbooks/$name.md"
-       if [ "${name#*/}" != "$name" ] || [ ! -f "$f" ]; then
-           echo "no playbook: playbooks/ has no $name.md"
-       else
-           by=$(sed -n 's/^Run by: //p' "$f" | head -n 1)
-           case ${by%%,*} in
-           "a crewmate")
-               realpath "$f"
-               printf '%s\n' "$by" | sed -n 's/.* in a brief with //p' | grep -o '`[^`]*`' | tr -d '`' |
-                   while read -r asked; do
-                       if awk -v asked="$asked" 'index($(0), asked) == 1 {found = 1} END {exit !found}' "$B"; then
-                           echo "has the line the playbook asks for: $asked"
-                       else
-                           echo "lacks the line the playbook asks for: $asked"
-                       fi
-                   done
-               steps=$(grep '^[0-9][0-9]*\. ' "$f")
-               if [ -n "$steps" ]; then
-                   echo "the steps of playbooks/$name.md, a checklist to copy into your todo list as printed:"
-                   printf '%s\n' "$steps"
-               fi
-               printed=
-               for cited in $(grep -o 'principles/[a-z0-9-]*\.md' "$f" | awk '!seen[$(0)]++'); do
-                   if [ -f "$T/../$cited" ]; then
-                       printed="$printed $cited"
-                   else
-                       echo "no principle: playbooks/$name.md cites $cited, which is not there"
-                   fi
-               done
-               if [ -n "$printed" ]; then
-                   echo "the principles playbooks/$name.md cites, each in full below:$(printf '%s\n' $printed | sed 's|^principles/\(.*\)\.md$| \1|' | tr -d '\n')"
-                   for cited in $printed; do
-                       printf '\n==> %s <==\n' "$cited"
-                       cat "$T/../$cited"
-                   done
-               fi ;;
-           *) echo "not a crewmate's: playbooks/$name.md is for ${by%%,*}" ;;
-           esac
-       fi ;;
-   esac
+   uv run --project "$T/.." jbus playbook crewmate "$B"
    ```
 
    It prints nothing when the brief says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the Result under "Noticed". On `not a crewmate's`, the file is for a scout or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. The Result's `Playbook:` line reports each step, as `$T/result.md` shows. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the task is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the brief to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the Result under "Noticed". On `lacks the line`, the brief stands as the home wrote it: say what it printed in the Result under "Noticed". The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the Result under "Noticed".

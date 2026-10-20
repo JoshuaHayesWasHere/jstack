@@ -14,6 +14,7 @@ from subprocess import run
 import pytest
 from jsonschema import Draft202012Validator
 
+import test_playbook_wiring as wiring
 import test_tool_calls as calls
 import test_understanding_skills as added
 from jbus import mirror
@@ -39,7 +40,7 @@ MARKERS = {
     "webhook": "create: no webhook",
     "taken": "taken: webhook",
     "keep": "url='<webhookUrl>'",
-    "playbook": "Run by:",
+    "playbook": "jbus playbook expert",
     "gate": "THE_GATE_ENDS_HERE",
     "roll": "launch: ",
 }
@@ -80,8 +81,7 @@ class Scene:
         for name in READ_AT_START:
             (self.folder / name).write_text(f"# {name}\n")
         (self.folder / "notes" / "a-topic.md").write_text("# A topic\n")
-        self.bin = tmp_path / "bin"
-        self.bin.mkdir()
+        self.bin = wiring.uv(tmp_path / "bin")
         self.elsewhere = tmp_path / "elsewhere"
         self.elsewhere.mkdir()
 
