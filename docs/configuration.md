@@ -175,7 +175,7 @@ test_slots = 3
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
-| `test_slots` | One full slot for each desk run's workers, a quarter of the processors, at most one for each 4 GiB: 4 on 8 cores or more | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
+| `test_slots` | One full slot for each desk run's workers, a quarter of the processors, at most one for each 4 GiB: 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room) | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
 | `short_slots` | One for each 8 processors, from 2 to 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
 
 A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.

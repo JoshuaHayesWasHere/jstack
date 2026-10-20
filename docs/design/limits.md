@@ -82,7 +82,7 @@ The Makefile's workers do read the quota, on purpose: a run's workers are sized 
 The memory column is 4, 16, 32, 62 and 128 GiB.
 Four full slots of six workers on yelena is 24 workers at the measured 0.86 of a core, about 21 cores busy.
 Measured at four suites at once that held CPU pressure at 17 to 29, under room's line of 40, at 2.0 suites a minute; five gained 10% at pressure 30, and six took 195 s a suite at pressure 55 and flaked a test.
-The count is 4 on every machine of 8 cores or more because the desk share is a quarter: the slots fill the machine once, whatever its size.
+The count is 4 on most machines of 8 cores or more, and 5 on 10, 11 or 15 cores, because the desk share is a quarter: the slots fill the machine once, whatever its size.
 The crew cap derives the 24 the owner set by hand, so no yelena number lives in jstack.
 
 Each key has one local home.

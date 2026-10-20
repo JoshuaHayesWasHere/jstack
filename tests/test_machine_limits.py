@@ -171,3 +171,25 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
         check=False,
     )
     assert ran.returncode == 0, ran.stderr
+
+
+def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not(tmp_path):
+    """The sizes are the whole machine's: a shell, `jbus.service` and a CI container count the
+    same slots whatever CPUs or quota they are given. Run on the real /proc."""
+    env = {key: value for key, value in os.environ.items() if key not in ("PROC", "TEST_SLOTS")}
+    env |= {"XDG_CONFIG_HOME": str(tmp_path / "config"), "JBUS_CONFIG_DIR": str(tmp_path)}
+
+    def sizes(cpus=None):
+        ran = subprocess.run(
+            [str(BIN / "jgauge"), "limits"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+            preexec_fn=(lambda: os.sched_setaffinity(0, cpus)) if cpus else None,
+        )
+        return ran.stdout.splitlines()[:3]
+
+    whole = sizes()
+    assert sizes({min(os.sched_getaffinity(0))}) == whole
+    assert whole[0].split()[1] == str(limits.derive(Name.TEST_SLOTS, Machine.here()))

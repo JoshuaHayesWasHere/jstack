@@ -1,9 +1,11 @@
+import json
 import os
 import time
 from pathlib import Path
 
 import pytest
 
+from jbus import wake
 from jgauge import cli, sample
 
 REPO = Path(__file__).parent.parent
@@ -221,8 +223,13 @@ def test_the_report_gives_the_peaks_against_rooms_lines_and_the_jbus_stalls(mach
                 ' slot is free for `pytest`, after 2 min"}',
                 f'{{"at": "{moment}", "event": "slot-wake", "line": "slot-wake: woke d, a short'
                 ' slot is free for `pytest`"}',
-                f'{{"at": "{moment}", "event": "gate",'
-                ' "line": "gate e: no room for 10 passes: x"}',
+                json.dumps(
+                    {
+                        "at": moment,
+                        "event": wake.CONDITION,
+                        "line": f"{wake.CONDITION} e: no room for 10 passes: x",
+                    }
+                ),
                 '{"at": "2025-10-20T00:01:20+00:00", "event": "stall", "line": "after the span"}',
                 "not a record",
             ]

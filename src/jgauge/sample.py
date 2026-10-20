@@ -9,8 +9,8 @@ days at most: once its first row is older than that, the sampler writes it again
 before the two /tmp columns is written again once, with those fields empty in its old rows.
 
 The stalls are read from each project's `events.jsonl` under jbus's state directory: a
-`stall`, a `slot-wake` (a thread that waited for a test slot, and how many minutes), and a
-`gate` that says a row had no room for its passes."""
+`stall`, a `slot-wake` (a thread that waited for a test slot, and how many minutes), and the
+`condition` jbus's gate writes when a row had no room for its passes."""
 
 from __future__ import annotations
 
@@ -327,7 +327,7 @@ def _stalls(start: int, until: int) -> str:
                     timed += 1
                     long += int(found[1]) > STALL_MINUTES
                     longest = max(longest, int(found[1]))
-            elif event.get("event") == "gate" and ": no room for " in said:
+            elif event.get("event") == "condition" and ": no room for " in said:
                 rooms += 1
     if not files:
         return f"jbus events: none read, {jbus_state()} has no events.jsonl"
