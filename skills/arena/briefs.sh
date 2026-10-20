@@ -85,15 +85,18 @@ Read: first $(reads); only after the scores are written, the judge's Result in \
 $(home)
 EOF
 }
-headof() { awk '/^## / {exit} {print}' "${1}"; }
+# The head of a brief as this script wrote it: the `Thread:` line jbus adds at a launch is
+# not the frame's.
+headof() { awk '/^## / {exit} !/^Thread:/ {print}' "${1}"; }
 # A brief is written when it is not there, kept as it was when its head is the same, and
-# written again for a new `have` only while its seat has not started: no Result yet.
+# written again for a new `have` only while its seat has not started: no Thread: line and
+# no Result yet.
 put() {
     if [ ! -e "${2}" ]; then
         printf '%s\n' "${1}" > "${2}" && echo "written: ${2##*/}"
     elif [ "$(headof "${2}")" = "${1}" ]; then
         echo "as it was: ${2##*/}"
-    elif [ "${3}" = again ] && ! grep -q '^## Result' "${2}"; then
+    elif [ "${3}" = again ] && ! grep -q '^Thread:\|^## Result' "${2}"; then
         printf '%s\n' "${1}" > "${2}" && echo "written again: ${2##*/}"
     else
         echo "differs: ${2##*/}"
