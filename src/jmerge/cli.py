@@ -1359,9 +1359,6 @@ def _job(repo: str, job: str) -> dict:
 
 
 def said_of_checks(pull: str) -> str:
-    """The one line `--checks` prints for a pull request: its checks in a word, then why. A
-    failed check whose job ran no step never started; one whose job GitHub will not give
-    counts as one that ran."""
     pr = [pull] if pull else []
     try:
         asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", "headRefOid,statusCheckRollup")
