@@ -1,0 +1,12 @@
+# What waits on you
+
+After a pass launches what it may, jbus follows every approved row that was not launched along its `depends` links to its root: the one thing only you can do. There are four:
+
+- **A pull request `jmerge` holds** is yours to accept. The line is `hand-merge #<n> <url>: <why>; safe because <fact> (proven at <head>); jmerge --accept <n> --by <user> --at "<YYYY-MM-DD HH:MM zone>"`, or `...; not yet, <what is short>` where the accept would be refused.
+- **A brief that changed after your go** is yours to approve again.
+- **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the four bases to pick one from.
+- **A project with no `webhook_url` or `webhook_key`, or with no sign-in to T3 Code,** is yours to configure.
+
+For each root jbus sends one `waiting-on-user` event: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`. It sends a root again each hour while it stands, and a pass that finds it gone prints `cleared <root>`. Each time a root is due, jbus raises its line on the desktop with `notify-send`, whether or not it queues an event. A project with no `webhook_url` or `webhook_key` gets no event, and while the webhook's last POST failed jbus queues only the first. In both cases jbus also prints the line in the journal. Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that stand, and `jbus queue show` prints them above the table.
+
+A row that ended with something left is not yours while its home has it. jbus tells the home once (the leftover, in the table above), and the row waits on that home: it is not in `waiting-on-user.json`, and the view shows it as ended with a leftover that its home has, with the time the home was told. It becomes yours in two ways. The home asks you a question about it, which is a gate. Or the home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `src/jbus/leftover.py`): then jbus sends one `stall` event for the row, which names the home's thread, and lists the row with that reason. A row whose home has no thread in its `home-id`, or whose home's thread T3 Code does not list as not settled, or whose message did not go, is yours at once, and its line says why. A home that takes over from the one that was told is told too. `~/.local/state/jbus/<project>/leftover.json` is the record: for each such row the `Left:` text, the home's thread, when it was told and when the stall was said.

@@ -65,6 +65,7 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
         REPO / "templates/jbus-view.service",
         REPO / "README.md",
         REPO / "docs/jbus.md",
+        *sorted((REPO / "docs/jbus").glob("*.md")),
         REPO / "docs/chef.md",
         REPO / "docs/configuration.md",
     ]

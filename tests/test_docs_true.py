@@ -35,7 +35,7 @@ import pytest
 REPO = Path(__file__).parent.parent
 README = REPO / "README.md"
 DOCS = REPO / "docs"
-PAGES = (README, *sorted(DOCS.glob("*.md")))
+PAGES = (README, *sorted(DOCS.glob("**/*.md")))
 SCRIPTS = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"]
 WIDTH = "200"
 ENDS = ("|", "||", "&&", ";", "--", ">", ">>", "<", "<<")
@@ -254,13 +254,19 @@ def test_an_option_line_the_walk_cannot_read_fails_and_is_not_passed_over(line):
     assert said_by(wrapped)[1] == {"--wide": True}
 
 
+def told(command):
+    """A command's page and the pages of its folder, `docs/<command>/`, as one text."""
+    paths = (DOCS / f"{command}.md", *sorted((DOCS / command).glob("*.md")))
+    return "\n".join(path.read_text() for path in paths)
+
+
 @pytest.mark.parametrize("command", SCRIPTS)
 def test_a_commands_page_has_every_verb_and_every_flag_its_help_has(trees, command):
-    assert missing(trees[command], (DOCS / f"{command}.md").read_text()) == []
+    assert missing(trees[command], told(command)) == []
 
 
 def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
-    page = (DOCS / "jbus.md").read_text()
+    page = told("jbus")
     assert missing(trees["jbus"], page.replace("jbus digest", "jbus summary")) == [
         "jbus digest: the verb",
         "jbus digest: --json",
@@ -282,7 +288,7 @@ def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
 
 @pytest.mark.parametrize("path", PAGES, ids=lambda path: path.name)
 def test_a_page_names_no_verb_and_no_flag_that_the_help_does_not_have(trees, path):
-    own = path.stem if path.stem in SCRIPTS else None
+    own = next((name for name in (path.stem, path.parent.name) if name in SCRIPTS), None)
     assert gone(trees, path.read_text(), own) == []
 
 
