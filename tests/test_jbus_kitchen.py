@@ -2,7 +2,8 @@
 Code server, a `gh`, a `jmerge`, a `notify-send` and a webhook that are faked. The server and
 the webhook listen on a local port, the three commands are functions here, and scripts on
 PATH for another process. Nothing reaches the network. The tests here are of the fakes: each
-says the same called here and started as a command.
+says the same called here and started as a command. The last is of the repo each kitchen copies
+from its worker's template: a kitchen pushes to its own origin and the template stays as built.
 """
 
 import base64
@@ -26,8 +27,10 @@ from pathlib import Path
 import pytest
 
 import jbus
+import repo_template
 from jbriefs import meaning
 from jbus import cli, live, queue, t3, wake, word
+from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
 
 REPO = Path(__file__).parent.parent
@@ -496,6 +499,8 @@ class Kitchen:
     """One project with jbus set up for it: config, state, a main checkout, and the fakes.
 
     `second` adds another project to the same config, T3 Code server, `gh` and `jmerge`.
+
+    Its repo is a copy of the worker's template (`repo_template`).
     """
 
     def __init__(self, tmp_path, monkeypatch):
@@ -590,14 +595,11 @@ class Kitchen:
         return env["LIMITS"]
 
     def repo(self, checkout, origin):
-        """A main checkout on `main`, with an origin that has that branch as its default."""
-        self.git("init", "-q", "-b", "main", str(checkout), cwd=self.root)
-        self.git("commit", "-q", "--allow-empty", "-m", "start", cwd=checkout)
-        self.git("init", "-q", "--bare", "-b", "main", str(origin), cwd=self.root)
-        self.git("remote", "add", "origin", str(origin), cwd=checkout)
-        self.git("push", "-q", "origin", "main", cwd=checkout)
-        self.git("fetch", "-q", "origin", cwd=checkout)
-        self.git("remote", "set-head", "origin", "main", cwd=checkout)
+        """A main checkout on `main`, with an origin that has that branch as its default.
+
+        It is a copy of the worker's template.
+        """
+        repo_template.copied(repo_template.templated(), checkout, origin)
 
     def second(self, name="other"):
         """Add a project to the config, after the ones it has. The answer is where it is.
@@ -663,8 +665,7 @@ class Kitchen:
         self.write(self.config_dir / "config.toml", "\n".join(lines) + "\n")
 
     def git(self, *args, cwd=None):
-        identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
-        subprocess.run(["git", *identity, *args], cwd=cwd or self.checkout, check=True)
+        subprocess.run(["git", *IDENTITY, *args], cwd=cwd or self.checkout, check=True)
 
     def set(self, name, value):
         (self.stub / name).write_text(value if isinstance(value, str) else json.dumps(value))
@@ -916,6 +917,46 @@ GATE = textwrap.dedent("""\
 DAY = timedelta(days=1)
 QUARTER_PAST_FIVE = datetime(2026, 10, 12, 21, 15, tzinfo=UTC)
 PASS = timedelta(minutes=3)
+
+
+def said(cwd, *args):
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
+    tmp_path, monkeypatch
+):
+    """Two kitchens push a commit each and see only their own. The template's origin is at the
+    commit it was built with, after every test this worker ran before this one, and after this.
+    """
+    kitchen_template = repo_template.templated()
+    assert said(kitchen_template.origin, "rev-parse", "main") == kitchen_template.main
+    kitchens = {name: Kitchen(tmp_path / name, monkeypatch) for name in ("one", "two")}
+    try:
+        for name, made in kitchens.items():
+            assert said(made.checkout, "config", "remote.origin.url") == str(made.origin)
+            assert said(made.checkout, "symbolic-ref", "refs/remotes/origin/HEAD") == (
+                "refs/remotes/origin/main"
+            )
+            (made.checkout / f"{name}.txt").write_text(name)
+            made.git("add", f"{name}.txt")
+            made.git("commit", "-q", "-m", name)
+            made.git("push", "-q", "origin", "main")
+        for name, made in kitchens.items():
+            assert said(made.origin, "log", "--format=%s", "main").splitlines() == [name, "start"]
+            assert said(made.checkout, "rev-parse", "origin/main") == said(
+                made.origin, "rev-parse", "main"
+            )
+    finally:
+        for made in kitchens.values():
+            made.close()
+    assert said(kitchen_template.origin, "rev-parse", "main") == kitchen_template.main
+    assert said(kitchen_template.checkout, "rev-parse", "main") == kitchen_template.main
+    assert said(kitchen_template.checkout, "config", "remote.origin.url") == str(
+        kitchen_template.origin
+    )
 
 
 def queued(kitchen, slug, text=None):

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+import repo_template
 from test_home_thread import as_read
 
 SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
@@ -185,7 +186,10 @@ def review(verdict, head=REVIEWED):
 
 
 class Home:
-    """A user's home directory, a repo's main checkout, that repo's state, and a fake `gh`."""
+    """A user's home directory, a repo's main checkout, that repo's state, and a fake `gh`.
+
+    The main checkout is a copy of the worker's template: one empty commit on `main`, no remote.
+    """
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
@@ -202,8 +206,9 @@ class Home:
         (self.stub / "gh").chmod(0o755)
         self.main = tmp_path / "code" / NAME
         self.main.mkdir(parents=True)
-        git(self.main, "init", "-q", "-b", "main")
-        git(self.main, "commit", "-q", "--allow-empty", "-m", "start")
+        shutil.copytree(
+            repo_template.templated().plain, self.main, symlinks=True, dirs_exist_ok=True
+        )
         self.code = None
 
     def open_pull_request(
@@ -819,17 +824,37 @@ def merged_line(commit, *notes):
     return ", ".join([merged_as(commit), *notes, REVERT])
 
 
+TRACKED = """\
+[remote "origin"]
+\turl = {origin}
+\tfetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+\tremote = origin
+\tmerge = refs/heads/main
+"""
+
+
 class Merged:
     """A main checkout with a crewmate's worktree, its branch pushed and its pull request
-    reviewed clean at that head: ready, unless the test says otherwise."""
+    reviewed clean at that head: ready, unless the test says otherwise.
+
+    The origin is a copy of the template's, which has the commit `Home` copied on its `main`,
+    and the checkout gets what `git push -u origin main` would write: the remote, `main`'s
+    upstream and the ref of `origin/main`. So it is built on a `Home` nothing has changed yet.
+    """
 
     def __init__(self, home, tmp_path):
         self.home = home
         self.origin = home.origin
-        git(tmp_path, "init", "-q", "--bare", "-b", "main", str(self.origin))
-        git(home.main, "remote", "add", "origin", str(self.origin))
-        git(home.main, "push", "-q", "-u", "origin", "main")
-        self.start = git(home.main, "rev-parse", "HEAD")
+        template, git_dir = repo_template.templated(), home.main / ".git"
+        if (git_dir / "refs" / "heads" / "main").read_text().strip() != template.main:
+            raise AssertionError("Merged is built on a Home whose main has moved")
+        shutil.copytree(template.origin, self.origin, symlinks=True)
+        with (git_dir / "config").open("a") as config:
+            config.write(TRACKED.format(origin=self.origin))
+        (git_dir / "refs" / "remotes" / "origin").mkdir(parents=True)
+        (git_dir / "refs" / "remotes" / "origin" / "main").write_text(f"{template.main}\n")
+        self.start = template.main
         self.tree = tmp_path / "trees" / "alpha"
         git(home.main, "worktree", "add", "-q", "-b", "alpha", str(self.tree))
         (self.tree / "a.txt").write_text("the task\n")
