@@ -14,7 +14,9 @@ file with its count, highest first, the first `--top` (20) of each:
    the range, counted once for each pull request and head (a hold line names no head, so once
    for what it says dropped), with the lines dropped beside it; and the rebases that changed
    the patch, the `Rebase: patch changed in <files>, before <sha>, head <sha>` lines of the
-   home's briefs, once a head, for a brief whose pull request is one of table 1's.
+   home's briefs, once a head, for a brief whose pull request is one of table 1's. The list
+   is free text ("a.md and b.md", "12 feature files"): a word counts as a path of that pull
+   request, or the name one of its paths alone ends with, and the rest is named on stderr.
 
 jmerge logs a wait or hold line only when it differs from the last one for its pull request
 (`merge.log.last`), so table 3 counts a rebase once however long it waited, and a pull request
@@ -111,22 +113,39 @@ def drops(log, repo, since, until):
     return rebases, lines
 
 
-def changed(briefs, repo, numbers):
-    """Per file, the rebases that changed the patch of a pull request in `numbers`."""
+def changed(briefs, repo, files):
+    """Per file, the rebases that changed the patch of a pull request in `files` (number ->
+    the paths it touched). The line's list is free text, so a word counts only as a path of
+    that pull request, or as the name one of its paths alone ends with; what is left is
+    named on stderr."""
     heads = set()
     counted = Counter()
     for brief in briefs:
         text = brief.read_text(encoding="utf-8", errors="replace")
         pulls = [int(number) for url, number in PULL.findall(text) if url == repo]
-        if not pulls or pulls[-1] not in numbers:
+        if not pulls or pulls[-1] not in files:
             continue
+        touched = files[pulls[-1]]
         for paths, head in CHANGED.findall(text):
             if head in heads:
                 continue
             heads.add(head)
-            for path in set(paths.split()):
-                if "/" in path or "." in path:
-                    counted[path] += 1
+            found, unread = set(), []
+            for word in paths.split():
+                ends = [path for path in touched if path.endswith(f"/{word}")]
+                if word in touched:
+                    found.add(word)
+                elif len(ends) == 1:
+                    found.add(ends[0])
+                elif word != "and":
+                    unread.append(word)
+            counted.update(found)
+            if unread:
+                print(
+                    f"unread: {brief.name} at {head[:12]} names {' '.join(unread)}, "
+                    f"no path of #{pulls[-1]}, so it is not counted",
+                    file=sys.stderr,
+                )
     return counted
 
 
@@ -181,9 +200,8 @@ def main():
     rebases, lines = drops(
         log.read_text(encoding="utf-8", errors="replace"), repo, args.since, args.until
     )
-    patched = changed(
-        sorted((home / "tasks").glob("*.md")), repo, {pull["number"] for pull in pulls}
-    )
+    files = {pull["number"]: {one["path"] for one in pull["files"]} for pull in pulls}
+    patched = changed(sorted((home / "tasks").glob("*.md")), repo, files)
     print(
         "Rebases that dropped lines per file (merge.log, once a pull request and head), "
         "the lines dropped, and the rebases that changed the patch (the briefs of table 1)"

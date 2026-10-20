@@ -14,12 +14,14 @@ import textwrap
 import time
 from pathlib import Path
 
+from jmerge import ready
+
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "hot_files.py"
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^```sh\n(.*?)^```", re.M | re.S)
 URL = "https://github.com/o/r"
-SHA = {name: name * 40 for name in "abcdef"}
+SHA = {name: name * 40 for name in "0123456789abcdef"}
 
 GH = """\
 #!/bin/sh
@@ -45,21 +47,28 @@ def pull(number, created, merged, paths):
 PULLS = [
     pull(1, "01T00:00:00", "03T00:00:00", ["a.md", "b.py"]),
     pull(2, "02T00:00:00", "04T00:00:00", ["a.md"]),
-    pull(3, "05T00:00:00", "06T00:00:00", ["a.md", "b.py"]),
+    pull(3, "05T00:00:00", "06T00:00:00", ["a.md", "b.py", "docs/c.md"]),
     pull(4, "03T12:00:00", "05T12:00:00", ["a.md", *[f"gen/f{n:03}.txt" for n in range(1, 100)]]),
 ]
 
-DROP = "the rebase dropped {lost} with no Dropped on rebase line at {head}"
-BOTH = "1 of main's lines in a.md and 2 of its own in b.py"
+
+def dropped(head, *drops):
+    """The reason of a jmerge wait for a rebase that dropped lines, in jmerge's own words:
+    each drop is (file, main's lines, its own)."""
+    lost = tuple(ready.Drop(file=file, mains=mains, own=own) for file, mains, own in drops)
+    return ready.DROPPED.format(lost=ready._lost(lost), head=head * 12)
+
+
+BOTH = dropped("a", ("a.md", 1, 0), ("b.py", 0, 2))
 OTHER = "https://github.com/o/other"
 LOG = f"""\
-2026-09-20 10:00 wait 1 {URL}/pull/1: {DROP.format(lost="9 of its own in a.md", head="e" * 12)}
-2026-10-02 10:00 wait 1 {URL}/pull/1: {DROP.format(lost=BOTH, head="a" * 12)}
+2026-09-20 10:00 wait 1 {URL}/pull/1: {dropped("e", ("a.md", 0, 9))}
+2026-10-02 10:00 wait 1 {URL}/pull/1: {BOTH}
 2026-10-02 10:05 merge 3 {URL}/pull/3
-2026-10-02 10:30 wait 1 {URL}/pull/1: {DROP.format(lost=BOTH, head="a" * 12)}
-2026-10-02 11:00 wait 1 {URL}/pull/1: {DROP.format(lost="3 of its own in a.md", head="b" * 12)}
+2026-10-02 10:30 wait 1 {URL}/pull/1: {BOTH}
+2026-10-02 11:00 wait 1 {URL}/pull/1: {dropped("b", ("a.md", 0, 3))}
 2026-10-03 09:00 hold 2 {URL}/pull/2: needs Josh, the rebase dropped 4 of main's lines in a.md
-2026-10-03 09:10 wait 9 {OTHER}/pull/9: {DROP.format(lost="5 of its own in a.md", head="c" * 12)}
+2026-10-03 09:10 wait 9 {OTHER}/pull/9: {dropped("c", ("a.md", 0, 5))}
 """
 
 ONE = f"""\
@@ -71,6 +80,8 @@ Rebase: patch changed in a.md b.py, before {SHA["a"]}, head {SHA["b"]}
 Rebase: patch changed in a.md b.py, before {SHA["a"]}, head {SHA["b"]}
 Rebase: patch unchanged, before {SHA["b"]}, head {SHA["c"]}
 Rebase: patch changed in a.md, before {SHA["c"]}, head {SHA["d"]}
+Rebase: patch changed in b.py and c.md, before {SHA["d"]}, head {SHA["1"]}
+Rebase: patch changed in 2 feature files, before {SHA["1"]}, head {SHA["2"]}
 """
 TWO = f"""\
 # two: a task
@@ -89,10 +100,12 @@ def kitchen(tmp_path, pulls=PULLS):
     and #1 and #3 never meet. #4 lists 100 files, gh's cap.
 
     The merge.log drops lines for #1 at two heads, one logged twice, and for #2 in a hold line
-    with no head. A drop before the range and one of another repo do not count.
+    with no head, the shape jmerge logged before its holds named the review. A drop before the
+    range and one of another repo do not count.
 
-    One brief is of #3, merged in the range: two rebases changed its patch, one of them written
-    twice. The other is of #7, which did not merge in the range.
+    One brief is of #3, merged in the range: four rebases changed its patch, one of them
+    written twice. One names a file by the name its path ends with, after an "and", as briefs
+    do; one names no file. The other brief is of #7, which did not merge in the range.
     """
     stub = tmp_path / "stub"
     stub.mkdir()
@@ -145,10 +158,10 @@ def test_the_three_tables(tmp_path):
         (rows, title) for title, rows in tables(ran.stdout)
     ]
     assert "4 pull requests" in title1
-    assert merged[:3] == [(4, "a.md"), (2, "b.py"), (1, "gen/f001.txt")]
+    assert merged[:4] == [(4, "a.md"), (2, "b.py"), (1, "docs/c.md"), (1, "gen/f001.txt")]
     assert len(merged) == 20
     assert pairs == [(3, "a.md")]
-    assert drops == [(3, 8, 2, "a.md"), (1, 2, 1, "b.py")]
+    assert drops == [(3, 8, 2, "a.md"), (1, 2, 2, "b.py"), (0, 0, 1, "docs/c.md")]
 
 
 def test_it_asks_gh_for_the_range_in_local_days(tmp_path):
@@ -184,8 +197,18 @@ def test_a_pull_request_at_the_file_cap_is_named_as_undercounted(tmp_path):
 
     ran = run(env, "--since", "2026-10-01", "--until", "2026-10-07", "--home", str(home))
 
-    assert ran.stderr.splitlines() == [
+    assert ran.stderr.splitlines()[0] == (
         "undercounted: #4 lists 100 files, gh's cap, so a file past its 100th is not counted"
+    )
+
+
+def test_a_rebase_line_that_names_no_file_of_its_pull_request_is_named(tmp_path):
+    env, home = kitchen(tmp_path)
+
+    ran = run(env, "--since", "2026-10-01", "--until", "2026-10-07", "--home", str(home))
+
+    assert ran.stderr.splitlines()[1:] == [
+        "unread: one.md at 222222222222 names 2 feature files, no path of #3, so it is not counted"
     ]
 
 
@@ -194,7 +217,11 @@ def test_a_drop_outside_the_range_is_not_counted(tmp_path):
 
     ran = run(env, "--since", "2026-10-03", "--until", "2026-10-07", "--home", str(home))
 
-    assert tables(ran.stdout)[2][1] == [(1, 4, 2, "a.md"), (0, 0, 1, "b.py")]
+    assert tables(ran.stdout)[2][1] == [
+        (1, 4, 2, "a.md"),
+        (0, 0, 2, "b.py"),
+        (0, 0, 1, "docs/c.md"),
+    ]
 
 
 def test_with_no_home_the_third_table_says_so(tmp_path):
