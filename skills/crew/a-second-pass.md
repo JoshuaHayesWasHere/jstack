@@ -17,6 +17,7 @@ B="$H/tasks/<slug>.md"
 read -r passes saw written declined << EOF
 $(uv run --project "$T/.." jbriefs --findings "$B" --rounds)
 EOF
+declined=${declined:--}
 read -r decided since launched asked sent stopped ruled here ran << EOF
 $(awk -v written="$written" -v head="$(git rev-parse HEAD 2> /dev/null)" '
     BEGIN {split(written, heads, ","); for (one in heads) seen[heads[one]]}
