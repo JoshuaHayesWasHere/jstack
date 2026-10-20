@@ -8,6 +8,7 @@ The first three are the briefs the review-determinism-risks scout reproduced, wh
 import pytest
 
 from jmerge import ready
+from jsettings import Settings
 
 SAW, FIX = "a" * 40, "b" * 40
 RESULT = "\n## Result\nStatus: done\nBranch: alpha   Pull request: https://example.test/pull/7\n"
@@ -87,7 +88,8 @@ def test_a_decline_counts_only_with_a_reason_that_cites_a_path_line_or_a_command
         + "Fixed: none needed, x\n"
     )
     said = ready.short_of(answered + section([ACT]), SAW)
-    assert said == ("" if counts else ready.UNCITED.format(ids="F1"))
+    counted = ready.DECLINES_UNRULED.format(ids="F1")
+    assert said == (counted if counts else ready.UNCITED.format(ids="F1"))
 
 
 def test_the_same_reason_given_twice_is_refused_after_the_first():
@@ -120,7 +122,58 @@ def test_a_risky_finding_declined_waits_for_the_gate_that_asks_the_user():
     unparked = RESULT + asked + "Fixed: none needed, x\n" + section([risky])
     assert ready.short_of(unparked, SAW) == ready.RISK_UNASKED.format(ids="F1", risks="auth")
     parked = unparked.replace("Fixed:", "Gate: question 52\nFixed:")
-    assert ready.short_of(parked, SAW) == ""
+    assert ready.short_of(parked, SAW) == ready.DECLINES_UNRULED.format(ids="F1")
+
+
+USER = Settings("Josh")
+DECLINED = by_id("F1: not fixed, it runs twice, because src/a.py:12 already guards it")
+
+
+def scoped(*rulings, by=CODEX, head=SAW, verdict="clean"):
+    said = "".join(f"Declines: {one}\n" for one in rulings)
+    return (
+        f"\n## Review\nBy: {by}\nVerdict: {verdict}\nScope: range-diff x y\n{said}"
+        f"Head: {head}\nFindings:\n- none\nDropped: 0\n"
+    )
+
+
+def test_a_decline_with_nothing_pushed_waits_for_the_scoped_pass_and_merges_once_upheld():
+    owed = f"Scoped review: needed since {SAW}, to rule on the declines of F1\n"
+    brief = RESULT + DECLINED + owed + "Fixed: none needed, x\n" + section([ACT], CODEX)
+    assert ready.short_of(brief, SAW) == ready.FIX_UNREVIEWED
+    ruled = brief + scoped("upheld F1")
+    assert ready.short_of(ruled, SAW) == ""
+    assert ready.declines(ruled, user=USER) == ("", "")
+
+
+def test_a_decline_not_upheld_waits_on_the_crew_until_fixed_and_a_new_decline_does_not_lift_it():
+    brief = RESULT + DECLINED + "Fixed: none needed, x\n" + section([ACT], CODEX)
+    overruled = brief + scoped("not upheld F1: src/a.py:12 guards another path")
+    said = ready.DECLINES_OVERRULED.format(ruled="F1: src/a.py:12 guards another path")
+    assert ready.short_of(overruled, SAW) == said
+    assert ready.declines(overruled, user=USER) == ("", "")
+    again = overruled + by_id("F1: not fixed, it runs twice, because src/b.py:3 guards it too")
+    assert ready.short_of(again, SAW) == said
+    fixed = overruled + by_id("F1: fixed, it runs twice")
+    assert ready.short_of(fixed, SAW) == ""
+
+
+def test_a_risky_decline_not_upheld_is_the_users_and_no_other_is():
+    risky = ACT.replace("(bucket: Act on)", "(bucket: Act on) (risk: auth)")
+    declined = by_id("F1: not fixed, it runs twice, because question 52: Josh left it")
+    brief = RESULT + "Gate: question 52\n" + declined + "Fixed: none needed, x\n"
+    overruled = brief + section([risky], CODEX) + scoped("not upheld F1: the token still logs")
+    assert ready.short_of(overruled, SAW) == ""
+    kind, why = ready.declines(overruled, user=USER)
+    assert kind == "hold"
+    assert why == ready.RISKY_OVERRULED.format(
+        user="Josh", ruled="F1: the token still logs", risks="auth"
+    )
+
+
+def test_a_scoped_pass_at_the_first_reviews_head_by_the_same_model_keeps_its_findings():
+    brief = RESULT + "Fixed: none needed, x\n" + section([ACT], CODEX) + scoped()
+    assert ready.short_of(brief, SAW) == ready.UNANSWERED.format(ids="F1")
 
 
 def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():

@@ -916,6 +916,8 @@ class Repo:
         left = self.left(one)
         lifted = self.accepted == (one.number, one.head)
         kind, why = ready.drops(lost, text, one.head, user=self.user)
+        if not kind:
+            kind, why = ready.declines(text, user=self.user)
         self.lifts = []
         if lifted and kind == "hold":
             self.lifts.append(why)

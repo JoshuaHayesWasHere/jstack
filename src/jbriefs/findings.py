@@ -31,6 +31,13 @@ with a reason that cites a `path:line`, a command in backticks, or a gate the Re
 one of `RISKS` declined counts only on a gate, which asks the user with the default "fix
 it". Severity is a field and decides nothing.
 
+A blocking finding the crew declined by id is ruled on by the scoped pass, a section with a
+`Scope:` line: `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the disproof>` for
+each it does not uphold (`Ruling`). The last ruling of an id is its word, and one not upheld
+stands until the crew answers the finding `fixed`: a decline written again after it is still
+not upheld (`Finding.state`). A scoped section is a pass of its own, so at the head of the
+first review it takes the place of no section but another scoped one by the same reviewer.
+
 `jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its
 second pass (`jbriefs --findings --left` and `--rounds`) and jbus's ask (`expedite`) read
 the brief through this module and nowhere else.
@@ -39,7 +46,7 @@ the brief through this module and nowhere else.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 NEAR = 5
 ACT_ON, CONSIDER, NOTED, DISMISSED = "Act on", "Consider", "Noted", "Dismissed"
@@ -66,6 +73,10 @@ _DECLINE = re.compile(r"(.+?), because (.*)")
 _OLD = re.compile(r"Finding: (?:fixed, .|not fixed, .+, because .*\w)")
 _CITED = re.compile(r"[\w./-]*[A-Za-z_][\w./-]*:\d+|`[^`]+`")
 _QUESTION = re.compile(r"\bquestion (\d+)\b")
+_UPHELD = "Declines: upheld "
+_NOT_UPHELD = "Declines: not upheld "
+_ID = re.compile(r"F\d+")
+OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
 
 
 @dataclass(frozen=True)
@@ -84,6 +95,7 @@ class Raised:
     risk: str = ""
     reason: str = ""
     legacy: bool = False
+    scoped: bool = False
 
     @property
     def place(self) -> str:
@@ -91,9 +103,19 @@ class Raised:
 
 
 @dataclass(frozen=True)
+class Ruling:
+    """What a scoped pass said of one decline: upheld, or not upheld for `why`."""
+
+    upheld: bool
+    why: str = ""
+
+
+@dataclass(frozen=True)
 class Section:
     """One `## Review` section: who wrote it, its verdict's first word, its head, the
-    findings it lists (`found` counts them) and the ones it dismissed."""
+    findings it lists (`found` counts them) and the ones it dismissed. `scoped` is a scoped
+    pass, which has a `Scope:` line, `rulings` its word on each decline by id, and `line`
+    the index of its heading among the brief's lines."""
 
     by: str = ""
     verdict: str = ""
@@ -101,6 +123,9 @@ class Section:
     head: str = ""
     raised: tuple[Raised, ...] = ()
     found: int = 0
+    scoped: bool = False
+    rulings: tuple[tuple[str, Ruling], ...] = ()
+    line: int = 0
 
 
 @dataclass(frozen=True)
@@ -125,6 +150,7 @@ class Finding:
     answer: Answer | None = None
     refused: str = ""
     first: str = ""
+    ruling: Ruling | None = None
 
     @property
     def lead(self) -> Raised:
@@ -192,6 +218,20 @@ class Finding:
     def why(self) -> str:
         return WHY[self.refused].format(first=self.first, risk=self.risk) if self.refused else ""
 
+    @property
+    def state(self) -> str:
+        """Where a blocking finding stands: `open` until an answer counts, then `fixed`, or
+        for a decline by id `unruled` until a scoped pass rules on it, then `upheld` or
+        `overruled`. A finding that does not block, or one answered with no id, is `fixed`
+        once it has an answer that counts: nothing rules on it."""
+        if not self.ended:
+            return OPEN
+        if self.answer.fixed or not self.answer.by_id or not self.blocks:
+            return FIXED
+        if self.ruling is None:
+            return UNRULED
+        return UPHELD if self.ruling.upheld else OVERRULED
+
 
 @dataclass
 class Triage:
@@ -210,6 +250,11 @@ class Triage:
 
     def sent(self) -> list[Finding]:
         return [one for one in self.findings if one.sent]
+
+    def declines(self, state: str) -> tuple[Finding, ...]:
+        """The blocking findings in `state`, `UNRULED` or `OVERRULED`, in the order of their
+        ids."""
+        return tuple(one for one in self.findings if one.blocks and one.state == state)
 
 
 def _tags(text: str) -> tuple[str, dict[str, str]]:
@@ -266,11 +311,14 @@ def _sections(text: str) -> list[Section]:
     dismissed findings."""
     found: list[dict] = []
     listing = dismissing = False
-    for line in text.splitlines():
+    for at, line in enumerate(text.splitlines()):
         if line.startswith("## "):
             listing = dismissing = False
             if line == "## Review":
-                found.append({"by": "", "verdict": "", "ran": False, "head": "", "lines": []})
+                found.append(
+                    {"by": "", "verdict": "", "ran": False, "head": "", "lines": [], "at": at}
+                )
+                found[-1] |= {"scoped": False, "rulings": []}
             elif found:
                 found[-1]["closed"] = True
             continue
@@ -295,14 +343,34 @@ def _sections(text: str) -> list[Section]:
             here["head"] = "".join(line.split()[1:2])
         elif line.startswith("By:"):
             here["by"] = line[len("By:") :].strip()
+        elif line.startswith("Scope:"):
+            here["scoped"] = True
+        elif line.startswith(_NOT_UPHELD):
+            ident, _, why = line.removeprefix(_NOT_UPHELD).partition(": ")
+            here["rulings"].append((ident.strip(), Ruling(False, why.strip())))
+        elif line.startswith(_UPHELD):
+            named = _ID.findall(line.removeprefix(_UPHELD))
+            here["rulings"].extend((ident, Ruling(True)) for ident in named)
     sections = []
     for number, one in enumerate(found):
         raised = tuple(
-            _raised(text, number, one["by"], one["head"], dismissed)
+            replace(_raised(text, number, one["by"], one["head"], dismissed), scoped=one["scoped"])
             for text, dismissed in one["lines"]
         )
         listed = sum(1 for _, dismissed in one["lines"] if not dismissed)
-        sections.append(Section(one["by"], one["verdict"], one["ran"], one["head"], raised, listed))
+        sections.append(
+            Section(
+                one["by"],
+                one["verdict"],
+                one["ran"],
+                one["head"],
+                raised,
+                listed,
+                one["scoped"],
+                tuple(one["rulings"]),
+                one["at"],
+            )
+        )
     return sections
 
 
@@ -327,6 +395,8 @@ def _same(finding: Finding, one: Raised) -> int | None:
     lead = finding.lead
     if lead.legacy or one.legacy or not one.head:
         return None
+    if lead.scoped != one.scoped:
+        return None
     if DISMISSED in (lead.bucket, one.bucket) or lead.head != one.head:
         return None
     if one.reviewer in (
@@ -337,12 +407,13 @@ def _same(finding: Finding, one: Raised) -> int | None:
 
 
 def _superseded(sections: list[Section]) -> set[int]:
-    """The sections a later one by the same reviewer at the same head took the place of."""
-    last = {(one.by, one.head): number for number, one in enumerate(sections) if one.by}
+    """The sections a later one by the same reviewer at the same head, and of the same kind,
+    a scoped pass or not, took the place of."""
+    last = {(one.by, one.head, one.scoped): n for n, one in enumerate(sections) if one.by}
     return {
         number
         for number, one in enumerate(sections)
-        if one.by and last[(one.by, one.head)] != number
+        if one.by and last[(one.by, one.head, one.scoped)] != number
     }
 
 
@@ -424,6 +495,12 @@ def triage(text: str) -> Triage:
         if one.answer is None and one.legacy:
             one.answer = next(unnumbered, None)
     _judge(findings, text)
+    by_id = {one.id: one for one in findings}
+    for section in sections:
+        if section.scoped:
+            for ident, ruling in section.rulings:
+                if ident in by_id:
+                    by_id[ident].ruling = ruling
     named = sum(
         1
         for line in text.splitlines()
@@ -470,6 +547,11 @@ def _shown(one: Finding) -> list[str]:
         said = f"fixed, {answer.what}" if answer.fixed else f"not fixed, {answer.what}"
         said += f", because {answer.reason}" if not answer.fixed else ""
         lines.append(f"  answer: {said}" + (f" (refused: {one.why})" if one.refused else ""))
+        if one.state in (UPHELD, OVERRULED):
+            ruled = "upheld" if one.state == UPHELD else f"not upheld, {one.ruling.why}"
+            lines.append(f"  ruling: {ruled}")
+        elif one.state == UNRULED:
+            lines.append("  ruling: none, a scoped pass rules on it before the merge")
     elif one.sent:
         lines.append("  answer: none" + (", it blocks the merge" if one.blocks else ""))
     return lines
@@ -526,8 +608,10 @@ def _last_round(said: Triage) -> set[int]:
 
 def rounds(said: Triage) -> str:
     """What the crew's second pass reads of the review, one line: how many sections ran, the
-    head the last of them saw, and every head a section names, or `-` for none."""
+    head the last of them saw, every head a section names, and the blocking declines no
+    scoped pass has ruled on, each list joined by commas, or `-` for none."""
     ran = [one for one in said.sections if one.ran]
     saw = next((one.head for one in reversed(ran) if one.head), "-")
     heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
-    return f"{len(ran)} {saw} {heads}"
+    unruled = ",".join(one.id for one in said.declines(UNRULED)) or "-"
+    return f"{len(ran)} {saw} {heads} {unruled}"
