@@ -1,0 +1,51 @@
+{
+  "base": "3ab67eb47ac97dc407a4687631301cc255990256",
+  "variant": "0d1d871af1a35a48b7d5727cd67cecabc63cf162",
+  "model": "claude-opus-5-5",
+  "judge": "claude-sonnet-5-5",
+  "effort": "medium",
+  "trials": 3,
+  "cases": "aa502bdfb65b",
+  "files": {
+    "principles/migrate-callers-then-delete-legacy-apis.md": {
+      "base": "67a5df9419d3",
+      "variant": "fd2aecee2b26"
+    },
+    "principles/type-system-discipline.md": {
+      "base": "34a25b543924",
+      "variant": "c4da0ee2330d"
+    },
+    "skills/crew/SKILL.md": {
+      "base": "357019743655",
+      "variant": "357019743655"
+    },
+    "skills/expert/SKILL.md": {
+      "base": "8e9686b34830",
+      "variant": "8e9686b34830"
+    },
+    "skills/handoff/SKILL.md": {
+      "base": "f111d9f4064b",
+      "variant": "f111d9f4064b"
+    },
+    "skills/home/SKILL.md": {
+      "base": "8d06fd46cec8",
+      "variant": "8d06fd46cec8"
+    },
+    "skills/interrogate/SKILL.md": {
+      "base": "42da7b50dc09",
+      "variant": "42da7b50dc09"
+    },
+    "skills/interrogate/references/lead-judgment.md": {
+      "base": "d704c171b77b",
+      "variant": "0cc73b80115d"
+    },
+    "skills/pr-review/SKILL.md": {
+      "base": "591179c6a254",
+      "variant": "591179c6a254"
+    },
+    "skills/scout/SKILL.md": {
+      "base": "137d1c882ec9",
+      "variant": "137d1c882ec9"
+    }
+  }
+}
