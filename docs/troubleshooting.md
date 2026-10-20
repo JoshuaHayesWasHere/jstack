@@ -184,10 +184,22 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 | `wait: <n> GB of memory available, under 6` | The machine is short of memory. | Close what holds the memory. |
 | `wait: memory pressure <n> is at or over 10` | Programs wait on memory. | Close what holds the memory. |
 | `wait: /tmp has <n> of <m> file slots used, over 85%` | `/tmp` is almost out of file slots. | Remove old test directories from `/tmp`. |
-| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit is used up. The same line names `the weekly limit`. | Wait for the reset. |
+| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit of the instance asked about (`--instance`, `claudeAgent` by default) is used up. The same line names `the weekly limit`. | Wait for the reset, or launch on another instance of the role's pool. |
+| `wait: <name> is not the name of a provider instance` | `--instance` was given a name with a character an instance id does not have. | Give the id as `orchestrator_capabilities` lists it. |
 | `wait: the load or the core count could not be read` | A reading is missing. The lines for the memory, the memory pressure and the file slots have the same form. | `jgauge room` reads `/proc` and `df`. Check that both work in this shell. |
 
 A `note: the plan's ... not known` line on stderr is no `wait:`. It says the limits file is missing or stale, and `jgauge room` still prints `go`.
+
+## A launch waits on a usage limit
+
+`jroles <role>` and `jbus` launch on the first instance of the role's pool with headroom in the ledger ([jroles](jroles.md#pools)).
+
+| Line | Meaning | Do this |
+|---|---|---|
+| `jroles: <role> waits: <a> and <b> are both capped until <time>`, exit 75 | Every instance of the pool is at 100% of a window. | Wait for the time it names: the first launch after it goes on. `jbus` says it once, as a `stall`, and launches by itself after the reset. |
+| `refused <role>: <id> is no <provider> instance of providers.json` | The role line names an instance the inventory does not declare under the line's provider. The role inherits. | Add the instance to `~/.config/jstack/providers.json` (infra's install writes it), or take the id off the line. |
+| `refused <role>: the pool <list> names an instance twice or none` | The instance field has an id twice, or an empty one, such as `claudeAgent,`. | Write each id once, joined by commas with no space. |
+| `capped <instance>: <window> until <time>` in a `jbus` pass | A thread's turn ended on that instance's usage limit, and the ledger now has it. | Nothing: the thread is moved to the next instance of its pool, or waits for the reset. |
 
 ## `jbus` asks for `webhook_url` and `webhook_key`
 

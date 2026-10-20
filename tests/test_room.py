@@ -730,3 +730,33 @@ def test_a_look_with_no_flag_reads_the_load_whatever_its_environment_says(tmp_pa
     env = {**machine(tmp_path, **{**IDLE, "load": "11.00"}), "SKIP_LOAD": "1"}
     assert says(env) == "wait: load 11.00 is at or over 85% of 12 cores"
     assert waited(env, "0") == (["wait: load 11.00 is at or over 85% of 12 cores"], 75)
+
+
+PRIME = "claudeAgent_claude_prime"
+
+
+def test_the_plan_is_read_for_the_instance_room_is_asked_about(tmp_path):
+    """The ledger is a file for each instance: `jgauge room --instance <id>` reads that one's,
+    and the built-in instance's is the file LIMITS names."""
+    env = machine(tmp_path, **IDLE)
+    Path(f"{env['LIMITS']}.{PRIME}").write_text(
+        limits({**FRESH, "seven_day": ("100", 30 * HOUR + 59)})
+    )
+    asked = [str(BIN / "jgauge"), "room", "--instance"]
+    on_prime = subprocess.run([*asked, PRIME], env=env, capture_output=True, text=True)
+    assert on_prime.stdout == (
+        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+    )
+    on_first = subprocess.run([*asked, "claudeAgent"], env=env, capture_output=True, text=True)
+    assert (on_first.stdout, says(env)) == ("go\n", "go")
+    other = subprocess.run([*asked, "codex"], env=env, capture_output=True, text=True)
+    assert other.stdout == "go\n" and f"{env['LIMITS']}.codex does not give them" in other.stderr
+
+
+def test_a_name_that_is_no_instance_is_a_wait(tmp_path):
+    env = machine(tmp_path, **IDLE)
+    for name in ("../limits", "a b"):
+        assert (
+            says({**env, "INSTANCE": name})
+            == f"wait: {name} is not the name of a provider instance"
+        )

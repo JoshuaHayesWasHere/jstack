@@ -243,7 +243,6 @@ def reader(sources: Sources) -> jbus.Config:
     return jbus.Config(
         server="",
         runtime_mode=None,
-        model_selection=None,
         dispatch=False,
         max_running=0,
         warn_days=0,

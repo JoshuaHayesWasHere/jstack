@@ -9,6 +9,14 @@ room() (
   LIMITS=${LIMITS:-$HOME/.local/state/claude/limits}
   TMPFS=${TMPFS:-/tmp}
   SKIP_LOAD=${SKIP_LOAD:-0}
+  INSTANCE=${INSTANCE:-claudeAgent}
+  case $INSTANCE in
+  claudeAgent) ;;
+  "" | *[!A-Za-z0-9_-]*)
+    echo "wait: $INSTANCE is not the name of a provider instance"
+    return ;;
+  *) LIMITS=$LIMITS.$INSTANCE ;;
+  esac
   rows=$LIMITS
   if [ -d "$LIMITS" ]; then rows=/dev/null; fi
   load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)

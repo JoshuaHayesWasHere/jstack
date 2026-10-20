@@ -171,3 +171,128 @@ def test_only_a_claude_line_names_an_effort_and_only_last(roles):
     assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
     line = "crew: claudeAgent claude-opus-5-5 a b effort=low"
     assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
+
+
+PRIME = "claudeAgent_claude_prime"
+POOL_MAP = (
+    f"crew: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME}\n"
+    "scout: codex gpt-5-codex\n"
+    f"review: claudeAgent claude-opus-5-5 {PRIME} effort=low\n"
+)
+INVENTORY = {
+    "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+    PRIME: {"driver": "claudeAgent", "enabled": True, "config": {"homePath": "~/.claude_prime"}},
+    "codex": {"driver": "codex", "enabled": True},
+}
+
+
+@pytest.fixture
+def pooled(tmp_path, monkeypatch, capsys):
+    """`jroles <role>` over a map of pools, the inventory, and a ledger, on a clock it is given:
+    its exit code and what it printed."""
+    from datetime import UTC, datetime
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
+    (tmp_path / "config" / "jstack").mkdir(parents=True)
+    (tmp_path / "config" / "jstack" / "roles").write_text(POOL_MAP)
+    (tmp_path / "config" / "jstack" / "providers.json").write_text(json.dumps(INVENTORY))
+
+    def ask(role, at=datetime(2026, 10, 17, 19, 45, tzinfo=UTC)):
+        code = main([role], now=at)
+        return code, *capsys.readouterr()
+
+    ask.config = tmp_path / "config" / "jstack"
+    return ask
+
+
+def cap(instance, text):
+    from datetime import UTC, datetime
+
+    from jroles import ledger
+
+    at = datetime(2026, 10, 17, 19, 45, tzinfo=UTC)
+    ledger.write(ledger.cap_of([{"text": text}], at).record(instance))
+
+
+WEEKLY = "You've hit your weekly limit · resets Oct 18, 4pm (America/New_York)"
+
+
+def test_a_pool_launches_on_its_first_instance_and_says_which_and_why(pooled):
+    first = {
+        "provider": "claudeAgent",
+        "model": "claude-sonnet-5-5",
+        "instanceId": "claudeAgent",
+        "options": [{"id": "effort", "value": "medium"}],
+    }
+    assert pooled("crew") == (
+        0,
+        json.dumps(first) + "\n",
+        f"jroles: crew on claudeAgent: the first of claudeAgent,{PRIME} with headroom\n",
+    )
+    assert pooled("scout") == (0, '{"provider": "codex", "model": "gpt-5-codex"}\n', "")
+    assert json.loads(pooled("review")[1])["instanceId"] == PRIME
+
+
+def test_a_capped_first_instance_sends_the_role_to_the_next_until_its_reset(pooled):
+    from datetime import UTC, datetime
+
+    cap("claudeAgent", WEEKLY)
+    why = "claudeAgent is capped until 2026-10-18T20:00:00+00:00"
+    code, out, err = pooled("crew")
+    assert (code, json.loads(out)["instanceId"], err) == (
+        0,
+        PRIME,
+        f"jroles: crew on {PRIME}: {why}\n",
+    )
+    code, out, _ = pooled("crew", datetime(2026, 10, 18, 20, 1, tzinfo=UTC))
+    assert json.loads(out)["instanceId"] == "claudeAgent"
+
+
+def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
+    cap("claudeAgent", WEEKLY)
+    cap(PRIME, "You've hit your weekly limit · resets Oct 20, 4pm (America/New_York)")
+    both = f"claudeAgent and {PRIME} are both capped until 2026-10-18T20:00:00+00:00"
+    assert pooled("crew") == (75, "", f"jroles: crew waits: {both}\n")
+    assert pooled("review")[0] == 75
+
+
+def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):
+    """An id the inventory does not declare under the line's provider refuses the line, and
+    one more line of the inventory lets it in."""
+    third = "claudeAgent_claude_third"
+    (pooled.config / "roles").write_text(
+        f"crew: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME},{third}\n"
+    )
+    assert pooled("crew") == (
+        0,
+        "",
+        f"refused crew: {third} is no claudeAgent instance of providers.json\n",
+    )
+    grown = {**INVENTORY, third: {"driver": "claudeAgent", "config": {"homePath": "~/.c3"}}}
+    (pooled.config / "providers.json").write_text(json.dumps(grown))
+    cap("claudeAgent", WEEKLY)
+    cap(PRIME, WEEKLY)
+    assert json.loads(pooled("crew")[1])["instanceId"] == third
+
+
+def test_a_claude_pool_never_names_a_codex_or_cursor_instance(pooled):
+    (pooled.config / "roles").write_text("crew: claudeAgent claude-sonnet-5-5 claudeAgent,codex\n")
+    assert pooled("crew") == (
+        0,
+        "",
+        "refused crew: codex is no claudeAgent instance of providers.json\n",
+    )
+
+
+def test_with_no_inventory_the_pool_is_taken_as_written(pooled):
+    (pooled.config / "providers.json").unlink()
+    assert json.loads(pooled("review")[1])["instanceId"] == PRIME
+
+
+@pytest.mark.parametrize("pool", ["claudeAgent,", ",claudeAgent", "claudeAgent,claudeAgent"])
+def test_a_pool_that_names_an_instance_twice_or_none_is_refused(roles, pool):
+    assert roles("crew", f"crew: claudeAgent claude-opus-5-5 {pool}\n") == (
+        "",
+        f"refused crew: the pool {pool} names an instance twice or none\n",
+    )
