@@ -92,7 +92,13 @@ else
 fi
 ```
 
-On `asked: queued: question <number>`, jbus has it under this home's own slug, and nothing is written here. `asked: already sent:` is the same question still open. On `asked: already answered: question <number>:` nothing was asked: an earlier question of this home had the same words, and the line gives its answer. If that answer does not settle this one, word the question so that it says what is new, and run it again. On `not asked: jbus said: not sent:` or `jbus said: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table. Mend that line and run it again. On any other `not asked`, jbus holds nothing: put the question to the user in this thread, in two lines, with the default taken.
+On `asked: queued: question <number>`, jbus has it under this home's own slug, and nothing is written here.
+`asked: already sent:` is the same question still open.
+On `asked: already answered: question <number>:` nothing was asked: an earlier question of this home had the same words, and the line gives its answer.
+If that answer does not settle this one, word the question so that it says what is new, and run it again.
+On `not asked: jbus said: not sent:` or `jbus said: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table.
+Mend that line and run it again.
+On any other `not asked`, jbus holds nothing: put the question to the user in this thread, in two lines, with the default taken.
 
 The same block hands jbus a gate another thread wrote out in full, the lines of a gate under "Noticed" in a Result or "Findings" in a Report: run it with that thread's slug in place of `own` and those lines as the entry. On `asked:`, jbus holds it, or held it already, and it asks nothing more here. On `not asked`, it is one jbus could not take: the end of this section says what to do with it.
 

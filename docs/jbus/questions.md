@@ -17,7 +17,8 @@ Option: coffee: the cups go back, one revert
 Option: water: nothing is brewed
 ```
 
-jbus checks the lines against `templates/gates.md`, the one copy of a gate's shape, so a skill pipes the gate and checks nothing first. It refuses with `not sent: <why>` and keeps nothing when the first line is not `## Gate <n>: ` and the question (`## Gate <number>: ` for a gate a home's old `gates.md` numbered), when there is more than one `## ` line, when there is no `Status: open` line, and when a line of the template's head (`Status:`, `Asked by:`, `Default:`, `Built on it:`, `Undo:`) is missing or still its placeholder.
+jbus checks the lines against `templates/gates.md`, the one copy of a gate's shape, so a skill pipes the gate and checks nothing first.
+It refuses with `not sent: <why>` and keeps nothing when the first line is not `## Gate <n>: ` and the question (`## Gate <number>: ` for a gate a home's old `gates.md` numbered), when there is more than one `## ` line, when there is no `Status: open` line, and when a line of the template's head (`Status:`, `Asked by:`, `Default:`, `Built on it:`, `Undo:`) is missing or still its placeholder.
 
 The record keeps the `Context:` line as `context` and the options, in order, as `options`: each one's `name`, what `follows` from it, and whether it is the `default` and the one `recommended`. `proposed` is when a pass asked the thread of a question with no options for them. A gate may leave out the `Context:` line. jbus refuses, with `not sent:` and the form of an `Option:` line, a gate that has fewer than two options, none or several marked `(default)`, none or several marked `(recommended)`, a recommended option that is not the default, two options of one name, a name that ends in parentheses that are not one of the marks, or an `Option:` line that is not filled in. Nothing is kept of such a gate, and the thread pipes it again with its lines mended.
 

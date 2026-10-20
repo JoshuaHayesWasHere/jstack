@@ -109,7 +109,10 @@ else
 fi
 ```
 
-`jbus gate` checks the rest of the lines against `$T/gates.md` and refuses what they lack with `not sent: <why>`, which comes back here as `not sent: jbus said: not sent: <why>`: mend that line and run it again. On `sent`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate. On `not sent`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed. A repo with no home has nobody to gate: its finding goes to the user, here.
+`jbus gate` checks the rest of the lines against `$T/gates.md` and refuses what they lack with `not sent: <why>`, which comes back here as `not sent: jbus said: not sent: <why>`: mend that line and run it again.
+On `sent`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate.
+On `not sent`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed.
+A repo with no home has nobody to gate: its finding goes to the user, here.
 
 ## When to roll over
 
