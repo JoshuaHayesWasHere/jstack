@@ -32,3 +32,54 @@ It judges none of it: `jbus health` reads it and pages ([The health check](the-h
 Sous Chef may acknowledge a body: `POST /ack` on the relay's port, with `RELAY_INBOUND_KEY` in `X-Automation-Key` and `{"id": "<the relay id of the body>"}`. The items that body carried are seen, and the relay answers 200 with `{"id", "seen"}`, the number of them. An id that carried no item still open is answered 404. Sous Chef does not send it yet: until it does, every item that still blocks at 45 minutes pages.
 
 Who posts to the relay is the config: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key. As of 2026-10-15 nothing does: the top-level `webhook_url` is another address, no project has its own, and no `blocking_url` is set, so the relay is posted nothing until one of them names it. `blocking_url` is the one that sends it what blocks (`waiting.blocking`).
+
+## Decisions from the chat
+
+Sous Chef sends a decision made on a card back with `POST /item` on the relay's port, with `RELAY_INBOUND_KEY` in `X-Automation-Key`, as `/ack`: any other key is 401 and changes nothing.
+The body is one JSON object:
+
+```json
+{"project": "jstack", "item": "w3", "verb": "approve", "words": "go w3", "by": "Josh", "message": "<the chat message's id or link>", "seen_event": "jstack.w3.4"}
+```
+
+| Field | What it is |
+|---|---|
+| `project`, `item` | The card's `project` and `item`: an item's id is its project's own, so both are named. |
+| `verb` | One of the card's `actions`: `approve`, `message` or `hold`. A hold is confirmed by the button that sent it. |
+| `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
+| `by` | `Sous Chef` for a steer of its own, or the user (`user` in `~/.config/jstack/config.toml`). |
+| `message` | The chat message the user said it in, its id or its link: a decision by the user without it, or without `words`, is 403. |
+| `seen_event` | The `id` of the card the decision was made on. |
+
+The relay decides it as `jbus item approve` or `jbus item steer` does, with `where: chat`, in the project's state, and writes one line of the item's log.
+Sous Chef steers only as itself, and an approval by it is refused: only the user approves.
+A decision by the user rests on the chat message, kept as the line's `ref` with the quoted words as `said` and `checked: false`, since nothing reads them back from the chat.
+An approval from chat is taken only where its words name the item, by its id or its slug, and the item is routine.
+A verb the item's card does not offer now is refused with 409 and the view's link: a review item (a merge, a secret, the config) takes no approval, message or hold from chat, and a done or dropped one takes none.
+A card whose line is no longer the item's last is refused, with the line that came after, so a card acted on twice moves the item once.
+The answer is 200 with `{"id", "item", "line"}`, the line written; 400 for a body that lacks a field; 403 for a `by` that is neither, or the user with no message or words; 404 for a project the config does not have; 409 with `{"refused"}`, the sentence, for a decision jbus refuses; and 503 when the config cannot be read.
+A message steer is sent to the item's home by the next pass.
+
+## Cards in Sous Chef's chat
+
+Each line of a work item's log is a card ([Work items](work-items.md)), posted by the pass that follows it, to each webhook route that is the relay: `webhook_url`, of a project or at the top, at `http://127.0.0.1:4390` (or the `RELAY_PORT` of jbus's environment).
+A webhook that is not the relay gets no card, so the cards are in Sous Chef's chat only.
+The relay sends it on the `everything` route, and its own-id rule sends each card once.
+A route's `cards.json` keeps how many lines of the log are carded; a route's first pass posts one card for each live item, at its last line, and not the whole log.
+A POST that fails stops that route's cards until the next pass, which posts them again from there.
+
+This is the contract for Sous Chef's side, whose code is outside this repo:
+
+```json
+{"kind": "item", "id": "jstack.w3.5", "item": "w3", "project": "jstack", "title": "Sous Chef's chat gets one card per Work item", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by Josh, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/jstack/item/w3"}
+```
+
+| Field | What Sous Chef does with it |
+|---|---|
+| `kind` | `item`: a card, not an `events` body. |
+| `id` | The project and the line's id. It is the `seen_event` of a decision on this card. |
+| `item`, `project` | Which card this is: a new body for the same pair replaces the card in place, and the one with the higher line number wins. |
+| `title`, `state`, `owner`, `risk` | Shown on the card as they are. `state` is one of the eight states of [Work items](work-items.md). |
+| `last` | The last line in one sentence, shown under the title: a decision made in the view arrives here, as "Approved in jbus view by Josh, 11:52 EDT", and the card's buttons are the next body's. |
+| `actions` | One button for each, in order, each a `POST /item` with that `verb`. It is empty for a review item (a merge, a secret, the config) and for one that is done or dropped: such a card has the link and no button. |
+| `view` | The item in jbus view, as a link on every card: at the first origin of `JBUS_VIEW_ORIGINS`, the proxy the view is reached through, else at the first name of `JBUS_VIEW_NAMES` or the address `JBUS_VIEW_HOST` on port 4388, else at 127.0.0.1. |

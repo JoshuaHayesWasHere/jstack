@@ -17,6 +17,8 @@ The record is `~/.local/state/jbus/<project>/items.jsonl`. It is only ever appen
 
 A move the table does not have is refused in one sentence, and nothing is written. Each line is also a quiet event of the kind `item.<verb>` (`item.proposed`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped`, and `item.linked` for a row linked to an item there was), so `jbus events` and the view's feed show it. A pass writes a line only when the state its row comes to changes: a pass with nothing new writes none.
 
+Each line is also a card in Sous Chef's chat, and a decision made on a card comes back through the relay ([The relay](the-relay.md#cards-in-sous-chefs-chat)).
+
 An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an open gate with a `Holds:` line or whose words name a secret or the config, and `routine` for anything else. `jbus item show` prints it.
 
 | Verb | What it does |

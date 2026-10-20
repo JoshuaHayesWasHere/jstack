@@ -49,6 +49,12 @@ open in a `reminder` or a `refresh` `PAGE_MINUTES` (45) after it began to block 
 (`judge`). A POST to `/ack` naming an event id marks the items of that body seen, and a seen
 item pages nothing under (b). A page is one line, and it goes through a spooled route of its
 own, `page`, whose ids are kept for good.
+
+Sous Chef's decisions come back on `POST /item`, with the same key: `{project, item, verb,
+words, by, message, seen_event}` on a card (`jbus.item.card`), decided as `jbus item approve`
+or `jbus item steer` decides it, from `chat` (`decide`). It is by Sous Chef, as itself, or by
+the user, with the chat message it was said in and the words quoted from it, which nothing
+reads back and which are kept with `checked: false`.
 """
 
 from __future__ import annotations
@@ -75,7 +81,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from jbus import leftover, verbs
+import jbus
+from jbus import item, leftover, steer, verbs, wake
 
 Body = dict[str, Any]
 Say = Callable[[str], None]
@@ -537,6 +544,99 @@ def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str
     return Watch(items, seen, ids), pages
 
 
+SOUS_CHEF = "Sous Chef"
+DECISIONS = tuple(item.ACTIONS.values())
+TEXT = ("project", "item", "verb", "by", "seen_event")
+
+
+def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
+    """A decision from Sous Chef's chat on a card, `POST /item`, as `jbus item approve` or
+    `jbus item steer` decides it, `where: chat`. The answer is the HTTP status and its body.
+
+    `verb` is one of the card's actions: `approve`, `message`, or `hold`, which the card's
+    button confirms. `seen_event` is the card's `id`, and the line it names must still be the
+    item's last, so a card acted on twice moves the item once. `by` is Sous Chef, which steers
+    as itself and approves nothing, or the user, with `message`, the chat message's id or
+    link, and `words`, the words quoted from it: those are kept unchecked (`steer.chat`), and
+    an approval from chat is taken only for a routine item they name. Anyone else is 403, and
+    a decision jbus refuses is 409 with its sentence, as is a verb the item's card does not
+    offer now (`item.actions`): a review item, a merge, a secret or the config, is decided in
+    the view and takes no message or hold from chat either.
+    """
+    wrong = [key for key in TEXT if not isinstance(body.get(key), str) or not body[key].strip()]
+    wrong += [key for key in ("words", "message") if not isinstance(body.get(key, ""), str)]
+    if wrong:
+        return 400, {"refused": f"refused: {', '.join(wrong)} must be text"}
+    if body["verb"] not in DECISIONS:
+        return 400, {"refused": f"refused: verb is one of {', '.join(DECISIONS)}"}
+    try:
+        config = jbus.load()
+    except jbus.Refused as error:
+        return 503, {"refused": str(error)}
+    try:
+        project = config.project(body["project"])
+    except jbus.Refused as error:
+        return 404, {"refused": str(error)}
+    by, words, message = body["by"], body.get("words", ""), body.get("message", "")
+    user = config.user
+    if by == user.user:
+        if not message.strip() or not words.strip():
+            return 403, {
+                "refused": f"refused: a decision by {user.user} names the chat message it was "
+                "said in and quotes the words"
+            }
+        basis: steer.Basis | None = steer.chat(message, words, user, now or datetime.now(UTC))
+    elif by == SOUS_CHEF:
+        basis = None
+    else:
+        return 403, {"refused": f"refused: a decision from chat is by {SOUS_CHEF} or {user.user}"}
+    seen = body["seen_event"].removeprefix(f"{project.name}.")
+    state = config.state(project)
+    found = item.items(state).get(body["item"])
+    if found is not None:
+        found = item.judged(state, found)
+        if body["verb"] not in item.actions(found):
+            link = item.view_link(project.name, found.id)
+            what = "a review item" if found.risk is item.Risk.REVIEW else str(found.state)
+            return 409, {
+                "refused": f"refused: {found.id} is {what}, and its card offers no "
+                f"{body['verb']} from chat: decide it in the view, {link}"
+            }
+    box = wake.Box(state, project)
+    where = item.Where.CHAT
+    try:
+        if body["verb"] == item.ACTIONS[item.Verb.APPROVE]:
+            made = steer.approve(
+                state,
+                box,
+                body["item"],
+                by=by,
+                where=where,
+                words=words,
+                seen=seen,
+                user=user,
+                project=project.name,
+                basis=basis,
+            )
+        else:
+            made = steer.steer(
+                state,
+                box,
+                body["item"],
+                body["verb"],
+                words,
+                seen,
+                by,
+                where,
+                True,
+                user=user,
+                basis=basis,
+            )
+    except jbus.Refused as error:
+        return 409, {"refused": str(error)}
+    return 200, {"id": made["id"], "item": made["item"], "line": made["line"]}
+
+
 def notify(line: str, say: Say) -> None:
     """Raise the page on this machine's desktop. One that fails is said, and pages on."""
     command = shutil.which("notify-send")
@@ -737,8 +837,11 @@ class Relay:
                 if not isinstance(body, dict):
                     relay.say("relay: refused a POST that is not one JSON object")
                     return self._answer(400)
-                if urllib.parse.urlsplit(self.path).path == "/ack":
+                path = urllib.parse.urlsplit(self.path).path
+                if path == "/ack":
                     return self._ack(body)
+                if path == "/item":
+                    return self._item(body)
                 try:
                     id = relay.take(body)
                 except OSError as error:
@@ -760,6 +863,14 @@ class Relay:
                     relay.say(f"relay: an ack named event {id}, which holds no open item")
                     return self._answer(404)
                 self._answer(200, {"id": id, "seen": seen})
+
+            def _item(self, body: Body) -> None:
+                code, said = decide(body)
+                if code == 200:
+                    relay.say(f"relay: {said['item']} decided from chat, line {said['id']}")
+                else:
+                    relay.say(f"relay: a decision from chat answered {code}: {said['refused']}")
+                self._answer(code, said)
 
             def log_message(self, format: str, *args: Any) -> None:
                 pass
