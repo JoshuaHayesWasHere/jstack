@@ -202,15 +202,6 @@ Before a task goes to a crewmate, and when a step elsewhere names a step of this
 
 When a thread this home sent out sends it a message, and when a step elsewhere names a step of this section: read `$T/../skills/home/when-a-thread-sends-a-message.md` now.
 
-Once a week the root home's status also says where changes collide. Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines or changed the patch) and stamps the run, and otherwise it prints nothing. Show what it prints. A file high in all three is one to split, and never a reason to hold a launch.
-
-```sh
-if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
-    uv run --project "$T/.." "$T/../scripts/hot_files.py" --since "$(date -d '7 days ago' +%F)" --home "$H" --top 5 &&
-        touch "$H/hot-files.stamp"
-fi
-```
-
 ## Gates
 
 At the start, on status, when nothing is left planned or out, whenever a gate is asked, shown or closed, and when a step elsewhere names a step of this section: read `$T/../skills/home/gates.md` now.
