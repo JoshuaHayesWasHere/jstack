@@ -1,5 +1,5 @@
 function meter(label, val, p, lim, text) {
-  return '<div class="meter"><div class="lbl"><span>' + esc(label) + '</span><span>' + esc(val) + '</span></div>' + (p == null ? "" : '<div class="bar"><i style="width:' + Math.min(100, p).toFixed(0) + '%"></i>' + (lim != null ? '<u style="left:' + lim + '%"></u>' : "") + '</div>') + '<div class="src">' + esc(text) + '</div></div>';
+  return '<div class="meter"><div class="lbl"><span>' + esc(label) + '</span><span>' + esc(val) + '</span></div>' + (p == null ? "" : '<div class="bar"><i style="width:' + Math.min(100, p).toFixed(0) + '%"></i>' + (lim != null ? '<u style="left:min(' + lim + '%, 100% - 2px)"></u>' : "") + '</div>') + '<div class="src">' + esc(text) + '</div></div>';
 }
 function dRoom() {
   var r = S.room, l = r.limits, ok = r.answer === "go", plan = r.plan || {}, st = S.jbus.status;

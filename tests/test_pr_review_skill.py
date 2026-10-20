@@ -500,30 +500,42 @@ SOON = {"--wait 540": "--wait 0.3 --every 0.1"}
 OFTEN = {"--wait 540": "--wait 15 --every 0.1"}
 
 
-@pytest.mark.parametrize("jgauge", ["there", "broken"])
-def test_the_review_and_the_launch_both_ask_jgauge_room(tmp_path, jgauge):
-    env = {**machine(tmp_path, **{**IDLE, "load": "11.00"}), "T": str(REPO / "templates")}
+def room_calls(tmp_path, **readings):
+    """What the home's launch check and the review's run block each say on that machine."""
+    env = {**machine(tmp_path, **{**IDLE, **readings}), "T": str(REPO / "templates")}
     uv(tmp_path / "stub")
-    if jgauge == "broken":
-        (tmp_path / "stub" / "jgauge").write_text("#!/bin/sh\nexit 127\n")
-        (tmp_path / "stub" / "jgauge").chmod(0o755)
     said = []
     for skill, more in (("home", ""), ("pr-review", '\nprintf "%s\\n" "$said"')):
         text = (REPO / "skills" / skill / "SKILL.md").read_text()
         (call,) = [line for line in text.splitlines() if "jgauge room" in line and "`" not in line]
         assert call.count('uv run --project "$T/.." jgauge room') == 1
         said.append(says(env, call.replace("--wait 540", "--wait 0") + more))
-    assert said == 2 * [
-        "wait: load 11.00 is at or over 85% of 12 cores"
+    return said
+
+
+@pytest.mark.parametrize("jgauge", ["there", "broken"])
+def test_the_review_and_the_launch_both_ask_jgauge_room(tmp_path, jgauge):
+    if jgauge == "broken":
+        (tmp_path / "stub").mkdir()
+        (tmp_path / "stub" / "jgauge").write_text("#!/bin/sh\nexit 127\n")
+        (tmp_path / "stub" / "jgauge").chmod(0o755)
+    assert room_calls(tmp_path, pressure="25.00") == 2 * [
+        "wait: memory pressure 25.00 is at or over 10"
         if jgauge == "there"
         else "wait: jgauge room did not run"
+    ]
+
+
+def test_a_load_that_holds_a_launch_holds_no_review(tmp_path):
+    assert room_calls(tmp_path, load="11.00") == [
+        "wait: load 11.00 is at or over 85% of 12 cores",
+        "go",
     ]
 
 
 @pytest.mark.parametrize(
     ("readings", "said"),
     [
-        ({"load": "11.00"}, "wait: load 11.00 is at or over 85% of 12 cores"),
         ({"memory": 3 * 1048576}, "wait: 3.0 GB of memory available, under 6"),
         ({"pressure": "25.00"}, "wait: memory pressure 25.00 is at or over 10"),
     ],
@@ -534,6 +546,16 @@ def test_a_review_waits_when_the_machine_has_no_room_and_goes_when_it_has(review
     assert reviewer.built() == []
     reviewer.machine()
     assert reviewer.prompt().is_file()
+
+
+@pytest.mark.parametrize("readings", [{"load": "11.00"}, {"load": "30.00", "cores": "24"}])
+def test_a_review_is_not_held_by_load_and_builds_its_prompt_at_once(reviewer, readings):
+    """A review is about 2% of one core and its proof runs in the short test lane, so a load
+    over a launch's line holds no review: the first look says `go`."""
+    reviewer.machine(**readings)
+    printed, code = reviewer(fill=SOON)
+    assert (code, len(printed)) == (0, 1), printed
+    assert Path(printed[0]).is_file()
 
 
 def test_a_review_waits_when_the_machine_cannot_be_read(reviewer):
@@ -549,7 +571,7 @@ def test_a_review_with_no_room_waits_inside_its_call_and_goes_on_when_the_machin
 ):
     """The block is sent once into a busy machine, which has room half a second later: the
     same call goes on to the prompt, and the reviewer is not left to wait some way of its own."""
-    reviewer.machine(load="11.00")
+    reviewer.machine(pressure="25.00")
     room = threading.Timer(0.5, reviewer.machine)
     room.start()
     try:
@@ -593,7 +615,7 @@ def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_w
 ):
     """The path of "No room": the block is sent, the wait ends with no room, the thread to tell
     is the one on the brief's `Thread:` line, and the section says the review was not run."""
-    reviewer.machine(load="11.00")
+    reviewer.machine(pressure="25.00")
     (why,), code = reviewer(fill=SOON)
     assert code == 75
     thread = where(reviewer, "not run").split(": ")[0].removeprefix("crewmate ")
@@ -602,7 +624,7 @@ def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_w
     written = [f"written: ## Review with Verdict: not run, in {reviewer.brief}"]
     assert gives_up(reviewer, why, thread) == (written, 0)
     brief = reviewer.brief.read_text()
-    assert brief == BRIEF + GAVE_UP.format(why="wait: load 11.00 is at or over 85% of 12 cores")
+    assert brief == BRIEF + GAVE_UP.format(why="wait: memory pressure 25.00 is at or over 10")
     assert ready.short_of(brief, KEPT) == "its review has no verdict"
     again = [f"no section: the brief already ends in a review of {KEPT} that was not run"]
     assert gives_up(reviewer, why, thread) == (again, 0)
@@ -620,8 +642,8 @@ def test_a_give_up_at_a_later_head_is_a_section_of_its_own(reviewer):
 
 
 def test_the_sixth_send_with_no_room_says_to_give_up_and_room_forgets_the_count(reviewer):
-    said = "wait: load 11.00 is at or over 85% of 12 cores"
-    reviewer.machine(load="11.00")
+    said = "wait: memory pressure 25.00 is at or over 10"
+    reviewer.machine(pressure="25.00")
     assert [reviewer(fill=SOON) for _ in range(7)] == [
         *5 * [([said], 75)],
         ([said], 69),
@@ -630,7 +652,7 @@ def test_the_sixth_send_with_no_room_says_to_give_up_and_room_forgets_the_count(
     reviewer.machine()
     assert reviewer.prompt().is_file()
     assert [path for path in (reviewer.state / "tmp").iterdir() if path.is_file()] == []
-    reviewer.machine(load="11.00")
+    reviewer.machine(pressure="25.00")
     assert reviewer(fill=SOON) == ([said], 75)
 
 
