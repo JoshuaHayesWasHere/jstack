@@ -515,7 +515,6 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
     ]
 
 
-# A path the shipped list guarded until 2026-10-12; tests/test_pr_review_skill.py reads it too.
 GUARDED = "skills/crew/SKILL.md"
 
 
