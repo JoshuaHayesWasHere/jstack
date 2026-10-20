@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import page, parse, pick, skills
+from jbriefs import findings, page, parse, pick, skills
 
 DEFAULT_STATE = Path.home() / ".local" / "state" / "home"
 
@@ -74,8 +74,45 @@ def main(argv: list[str] | None = None) -> int:
         help="print the artifact the brief's Results hold for each skill its Skills: line "
         "names, or that it has none; write no page",
     )
+    parser.add_argument(
+        "--findings",
+        type=Path,
+        metavar="BRIEF",
+        help="print the findings of every ## Review section of the brief as one triaged list, "
+        "each with its id, its reviewers, its bucket and its answer; write no page",
+    )
+    told = parser.add_mutually_exclusive_group()
+    told.add_argument(
+        "--left",
+        action="store_true",
+        help="with --findings, print only what the crew is to do next with them",
+    )
+    told.add_argument(
+        "--rounds",
+        action="store_true",
+        help="with --findings, print only the sections that ran, the head the last saw and "
+        "every head a section names",
+    )
     args = parser.parse_args(argv)
 
+    if (args.left or args.rounds) and not args.findings:
+        parser.error("--left and --rounds go with --findings")
+    if args.findings:
+        try:
+            text = args.findings.expanduser().read_text(encoding="utf-8", errors="replace")
+        except OSError as error:
+            print(f"jbriefs: {args.findings} cannot be read: {error.strerror}", file=sys.stderr)
+            return 1
+        said = findings.triage(text)
+        if args.left:
+            print(findings.left(said))
+        elif args.rounds:
+            print(findings.rounds(said))
+        else:
+            for line in findings.listed(said):
+                print(line)
+            print(f"next: {findings.left(said)}")
+        return 0
     if args.skills_run:
         said = skills.shown(args.skills_run.expanduser().read_text())
         if said:

@@ -80,7 +80,12 @@ def test_an_answer_with_no_id_does_not_answer_a_finding_that_has_one():
     ],
 )
 def test_a_decline_counts_only_with_a_reason_that_cites_a_path_line_or_a_command(reason, counts):
-    answered = RESULT + by_id(f"F1: not fixed, it runs twice, {reason}") + "Fixed: none needed, x\n"
+    answered = (
+        RESULT
+        + "Noticed: a gate | Gate: question 41\n"
+        + by_id(f"F1: not fixed, it runs twice, {reason}")
+        + "Fixed: none needed, x\n"
+    )
     said = ready.short_of(answered + section([ACT]), SAW)
     assert said == ("" if counts else ready.UNCITED.format(ids="F1"))
 
@@ -94,8 +99,9 @@ def test_the_same_reason_given_twice_is_refused_after_the_first():
 
 
 def test_two_reviewers_on_one_place_are_one_finding_and_one_answer():
-    near = "warning src/a.py:13 the loop runs twice (principle: none) (bucket: Act on)"
-    pair = "Reviewer: mcp:1\nReviewer: mcp:2\n" + section([ACT], CODEX) + section([near], CURSOR)
+    one = ACT.replace("principle: none", "principle: model-the-domain")
+    near = "warning src/a.py:13 the loop runs twice (principle: model-the-domain) (bucket: Act on)"
+    pair = "Reviewer: mcp:1\nReviewer: mcp:2\n" + section([one], CODEX) + section([near], CURSOR)
     assert ready.short_of(RESULT + f"Fixed: {FIX}\n" + pair, FIX) == ready.UNANSWERED.format(
         ids="F1"
     )
@@ -104,12 +110,17 @@ def test_two_reviewers_on_one_place_are_one_finding_and_one_answer():
 
 
 def test_a_risky_finding_declined_waits_for_the_gate_that_asks_the_user():
-    risky = "error src/auth.py:5 the token is logged (principle: none) (bucket: Act on) (risk: auth)"
+    risky = (
+        "error src/auth.py:5 the token is logged (principle: none) (bucket: Act on) (risk: auth)"
+    )
     declined = by_id("F1: not fixed, the token is logged, because src/log.py:3 redacts it")
     brief = RESULT + declined + "Fixed: none needed, x\n" + section([risky])
     assert ready.short_of(brief, SAW) == ready.RISK_UNASKED.format(ids="F1", risks="auth")
     asked = by_id("F1: not fixed, the token is logged, because question 52: Josh left it")
-    assert ready.short_of(RESULT + asked + "Fixed: none needed, x\n" + section([risky]), SAW) == ""
+    unparked = RESULT + asked + "Fixed: none needed, x\n" + section([risky])
+    assert ready.short_of(unparked, SAW) == ready.RISK_UNASKED.format(ids="F1", risks="auth")
+    parked = unparked.replace("Fixed:", "Gate: question 52\nFixed:")
+    assert ready.short_of(parked, SAW) == ""
 
 
 def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():

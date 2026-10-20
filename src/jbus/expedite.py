@@ -5,12 +5,16 @@ line nobody reads. `tell` reads those lines. Where one says the same crew-fixabl
 the same head for `AFTER` passes, the crew is sent one message that says what to do, under
 the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its sentence:
 
-- `unfixed`, `the Result has no Fixed line`: write a `Finding:` line for each finding and
+- `unfixed`, `the Result has no Fixed line`: write an answer for each finding, by id, and
   the `Fixed:` line, `Fixed: none needed` when every one is declined, and push nothing for
   that;
 - `unpushed`, `nothing was pushed after them`: push the fix and name its head, or decline
   every finding in writing, as above;
 - `unended`, `<k> of <n> have no Finding line`: write the lines that are missing;
+- `unanswered`, `uncited`, `repeated` and `risky`, the waits of an answer by id
+  (`jbriefs.findings`): answer each finding by id, give a decline a reason that cites a
+  path:line, a command or a gate, give each its own reason, and park a gate for a risky one.
+  Each of these and the three above names the findings with no answer that counts, by id;
 - `second`, `the second pass is not written`, which a brief from before fixes got a scoped
   review says: launch the second reviewer;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix,
@@ -63,6 +67,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from jbriefs import findings
 from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
@@ -91,12 +96,9 @@ NO_FIX_RANGE = (
     "ranges."
 )
 RERUN = Path(__file__).parents[2] / "templates" / "rerun.md"
+ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
 AGAIN = "/pr-review run {slug} again"
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
-_FINDING = (
-    "`Finding: fixed, <the finding in a few words>` or `Finding: not fixed, <the finding in a "
-    "few words>, because <the reason>`"
-)
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
     "({reason}). {sentence} " + END_TURN
@@ -138,7 +140,7 @@ TABLE = (
         "unfixed",
         "wait",
         re.compile(re.escape(ready.NO_FIXED)),
-        f"Write one line in the Result for each finding, {_FINDING}, and then the `Fixed:` "
+        f"Write one line in the Result for each finding, {findings.ANSWER}, and then the `Fixed:` "
         "line: `Fixed: <the head you pushed>` where you pushed a fix, or `Fixed: none needed, "
         "<reason>` when every finding is declined. Push nothing for a `Fixed: none needed`.",
     ),
@@ -148,7 +150,8 @@ TABLE = (
         re.compile(re.escape(ready.NOT_PUSHED)),
         "The `Fixed:` line names the head the review saw, so no fix is at the head. Push the "
         "fix and set `Fixed:` to the head you pushed. Or, when every finding is declined, write "
-        f"{_FINDING} for each and `Fixed: none needed, <reason>`, and push nothing for that.",
+        f"{findings.ANSWER} for each and `Fixed: none needed, <reason>`, and push nothing for "
+        "that.",
     ),
     Short(
         "unended",
@@ -156,9 +159,40 @@ TABLE = (
         re.compile(
             re.escape(ready.UNENDED).replace(r"\{left\}", r"\d+").replace(r"\{found\}", r"\d+")
         ),
-        f"Write the lines that are missing, one for each finding of both passes, {_FINDING}. "
-        "Set `Fixed:` to the head you pushed where you push for them, and push nothing where "
+        "Write the lines that are missing, one for each finding of both passes, "
+        f"{findings.ANSWER}. Set `Fixed:` to the head you pushed where you push for them, and push nothing where "
         "you decline them.",
+    ),
+    Short(
+        "unanswered",
+        "wait",
+        re.compile(ready.UNANSWERED.pattern),
+        f"Answer each finding the reason names by its id, {findings.ANSWER}: `jbriefs --findings "
+        "<the brief>` lists them. An answer with no id answers none of them.",
+    ),
+    Short(
+        "uncited",
+        "wait",
+        re.compile(ready.UNCITED.pattern),
+        "Give the decline of each finding the reason names a reason that cites a path:line, a "
+        f"command in backticks, or the gate it is parked on, {findings.ANSWER}, or fix it.",
+    ),
+    Short(
+        "repeated",
+        "wait",
+        re.compile(ready.REPEATED.pattern),
+        "A reason given for one finding does not decline another: give the decline of each "
+        f"finding the reason names a reason of its own, {findings.ANSWER}, or fix it.",
+    ),
+    Short(
+        "risky",
+        "wait",
+        re.compile(ready.RISK_UNASKED.pattern),
+        "A finding on security, auth, billing, data, migrations or concurrency is not declined "
+        'by the crew alone: park it as a gate (the crew skill, "Do the task") with the default '
+        "that it is fixed, fix it, and answer it `Finding F<n>: fixed, ...`; where the user "
+        "answers that it stays, answer it `Finding F<n>: not fixed, ..., because question <n>: "
+        "<the answer>`, with the Result's `Gate: question <n>` line.",
     ),
     Short(
         "second",
@@ -394,6 +428,9 @@ def _tell(
             sentence, sent = NO_FIX_RANGE, ""
     if row.rerun:
         sentence += " " + RERUN.read_text().strip()
+    if row.kind in ANSWERED:
+        left = [one.id for one in findings.triage(_brief(run, slug)).blocking()]
+        sentence += f" The findings with no answer that counts: {', '.join(left)}." if left else ""
     message = MESSAGE.replace("{sentence}", sentence)
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED
