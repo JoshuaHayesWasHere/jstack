@@ -580,7 +580,7 @@ def _stale(shown: argparse.ArgumentParser) -> None:
     )
 
 
-def _alarm(args: argparse.Namespace, config: jbus.Config) -> int:
+def run_alarm(args: argparse.Namespace, config: jbus.Config) -> int:
     return alarm(config) if args.stale is None else stale(config, args.stale)
 
 
@@ -596,7 +596,7 @@ VERBS = (
         "alarm",
         "count a pass that did not finish: the third in a row alerts",
         _stale,
-        _alarm,
+        run_alarm,
     ),
     verbs.Verb(
         "view",
