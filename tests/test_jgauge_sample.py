@@ -111,16 +111,16 @@ def test_a_log_with_other_columns_is_not_appended_to(machine, capsys):
 
 
 def fixture(log, at):
-    """Six rows on 24 cores, where room's line is a 1-minute load of 20.4 (85% of 24): over the
+    """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24): over the
     line with CPU pressure low, at the line under 10 (both counted), over the line with CPU
     pressure high, just under the line, CPU pressure not read, and quiet."""
     log.parent.mkdir(parents=True, exist_ok=True)
     loads = [
-        ("21.00", "5.00"),
-        ("20.40", "9.99"),
-        ("21.00", "12.00"),
-        ("20.39", "1.00"),
-        ("30.00", ""),
+        ("49.00", "5.00"),
+        ("48.00", "9.99"),
+        ("49.00", "12.00"),
+        ("47.99", "1.00"),
+        ("60.00", ""),
         ("3.00", "0.50"),
     ]
     body = "".join(
@@ -138,7 +138,7 @@ def test_the_report_counts_rows_over_rooms_line_while_cpu_pressure_was_low(machi
         "rows: 6, from 2025-10-20 00:00:00 to 2025-10-20 00:01:15 (0:01:15);"
         " a row every 15 s would give 6",
         "read: 5 rows have the 1-minute load and CPU pressure (some avg60), and 1 of the 6 do not",
-        "load at or over room's line, 85% of the cores: 3 of 5 rows (60.0%)",
+        "load at or over room's line, 200% of the cores: 3 of 5 rows (60.0%)",
         "and CPU pressure under 10: 2 of 5 rows (40.0%), 2 of the 3 over the line (66.7%)",
     ]
 
@@ -170,4 +170,4 @@ def test_a_start_that_is_not_a_time_is_refused(machine, capsys):
 
 def test_the_load_line_is_the_one_room_reads(machine):
     room = (REPO / "src" / "jgauge" / "room.sh").read_text()
-    assert "  LOAD=85\n" in room and sample.load_line() == 85
+    assert "  LOAD=200\n" in room and sample.load_line() == 200
