@@ -47,8 +47,8 @@ sys.path[:0] = [str(REPO / "src")]
 
 
 def _scorer():
-    """`score.py` beside this file, loaded under a name of its own: `evals/deeper/` has a
-    `score` module too, and one process may load both evals."""
+    """`score.py` beside this file, loaded under a name of its own, so that it never takes the
+    place of another `score` module in one process."""
     name = "skill_cut_score"
     if name not in sys.modules:
         spec = importlib.util.spec_from_file_location(name, HERE / "score.py")
@@ -131,8 +131,8 @@ first line, then one line saying why.
 
 
 def claude(prompt: str, model: str = MODEL) -> str:
-    """One call, no tools, at medium effort: `evals/deeper/eval.py`'s, with the model named and
-    two more tries for a call that fails."""
+    """One call, no tools, at medium effort, with the model named and two more tries for a call
+    that fails."""
     said = ""
     for _ in range(3):
         ran = subprocess.run(

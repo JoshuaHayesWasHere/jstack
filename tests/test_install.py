@@ -313,6 +313,18 @@ def test_a_link_to_a_skill_the_checkout_no_longer_has_is_old_and_a_run_unlinks_i
     assert user.run("--check") == (0, user.every("ok"))
 
 
+@pytest.mark.parametrize("root", [".claude/skills", ".codex/skills"])
+def test_the_retired_deeper_skill_is_unlinked_by_a_run(user, root):
+    user.run()
+    dead = user.home / root / "deeper"
+    dead.symlink_to(REPO / "skills" / "deeper")
+    assert not (REPO / "skills" / "deeper").exists()
+    code, said = user.run()
+    assert (code, line_for(said, dead)) == (0, [f"ok hard {dead} -> unlinked"])
+    assert not dead.is_symlink()
+    assert line_for(user.run("--check")[1], dead) == []
+
+
 def test_a_hook_already_in_a_hooks_file_is_kept(user):
     other = {"hooks": [{"type": "command", "command": "echo hello"}]}
     stop = [{"hooks": [{"type": "command", "command": "echo bye"}]}]
