@@ -70,11 +70,24 @@ def test_a_seat_launched_again_waits_for_no_more_sections(reviewing):
     assert reviewing(brief + section(f"{SONNET} #1") + section(f"{SONNET} #2")) == "idle"
 
 
+def scoped_section(by):
+    return section(by).replace("Head:", "Scope: range-diff a..b c..d\nHead:")
+
+
 def test_a_scoped_reviewer_is_waited_on_beside_the_seats(reviewing):
     both = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #2")
     scoped = both + f"Scoped reviewer: mcp:s-3, of {SAW}\n"
     assert reviewing(scoped) == "running"
-    assert reviewing(scoped + section(f"{SONNET} #1")) == "idle"
+    assert reviewing(scoped + scoped_section(f"{SONNET} #1")) == "idle"
+
+
+def test_a_seat_that_wrote_twice_does_not_stand_for_the_scoped_pass(reviewing):
+    """The scoped pass of #166: sections #1, #2 and #1 again, with a scoped reviewer out, is
+    a scoped pass still running: only a section with a `Scope:` line is the scoped one's."""
+    both = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #2")
+    scoped = both + f"Scoped reviewer: mcp:s-3, of {SAW}\n" + section(f"{SONNET} #1")
+    assert reviewing(scoped) == "running"
+    assert reviewing(scoped + scoped_section(f"{SONNET} #1")) == "idle"
 
 
 def test_a_seat_that_wrote_twice_does_not_stand_for_a_seat_that_has_not(reviewing):
