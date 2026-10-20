@@ -10,6 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
+Verify skill: `.claude/skills/verify-*/`.
+
 **You own the diagnosis.** Instrument the live process, and do not theorize from source. What you hand over is a cited diagnosis, not a fix. Where the capture already exists as a file, this is not the playbook: `playbooks/trace-forensics.md` is, and a scout runs it.
 
 1. Reach the process and see the symptom yourself, live: the repo's verify skill where it has one, otherwise the command or surface the brief names. Start it from your worktree, or attach to the one the brief names. Write down its command and process id, and what the symptom looks like as it happens. A symptom you have not seen is not yet one you can instrument.
