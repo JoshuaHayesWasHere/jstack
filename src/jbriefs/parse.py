@@ -385,6 +385,34 @@ def proven(text: str) -> str:
     return found.why if found else ""
 
 
+_CHECK_COMMAND = re.compile(r"^[-* ]*Check command:[ \t]*`(?P<command>[^`\n]+)`", re.MULTILINE)
+_BARE_CHECK = re.compile(r"\bmake check(?![-\w])")
+
+
+def check_command(notes: str) -> str:
+    """The repo's check command, as its notes name it on a `Check command:` line, or nothing."""
+    named = _CHECK_COMMAND.search(notes)
+    return named["command"].strip() if named else ""
+
+
+def check_asked(text: str, notes: str) -> str:
+    """Why a brief's `Done when:` asks for the wrong check, in one line, or nothing.
+
+    The notes name the repo's check command on a `Check command:` line. A `Done when:` item
+    that asks for a bare `make check` while that command is another one sends a crewmate to
+    run the full suite in its place.
+    """
+    command = check_command(notes)
+    if not command or _BARE_CHECK.fullmatch(command):
+        return ""
+    if not any(_BARE_CHECK.search(item) for item in _done_when(text.splitlines())):
+        return ""
+    return (
+        f"brief's Done when: asks for `make check`, and notes.md names the check command "
+        f"`{command}`: a check line names the check command (`notes.md`)"
+    )
+
+
 CHECKS = (
     ("Design", designed),
     ("Proves it", proven),

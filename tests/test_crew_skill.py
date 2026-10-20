@@ -19,6 +19,7 @@ import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
 import test_room as room
 import test_tool_calls as tools
+from jbriefs import parse as briefs
 from jmerge import cli, rangediff, ready
 from test_jbus_kitchen import NOW, Kitchen
 from test_jmerge_guarded import LISTED
@@ -778,6 +779,28 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
         3,
     )
     assert [path.name for path in locks.iterdir()] == ["test-slot.1.lock"]
+
+
+def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check(tmp_path):
+    """The block runs what the repo's notes name, `make check-fast BASE=origin/main` on the
+    fast track, under a test slot, and nothing else: a `make` on the path records each run."""
+    notes = "- Check command: `make check-fast BASE=origin/main`, while the fast track holds.\n"
+    command = briefs.check_command(notes)
+    locks = tmp_path / "home" / ".local" / "state" / "locks"
+    ran = tmp_path / "make.log"
+    stub = tmp_path / "stub"
+    stub.mkdir()
+    (stub / "make").write_text(
+        f"#!/bin/sh\nheld=free\n! flock -n {locks}/test-slot.1.lock true && held=held\n"
+        f'echo "$* $held" >> {ran}\n'
+    )
+    (stub / "make").chmod(0o755)
+    said, code, _ = checked(tmp_path, command)
+    assert (said[-1], code) == ("done: the check exited 0", 0)
+    assert ran.read_text().splitlines() == ["check-fast BASE=origin/main held"]
+    step = sections()["Do the task"]
+    assert "(`notes.md` names it)" in step
+    assert not re.search(r"make check(?![-\w])", step)
 
 
 def held_open(go):

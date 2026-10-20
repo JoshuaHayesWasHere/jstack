@@ -518,6 +518,8 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty, and a launch checks it again.
 
+   A **Done when** line that asks for the check names it as "the check command (`notes.md`)", never as a literal `make check`: the crewmate runs the command `notes.md` names, once. `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while the notes name another check command: mend the line and add the brief again.
+
    Its `Size:` line is the task's t-shirt size, `S`, `M`, `L` or `XL`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. `jbus queue add` queues no brief with no such line, or with any other word on it.
 
    Its `Review:` line says how much review the pull request gets. It is fixed now, when the brief is written, and the crewmate and the reviewer both go by it:
@@ -527,7 +529,7 @@ It prints nothing when the name is `none`, or when none is given and the plan's 
    | `Review: review` | always, unless the one below holds or the user says otherwise |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 
-   A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one full run is the crewmate's.
+   A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
    A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
 
