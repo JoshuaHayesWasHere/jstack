@@ -545,7 +545,7 @@ def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str
 
 
 SOUS_CHEF = "Sous Chef"
-DECISIONS = tuple(str(one) for one in item.ACTIONS)
+DECISIONS = tuple(item.ACTIONS.values())
 TEXT = ("project", "item", "verb", "by", "seen_event")
 
 
@@ -593,7 +593,7 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
     box = wake.Box(state, project)
     where = item.Where.CHAT
     try:
-        if body["verb"] == str(item.Verb.APPROVE):
+        if body["verb"] == item.ACTIONS[item.Verb.APPROVE]:
             made = steer.approve(
                 state,
                 box,

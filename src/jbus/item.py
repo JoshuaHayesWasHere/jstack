@@ -686,8 +686,9 @@ CARDS = "cards.json"
 VIEW_PORT = 4388
 RELAY_PORT = 4390
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
-ACTIONS: tuple[Move, ...] = (Verb.APPROVE, Steer.MESSAGE, Steer.HOLD)
-"""What a card offers, in order, and what the relay's `POST /item` takes as its `verb`."""
+ACTIONS: dict[Move, str] = {Verb.APPROVE: "approve", Steer.MESSAGE: "message", Steer.HOLD: "hold"}
+"""What a card offers, in order, by the name its button sends as the `verb` of the relay's
+`POST /item`."""
 SAID: dict[Move, str] = {
     Verb.PROPOSE: "Proposed",
     Verb.LINK: "Linked to its row",
@@ -714,7 +715,7 @@ def actions(item: Item) -> list[str]:
     if item.risk is Risk.REVIEW:
         return []
     offered = [one for one in ACTIONS if (item.state, one) in MOVES]
-    return [str(one) for one in offered if not (one is Verb.APPROVE and item.redirect)]
+    return [ACTIONS[one] for one in offered if not (one is Verb.APPROVE and item.redirect)]
 
 
 def last(line: dict[str, Any], user: jsettings.Settings) -> str:
