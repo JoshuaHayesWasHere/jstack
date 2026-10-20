@@ -28,6 +28,7 @@ $(awk -v written="$written" '
     /^Second reviewer:/ {launched = "yes"}
     /^Scoped review: / {ruled = $(3); sub(/,$/, "", ruled)}
     /^Scoped review: needed since / {asked = $(5); sub(/,$/, "", asked); after = 1; wrote = ""}
+    /^Scoped reviewer:/ {close_section(); wrote = ""}
     /^Scoped reviewer:/ && $(NF - 1) == "of" {sent = $(NF); nobody = ($(3) ~ /^none/)}
     function word(value, unset) {return value == "" ? unset : value}
     END {
@@ -39,11 +40,16 @@ $(awk -v written="$written" '
     }' "$B")
 EOF
 scoped() {
-    if [ "$ruled" != needed ] || [ "$asked" != "$saw" ] || [ "$wrote" = yes ]; then return 0; fi
+    if [ "$ruled" != needed ] || [ "$asked" != "$saw" ]; then return 0; fi
+    if [ "$wrote" = yes ] && [ "$declined" = - ]; then return 0; fi
     head=$(git rev-parse HEAD 2> /dev/null) || return 0
     base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD) && from=$(git merge-base "$base" "$head" 2> /dev/null) || from=
     if [ -z "$from" ]; then
         echo "scoped: this worktree does not know its default branch, so the range of the fix cannot be given"
+    elif [ "$wrote" = yes ] && ! old=$(git merge-base "$base" "$saw" 2> /dev/null); then
+        echo "scoped: the head the review saw, $saw, is not a commit here, so its range cannot be given"
+    elif [ "$wrote" = yes ]; then
+        echo "scoped: launch the scoped reviewer again, to rule on the declines of $(printf %s "$declined" | sed 's/,/, /g'), with /pr-review run <slug> scoped $old..$saw $from..$head"
     elif [ "$sent" = "none:$head" ]; then
         echo "scoped: no scoped reviewer could be launched for this head, and the home was told"
     elif [ "$sent" = "$head" ]; then
@@ -96,7 +102,8 @@ With no difference, nothing was pushed.
 One file outside `tests/` is enough, and the line names the first five.
 A blocking decline with no ruling is enough too, pushed or not: `jbriefs --findings --rounds` names those findings in its fourth field, and the line names them.
 The scoped reviewer it launches reads the earlier findings and your answers, and rules on each decline in its section, `Declines: upheld F2` or `Declines: not upheld F3: <the disproof>`.
-With nothing pushed its two ranges both end at the head the review saw, and the review of the fix is had once a scoped section that ran is written after the `Scoped review:` line, whatever its head.
+With nothing pushed its two ranges both end at the head the review saw, and the review of the fix is had once a scoped section that ran is written after the `Scoped review:` line and the last `Scoped reviewer:` line, whatever its head.
+A blocking decline still with no ruling after that, one the scoped pass's own findings brought or one it left out, launches the scoped reviewer again, with `again` in the line: add its `Scoped reviewer:` line under the others, as for the first.
 A fix that cannot be compared with the head the review saw is owed a review.
 So is a fix pushed after a rebase, since the default branch's files then differ too: that is one review too many, never one too few.
 A pull request with more than one review and no `Scoped review:` line, the later one asked for after a rebase or by the user, is decided the same way, from the head the last review saw.

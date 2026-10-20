@@ -35,8 +35,11 @@ A blocking finding the crew declined by id is ruled on by the scoped pass, a sec
 `Scope:` line: `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the disproof>` for
 each it does not uphold (`Ruling`). The last ruling of an id is its word, and one not upheld
 stands until the crew answers the finding `fixed`: a decline written again after it is still
-not upheld (`Finding.state`). A scoped section is a pass of its own, so at the head of the
-first review it takes the place of no section but another scoped one by the same reviewer.
+not upheld (`Finding.state`). A scoped section its reviewer wrote again at the same head
+rules on nothing: the section that took its place is the whole word, so a scoped pass
+rules on every blocking decline, an earlier ruling included. A scoped section is a pass of
+its own, so at the head of the first review it takes the place of no section but another
+scoped one by the same reviewer.
 
 `jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its
 second pass (`jbriefs --findings --left` and `--rounds`) and jbus's ask (`expedite`) read
@@ -496,8 +499,8 @@ def triage(text: str) -> Triage:
             one.answer = next(unnumbered, None)
     _judge(findings, text)
     by_id = {one.id: one for one in findings}
-    for section in sections:
-        if section.scoped:
+    for number, section in enumerate(sections):
+        if section.scoped and number not in stale:
             for ident, ruling in section.rulings:
                 if ident in by_id:
                     by_id[ident].ruling = ruling

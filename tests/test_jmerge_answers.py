@@ -183,3 +183,10 @@ def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():
         assert reason.step == "findings"
         said = "wait: " + reason.format(ids="F1", first="F1", risks="auth")
         assert merge.step(said) == "findings"
+
+
+def test_a_scoped_pass_written_again_at_one_head_is_the_whole_word_on_the_declines():
+    brief = RESULT + DECLINED + "Fixed: none needed, x\n" + section([ACT], CODEX)
+    replaced = brief + scoped("upheld F1") + scoped()
+    assert ready.short_of(replaced, SAW) == ready.DECLINES_UNRULED.format(ids="F1")
+    assert ready.short_of(brief + scoped() + scoped("upheld F1"), SAW) == ""

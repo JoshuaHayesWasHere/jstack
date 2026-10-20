@@ -73,17 +73,19 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 
    ```sh
    B="$H/tasks/<slug>.md"
-   unruled=$(uv run --project "$T/.." jbriefs --findings "$B" --rounds | awk '{print $(4)}')
-   if [ "$unruled" = - ]; then
-       echo "no declines: no blocking finding is declined with no ruling"
+   listed=$(uv run --project "$T/.." jbriefs --findings "$B")
+   declined=$(printf '%s\n' "$listed" | awk '/^F[0-9]+ / {id = $(1)} /^  ruling: / {printf "%s%s", (n++ ? " " : ""), id}')
+   if [ -z "$declined" ]; then
+       echo "no declines: no blocking finding is declined by id"
    else
-       echo "rule on: $(printf %s "$unruled" | tr , ' ')"
-       uv run --project "$T/.." jbriefs --findings "$B"
+       echo "rule on: $declined"
+       printf '%s\n' "$listed"
    fi
    ```
 
    On `no declines`, the section gets no `Declines:` line.
-   Otherwise it names each blocking finding the crew declined by id and that no scoped pass has ruled on, and under it the list with each finding, its answer and the reason the decline gives.
+   Otherwise it names each blocking finding the crew declined by id, the ones an earlier scoped pass ruled on too, and under it the list with each finding, its answer, the reason the decline gives and the ruling it has so far.
+   Rule on every one it names, an earlier ruling included: a scoped section you write at the head of an earlier one by the same `By:` takes its place, and its rulings with it, so a decline it leaves out has no ruling.
    A finding of the bucket Consider, Noted or Dismissed is not ruled on, and neither is one answered `fixed`.
    Check each reason at this head: read the `path:line` it cites, run the command it gives, read the gate it names.
    A decline is upheld when its reason is true at this head and answers the finding: the case cannot happen, the brief decides it, or the user's answer to the gate does.

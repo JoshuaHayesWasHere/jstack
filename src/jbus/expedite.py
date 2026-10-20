@@ -25,7 +25,7 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
   owed, also where nothing was pushed;
 - `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each and answer
   it `fixed`, or, where the crew still holds the decline, tell its home. Its stall goes to
-  the home's thread and not to the user (`OVERRULED_HOME`): only a decline on one of
+  the home's thread and never to the user (`OVERRULED_HOME`): only a decline on one of
   `findings.RISKS` is the user's, and that one is a `hold` no crew is asked to lift;
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
@@ -433,7 +433,9 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "
                 f"crew was told{work}, at {head[:12]}, {reason}; its crew's thread is {thread}"
             )
-            if row.kind != "overruled" or not _to_home(run, client, slug, number, since, reason):
+            if row.kind == "overruled":
+                _to_home(run, client, slug, number, since, reason)
+            else:
                 run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
             if row.word == "hold" and busy is False and entry.get("idle", 0) >= PASSES:
                 entry["users"] = True
@@ -442,17 +444,20 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
     return hand
 
 
-def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reason: str) -> bool:
+def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reason: str) -> None:
     """Send the home the stall of a decline not upheld, once for the slug and the reason, in
-    place of the user. False where there is no home or the message did not go: then the
-    stall is the user's, as any other is."""
+    place of the user, who is never paged for it: the finding is on none of review-triage's
+    categories. Where there is no home it is said in the pass and the pull request stays
+    where the view shows it, on the findings step, and a message that did not go is sent
+    again on the next pass."""
     brief = _brief(run, slug)
     thread = word.home(leftover.home_of(run.home, brief))
     if not thread:
-        return False
+        run.say(f"wait {slug}: #{number} waits on its crew, {reason}, and it has no home to tell")
+        return
     digest = f"overruled|{slug}|{reason}"
     if digest in run.box.sent():
-        return True
+        return
     text = OVERRULED_HOME.format(
         slug=slug,
         number=number,
@@ -467,10 +472,9 @@ def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reas
         client.call("t3_thread_send", asked)
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told of the decline not upheld ({error})")
-        return False
+        return
     run.box.mark(digest)
     run.say(f"{STALL} {slug}: told its home, thread {thread}, of #{number}: {reason}")
-    return True
 
 
 def _tell(
