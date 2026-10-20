@@ -15,6 +15,12 @@ its feature's module, and no line in `jbus.cli`. `jbus steps` prints the order. 
 modules declare in one slot is a `ValueError` that names both, raised when `jbus.cli` is
 imported.
 
+A chore is the machine's, once a pass and for no project, declared as `CHORES = (Chore(...),)`:
+its rank and its name, and the function that runs it, given the config, the T3 Code client or
+None, the pass's time and its `say`. `chores` gathers them by rank, and `jbus.cli.poll` runs
+each after the launches, guarded under its name: the sign-in reminder, and the words of the
+scratch homes, which are no project of a pass. A rank two modules declare is a `ValueError`.
+
 `project` and `here` are the two ways a verb reads which project it is for.
 
 This module imports none of jbus's features, so that each of them can import it.
@@ -96,6 +102,30 @@ class Step:
     name: str
     run: Callable[[Any], None]
     needs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Chore:
+    """One chore of a pass: the machine's, run once a pass after the launches."""
+
+    rank: int
+    name: str
+    run: Callable[[jbus.Config, Any, Any, Callable[[str], None]], None]
+
+
+def chores(paths: Iterable[str]) -> tuple[Chore, ...]:
+    """Every chore the modules under `paths` declare, by rank."""
+    found: dict[int, tuple[Chore, str]] = {}
+    for module in pkgutil.iter_modules(paths, f"{jbus.__name__}."):
+        if module.name.endswith(".__main__"):
+            continue
+        for chore in getattr(importlib.import_module(module.name), "CHORES", ()):
+            if chore.rank in found:
+                raise ValueError(
+                    f"chore {chore.rank} is declared in {found[chore.rank][1]} and in {module.name}"
+                )
+            found[chore.rank] = chore, module.name
+    return tuple(found[rank][0] for rank in sorted(found))
 
 
 def nothing(parser: argparse.ArgumentParser) -> None:

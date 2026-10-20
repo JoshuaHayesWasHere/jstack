@@ -54,6 +54,7 @@ SHAPE = {
             "sweep": None,
             "streaks": {ANY: None},
             "homes_off_bus": [None],
+            "scratch": [{"name": None, "home_thread": None}],
         },
         "code": {"started": None, "stale": None, "error": None},
     },
@@ -107,6 +108,7 @@ def pulse(read: Read) -> dict[str, Any]:
     mine = mine if isinstance(mine, dict) else {}
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
+    scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
     said = "systemd did not answer"
     if units is not None:
         said = (
@@ -151,6 +153,11 @@ def pulse(read: Read) -> dict[str, Any]:
                 if isinstance(one, dict)
             },
             "homes_off_bus": [text(home, 60) for home in homes if isinstance(home, str)],
+            "scratch": [
+                {"name": text(name, 60), "home_thread": text(one.get("home_thread"), 80)}
+                for name, one in sorted(scratch.items())
+                if isinstance(one, dict)
+            ],
         },
     }
 

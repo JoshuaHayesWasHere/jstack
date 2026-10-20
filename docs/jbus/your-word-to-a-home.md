@@ -6,4 +6,6 @@ A home is not told a word it recorded itself. A word said in the home's own thre
 
 With `--message <thread id>/<message id>`, jbus reads the message from T3 Code itself and takes its text and its own time: nothing is typed. A message that is not your own is refused, `refused: message <ref> is not <user>'s own: T3 Code has it as a <type> by <who>`. What an agent or jbus sent into a thread is such a message, though T3 Code lists it as a user message. The record then has `ref`, the title of the thread as `said_in`, and `checked: true`. The typed form, `--by` and `--at` with the words, is still taken, and its record has `checked: false`: jbus checks the name and the form of the time, and cannot check that you said it then. `--message` with `--by`, `--at` or words is refused.
 
+`--to` also names a scratch home, whose thread is in its own `home-id` as a repo's home's is ([A scratch home](a-scratch-home.md)), and `--all` does not reach one.
+
 A word is no event, so no webhook gets it. The log still has a line for it, which `jbus events` prints.

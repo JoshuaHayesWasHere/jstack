@@ -7,7 +7,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --to PROJECT          the project whose home it is for
+  --to PROJECT          the project or the scratch home whose home it is for
   --all                 the home of every project
   --by BY               the user's name, with --at, for words that were typed
   --at AT               "<YYYY-MM-DD HH:MM ZONE>", the zone as jstack's config
