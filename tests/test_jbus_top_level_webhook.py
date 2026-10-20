@@ -16,7 +16,7 @@ import pytest
 import jbus
 from jbus import Project, alert, wake
 from test_jbus_kitchen import KEY, NOW, RESULT, Webhook
-from test_jbus_view import Scene, Served, iso
+from view.scene import Scene, Served, iso
 
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 GAINED = "waiting demo: 1 wait on user, 1 new (hold 9), 0 gone"

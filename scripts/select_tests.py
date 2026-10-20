@@ -7,11 +7,13 @@ runs before `uv sync`.
 
 A changed module, of `src/` or `tests/`, selects the test files that import it, directly or
 through any chain of modules: a test file that imports a module that imports it is selected
-too. A changed test file is selected itself. A module that calls `importlib.import_module` is
-taken to import every module under its directory. A test with a string that is the name of a
-package of `src/` is taken to run it in a process of its own, and to import every module of
-it. A file in a package that is no module (a page, a pattern list) is read as a change to the
-modules of `src/` whose strings name it, and with none to the modules beside it.
+too. A test file may be in a folder of `tests/`, as `tests/view/test_view_bus.py`, and is taken
+to import the `conftest.py` of each folder it is in below `tests/`. A changed test file is
+selected itself. A module that calls `importlib.import_module` is taken to import every module
+under its directory. A test with a string that is the name of a package of `src/` is taken to
+run it in a process of its own, and to import every module of it. A file in a package that is
+no module (a page, a pattern list) is read as a change to the modules of `src/` whose strings
+name it, and with none to the modules beside it.
 
 A changed file that is no module (a doc, a skill, a hook) selects the test files that spell its
 path, in the file or in a test module it imports: the parts of a path in a string or a `/`
@@ -53,7 +55,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".cursor/skills/verify-jstack/features"
-TEST = re.compile(r"tests/test_\w+\.py")
+TEST = re.compile(r"tests/(\w+/)*test_\w+\.py")
 EVERYTHING = ("pyproject.toml", "uv.lock", "tests/conftest.py")
 FIXTURES = "tests/fixtures/"
 BACKTICKED = re.compile(r"`([^`]+)`")
@@ -119,15 +121,23 @@ def owns(patterns, path):
 
 @cache
 def modules():
-    """Every module of `src/` and `tests/`, by its dotted name: the file it is, from the root."""
+    """Every module of `src/` and `tests/`, by its dotted name: the file it is, from the root. A
+    module in a folder of `tests/` is named from `tests/`, as `view.scene`: such a folder is a
+    package, so its `conftest.py` is not taken for the one of `tests/`. The fixtures' folder
+    holds none."""
     found = {}
     for path in sorted((ROOT / "src").rglob("*.py")):
         parts = list(path.relative_to(ROOT / "src").with_suffix("").parts)
         if parts[-1] == "__init__":
             parts.pop()
         found[".".join(parts)] = path.relative_to(ROOT).as_posix()
-    for path in sorted((ROOT / "tests").glob("*.py")):
-        found[path.stem] = path.relative_to(ROOT).as_posix()
+    for path in sorted((ROOT / "tests").rglob("*.py")):
+        named = path.relative_to(ROOT).as_posix()
+        parts = list(path.relative_to(ROOT / "tests").with_suffix("").parts)
+        if parts[-1] == "__init__":
+            parts.pop()
+        if not named.startswith(FIXTURES):
+            found[".".join(parts)] = named
     return found
 
 
@@ -200,8 +210,17 @@ def edges():
                 f"src/{one}/" for one in packages & {one[0] for one in paths if len(one) == 1}
             )
             reached |= {other for other, path in known.items() if path.startswith(run)}
+        if TEST.fullmatch(known[name]):
+            reached |= conftests(name) & known.keys()
         found[name] = reached - {name}
     return found
+
+
+def conftests(name):
+    """The `conftest` of each folder of `tests/` a test module is in, below `tests/` itself:
+    its fixtures reach the test with no import."""
+    parts = name.split(".")[:-1]
+    return {".".join(parts[:end] + ["conftest"]) for end in range(1, len(parts) + 1)}
 
 
 def importers(names):
@@ -429,7 +448,7 @@ CAUSES = ("imports", "names", "features", "cross-cutting")
 
 
 def summary(tests, why, changed):
-    total = len(list((ROOT / "tests").glob("test_*.py")))
+    total = len([one for one in modules().values() if TEST.fullmatch(one)])
     chosen = "all" if tests == ["all"] else "some"
     count = total if chosen == "all" else len(tests)
     causes = " ".join(f"{key}={why.get(key, 0)}" for key in CAUSES)

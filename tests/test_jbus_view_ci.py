@@ -9,7 +9,7 @@ import pytest
 from ci_replay import FOLDER, Replay
 from jbus.ci import collect, ledger
 from test_jbus_ci import NOW as RECORDED
-from test_jbus_view import NOW, Scene, Served
+from view.scene import NOW, Scene, Served
 
 TIMES = ("created", "started", "completed", "merged", "closed")
 SHIFT = NOW - RECORDED

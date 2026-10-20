@@ -194,10 +194,13 @@ class Lint:
             facts.runs |= package in SRC or package in RUNNERS
 
     def asked(self, module, node):
-        """The facts of each fixture a function asks for by its parameters."""
-        conftest = self.modules.get("conftest")
+        """The facts of each fixture a function asks for by its parameters: its module's own,
+        then those of the `conftest` of each folder it is in, the nearest first."""
+        parts = module.name.split(".")[:-1]
+        folders = [".".join(parts[:end] + ["conftest"]) for end in range(len(parts), -1, -1)]
+        conftests = [self.modules.get(name) for name in folders]
         for arg in node.args.args + node.args.kwonlyargs:
-            for where in (module, conftest):
+            for where in (module, *conftests):
                 if where and arg.arg in where.fixtures:
                     found = self.top(where, arg.arg)
                     if found:
@@ -276,8 +279,9 @@ def errors(lint, changed):
         module = lint.modules[module_name]
         for name, node in lint.flagged(module_name):
             if name in names and not excepted(module, node):
+                path = f"tests/{module_name.replace('.', '/')}.py"
                 yield (
-                    f"tests/{module_name}.py:{node.lineno} {name} reads a skill's, playbook's, "
+                    f"{path}:{node.lineno} {name} reads a skill's, playbook's, "
                     f"principle's or template's words, asserts on them and runs nothing: "
                     f"{WHAT_TO_DO}. An exception is a comment on that line: "
                     f'# words only: <reason> (the user, <when>: "<their words>")'
@@ -317,6 +321,19 @@ def dumped_tests(source):
     return {name: ast.dump(node) for name, node in Module.parse("", source).tests()}
 
 
+def moved_from(since, repo):
+    """Each test of every test file of `tests/` at the commit, by its name: a test in a file
+    that is new since then is unchanged where one of its name had the same code there, so a
+    test moved to another file is not counted as added."""
+    listed = git("ls-tree", "-r", "--name-only", since, "--", "tests", repo=repo).splitlines()
+    found = {}
+    for path in listed:
+        if re.fullmatch(r"tests/(\w+/)*test_\w+\.py", path):
+            for name, dumped in dumped_tests(git("show", f"{since}:{path}", repo=repo)).items():
+                found.setdefault(name, dumped)
+    return found
+
+
 def changed_tests(since, repo=REPO):
     """{module: test names} added or changed since the commit, the worktree's own edits in."""
     paths = git("diff", "--name-only", since, "--", "tests", repo=repo).splitlines()
@@ -325,21 +342,34 @@ def changed_tests(since, repo=REPO):
     ).splitlines()
     changed = {}
     for path in sorted(set(paths)):
-        if not re.fullmatch(r"tests/test_[^/]*\.py", path) or not (repo / path).exists():
+        if not re.fullmatch(r"tests/(\w+/)*test_\w+\.py", path) or not (repo / path).exists():
             continue
         try:
             before = dumped_tests(git("show", f"{since}:{path}", repo=repo))
         except subprocess.CalledProcessError:
             before = {}
+        if not before:
+            before = moved_from(since, repo)
         now = dumped_tests((repo / path).read_text())
         names = {name for name, dumped in now.items() if before.get(name) != dumped}
         if names:
-            changed[Path(path).stem] = names
+            changed[dotted(Path(path).relative_to("tests"))] = names
     return changed
 
 
+def dotted(path):
+    """A module of `tests/` by the name it is imported by, as `crew.helpers` or `conftest`."""
+    return ".".join(path.with_suffix("").parts).removesuffix(".__init__")
+
+
 def tree():
-    return Lint({path.stem: path.read_text() for path in sorted(TESTS.glob("*.py"))})
+    return Lint(
+        {
+            dotted(path.relative_to(TESTS)): path.read_text()
+            for path in sorted(TESTS.rglob("*.py"))
+            if path.relative_to(TESTS).parts[0] != "fixtures"
+        }
+    )
 
 
 def test_no_test_added_or_changed_on_this_branch_reads_words_and_runs_nothing():
@@ -603,3 +633,53 @@ def test_a_test_is_changed_when_its_code_is_and_new_files_count_before_a_commit(
         "test_a": {"test_edited", "test_added"},
         "test_new": {"test_new"},
     }
+
+
+def test_a_test_in_a_folder_reaches_its_folders_conftest_and_its_helpers_by_dotted_name():
+    conftest = """
+    import subprocess
+    import pytest
+
+    @pytest.fixture
+    def runner():
+        return lambda text: subprocess.run(["sh", "-c", text], capture_output=True).stdout
+    """
+    helpers = """
+    from pathlib import Path
+    SKILL = Path("skills/crew/SKILL.md")
+    """
+    test = """
+    import area.helpers as words
+
+    def test_the_block_says_go(runner):
+        assert "go" in runner(words.SKILL.read_text())
+
+    def test_the_skill_says_go():
+        assert "go" in words.SKILL.read_text()
+    """
+    sources = {"area.conftest": conftest, "area.helpers": helpers, "area.test_go": test}
+    assert flagged(**sources) == ["test_the_skill_says_go"]
+    lint = Lint({name: textwrap.dedent(text) for name, text in sources.items()})
+    (error,) = errors(lint, {"area.test_go": {"test_the_skill_says_go"}})
+    assert error.startswith("tests/area/test_go.py:")
+
+
+def test_a_changed_test_in_a_folder_is_named_by_its_dotted_name_and_a_moved_one_is_not(
+    tmp_path,
+):
+    git("init", "-q", repo=tmp_path)
+    (tmp_path / "README").write_text("x\n")
+    git("add", ".", repo=tmp_path)
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base", repo=tmp_path)
+    since = git("rev-parse", "HEAD", repo=tmp_path)
+    (tmp_path / "tests" / "area").mkdir(parents=True)
+    (tmp_path / "tests" / "test_old.py").write_text("def test_moved():\n    assert 1\n")
+    git("add", ".", repo=tmp_path)
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "old", repo=tmp_path)
+    since = git("rev-parse", "HEAD", repo=tmp_path)
+    git("rm", "-q", "tests/test_old.py", repo=tmp_path)
+    (tmp_path / "tests" / "area" / "test_deep.py").write_text(
+        "def test_deep():\n    assert 1\n\n\ndef test_moved():\n    assert 1\n"
+    )
+    (tmp_path / "tests" / "area" / "helpers.py").write_text("def test_no():\n    assert 1\n")
+    assert changed_tests(since, tmp_path) == {"area.test_deep": {"test_deep"}}

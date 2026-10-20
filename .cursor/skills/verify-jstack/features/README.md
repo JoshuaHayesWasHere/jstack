@@ -102,5 +102,6 @@ Cross-cutting:
 - `tests/test_run_not_read.py`
 - `tests/test_select_tests.py`
 - `tests/test_skill_frontmatter.py`
+- `tests/test_test_size.py`
 - `tests/test_tool_calls.py`
 - `tests/test_workflows.py`
