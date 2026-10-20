@@ -46,9 +46,9 @@ def test_a_machine_with_no_room_launches_no_row_that_pass_and_sends_nothing(kitc
 
 def test_a_plan_past_its_cushion_waits_as_a_full_machine_does(kitchen):
     approved(kitchen, "alpha")
-    kitchen.machine(plan={**FRESH, "five_hour": ("91", 3600 + 59)})
+    kitchen.machine(plan={**FRESH, "five_hour": ("100", 3600 + 59)})
     assert (
-        "wait alpha: no room: the five-hour limit is 91% used, at or over 85%,"
+        "wait alpha: no room: the five-hour limit is 100% used, at or over 100%,"
         " and resets in 1 h 0 min"
     ) in kitchen.poll()
     assert kitchen.t3.launches == []

@@ -167,11 +167,11 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `wait: load <load> is at or over 85% of <n> cores` | The machine is busy. | Wait for running tests or builds to end. |
+| `wait: load <load> is at or over 85% of <n> cores` | The machine is busy. A review never says it: its check, `jgauge room --light`, skips the load. | Wait for running tests or builds to end. |
 | `wait: <n> GB of memory available, under 6` | The machine is short of memory. | Close what holds the memory. |
 | `wait: memory pressure <n> is at or over 10` | Programs wait on memory. | Close what holds the memory. |
 | `wait: /tmp has <n> of <m> file slots used, over 85%` | `/tmp` is almost out of file slots. | Remove old test directories from `/tmp`. |
-| `wait: the five-hour limit is <n>% used, at or over 85%, and resets in <time>` | The plan's limit is almost used. The same line names `the weekly limit`. | Wait for the reset. |
+| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit is used up. The same line names `the weekly limit`. | Wait for the reset. |
 | `wait: the load or the core count could not be read` | A reading is missing. The lines for the memory, the memory pressure and the file slots have the same form. | `jgauge room` reads `/proc` and `df`. Check that both work in this shell. |
 
 A `note: the plan's ... not known` line on stderr is no `wait:`. It says the limits file is missing or stale, and `jgauge room` still prints `go`.
