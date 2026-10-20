@@ -176,6 +176,7 @@ MIGRATION_REBASING = Reason(
     "check",
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
+MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"

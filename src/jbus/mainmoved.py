@@ -6,8 +6,10 @@ fixing main wakes nobody. `tell` keeps the default branch's commit from pass to 
 sends the crew of each open pull request that is red one message when main goes from red to
 green: a main that moved while green was no reason for a branch to move. A red tip is kept
 as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
-when it landed, or a second red one, loses nothing. The tip's check is main's own, read as
-`main_check` reads it. A conflict is not told here: only a push ends it, and
+when it landed, or a second red one, loses nothing, and the last tip whose check passed is
+kept as `green`: `main.json` is the one record of main's red tip, which `mainstate` reads for
+a launch and for `jmerge`. The tip's check is main's own, read as `main_check`
+reads it. A conflict is not told here: only a push ends it, and
 `rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
 nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
 out of the pass's list of open pull requests.
@@ -15,7 +17,9 @@ out of the pass's list of open pull requests.
 The message's key, `mainmoved|<slug>|#<number>|<main 12>`, is its retry key at T3 Code and
 its mark in `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
 pass that got no answer looks again, and the mark keeps what was told from being told twice.
-A tip whose check has not ended is looked at again each pass, whether or not it is new.
+A pass that still owes a send writes only `fixed`, the green tip, so main reads as green for
+`mainstate` while the record keeps the commit to look at again. A tip whose check has not
+ended is looked at again each pass, whether or not it is new.
 So does a pass in which GitHub had not yet said whether a red head the rebase message went to
 still conflicts.
 
@@ -33,7 +37,7 @@ message says what to do of its failed check, so `rebase.github` does not say it 
 
 from __future__ import annotations
 
-from jbus import dispatch, read_json, rebase, verbs, write_json
+from jbus import dispatch, mainstate, read_json, rebase, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import World, _check, checks
@@ -159,9 +163,14 @@ def tell(run: Pass, client: Client, world: World) -> None:
         record = {"main": main, "at": at, "check": check}
         if broken and (held or check != "green"):
             record["broken"] = broken
+        green = main if check == "green" else mainstate.of(was).green
+        if green:
+            record[mainstate.GREEN] = green
         if held:
             record["held"] = held
         write_json(path, record)
+    else:
+        write_json(path, {**was, mainstate.FIXED: main})
 
 
 STEPS = (
