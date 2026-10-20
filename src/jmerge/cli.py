@@ -730,7 +730,7 @@ class Repo:
             asked = _run(
                 self.main, "gh", "pr", "view", pull, "--json", "files", "--jq", ".files[].path"
             )
-            changed = None if asked.returncode else sorted(asked.stdout.split())
+            changed = None if asked.returncode else sorted(asked.stdout.splitlines())
         if changed is None:
             print(
                 f"jmerge: no branch {branch} here or on origin, and no pull request to ask",

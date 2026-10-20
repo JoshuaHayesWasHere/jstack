@@ -5,6 +5,7 @@ from typing import NamedTuple
 import pytest
 
 from jbriefs import cli, page, parse
+from jbus import watch
 
 TEMPLATE = Path(__file__).parent.parent / "templates" / "brief.md"
 FINDINGS = ("Read:", "Change:", "Rests on:", "Sources:", "Ruled out:")
@@ -743,6 +744,11 @@ WHERES = {
             "tests/test_b2.py",
         ),
     ),
+    "bare paths after prose in their item": (
+        "the pull request's own files, plus templates/jbus-ci.service and what #88 added, "
+        "whichever files `jleak --all` names: mostly tests/, some of src/, the Makefile",
+        ("templates/jbus-ci.service", "tests", "src"),
+    ),
     "none of these is a path in the repo": (
         "wherever it takes, `make check`, `/etc/hosts`, `../outside.py`, `~/x`",
         (),
@@ -777,6 +783,12 @@ def test_only_the_where_line_of_the_head_is_read():
 )
 def test_a_path_is_covered_by_what_it_is_or_sits_under(patterns, path, covered):
     assert parse.covers(patterns, path) is covered
+
+
+def test_the_brief_for_a_red_main_with_no_changed_file_has_a_where_the_lint_takes():
+    text = watch.red_brief("red-main-abc", "abc", [("check", "", [])], [], [])
+    assert parse.where(text) == (".",)
+    assert not [fault for fault in parse.faults(text) if "Where" in fault]
 
 
 def test_a_brief_whose_where_names_no_path_is_refused_with_the_line():

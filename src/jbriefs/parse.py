@@ -414,7 +414,7 @@ def check_asked(text: str, notes: str) -> str:
 
 
 _PAREN = re.compile(r"\([^()]*\)")
-_TICKED = re.compile(r"`([^`]+)`")
+_WORD = re.compile(r"`[^`]+`|\S+")
 _LINES = re.compile(r":\d+(?:-\d+)?$")
 _PATHLIKE = re.compile(r"[\w.@+~*?\[\]{}/-]+")
 _EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
@@ -479,9 +479,9 @@ def where(text: str) -> tuple[str, ...]:
     An item in backticks or between commas that names a path under the repo is kept. A
     `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and prose
     in parentheses is dropped, commas in it included. A brace set is spelled out, so
-    `src/{a,b}.py` is two paths, and its commas do not end an item. The first word of an
-    item that does not start in backticks is read too (`docs/ pages tied to`). A line
-    that names none gives an empty tuple.
+    `src/{a,b}.py` is two paths, and its commas do not end an item. A bare word is read
+    when it is the first of its item (`docs/ pages tied to`) or has a `/` (`plus
+    templates/x.service`). A line that names none gives an empty tuple.
     """
     line = _head_lines(text, "Where")
     if line is None:
@@ -490,11 +490,13 @@ def where(text: str) -> tuple[str, ...]:
         line = bare
     found: dict[str, None] = {}
     for item in _items(line):
-        words = item.split()
-        named = [_path(one, True) for word in _TICKED.findall(item) for one in _expanded(word)]
-        if words and not words[0].startswith("`"):
-            named[:0] = [_path(one, False) for one in _expanded(words[0])]
-        found.update(dict.fromkeys(filter(None, named)))
+        for at, word in enumerate(_WORD.findall(item)):
+            ticked = word.startswith("`") and word.endswith("`") and len(word) > 1
+            if ticked or at == 0 or "/" in word:
+                named = (
+                    _path(one, ticked) for one in _expanded(word.strip("`") if ticked else word)
+                )
+                found.update(dict.fromkeys(filter(None, named)))
     return tuple(found)
 
 
