@@ -2,8 +2,9 @@
 
 A block is sh: zsh reads it as sh only once it is asked to (`emulate sh`), and reads it its
 own way before that. It splits no unquoted words, it fails a glob that matches nothing, and
-`$path` is `$PATH`. So every skill's blocks start with the guard: in the block at the top,
-for a skill whose blocks run "with the block at the top", and in each block otherwise.
+`$path` is `$PATH`. So every block of a skill starts with the guard: the block at the top,
+and each block after it too, since the text cannot say for sure which run alone. Under sh
+the guard does nothing, and under zsh twice is the same as once.
 
 A jstack command a skill, a playbook or a template names is parsed by that command's own
 parser, its placeholders and variables filled by a stand-in, so a verb or a flag that does
@@ -30,22 +31,20 @@ from jmerge import cli as jmerge
 from jroles import cli as jroles
 from skill_blocks import FENCED, GUARD, REPO, SKILLS, as_read, blocks, run
 
-AT_THE_TOP = re.compile(r"\bat (?:the|its) top\b")
 STAND_IN = "1"
 
 
 def unguarded(text):
-    """The first line of each block of a skill's text that must have the guard and has not."""
-    found = blocks(text)
-    need = found[:1] if AT_THE_TOP.search(text) else found
-    return [body.splitlines()[0] for body in need if GUARD not in body.splitlines()]
+    """The first line of each block of a skill's text that has no guard."""
+    return [body.splitlines()[0] for body in blocks(text) if GUARD not in body.splitlines()]
 
 
 def unguarded_skills():
+    """`<skill>: <first line>` for each block with no guard in a file of a skill's folder."""
     return [
-        f"{path.parent.name}: {first}"
-        for path in sorted(SKILLS.glob("*/SKILL.md"))
-        for first in unguarded(as_read(path))
+        f"{path.relative_to(SKILLS).parts[0]}: {first}"
+        for path in sorted(SKILLS.rglob("*.md"))
+        for first in unguarded(path.read_text())
     ]
 
 
@@ -53,15 +52,12 @@ def test_every_skill_asks_zsh_to_read_its_blocks_as_sh():
     assert unguarded_skills() == []
 
 
-def test_a_skill_with_no_guard_in_its_block_at_the_top_is_named():
-    text = "```sh\nH=~/here\n```\n\nRun this with the block at the top:\n\n```sh\necho $H\n```\n"
-    assert unguarded(text) == ["H=~/here"]
-    assert unguarded(text.replace("H=~/here\n", f"H=~/here\n{GUARD}\n")) == []
-
-
-def test_a_skill_with_no_block_at_the_top_has_the_guard_in_each_block():
-    text = f"```sh\n{GUARD}\necho a\n```\n\n```sh\necho b\n```\n"
-    assert unguarded(text) == ["echo b"]
+def test_a_block_with_no_guard_is_named_also_after_a_block_at_the_top_that_has_it():
+    text = (
+        f"```sh\nH=~/here\n{GUARD}\n```\n\nRun this with the block at the top:\n\n"
+        "```sh\necho $H\n```\n\nRun this alone:\n\n   ```sh\n   echo alone\n   ```\n"
+    )
+    assert unguarded(text) == ["echo $H", "echo alone"]
 
 
 def test_a_block_inside_a_list_is_found_with_its_indent_taken_off():
@@ -140,47 +136,60 @@ UNKNOWN = ("invalid choice", "unrecognized arguments", "ambiguous option")
 
 
 def substituted(code):
-    """`code` with each `$(...)` and each `<placeholder>` made the stand-in."""
-    code = PLACEHOLDER.sub(STAND_IN, code)
+    """`code` with each `<placeholder>` and each `$(...)` made the stand-in, and the code inside
+    each `$(...)`, which is read for calls of its own. One the line leaves open runs to its end."""
+    code, inside = PLACEHOLDER.sub(STAND_IN, code), []
     while (start := code.find("$(")) >= 0:
-        depth, end = 0, start + 1
-        for end in range(start + 1, len(code)):
-            depth += {"(": 1, ")": -1}.get(code[end], 0)
+        depth, end = 0, len(code)
+        for at in range(start + 1, len(code)):
+            depth += {"(": 1, ")": -1}.get(code[at], 0)
             if depth == 0:
+                end = at
                 break
+        inside.append(code[start + 2 : end])
         code = code[:start] + STAND_IN + code[end + 1 :]
-    return code
+    return code, inside
 
 
 def words(rest, quote):
-    """The words of a call, up to the first operator or redirection outside quotes. A variable
-    in quotes is one word, the stand-in; one outside quotes is any number, and none here."""
+    """The words of a call, up to the first operator or redirection outside quotes, and whether
+    each of its flags is written out. A variable in quotes is one word, the stand-in; one
+    outside quotes, `${...}` included, is any number of words, and none here. A flag named by
+    a variable, `"--$which"`, is chosen when the block runs, and cannot be read here."""
     if quote:
         rest = rest.split(quote, 1)[0]
+    rest = re.sub(r"\$\{[^}]*\}", "$V", rest)
     lexer = shlex.shlex(rest, posix=False, punctuation_chars=True)
     lexer.whitespace_split = True
-    found = []
+    raw, found, written = [], [], True
     for token in lexer:
         if set(token) <= set("();<>|&"):
-            if token[0] in "<>" and found and found[-1].isdigit():
+            if token[0] in "<>" and raw and raw[-1].isdigit():
                 found.pop()
             break
-        if not VARIABLE.fullmatch(token):
-            found.append(VARIABLE.sub(STAND_IN, "".join(shlex.split(token))))
-    return found
+        raw.append(token)
+        if VARIABLE.fullmatch(token):
+            continue
+        word = "".join(shlex.split(token))
+        written = written and not (word.startswith("-") and VARIABLE.search(word))
+        found.append(VARIABLE.sub(STAND_IN, word))
+    return found, written
 
 
 def calls(code):
-    """Each jstack call in a piece of shell: its command and its words. A call stands at the
+    """Each jstack call in a piece of shell: its command, its words and whether its flags are
+    written out (`words`). A call stands at the
     start of the code, after an operator, after a keyword a command follows, after `sh -c '`,
     or after a unit's `ExecStart=` (`BEFORE`)."""
-    code = substituted(code)
+    code, inside = substituted(code)
+    for each in inside:
+        yield from calls(each)
     for found in CALL.finditer(code):
         before = code[: found.start()]
         if not BEFORE.search(before):
             continue
         quote = re.search(r"-c\s+(['\"])\s*$", before)
-        yield found.group(1), words(code[found.end() :], quote and quote.group(1))
+        yield found.group(1), *words(code[found.end() :], quote and quote.group(1))
 
 
 def shell(path):
@@ -235,15 +244,16 @@ def printed(span, blocks_text):
 def problems(paths, root=REPO):
     """`<file>:<line>: <the call, filled in>: <what its parser said>` for each call refused.
     Prose names a verb or a flag with no other argument, so a span in backquotes fails only
-    on what a parser says of a verb or a flag it does not have (`UNKNOWN`)."""
+    on what a parser says of a verb or a flag it does not have (`UNKNOWN`), and so does a call
+    whose flag is chosen when the block runs."""
     blocks_text = "\n".join(
         body for path in paths if path.suffix == ".md" for body in blocks(path.read_text())
     )
     for path in paths:
         for number, piece, whole in shell(path):
-            for command, argv in calls(piece):
+            for command, argv, written in calls(piece):
                 why = refused(command, argv)
-                if not why or not whole and not any(kind in why for kind in UNKNOWN):
+                if not why or not (whole and written) and not any(kind in why for kind in UNKNOWN):
                     continue
                 if not whole and printed(piece, blocks_text):
                     continue
@@ -298,11 +308,21 @@ def test_the_lint_reads_calls_in_blocks_in_backquotes_and_in_units(tmp_path):
         ("jroles cook", True),
         ("jdrift --strict", False),
         ("jleak --all", False),
+        ('said=$(uv run --project "$T/.." jgauge room --light) || said=no', False),
+        ('said=$(uv run --project "$T/.." jgauge rooms --light) || said=no', True),
+        ('x=$(printf %s "$(jroles cook)")', True),
+        ("jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < brief.md 2>&1", False),
+        ('jbus plan ${scope:+--scope "$scope"}', False),
     ],
 )
 def test_a_call_is_held_to_its_commands_own_parser(line, fails):
-    ((command, argv),) = calls(line)
+    ((command, argv, _),) = calls(line)
     assert (refused(command, argv) is not None) == fails
+
+
+def test_a_flag_named_by_a_variable_is_read_only_for_a_verb_it_does_not_have():
+    ((_, argv, written),) = calls('jbus answer "$n" --by "$by" --at "$at" "--$which" -- "$a"')
+    assert (argv[:1], written) == (["answer"], False)
 
 
 def test_each_command_is_parsed_by_the_module_its_entry_point_runs():
