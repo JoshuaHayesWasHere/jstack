@@ -28,7 +28,9 @@ def steps(text):
 
 
 def paragraphs(text):
-    return [part.strip() for part in re.split(r"\n\s*\n", text.strip())]
+    """The paragraphs of `text`, each with its line breaks read as spaces: a paragraph written
+    one sentence a line, as `scripts/prose_lint.py` asks of a new line, is the same paragraph."""
+    return [" ".join(part.split()) for part in re.split(r"\n\s*\n", text.strip())]
 
 
 def line(label, text):

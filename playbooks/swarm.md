@@ -13,17 +13,15 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 Read a principle in full when a step you are doing names it.
 
 **You own the frame and the one table**, and every worker is a thread of its own with its file under `$H`: a scout, `scouts/<slug>-<n>.md`, for a slice that only reads, and a crewmate, `tasks/<slug>-<n>.md`, for one that writes.
-Each is a thread the user can open, and a worker whose answer falls short is asked again in its own thread, where its context still is.
-No worker is a subagent.
 Each section named below is in `skills/home/SKILL.md`.
 
 1. Frame it before any worker starts.
-   Write the done predicate, a check that can fail, and what the swarm returns: a report, or files (`principles/principle-outcome-oriented-execution.md`).
+   Write the done predicate, a check that can fail, and what the swarm returns, a report or files (`principles/principle-outcome-oriented-execution.md`).
    Then the shape: slices that cover the ground, a race of several workers on one brief, or both.
    For a race, write the rule that picks now, before any result is in: `first pass`, `rank all` or `best of`.
    Slices that must agree with each other as they go are not a swarm: hand the task to one crewmate by "Handing a task to a crewmate", and write `skip: one thread's work` on steps 2 to 6.
 2. Set the list, one line per worker, each slice or arm of the race on it once, at most ten in a step.
-   With more than ten, widen the slices, or run a second step once the first is drained.
+   With more than ten, widen the slices or run a second step later.
    Mark each line `scout` when its worker only reads and `crew` when it writes.
 3. Write one file per worker that stands alone: the goal, the scope, its slice or arm, how to verify, and what to send back.
    A scout's request goes in `scouts/<slug>-<n>.md`, in the shape of `$T/scout-request.md`, with `Out of bounds: read-only.` and no brief to deliver.
@@ -34,11 +32,9 @@ Each section named below is in `skills/home/SKILL.md`.
    Launch each scout by "Sending a scout", each on its own check of the machine.
    Queue each crewmate's row with `jbus queue add --entry <entry>`, as "Handing a task to a crewmate" says, and approve each on the user's word that asked for the swarm ("The user's word, carried by jbus").
 5. Drain and aggregate as the threads end ("When a thread sends a message"), and review nothing in the turn (`principles/principle-guard-the-context-window.md`).
-   Read each Report and Result.
-   One that lacks the commits or the method its file named gets one message to its own thread asking for them, and after a second miss it is a gap.
+   One that lacks the commits or the method its file named gets one message to its own thread, where its context still is, and after a second miss it is a gap.
    A thread that ended with nothing is a gap too, and a gap is never a pass.
-   For coverage, see a result or a gap against every line of step 2.
-   For a race, apply the rule of step 1.
+   For coverage, see a result or a gap against every line of step 2, and for a race, apply the rule of step 1.
    Keep one table (worker, slice or arm, verdict, the evidence in one line), and not what the workers wrote.
 6. Keep what holds.
    An issue a worker reports is a claim until a thread has run its evidence or read the line it points at.
@@ -51,8 +47,6 @@ Never done here, and who does it:
 - **A worker run as a subagent**: nobody does, since every worker is a scout or a crewmate, so its work and its reasons stay on disk.
 - **An eleventh thread in one step**: nobody does, since the next ten start when these are drained.
 - **A worker that starts workers, or opens a pull request**: nobody does, since the brief of step 6 opens the swarm's one pull request, or none is opened.
-- **A suite run by every worker**: nobody does, since the check command runs once, in the crewmate of step 6.
-- **Reading the workers' diffs**: the crewmate of step 6 does, and the home reads only the Reports and Results.
 - **A wait in a loop, or a stack of pull requests**: nobody does, since each thread's end wakes this one, and the swarm ends in one pull request or none.
 
 **Hand over:** in this thread, to the user, when the last worker of the last step ended: the done predicate, the shape and the rule for a race, the table, each issue on one line with its evidence, every gap or dropout, and the pull request of step 6 if there is one.
