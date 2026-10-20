@@ -162,7 +162,12 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
 ## The limits writer
 
 `hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](jroles.md#the-ledger)).
-Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as. The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`. `claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`. An account the inventory does not declare writes nothing, so one account's limits never stand for another's. `jgauge room` reads those files ([jroles](jroles.md#the-ledger)). The script prints nothing and exits 0 on any input, so the status line it leaves is empty.
+Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
+The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+`claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`.
+An account the inventory does not declare writes nothing, so one account's limits never stand for another's.
+`jgauge room` reads those files ([jroles](jroles.md#the-ledger)).
+The script prints nothing and exits 0 on any input, so the status line it leaves is empty.
 
 `install.sh` sets it as `statusLine` in `~/.claude/settings.json` only when that key is absent:
 

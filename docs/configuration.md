@@ -21,7 +21,9 @@ The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variabl
 ## jstack
 
 `~/.config/jstack/config.toml` says who jstack works for, in which time zone, and how full an account may get before a launch passes it by.
-A plain `install.sh` never creates it. `install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse. With no file, every key has its default.
+A plain `install.sh` never creates it.
+`install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse.
+With no file, every key has its default.
 
 ```toml
 user = "sam"
@@ -38,7 +40,9 @@ headroom = 90
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 
 Each value but `headroom` is one word with no space and no comma.
-A file with any other key, or with a `timezone` that is not an IANA name, is refused. `jmerge` and `jbus` then stop with the one line that says why. They do not fall back to the defaults.
+A file with any other key, or with a `timezone` that is not an IANA name, is refused.
+`jmerge` and `jbus` then stop with the one line that says why.
+They do not fall back to the defaults.
 
 ## Roles
 
@@ -204,10 +208,12 @@ All three merge by the ledger's rule, so a reading that fails or comes late neve
 | `seven_day <used> <reset>` | The same for the weekly limit. |
 
 Each file has these rows, and a window that is not open has none.
-Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
+Without the file, `jgauge room` still prints `go` when the machine has room.
+It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
 
 If you have a status line of your own, `install.sh` leaves it alone, and `jgauge limits` still writes the file.
-To have the status line write it too, pipe the status line's input to the script from your own command. Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
+To have the status line write it too, pipe the status line's input to the script from your own command.
+Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
 
 ```sh
 #!/bin/sh
