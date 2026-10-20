@@ -428,6 +428,11 @@ def _put(
     else:
         name = item
         current = _current(lines, name, move_of({"verb": verb, **more}), seen)
+        if verb is Verb.APPROVE and current.redirect and not more.get("by_id"):
+            raise Refused(
+                f"refused: {name} was redirected at {current.redirect}, and only an approval "
+                "by its id approves it"
+            )
     slug = more.get("slug", "")
     if slug:
         if current is not None and current.slug:
