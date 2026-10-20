@@ -395,11 +395,14 @@ def test_make_check_browser_runs_the_marked_tests_alone_one_at_a_time_and_no_lin
     assert made.stdout.splitlines() == ["uv run pytest -m browser"]
 
 
-def test_the_browser_tests_are_the_whole_of_one_module_and_the_other_run_leaves_them_out():
+def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
     everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
     assert marked and others
     assert sorted(marked + others) == sorted(everything)
-    assert {test.split("::")[0] for test in marked} == {"tests/test_jbus_view_page.py"}
+    page = REPO / "tests" / "view" / "page"
+    assert {test.split("::")[0] for test in marked} == {
+        path.relative_to(REPO).as_posix() for path in page.glob("test_*.py")
+    }
 
 
 def test_a_marker_the_config_does_not_list_is_an_error_and_not_a_typo_that_passes(tmp_path):
@@ -419,13 +422,24 @@ def test_a_marker_the_config_does_not_list_is_an_error_and_not_a_typo_that_passe
 
 
 OPENS = re.compile(r"--headles[s]|browser[.]lock")
+IMPORTS = re.compile(r"^(?:from|import) ([\w.]+)", re.M)
 
 
 def browser_files(directory):
-    """The test files of the directory that start a browser or take the browser lock, and
-    those pytest collects under `-m browser`, which is what the marker is for."""
+    """The test files under the directory that start a browser or take the browser lock, by
+    themselves or through a module of the directory they import, and those pytest collects
+    under `-m browser`, which is what the marker is for."""
+    texts = {path: path.read_text() for path in sorted(directory.rglob("*.py"))}
+    opens = {
+        ".".join(path.relative_to(directory).with_suffix("").parts)
+        for path, text in texts.items()
+        if OPENS.search(text)
+    }
     opening = {
-        path.name for path in sorted(directory.glob("test_*.py")) if OPENS.search(path.read_text())
+        path.name
+        for path, text in texts.items()
+        if path.name.startswith("test_")
+        and (OPENS.search(text) or set(IMPORTS.findall(text)) & opens)
     }
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
@@ -455,7 +469,23 @@ def test_a_test_module_that_opens_a_browser_without_the_marker_is_found(tmp_path
     )
 
 
+def test_a_test_module_in_a_folder_that_opens_a_browser_through_a_module_it_imports_is_found(
+    tmp_path,
+):
+    flag = "--head" + "less"
+    (tmp_path / "conftest.py").write_text("")
+    (tmp_path / "area").mkdir()
+    (tmp_path / "area" / "opener.py").write_text(f'COMMAND = "{flag}"\n')
+    (tmp_path / "area" / "test_through.py").write_text(
+        "from area.opener import COMMAND\n\n\ndef test_d():\n    assert COMMAND\n"
+    )
+    (tmp_path / "area" / "test_quiet.py").write_text("def test_e():\n    pass\n")
+    opening, marked = browser_files(tmp_path)
+    assert (sorted(opening), sorted(marked)) == (["test_through.py"], [])
+
+
 def test_every_test_module_that_opens_a_browser_carries_the_marker():
     opening, marked = browser_files(REPO / "tests")
-    assert "test_jbus_view_page.py" in opening
+    page = {path.name for path in (REPO / "tests" / "view" / "page").glob("test_*.py")}
+    assert page and page <= opening
     assert sorted(opening - marked) == []

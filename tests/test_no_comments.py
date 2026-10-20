@@ -26,7 +26,7 @@ SWEPT = (
     "hooks/*.sh",
     "scripts/*.sh",
     "install.sh",
-    "tests/*.py",
+    "tests/**/*.py",
 )
 READ_BY_A_TOOL = ("# type:", "# pragma")
 LINKED = "https://"
