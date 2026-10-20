@@ -75,20 +75,7 @@ Context: <what the user needs to know to answer it, in one line, with the links 
 Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
 )
-case $(printf '%s\n' "$gate" | head -n 1) in
-'## Gate <n>: '[!\<]*) why= ;;
-*) why="the first line is not '## Gate <n>: ' and the question" ;;
-esac
-if [ -z "$why" ] && [ "$(printf '%s\n' "$gate" | grep -c '^## ')" != 1 ]; then why="it is not one gate"; fi
-if [ -z "$why" ] && ! printf '%s\n' "$gate" | grep -qx 'Status: open'; then why="the gate has no Status: open line"; fi
-if [ -z "$why" ]; then
-    why=$(sed -n '2,/^$/s/^\([^:]*:\).*/\1/p' "$T/gates.md" | while IFS= read -r label; do
-        printf '%s\n' "$gate" | grep -q "^$label [^<]" || echo "the gate has no $label line that is filled in"
-    done | head -n 1)
-fi
-if [ -n "$why" ]; then
-    echo "not sent: $why"
-elif ! command -v jbus > /dev/null; then
+if ! command -v jbus > /dev/null; then
     echo "to the home: jbus is not installed here"
 elif said=$(printf '%s\n' "$gate" | jbus gate '<slug>' 2>&1); then
     echo "sent to jbus: $said"
@@ -101,7 +88,17 @@ else
 fi
 ```
 
-It is the crew skill's block, the same text. `jbus gate` speaks for the project whose repo this checkout is of, and refuses a repo its config does not name. On `sent to jbus`, send the home nothing. The line under it, `Gate: question <number>`, is all the report keeps of the gate: add it under "Findings", as printed, and no line of the gate itself. Where the first line says `already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer. Go by it, and take the default back where it differs. On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them. On `not sent`, nothing was queued: fill in the line it names and run it again. An answer that differs from the default comes back as a message here, from jbus. Only the four pauses of "Carry on" are asked here and waited on. Besides a gate jbus could not take, a scout sends its home nothing before the End.
+`jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and refuses what they lack with `not sent: <why>`.
+It speaks for the project whose repo this checkout is of, and refuses a repo its config does not name.
+On `sent to jbus`, send the home nothing.
+The line under it, `Gate: question <number>`, is all the report keeps of the gate: add it under "Findings", as printed, and no line of the gate itself.
+Where the first line says `already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
+Go by it, and take the default back where it differs.
+On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them.
+On `not sent`, nothing was queued: fill in the line it names and run it again.
+An answer that differs from the default comes back as a message here, from jbus.
+Only the four pauses of "Carry on" are asked here and waited on.
+Besides a gate jbus could not take, a scout sends its home nothing before the End.
 
 ## Write it down
 

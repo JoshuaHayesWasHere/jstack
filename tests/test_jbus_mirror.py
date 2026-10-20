@@ -73,7 +73,7 @@ def test_the_same_result_piped_twice_is_one_event(kitchen):
 
 
 def test_a_gate_and_a_result_piped_to_jbus_are_queued_at_once(kitchen):
-    lines = "alpha: gate\n" + GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
+    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=lines) == (0, "queued: question 1\n")
     assert kitchen.main("done", "alpha", stdin="Status: done\nLeft: none\n") == (0, "queued\n")
     assert [(e["event"], e["line"], e["text"]) for e in kitchen.events()] == [

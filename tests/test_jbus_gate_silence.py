@@ -65,7 +65,7 @@ def waiting(kitchen):
 
 def test_a_gate_with_no_default_is_refused(kitchen):
     code, said = gate(kitchen, LINES.replace("Default: made tea\n", "") + OPTIONS)
-    assert (code, said) == (1, questions.NO_DEFAULT + "\n")
+    assert (code, said) == (1, "not sent: the gate has no Default: line that is filled in.\n")
     assert not (kitchen.state / "questions.json").exists()
 
 
