@@ -8,7 +8,8 @@ from __future__ import annotations
 from datetime import UTC
 from typing import TYPE_CHECKING
 
-from jbus import dispatch, leftover, merge, mirror, queue, stall, threads, verbs, watch, word, work
+from jbriefs.home import home_of, thread_of
+from jbus import dispatch, leftover, merge, mirror, queue, stall, threads, verbs, watch, work
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -70,8 +71,8 @@ def unplaced(half: Half) -> None:
             continue
         number = str(pull.get("number", ""))
         said = states.seen.said.get(number, "")
-        home = leftover.home_of(run.home, watch.brief_of(run, slug))
-        merge.unplaced(run, half.client, slug, number, said, word.home(home))
+        thread = thread_of(home_of(run.home, watch.brief_of(run, slug)))
+        merge.unplaced(run, half.client, slug, number, said, thread)
 
 
 def keep_work(half: Half) -> None:

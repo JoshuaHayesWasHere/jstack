@@ -20,16 +20,16 @@ of `Word`:
   done, and the home is not told what it recorded itself. It is empty for every other word;
 - `waits`: why it has not gone yet, as the log last said it.
 
-A word goes once, as one queued message to the thread in the home's `home-id`, which is
-read when it is sent and not when it is kept (`home`). The command sends it at once, except
-to the home that recorded it: a word said in that home's own thread (`--message` whose
-thread is the home's) or recorded by it (`--from <thread id>`) is kept as sent, with
-`skipped` saying why, and with `--all` only that project's copy is. A home that handed off
-and has no `home-id` is nobody, so such a word waits for the next home as any other. One
-that could not go waits in the file, and each pass tries it again (`deliver`): a home with
-no `home-id`, or one that handed off, gets it on the pass after the next home's start wrote
-its id there. The retry key is `word|<project>|<id>|<thread>`, and `sent_at` is written
-only after T3 Code said yes.
+A word goes once, as one queued message to the thread in the home's `home-id`, which is read
+when it is sent and not when it is kept (`jbriefs.home.thread_of`). The command sends it at
+once, except to the home that recorded it: a word said in that home's own thread
+(`--message` whose thread is the home's) or recorded by it (`--from <thread id>`) is kept as
+sent, with `skipped` saying why, and with `--all` only that project's copy is. A home that
+handed off and has no `home-id` is nobody, so such a word waits for the next home as any
+other. One that could not go waits in the file, and each pass tries it again (`deliver`): a
+home with no `home-id`, or one that handed off, gets it on the pass after the next home's
+start wrote its id there. The retry key is `word|<project>|<id>|<thread>`, and `sent_at` is
+written only after T3 Code said yes.
 
 Nothing of a word is an event. It is in no outbox, so no POST to a project's webhook or to
 the top-level one carries it, and whoever ran the command hears nothing back. The log has a
@@ -51,7 +51,6 @@ import argparse
 import fcntl
 import hashlib
 import json
-import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
@@ -60,6 +59,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jsettings
+from jbriefs.home import thread_of
 from jbus import Config, Refused, queue, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused, typed
 from jbus.wake import Pass
@@ -80,7 +80,6 @@ NO_ANSWER = "T3 Code gave no answer"
 REFUSED = "T3 Code refused it"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
-_WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.MULTILINE)
 
 
 class Unparsable(Refused):
@@ -169,7 +168,7 @@ def keep(
         made = Word(name, words, by, at, kept_at)
         if heard:
             made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
-        mine = home(run.home)
+        mine = thread_of(run.home)
         if mine and mine == ref.partition("/")[0]:
             made = replace(
                 made, thread=mine, sent_at=kept_at, skipped=SAID_IN_HOME.format(thread=mine)
@@ -189,24 +188,6 @@ def basis(state: Path, name: str) -> queue.Said:
         if one.id == name:
             return queue.Said(one.words, one.at, one.said_in, one.checked, one.ref)
     raise Refused(f"refused: {path(state)} has no word {name}")
-
-
-def home(directory: Path) -> str:
-    """The thread of the project's home now: the first word of its `home-id`, or nothing.
-
-    A home that handed off is nobody until the next one's start writes its own id there: the
-    id on the `Was home:` line of `handoff.md` counts as none, as it does for a crewmate.
-    """
-
-    def read(name: str) -> str:
-        try:
-            return (directory / name).read_text(errors="replace")
-        except OSError:
-            return ""
-
-    now = (read("home-id").split()[:1] or [""])[0]
-    was = _WAS.search(read("handoff.md"))
-    return "" if was and was[1] == now else now
 
 
 def _change(run: Pass, one: Word, **changed: str) -> bool:
@@ -250,7 +231,7 @@ def deliver(run: Pass, client: Client | None) -> None:
     for one in load(run.state):
         if one.sent_at:
             continue
-        thread, name = home(run.home), run.project.name
+        thread, name = thread_of(run.home), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
         waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
         if not waits:
