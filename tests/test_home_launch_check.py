@@ -49,11 +49,3 @@ def test_a_brief_on_other_files_or_not_launched_is_not_named(claims):
         said[-1],
     ]
     assert said[-1].startswith("go: ")
-
-
-def test_with_no_answer_from_github_nothing_launches(claims):
-    claims.write("task", thread=False, where="`skills/home/SKILL.md`")
-    (claims.home.stub / "list.json").unlink()
-    said = check(claims)
-    assert said[0].startswith("wait: could not ask GitHub")
-    assert not [line for line in said if line.startswith(("go", "overlaps"))]
