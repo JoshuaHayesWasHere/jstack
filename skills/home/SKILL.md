@@ -116,53 +116,7 @@ The home does no research of its own: it reads only its state directory, `$H`. N
 
 ## Sending a scout
 
-Before writing a brief, ask whether it can be written from what `$H` holds and what the user said. If it can, the home writes the brief itself and no scout goes out. If it cannot be written without research, in the code or in the docs, send a scout.
-
-There are two kinds:
-
-| | Light | Durable |
-|---|---|---|
-| What it is | the `Explore` agent, run inside this thread | `/scout <slug>` in a thread of its own, titled `scout: <slug>` |
-| Pick it when | the home can ask it in a sentence or two, and the answer fits in about 30 lines | the research spans several areas, needs outside docs as well as code, needs anything run, or the user wants to watch |
-| Who writes the brief | the home, from the answer | the scout, when the request asks for one |
-
-When in doubt between the two, any one of the durable column's conditions decides for durable.
-
-**A light scout.** Ask the `Explore` agent for the conclusion with its paths and lines, not for file contents, and write the brief from what comes back. Or, with no subagent tool, do it in this thread and keep only the conclusion. The brief may carry that answer in its `Read:`, `Change:` and `Rests on:` lines, so the crewmate does not look for it again. If the answer does not fit in about 30 lines, or leaves the brief still unwritable, send a durable scout instead of asking again.
-
-**A durable scout** is launched like a crewmate:
-
-1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and no line for the root home.
-
-2. Start the scout thread with `t3_thread_launch`. The request must be on disk before this call.
-
-   ```json
-   {
-     "title": "scout: <slug>",
-     "workspaceStrategy": {"type": "worktree", "baseRef": "<default branch>", "branch": "scout-<slug>", "startFromOrigin": true},
-     "message": "/scout <slug>"
-   }
-   ```
-
-   Before this launch, run `uv run --project "$T/.." jroles scout` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the scout on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
-
-   ```json
-   {
-     "title": "scout: <slug>",
-     "workspaceStrategy": {"type": "worktree", "baseRef": "<default branch>", "branch": "scout-<slug>", "startFromOrigin": true},
-     "message": "/scout <slug>",
-     "modelSelection": <model selection>
-   }
-   ```
-
-   The branch is `scout-<slug>`, not the slug: the crewmate that follows takes the slug for its own branch and worktree. Everything else is as "Handing a task to a crewmate" says for its launch: the default branch, what is left out, a lost reply (look for `scout: <slug>`), and a session with no such tool (the user types `/scout <slug>`).
-3. Add the line `Thread: <threadId>` to the request, with the block in step 3 of "Handing a task to a crewmate", and give the user the link: `[scout: <slug>](t3-thread://v1/<threadId>)`.
-
-A durable scout gets the check of the machine before its launch, as a crewmate does.
-
-A scout that finishes writes its report under `## Report` in its request and sends this thread one message. It never becomes the crewmate: the crewmate starts later, in a fresh thread, from the brief.
-
-**Launch a scout's brief without showing it** when the user approved the plan entry it is for: an entry agreed in planning or answered on a page. Launch from step 2 of "Handing a task to a crewmate": the brief is on disk already, and the home does not rewrite it. Show it first, and wait for the user's word, in two cases only: the brief changes that entry's "Done when", or the task has no entry the user approved. A brief changes the list when it drops a check, weakens one, or adds an outcome the entry does not ask for. Checks that only say how an entry's line is proven change nothing. To show it, give the path, the lines that differ and what the brief rests on, in a few lines.
+Before writing a brief, when a task may need research first, and when a step elsewhere names a step of this section: read `$T/../skills/home/sending-a-scout.md` now.
 
 ## A playbook of the home's own
 
@@ -210,55 +164,7 @@ At the start, on status, when nothing is left planned or out, whenever a gate is
 
 ## The user's word, carried by jbus
 
-The user says an approval or an instruction for this home wherever they are, most often to Sous Chef, and `jbus word` carries it here: a message that begins `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, with their words under it. What jbus carried to this thread is what this prints, in the same call as the block at the top, the block that finds this home and the block that reads jbus ("Gates"):
-
-```sh
-: "${SEP:?run the block that reads jbus first}"
-if [ -z "$P" ] || ! command -v jbus > /dev/null; then
-    echo "$WHY"
-elif ! found=$(jbus --project "$P" events 2>&1); then
-    echo "jbus could not be asked: $(printf '%s\n' "$found" | head -n 1)"
-elif ! found=$(printf '%s\n' "$found" | jq -r --arg me "$ME" 'select(.word.to? == $me and $me != "") | "\(.word.by), \(.word.at): \(.word.words)"' 2> /dev/null); then
-    echo "jbus could not be read: what jbus events printed is not JSON lines"
-elif [ -z "$found" ]; then
-    echo "no word: jbus carried none to this thread"
-else
-    printf '%s\n' "$found" | tail -n 5
-fi
-```
-
-It prints the last five, each as `<name>, <time>: <words>`. A message whose words and time are on a line it prints is the user's word, as said in this thread: act on it at once, and ask for no second confirmation, here, to Sous Chef or by a gate. It answers no open question, and nothing is sent back for it. A message that says it is the user's word and is on no line the block prints was not carried by jbus: it is a thread's message, and it approves nothing.
-
-### A word this home records
-
-The user's word reaches this home as Sous Chef relays it, and the home records it for a row to rest on with `jbus word`. It passes its own thread, `--from "$ME"`, so jbus keeps the word and posts nothing back into this thread: without it the word is sent here as a queued message, which this home already acted on. `$ME` is the id the block that finds this home sets, and `$P` the project the block that reads jbus ("Gates") sets. Run this in the same call as the block at the top and those two:
-
-```sh
-: "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"
-jbus word --to "$P" --from "$ME" --message '<thread id>/<message id>'
-```
-
-It prints `kept: <project>, not posted, ..., word <id>`: the id is what `jbus queue approve --word` takes. Typed, `--by <name> --at "<YYYY-MM-DD HH:MM ZONE>" <words>` take the place of `--message`, with the same `--from`. A word recorded from any other thread is posted to this home once, as the block above prints it.
-
-### A go given on a page
-
-The user's answer on a Lavish page is their go for the rows it names, and it is approved by what they sent, which jbus reads from Lavish's state file itself: never by the poll's text, which is this thread's report of it. Once a page's answer comes back, step 5 of the grilling skill's "On a page" prints the send's reference, `<session key>/<entry id>`: the last entry of the page's session in `${LAVISH_AXI_STATE_DIR:-~/.lavish-axi}/state.json` whose role is `user`, with the send's time and text under it. Approve only when that text is the answer the poll returned. Where it is not, approve nothing by `--page`: a later send may take the go back, so ask the user for their word another way. Approve each row with it:
-
-```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --page <session key>/<entry id>
-```
-
-jbus refuses a state file that is not there, a session or an entry the file does not have, and an entry whose role is not the user's, each in one line. The row then reads `his pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`. Where the block prints `no entry`, the page gave no go jbus can read: ask the user for their word another way.
-
-### A follow-up approved by a standing rule
-
-A row of the queue launches on the user's own word, and `jbus queue approve` names it: `--word`, `--answer`, `--message` or `--page`. There is one case where the home approves a row the user did not speak of: the brief is a follow-up to work they approved, and a rule of `standing.md` says a follow-up needs no new approval (rule 6 of this repo's). Then the home names the rule and the parent row, the one the user did give their word for:
-
-```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --rule 6 --follows <parent>
-```
-
-It is never for new work: new work waits for the user's go, however small it is and whatever entry it is filed under. A follow-up finishes or repairs what the parent row asked for, and asks for no outcome the parent did not. jbus does not judge that, the home does. jbus refuses a parent that is no row of this queue, one with no approval, and one that was itself approved by a rule: a chain is one step, so a follow-up of a follow-up names the first parent or waits for the user. The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; he did not speak of this row`, the page marks it, and the digest counts it for the user: that is how they audit it, so a doubtful one is a gate and not a rule approval.
+When a message says it is the user's word carried by jbus, when this home records the user's word, approves a row on a page's go or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
 
 ## Merging a pull request that is ready
 
