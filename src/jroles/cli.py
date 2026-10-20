@@ -10,6 +10,9 @@ Each selection is on the first instance of its pool with headroom in the ledger
 (`jroles.pool`). For a pool of more than one, stderr says which instance it chose and why.
 While every instance of a pool is capped it prints nothing, for any line of the role, says so
 on stderr and exits 75: the launch waits for the first reset.
+
+`jroles mirror [--check] [--instance <id>]` is no role: it keeps each extra Claude home of
+providers.json a mirror of `~/.claude` (`jroles.mirror`).
 """
 
 from __future__ import annotations
@@ -19,12 +22,19 @@ import json
 import sys
 from datetime import UTC, datetime
 
-from jroles import ROLES, Refused, pool
+from jroles import ROLES, Refused, mirror, pool
 
 
 def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="jroles", description=__doc__.split("\n\n")[1])
-    parser.add_argument("role", choices=ROLES)
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["mirror"]:
+        return mirror.main(argv[1:])
+    parser = argparse.ArgumentParser(
+        prog="jroles",
+        description=__doc__.split("\n\n")[1],
+        epilog="jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
+    )
+    parser.add_argument("role", choices=(*ROLES, "mirror"))
     role = parser.parse_args(argv).role
     try:
         routed = pool.routes(role, now or datetime.now(UTC))

@@ -75,3 +75,42 @@ An instance full on both windows is named by the one that resets later, since it
 While one instance is full and another has room, `jgauge room` prints `go` and a `note:` on stderr that names the full one and the first with room.
 For a role with several lines, `review`, each line is a pool, and one whose instances are all full holds the check.
 A role with no pool reads the file `LIMITS` names, as before, and `jgauge room --instance <id>` reads that one instance's file alone.
+
+## Mirrors
+
+A second Claude account runs as an instance of its own, in a home of its own: the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`, such as `~/.claude_prime` for `claudeAgent_claude_prime` ([configuration](configuration.md#provider-instances)).
+A thread on it should know what a thread on `~/.claude` knows, and differ only in its login.
+`jroles mirror` keeps each such home a mirror of `~/.claude`: every Claude instance of `providers.json` whose home is not `~/.claude` is one, and nothing else in jstack names the homes.
+The instance ids and the homes are infra's, in `providers.json`; the code that mirrors them is jstack's.
+
+What is shared is every entry of `~/.claude`, as a symlink in the mirror: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `settings.json`, `CLAUDE.md`, and any entry `~/.claude` gains later, on the next run.
+What is per login stays the mirror's own and is never linked: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.
+
+`<home>/.claude.json` stays a file, since it holds the account.
+Its account keys are kept: `oauthAccount`, `userID`, `cachedUsageUtilization` and every other `cached*` key, every key ending in `Cache` or `CacheAt`, and the rest of `ACCOUNT_KEYS` in `src/jroles/mirror.py`.
+Every other key is copied from `~/.claude.json`, such as `mcpServers`, and `projects` is merged project by project, with `~/.claude.json` winning.
+
+A run reads each mirror, then changes only what differs:
+
+| What the mirror holds | What a run does | What it prints |
+| --- | --- | --- |
+| No entry where `~/.claude` has one | Links it | `linked    <entry> -> <target>` |
+| A real file or directory where `~/.claude` has one, or a link elsewhere | Merges a directory's files into `~/.claude`, moves the entry to `<name>.bak-<time>` and links it | `backup    <entry> -> <backup>`, then `linked` |
+| A file both hold with other bytes | Keeps the one in `~/.claude`, and the mirror's copy stays in the backup | `conflict  <file> kept; the mirror's copy is in <backup file>` |
+| An entry only the mirror has | Moves it into `~/.claude` and links it back | `moved     <entry> -> <target>, linked` |
+| A link into `~/.claude` whose entry is gone | Removes it | `removed   dangling <entry>` |
+| Shared keys of `.claude.json` that differ | Writes the file again, mode 600 | `synced    shared keys of ~/.claude.json into <file>` |
+
+A run with nothing to do prints nothing and writes nothing.
+Each mirror is changed under its own lock, `<home>/.jroles-mirror.lock`, so two runs never interleave.
+A directory is merged before it is moved and again after, so a run that stopped halfway leaves nothing unmerged, and the next run picks up where it stopped.
+A mirror whose home is not there is said on stderr, and the run exits 2: the home is made by the account's first login, which is infra's.
+
+`jroles mirror --check` changes nothing, takes no lock, prints `would ...` for each entry that differs and exits 1 if there is one.
+`jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.
+`templates/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
+`install.sh --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while it differs.
+
+Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.
+On drift it runs `jroles mirror --instance <id>` once and checks again.
+An instance that still differs is passed over for the rest of the pass, with `wait <slug>: <id> is not mirrored`: the launch or the move goes to the next instance of the pool with headroom, or waits for a later pass.

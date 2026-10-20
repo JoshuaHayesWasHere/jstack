@@ -45,6 +45,8 @@ def test_the_units_are_the_ones_install_links():
         "jbus.timer",
         "jgauge-sample.service",
         "jgauge-sample.timer",
+        "jroles-mirror.service",
+        "jroles-mirror.timer",
     ]
 
 
