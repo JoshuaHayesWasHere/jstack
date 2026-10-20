@@ -206,6 +206,12 @@
       "source": "josh"
     },
     {
+      "name": "figure-it-out",
+      "kind": "skill",
+      "path": "skills/figure-it-out/SKILL.md",
+      "source": "pstack"
+    },
+    {
       "name": "grilling",
       "kind": "skill",
       "path": "skills/grilling/SKILL.md",
