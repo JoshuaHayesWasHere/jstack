@@ -245,10 +245,9 @@ def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, lin
 @pytest.mark.parametrize("level", ["high", "xhigh", "max", "ultracode", "ultrathink", ""])
 def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, role, level):
     """Only the review line may run a Claude thread above medium: the user said so for it."""
-    other = "review" if role != "review" else "crew"
-    text = f"{role}: claudeAgent claude-opus-5-5 effort={level}\n{other}: grok grok-build\n"
+    text = f"{role}: claudeAgent claude-opus-5-5 effort={level}\nreview: grok grok-build\n"
     assert roles(role, text) == ("", f"refused {role}: effort={level} is not low or medium\n")
-    assert roles(other, text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+    assert roles("review", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
 
 
 SONNETS = "review: claudeAgent claude-sonnet-5-5 effort=high\n" * 2

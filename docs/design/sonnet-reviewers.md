@@ -132,7 +132,7 @@ My own whole-shape alternative, identity by the reviewer's thread id joined to t
 ## Open questions and risks
 
 - A crewmate that writes the new `Reviewer:` lines without `#<n>` leaves its brief `Legacy` with four lines, which waits: the crew skill and launching say the number, and this design does not guess it.
-- A reviewer sent back with `again` takes seat 1 by default: the message `/pr-review run <slug> <n> again` keeps its seat.
+- A reviewer launched before this merges runs the old skill text and writes a `By:` line with no number: in a numbered brief its section is not counted, and the wait line says so.
 
 ## The design read
 

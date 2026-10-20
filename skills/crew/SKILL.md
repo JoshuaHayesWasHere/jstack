@@ -199,18 +199,18 @@ G=$(git rev-parse --git-dir)
 was='<the branch it sat on>'
 reviewing() {
     awk '
-        /^## / {result = 1; review = ($(0) == "## Review"); seat = 0}
-        review && /^By: .* #[0-9]+$/ {seat = 1}
-        review && /^Head:/ {written++; numbered += seat; review = 0}
+        /^## / {result = 1; review = ($(0) == "## Review"); seat = ""}
+        review && /^By: .* #[0-9]+$/ {seat = $(NF)}
+        review && /^Head:/ {written++; if (seat != "") {numbered++; wrote[seat] = 1}; review = 0}
         result && /^(Reviewer|Second reviewer|Scoped reviewer): / && !/^[A-Za-z ]+: none/ {
             if ($(1) == "Reviewer:" && $(NF) ~ /^#[0-9]+$/) seats[$(NF)] = 1
             else if ($(1) == "Reviewer:") old++
             else more++
         }
         END {
-            n = 0
-            for (one in seats) n++
-            if (n) exit !(n + more > numbered)
+            n = filled = 0
+            for (one in seats) {n++; if (one in wrote) filled++}
+            if (n) exit !(filled < n || more > numbered - filled)
             exit !(old + more > written)
         }' "$B" 2> /dev/null
 }

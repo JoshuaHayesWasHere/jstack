@@ -75,3 +75,10 @@ def test_a_scoped_reviewer_is_waited_on_beside_the_seats(reviewing):
     scoped = both + f"Scoped reviewer: mcp:s-3, of {SAW}\n"
     assert reviewing(scoped) == "running"
     assert reviewing(scoped + section(f"{SONNET} #1")) == "idle"
+
+
+def test_a_seat_that_wrote_twice_does_not_stand_for_a_seat_that_has_not(reviewing):
+    """Review 1 of #166: two sections of #1 and none of #2 is a review still running."""
+    brief = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #1")
+    assert reviewing(brief) == "running"
+    assert reviewing(brief + section(f"{SONNET} #2")) == "idle"

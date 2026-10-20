@@ -634,7 +634,11 @@ def left(said: Triage) -> str:
     owed = said.roster.owed(said.sections)
     if owed:
         size = said.roster.size
-        return f"wait: {size - owed} of {size} reviewers have written their section"
+        line = f"wait: {size - owed} of {size} reviewers have written their section"
+        uncounted = len(said.sections) - len(said.roster.counted(said.sections))
+        if uncounted:
+            line += f"; {uncounted} with no #<n> on its By: line counts for no reviewer"
+        return line
     open_ = [one for one in sent if not one.ended]
     if open_:
         line = f"not yet: {len(open_)} of {len(sent)} findings have no Finding: line"
