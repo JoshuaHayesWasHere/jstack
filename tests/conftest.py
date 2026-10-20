@@ -93,9 +93,9 @@ def jstack_config(tmp_path_factory, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_machine_state(tmp_path_factory, monkeypatch):
-    """`jroles` reads the capped instances from jbus's state directory: a test never reads the
-    machine's, and a test that runs a pass or sets the variable itself sets it again."""
-    monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path_factory.mktemp("state")))
+    """`jroles` and `jbus` read the ledger `LIMITS` names: a test never reads the machine's, and
+    a test that sets the variable itself sets it again."""
+    monkeypatch.setenv("LIMITS", str(tmp_path_factory.mktemp("state") / "limits"))
 
 
 @pytest.fixture

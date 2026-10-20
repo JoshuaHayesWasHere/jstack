@@ -1,36 +1,43 @@
-"""A thread that stopped on a usage limit goes on, on the other provider instance, once.
+"""A thread that stopped on a usage limit goes on, on another instance of its pool, once.
 
-A turn that ends `failed` on "You've hit your weekly limit · resets Oct 18, 4pm" is not a
-thread to carry on where it was: the instance it runs on is capped until the reset, and a
-carry-on sent there fails the same way and spends one of `threads.CARRY_ONS`. So `failover`
-reads the failure, keeps the reset as the instance's capped-until (`jroles.failover`, in
-`capped.json` beside `pass.json`), and sends the thread on to the instance `choose` names:
+A turn that ends `failed` on a usage limit is not a thread to carry on where it was: the
+instance it ran on is capped until the window resets, and a carry-on sent there fails the same
+way and spends one of `threads.CARRY_ONS`. So `failover` reads the limit from the run's items
+(the `system_notice` itemId `...:<five_hour|seven_day>:<reset>`, the text where none has one),
+writes it to the ledger (`jroles.ledger`) for the instance the run was on, and sends the
+thread on to the instance `jroles.pool.choose` names in its pool:
 
-- the primary (`jroles.failover.PRIMARY`) once its cap has passed, the fallback (`FALLBACK`)
-  while it has not. The thread is put on it with the model and the options it had (effort,
-  fast mode), read from `t3_thread_configuration`, and sent one queued carry-on;
-- neither, while both are capped: one `stall` event (user level) that names the earlier reset, and
-  nothing sent. The pass that finds the earlier reset passed goes on as above.
+- the pool is the role line's (`crew` for a crew, `home` for a home) where the thread's
+  instance is in it, and the thread's instance alone where it is not. A thread is never moved
+  to an instance its role's line does not name, so no work goes to a provider its role
+  does not run;
+- the first instance with headroom: the thread is put on it with `t3_thread_configure`, the
+  model and the options (effort, fast mode) as `t3_thread_configuration` gave them, only the
+  `instanceId` changed, and sent one queued carry-on. A thread already on it is only sent the
+  carry-on;
+- none, while every instance of the pool is capped: one `stall` event (user level) that names
+  the first reset, and nothing sent. The first pass after that reset goes on as above.
 
 Which threads: the crews the briefs name on a `Thread:` line that still owe something, and the
 homes in a `home-id`. Each failed run is handled once: its key, `failover|<thread>|<run>`, is
-kept in `sent.json` after the carry-on is queued. A crash between the two calls is safe: the
-configure sets the same selection again, and the send has the key as its retry key. A thread
-that is already on the instance `choose` names is not configured again. A slug read here is in
-`Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a limit.
+kept in `sent.json` after the carry-on is queued, and the stall has its own key, the reset. A
+crash between the two calls is safe: the configure sets the same selection again, and the send
+has the key as its retry key. A slug read here is in `Pass.limited`, and `threads.resume` leaves
+it alone: its carry-ons are not for a limit.
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
+import jroles
 from jbus import dispatch, mirror, read_json, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import World, unfinished
-from jroles import failover as roles
+from jroles import ledger, pool
 
 EVENTS = {"failover": "quiet"}
 ITEMS = 12
@@ -88,10 +95,11 @@ def _owes(run: Pass, world: World, slug: str) -> bool:
     return not result or bool(unfinished(result))
 
 
-def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[roles.Limit, str] | None:
+def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:
     """The usage limit the thread's last run ended on and the instance that run was on, from
     the last items the thread wrote, or None. The run's instance is what is capped, not the
-    thread's now: a thread moved by hand after the failure is on the other one."""
+    thread's now: a thread moved by hand after the failure is on another one. A reset the
+    text gives is read at the time the run ended, not at the pass."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],
@@ -101,22 +109,50 @@ def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[roles.L
         "maxCharsPerItem": 600,
     }
     read = client.call("t3_thread_read", asked)
-    found = None
-    ran = next(
+    latest = thread.get("latestRunId")
+    run_of = next(
         (
-            one.get("providerInstanceId")
+            one
             for one in read.get("recentRuns") or []
-            if isinstance(one, dict) and one.get("runId") == thread.get("latestRunId")
+            if isinstance(one, dict) and one.get("runId") == latest
         ),
-        None,
+        {},
     )
-    for item in read.get("items") or []:
-        if not isinstance(item, dict) or not isinstance(item.get("text"), str):
+    last = [
+        item
+        for item in read.get("items") or []
+        if isinstance(item, dict) and item.get("runId") in (None, latest)
+    ]
+    stamps = [
+        run_of.get("completedAt"),
+        *sorted((i.get("updatedAt") or "" for i in last), reverse=True),
+    ]
+    found = ledger.cap_of(last, _when(stamps) or run.now)
+    return (found, run_of.get("providerInstanceId") or "") if found else None
+
+
+def _when(stamps: list[Any]) -> datetime | None:
+    """When the run ended, from the first of `stamps` that reads: a text's `resets 11pm` is
+    of that day, whichever pass reads it."""
+    for stamp in stamps:
+        try:
+            at = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except ValueError:
             continue
-        if item.get("runId") not in (None, thread.get("latestRunId")):
-            continue
-        found = roles.read_limit(item["text"], run.now) or found
-    return (found, ran or "") if found else None
+        return at if at.tzinfo else at.replace(tzinfo=UTC)
+    return None
+
+
+def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
+    """The pool a thread of `role` on `instance` moves in: its role line's, where that names
+    the instance, else the instance alone."""
+    try:
+        chosen = pool.selection(role)
+    except jroles.Refused as error:
+        run.say(f"wait {run.project.name}: the role map gives {role} no pool ({error})")
+        chosen = None
+    instances = chosen.instances if chosen else ()
+    return instances if instance in instances else (instance,)
 
 
 def failover(run: Pass, client: Client, world: World) -> None:
@@ -137,7 +173,6 @@ def failover(run: Pass, client: Client, world: World) -> None:
         run.say(f"wait {run.project.name}: the failed threads could not be listed ({error})")
         return
     sent = read_json(run.state / "sent.json", [])
-    file = roles.path()
     for thread in said.get("threads") or []:
         at, ended = thread.get("threadId"), thread.get("latestRunId")
         slug = crews.get(at, "")
@@ -156,7 +191,7 @@ def failover(run: Pass, client: Client, world: World) -> None:
             if found is None:
                 continue
             run.limited.add(slug)
-            handle(run, client, thread, slug, found, file, key)
+            handle(run, client, thread, slug, found, key)
         except T3Refused as error:
             what = "T3 Code refused the failover"
             run.gate(slug or at, what, str(error), key=f"{what} {at} {ended}")
@@ -169,39 +204,40 @@ def handle(
     client: Client,
     thread: dict[str, Any],
     slug: str,
-    found: tuple[roles.Limit, str],
-    file: Path,
+    found: tuple[ledger.Cap, str],
     key: str,
 ) -> None:
-    limit, ran = found
+    cap, ran = found
     at, name = thread["threadId"], slug or "home"
     client.recipients = client.recipients | {at}
     configuration = client.call("t3_thread_configuration", {"threadId": at})
     selection = dict(configuration.get("modelSelection") or {})
-    instance = selection.get("instanceId") or roles.PRIMARY
-    capped = ran or instance
-    if instance not in roles.PAIR or capped not in roles.PAIR or not selection.get("model"):
+    instance = selection.get("instanceId") or selection.get("provider") or ledger.BUILT_IN
+    if not selection.get("model"):
         run.limited.discard(slug)
         return
-    if roles.mark(file, capped, limit, run.now):
-        run.say(f"capped {capped}: until {limit.until.isoformat()} ({limit.kind} limit)")
-    choice = roles.choose(roles.load(file), run.now)
+    capped = ran or instance
+    if ledger.write(cap.record(capped)):
+        run.say(f"capped {capped}: {cap.window} until {cap.resets.isoformat()}")
+    instances = pool_of(run, "crew" if slug else "home", instance)
+    choice = pool.choose(instances, ledger.read(instances), run.now)
     if choice.instance is None:
-        line = f"capped {name}: {choice.why}; it is sent on at the earlier reset"
+        line = f"capped {name}: {choice.why}; it is sent on at the first reset"
         if run.find(slug or at, "stall", line, key=f"capped {choice.until.isoformat()}"):
             run.say(line)
         return
     if choice.instance != instance:
+        client.moves[at] = (selection, instances)
         moved = {**selection, "instanceId": choice.instance}
         client.call("t3_thread_configure", {"threadId": at, "modelSelection": moved})
     where = CREW.format(slug=slug) if slug else HOME
-    message = CARRY_ON.format(text=limit.text, instance=choice.instance, where=where)
+    message = CARRY_ON.format(text=cap.text, instance=choice.instance, where=where)
     asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
     client.call("t3_thread_send", asked)
     options = ", ".join(f"{o.get('id')}={o.get('value')}" for o in selection.get("options") or [])
     way = f"{instance} to {choice.instance}" if choice.instance != instance else instance
     line = (
-        f"failover {name}: {limit.kind} limit until {limit.until.isoformat()}, carry-on on "
+        f"failover {name}: {cap.window} limit until {cap.resets.isoformat()}, carry-on on "
         f"{way}, model {selection['model']}{f', {options}' if options else ''}"
     )
     run.find(slug or at, "failover", line, key=key)

@@ -11,7 +11,7 @@ jstack runs with none of these files. Each one changes a default or switches on 
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
 | `~/.config/jstack/providers.json` | The provider instances this machine runs | infra's install, as a link |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
-| `~/.local/state/claude/limits` | The plan's limits | `hooks/limits.sh` |
+| `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `hooks/limits.sh`, `jbus` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
 
 The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variable is set. `jbus` reads its own directory from `JBUS_CONFIG_DIR`.
@@ -36,7 +36,7 @@ Each value is one word with no space and no comma. A file with any other key, or
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>] [effort=<low|medium>]`, with `#` for a comment. The instance a line names, or `claudeAgent` where it names none, is the one `jroles` moves to `claudeAgent_claude_prime` while a usage limit caps it, and back when the reset has passed ([failover](jroles.md#failover)).
+`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment. It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest. The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -73,7 +73,6 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 |---|---|---|
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
-| `modelSelection` | None | `{ instanceId = "<provider instance>", model = "<model>" }` goes out with every launch. While `claudeAgent` is capped by a usage limit, an `instanceId` of `claudeAgent` goes out as `claudeAgent_claude_prime` (see [jroles](jroles.md#failover)), and the launch line says so. While both are capped no row is launched. |
 | `dispatch` | `true` | `dispatch = false` launches nothing. |
 | `max_running` | `16` | How many crewmates may be out at once, counted across every project. A value under 1 is refused. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
@@ -83,6 +82,8 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither: half a pair is refused. |
 | `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus.md#what-blocks) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither: half a pair is refused. Both are secret like the webhook's. |
+
+The model a crew is launched on is not a key here: `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source. A `modelSelection` key left from before is not read.
 
 Each `[[project]]` table is one repo:
 
@@ -152,14 +153,14 @@ To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/
 
 ## The limits file
 
-`~/.local/state/claude/limits` holds how much of the plan's five-hour and weekly limits is used. `hooks/limits.sh` writes it from the JSON that Claude Code pipes to a status line, and `jgauge room` reads it. `LIMITS` names another path for both.
+The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used. `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`. `hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`. An account the inventory does not declare writes nothing. `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit. `jgauge room` reads the built-in instance's file, or the one `--instance <id>` names. `LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
 | Row | Meaning |
 |---|---|
 | `five_hour <used> <reset>` | The share of the five-hour limit used, in percent, and the time of its reset in Unix seconds. |
 | `seven_day <used> <reset>` | The same for the weekly limit. |
 
-Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
+Each file has these rows. Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
 
 If you have a status line of your own, `install.sh` leaves it alone and the file is not written. Pipe the status line's input to the script from your own command. Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
 
@@ -189,7 +190,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 |---|---|---|
 | `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `install.sh` |
 | `XDG_CACHE_HOME` | `~/.cache` | `jbriefs`, `jdrift` |
-| `LIMITS` | `~/.local/state/claude/limits` | `hooks/limits.sh`, `jgauge room`, `install.sh --doctor` |
+| `LIMITS` | `~/.local/state/claude/limits` | `hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
 | `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `install.sh` |
 | `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus` |
 | `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus` |

@@ -74,6 +74,8 @@ def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, s
 def cmd_room(args: argparse.Namespace) -> int:
     look = ["sh", str(Path(__file__).with_name("room.sh"))]
     env = {**os.environ, "SKIP_LOAD": "1" if args.light else "0"}
+    if args.instance:
+        env["INSTANCE"] = args.instance
     if args.wait is None:
         return subprocess.run(look, env=env).returncode
     return _wait_for_room(look, args.wait, args.every, env)
@@ -165,6 +167,11 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip the load reading, for a thread that adds almost no CPU, such as a review:"
         " memory, memory pressure, /tmp and the plan still hold it",
+    )
+    room.add_argument(
+        "--instance",
+        help="the provider instance whose plan limits to read, from the ledger (default:"
+        " claudeAgent, the file LIMITS names)",
     )
     room.set_defaults(run=cmd_room)
 

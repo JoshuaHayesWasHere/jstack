@@ -521,8 +521,8 @@ def test_the_daily_snapshot_holds_the_whole_table(kitchen):
     assert whole.count("| row-") == 20 and event["text"].startswith(whole)
 
 
-def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen):
-    kitchen.config(modelSelection={"instanceId": "a-provider", "model": "a-model"})
+def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, jstack_config):
+    (jstack_config.parent / "roles").write_text("crew: codex a-model a-provider\n")
     add(kitchen, "alpha")
     said = kitchen.poll()
     (given,) = kitchen.t3.launches
@@ -538,7 +538,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen):
         },
         "message": f"/crew alpha\n\n{written}",
         "runtimeMode": "full-access",
-        "modelSelection": {"instanceId": "a-provider", "model": "a-model"},
+        "modelSelection": {"provider": "codex", "model": "a-model", "instanceId": "a-provider"},
     }
     schema = tools.strict(tools.SCHEMAS["t3_thread_launch"])
     assert [error.message for error in Draft202012Validator(schema).iter_errors(given)] == []

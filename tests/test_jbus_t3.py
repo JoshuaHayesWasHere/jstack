@@ -205,3 +205,43 @@ def test_a_desk_with_no_notify_send_still_gets_the_gate(kitchen):
     kitchen.monkeypatch.setattr(wake.shutil, "which", lambda _: None)
     kitchen.poll()
     assert kitchen.lines("condition") == [expires("2026-10-17")]
+
+
+WAS = {
+    "instanceId": "claudeAgent",
+    "model": "claude-sonnet-5-5",
+    "options": [{"id": "effort", "value": "medium"}],
+}
+POOL = ("claudeAgent", "claudeAgent_claude_prime")
+
+
+@pytest.mark.parametrize(
+    ("chosen", "says"),
+    [
+        ({**WAS, "instanceId": "codex"}, "to an instance of its role's pool"),
+        (
+            {**WAS, "instanceId": "claudeAgent_claude_prime", "model": "x"},
+            "changes only the instance",
+        ),
+        (
+            {**WAS, "instanceId": "claudeAgent_claude_prime", "options": []},
+            "changes only the instance",
+        ),
+    ],
+)
+def test_a_move_changes_only_the_instance_and_only_within_the_pool(kitchen, chosen, says):
+    client = t3.Client(kitchen.t3.url, kitchen.config_dir / "t3.json")
+    client.recipients = frozenset({"mcp:crew"})
+    asked = {"threadId": "mcp:crew", "modelSelection": chosen}
+    with pytest.raises(jbus.Refused, match="to an instance of its role's pool"):
+        client.call("t3_thread_configure", asked)
+    client.moves["mcp:crew"] = (WAS, POOL)
+    with pytest.raises(jbus.Refused, match=says):
+        client.call("t3_thread_configure", asked)
+    assert kitchen.t3.calls == []
+    kitchen.t3.thread("alpha", "failed", threadId="mcp:crew")
+    moved = {**WAS, "instanceId": "claudeAgent_claude_prime"}
+    client.call("t3_thread_configure", {"threadId": "mcp:crew", "modelSelection": moved})
+    assert kitchen.t3.calls == [
+        ("t3_thread_configure", {"threadId": "mcp:crew", "modelSelection": moved})
+    ]
