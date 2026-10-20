@@ -1,4 +1,6 @@
-usage: jbus alarm [-h]
+usage: jbus alarm [-h] [--stale LIMIT]
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help     show this help message and exit
+  --stale LIMIT  look for a pass that ended within LIMIT (as 2h) instead: past
+                 it alerts, once
