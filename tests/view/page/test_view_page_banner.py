@@ -17,7 +17,7 @@ THUMB = 44
 
 
 def frozen(seen, since, said):
-    """The page of a jbus that has stopped: the banner, and each drawer saying once how fresh it is."""
+    """A stopped jbus: the banner, and each drawer saying once how fresh it is."""
     clean(seen)
     assert seen["body"] == "stopped"
     assert seen["banner"].startswith("jbus has not passed last pass ended " + since)
