@@ -47,6 +47,8 @@ from jbus import verbs
 
 HAS = "refused: the config already has this project"
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+USAGE = "%(prog)s [-h] (--checkout CHECKOUT | --scratch) --project-id PROJECT_ID name"
+"""Written out, since argparse wraps a usage this long differently from one Python to the next."""
 ADDED = (
     "added: one [[project]] table, the file as it was is {backup}: "
     "the next pass works it, restart no unit"
@@ -138,8 +140,6 @@ def missing(config: jbus.Config) -> list[str]:
 
 
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:
-    if (args.checkout is None) == (not args.scratch):
-        raise jbus.Refused("refused: give --checkout for a repo, or --scratch for a scratch home")
     print(add(jbus.config_dir() / "config.toml", args.name, args.checkout, args.project_id))
     return 0
 
@@ -147,11 +147,15 @@ def _add(args: argparse.Namespace, _: jbus.Config) -> int:
 def _listed(listed: argparse.ArgumentParser) -> None:
     listed_verbs = listed.add_subparsers(dest="verb", required=True)
     added = listed_verbs.add_parser(
-        "add", help="add a project's table to the config, with no webhook", allow_abbrev=False
+        "add",
+        help="add a project's table to the config, with no webhook",
+        allow_abbrev=False,
+        usage=USAGE,
     )
     added.add_argument("name", help="the home's directory name under the homes' state")
-    added.add_argument("--checkout", help="the path of the repo's main checkout")
-    added.add_argument(
+    where = added.add_mutually_exclusive_group(required=True)
+    where.add_argument("--checkout", help="the path of the repo's main checkout")
+    where.add_argument(
         "--scratch",
         action="store_true",
         help="a scratch home with no repo, in place of --checkout",

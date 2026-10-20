@@ -16,7 +16,7 @@ jbus project add scratch --scratch --project-id <that id>
 
 The table it writes has `name`, `kind = "scratch"` and `projectId`, and no checkout and no webhook.
 It is refused as a repo's table is: `refused: the config already has this project` for the same name and id, and `refused: the config already has a project of that name` for a name a project or another scratch home has.
-`--checkout` and `--scratch` go one without the other: give `--checkout` for a repo, or `--scratch` for a scratch home.
+The command takes `--checkout` for a repo or `--scratch` for a scratch home, one of the two and not both.
 
 ## The one place it is skipped
 

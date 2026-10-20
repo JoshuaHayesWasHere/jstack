@@ -1,6 +1,4 @@
-usage: jbus project add [-h] [--checkout CHECKOUT] [--scratch]
-                        --project-id PROJECT_ID
-                        name
+usage: jbus project add [-h] (--checkout CHECKOUT | --scratch) --project-id PROJECT_ID name
 
 positional arguments:
   name                  the home's directory name under the homes' state
