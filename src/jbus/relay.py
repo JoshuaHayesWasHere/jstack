@@ -34,7 +34,8 @@ route begins or ends to fail: `beat`, when it was written; `started`, when this 
 `heard`, when the relay last took a body, kept across a restart; `silent_minutes`,
 `RELAY_SILENT_MINUTES` (90), how long with no body is silence; `failing`, each route whose
 last POST failed and was not followed by one that went, with when it began to fail, why, and
-how many bodies wait; and `refused`, each body a target refused for good in the last day,
+how many bodies wait, kept across a restart while the route still holds a body, and ended by
+a body refused for good; and `refused`, each body a target refused for good in the last day,
 with its route, when, why and its file in `dead/`, kept across a restart. The relay judges
 none of it: `jbus health` reads it and pages (`jbus.health`). jbus posts a `refresh` to
 `blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it posts to hears a body at
@@ -399,6 +400,9 @@ class Lane:
                 with self.lock:
                     self.held.discard(id)
                 self.say(f"{said}: {error}, refused for good, kept in {self.dead / path.name}")
+                if self.failing:
+                    self.failing = None
+                    self.changed()
                 self.refused(
                     {"route": self.route.name, "at": _now(), "why": str(error), "file": path.name}
                 )
@@ -588,6 +592,7 @@ class Relay:
             heard = None
         self.heard: str | None = heard if _when(heard) else None
         self.refusals: list[Body] = self._refusals()
+        self._failing()
         self.beat_lock = threading.Lock()
         self.started = _now()
         for lane in [*self.lanes, self.pager.lane]:
@@ -635,6 +640,19 @@ class Relay:
             if at and datetime.now(UTC) - at < REFUSED_KEPT:
                 recent.append(one)
         return recent
+
+    def _failing(self) -> None:
+        """Each route the last heartbeat names as failing, while it still holds a body: a
+        restart does not end a failure, and it keeps the time it began."""
+        try:
+            kept = json.loads(self.beating.read_text()).get("failing")
+        except (OSError, ValueError, AttributeError):
+            return
+        lanes = {lane.route.name: lane for lane in [*self.lanes, self.pager.lane]}
+        for one in kept if isinstance(kept, list) else []:
+            lane = lanes.get(one.get("route")) if isinstance(one, dict) else None
+            if lane and _when(one.get("since")) and lane._waiting():
+                lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
 
     def refuse(self, one: Body) -> None:
         """A body was refused for good: keep it for the heartbeat, and beat."""

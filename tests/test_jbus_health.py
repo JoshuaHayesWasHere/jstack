@@ -157,11 +157,16 @@ def test_an_incident_whose_mount_is_gone_ends_with_no_page(kitchen, senses):
 
 @pytest.fixture
 def relay(kitchen, senses, monkeypatch, tmp_path):
-    """The config posts to the relay: the project's webhook is at `RELAY_PORT`. The relay is
-    up, beat at NOW and heard a body then, with a silence of 90 minutes."""
+    """The config posts to the relay: the project's webhook is at the `RELAY_PORT` of the
+    relay's env file, which is where the unit has it and not in jbus's environment. The relay
+    is up, beat at NOW and heard a body then, with a silence of 90 minutes."""
     port = kitchen.webhook.url.rsplit(":", 1)[1].split("/")[0]
-    monkeypatch.setenv("RELAY_PORT", port)
-    monkeypatch.setenv("RELAY_STATE", str(tmp_path / "relay"))
+    for name in ("RELAY_PORT", "RELAY_STATE"):
+        monkeypatch.delenv(name, raising=False)
+    health.relay_env().parent.mkdir(parents=True, exist_ok=True)
+    health.relay_env().write_text(
+        f"RELAY_INBOUND_KEY=a-key\nRELAY_PORT={port}\nRELAY_STATE='{tmp_path / 'relay'}'\n"
+    )
     (tmp_path / "relay").mkdir()
     senses.units[("jbus-relay.service", "ActiveState")] = "active"
     return Beat(tmp_path / "relay" / "heartbeat.json")
@@ -237,8 +242,9 @@ def test_a_route_whose_posts_fail_for_ten_minutes_is_paged_with_what_waits(kitch
     ]
 
 
-def test_a_relay_the_config_does_not_post_to_is_not_watched(kitchen, senses, tmp_path, monkeypatch):
-    monkeypatch.setenv("RELAY_STATE", str(tmp_path / "nowhere"))
+def test_a_relay_the_config_does_not_post_to_is_not_watched(kitchen, senses, monkeypatch):
+    for name in ("RELAY_PORT", "RELAY_STATE"):
+        monkeypatch.delenv(name, raising=False)
     senses.units[("jbus-relay.service", "ActiveState")] = "failed"
     kitchen.poll()
     assert pages(kitchen) == []

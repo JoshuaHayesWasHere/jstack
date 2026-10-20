@@ -42,6 +42,7 @@ The mounts are those the stack writes: jbus's state and the homes, each project'
 A pass that systemd stops cannot say so itself, so the journal of `jbus.service` is where both timeouts are read.
 
 The relay is watched only where the config posts to it: a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
+`RELAY_PORT` and `RELAY_STATE` are read from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load it.
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
 While the relay's unit is not active or its heartbeat is stale, silence and errors are not judged: the unit and the heartbeat say it.
 Silence runs from the last body heard, which a restart keeps, so a relay that restarts often still goes silent.

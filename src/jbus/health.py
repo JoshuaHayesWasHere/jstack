@@ -12,8 +12,9 @@ Each check gives a `Reading`: the number, what it counts, and the limit it is he
   `jbus.service` over the last `TIMEOUT_MINUTES`. One is an incident. A pass systemd stopped
   cannot say so itself, so the journal is the one place both are seen.
 - `relay`, `relay heartbeat`, `relay silent`, `relay errors`: only where the config posts to
-  the relay (a webhook on 127.0.0.1 or localhost, at `RELAY_PORT`). Its unit not active; a
-  heartbeat older than `BEAT_MINUTES`; no body heard for the heartbeat's `silent_minutes`,
+  the relay (a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file,
+  which `jbus.service` does not load). Its unit not active; a heartbeat older than
+  `BEAT_MINUTES`; no body heard for the heartbeat's `silent_minutes`,
   `RELAY_SILENT_MINUTES` in the relay's env; a route whose POSTs have failed for
   `ERRORS_MINUTES`; a body a target refused for good in the last `REFUSED_MINUTES`, which is
   in the relay's `dead/` and never goes (`jbus.relay`). Silence and errors are not judged from
@@ -181,15 +182,39 @@ def clock() -> datetime:
     return datetime.now(UTC)
 
 
+def relay_env() -> Path:
+    """The relay's settings file, which `jbus-relay.service` loads and `jbus.service` does not."""
+    base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    return Path(base) / "jbus-relay" / "env"
+
+
+def relay_setting(name: str, default: str) -> str:
+    """One of the relay's settings as the relay reads it: the line of its env file, else this
+    process's environment, else the relay's default. No other line of the file is kept: it
+    holds the relay's keys."""
+    try:
+        lines = relay_env().read_text().splitlines()
+    except (OSError, UnicodeDecodeError):
+        lines = []
+    for line in lines:
+        key, equals, value = line.strip().removeprefix("export ").partition("=")
+        if equals and key.strip() == name:
+            return value.strip().strip("'\"")
+    return os.environ.get(name) or default
+
+
 def relay_state() -> Path:
-    """Where the relay keeps its state, as `jbus.relay.settings` reads it."""
-    return Path(os.environ.get("RELAY_STATE", "~/.local/state/jbus-relay")).expanduser()
+    """Where the relay keeps its state, `RELAY_STATE`."""
+    return Path(relay_setting("RELAY_STATE", "~/.local/state/jbus-relay")).expanduser()
 
 
 def posts_to_relay(config: jbus.Config) -> bool:
     """Whether the config posts to the relay: a webhook on this machine at its port,
-    `RELAY_PORT` (4390), as `jbus.relay.settings` reads it."""
-    port = int(os.environ.get("RELAY_PORT") or 4390)
+    `RELAY_PORT` (4390)."""
+    try:
+        port = int(relay_setting("RELAY_PORT", "4390"))
+    except ValueError:
+        port = 4390
     urls = [project.webhook_url for project in config.projects]
     urls += [config.webhook[0], config.blocking[0]]
     found = (urllib.parse.urlsplit(url) for url in urls if url)

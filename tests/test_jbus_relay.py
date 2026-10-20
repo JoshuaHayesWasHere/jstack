@@ -804,3 +804,21 @@ def test_a_body_refused_for_good_is_in_the_heartbeat_also_after_a_restart(hooks,
     until(lambda: "old" not in beat(again))
     assert beat(again)["refused"] == refused
     again.stop()
+
+
+def test_a_failing_route_stays_failing_from_when_it_began_across_a_restart(hooks, tmp_path):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 503
+    relay = Relay(env_for(hooks), tmp_path / "state").up()
+    relay.send(body(event("gate", "user")))
+    until(lambda: {one["route"] for one in beat(relay)["failing"]} == {"everything", "blocking"})
+    began = {one["route"]: one["since"] for one in beat(relay)["failing"]}
+    relay.stop()
+    beating = relay.state / "heartbeat.json"
+    beating.write_text(json.dumps({**beat(relay), "old": True}))
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: "old" not in beat(again))
+    assert {one["route"]: one["since"] for one in beat(again)["failing"]} == began
+    sous_chef.answer = 200
+    until(lambda: beat(again)["failing"] == [])
+    again.stop()
