@@ -193,6 +193,6 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 | `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `install.sh` |
 | `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus` |
 | `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus` |
-| `TEST_SLOTS` | `2` | `jgauge test-slot` |
+| `TEST_SLOTS` | `3` | `jgauge test-slot` |
 | `JGAUGE_LOCKS_DIR` | `~/.local/state/locks` | `jgauge test-slot`, `jbus` |
 | `JMERGE_TIMEOUT` | `120` | `jmerge` |

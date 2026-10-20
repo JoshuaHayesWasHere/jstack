@@ -172,12 +172,14 @@ def test_a_holder_told_to_stop_stops_its_command_too(slots):
 @pytest.mark.parametrize(
     ("args", "env", "held", "count"),
     [
-        ([], {}, (1, 2), 2),
-        ([], {"TEST_SLOTS": "3"}, (1, 2, 3), 3),
+        ([], {}, (1, 2, 3), 3),
+        ([], {"TEST_SLOTS": "4"}, (1, 2, 3, 4), 4),
         (["--slots", "1"], {"TEST_SLOTS": "3"}, (1,), 1),
     ],
 )
-def test_the_number_of_slots_is_the_flag_then_the_variable_then_two(slots, args, env, held, count):
+def test_the_number_of_slots_is_the_flag_then_the_variable_then_three(
+    slots, args, env, held, count
+):
     slots.hold(*held)
     ran = slots(*args, command=["echo", "ran"], **env)
     assert ran.stderr.readline() == f"test-slot: waiting for one of {count} slots\n"
@@ -217,7 +219,7 @@ def test_a_number_of_slots_that_is_no_number_runs_nothing(slots, args, env):
 
 
 def test_with_every_full_slot_held_a_short_job_runs_at_once(slots):
-    slots.hold(1, 2)
+    slots.hold(1, 2, 3)
     ran = slots("--short", command=["echo", "ran"])
     assert ran.communicate(timeout=5) == ("ran\n", "")
     assert ran.returncode == 0
@@ -225,6 +227,7 @@ def test_with_every_full_slot_held_a_short_job_runs_at_once(slots):
         "test-slot-short.1.lock",
         "test-slot.1.lock",
         "test-slot.2.lock",
+        "test-slot.3.lock",
     ]
 
 
@@ -263,9 +266,9 @@ def test_a_short_job_past_its_limit_is_stopped_and_says_so(slots, tmp_path):
 
 
 def test_a_full_suite_does_not_enter_the_short_lane(slots):
-    slots.hold(1, 2)
+    slots.hold(1, 2, 3)
     ran = slots(name="a")
-    assert ran.stderr.readline() == "test-slot: waiting for one of 2 slots\n"
+    assert ran.stderr.readline() == "test-slot: waiting for one of 3 slots\n"
     time.sleep(2.5 * slot.LOOK_EVERY_SECONDS)
     assert (ran.poll(), slots.started()) == (None, [])
     assert not list(slots.locks.glob("test-slot-short.*"))

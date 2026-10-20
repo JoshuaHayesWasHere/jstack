@@ -91,7 +91,52 @@ jobs:
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
-        run: make check
+        run: make check JUNIT="$RUNNER_TEMP/junit.xml"
+      # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
+      # workers, the CPU quota they were counted from, the suite's wall, the test time summed
+      # over every test, the tail (the wall less that sum shared out over the workers: the time
+      # the workers were not all busy), the slowest file, and the CPU pressure of the machine
+      # and of this runner's cgroup.
+      - name: suite summary
+        if: steps.suite.outcome == 'success' || steps.suite.outcome == 'failure'
+        continue-on-error: true
+        env:
+          JUNIT: ${{ runner.temp }}/junit.xml
+        run: |
+          WORKERS=$(make -n check | sed -n 's/.*pytest -n \([0-9]*\) .*/\1/p') python3 - << 'EOF'
+          import collections, os, xml.etree.ElementTree as tree
+
+          def first(path):
+              try:
+                  with open(path) as lines:
+                      return lines.readline().strip() or "none"
+              except OSError:
+                  return "none"
+
+          quota = first(os.environ.get("CPU_MAX", "/sys/fs/cgroup/cpu.max")).split()
+          quota = f"{int(quota[0]) / int(quota[1]):g}" if len(quota) == 2 and quota[0] != "max" else "none"
+          workers = int(os.environ.get("WORKERS") or 1)
+          suite = tree.parse(os.environ["JUNIT"]).getroot()
+          suite = suite if suite.tag == "testsuite" else suite.find("testsuite")
+          files = collections.Counter()
+          for case in suite.iter("testcase"):
+              parts = case.get("classname", "").split(".")
+              while len(parts) > 1 and parts[-1].startswith("Test"):
+                  parts.pop()
+              files["/".join(parts) + ".py"] += float(case.get("time") or 0)
+          wall, summed = float(suite.get("time")), sum(files.values())
+          slowest, seconds = files.most_common(1)[0] if files else ("none", 0.0)
+          line = (
+              f"suite: {workers} workers, quota {quota}, wall {wall:.1f} s,"
+              f" test time {summed:.1f} s, tail {wall - summed / workers:.1f} s,"
+              f" slowest {slowest} {seconds:.1f} s,"
+              f" host cpu {first(os.environ.get('HOST_PRESSURE', '/proc/pressure/cpu'))},"
+              f" cgroup cpu {first(os.environ.get('CGROUP_PRESSURE', '/sys/fs/cgroup/cpu.pressure'))}"
+          )
+          print(line)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(line + "\n")
+          EOF
       # Only after the suite ran and passed. A marker that cannot be kept costs the next run
       # of this tree its skip and nothing else.
       - name: green tree marker

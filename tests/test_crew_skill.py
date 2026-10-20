@@ -915,7 +915,7 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     held = []
-    for lane, count in (("test-slot", 2), ("test-slot-short", 3)):
+    for lane, count in (("test-slot", 3), ("test-slot-short", 3)):
         for n in range(1, count + 1):
             fd = os.open(locks / f"{lane}.{n}.lock", os.O_RDWR | os.O_CREAT)
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -945,7 +945,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     held = []
-    for n in (1, 2):
+    for n in (1, 2, 3):
         fd = os.open(locks / f"test-slot.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
