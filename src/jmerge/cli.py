@@ -1,47 +1,3 @@
-"""The one entry point: `jmerge [--check] [--all] [--home ID] [--land STACK]`,
-`jmerge --sweep [--check]`, `jmerge --claims`, `jmerge --scope SLUG`, and
-`jmerge --accept NUMBER --by USER --at "YYYY-MM-DD HH:MM ZONE"`, the name and the zone as
-jstack's config has them (`jsettings.Settings`).
-
-Run in a repo, it merges every open pull request that is reviewed, fixed and green, brings
-the main checkout up to date, and removes the crewmate's worktree and branches. It writes
-no plan: `jbus plan` counts an entry's status from its queue rows. It prints one line per
-open pull request. A pull request based on
-another branch is never merged, and one in a stack only with `--land`. A draft is never
-merged. One whose check started before main changed one of its paths, a path in
-`ci-paths.txt`, or a caller of its files or something they depend on, waits: its green no
-longer covers today's main. Where the repo's state has
-a `fresh-check` file, the command in it is run once on the head merged over today's main,
-in a worktree of its own, and a pass stands in for the stale check and marks the merged tree
-on the origin, so main's run of that tree skips the suite. One whose rebase
-dropped a line, of main's or of its own, waits for its crew to say why at that head and for
-the scoped review to uphold it, and is the user's, printed as `hold`, only when the review
-does not. One that changes a path in `protected.txt` is never merged: it is the user's
-too. One that changes a path in `guarded.txt` is merged only under a stricter gate (a
-check with a start time, a review finished at the head, a rebase and no local check where
-main changed its paths, a jmerge whose own rules are main's, and the review's one safety
-fact proven at the head), and otherwise printed as
-`wait ...: guarded (touches <path>), <why>`. A hold is lifted only by `--accept`, the user's
-hand-merge: for that pull request, at the head the hold was said at, and only where a
-review proved its safety fact at that head. Every merge is into the commit of main it was
-judged against: a main that moved since is judged again first.
-One whose queue row `jbus queue hold` took the go from waits until the row is approved again,
-and one whose row names a row in `merge_after` that has not merged waits for it (`rows`).
-A repo whose project names a migration directory (`jbus.Project.migrations`) merges the pull
-requests that add a migration there one at a time, in the order of `merge_after`, and a
-numbered migration whose number the default branch has waits to be renumbered by its crew.
-While jbus has the default branch's check as red, only the pull request of the fix jbus
-filed for it (`main-red-<sha12>`) merges, and the others wait until main is green again.
-A `merge-off` file in the repo's state merges nothing. Each `merged`
-line ends in the command that opens its revert. With `--sweep` it merges nothing: it
-removes what finished threads left and each tree's marker that is more than 7 days old,
-and prints what it removed and what it kept. With
-`--claims` it changes nothing: it prints the files each brief still out holds. With
-`--scope SLUG` it changes nothing either: it prints each file the brief's branch changes that
-its `Where:` line does not cover.
-No model reads anything.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -81,7 +37,6 @@ TIMEOUT_SECONDS = 120
 
 
 def _run(cwd: Path, *command: str) -> subprocess.CompletedProcess[str]:
-    """Run a command. One that outlasts `JMERGE_TIMEOUT` seconds fails like any, with 124."""
     limit = float(os.environ.get("JMERGE_TIMEOUT") or TIMEOUT_SECONDS)
     try:
         return subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=limit)
@@ -91,14 +46,11 @@ def _run(cwd: Path, *command: str) -> subprocess.CompletedProcess[str]:
 
 
 def _text(cwd: Path, *command: str) -> str | None:
-    """What a command printed, or None where it failed. A file's bytes that are no text
-    are read as they can be: they are compared, never written."""
     ran = subprocess.run(command, cwd=cwd, capture_output=True)
     return None if ran.returncode else ran.stdout.decode(errors="replace")
 
 
 def _said(ran: subprocess.CompletedProcess[str]) -> str:
-    """The last line a failed command printed, which is where git and gh put the reason."""
     lines = (ran.stderr or ran.stdout).strip().splitlines()
     return lines[-1].strip() if lines else f"exit {ran.returncode}"
 
@@ -111,9 +63,6 @@ def _read(path: Path) -> str:
 
 
 def patch_id(cwd: Path, base: str, commit: str) -> str | None:
-    """The stable patch-id of a commit's diff from where it left the base, or None where
-    git cannot say: a commit or a base that is not in the checkout. No diff is the id "".
-    """
     fork = _run(cwd, "git", "merge-base", f"origin/{base}", commit)
     if fork.returncode:
         return None
@@ -133,8 +82,6 @@ def _first_word(text: str) -> str:
 
 
 def patterns(path: Path) -> tuple[str, ...]:
-    """The patterns of one of jmerge's lists. One that is missing or has a pattern that
-    cannot be read stops the command: with no list, no path is known to be outside it."""
     try:
         return ready.patterns_of(path.read_text(encoding="utf-8"))
     except OSError:
@@ -146,14 +93,6 @@ def patterns(path: Path) -> tuple[str, ...]:
 
 
 def rules_are_mains(package: Path, pull: bool = True) -> str:
-    """Why this run may not merge a guarded pull request, or nothing: the rules it runs on
-    are not known to be the default branch's.
-
-    The package is read from a git checkout, which is fetched. Its files must be tracked,
-    with no change to them, and the same as its origin's default branch has them. A
-    checkout that is only behind is pulled, and the run still waits: the code already
-    loaded is the old one. `pull` is False for a run that changes nothing.
-    """
     if _run(package, "git", "rev-parse", "--show-toplevel").returncode:
         return "jmerge's own rules are not in a git checkout"
     if not _run(package, "git", "ls-files", "--", ".").stdout.strip():
@@ -186,37 +125,11 @@ def rules_are_mains(package: Path, pull: bool = True) -> str:
 
 
 def _was(handoff: Path) -> str:
-    """The home that handed off here, which the briefs it wrote still name."""
     was = re.search(r"^Was home:[ \t]*(\S+)", _read(handoff), re.M)
     return was[1] if was else ""
 
 
 class Fresh:
-    """The local check of a head over today's default branch, for a repo that asks for it
-    with a `fresh-check` file in its state: one line, the command.
-
-    The head is merged over the default branch's commit in git's object store alone, and
-    the command is run in a worktree of that merge under the state. The pull request's
-    branch and its crewmate's worktree are never touched. What it found is remembered in
-    `fresh.json` by pull request, for that head over that commit, and one check is all a
-    run of jmerge starts.
-
-    The check runs outside the run that starts it, which says `a fresh check is queued` and
-    goes on: a transient user unit of its own where systemd has one, and otherwise a process
-    in a session of its own. It holds `fresh.lock` for as long as it runs, jmerge never does,
-    so a jmerge stopped by jbus leaves it running to its end, and the next run reads what it
-    recorded. `TIMEOUT` is under what a jbus pass allows jmerge, which is under the unit's
-    start timeout (`tests/test_jbus.py`).
-
-    Before it starts one, it asks for a green marker of the merge's tree (`green.marker`):
-    a run of the check that passed the whole suite on that exact tree, or the desk's ref.
-    With one, the pass is recorded with the tree and the marker, and nothing is run.
-
-    A pass is the one thing pushed: the merge that passed, to the ref `sweep.marker` names
-    for its tree. The merge that lands has that tree, so its run of the check skips the
-    suite. A marker that could not be pushed costs that skip and nothing else.
-    """
-
     TIMEOUT = 15 * 60
     ASK_TIMEOUT = 10
     AUTHOR = {
@@ -254,10 +167,6 @@ class Fresh:
     def of(
         self, number: int, head: str, tip: str, files: tuple[str, ...] | None
     ) -> tuple[str, str] | None:
-        """Why a pull request whose check is stale still waits, or nothing with the note of
-        a local check that passed. None where none is remembered and this run runs none.
-        A pass over an older main can still stand (`stands`): `files` are the paths the
-        pull request changes, or None where they are not all known."""
         was = self.known().get(str(number))
         asked = {"head": head, "main": tip, "command": self.command}
         recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
@@ -288,14 +197,6 @@ class Fresh:
     def stands(
         self, number: int, was: dict, head: str, tip: str, files: tuple[str, ...] | None
     ) -> bool:
-        """Whether a pass of this head and command over an older main stands over `tip`:
-        main's change since and the pull request's `files` select no test file in common
-        and neither selects `all`, by the repo's own `scripts/select_tests.py` run in a
-        worktree of the head merged over `tip`, so a module either side imports there is
-        read. A test file every change selects (`Cross-cutting:`) is one in common too, so
-        in a repo that has one no pass is kept. Where any of it cannot be told, it does
-        not. A pass taken from a marker (`marker` in the record) never stands: the marker
-        names one tree, and a main that moved makes another."""
         older = str(was.get("main") or "")
         mine = (was.get("result"), was.get("head"), was.get("command"))
         if (
@@ -334,7 +235,6 @@ class Fresh:
             _run(self.main, "git", "worktree", "remove", "--force", str(at))
 
     def _commit(self, tree: str, head: str, tip: str) -> subprocess.CompletedProcess[str]:
-        """The merge of the head over the commit, as a commit of the tree git made of it."""
         return subprocess.run(
             ["git", "commit-tree", tree, "-p", tip, "-p", head]
             + ["-m", f"jmerge: {head} over {tip}"],
@@ -345,9 +245,6 @@ class Fresh:
         )
 
     def marked(self, tree: str) -> green.Marker | None:
-        """The green marker of this tree, from GitHub: a run of the check that ran the whole
-        suite on it and passed, or the desk's ref. None where there is none, or where GitHub
-        could not say, and then the check runs as it would have."""
 
         def ask(path: str) -> object:
             answer = subprocess.run(
@@ -367,7 +264,6 @@ class Fresh:
             return None
 
     def _held(self) -> bool:
-        """A check is running: its process holds the lock."""
         with (self.state / "fresh.lock").open("w") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -376,10 +272,6 @@ class Fresh:
         return False
 
     def start(self, number: int, head: str, tip: str, tree: str) -> str:
-        """Start the check of the merge's tree on its own, and return. Nothing, or why it
-        could not be started. Under systemd it is a transient unit, since a pass's unit
-        kills what is left in it when it ends: inside a unit, one that could not be started
-        is said, and outside one the check is a process of its own."""
         arguments = [str(self.main), str(self.state), str(number), head, tip, tree]
         arguments += [self.command, f"{self.timeout:g}"]
         check = [sys.executable, "-c", self.CHECK, *arguments]
@@ -408,8 +300,6 @@ class Fresh:
 
     @classmethod
     def alone(cls, arguments: list[str]) -> int:
-        """The check that `start` started: under the lock, or not at all where another
-        check holds it. It records what it found, whatever that is, and marks a pass."""
         main, state, number, head, tip, tree, command, timeout = arguments
         fresh = cls(Path(main), Path(state), timeout=float(timeout))
         fresh.command = command
@@ -429,8 +319,6 @@ class Fresh:
         return 0
 
     def _keep(self, number: int, record: dict) -> None:
-        """Remember what a check found. A pass is kept before its marker is pushed: a run
-        stopped during a slow push has still earned it."""
         (self.state / "fresh.json").write_text(
             json.dumps({**self.known(), str(number): record}, indent=2) + "\n",
             encoding="utf-8",
@@ -448,10 +336,6 @@ class Fresh:
         return ready.short_on_fresh(result, self.command, head, tip), ""
 
     def mark(self, commit: str) -> str:
-        """Push the merge that passed to its tree's marker on the origin, before the pass is
-        said: the merge follows within seconds, and main's run looks for the marker as it
-        starts. Nothing, or why the tree is not marked. The ref is forced: a marker that is
-        there is of the same tree, and this pass is the later one."""
         tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
         if tree.returncode:
             return _said(tree)
@@ -467,9 +351,6 @@ class Fresh:
         return f"a fresh check could not be run ({_said(ran)})"
 
     def check(self, number: int, head: str, tip: str, tree: str, lock: int) -> tuple[str, str]:
-        """Run the command on the head merged over the commit, as the tree: passed, failed
-        or timed out, or the reason it was not run, and the merge it ran on. What it printed
-        is kept beside the worktree, in `fresh/<number>.log`."""
         commit = self._commit(tree, head, tip)
         if commit.returncode:
             return self._not_run(commit), ""
@@ -505,8 +386,6 @@ class Fresh:
 
 
 class Repo:
-    """A repo's main checkout and the state directory its homes keep."""
-
     def __init__(
         self,
         main: Path,
@@ -551,26 +430,17 @@ class Repo:
 
     @functools.cached_property
     def queue(self) -> list[dict] | None:
-        """The rows of this repo's queue, read once for a run: the answer `rows.short` asks.
-        Nothing writes the queue during a run but jbus, so a pull request that waits on a row
-        that merges in this very run waits for the next."""
         return rows.read(self.main)
 
     @functools.cached_property
     def main_state(self) -> mainstate.Main:
-        """What jbus last kept of the default branch's check, read once for a run: the
-        answer `rows.red` asks. Nothing writes it during a run but jbus, so a main that
-        turns green in this run (a fix that merges) frees the others on the next."""
         return rows.main(self.main)
 
     @functools.cached_property
     def migrations(self) -> rows.Migrations | None:
-        """Where this repo keeps its migrations, read once for a run: the project's setting."""
         return rows.migrations(self.main)
 
     def numbers(self, default: str) -> set[int] | None:
-        """The migration numbers the default branch has, after a fetch, or None where git
-        could not say. It is asked again after a merge, which changes them."""
         if self.numbers_on is None and self.migrations:
             where = f"origin/{default}"
             listed = None
@@ -584,10 +454,6 @@ class Repo:
         return self.numbers_on
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
-        """The pull requests with those that add a migration in the order they merge in, each
-        in a place a migration pull request had: `merge_after` first, then the older. Each is
-        judged after those ahead of it, so `waits` has noted which of those is being rebased
-        by the time `short_on_migrations` asks."""
         settings = self.migrations
         mine = {
             one.number: one
@@ -605,13 +471,6 @@ class Repo:
         return [next(places) if one.number in mine else one for one in listed]
 
     def short_on_migrations(self, one: ready.PullRequest, default: str) -> str:
-        """Why a pull request that adds a migration waits for another, or nothing.
-
-        Migration pull requests merge one at a time, in the order of `line_up`. A numbered
-        migration the default branch has the number of is renumbered by its crew. One that is
-        ready waits for the pull request ahead of it that is being rebased, and for the one
-        let through in this run, whose merge changes the numbers the others are judged by.
-        """
         settings = self.migrations
         names = ready.migrations(one, settings.directory) if settings else ()
         if not settings or not names:
@@ -630,22 +489,10 @@ class Repo:
         return ""
 
     def others(self, text: str) -> bool:
-        """Whether the brief was written by another home of this repo.
-
-        The rule is `claims.home_of`, over `homes`: a brief is the home's that its `Home:`
-        line names, and the root's with no line or with one that names no home. So a brief
-        has one home, and it is another's to every asker but `asking`.
-        """
         return claims.home_of(text, self.homes()) != self.asking
 
     @functools.cached_property
     def asking(self) -> str:
-        """The name of the home that asks, or nothing for a thread that is no home now.
-
-        It is the home whose `home-id` holds the id: a home that handed off asks as nobody.
-        A run with no `--home` asks as the root. While `home-id` is empty there is no root
-        home, and an id that names no home, now or before, stands for it.
-        """
         named, running = self._homes
         if self.mine == self.listed:
             return claims.ROOT
@@ -654,17 +501,10 @@ class Repo:
         return "" if self.listed or self.mine in named else claims.ROOT
 
     def homes(self) -> dict[str, str]:
-        """The name of each home of this repo, by its thread id and by its directory.
-
-        A scoped home is a directory of the state with a `home-id` or a handoff of its
-        own. The home it took over from counts as it, for a scope as for the root.
-        """
         return self._homes[0]
 
     @functools.cached_property
     def _homes(self) -> tuple[dict[str, str], dict[str, str]]:
-        """`homes`, and the homes that run now by the id in their `home-id`: one read of
-        the state for a run, so the two never differ on an id."""
         named, running = {}, {}
         for scope in sorted(path for path in self.state.glob("*") if path.is_dir()):
             now, was = _first_word(_read(scope / "home-id")), _was(scope / "handoff.md")
@@ -678,7 +518,6 @@ class Repo:
         return named, running
 
     def claimed(self) -> int:
-        """Print one line per brief that still holds files. Nothing is changed or logged."""
         asked = _run(
             self.main,
             "gh",
@@ -707,13 +546,6 @@ class Repo:
         return 0
 
     def scoped(self, slug: str) -> int:
-        """Print each file a brief's branch changes that its `Where:` line does not cover.
-
-        The files are the branch's against the base it left: the default branch, or for a link
-        of a stack the branch it sits on. A branch that is gone is asked of its pull request.
-        Nothing is changed or logged, and a file outside is a line, not a failure: what to do
-        with one is the review's finding.
-        """
         text = _read(self.state / "tasks" / f"{slug}.md")
         if not text:
             print(f"jmerge: no brief {slug} in {self.state / 'tasks'}", file=sys.stderr)
@@ -742,8 +574,6 @@ class Repo:
         return 0
 
     def changed(self, branch: str, base: str) -> list[str] | None:
-        """The files a branch changes from where it left its base, or None where this checkout
-        has neither the branch nor the base. A local branch is read before `origin`'s."""
         if not base:
             tip = _run(
                 self.main, "git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"
@@ -765,7 +595,6 @@ class Repo:
         return None
 
     def default(self) -> tuple[str, str]:
-        """The default branch, as GitHub names it, and why not where it did not say."""
         asked = _run(
             self.main,
             "gh",
@@ -840,9 +669,6 @@ class Repo:
         return None if asked.returncode else tuple(asked.stdout.splitlines())
 
     def moved(self, default: str, since: datetime) -> tuple[str, tuple[str, ...]] | None:
-        """The commit the origin's default branch is at, and the paths its first-parent
-        commits changed at or after a time, the paths their renames left included. None
-        where git could not say."""
         if _run(self.main, "git", "fetch", "-q", "origin").returncode:
             return None
         tip = _run(self.main, "git", "rev-parse", "-q", "--verify", f"origin/{default}^{{commit}}")
@@ -866,19 +692,12 @@ class Repo:
         return tip.stdout.strip(), tuple(dict.fromkeys(paths))
 
     def range_diff(self, reviewed: str, head: str, default: str) -> rangediff.Verdict:
-        """Whether a review carries over a rebase, on an origin fetched once in the run: the
-        base of the rebased head is a commit of the default branch as it is now."""
         if not self.fetched:
             self.fetched = True
             _run(self.main, "git", "fetch", "-q", "origin")
         return rangediff.verdict(self.main, reviewed, head, default)
 
     def unsaid(self, base: str, covered: str, head: str) -> ready.Rebase | None:
-        """The rebase a head with no `Rebase:` line of it stands for: from the commit its
-        review covers to the head, in every file either patch changes. None where the head
-        left the default branch where that commit did, which is a push and no rebase, or
-        where git cannot say: the range-diff reads both, and fails closed.
-        """
         forks = []
         for commit in (covered, head):
             fork = _run(self.main, "git", "merge-base", f"origin/{base}", commit)
@@ -898,10 +717,6 @@ class Repo:
         return ready.Rebase("changed", tuple(files), covered, head)
 
     def apart(self, base: str, under: str, head: str) -> bool:
-        """Whether `head` may have left the default branch elsewhere than `under` did,
-        which is a rebase between the two. Only git saying they left it at one commit is
-        a no: where it cannot say, after one fetch of the origin, the two are compared,
-        and the range-diff fails closed."""
         for _ in range(2):
             forks = [
                 _run(self.main, "git", "merge-base", f"origin/{base}", commit)
@@ -916,21 +731,6 @@ class Repo:
         return True
 
     def dropped(self, base: str, rebase: ready.Rebase, head: str) -> tuple[ready.Drop, ...] | str:
-        """What a rebase that changed the patch dropped: each file either patch changes
-        that lost a line, with how many of the default branch's and how many of its own.
-        Or the commit whose patch cannot be worked out in the main checkout. With no
-        `Rebase:` line the rebase is `unsaid`'s, from the commit the review covers.
-
-        The files are git's, never the line's: a crewmate writes that line by hand, and a
-        directory or a word in it named as a file is read as one, its lines summed against
-        no file (Winnifred #154). A head that left the default branch where the commit
-        before it did had no rebase, and dropped nothing.
-
-        The default branch's lines are the ones it added between where the branch left it
-        before the rebase and where it leaves it now. The pull request's are the ones its
-        patch added before the rebase. Both are looked for in the head the rebase ended on
-        and in `head`, the one that is merged.
-        """
         forks = []
         for commit in (rebase.before, rebase.head, head):
             fork = _run(self.main, "git", "merge-base", f"origin/{base}", commit)
@@ -963,16 +763,6 @@ class Repo:
         return tuple(lost)
 
     def stale(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str, str]:
-        """What a pull request whose green may no longer cover the default branch is short
-        of. Or nothing, with the commit of the default branch it was judged fresh against
-        and what a local check found, where its own check was stale and one stood in.
-
-        The default branch is fetched each time, so a pull request is judged against what
-        an earlier merge of the same run put there. One that changed only other paths, none
-        of them a caller of the pull request's files or something they depend on, leaves the
-        check standing. A check with no start time is compared with nothing. A pull request
-        whose paths GitHub did not give in full keeps no pass over an older main.
-        """
         if one.started is None:
             return "", "", ""
         files = None if left is None or one.changed > len(one.files) else (*one.files, *left)
@@ -1000,11 +790,6 @@ class Repo:
     def related(
         self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
     ) -> tuple[str, ...]:
-        """The paths the default branch changed that are a caller of the pull request's
-        files or something they depend on (`ready.callers_and_dependencies`): its files read
-        at its head, the others at the tip. A file git cannot read there is read as empty,
-        and so is each path its renames left (`left`): a caller of the old module is one the
-        rename breaks."""
         ours = {
             path: _text(self.main, "git", "show", f"{one.head}:{path}") or "" for path in one.files
         }
@@ -1019,33 +804,17 @@ class Repo:
     def short_of_guarded(
         self, one: ready.PullRequest, text: str, rebase: ready.Rebase | None, note: str
     ) -> str:
-        """What a ready pull request that changes a guarded path is short of, or nothing.
-
-        The last of it is the one fact the change is safe because of, proven at the head.
-        """
         if self.unruly is None:
             self.unruly = self.rules()
         short = self.unruly or ready.short_of_guarded(one, text, rebase, note)
         return short or proof.short(text, self.proven_at(one))
 
     def proven_at(self, one: ready.PullRequest) -> str:
-        """The commit a pull request's safety fact must be proven at: its head, or the
-        commit its review covers where `waits` compared the two by range-diff and found
-        the content as it was. That is a rebase, or a push for a failed check that the
-        crew wrote down (`CI fix:`).
-
-        A head that was compared with nothing is asked for a proof of its own: a rebase
-        that dropped a line, and a fix pushed for a review's findings.
-        """
         return self.carried.get(one.number) or one.head
 
     def waits(
         self, one: ready.PullRequest, default: str
     ) -> tuple[str, str, str, str, ready.Judged | None]:
-        """What `judge` says of a pull request, noting a migration pull request whose own
-        reason is one its crew rebases for: it holds the migration pull requests behind it.
-        One that waits on anything else (a draft, no brief, another home's, a review) holds
-        none of them, since nobody is told to rebase it."""
         found = self.judge(one, default)
         if one.number in self.order and found[1] == "wait" and ready.being_rebased(found[2]):
             self.rebasing.add(one.number)
@@ -1056,17 +825,6 @@ class Repo:
     def judge(
         self, one: ready.PullRequest, default: str
     ) -> tuple[str, str, str, str, ready.Judged | None]:
-        """The slug of the pull request's brief, `wait` or `hold` with the first thing that
-        keeps it from a merge, that its review carried over a rebase, and for one that met
-        every gate, how it was judged.
-
-        The gates are in order. A draft comes first: its author has not said it is done,
-        and no flag, review or brief makes it ready. A check that no longer covers the
-        default branch comes after a line a rebase dropped and the gates the user alone
-        lifts, so a pull request held on any of them starts no fresh check while it waits.
-        The gate of a guarded path comes after it, and is asked only of one that is fresh
-        and not held.
-        """
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
         if one.draft:
@@ -1153,7 +911,6 @@ class Repo:
         return brief.stem, "", "", note, ready.Judged(path, tip, rules, fresh)
 
     def holds(self) -> dict[str, str]:
-        """The head each pull request was at when a run last said `hold` of it."""
         try:
             holds = json.loads(_read(self.state / "holds.json") or "{}")
         except ValueError:
@@ -1161,11 +918,9 @@ class Repo:
         return holds if isinstance(holds, dict) else {}
 
     def hold(self, one: ready.PullRequest) -> None:
-        """Keep the head a hold was said at: `--accept` lifts it at that head and no other."""
         self.holds_are({**self.holds(), str(one.number): one.head})
 
     def holds_are(self, holds: dict[str, str]) -> None:
-        """Write the record whole or not at all: a pass of jbus may be reading it."""
         if holds != self.holds() and self.state.is_dir():
             new = self.state / "holds.json.new"
             new.write_text(json.dumps(holds) + "\n", encoding="utf-8")
@@ -1180,16 +935,6 @@ class Repo:
         say: Callable[[str], None],
         check: bool,
     ) -> int:
-        """Lift the hold of one pull request at its head, on the user's word, and merge it
-        as any other. Each line is said as it happens, and the answer is the exit code.
-
-        It is refused when it is not held, when its head is not the one the hold was said
-        at, and when no review proved its one safety fact at that head. Nothing else is
-        lifted: a guarded path, a merge that is off and a main that moved keep it waiting.
-        With `check` nothing is merged or logged, and the one line says what would be:
-        `ready <number> <head> <branch> <slug>, accepted: <the hold>, safe because <fact>
-        (proven at <commit>)`.
-        """
         about = f"{one.number} {one.url}"
         slug, verb, why, _, _ = self.waits(one, default)
         if verb != "hold":
@@ -1227,7 +972,6 @@ class Repo:
         return 0
 
     def clear_up(self, branch: str, head: str) -> str:
-        """Remove the worktree and both branches, or say what was kept and why."""
         tree = at = ""
         listed = _run(self.main, "git", "worktree", "list", "--porcelain").stdout
         for line in listed.splitlines():
@@ -1267,14 +1011,6 @@ class Repo:
         rebase: str = "",
         judged: ready.Judged | None = None,
     ) -> str:
-        """Merge a ready pull request and do what follows a merge. One line says how it went,
-        that its review carried over a rebase, the guarded path it changes,
-        the local check that stood in for a stale one, and the command that undoes it.
-
-        It is merged only into the commit of the default branch it was judged against. Where
-        that branch moved since, by a merge made by hand, the pull request is judged again,
-        here, and merged only if it is still short of nothing.
-        """
         number = str(one.number)
         judged = judged or ready.Judged()
         if self.own and self.unruly is None:
@@ -1341,10 +1077,6 @@ class Repo:
 
 
 def _running(tree: str) -> int:
-    """A process whose working directory is in the worktree: a thread still at work there.
-
-    Read from `/proc`. Where there is none, it cannot be told, and no process is found.
-    """
     inside = os.path.realpath(tree)
     found = []
     for entry in Path("/proc").glob("[0-9]*"):
@@ -1358,8 +1090,6 @@ def _running(tree: str) -> int:
 
 
 class Sweep:
-    """What this repo's finished threads left, as git has it now."""
-
     def __init__(self, repo: Repo) -> None:
         self.repo = repo
         self.main = repo.main
@@ -1372,7 +1102,6 @@ class Sweep:
         self.worktrees: list[tuple[str, str]] = []
 
     def read(self) -> bool:
-        """Ask the origin what it has, and git what is here. False when the origin is silent."""
         asked = _run(
             self.main,
             "git",
@@ -1417,7 +1146,6 @@ class Sweep:
         return {name.removeprefix("refs/heads/"): commit for commit, name in heads}
 
     def records(self) -> dict[str, list[sweep.Record]]:
-        """Each branch a brief or a request names, with every record that names it."""
         named: dict[str, list[sweep.Record]] = {}
         for directory, read in (("tasks", sweep.of_brief), ("scouts", sweep.of_request)):
             for path in sorted((self.state / directory).glob("*.md")):
@@ -1426,7 +1154,6 @@ class Sweep:
         return named
 
     def left(self, branch: str) -> dict[str, str]:
-        """What is there of a branch, each with the tree or the commit it is at."""
         there = {
             sweep.WORKTREE: next((at for at, on in self.worktrees if on == branch), ""),
             sweep.LOCAL: self.local.get(branch, ""),
@@ -1488,12 +1215,6 @@ class Sweep:
         return found
 
     def remove(self, branch: str, left: dict[str, str]) -> tuple[list[str], str, str]:
-        """Remove what is left of a branch, in order. Gives what went, then what git would
-        not remove and what it said.
-
-        Each ref goes only if it is still at the commit that was judged: a push since then
-        is not lost.
-        """
         ref = f"refs/heads/{branch}"
         tree = left.get(sweep.WORKTREE, "")
         steps = {
@@ -1518,8 +1239,6 @@ class Sweep:
         return gone, "", ""
 
     def marked(self, ref: str, commit: str) -> int | None:
-        """When a marker's commit was made, or None where it cannot be read. The commit is
-        here when this desk made it, and is fetched when another did or git has pruned it."""
         asked = "git", "show", "-s", "--format=%ct", f"{commit}^{{commit}}"
         made = _run(self.main, *asked)
         if made.returncode:
@@ -1528,9 +1247,6 @@ class Sweep:
         return int(made.stdout) if not made.returncode and made.stdout.strip().isdigit() else None
 
     def markers_past(self, say: Callable[[str], None], check: bool) -> list[tuple[str, str]]:
-        """Remove each tree's marker that is older than one is kept, or with `check` say it
-        would be. Gives the ones that stay against the rule, each with why. A marker goes
-        only if it is still at the commit that was judged: a pass since then is not lost."""
         kept: list[tuple[str, str]] = []
         for ref, commit in sorted(self.markers.items()):
             label = f"green-tree/{ref.removeprefix(sweep.MARKERS)[:12]}"
@@ -1554,7 +1270,6 @@ class Sweep:
         return kept
 
     def run(self, say: Callable[[str], None], check: bool) -> int:
-        """Print what is removed, or with `check` what would be, then what is kept and why."""
         if not self.read():
             say("wait: could not read origin")
             return 1
@@ -1718,11 +1433,6 @@ def main(argv: list[str] | None = None) -> int:
     now = datetime.now().astimezone()
 
     def say(line: str) -> None:
-        """Print a line, and log it at once: a merge is done whatever happens after it.
-
-        A pull request that waits or is held says so on every pass, so that line is logged
-        only when it is not the last one logged for its number (`merge.log.last`).
-        """
         print(line, flush=True)
         if not args.check and state.is_dir():
             waits = re.match(r"(?:wait|hold) (\d+) ", line)
