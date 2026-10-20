@@ -452,7 +452,7 @@ def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cite
 @pytest.mark.parametrize("name", ["fix", "feature.", "../templates/brief"])
 def test_a_playbook_name_that_is_no_playbook_is_said_and_no_principle_follows(reviewer, name):
     reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
-    said = f"Playbook: {name}, which is no playbook here: the crewmate worked with none."
+    said = f"no playbook: playbooks/ has no {name}.md: the crewmate worked with none"
     assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
 
 
@@ -461,7 +461,7 @@ def test_a_playbook_name_that_is_no_playbook_is_said_and_no_principle_follows(re
 )
 def test_a_playbook_that_is_not_a_crewmates_is_said_and_no_principle_follows(reviewer, name, by):
     reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
-    said = f"Playbook: {name}, which is for {by} and not a crewmate: the crewmate worked with none."
+    said = f"not a crewmate's: playbooks/{name}.md is for {by}: the crewmate worked with none"
     assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
 
 

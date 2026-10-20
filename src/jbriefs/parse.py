@@ -260,14 +260,22 @@ def crewmates(name: str) -> bool:
     return by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by
 
 
+def playbook_named(text: str) -> str:
+    """The name a brief's, a request's or a plan's `Playbook:` line gives: the first word of
+    the first such line of its head, or nothing for a head with none or an empty one.
+    `jbus playbook` opens the file it names, and this is the one reader of the line."""
+    said = _head(text, "Playbook:")
+    return said.split()[0] if said else ""
+
+
 def playbook(text: str) -> str:
     """Why a brief's `Playbook:` line names no playbook, in one line, or nothing.
 
-    The name is the line's first word, as the crew skill reads it, and it is a crewmate's
+    The name is the line's first word, as `jbus playbook` reads it, and it is a crewmate's
     file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
     """
     said = _head(text, "Playbook:")
-    name = said.split()[0] if said else ""
+    name = playbook_named(text)
     if said is None or name == "none":
         return ""
     if not said:

@@ -6,7 +6,7 @@ While a queue is out, and only then, the home has one scheduled run: the audit, 
 
 ```sh
 A="${M:?run the block that finds this home first}/audit"
-name=$(awk '/^## / {exit} /^Playbook:/ {print $(2); exit}' "$M/plan.md" 2> /dev/null)
+name=$(uv run --project "$T/.." jbus playbook home "$M/plan.md" --named 2> /dev/null)
 case $name in
 autopilot-full | orchestrate) ;;
 *) name= ;;

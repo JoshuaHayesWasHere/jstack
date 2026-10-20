@@ -1,7 +1,9 @@
 """A brief or a scout's request names a playbook, and the thread that takes it opens that
 file; a home opens its own, named in the head of its plan, and an expert the one of the kind
-of ask it has. The step is a shell block in the crew, scout, home and expert skills, lifted
-from each and run here: each opens a playbook of its own role and refuses another role's.
+of ask it has. Each opens it with `jbus playbook <role>`: the step is that call in the crew,
+scout, home and expert skills, lifted from each and run here, through a `uv` that runs the
+verb with the repo the skill lives in as its `$T/..`. Each opens a playbook of its own role
+and refuses another role's. The real `uv` runs the call once under `sh` and once under `zsh`.
 The home's block that lists the playbooks is lifted from the home skill and run against
 `playbooks/` and against a directory with a file added."""
 
@@ -9,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -52,12 +55,28 @@ def opening(skill):
     (block,) = [
         found
         for found in FENCED.findall(text)
-        if ("Playbook:" in found or "<playbook>" in found) and "Run by:" in found
+        if "jbus playbook" in found and "--named" not in found
     ]
     (setting,) = [line for line in text.splitlines() if line.startswith("T=")]
     if skill == "expert":
         (setting,) = [found for found in FENCED.findall(text) if f"\n{setting}\n" in found]
     return textwrap.dedent(setting), textwrap.dedent(block)
+
+
+def uv(where):
+    """A `uv` in `where` that runs `uv run --project <repo> jbus ...` as `jbus` does, with
+    `<repo>` as the repo whose `playbooks/` and `principles/` it opens."""
+    where.mkdir(parents=True, exist_ok=True)
+    run = (
+        "import sys; from pathlib import Path; from jbus import cli, playbook; "
+        "playbook.REPO = Path(sys.argv[1]).resolve(); sys.exit(cli.main(sys.argv[2:]))"
+    )
+    (where / "uv").write_text(
+        '#!/bin/sh\n[ "$1 $2 $4" = "run --project jbus" ] || exit 64\nrepo=$3\nshift 4\n'
+        f'exec {sys.executable} -c \'{run}\' "$repo" "$@"\n'
+    )
+    (where / "uv").chmod(0o755)
+    return where
 
 
 def written(skill, line):
@@ -74,12 +93,13 @@ def written(skill, line):
     return "\n".join(lines) + "\n"
 
 
-def opened(skill, text, tmp_path, repo=REPO, name=""):
+def opened(skill, text, tmp_path, repo=REPO, name="", shell="sh", real=False):
     """What the block prints for a brief, a request or a plan, run as the user has the
-    skill: a symlink under ~/.claude/skills, used from another repo. `repo` is the repo
-    the skill lives in, and `name` is the name a home is given in place of its plan's. An
-    expert is given `text` as the name, after the block that finds its folder under that
-    user's home, where `home-id` says this thread is the expert."""
+    skill: a symlink under ~/.claude/skills, used from another repo, by `shell`. `repo` is
+    the repo the skill lives in, and `name` is the name a home is given in place of its
+    plan's. An expert is given `text` as the name, after the block that finds its folder
+    under that user's home, where `home-id` says this thread is the expert. `real` runs the
+    `uv` on the PATH, which runs the verb of this checkout, in place of `uv` above."""
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(repo / "skills" / skill)
@@ -102,11 +122,20 @@ def opened(skill, text, tmp_path, repo=REPO, name=""):
     block = block.replace("<slug>", SLUG).replace("<name>", name).replace("<playbook>", text)
     setting = setting.replace("<name>", name)
     block = block.replace("<threadId>", THREAD)
+    path = os.environ["PATH"] if real else f"{uv(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    cache = {"UV_CACHE_DIR": merge.uv_cache()} if real else {}
     ran = subprocess.run(
-        ["sh", "-c", f"{setting}\nS={SLUG}\n{block}"],
+        [shell, "-c", f"{setting}\nS={SLUG}\n{block}"],
         capture_output=True,
         text=True,
-        env={**os.environ, "HOME": str(user), "H": str(state), "M": str(state)},
+        env={
+            **os.environ,
+            "HOME": str(user),
+            "H": str(state),
+            "M": str(state),
+            "PATH": path,
+            **cache,
+        },
         cwd=elsewhere,
         check=True,
     )
@@ -441,19 +470,25 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
     assert "\n".join(said).count(PRINCIPLES["first-rule"].strip()) == 1
 
 
+@pytest.mark.parametrize("shell", ["sh", "zsh"])
 @pytest.mark.parametrize("skill", READERS)
-def test_a_real_playbook_prints_the_real_principles_it_cites(skill, tmp_path):
+def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
+    skill, shell, tmp_path
+):
+    """The skill's call as an agent runs it, by the real `uv`: the copy of the block it
+    replaced put every cited principle on one `==>` line under zsh, which splits no word."""
     name = "authoring-a-skill" if skill == "crew" else "investigation"
     playbook = (PLAYBOOKS / f"{name}.md").read_text()
     names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
-    assert names
-    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
+    assert len(names) >= 2
+    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, shell=shell, real=True)
     assert (
         f"the principles playbooks/{name}.md cites, each in full below: {' '.join(names)}" in said
     )
     printed = "\n".join(said) + "\n"
     for rule in names:
         assert printed.count((REPO / "principles" / f"{rule}.md").read_text()) == 1
+        assert said.count(f"==> principles/{rule}.md <==") == 1
 
 
 NUMBERED = re.compile(r"^\d+\. \S.*$", re.M)
