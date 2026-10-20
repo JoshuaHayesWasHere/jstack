@@ -1,18 +1,3 @@
-"""Which open pull requests are ready to merge: reviewed, fixed and green, with a check that
-still covers today's default branch, which of those are still the user's to merge, and which
-are merged only under the stricter gate of a guarded path.
-
-This is the one copy of the rules. They are read from what GitHub lists for a pull request
-and from the brief whose Result names it; nothing here runs a command.
-
-Every reason `jmerge` writes after `wait:` or `hold:` from here is a named constant of this
-module, a `Reason` that names the step of the view it waits on, formatted where it names a
-value, and a function returns one and never a string of its own: the view places a pull
-request from them (`jbus.merge.step`), so a new reason is placed where it is declared. A
-constant whose name starts with `_` is a piece of a reason or a note of a `ready` or `merged`
-line.
-"""
-
 from __future__ import annotations
 
 import ast
@@ -46,10 +31,6 @@ _VALUE = ".+"
 
 
 class Reason(str):
-    """A reason `jmerge` writes after `wait:` or `hold:`, as text, with the step of the view a
-    pull request it names waits on (`jbus.merge.step`): `""` for one on no step. Its text is a
-    template where it names a value, and `format` gives the plain text."""
-
     step: str
 
     def __new__(cls, step: str, text: str) -> Reason:
@@ -59,7 +40,6 @@ class Reason(str):
 
     @property
     def pattern(self) -> str:
-        """A regex of the text, each value it names standing for any text."""
         return "".join(
             re.escape(literal) + (_VALUE if name is not None else "")
             for literal, name, _, _ in string.Formatter().parse(self)
@@ -67,7 +47,6 @@ class Reason(str):
 
 
 def reasons() -> dict[str, Reason]:
-    """Every reason of this module, by its name, in the order they are declared."""
     return {name: value for name, value in globals().items() if isinstance(value, Reason)}
 
 
@@ -192,8 +171,6 @@ _FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {ti
 
 @dataclass(frozen=True)
 class PullRequest:
-    """One open pull request, as `gh pr list --json` gives it."""
-
     number: int
     url: str
     title: str
@@ -211,8 +188,6 @@ class PullRequest:
 
 
 def _at(text: str | None) -> datetime | None:
-    """A time GitHub gives, or None where it gives none: a run that never started has the
-    year 1, which is no time at all."""
     try:
         at = datetime.fromisoformat(text or "")
     except (TypeError, ValueError):
@@ -221,13 +196,6 @@ def _at(text: str | None) -> datetime | None:
 
 
 def latest(rollup: list[dict]) -> list[dict]:
-    """The latest run of the check named `check`: the one that started last, then the one
-    that completed last.
-
-    A head keeps every run of its check, so a run that was cancelled and run again leaves
-    both, and only the last says what the head is. A run with no start or no end yet has not
-    ended and is later than any that has; runs that cannot be told apart are all the latest.
-    """
     named = [one for one in rollup if REQUIRED in (one.get("name"), one.get("context"))]
     end = datetime.max.replace(tzinfo=UTC)
 
@@ -239,13 +207,6 @@ def latest(rollup: list[dict]) -> list[dict]:
 
 
 def passed(rollup: list[dict]) -> bool:
-    """Whether the check named `check` passed in its latest run, whatever the other checks
-    say.
-
-    A status context has a `context` and a `state`; a check run has a `name`, a `status` and
-    a `conclusion`. A check that is missing, skipped, neutral, pending or failed has not
-    passed, and nothing stands in for it.
-    """
     runs = latest(rollup)
     return bool(runs) and all(
         one.get("state") == "SUCCESS"
@@ -255,10 +216,6 @@ def passed(rollup: list[dict]) -> bool:
 
 
 def started(rollup: list[dict]) -> datetime | None:
-    """When the latest run of the check named `check` started, or None where it says no time.
-
-    The latest runs, where more than one, share their start.
-    """
     runs = latest(rollup)
     return _at(runs[0].get("startedAt")) if runs else None
 
@@ -292,7 +249,6 @@ def _second(line: str) -> str:
 
 
 def brief_of(url: str, tasks: Path) -> Path | None:
-    """The first brief with a Result whose `Branch:` line ends on the pull request's url."""
     for task in sorted(tasks.glob("*.md")):
         try:
             lines = task.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -306,7 +262,6 @@ def brief_of(url: str, tasks: Path) -> Path | None:
 
 
 def home_of(text: str) -> str:
-    """The thread id on a brief's `Home:` line, or nothing for a brief with no such line."""
     for line in text.splitlines():
         if line.startswith("Home:"):
             return "".join(line.removeprefix("Home:").split()[:1])
@@ -314,10 +269,6 @@ def home_of(text: str) -> str:
 
 
 def stack_of(text: str) -> str | None:
-    """The name on the `Stack:` line in the brief's head, or None for a brief with no such line.
-
-    The head ends at the first Result: the same words in what a crewmate wrote do not count.
-    """
     for line in text.splitlines():
         if line.startswith("## "):
             break
@@ -327,12 +278,6 @@ def stack_of(text: str) -> str | None:
 
 
 def held(one: PullRequest, default: str, stack: str | None, land: str | None) -> str:
-    """Why the pull request is not the command's to merge, whatever its review and checks say.
-
-    A pull request based on another branch would be merged into that branch, and nothing of
-    it would reach the default one. A stack is landed by the user: `land` is the stack they
-    said to land, and it lifts the second wait only.
-    """
     if one.base != default:
         return BASE.format(base=one.base, default=default)
     if stack is None or (stack and stack == land):
@@ -341,13 +286,6 @@ def held(one: PullRequest, default: str, stack: str | None, land: str | None) ->
 
 
 def rebase_held(text: str, head: str) -> str:
-    """Why a pull request whose crew held a rebase waits, or nothing.
-
-    Past its `Fixed:` line a crew rebases twice for the default branch, and in place of the
-    third writes `Rebase hold: at <head>, ...` and parks a gate. The pull request waits at
-    that head until a `Rebase hold lifted:` line comes after it; a later head is one the
-    crew rebased after all.
-    """
     last = ""
     for line in text.splitlines():
         found = _HELD.match(line)
@@ -357,9 +295,6 @@ def rebase_held(text: str, head: str) -> str:
 
 
 def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:
-    """The migrations a pull request adds: the files it adds directly in the repo's migration
-    directory, by name, each with its `.up.sql` and `.down.sql` or whatever else the repo
-    keeps beside it as one entry. Nothing for a repo with no migration directory."""
     if not directory:
         return ()
     found = (Path(path) for path in one.added)
@@ -368,19 +303,11 @@ def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:
 
 
 def migration_number(name: str) -> str:
-    """The digits a numbered migration's name starts with, or nothing for a name without."""
     found = _MIGRATION.match(name)
     return found[1] if found else ""
 
 
 def short_on_migration(names: tuple[str, ...], on_default: set[int], default: str) -> str:
-    """Why a pull request whose numbered migration is taken waits, or nothing.
-
-    The number is picked when the branch is cut and is wanted when it lands: a migration
-    whose number the default branch has already is renumbered by its crew to the one after the
-    highest the default branch has, written with as many digits as it has now, and the
-    pull request is judged again at its new head.
-    """
     for name in names:
         digits = migration_number(name)
         if digits and int(digits) in on_default:
@@ -393,16 +320,11 @@ _TAKEN = re.compile(MIGRATION_TAKEN.pattern + "$")
 
 
 def being_rebased(why: str) -> bool:
-    """Whether a wait is one its crew rebases for: a conflict with the base or with today's
-    default branch, or a migration number the default branch has taken."""
     return why in (CONFLICTS, FRESH_CONFLICT) or bool(_TAKEN.match(why))
 
 
 @dataclass
 class Round:
-    """One `## Review` section of a brief: its verdict, its head, its count of findings and
-    the reviewer its `By:` line names, a line of the role map's review list."""
-
     verdict: str = ""
     head: str = ""
     found: int = 0
@@ -410,20 +332,11 @@ class Round:
 
 
 def _worst(verdicts: list[str]) -> str:
-    """The verdict of the sections at one head: one that did not run outranks findings,
-    and findings outrank clean."""
     return max(verdicts, key=lambda verdict: _RANKS.get(verdict, len(_RANKS)))
 
 
 @dataclass
 class Said:
-    """What a brief says of its pull request's review, read line by line. `rounds` is each
-    `## Review` section in order. The sections that name one head are one round, one from
-    each reviewer the role map lists: `verdict` is the worst of the last round's, and `ran`
-    counts the rounds that ran. `reviewers` counts the `Reviewer:` lines that name a thread.
-    `second` and `scoped` say whether any `Second pass:` or `Scoped review:` line said one is
-    needed, guarded or not, whatever a later line says."""
-
     none: bool = False
     reviewers: int = 0
     written: bool = False
@@ -447,9 +360,6 @@ class Said:
 
 
 def said_of(text: str) -> Said:
-    """What the brief says of its review, read line by line: the one reader, which the merge
-    goes by and the view shows. The `## Review` sections, their findings and the answers to
-    them are read by `jbriefs.findings`, the one parser of them."""
     said = Said()
     triage = findings.triage(text)
     said.triage = triage
@@ -487,9 +397,6 @@ def said_of(text: str) -> Said:
 
 
 def unanswered(said: Said) -> str:
-    """Why the findings are not handled, or nothing: the first blocking finding with no
-    answer that counts (`jbriefs.findings`), on every path. Findings from before the ids are
-    counted, as their answers with no id were; the others are named by id."""
     blocking = said.triage.blocking()
     old = [one for one in blocking if one.legacy]
     if old:
@@ -510,11 +417,6 @@ def unanswered(said: Said) -> str:
 
 
 def _round(said: Said) -> None:
-    """The verdict of the last round and the count of rounds that ran. Within a round each
-    reviewer's last section is its word: a re-run at the same head replaces what it wrote
-    before, a `Verdict: not run` included. A round waits for
-    every reviewer the `Reviewer:` lines name: the reviewers are told apart by their `By:`
-    lines, whichever head each saw, and until each has written the review has no verdict."""
     if not said.rounds:
         return
     heads: dict[str, dict[str, str]] = {}
@@ -530,37 +432,12 @@ def _round(said: Said) -> None:
 
 
 def _ci_fix(said: Said) -> tuple[str, str]:
-    """The head the last `CI fix:` line names and the head its review saw, or nothing twice.
-
-    The line counts only of the review the brief has, and not after a fix: the `Fixed:`
-    line names the head then, as before. This is the one reading of it.
-    """
     if said.pushed and said.saw == said.reviewed and not _COMMIT.fullmatch(said.fixed):
         return said.pushed, said.saw
     return "", ""
 
 
 def short_of(text: str, head: str) -> str:
-    """The first thing the brief says its pull request is short of, or nothing.
-
-    A skill or principle the brief's `Skills:` line names comes first: its Results owe it an
-    artifact under `Skills run:`, and one that is missing, empty or a placeholder is the
-    crew's to write before anything else is judged (`jbriefs.skills.missing`).
-
-    A head that moved after the review or the `Fixed:` line is short of nothing here: the
-    range-diff says whether the review covers it (`to_range_diff`). Findings a `Fixed:`
-    line was written before are still not handled, and with the head off that line they
-    show two ways: the head is the one they were written on, or one has no `Finding:` line.
-
-    A fix whose review is owed, the last `Scoped review: needed since <head>` line, is short
-    of it until a review of another head is written. A `Second pass: needed since <head>`
-    line, which a brief from before that rule has, is read the same way. A line that ends
-    `guarded` is not read here: what holds that fix is the proof a guarded path is merged on
-    (`short_of_guarded` and the proof's head).
-
-    Last, on every path, each finding that blocks waits for an answer that counts
-    (`unanswered`, read by `jbriefs.findings`).
-    """
     said = said_of(text)
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     unrun = skills.missing(text)
@@ -589,37 +466,18 @@ def short_of(text: str, head: str) -> str:
 
 
 def _named(said: Said, head: str) -> bool:
-    """Whether a line of the brief names `head`: the `Fixed:` line where it names a commit,
-    else the last review's `Head:`, the last `CI fix:` line or the last `Rebase:` line.
-
-    A head no line names is not refused: it is compared with the commit the review covers
-    (`to_range_diff`).
-    """
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
     return head in (said.reviewed, _ci_fix(said)[0], said.rebased)
 
 
 def _covered(said: Said) -> str:
-    """The commit the review covers: the `Fixed:` commit, else the head the last review saw.
-
-    A clean review that is not the first was written after the fix, of the fix or of a
-    later head, so its head is the one covered and the `Fixed:` line is older than it.
-    A `Fixed:` line moved after such a review, for a failed check, is taken for older too:
-    a later rebase is then compared from that review's head, and the push no review saw
-    waits for a scoped review.
-    """
     if _COMMIT.fullmatch(said.fixed) and not (said.verdict == "clean" and said.ran > 1):
         return said.fixed
     return said.reviewed
 
 
 def under_fix(rebase: Rebase | None, text: str, head: str) -> str:
-    """The head the last review saw, where `head` is the `Fixed:` commit and no `Rebase:`
-    line tells of it, or nothing. A fix is a push on top of what was reviewed, so the two
-    left the default branch at one commit. Where they did not, a rebase came between them,
-    and the `Fixed:` line alone does not say a review saw what it did: the two are compared.
-    """
     said = said_of(text)
     reviewed = said.reviewed
     if rebase is None and said.fixed == head != reviewed and _COMMIT.fullmatch(reviewed):
@@ -628,7 +486,6 @@ def under_fix(rebase: Rebase | None, text: str, head: str) -> str:
 
 
 def _seen(text: str) -> set[str]:
-    """The head each `## Review` section names."""
     heads = set()
     review = False
     for line in text.splitlines():
@@ -641,8 +498,6 @@ def _seen(text: str) -> set[str]:
 
 @dataclass(frozen=True)
 class Rebase:
-    """What a Result's `Rebase:` line says a rebase did to the patch, the base-to-head diff."""
-
     did: str
     files: tuple[str, ...]
     before: str
@@ -650,13 +505,6 @@ class Rebase:
 
 
 def _told(text: str) -> Rebase | None:
-    """The last `Rebase:` line, or None for a brief with none or with one in the older shape.
-
-    With no such line, a `CI fix:` line is read as one: a push for a failed check moved the
-    head from the one the review saw, changed the patch, and has no file of a rebase to
-    count lines in. Only a line `_ci_fix` reads, so that `to_range_diff` gives no commit
-    to compare where this gives no rebase.
-    """
     found = None
     for line in text.splitlines():
         if line.startswith("Rebase: patch "):
@@ -676,32 +524,16 @@ def _told(text: str) -> Rebase | None:
 
 
 def rebase_of(text: str, head: str) -> Rebase | None:
-    """What the brief's `Rebase:` line says of the rebase that ended on `head`, or None.
-
-    A crewmate writes no such line since the review follows the patch, so this reads a
-    brief from before. Its line says nothing of a head the brief does not name (`_named`):
-    a later rebase wrote none, and that head is compared with the commit the review covers.
-    """
     return _told(text) if _named(said_of(text), head) else None
 
 
 def to_compare(rebase: Rebase | None) -> tuple[str, ...]:
-    """The commits whose patch-ids the command works out: those of a claim it can check.
-
-    A line that says the patch changed claims nothing a patch-id checks: what it changed is
-    read from the range-diff (`to_range_diff`).
-    """
     if rebase is None or rebase.did != "unchanged":
         return ()
     return (rebase.before, rebase.head)
 
 
 def short_on_rebase(rebase: Rebase | None, patches: list[str | None]) -> str:
-    """What the `Rebase:` line leaves the pull request short of, or nothing.
-
-    `patches` are the patch-ids of the commits `to_compare` gave, in that order, each None
-    where it could not be worked out.
-    """
     if rebase is None:
         return ""
     if not rebase.did:
@@ -715,15 +547,10 @@ def short_on_rebase(rebase: Rebase | None, patches: list[str | None]) -> str:
 
 
 def cannot_check(commit: str) -> str:
-    """The reason a `Rebase:` line that names a commit the main checkout does not have waits."""
     return CANNOT_CHECK.format(commit=commit)
 
 
 def _changed(diff: str) -> tuple[Counter[str], Counter[str]]:
-    """The lines a diff of one file adds and the lines it removes, each with how often.
-
-    A line is its text with the whitespace at its end stripped, and a blank one is no line.
-    """
     added: Counter[str] = Counter()
     removed: Counter[str] = Counter()
     hunks = False
@@ -736,15 +563,6 @@ def _changed(diff: str) -> tuple[Counter[str], Counter[str]]:
 
 
 def dropped(main: str, own: str, head: str) -> tuple[int, int]:
-    """How many lines a rebase dropped from one file: of the default branch's, and of the
-    pull request's own.
-
-    `main` is the diff of the file between where the branch left the default branch before
-    the rebase and where it leaves it now, `own` the pull request's diff of it before the
-    rebase, and `head` the file as the rebased head has it. A line one side added is still
-    there, unless the other side's diff removes that same line: a deletion that was meant.
-    Lines are counted, so one that is there once does not stand for two.
-    """
     theirs, gone_on_main = _changed(main)
     ours, gone_here = _changed(own)
     there = Counter(line.rstrip() for line in head.splitlines() if line.strip())
@@ -752,26 +570,24 @@ def dropped(main: str, own: str, head: str) -> tuple[int, int]:
 
 
 @dataclass(frozen=True)
-class Drop:
-    """One file a rebase took lines out of: how many of the default branch's, and how many
-    of the pull request's own."""
+class NoPatch:
+    commit: str
 
+
+@dataclass(frozen=True)
+class Drop:
     file: str
     mains: int
     own: int
 
 
 def _lost(lost: tuple[Drop, ...]) -> str:
-    """Each file that lost a line and whose it was, as the crew skill's block counts them."""
     mains = [_MAINS_LOST.format(count=one.mains, file=one.file) for one in lost if one.mains]
     own = [_OWN_LOST.format(count=one.own, file=one.file) for one in lost if one.own]
     return " and ".join([*mains, *own])
 
 
 def acks(text: str, head: str) -> dict[str, tuple[int, int, str]]:
-    """The brief's `Dropped on rebase: <file>, <n> of main's, <m> of its own, at <head12>:
-    <why>` lines for this head: file -> (n, m, why). A line at another head says nothing
-    of this one, and the last line for a file is the one that counts."""
     found = {}
     for line in text.splitlines():
         said = _ACK.fullmatch(line.strip())
@@ -781,21 +597,10 @@ def acks(text: str, head: str) -> dict[str, tuple[int, int, str]]:
 
 
 def answered(text: str, head: str) -> tuple[Drop, ...]:
-    """The drops the crew answered for at this head, as its `Dropped on rebase:` lines count
-    them. They stand for the count once a review saw the head and no `Rebase:` line is
-    there to count from: what that review ruled on them still holds."""
     return tuple(Drop(file, said[0], said[1]) for file, said in acks(text, head).items())
 
 
 def _rulings(text: str, head: str) -> tuple[set[str], dict[str, str]] | None:
-    """What the reviews that cover `head` say of the drops: the files upheld, and the
-    files not upheld with why. None where no review covers the head.
-
-    A review covers the head when its `Head:` line names it, or names the head the last
-    rebase ended on: what `to_range_diff` takes for a review that saw the rebased patch.
-    Every such review counts, and a later one that rules on a file again has the last
-    word on it: one that says nothing of the drops, a second pass, takes no ruling away.
-    """
     rebase = _told(text)
     heads = {head, rebase.head} if rebase and rebase.head else {head}
     found = None
@@ -822,27 +627,16 @@ def _rulings(text: str, head: str) -> tuple[set[str], dict[str, str]] | None:
 
 
 def upheld(text: str, head: str) -> set[str]:
-    """Files the review that covers `head` lists on its `Drops: upheld <file>, <file>` line."""
     ruled = _rulings(text, head)
     return ruled[0] if ruled else set()
 
 
 def unexplained(lost: tuple[Drop, ...], text: str, head: str) -> tuple[Drop, ...]:
-    """The drops its crew has not answered for at this head: a file with no `Dropped on
-    rebase:` line there, or with one whose counts are not the ones counted."""
     said = acks(text, head)
     return tuple(one for one in lost if said.get(one.file, ())[:2] != (one.mains, one.own))
 
 
 def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tuple[str, str]:
-    """`wait` or `hold` with why a rebase that dropped lines keeps the pull request from a
-    merge, or nothing twice: nothing was lost, or the crew explained each drop at this
-    head and a review that covers the head upheld each one.
-
-    A drop with no explanation waits on the crew, and one explained waits on the scoped
-    review. A drop the review ruled against is the user's. So is one a review of this head
-    said nothing of: a head has its one review, so no ruling is coming.
-    """
     lost = tuple(one for one in lost if one.mains or one.own)
     silent = unexplained(lost, text, head)
     if silent:
@@ -863,31 +657,6 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
 
 
 def to_range_diff(rebase: Rebase | None, text: str, head: str) -> str | None:
-    """The commit a review covers, to compare with a head that is not it, or None where
-    there is nothing to compare. `rebase` is `rebase_of`'s.
-
-    It is `_covered`'s, the `Fixed:` commit or the head the last review saw, whenever no
-    line of the brief names `head` and the last review did not see it: a rebase, or a push
-    no review saw. A clean range-diff carries the review over, and one that is not asks for one
-    scoped review. It is no commit where the review names none. The crew writes no line
-    for it and moves no `Fixed:` line. Where a brief from before has a `Rebase:` line that
-    moved the `Fixed:` line to the head of a rebase no review saw, it is the commit before
-    that rebase: the last one a review covers.
-
-    After a push for a failed check it is the head the last review saw, where the last
-    `CI fix:` line names `head` and that review. After a fix the `Fixed:` line stands for
-    the push.
-
-    The rest is how such a `Rebase:` line that names the head is read, as it was then.
-    None when a review saw the rebased patch: one written of the head the
-    rebase ended on, or of the head the pull request is at. Otherwise it is the head the
-    last review saw, whatever the `Rebase:` line says the rebase did: the line is of the
-    last rebase alone, and one before it may have changed what the patch says. It is no
-    commit where the review names none. After a fix it is the commit before the rebase,
-    for a line that says the patch changed: the `Fixed:` line named it then, and the
-    rebase moved that line to the new head. A fix pushed after the rebase stands on one
-    side alone, and the pull request waits for a scoped review of both.
-    """
     said = said_of(text)
     fixed = bool(_COMMIT.fullmatch(said.fixed))
     if _ci_fix(said)[0] == head:
@@ -911,23 +680,18 @@ def _short(commits: str) -> str:
 
 
 def rebase_note(verdict: Verdict | None) -> str:
-    """What a `ready` or `merged` line says of a rebase that changed the patch and left its
-    content as the review saw it, or nothing."""
     if verdict is None or not verdict.clean:
         return ""
     return _CARRIED.format(old=_short(verdict.old), new=_short(verdict.new))
 
 
 def short_on_content(verdict: Verdict | None) -> str:
-    """What a rebase that changed the content of the patch leaves the pull request short
-    of, or nothing: one review of what the range-diff shows, which jbus asks its crew for."""
     if verdict is None or verdict.clean:
         return ""
     return CONTENT_CHANGED.format(command=verdict.command)
 
 
 def short_on_github(one: PullRequest) -> str:
-    """What GitHub says the pull request is short of, or nothing."""
     if not one.passed:
         return NOT_PASSED
     if one.mergeable == "MERGEABLE":
@@ -938,12 +702,6 @@ def short_on_github(one: PullRequest) -> str:
 
 
 def patterns_of(text: str) -> tuple[str, ...]:
-    """The patterns of a file of paths (protected, guarded, CI): one per line, `#` for a comment.
-
-    A pattern that cannot be read as the rules of `_protects` read one is refused, with a
-    ValueError that names it and `GRAMMAR`: one that is taken and protects nothing is no
-    guardrail.
-    """
     lines = (line.strip() for line in text.splitlines())
     patterns = tuple(line for line in lines if line and not line.startswith("#"))
     for pattern in patterns:
@@ -958,14 +716,6 @@ def patterns_of(text: str) -> tuple[str, ...]:
 
 
 def _protects(pattern: str, path: str) -> bool:
-    """Whether a pattern protects a path. Each part between two `/` is matched by itself,
-    so a `*` never crosses one.
-
-    A pattern that ends in `/` is a directory, and covers everything under it. With a `/`
-    before that, or at its start, it is a path from the root of the repo; a bare name is a
-    directory at any depth. A pattern that does not end in `/` is a file: a bare name at any
-    depth, and with a `/` in it the whole path from the root.
-    """
     *directories, name = path.split("/")
     wanted = pattern.strip("/").split("/")
     rooted = "/" in pattern.removesuffix("/")
@@ -987,13 +737,6 @@ def needs_the_user(
     *,
     user: Settings,
 ) -> str:
-    """Why the pull request is the user's to merge and never the command's, or nothing.
-
-    It changes a protected path, or GitHub did not say every path it changes: a path that
-    was not listed cannot be said to be unprotected. A rename is a change to both its paths,
-    and GitHub lists it under the new one alone: `left` are the paths its renames left, or
-    None where they could not be asked for.
-    """
     for path in (*one.files, *(left or ())):
         if any(_protects(pattern, path) for pattern in patterns):
             return TOUCHES.format(user=user.user, path=path)
@@ -1006,8 +749,6 @@ def needs_the_user(
 
 @dataclass(frozen=True)
 class Judged:
-    """A pull request that met every gate, as it was judged."""
-
     path: str = ""
     tip: str = ""
     rules: bool = False
@@ -1015,8 +756,6 @@ class Judged:
 
 
 def guarded_path(one: PullRequest, patterns: tuple[str, ...], left: tuple[str, ...] = ()) -> str:
-    """The first guarded path the pull request changes, or nothing. A rename changes the
-    path it left too."""
     for path in (*one.files, *left):
         if any(_protects(pattern, path) for pattern in patterns):
             return path
@@ -1028,15 +767,6 @@ def changes_the_rules(one: PullRequest, left: tuple[str, ...] = ()) -> bool:
 
 
 def short_of_guarded(one: PullRequest, text: str, rebase: Rebase | None, carried: str) -> str:
-    """What a pull request that is ready is still short of when it changes a guarded path.
-
-    Its check has a start time, which is what main is compared against. Its review is
-    finished: `short_of` has held it until every finding that blocks has its answer, on every
-    path, with or without a second pass. And the head is one the review covers: the head it
-    saw, the `Fixed:` commit, the head of a rebase the command found to leave the patch as it
-    was, or one the review carried over to. `carried` is `rebase_note`'s: a rebase that left
-    the content as it was.
-    """
     if one.started is None:
         return NO_START
     said = said_of(text)
@@ -1053,14 +783,6 @@ def stale_paths(
     main_paths: tuple[str, ...],
     ci_paths: tuple[str, ...],
 ) -> tuple[str, ...]:
-    """The paths the default branch changed that make a pull request's check stale.
-
-    `main_paths` are the paths the default branch changed since the check started, the
-    paths its renames left included. One is stale when the pull request changes it too
-    (`pr_files`, and `renamed_from`, the paths its own renames left), or when it matches a
-    pattern of `ci_paths`: the check then ran against another CI. A default branch that
-    moved only on other paths leaves the check standing.
-    """
     ours = {*pr_files, *renamed_from}
     stale = (
         path
@@ -1071,11 +793,6 @@ def stale_paths(
 
 
 def modules(path: str) -> tuple[str, ...]:
-    """The names a Python file may be imported by: its dotted path and each tail of it, as
-    any directory may be an import root (`src/`, or a test directory pytest puts on the
-    path, where `tests/test_a.py` imports `test_b`). A package is its `__init__.py`.
-    Nothing for any other file. A tail that is also a library's name counts too: it fails
-    toward a fresh check."""
     if not path.endswith(".py"):
         return ()
     parts = path[: -len(".py")].split("/")
@@ -1087,11 +804,6 @@ def modules(path: str) -> tuple[str, ...]:
 
 
 def imports(path: str, text: str) -> set[str]:
-    """Every module a Python file's imports load: each dotted prefix of `import a.b`, and
-    for `from a import b` both `a` and `a.b`, a relative one read from the file's own
-    package, by its full dotted path alone: a tail of it would make `from .models import x`
-    in one directory a caller of `models.py` in every other. Nothing for a file that is not
-    Python or does not parse."""
     if not path.endswith(".py"):
         return set()
     try:
@@ -1125,9 +837,6 @@ def imports(path: str, text: str) -> set[str]:
 
 
 def uses(path: str, text: str, other: str) -> bool:
-    """Whether a file calls on another: imports it, Python's way, or names its path, with
-    a `/` in it (a bare root name such as `Makefile` is a word as often as a reference). A
-    `conftest.py` is used by every Python file under its directory, as pytest loads it."""
     if other.endswith("conftest.py") and path.endswith(".py"):
         if path.startswith(other[: -len("conftest.py")]):
             return True
@@ -1137,12 +846,6 @@ def uses(path: str, text: str, other: str) -> bool:
 
 
 def callers_and_dependencies(ours: dict[str, str], theirs: dict[str, str]) -> tuple[str, ...]:
-    """The paths of `theirs` that are a caller of the pull request's files or something they
-    depend on. `ours` is each file the pull request changes with its text at the head, and
-    `theirs` each other one the default branch changed with its text at its tip, empty where
-    it is gone. A file of `theirs` counts when it uses one of `ours`, or one of `ours` uses
-    it (`uses`). A check that ran before such a change ran the patch against code it no
-    longer meets, so it is stale as a file of its own would make it."""
     return tuple(
         path
         for path, text in theirs.items()
@@ -1158,8 +861,6 @@ def short_on_main(
     *,
     user: Settings,
 ) -> str:
-    """The reason a pull request with stale paths waits, or nothing where it has none.
-    `needs` is what lifts it: a fresh check, or for a guarded path a rebase alone."""
     if not stale:
         return ""
     more = _MORE.format(more=len(stale) - 5) if len(stale) > 5 else ""
@@ -1168,32 +869,22 @@ def short_on_main(
 
 
 def fresh_note(command: str, head: str, tip: str) -> str:
-    """What a `ready` or `merged` line says of a local check that stood in for a stale one."""
     return _FRESH_NOTE.format(command=command, passed=PASSED, head=head[:12], tip=tip[:12])
 
 
 def fresh_kept(command: str, head: str, was: str, tip: str) -> str:
-    """What a `ready` or `merged` line says of a local check that passed over an older main,
-    which still stands since main's change after it meets none of the pull request's tests."""
     return fresh_note(command, head, was) + _FRESH_KEPT.format(tip=tip[:12])
 
 
 def fresh_skipped(tree: str, at: str, head: str, tip: str) -> str:
-    """What a `ready` or `merged` line says of a local check that was not run, since a green
-    run of the check, or the desk, already passed the whole suite on the same merge tree:
-    the tree, and the run's address or the desk's commit."""
     return _FRESH_SKIPPED.format(tree=tree, at=at, head=head[:12], tip=tip[:12])
 
 
 def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
-    """The reason a pull request whose local check failed waits, or nothing. jbus reads the
-    head from it, and tells the crewmate to rebase. A check that ran over its time found
-    nothing of the tree, so it is no fail: the check is queued again."""
     if result == PASSED:
         return ""
     return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12])
 
 
 def fresh_command(text: str) -> str:
-    """The command a repo's `fresh-check` file holds: its first line."""
     return "".join(text.strip().splitlines()[:1]).strip()

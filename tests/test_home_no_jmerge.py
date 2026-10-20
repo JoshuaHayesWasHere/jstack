@@ -427,7 +427,7 @@ def test_whose_a_brief_is_agrees_with_jmerge(repo):
     repo.merge()
     repo.merge(me="mcp:scoped")
     repo.log(*(MERGED.replace("beta", slug) for slug in NAMED))
-    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes()
+    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
     assert {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED} == OWNERS
     for me, name in ((ME, claims.ROOT), ("mcp:scoped", "billing"), (None, claims.ROOT)):
         theirs = [slug for slug in NAMED if OWNERS[slug] == name]
@@ -454,11 +454,11 @@ def test_a_brief_has_one_home_whoever_asks(repo):
     (repo.state / "handoff.md").write_text("# handoff\nWas home: mcp:root-before\n")
     for asker in ("mcp:nobody", "mcp:root-before", "mcp:scoped-before", "billing"):
         assert mine(repo, asker) == []
-    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes()
+    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
     owners = {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED}
     assert owners == OWNERS
     (repo.state / "home-id").unlink()
-    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes()
+    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
     assert {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED} == OWNERS
     roots = [slug for slug in NAMED if OWNERS[slug] == claims.ROOT]
     assert mine(repo, None) == roots
@@ -472,7 +472,7 @@ def test_an_id_in_two_home_id_files_asks_as_the_home_its_briefs_are(repo):
         (repo.state / scope).mkdir()
         (repo.state / scope / "home-id").write_text("mcp:scoped\n")
     asking = cli.Repo(repo.main, repo.state, "mcp:scoped", False, user=jsettings.DEFAULTS)
-    assert asking.homes()["mcp:scoped"] == asking.asking == "reports"
+    assert asking.homes.known["mcp:scoped"] == asking.asking == "reports"
     assert mine(repo, "mcp:scoped") == ["scoped", "no-scope"]
 
 
