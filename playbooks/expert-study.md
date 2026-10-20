@@ -25,7 +25,7 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
            if [ "$(grep -c "^#* *$part\$" "$E/notes/$n")" != 1 ]; then echo "not once in $n: $part"; fi
        done
    done
-   sh "$T/../skills/expert/scripts/lint-notes.sh" "$E"
+   sh "$T/../src/jpack/lint-notes.sh" "$E"
    ```
 
    Fix this pass's notes until it names none. An earlier pass's note it names is never patched: its question goes in `$E/unknowns.md`. Then follow one line of each note's Sources back to the source at that revision, and see that the line is there and says what the note says (`principles/principle-prove-it-works.md`).

@@ -9,6 +9,7 @@ Paths:
 - `src/jbriefs/`
 - `src/jgauge/`
 - `src/jmerge/`
+- `src/jpack/`
 - `src/jroles/`
 - `src/jsettings/`
 - `docs/jbus.md`
