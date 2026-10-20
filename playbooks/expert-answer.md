@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the answer, and what the folder knows after it.** `$E` and `$T` are what the block at the top of `skills/expert/SKILL.md` sets. Every call only reads, but for writes in `$E`.
+**You own the answer, and what the folder knows after it.**
+`$E` and `$T` are what the block at the top of `skills/expert/SKILL.md` sets.
+Every call only reads, but for writes in `$E`.
 
 1. Write the question as you read it, and what would count as an answer. Then write what it takes for granted, in one sentence: steps 2 to 4 check that too, and where it is false the answer opens by saying so (`principles/principle-attack-the-premise.md`).
 2. Read `$E/corrections.md` whole, again: it is the layer that wins. Write down each one that bears on the question, quoted with its date, or `no correction`. One that settles the question is the answer: steps 3 and 4 then check only what it leaves open.
@@ -50,9 +52,13 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
 
 Never done here, and who does it:
 
-- **The change the answer points to.** The home that owns it decides: the finding goes there as a gate, as `skills/expert/SKILL.md` "What an expert never does" says.
-- **A line in `corrections.md`.** The user writes it: ask them to.
-- **Moving the pin in `sources.md`.** A `refresh` ask does.
-- **An answer outside the charter.** Nobody: one line says so.
+- **The change the answer points to.**
+  The home that owns it decides: the finding goes there as a gate, as `skills/expert/SKILL.md` "What an expert never does" says.
+- **A line in `corrections.md`.**
+  The user writes it: ask them to.
+- **Moving the pin in `sources.md`.**
+  A `refresh` ask does.
+- **An answer outside the charter.**
+  Nobody: one line says so.
 
 **Hand over:** in this thread, to whoever asked: the answer in its four parts, and after it the path of each file step 7 wrote.

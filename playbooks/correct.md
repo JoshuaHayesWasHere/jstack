@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the correction: the level, the check and the proof.** A correction is done when the mistake cannot be made again, or fails loudly when it is. A paragraph asking the next agent to be careful is not one. The smallest check that catches the class ships, and nothing more (`principles/principle-laziness-protocol.md`).
+**You own the correction: the level, the check and the proof.**
+A correction is done when the mistake cannot be made again, or fails loudly when it is.
+A paragraph asking the next agent to be careful is not one.
+The smallest check that catches the class ships, and nothing more (`principles/principle-laziness-protocol.md`).
 
 1. Read the evidence the brief gives for the class: the commits, steers or review findings, at least two. Open each and write down the one thing they share, as a sentence a check could test. If they share nothing, it is not a class: stop and say so.
 2. Reproduce one past mistake. In your worktree, put it back as it was made (the reverted commit's change, the line the reviewer flagged), and see that the repo's check command passes with it there. That pass is the gap you are closing (`principles/principle-fix-root-causes.md`). Undo it.
@@ -23,8 +26,12 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A second class in the same pull request.** It goes under "Noticed", for the home to plan.
-- **An edit to `notes.md`, the plan or `~/.claude/CLAUDE.md`.** The home adds the line from step 6, and the rest is not this task's.
-- **An exception to the new check.** Only the user's word makes one.
+- **A second class in the same pull request.**
+  It goes under "Noticed", for the home to plan.
+- **An edit to `notes.md`, the plan or `~/.claude/CLAUDE.md`.**
+  The home adds the line from step 6, and the rest is not this task's.
+- **An exception to the new check.**
+  Only the user's word makes one.
 
-**Hand over:** in the pull request's Verification and on the Result's `Proof:` line, to the reviewer and the home: the class and its evidence, the level picked and why no higher one works, the break used to show the check red with its output failing and then passing, and the `notes.md` line.
+**Hand over:** in the pull request's Verification and on the Result's `Proof:` line, to the reviewer and the home: the class and its evidence, the level picked and why no higher one works,
+the break used to show the check red with its output failing and then passing, and the `notes.md` line.

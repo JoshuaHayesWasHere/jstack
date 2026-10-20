@@ -54,11 +54,24 @@ party_home() {
 }
 ```
 
-That is **the block at the top**: run it in the same call as each block below. Every block is sh, and the line before `this_home` makes zsh read them so. `$H` is the repo's state directory, which every home of the repo shares. `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
+That is **the block at the top**: run it in the same call as each block below.
+Every block is sh, and the line before `this_home` makes zsh read them so.
+`$H` is the repo's state directory, which every home of the repo shares.
+`$T` is the `templates/` directory of the repo this skill lives in.
+Each template there is the one copy of its text: read it when a step names it, not before.
 
-A handoff is a home's. A repo has one root home, and may have scoped homes beside it (`skills/home/SKILL.md`, "Where a home's state lives"), and each hands off in its own directory, `$M`: `$H` for the root home, `$H/<scope>` for a scoped one. `this_home` sets it as the home skill does, from the one `home-id` that holds this thread's id. `handed_off` sets `$L` to the directory of the home a thread was, from the `Was home:` line step 3 writes, or to nothing. Each block below is run with that id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). In a session with no tool that gives the id, put nothing in its place: the handoff is the root's.
+A handoff is a home's.
+A repo has one root home, and may have scoped homes beside it (`skills/home/SKILL.md`, "Where a home's state lives"), and each hands off in its own directory, `$M`: `$H` for the root home, `$H/<scope>` for a scoped one.
+`this_home` sets it as the home skill does, from the one `home-id` that holds this thread's id.
+`handed_off` sets `$L` to the directory of the home a thread was, from the `Was home:` line step 3 writes, or to nothing.
+Each block below is run with that id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first).
+In a session with no tool that gives the id, put nothing in its place: the handoff is the root's.
 
-A party that is no repo's home hands off too. Its folder is `~/.local/state/home/_<name>`, beside the repos' state directories, and holds its thread id in a `home-id`. `party_home` finds it by that id, and sets `$M` to the folder and `$P` to the name. It finds no expert, whose folder has a `CHARTER.md`: an expert rolls over as `$T/../skills/expert/SKILL.md` "When to roll over" says, and never by this skill. `handed_off` finds a party that handed off as it finds a home.
+A party that is no repo's home hands off too.
+Its folder is `~/.local/state/home/_<name>`, beside the repos' state directories, and holds its thread id in a `home-id`.
+`party_home` finds it by that id, and sets `$M` to the folder and `$P` to the name.
+It finds no expert, whose folder has a `CHARTER.md`: an expert rolls over as `$T/../skills/expert/SKILL.md` "When to roll over" says, and never by this skill.
+`handed_off` finds a party that handed off as it finds a home.
 
 Before step 1, see which home this is:
 
@@ -82,17 +95,38 @@ if [ "$M" = "$H" ]; then echo "root"; else echo "scope ${M##*/}"; fi
 printf 'write: %s\n' "$M/handoff.next.md"
 ```
 
-It prints which home this is and where step 2 writes the note. On `party <name>`, this thread is that party's home and no repo's: do none of the steps below, and go by "A party's home". On `closed before`, an earlier turn of this handoff closed and was cut off after it: run step 1, then step 3 and what follows it. On `no home:`, the call stops and nothing is written. This thread is no home now: a crewmate, an ordinary thread, or a home that another took the place of. It writes no note, since that is a home's. Tell the user so in three lines at most, with what this thread leaves undone, and end here.
+It prints which home this is and where step 2 writes the note.
+On `party <name>`, this thread is that party's home and no repo's: do none of the steps below, and go by "A party's home".
+On `closed before`, an earlier turn of this handoff closed and was cut off after it: run step 1, then step 3 and what follows it.
+On `no home:`, the call stops and nothing is written.
+This thread is no home now: a crewmate, an ordinary thread, or a home that another took the place of.
+It writes no note, since that is a home's.
+Tell the user so in three lines at most, with what this thread leaves undone, and end here.
 
 ## Steps
 
-1. **Stop what runs in the background.** A watch, a loop, a `lavish-axi poll` this thread holds: stop each by its process id. This thread is finished and must have nothing left that wakes it. Each one the next home has to start again goes in the note, under `Out, not on the bus:`, with what it watched. Then run `git status --short` and `git log --oneline @{upstream}..` in each worktree this thread used, the main checkout included: each path and commit they print goes under `Uncommitted:` with its branch, and `none` only when both print nothing there.
+1. **Stop what runs in the background.**
+   A watch, a loop, a `lavish-axi poll` this thread holds: stop each by its process id.
+   This thread is finished and must have nothing left that wakes it.
+   Each one the next home has to start again goes in the note, under `Out, not on the bus:`, with what it watched.
+   Then run `git status --short` and `git log --oneline @{upstream}..` in each worktree this thread used, the main checkout included: each path and commit they print goes under `Uncommitted:` with its branch,
+   and `none` only when both print nothing there.
 
-2. **Write the note**, at the path the block above printed after `write: `, in the shape of `$T/handoff.md`: read it now. It holds only what nothing else holds. The next home's start reads `jbus plan`, the open rows of the queue, the open questions, what merged and what came in since ("When a home starts", step 4, in `$T/../skills/home/SKILL.md`), so none of that is written here: no status, no thread a row of the queue names, no question jbus holds, no `merged` line. A rule of the user's is no line of it either: the home wrote it to `standing.md` when it heard it. Right after any edit this handoff makes to `$H/standing.md`, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed. Facts and pointers, not narrative: a path or a thread id in place of an explanation.
+2. **Write the note**, at the path the block above printed after `write: `, in the shape of `$T/handoff.md`: read it now.
+   It holds only what nothing else holds.
+   The next home's start reads `jbus plan`, the open rows of the queue, the open questions, what merged and what came in since ("When a home starts", step 4, in `$T/../skills/home/SKILL.md`), so none of that is written here: no status,
+   no thread a row of the queue names, no question jbus holds, no `merged` line.
+   A rule of the user's is no line of it either: the home wrote it to `standing.md` when it heard it.
+   Right after any edit this handoff makes to `$H/standing.md`, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed.
+   Facts and pointers, not narrative: a path or a thread id in place of an explanation.
 
-   A gate jbus could not take, which came as a message or sits in a Result or a Report, is held by nothing else while it is unanswered: write it under the labels, whole, with its default and its `Asked by:` and `Undo:` lines. The gates are not counted in the note's ten lines.
+   A gate jbus could not take, which came as a message or sits in a Result or a Report, is held by nothing else while it is unanswered: write it under the labels, whole, with its default and its `Asked by:` and `Undo:` lines.
+   The gates are not counted in the note's ten lines.
 
-3. **Close.** Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments. Then run this with the block at the top, with this thread's id in place of `<threadId>` and the whole reply in place of the line in angle brackets. In a session with no such tool, leave the line as it is:
+3. **Close.**
+   Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments.
+   Then run this with the block at the top, with this thread's id in place of `<threadId>` and the whole reply in place of the line in angle brackets.
+   In a session with no such tool, leave the line as it is:
 
    ```sh
    ME='<threadId>'
@@ -185,25 +219,58 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, moves the old one to `log/` under a dated name, puts the note in its place as `handoff.md` with a `Scope closed:` line for a scoped home whose plan has no open entry, then the `Was home:` line with this thread's id, and removes `home-id`. A second run changes nothing and prints `closed before`, with the same `title:` and `message:` lines. Its first line is what the steps below go by, and the `title:` and `message:` lines are what step 4 sends: keep all of them.
+   It does it all, in this order: it reads the note, moves the old one to `log/` under a dated name, puts the note in its place as `handoff.md` with a `Scope closed:` line for a scoped home whose plan has no open entry,
+   then the `Was home:` line with this thread's id, and removes `home-id`.
+   A second run changes nothing and prints `closed before`, with the same `title:` and `message:` lines.
+   Its first line is what the steps below go by, and the `title:` and `message:` lines are what step 4 sends: keep all of them.
 
-   - `not known:` and `not written:`: nothing is changed. Put right what it names in the note, and run it again. A note whose lines will not fit in ten is cut, not split: the next home reads the rest from jbus.
-   - `not the home`: this thread's id is in no `home-id`, or the session gives no id. With no id, the note is the root's `handoff.md` now and `home-id` is left. Tell the user, in three lines at most, what was written, the one thing that is next, and: "Open a new thread in this project and type `/home`", or `/home <scope>` for a scoped home. Launch nothing, rename nothing, settle nothing. The skill ends here.
+   - `not known:` and `not written:`: nothing is changed.
+     Put right what it names in the note, and run it again.
+     A note whose lines will not fit in ten is cut, not split: the next home reads the rest from jbus.
+   - `not the home`: this thread's id is in no `home-id`, or the session gives no id.
+     With no id, the note is the root's `handoff.md` now and `home-id` is left.
+     Tell the user, in three lines at most, what was written, the one thing that is next, and: "Open a new thread in this project and type `/home`", or `/home <scope>` for a scoped home.
+     Launch nothing, rename nothing, settle nothing.
+     The skill ends here.
    - `the home`: go on with step 4.
-   - `closed before`: look for the next home as step 4 says after a lost launch, with the `title:` it printed. With none, go on with step 4. With one, launch nothing: tell the user its link, then step 5.
-   - `the home of a closed scope`, with or without `closed before`: write no seed and launch nothing. No home comes after this one to take a scheduled task over, so switch off each one it printed a `Scheduled task` line for, with the `t3-code` server's `update_scheduled_task` (if your harness defers it, load it first), `{"scheduledTaskId": "<scheduledTaskId>", "enabled": false}`. A task that is off runs nothing, so it cannot make this thread active again, and it keeps its address for the home that `/home <scope>` starts to take over. Delete none. Tell the user, in three lines at most, what was written, that the scope is closed with no home after this one, and each task that is now off. Then step 5.
+   - `closed before`: look for the next home as step 4 says after a lost launch, with the `title:` it printed.
+     With none, go on with step 4.
+     With one, launch nothing: tell the user its link, then step 5.
+   - `the home of a closed scope`, with or without `closed before`: write no seed and launch nothing.
+     No home comes after this one to take a scheduled task over, so switch off each one it printed a `Scheduled task` line for, with the `t3-code` server's `update_scheduled_task` (if your harness defers it, load it first),
+     `{"scheduledTaskId": "<scheduledTaskId>", "enabled": false}`.
+     A task that is off runs nothing, so it cannot make this thread active again, and it keeps its address for the home that `/home <scope>` starts to take over.
+     Delete none.
+     Tell the user, in three lines at most, what was written, that the scope is closed with no home after this one, and each task that is now off.
+     Then step 5.
 
-   Under those lines it prints one line for each scheduled task that posts into this thread, and never a task's address. On `delete <id>`, delete that task now, as "A home that hands off" in `$T/../skills/home/SKILL.md` says. A `Scheduled task` line asks nothing of a home that is followed by another: this thread cannot hand a task on, since a task is bound only by the thread that calls, and the next home's start takes each one over by the `Was home:` line, until when a run of one makes this thread active again. On `not read`, in a session with no such tool, there is nothing to do: the next home's start lists them.
+   Under those lines it prints one line for each scheduled task that posts into this thread, and never a task's address.
+   On `delete <id>`, delete that task now, as "A home that hands off" in `$T/../skills/home/SKILL.md` says.
+   A `Scheduled task` line asks nothing of a home that is followed by another: this thread cannot hand a task on, since a task is bound only by the thread that calls, and the next home's start takes each one over by the `Was home:` line,
+   until when a run of one makes this thread active again.
+   On `not read`, in a session with no such tool, there is nothing to do: the next home's start lists them.
 
-   A home's own `home-id` holds its id: the home's start wrote it there, and nothing else does. `home-thread` is another file, the switch that hands merging from jbus to a home: it is set by hand, and the block leaves it as it is. The block changes only this home's directory, and no other home's files.
+   A home's own `home-id` holds its id: the home's start wrote it there, and nothing else does.
+   `home-thread` is another file, the switch that hands merging from jbus to a home: it is set by hand, and the block leaves it as it is.
+   The block changes only this home's directory, and no other home's files.
 
-   The `Was home:` line is the last line of the note, on a line of its own. It is the record of the thread that handed off, and nobody's address: the start of this home's next thread reads it to take over this thread's scheduled tasks and to settle this thread (`skills/home/SKILL.md`, "The home before this one"), and "After the handoff" reads it to say whose mail a late message is. No brief and no request is rewritten, now or at that start. From here to that start `home-id` is gone, for the root home and for a scoped one alike: a thread that has something to tell finds nobody, sends nothing, and its report waits on disk for the next home to read.
+   The `Was home:` line is the last line of the note, on a line of its own.
+   It is the record of the thread that handed off, and nobody's address: the start of this home's next thread reads it to take over this thread's scheduled tasks and to settle this thread (`skills/home/SKILL.md`, "The home before this one"),
+   and "After the handoff" reads it to say whose mail a late message is.
+   No brief and no request is rewritten, now or at that start.
+   From here to that start `home-id` is gone, for the root home and for a scoped one alike: a thread that has something to tell finds nobody, sends nothing, and its report waits on disk for the next home to read.
 
-   A scoped home whose plan has no open entry is done: an entry is open for as long as its `## <slug>:` section is in `plan.md`, whatever a line under it says, since `jbus plan close` moves a finished one out. Nobody is sent a message: the root home reads the `Scope closed:` line when the user asks it where things stand. The root home is never closed.
+   A scoped home whose plan has no open entry is done: an entry is open for as long as its `## <slug>:` section is in `plan.md`, whatever a line under it says, since `jbus plan close` moves a finished one out.
+   Nobody is sent a message: the root home reads the `Scope closed:` line when the user asks it where things stand.
+   The root home is never closed.
 
-4. **Launch the next home.** A home has one thread open at a time, so the home that hands off starts its next thread itself and then closes.
+4. **Launch the next home.**
+   A home has one thread open at a time, so the home that hands off starts its next thread itself and then closes.
 
-   1. Write the seed, in the shape of `$T/handoff-seed.md`: read it now. It is the next home's first message, in place of `<seed>` on the `message:` line step 3 printed. It carries only what this home was asked to keep doing that the skills and the state on disk do not say. What the note, `standing.md` or jbus holds is left out of it.
+   1. Write the seed, in the shape of `$T/handoff-seed.md`: read it now.
+      It is the next home's first message, in place of `<seed>` on the `message:` line step 3 printed.
+      It carries only what this home was asked to keep doing that the skills and the state on disk do not say.
+      What the note, `standing.md` or jbus holds is left out of it.
    2. Launch the next home with the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
 
       ```json
@@ -214,7 +281,11 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       }
       ```
 
-      Before this launch, run `uv run --project "$T/.." jroles home` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. Leave the project and modes out, and the model unless `jroles` printed one.
+      Before this launch, run `uv run --project "$T/.." jroles home` with the block at the top.
+      When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names.
+      When it prints nothing, the call is the one above.
+      Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+      Leave the project and modes out, and the model unless `jroles` printed one.
 
       ```json
       {
@@ -225,13 +296,20 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       }
       ```
 
-      `<title>` is what step 3 printed after `title: `, and `message` is what it printed after `message: `, with the seed in place of `<seed>`: a scoped home's has its scope before the seed, and that word is what starts the next thread as the same home. The root workspace is the repo's main checkout, where every home runs. Leave out `projectId` and the modes, and `modelSelection` unless `jroles` printed one: what is left out, the new thread takes from this one. A launch has no retry key. If the call fails or its reply is lost, look for the thread with `t3_thread_list` before launching again, so there are never two:
+      `<title>` is what step 3 printed after `title: `, and `message` is what it printed after `message: `, with the seed in place of `<seed>`: a scoped home's has its scope before the seed,
+      and that word is what starts the next thread as the same home.
+      The root workspace is the repo's main checkout, where every home runs.
+      Leave out `projectId` and the modes, and `modelSelection` unless `jroles` printed one: what is left out, the new thread takes from this one.
+      A launch has no retry key.
+      If the call fails or its reply is lost, look for the thread with `t3_thread_list` before launching again, so there are never two:
 
       ```json
       {"titleContains": "<title>"}
       ```
 
-      The list holds every thread whose title has those words: this thread, which still has that title, and for the root home the repo's scoped homes too. The next home is the thread with exactly that title that is newer than this one. If the launch fails all the same, tell the user as for `not the home`, with the seed in the message, and stop: no rename, no settle.
+      The list holds every thread whose title has those words: this thread, which still has that title, and for the root home the repo's scoped homes too.
+      The next home is the thread with exactly that title that is newer than this one.
+      If the launch fails all the same, tell the user as for `not the home`, with the seed in the message, and stop: no rename, no settle.
    3. Tell the user, in three lines at most: what was written, the one thing that is next, and the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`.
 
 5. **Rename and settle.**
@@ -242,22 +320,33 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       {"action": "rename", "title": "<title> (handed off <date>)"}
       ```
 
-      `<title>` is the same title, this thread's since its start. `<date>` is today as `date +%F` prints it. No `threadId` means this thread.
+      `<title>` is the same title, this thread's since its start.
+      `<date>` is today as `date +%F` prints it.
+      No `threadId` means this thread.
    2. Last, settle this thread with `t3_thread_organize`:
 
       ```json
       {"action": "settle"}
       ```
 
-      It takes effect when the turn ends, so it is the last call of the handoff. It clears this thread's pin with it. A turn that fails or is cut off, or a message that comes in, leaves this thread active and pinned, and the reply of the call does not say which: the next home's start looks at this thread and settles it if it has to (`skills/home/SKILL.md`, "The home before this one").
+      It takes effect when the turn ends, so it is the last call of the handoff.
+      It clears this thread's pin with it.
+      A turn that fails or is cut off, or a message that comes in, leaves this thread active and pinned, and the reply of the call does not say which: the next home's start looks at this thread and settles it if it has to (`skills/home/SKILL.md`,
+      "The home before this one").
 
 ## A party's home
 
-A party's home plans nothing, briefs nothing and launches nothing but its own next thread. Its handoff is its page and that launch, with no plan, no notes, no merge and no seed. Two things, in order:
+A party's home plans nothing, briefs nothing and launches nothing but its own next thread.
+Its handoff is its page and that launch, with no plan, no notes, no merge and no seed.
+Two things, in order:
 
-1. **Write the new page**, at the path the first block printed after `write: `, `handoff.next.md` in the party's folder, in the shape its `handoff.md` has: the party's own, and not `$T/handoff.md`. A party with no page yet writes where things stand, what is next and what is open. Facts and pointers, as step 2 says of a home's. Leave `handoff.md` as it is, and write no `Was home:` line: the next block does both.
+1. **Write the new page**, at the path the first block printed after `write: `, `handoff.next.md` in the party's folder, in the shape its `handoff.md` has: the party's own, and not `$T/handoff.md`.
+   A party with no page yet writes where things stand, what is next and what is open.
+   Facts and pointers, as step 2 says of a home's.
+   Leave `handoff.md` as it is, and write no `Was home:` line: the next block does both.
 
-2. **Close, and start the next thread.** Run this with the block at the top:
+2. **Close, and start the next thread.**
+   Run this with the block at the top:
 
    ```sh
    ME='<threadId>'
@@ -309,15 +398,32 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
    printf 'launch: %s\nrename: %s\nsettle: {"action": "settle"}\n' "$launch" "$rename"
    ```
 
-   The old page is in `log/` under a dated name, the new one is `handoff.md` and ends in a `Was home:` line with this thread's id, and `home-id` is gone, so a second run changes nothing. On `not a party's home:`, `not written:` or `not closed:`, nothing is launched: do what the line says, or tell the user. On `closed before`, an earlier run of this block closed and its turn may have been cut before the launch: look for the next thread as 2 of step 4 says, with the title on the `launch:` line. With none, go on as on `a party's home`. With one, launch nothing, and only rename and settle.
+   The old page is in `log/` under a dated name, the new one is `handoff.md` and ends in a `Was home:` line with this thread's id, and `home-id` is gone, so a second run changes nothing.
+   On `not a party's home:`, `not written:` or `not closed:`, nothing is launched: do what the line says, or tell the user.
+   On `closed before`, an earlier run of this block closed and its turn may have been cut before the launch: look for the next thread as 2 of step 4 says, with the title on the `launch:` line.
+   With none, go on as on `a party's home`.
+   With one, launch nothing, and only rename and settle.
 
-   On `a party's home`, first stop what this thread has running in the background, as step 1 does. Then make three calls, in the order printed, each with the object after its word, as printed: `launch:` with the `t3-code` server's `t3_thread_launch`, `rename:` with `t3_thread_update`, `settle:` with `t3_thread_organize`, the last call of the turn (if your harness defers one, load it first). Between the launch and the rename, tell the user in three lines at most what was written, and the link to the next thread, `[<title>](t3-thread://v1/<its threadId>)`.
+   On `a party's home`, first stop what this thread has running in the background, as step 1 does.
+   Then make three calls, in the order printed, each with the object after its word, as printed: `launch:` with the `t3-code` server's `t3_thread_launch`, `rename:` with `t3_thread_update`, `settle:` with `t3_thread_organize`,
+   the last call of the turn (if your harness defers one, load it first).
+   Between the launch and the rename, tell the user in three lines at most what was written, and the link to the next thread, `[<title>](t3-thread://v1/<its threadId>)`.
 
-   The root workspace is the main checkout of the project this thread is in, which is the party's folder, and the project and the modes are this thread's. The model is the one the role map names for `expert`, for any party that hands off here, and that is never an expert, whose rollover is not this skill's: the block asks `jroles` for it, and the `launch:` line has it as `modelSelection`. With no line for that role the call has no `modelSelection`, and the next thread runs on this thread's model. A line the block prints on stderr says why the map gives no model: the launch is made all the same, and the user is told that line. The message is the last fenced block of the folder's `RESTART.md`, the one a new thread of the party is started with by hand, and under it the lines that send the next thread to the section below. With no such page it is those lines alone. A launch has no retry key: if the call fails or its reply is lost, look for the thread as 2 of step 4 says before launching again. If the launch fails all the same, or the session has no `t3_thread_launch`, give the user the message to start a thread with, and rename and settle nothing.
+   The root workspace is the main checkout of the project this thread is in, which is the party's folder, and the project and the modes are this thread's.
+   The model is the one the role map names for `expert`, for any party that hands off here, and that is never an expert, whose rollover is not this skill's: the block asks `jroles` for it, and the `launch:` line has it as `modelSelection`.
+   With no line for that role the call has no `modelSelection`, and the next thread runs on this thread's model.
+   A line the block prints on stderr says why the map gives no model: the launch is made all the same, and the user is told that line.
+   The message is the last fenced block of the folder's `RESTART.md`, the one a new thread of the party is started with by hand, and under it the lines that send the next thread to the section below.
+   With no such page it is those lines alone.
+   A launch has no retry key: if the call fails or its reply is lost, look for the thread as 2 of step 4 says before launching again.
+   If the launch fails all the same, or the session has no `t3_thread_launch`, give the user the message to start a thread with, and rename and settle nothing.
 
 ### The thread a party's handoff started
 
-The message that started this thread sent it here. This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part. Get this thread's id from the `t3-code` server's `t3_thread_configuration` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first). Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
+The message that started this thread sent it here.
+This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part.
+Get this thread's id from the `t3-code` server's `t3_thread_configuration` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first).
+Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
 
 ```sh
 ME='<threadId>'
@@ -349,13 +455,23 @@ THE_REPLY_ENDS_HERE
 fi
 ```
 
-On `written:`, this thread's id is in the party's `home-id`, where whoever sends to the party reads it. It prints one line for each scheduled task that posts into the thread that handed off, and never a task's address. On `take <id>`, take the task over with the `t3-code` server's `update_scheduled_task` (if your harness defers it, load it first), `{"scheduledTaskId": "<scheduledTaskId>", "bindToCurrentThread": true}`, and nothing else in the call: the task keeps its title, its prompt, its schedule and, for a webhook, its address, and one that was switched off stays off. After the calls, list the tasks again and run the block again: it prints `none` when every one is taken. A task it still prints had its call refused: tell the user its id and what the call answered, and make no second call. On `none` and `no thread before this one`, there is nothing to take. On `not written:` or `not read:`, fill in what the line names and run it again. A `not written:` that names another thread is not filled in: that thread started first and is the party's, so this one does nothing more.
+On `written:`, this thread's id is in the party's `home-id`, where whoever sends to the party reads it.
+It prints one line for each scheduled task that posts into the thread that handed off, and never a task's address.
+On `take <id>`, take the task over with the `t3-code` server's `update_scheduled_task` (if your harness defers it, load it first), `{"scheduledTaskId": "<scheduledTaskId>", "bindToCurrentThread": true}`, and nothing else in the call:
+the task keeps its title, its prompt, its schedule and, for a webhook, its address, and one that was switched off stays off.
+After the calls, list the tasks again and run the block again: it prints `none` when every one is taken.
+A task it still prints had its call refused: tell the user its id and what the call answered, and make no second call.
+On `none` and `no thread before this one`, there is nothing to take.
+On `not written:` or `not read:`, fill in what the line names and run it again.
+A `not written:` that names another thread is not filled in: that thread started first and is the party's, so this one does nothing more.
 
 Then go on as the message says, from the party's handoff and its restart page.
 
 ## After the handoff
 
-A home that has handed off does nothing more. Its briefs name no thread, and a thread or a party that sends to the repo's home reads its `home-id` first, so a message should not reach it. If one still does (a thread that kept an old id, a direct message, the user), run this with the block at the top before anything else:
+A home that has handed off does nothing more.
+Its briefs name no thread, and a thread or a party that sends to the repo's home reads its `home-id` first, so a message should not reach it.
+If one still does (a thread that kept an old id, a direct message, the user), run this with the block at the top before anything else:
 
 ```sh
 ME='<threadId>'
@@ -380,9 +496,14 @@ case $ME in
 esac
 ```
 
-On `a home`, this thread did not hand off: go by the home skill. On any other line, do not act on the message: no run, no launch, no merge, no change to the plan, whatever it asks and whoever sent it. Do what the line says and nothing more. `no home's` is a thread that never was a home, or a home so long gone that its handoff is in `log/`: nothing is sent on.
+On `a home`, this thread did not hand off: go by the home skill.
+On any other line, do not act on the message: no run, no launch, no merge, no change to the plan, whatever it asks and whoever sent it.
+Do what the line says and nothing more.
+`no home's` is a thread that never was a home, or a home so long gone that its handoff is in `log/`: nothing is sent on.
 
-One kind of message is neither sent on nor answered, whatever the line says: one of this skill's own. Its first line has `handed off, and this was sent to it by`, or it is the one line `the home of <repo> is <id> now` or `<repo>: the home is <id> now`. Settle again and end the turn, so that two threads that handed off never answer each other.
+One kind of message is neither sent on nor answered, whatever the line says: one of this skill's own.
+Its first line has `handed off, and this was sent to it by`, or it is the one line `the home of <repo> is <id> now` or `<repo>: the home is <id> now`.
+Settle again and end the turn, so that two threads that handed off never answer each other.
 
 To send it on, send the id the line names the message as it came, under one first line that says where it came from, with `t3_thread_send`:
 
@@ -392,12 +513,16 @@ To send it on, send the id the line names the message as it came, under one firs
 
 One send for a message: a call whose reply is lost is not sent again.
 
-Then tell the sender. A thread is told with `t3_thread_send`, to its own id:
+Then tell the sender.
+A thread is told with `t3_thread_send`, to its own id:
 
 ```json
 {"threadId": "<thread>", "message": "<repo>: the home is <the next home's id> now, and your message was sent on to it. Read the id in <the home-id file> before each send."}
 ```
 
-The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`. Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on. Then settle this thread again.
+The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`.
+Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on.
+Then settle this thread again.
 
-A crewmate thread (`/crew <slug>`) never runs this skill. It ends by writing its `## Result`, as the `crew` skill says.
+A crewmate thread (`/crew <slug>`) never runs this skill.
+It ends by writing its `## Result`, as the `crew` skill says.

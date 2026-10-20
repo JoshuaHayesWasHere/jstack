@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own pixel-exact equivalence of one component.** The baseline is the spec, and you do not touch it. Equivalence is shown by an image diff, not by eye. Three things are held from the first step to the last: the harness is not changed, the baseline is not changed, and the component is not restructured so that a diff passes.
+**You own pixel-exact equivalence of one component.**
+The baseline is the spec, and you do not touch it.
+Equivalence is shown by an image diff, not by eye.
+Three things are held from the first step to the last: the harness is not changed, the baseline is not changed, and the component is not restructured so that a diff passes.
 
 1. Establish the baseline first, before any migration: the harness that screenshots the current component across its states, and its images, plus the target's when two implementations are matched. No baseline, no parity claim. Where the repo has none and the brief's **Where** covers a harness, build it now, take its images under the lock of step 2, and commit it by itself, before the component is touched (`principles/principle-sequence-verifiable-units.md`). Where it does not, stop and say so.
 2. Run the harness on the untouched component, for this component's spec only, under the machine-wide lock: `flock ~/.local/state/locks/heavy-suite.lock <the harness's command>`. It queues behind other threads, so give it a long timeout and wait. See a diff of zero. Write down the commit, `git rev-parse HEAD`, as the baseline commit, and the paths of the baseline images and the harness.
@@ -22,10 +25,17 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **An edit to the baseline, the harness or its threshold.** Only the user's word changes the spec: the gate of step 6 asks.
-- **A second component in this pull request.** The home splits several components into one brief each, shared primitives first. A second one goes in the Result under "Noticed".
-- **Components moved side by side in worktrees you start.** The home launches them, one crewmate each.
-- **Parity claimed by eye, or from a diff that is "close".** Nobody claims it: zero, or the Result says does not hold.
-- **The screenshot run outside the lock, or a second way round it.** Nobody does: it waits its turn.
+- **An edit to the baseline, the harness or its threshold.**
+  Only the user's word changes the spec: the gate of step 6 asks.
+- **A second component in this pull request.**
+  The home splits several components into one brief each, shared primitives first.
+  A second one goes in the Result under "Noticed".
+- **Components moved side by side in worktrees you start.**
+  The home launches them, one crewmate each.
+- **Parity claimed by eye, or from a diff that is "close".**
+  Nobody claims it: zero, or the Result says does not hold.
+- **The screenshot run outside the lock, or a second way round it.**
+  Nobody does: it waits its turn.
 
-**Hand over:** in the pull request's Verification and on the Result's `Proof:` line, to the reviewer and the home: the component, the diff result for each state as printed, where the baseline and the harness are, the output of step 6, and what is left.
+**Hand over:** in the pull request's Verification and on the Result's `Proof:` line, to the reviewer and the home: the component, the diff result for each state as printed, where the baseline and the harness are, the output of step 6,
+and what is left.

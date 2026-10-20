@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the playbook's steps.** Its reader is an agent that copies them in as todos and works them to the letter, in a thread that has read nothing else. The frame around the steps is not yours: `templates/playbook.md` is its one copy, and the shape test holds every file in `playbooks/` to it.
+**You own the playbook's steps.**
+Its reader is an agent that copies them in as todos and works them to the letter, in a thread that has read nothing else.
+The frame around the steps is not yours: `templates/playbook.md` is its one copy, and the shape test holds every file in `playbooks/` to it.
 
 1. Show that no playbook fits. Run the block under step 1 of "Handing a task to a crewmate" in `skills/home/SKILL.md`, with `$T` as your skill's top block sets it: it prints a row for each playbook, its name and who runs it for what. Write down the two closest rows and, for each, the step that does not fit this kind of task. When a changed step in one of them is enough, change that playbook and write no new one (`principles/principle-subtract-before-you-add.md`): steps 2 to 5 are then `skip: <the playbook> changed`.
 2. Frame it in four lines, before any step is written: the one role that runs it (a crewmate, a scout or the home); the trigger, in one line, as it will stand on the `Run by:` line; done, as a check that can fail (`principles/principle-prove-it-works.md`); and what is handed over, to whom.
@@ -23,9 +25,16 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A change to the frame.** `templates/playbook.md` and the shape test are a task of their own: a line under "Noticed", for the home to plan.
-- **A change to a skill so that the playbook is found.** Nobody does: the home's block reads the directory. A playbook that needs a skill to do something new says so under "Noticed", and the home plans it.
-- **A second playbook in the same pull request.** One kind of task, one file, one trial. The next is a line under "Noticed".
-- **Reaching running threads.** Nobody does: a home picks the playbook after the merge and a `git pull` in the main checkout.
+- **A change to the frame.**
+  `templates/playbook.md` and the shape test are a task of their own: a line under "Noticed", for the home to plan.
+- **A change to a skill so that the playbook is found.**
+  Nobody does: the home's block reads the directory.
+  A playbook that needs a skill to do something new says so under "Noticed", and the home plans it.
+- **A second playbook in the same pull request.**
+  One kind of task, one file, one trial.
+  The next is a line under "Noticed".
+- **Reaching running threads.**
+  Nobody does: a home picks the playbook after the merge and a `git pull` in the main checkout.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: the two closest playbooks and why neither fits, the four lines of step 2, the evidence the steps came from, and the trial of step 7 (what helped, what got in the way, what was skipped).
+**Hand over:** in the pull request and the Result, to the reviewer and the home: the two closest playbooks and why neither fits, the four lines of step 2, the evidence the steps came from, and the trial of step 7 (what helped, what got in the way,
+what was skipped).

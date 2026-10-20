@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the contract. The structure changes. The behaviour does not.** This is not `playbooks/feature.md`, which adds behaviour, nor `playbooks/bug-fix.md`, which corrects it.
+**You own the contract.
+The structure changes.
+The behaviour does not.**
+This is not `playbooks/feature.md`, which adds behaviour, nor `playbooks/bug-fix.md`, which corrects it.
 
 1. Pin the behaviour contract first. Learn the contract from the files the brief names, then write a characterization test, a snapshot, or an equivalence harness that captures what the code does now, before any structure moves (`principles/principle-test-behavior-not-implementation.md`). If the area has no coverage, write the pin before touching structure. Type check and lint are not a pin. Run the pin and see it pass on the untouched code.
 2. Name the structure the code is missing (`principles/principle-model-the-domain.md`). Boring code stays when its shape is already clear and local. The reshape must delete branches or invalid states, not add indirection.
@@ -23,8 +26,14 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Building a missing feature or fixing a real bug the cleanup turns up.** Leave it out: ship the structural change against the pinned contract and put the rest in the Result under "Noticed", for the home to plan.
-- **A redesign.** The same: name it there and the home plans it as a feature.
-- **A cross-cutting reshape that will not fit one pull request.** This playbook is the focused-to-medium change. The larger one is the home's to split.
+- **Building a missing feature or fixing a real bug the cleanup turns up.**
+  Leave it out: ship the structural change against the pinned contract and put the rest in the Result under "Noticed", for the home to plan.
+- **A redesign.**
+  The same: name it there and the home plans it as a feature.
+- **A cross-cutting reshape that will not fit one pull request.**
+  This playbook is the focused-to-medium change.
+  The larger one is the home's to split.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: the structure that changed, the pin you held it against, the equivalence proof, what the reader no longer has to trace or hold, and what shipped against what was reverted. No new behaviour.
+**Hand over:** in the pull request and the Result, to the reviewer and the home: the structure that changed, the pin you held it against, the equivalence proof, what the reader no longer has to trace or hold,
+and what shipped against what was reverted.
+No new behaviour.

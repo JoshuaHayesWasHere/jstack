@@ -10,7 +10,11 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own a clean stop.** You leave a checkpoint that a thread which has read nothing else can resume from. This is for an explicit pause only. On "keep going", "going to bed, keep going" or "don't stop", you do not pause: the task goes on as `skills/crew/SKILL.md` "Carry on" says. A full context, a hard step or a question for the user is not a pause either.
+**You own a clean stop.**
+You leave a checkpoint that a thread which has read nothing else can resume from.
+This is for an explicit pause only.
+On "keep going", "going to bed, keep going" or "don't stop", you do not pause: the task goes on as `skills/crew/SKILL.md` "Carry on" says.
+A full context, a hard step or a question for the user is not a pause either.
 
 1. Stop at a safe boundary. Finish the step you are in, or back out of it, whichever is shorter. Start nothing new, and stop every subagent and background command you started. Run `git status -sb` and read it: it is what the pause has to make durable.
 2. Take no irreversible action in order to pause. No pull request is opened, nothing is merged, rebased or deleted, and nothing is pushed, so no check runs on a `wip:` head. Whatever you would undo to "tidy up" stays as it is.
@@ -21,10 +25,18 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Pausing unasked.** Nobody does: with no word to pause, the task goes on.
-- **Opening a pull request to park the work.** Nobody does: the `wip:` commit and the Result are the checkpoint. `playbooks/opening-a-pr.md` is run on resume, when "Done when" holds.
-- **A resume file of your own, in `/tmp` or the repo.** Nobody writes one: the brief is the one place the next thread reads.
-- **Squashing or rewording the `wip:` commit.** The home squash-merges, so it never reaches the default branch.
-- **Resuming.** The user or the home says when, in this thread or with a new one on the same worktree. The round that follows appends `## Result, follow-up`, as `skills/crew/SKILL.md` "End" says.
+- **Pausing unasked.**
+  Nobody does: with no word to pause, the task goes on.
+- **Opening a pull request to park the work.**
+  Nobody does: the `wip:` commit and the Result are the checkpoint.
+  `playbooks/opening-a-pr.md` is run on resume, when "Done when" holds.
+- **A resume file of your own, in `/tmp` or the repo.**
+  Nobody writes one: the brief is the one place the next thread reads.
+- **Squashing or rewording the `wip:` commit.**
+  The home squash-merges, so it never reaches the default branch.
+- **Resuming.**
+  The user or the home says when, in this thread or with a new one on the same worktree.
+  The round that follows appends `## Result, follow-up`, as `skills/crew/SKILL.md` "End" says.
 
-**Hand over:** in the Result, to the home and to the thread that resumes: which "Done when" lines hold, what is on disk and at which commit, whether the check command passes there, and the first action on resume. This is a pause, not a final report.
+**Hand over:** in the Result, to the home and to the thread that resumes: which "Done when" lines hold, what is on disk and at which commit, whether the check command passes there, and the first action on resume.
+This is a pause, not a final report.

@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the resume point.** The trail is the brief, its last Result and what the worktree holds. Read the trail and have none of it done again. The thread does the work, not you.
+**You own the resume point.**
+The trail is the brief, its last Result and what the worktree holds.
+Read the trail and have none of it done again.
+The thread does the work, not you.
 
 1. Locate the trail, on disk: `$H/tasks/<slug>.md`, its `Thread:` line, its last `## Result` and its `## Review`. Never the thread's timeline (`principles/principle-guard-the-context-window.md`). Write down three things: the thread's id, whether there is a Result and what its `Status:` and `Left:` say, and the pull request if one is named.
 2. Reconstruct the state, by commands that print a line and not a diff. From the main checkout: `git worktree list --porcelain` gives the worktree whose branch is the slug; `git -C <that worktree> status --short | wc -l` gives the files not committed; `git -C <that worktree> log --oneline origin/<default branch>..HEAD` gives the commits made. The line `jmerge` prints with `--check` says what a pull request is short of, and the lookup of "Handing a task to a crewmate" in `skills/home/SKILL.md` gives the thread's state. The trail is the record: send no scout to find it out again.
@@ -21,10 +24,16 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Reading the thread's timeline, the code or a diff.** Nobody does for a pickup: the brief and the commands of step 2 are the trail.
-- **Doing what is left yourself.** The picked-up thread does, in its worktree.
-- **A second writer on one worktree.** Nobody does: a thread that is `running` keeps its worktree, and a launch waits until it is not.
-- **A new worktree for a task that has one.** Nobody does: the work in the old one would be orphaned. With no worktree left, it is a first launch, by step 2 of "Handing a task to a crewmate".
-- **A third pickup at the same point.** The user decides, through the gate of step 4.
+- **Reading the thread's timeline, the code or a diff.**
+  Nobody does for a pickup: the brief and the commands of step 2 are the trail.
+- **Doing what is left yourself.**
+  The picked-up thread does, in its worktree.
+- **A second writer on one worktree.**
+  Nobody does: a thread that is `running` keeps its worktree, and a launch waits until it is not.
+- **A new worktree for a task that has one.**
+  Nobody does: the work in the old one would be orphaned.
+  With no worktree left, it is a first launch, by step 2 of "Handing a task to a crewmate".
+- **A third pickup at the same point.**
+  The user decides, through the gate of step 4.
 
 **Hand over:** in this thread, to the user: where the thread stopped, what was kept and what is redone (ideally nothing), the resume point and the verdict, which of the two calls was made, and the thread's link.

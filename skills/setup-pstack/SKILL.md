@@ -7,11 +7,17 @@ card: "Run the pipeline | 9 | Sets this machine up for jstack in one pass, throu
 
 # setup-pstack
 
-`/setup-pstack` sets this machine up for jstack, or checks it again, from any thread. It is typed, never loaded by itself. The name is pstack's, and the work is jstack's: pstack's skill of this name writes a Cursor rule of models and budgets, and here the role map is `~/.config/jstack/roles`, written with every role `inherit`, so no role runs above medium effort.
+`/setup-pstack` sets this machine up for jstack, or checks it again, from any thread.
+It is typed, never loaded by itself.
+The name is pstack's, and the work is jstack's: pstack's skill of this name writes a Cursor rule of models and budgets, and here the role map is `~/.config/jstack/roles`, written with every role `inherit`, so no role runs above medium effort.
 
-The skill does no step of its own. `install.sh --setup` in the checkout this skill is linked from holds the one list of what a machine needs, the same list the doctor reads, and does each step once: it says `already` for what is there, writes each config that is not there and never one that is, links the skills, hooks, commands and units, and names the one command for each thing only the user can do. A second run writes nothing, so this skill can be typed again at any time.
+The skill does no step of its own.
+`install.sh --setup` in the checkout this skill is linked from holds the one list of what a machine needs, the same list the doctor reads, and does each step once: it says `already` for what is there,
+writes each config that is not there and never one that is, links the skills, hooks, commands and units, and names the one command for each thing only the user can do.
+A second run writes nothing, so this skill can be typed again at any time.
 
-This thread changes nothing else. It writes no config by hand, runs none of the commands it reports, starts no thread and asks for no secret: a sign-in, a webhook and its key stay the user's.
+This thread changes nothing else.
+It writes no config by hand, runs none of the commands it reports, starts no thread and asks for no secret: a sign-in, a webhook and its key stay the user's.
 
 ## 1. Run the setup and the doctor
 
@@ -45,12 +51,14 @@ else
 fi
 ```
 
-It prints the checkout, every line of the setup, a count, and the doctor's last line. The setup's lines are:
+It prints the checkout, every line of the setup, a count, and the doctor's last line.
+The setup's lines are:
 
 - `done <name>`: this run wrote it.
 - `already <name>`: it was there.
 - `needs you <name> -> <command>`: only the user can do it, with the one command that does.
-- `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout`: nothing was written. The skill is linked from a worktree, which the setup refuses under the account's own HOME.
+- `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout`: nothing was written.
+  The skill is linked from a worktree, which the setup refuses under the account's own HOME.
 
 On `not set up`, the machine has no jstack yet: the skill is linked by the setup itself, so the first run is the user's, by hand.
 
@@ -59,8 +67,10 @@ On `not set up`, the machine has no jstack yet: the skill is linked by the setup
 Tell the user, in at most eight lines:
 
 1. The count line, as printed.
-2. Each `needs you` line, as printed, the command after `->` in backticks. Hard needs first: the setup exits 1 while one is left.
+2. Each `needs you` line, as printed, the command after `->` in backticks.
+   Hard needs first: the setup exits 1 while one is left.
 3. The doctor's last line, `doctor: ok` or `doctor: not ok, <n> hard`.
 4. When a `needs you` line was left: run each command, then type `/setup-pstack` again.
 
-Do not list the `done` and `already` lines one by one: the count says them. Where the user asks what a line means, `docs/troubleshooting.md` in the checkout has each one under "Setup".
+Do not list the `done` and `already` lines one by one: the count says them.
+Where the user asks what a line means, `docs/troubleshooting.md` in the checkout has each one under "Setup".

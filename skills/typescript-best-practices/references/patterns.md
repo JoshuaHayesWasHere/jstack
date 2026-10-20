@@ -1,10 +1,13 @@
 # TypeScript patterns
 
-Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic: `principles/principle-type-system-discipline.md` and `principles/principle-boundary-discipline.md`, from the root of the repo this file lives in.
+Code examples for each rule in `SKILL.md`.
+The underlying principles are language-agnostic: `principles/principle-type-system-discipline.md` and `principles/principle-boundary-discipline.md`, from the root of the repo this file lives in.
 
 ## Branded types
 
-Brand primitives so they can't be mixed up. Validate once at the boundary. Downstream code trusts the type.
+Brand primitives so they can't be mixed up.
+Validate once at the boundary.
+Downstream code trusts the type.
 
 ```ts
 type AgentId = string & { readonly __brand: "AgentId" };
@@ -19,11 +22,13 @@ function focusAgent(id: AgentId): void {
 }
 ```
 
-Match the `readonly __brand: 'X'` shape. Don't invent a new convention.
+Match the `readonly __brand: 'X'` shape.
+Don't invent a new convention.
 
 ## Discriminated unions
 
-Model variants with a literal discriminant. Every variant shares the field name and each variant's value is unique, so impossible combos can't be represented.
+Model variants with a literal discriminant.
+Every variant shares the field name and each variant's value is unique, so impossible combos can't be represented.
 
 ```ts
 // Don't. Boolean + optionals lets contradictory states exist.
@@ -59,7 +64,8 @@ function pickWinner(entries: NonEmpty<string>): string {
 }
 ```
 
-Where a plain `T[]` arrives, narrow once with a guard. The fact then travels in the type:
+Where a plain `T[]` arrives, narrow once with a guard.
+The fact then travels in the type:
 
 ```ts
 const isNonEmpty = <T>(arr: T[]): arr is NonEmpty<T> => arr.length > 0;
@@ -81,17 +87,21 @@ type TimeRange = { start: Date; end: Date }; // start <= end
 type TimeRange = { start: Date; durationMs: number };
 ```
 
-Keep `durationMs` a plain number. Brand it (per Branded types) only if a raw number could be passed where a duration is expected, not by reflex. Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
+Keep `durationMs` a plain number.
+Brand it (per Branded types) only if a raw number could be passed where a duration is expected, not by reflex.
+Pick the representation that makes the bad state unconstructable, then expose the reading you need on top (`pairs.flat()`, a `rangeEnd()` helper).
 
 ## Simplest total type
 
-Don't strengthen everything. Keep `T[]` when every operation on it is total:
+Don't strengthen everything.
+Keep `T[]` when every operation on it is total:
 
 ```ts
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0); // [] is 0, fine
 ```
 
-Strengthen when the loose type forces a lie at a use site. The tells are `!`, `arr[0] as T`, and a "should never happen" throw:
+Strengthen when the loose type forces a lie at a use site.
+The tells are `!`, `arr[0] as T`, and a "should never happen" throw:
 
 ```ts
 // Don't: partiality smuggled past the compiler
@@ -109,7 +119,8 @@ Weakening the result to `Session | undefined` is the other total signature.
 
 ## `unknown` over `any`
 
-External data is always `unknown`. Narrow before use.
+External data is always `unknown`.
+Narrow before use.
 
 ```ts
 // Don't
@@ -129,7 +140,9 @@ External sources include RPC payloads, `JSON.parse`, `postMessage`, IPC, file co
 
 ## Schemas before hand-rolled guards
 
-Before writing a property-by-property type guard for external data, look for the repository's runtime schema library and existing schemas. Let one schema own validation and derive the TypeScript type from it. Do not maintain a schema, a duplicate interface, and a guard that can drift apart.
+Before writing a property-by-property type guard for external data, look for the repository's runtime schema library and existing schemas.
+Let one schema own validation and derive the TypeScript type from it.
+Do not maintain a schema, a duplicate interface, and a guard that can drift apart.
 
 ```ts
 import { z } from "zod";
@@ -146,11 +159,15 @@ function parseUser(input: unknown): User {
 }
 ```
 
-Use `safeParse` when failure is an expected branch. Use the equivalent inference helper when the repository uses another schema library. Do not add a new schema dependency for one guard. This rule prefers the schema system the codebase already trusts.
+Use `safeParse` when failure is an expected branch.
+Use the equivalent inference helper when the repository uses another schema library.
+Do not add a new schema dependency for one guard.
+This rule prefers the schema system the codebase already trusts.
 
 ## No `as` casts
 
-Every `as` is a potential runtime crash. Cast only after the type system has verified the claim.
+Every `as` is a potential runtime crash.
+Cast only after the type system has verified the claim.
 
 ```ts
 import { z } from "zod";
@@ -172,7 +189,9 @@ function parseUser(data: unknown): User {
 }
 ```
 
-When the type comes first, annotate the validator with the type it proves. The compiler then rejects a validator that proves less than the type. Remove `name` from the object below and the assignment fails to compile.
+When the type comes first, annotate the validator with the type it proves.
+The compiler then rejects a validator that proves less than the type.
+Remove `name` from the object below and the assignment fails to compile.
 
 ```ts
 type User = { id: string; name: string };
@@ -184,18 +203,24 @@ When refactoring an `as` out of existing code, identify why TypeScript can't inf
 
 - Missing discriminant: add one, switch to a discriminated union.
 - Overly wide source type (e.g. `Record<string, unknown>`): narrow it.
-- Untyped boundary: parse with the schema that owns the shape. Add a schema only where none exists.
+- Untyped boundary: parse with the schema that owns the shape.
+  Add a schema only where none exists.
 - Genuinely inexpressible: use a branded type or `satisfies`.
 
 ## Narrowing hierarchy
 
 From best to last-resort:
 
-1. **Discriminated union switch / if.** Compiler narrows automatically.
-2. **`in` operator.** `"key" in obj` narrows to variants containing that key.
-3. **`typeof` / `instanceof`.** For primitives and class instances.
-4. **User-defined type guard.** When the above aren't enough.
-5. **`as` cast.** Only after validation.
+1. **Discriminated union switch / if.**
+   Compiler narrows automatically.
+2. **`in` operator.**
+   `"key" in obj` narrows to variants containing that key.
+3. **`typeof` / `instanceof`.**
+   For primitives and class instances.
+4. **User-defined type guard.**
+   When the above aren't enough.
+5. **`as` cast.**
+   Only after validation.
 
 ```ts
 function area(s: Shape): number {
@@ -206,7 +231,8 @@ function area(s: Shape): number {
 
 ## Type guards
 
-A guard must actually verify the claim. A lying guard is worse than `as`.
+A guard must actually verify the claim.
+A lying guard is worse than `as`.
 
 ```ts
 function isCircle(s: Shape): s is Shape & { kind: "circle" } {
@@ -269,7 +295,8 @@ const config = { theme: "dark", cols: 3 } satisfies Config;
 
 ## Boundary validation
 
-Validate once where data crosses in. Trust types inside (`principles/principle-boundary-discipline.md`).
+Validate once where data crosses in.
+Trust types inside (`principles/principle-boundary-discipline.md`).
 
 - **Wire formats** (proto, JSON-RPC): parse with `ignoreUnknownFields` so forward-compatible changes don't break old clients.
 - **Persisted JSON:** versioned blob with a try/catch around the parse.

@@ -11,7 +11,8 @@
 - CHANGELOG entries and release notes in the repo
 - Issue/ticket IDs in commit messages and PR bodies
 
-The most trustworthy source, tied directly to the code, and the most complete. Everything that went through the repo should be here.
+The most trustworthy source, tied directly to the code, and the most complete.
+Everything that went through the repo should be here.
 
 ## How to search it
 

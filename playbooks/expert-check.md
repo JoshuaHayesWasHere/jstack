@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the verdict.** A check reads one artifact and judges it against the subject. It changes nothing in the artifact, approves nothing and blocks nothing: `skills/expert/SKILL.md` "What an expert never does". Every point of the verdict names the rule it rests on, and a point with no rule is not in the verdict.
+**You own the verdict.**
+A check reads one artifact and judges it against the subject.
+It changes nothing in the artifact, approves nothing and blocks nothing: `skills/expert/SKILL.md` "What an expert never does".
+Every point of the verdict names the rule it rests on, and a point with no rule is not in the verdict.
 
 1. Pin the artifact. Read the real thing as it is now, never the ask's account of it (`principles/principle-prove-it-works.md`): a brief or a review from its file, a pull request by its url, with `gh pr view <url> --json title,body,headRefOid,files`, then `gh pr diff <url>`, then `headRefOid` once more: a head that moved is read again. Write down the revision you judged: that head, a file's commit or, for a file in no repo, the time you read it. A diff too long to hold goes to one `Explore` subagent, given the url and the path of `CHARTER.md`: it returns each hunk that touches the subject, with its path and lines, and the paths it left out, and you keep that reply and never the whole diff (`principles/principle-guard-the-context-window.md`). An artifact you cannot read is `not judged`.
 2. List what the artifact claims, assumes or asks for where the subject has a say, each with its place in the artifact: a path and line, or a section. What the artifact as a whole rests on is the first of them. These are the points: what is outside the subject is the reviewer's. With none, the verdict is `not judged`: the artifact does not touch the subject.
@@ -21,9 +24,17 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
 
 Never done here, and who does it:
 
-- **A fix to the artifact.** A crewmate does it, from a brief the owning home writes.
-- **An approval, a block or a merge.** The owning home and the user decide. `holds` is what the subject says of the artifact, never a go-ahead.
-- **A review of the change.** The reviewer does. A defect outside the subject is one line under "Not checked".
-- **A run of the artifact's tests or code.** Nobody does: a check reads. What only a run would settle goes under "Not checked".
+- **A fix to the artifact.**
+  A crewmate does it, from a brief the owning home writes.
+- **An approval, a block or a merge.**
+  The owning home and the user decide.
+  `holds` is what the subject says of the artifact, never a go-ahead.
+- **A review of the change.**
+  The reviewer does.
+  A defect outside the subject is one line under "Not checked".
+- **A run of the artifact's tests or code.**
+  Nobody does: a check reads.
+  What only a run would settle goes under "Not checked".
 
-**Hand over:** in the answer, to who asked: the verdict, each point with its place in the artifact and the rule it rests on, and what was not checked. A verdict of `does not hold` goes to the owning home as a gate.
+**Hand over:** in the answer, to who asked: the verdict, each point with its place in the artifact and the rule it rests on, and what was not checked.
+A verdict of `does not hold` goes to the owning home as a gate.

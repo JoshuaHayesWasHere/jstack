@@ -10,7 +10,10 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the frame and the one report.** A worker is a subagent: it knows only its brief and is gone when it returns. You keep the frame, the table of results and every file that is kept. Never more than ten subagents in one step.
+**You own the frame and the one report.**
+A worker is a subagent: it knows only its brief and is gone when it returns.
+You keep the frame, the table of results and every file that is kept.
+Never more than ten subagents in one step.
 
 1. Frame it before any worker starts. Write the done predicate, a check that can fail, and what the swarm returns: a report, or files (`principles/principle-outcome-oriented-execution.md`). Then the shape: slices that cover the ground, a race of several workers on one brief, or both. For a race, write the rule that picks now, before any result is in: `first pass`, `rank all` or `best of`. Slices that must agree with each other as they go are not a swarm: write `skip: one thread's work` on steps 2 to 5 and do it here.
 2. Set the number: one worker per slice or per arm of the race, ten at most in a step. With more than ten, widen the slices, or run a second step once the first is drained. Write the list down, one line per worker, and see that every slice is on it once. Every worker runs on this session's model and effort.
@@ -22,10 +25,16 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **An eleventh subagent in one step.** Nobody does: the next ten start when these are drained.
-- **A worker that has to remember.** A subagent holds nothing after it returns. A piece that must outlast the step (it waits on a review, a pull request or the user) is a thread of its own, and the home launches it: one line per piece under "Noticed".
-- **A cloud worker, a worker on a named model, or one at a raised effort.** Nobody does: every worker is a local subagent on this session's model.
-- **A worker that starts workers, commits to your branch, pushes or opens a pull request.** You commit what you keep, and the pull request is the one of step 7.
-- **A wait in a loop, or a stack of pull requests.** Nobody does: the workers return inside the turn, and the swarm ends in one pull request or none.
+- **An eleventh subagent in one step.**
+  Nobody does: the next ten start when these are drained.
+- **A worker that has to remember.**
+  A subagent holds nothing after it returns.
+  A piece that must outlast the step (it waits on a review, a pull request or the user) is a thread of its own, and the home launches it: one line per piece under "Noticed".
+- **A cloud worker, a worker on a named model, or one at a raised effort.**
+  Nobody does: every worker is a local subagent on this session's model.
+- **A worker that starts workers, commits to your branch, pushes or opens a pull request.**
+  You commit what you keep, and the pull request is the one of step 7.
+- **A wait in a loop, or a stack of pull requests.**
+  Nobody does: the workers return inside the turn, and the swarm ends in one pull request or none.
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: the done predicate, the shape and the rule for a race, the table, each issue on one line with its evidence, and every gap or dropout.

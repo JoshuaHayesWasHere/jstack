@@ -7,11 +7,17 @@ card: "Run the pipeline | 8 | Sets up a repo's first home in five steps: its sta
 
 # new-home
 
-`/new-home <repo>` sets up the first home of a repo, from any thread. `<repo>` is the repo's path, or its folder name under `~/repos`. It is typed, never loaded by itself.
+`/new-home <repo>` sets up the first home of a repo, from any thread.
+`<repo>` is the repo's path, or its folder name under `~/repos`.
+It is typed, never loaded by itself.
 
-A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there. This skill does the five in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
+A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there.
+This skill does the five in order, each once.
+For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`.
+Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
 
-This thread does not become the home. It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, and the four switches of a repo are the user's.
+This thread does not become the home.
+It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, and the four switches of a repo are the user's.
 
 ## 1. The repo and its state directory
 
@@ -60,19 +66,29 @@ else
 fi
 ```
 
-On `needs a repo`, `not a git repository` or `not a repo's home`, tell the user that line and stop: nothing was made. Otherwise keep the `repo:`, `checkout:` and `home-id:` lines for the steps below. The checkout is the repo's main checkout, also when the path typed is one of its worktrees.
+On `needs a repo`, `not a git repository` or `not a repo's home`, tell the user that line and stop: nothing was made.
+Otherwise keep the `repo:`, `checkout:` and `home-id:` lines for the steps below.
+The checkout is the repo's main checkout, also when the path typed is one of its worktrees.
 
-The directory is made as the home skill's first-home step makes it, with the same line: an empty `plan.md` and `notes.md`. `plan.md` is what says a home has started, so the home this skill launches is not told it is the first. `merge-seen` and `home-id` are the home's to write.
+The directory is made as the home skill's first-home step makes it, with the same line: an empty `plan.md` and `notes.md`.
+`plan.md` is what says a home has started, so the home this skill launches is not told it is the first.
+`merge-seen` and `home-id` are the home's to write.
 
 ## 2. The T3 Code project
 
-Find the project whose checkout is the repo, with the `t3-code` server's `t3_project_list` (if your harness defers it, load it first), called with `{"limit": 100}`. It is the entry whose `workspaceRoot` is the `checkout:` line, and its `id` is the T3 project id of the steps below. A reply with a `nextCursor` has more: ask again with that as `cursor` until it is found or the list ends. When it is found, the line is `2 T3 project: already, <id>`.
+Find the project whose checkout is the repo, with the `t3-code` server's `t3_project_list` (if your harness defers it, load it first), called with `{"limit": 100}`.
+It is the entry whose `workspaceRoot` is the `checkout:` line, and its `id` is the T3 project id of the steps below.
+A reply with a `nextCursor` has more: ask again with that as `cursor` until it is found or the list ends.
+When it is found, the line is `2 T3 project: already, <id>`.
 
-When no entry has that checkout, make one with `t3_project_create`, called with `{"title": "<repo>", "workspaceRoot": "<the checkout>"}`. The line is `2 T3 project: done, <id>`, with the `id` of the reply. In a session with neither tool, the line is `2 T3 project: needs you: add <the checkout> as a project in T3 Code, then type /new-home <repo> again`, and steps 3 and 5 are not done: each needs the id.
+When no entry has that checkout, make one with `t3_project_create`, called with `{"title": "<repo>", "workspaceRoot": "<the checkout>"}`.
+The line is `2 T3 project: done, <id>`, with the `id` of the reply.
+In a session with neither tool, the line is `2 T3 project: needs you: add <the checkout> as a project in T3 Code, then type /new-home <repo> again`, and steps 3 and 5 are not done: each needs the id.
 
 ## 3. The project's table in jbus's config
 
-This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/SKILL.md`). Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
+This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/SKILL.md`).
+Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
@@ -96,13 +112,17 @@ case $C$P in
 esac
 ```
 
-`jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key. Never open, print or edit that file here. The project's name in jbus is the repo's folder name, which is also the name of its state directory. Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
+`jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key.
+Never open, print or edit that file here.
+The project's name in jbus is the repo's folder name, which is also the name of its state directory.
+Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
 
 It never writes `home-thread`, here or at a home's start: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand.
 
 ## 4. What the repo lacks for a merge
 
-This step reads and changes nothing. Run it with the `checkout:` line of step 1 in place of the words in angle brackets:
+This step reads and changes nothing.
+Run it with the `checkout:` line of step 1 in place of the words in angle brackets:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
@@ -161,11 +181,19 @@ case $C in
 esac
 ```
 
-Each `needs you` line is something only the user does: tell it as printed and do none of it. The default branch is asked of origin itself, as `jmerge` asks it, so this step needs the network. A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`, which adds the matrix values to the name. The workflow is read in the checkout as it is, on whatever branch is checked out there. `fresh-check`, `off`, `merge-off` and `home-thread` are the user's four switches for a repo: the lines name what to write, and this skill writes none of them.
+Each `needs you` line is something only the user does: tell it as printed and do none of it.
+The default branch is asked of origin itself, as `jmerge` asks it, so this step needs the network.
+A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`,
+which adds the matrix values to the name.
+The workflow is read in the checkout as it is, on whatever branch is checked out there.
+`fresh-check`, `off`, `merge-off` and `home-thread` are the user's four switches for a repo: the lines name what to write, and this skill writes none of them.
 
 ## 5. The home's thread
 
-A home has one thread, so look for it before launching one. List the project's threads that are not settled, with `t3_thread_list` (if your harness defers it, load it first), called with `{"projectId": "<the T3 project id>", "settled": false, "limit": 100}`. A reply with a `nextCursor` has more: ask again with that as `cursor` until the list ends. The title is no filter here: a home started by hand may have any title.
+A home has one thread, so look for it before launching one.
+List the project's threads that are not settled, with `t3_thread_list` (if your harness defers it, load it first), called with `{"projectId": "<the T3 project id>", "settled": false, "limit": 100}`.
+A reply with a `nextCursor` has more: ask again with that as `cursor` until the list ends.
+The title is no filter here: a home started by hand may have any title.
 
 The home is there when one of these holds, and then the line is `5 home thread: already, [home: <repo>](t3-thread://v1/<its threadId>)` and nothing is launched:
 
@@ -174,10 +202,19 @@ The home is there when one of these holds, and then the line is `5 home thread: 
 
 Otherwise launch the home in the project's root checkout, with `t3_thread_launch`, called with `{"projectId": "<the T3 project id>", "title": "home: <repo>", "workspaceStrategy": {"type": "root"}, "message": "/home"}`.
 
-Before this launch, run `uv run --project <the checkout that holds this skill> jroles home`. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is `{"projectId": "<the T3 project id>", "title": "home: <repo>", "workspaceStrategy": {"type": "root"}, "message": "/home", "modelSelection": <model selection>}`, which starts the home on the model the role map names. When it prints nothing, or a line on stderr that says why the map gives no model, the call is the one above.
+Before this launch, run `uv run --project <the checkout that holds this skill> jroles home`.
+When it prints a JSON object, that line is the `<model selection>`,
+and the `t3_thread_launch` call is `{"projectId": "<the T3 project id>", "title": "home: <repo>", "workspaceStrategy": {"type": "root"}, "message": "/home", "modelSelection": <model selection>}`, which starts the home on the model the role map names.
+When it prints nothing, or a line on stderr that says why the map gives no model, the call is the one above.
 
-The line is `5 home thread: done, [home: <repo>](t3-thread://v1/<its threadId>)`. The new thread writes its own id to `home-id` at its start: write nothing there. A launch has no retry key. If the call fails or its reply is lost, ask `t3_thread_list` again before launching again, so there are never two. In a session with no `t3_thread_launch`, the line is `5 home thread: needs you: open a new thread in the project <repo> and type /home`.
+The line is `5 home thread: done, [home: <repo>](t3-thread://v1/<its threadId>)`.
+The new thread writes its own id to `home-id` at its start: write nothing there.
+A launch has no retry key.
+If the call fails or its reply is lost, ask `t3_thread_list` again before launching again, so there are never two.
+In a session with no `t3_thread_launch`, the line is `5 home thread: needs you: open a new thread in the project <repo> and type /home`.
 
 ## The end
 
-Give the user the lines, in order: step 1's, step 2's, step 3's, each of step 4's and step 5's, then the `switches` line. Add nothing a line does not say. This thread is done: the home is the thread step 5 names.
+Give the user the lines, in order: step 1's, step 2's, step 3's, each of step 4's and step 5's, then the `switches` line.
+Add nothing a line does not say.
+This thread is done: the home is the thread step 5 names.

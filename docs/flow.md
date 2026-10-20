@@ -1,8 +1,13 @@
 # How a task flows
 
-![A home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main. Every thread reads and writes the state directory.](flow.svg)
+![A home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request,
+a reviewer sends findings back, and jbus runs jmerge, which merges to main.
+Every thread reads and writes the state directory.](flow.svg)
 
-A thread is an agent with a model. A command has no model. The state directory is the only thing the threads share: a message wakes a thread, and the record is on disk. [State](state.md) lists its files.
+A thread is an agent with a model.
+A command has no model.
+The state directory is the only thing the threads share: a message wakes a thread, and the record is on disk.
+[State](state.md) lists its files.
 
 ## The ten steps
 
@@ -19,17 +24,30 @@ A thread is an agent with a model. A command has no model. The state directory i
 | 9. `jmerge` | A command | It merges what is reviewed, fixed and green, at the head that was checked. For the rest it prints `wait` or `hold` and the reason. |
 | 10. The sweep | A command | `jmerge --sweep` removes the worktree and the branches a finished thread left, and prints what it kept and why. |
 
-A **scout** goes first, before step 2, when the home cannot write the brief from what it knows. It reads the code and the docs and writes down what it found. The home itself never reads the code.
+A **scout** goes first, before step 2, when the home cannot write the brief from what it knows.
+It reads the code and the docs and writes down what it found.
+The home itself never reads the code.
 
-A repo can run with a home thread, with `jbus` and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread: you say yes to the plan entry there, and the home launches the crewmate itself after `jgauge room` prints `go`. With `jbus` alone, nothing is launched that is not an approved row of the queue.
+A repo can run with a home thread, with `jbus` and its queue, or with both.
+With a home thread alone, steps 3 and 4 happen in the thread: you say yes to the plan entry there, and the home launches the crewmate itself after `jgauge room` prints `go`.
+With `jbus` alone, nothing is launched that is not an approved row of the queue.
 
 ## What you are asked for
 
-Three things come to you. Everything else that is reversible is done without asking.
+Three things come to you.
+Everything else that is reversible is done without asking.
 
-- **An approval.** You give a yes to that exact brief.
-- **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
-- **A held pull request.** `jmerge` printed `hold`. You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](configuration.md#jstack). Add `--check` to see what it would do. It is refused without the review's proven safety fact. [jmerge](jmerge.md) has the rest.
+- **An approval.**
+  You give a yes to that exact brief.
+- **A gate.**
+  A thread met a question only you can answer, took a default and carried on.
+  You keep the default, or change it.
+- **A held pull request.**
+  `jmerge` printed `hold`.
+  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](configuration.md#jstack).
+  Add `--check` to see what it would do.
+  It is refused without the review's proven safety fact.
+  [jmerge](jmerge.md) has the rest.
 
 | Asked for | When | If you are away |
 |---|---|---|
@@ -39,7 +57,8 @@ Three things come to you. Everything else that is reversible is done without ask
 | One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread waits in its own thread. These are the only things a thread asks first. |
 | A pull request with no review | Its brief says `Review: none` | It is never merged by itself. It waits for your word. |
 
-A pull request that prints `wait` is not a failure and asks nothing of you. `jmerge` prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.
+A pull request that prints `wait` is not a failure and asks nothing of you.
+`jmerge` prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.
 
 ## Two pages to open in a browser
 

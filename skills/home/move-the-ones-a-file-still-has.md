@@ -1,4 +1,6 @@
-**Move the ones a file still has** at the start, before the open ones are shown. A home started before jbus kept the questions wrote them in `$M/gates.md`. This block pipes each open one to jbus and then takes the file out of jbus's sight, so that a gate is listed once, as its question:
+**Move the ones a file still has** at the start, before the open ones are shown.
+A home started before jbus kept the questions wrote them in `$M/gates.md`.
+This block pipes each open one to jbus and then takes the file out of jbus's sight, so that a gate is listed once, as its question:
 
 ```sh
 : "${SEP:?run the block that reads jbus first}"
@@ -40,4 +42,8 @@ else
 fi
 ```
 
-On `moved: gate <n> of <file>, queued: question <number>`, jbus holds the gate as that question. `already sent` is one jbus held before. On `retired`, every open gate of the file is a question now, and the file has another name: nothing reads it again, and no block writes it. On `not moved`, the gate's own lines are under the line, and the file stays: jbus could not take that one, so it is one of those the end of this section speaks of, shown to the user as text and carried in the handoff's note, whole, under a `## Gate` line.
+On `moved: gate <n> of <file>, queued: question <number>`, jbus holds the gate as that question.
+`already sent` is one jbus held before.
+On `retired`, every open gate of the file is a question now, and the file has another name: nothing reads it again, and no block writes it.
+On `not moved`, the gate's own lines are under the line, and the file stays: jbus could not take that one, so it is one of those the end of this section speaks of, shown to the user as text and carried in the handoff's note, whole,
+under a `## Gate` line.

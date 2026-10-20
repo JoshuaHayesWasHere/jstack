@@ -1,6 +1,7 @@
 # jgauge
 
-`jgauge` prints what a thread cost in tokens, and says whether the machine and the plan have room for one more thread. For token counts it reads the transcripts Claude Code wrote under `~/.claude/projects/` and nothing else.
+`jgauge` prints what a thread cost in tokens, and says whether the machine and the plan have room for one more thread.
+For token counts it reads the transcripts Claude Code wrote under `~/.claude/projects/` and nothing else.
 
 | Command | What it does |
 |---|---|
@@ -14,14 +15,24 @@
 | `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, docs/jbus.md), and the thread runs the same command again. `JGAUGE_LOCKS_DIR` moves the lock files and the waiters file, for a test. |
 | `jgauge test-slot --waiters` | Prints the registered waiters, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
 
-`src/jgauge/room.sh` is the one copy of the room check. The `home` skill runs it before a launch, the `pr-review` skill before a review, and `jbus` before each launch. A crewmate runs the check command `notes.md` names once, under a test slot: `jgauge test-slot -- <the check command>`. A reviewer's proof and a crewmate's targeted test runs go in the short lane: `jgauge test-slot --short -- uv run pytest <files>`. The check command never does.
+`src/jgauge/room.sh` is the one copy of the room check.
+The `home` skill runs it before a launch, the `pr-review` skill before a review, and `jbus` before each launch.
+A crewmate runs the check command `notes.md` names once, under a test slot: `jgauge test-slot -- <the check command>`.
+A reviewer's proof and a crewmate's targeted test runs go in the short lane: `jgauge test-slot --short -- uv run pytest <files>`.
+The check command never does.
 
 The counting rule is in `src/jgauge/transcript.py`, and `docs/meter-findings.md` has the observations behind it:
 
-- **A call** is one `message.id`. A message has one line per content block, so `jgauge` never counts lines. It counts a message id seen in two transcripts of one report once.
+- **A call** is one `message.id`.
+  A message has one line per content block, so `jgauge` never counts lines.
+  It counts a message id seen in two transcripts of one report once.
 - **Total** is input, cache write, cache read and output added up.
-- **Peak context** is the largest input side (input plus cache read plus cache write) of any one call. Across rows it is the largest, never a sum.
+- **Peak context** is the largest input side (input plus cache read plus cache write) of any one call.
+  Across rows it is the largest, never a sum.
 - **Context** is the input side of the last call, which is what the next call sends again.
-- **A floor** is the output of a call that has no finished line in the transcript. `jgauge` includes it in the total as the least that call's output can be, and a note under the table says how many calls and how many tokens. It estimates nothing upward.
+- **A floor** is the output of a call that has no finished line in the transcript.
+  `jgauge` includes it in the total as the least that call's output can be, and a note under the table says how many calls and how many tokens.
+  It estimates nothing upward.
 
-A subagent's last call often has no finished line in its own transcript, so its output is a floor. `jgauge session` on a reviewer thread counts the whole review in the thread's own row: a reviewer starts no subagent.
+A subagent's last call often has no finished line in its own transcript, so its output is a floor.
+`jgauge session` on a reviewer thread counts the whole review in the thread's own row: a reviewer starts no subagent.

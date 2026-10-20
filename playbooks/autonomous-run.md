@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the exit condition.** Say what done is as a check that can fail, then drive to it without stopping. The brief's "Done when" is the predicate, and it is not yours to loosen.
+**You own the exit condition.**
+Say what done is as a check that can fail, then drive to it without stopping.
+The brief's "Done when" is the predicate, and it is not yours to loosen.
 
 1. Turn the predicate into one command before the first change (`principles/principle-build-the-lever.md`): a script in the scratch directory `mktemp -d /tmp/<slug>-run.XXXXXX` that runs a check for each "Done when" line and prints `holds` or `does not hold` beside it, and exits zero only when all hold. A line that no command can check gets the nearest check that can fail, and the Result says what it leaves unproved (`principles/principle-prove-it-works.md`). Run it now and see it print `does not hold`. If it already says every line holds, the predicate is wrong or the task is done: find out which before any change.
 2. Open the log: read `skills/show-me-your-work/SKILL.md` in full and write the first row with its block, the predicate command and what it printed.
@@ -22,10 +24,20 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A timer, a loop or a watcher that wakes this thread.** Nobody arms one. Before the pull request the run is this thread's turn. After it, `watch_pull_request` wakes the thread.
-- **A fix outside the brief's Where, in a pull request of its own.** The home plans it, from a line under "Noticed".
-- **Loosening "Done when".** The user does, in this thread or through the home. A line you think is wrong is a gate, and the run goes on to the line as written.
-- **Stopping to ask.** Nobody does, but for the four pauses. A gate holds the question.
-- **Merging, to make a line hold.** The home merges. A "Done when" line that needs a merge is reported as waiting on it.
+- **A timer, a loop or a watcher that wakes this thread.**
+  Nobody arms one.
+  Before the pull request the run is this thread's turn.
+  After it, `watch_pull_request` wakes the thread.
+- **A fix outside the brief's Where, in a pull request of its own.**
+  The home plans it, from a line under "Noticed".
+- **Loosening "Done when".**
+  The user does, in this thread or through the home.
+  A line you think is wrong is a gate, and the run goes on to the line as written.
+- **Stopping to ask.**
+  Nobody does, but for the four pauses.
+  A gate holds the question.
+- **Merging, to make a line hold.**
+  The home merges.
+  A "Done when" line that needs a merge is reported as waiting on it.
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: the predicate command and what it printed at the end, the rounds run, what landed, what was discarded, the log's path and rows, and each gate parked.

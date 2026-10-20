@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/scout/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the answer.** An investigation only reads. It ends in a cited explanation or a recommendation, never in a change to the code: `skills/scout/SKILL.md` "Research" says what a read is.
+**You own the answer.**
+An investigation only reads.
+It ends in a cited explanation or a recommendation, never in a change to the code: `skills/scout/SKILL.md` "Research" says what a read is.
 
 1. State the question as you read it, in one line, and what would count as an answer. If the scope is unclear, say which reading you took and go on: the home or the user can redirect.
 2. For a "how" question, read the code and the docs yourself. For a narrow one (one module, one function) read it straight through. For a subsystem, split it into two to four angles and take them one at a time. A search too wide to hold goes to one Explore subagent, and you keep its conclusion, not its output (`principles/principle-guard-the-context-window.md`).
@@ -21,8 +23,12 @@ A path such as `principles/<name>.md` or `skills/scout/SKILL.md` is from the roo
 
 Never done here, and who does it:
 
-- **The change the answer points to.** A crewmate does it, from a brief, in a fresh thread. When the request asks for a brief, say in it which playbook the task is: `playbooks/bug-fix.md`, `playbooks/feature.md`, `playbooks/refactoring.md` or `playbooks/authoring-a-skill.md`.
-- **A run that writes.** A question that needs one is not answered: the report says what run would answer it, and a crewmate makes it.
-- **A pull request.** A scout commits nothing and opens none.
+- **The change the answer points to.**
+  A crewmate does it, from a brief, in a fresh thread.
+  When the request asks for a brief, say in it which playbook the task is: `playbooks/bug-fix.md`, `playbooks/feature.md`, `playbooks/refactoring.md` or `playbooks/authoring-a-skill.md`.
+- **A run that writes.**
+  A question that needs one is not answered: the report says what run would answer it, and a crewmate makes it.
+- **A pull request.**
+  A scout commits nothing and opens none.
 
 **Hand over:** in the report, to the home: the answer, each finding with what it rests on, what was ruled out and why, and one recommendation.

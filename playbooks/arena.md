@@ -10,7 +10,11 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the pick and the graft.** Two runners make the same thing apart, one judge reads both, and you make one artifact out of them by hand. The three are subagents: each knows only its prompt and is gone when it returns. You keep the rubric, the candidates on disk, the scores and the artifact. Never more than ten subagents in one step: here it is two, then one.
+**You own the pick and the graft.**
+Two runners make the same thing apart, one judge reads both, and you make one artifact out of them by hand.
+The three are subagents: each knows only its prompt and is gone when it returns.
+You keep the rubric, the candidates on disk, the scores and the artifact.
+Never more than ten subagents in one step: here it is two, then one.
 
 1. Frame it. Write the one prompt both runners get, word for word the same: the artifact to make and what it is for. The prompt is the contract. Then write the rubric, three to six criteria that can be graded on this task, each a line you could mark held or not held. The rubric is yours and the judge's: a runner sees only the task (`principles/principle-exhaust-the-design-space.md`).
 2. Give each runner a place of its own before it starts (`principles/principle-separate-before-serializing-shared-state.md`): for code a worktree you make, `git worktree add --detach <path> HEAD`, otherwise a directory, `mktemp -d /tmp/<slug>-<n>.XXXXXX`. Neither writes in your worktree, and neither is told of the other.
@@ -24,10 +28,18 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A third runner or a second judge.** Nobody does: two runners and one judge. A task that needs more directions is two arenas, the second a line under "Noticed".
-- **A runner or judge that has to remember.** A subagent holds nothing after it returns. Work that must outlast the step is a thread of its own, and the home launches it: a line under "Noticed".
-- **A cloud runner, or a `model` or `effort` set on any of the three.** Nobody does: all three run on this session's model.
-- **The judge's pick taken unread.** Nobody does: step 4 comes before step 5, and the pick is yours.
-- **A commit, push or pull request by a runner.** You commit the one artifact, and the pull request is the one of step 9.
+- **A third runner or a second judge.**
+  Nobody does: two runners and one judge.
+  A task that needs more directions is two arenas, the second a line under "Noticed".
+- **A runner or judge that has to remember.**
+  A subagent holds nothing after it returns.
+  Work that must outlast the step is a thread of its own, and the home launches it: a line under "Noticed".
+- **A cloud runner, or a `model` or `effort` set on any of the three.**
+  Nobody does: all three run on this session's model.
+- **The judge's pick taken unread.**
+  Nobody does: step 4 comes before step 5, and the pick is yours.
+- **A commit, push or pull request by a runner.**
+  You commit the one artifact, and the pull request is the one of step 9.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: the rubric, the base and why, the judge's verdict and where it differed from yours, each graft with the candidate it came from, what was rejected and why, any dropout or agreement, and what the verification printed.
+**Hand over:** in the pull request and the Result, to the reviewer and the home: the rubric, the base and why, the judge's verdict and where it differed from yours, each graft with the candidate it came from, what was rejected and why,
+any dropout or agreement, and what the verification printed.

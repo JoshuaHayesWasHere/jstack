@@ -8,17 +8,26 @@ card: "Make the lesson stick | 2 | Reads one thread's transcript with three revi
 
 # reflect
 
-**This starts four subagents on this session's own model: three reviewers at once, then one synthesiser.** What a run costs is not measured. The guess is 1M to 2M tokens. What is measured (2026-10-10): the largest transcript of the jstack repo, 6.4 MB, comes to a digest of about 120 KB, near 30,000 tokens, and each of the three reviewers reads that once.
+**This starts four subagents on this session's own model: three reviewers at once, then one synthesiser.**
+What a run costs is not measured.
+The guess is 1M to 2M tokens.
+What is measured (2026-10-10): the largest transcript of the jstack repo, 6.4 MB, comes to a digest of about 120 KB, near 30,000 tokens, and each of the three reviewers reads that once.
 
-Typing `/reflect` is the user asking for those four, which is what "Ask before swarming" in `~/.claude/CLAUDE.md` wants. A brief that names this skill carries the same asking, from the home that wrote it. Nothing else starts it: not a hook, not a finished task, not the model by itself. Before step 1, say in the thread, in one line, that four subagents are about to start and the guess at their cost.
+Typing `/reflect` is the user asking for those four, which is what "Ask before swarming" in `~/.claude/CLAUDE.md` wants.
+A brief that names this skill carries the same asking, from the home that wrote it.
+Nothing else starts it: not a hook, not a finished task, not the model by itself.
+Before step 1, say in the thread, in one line, that four subagents are about to start and the guess at their cost.
 
-It mines one thread for what is worth keeping, and ends in proposals. It edits no skill, no playbook, no `notes.md`, no plan and no `CLAUDE.md`: the home puts the proposals to the user, and what the user takes goes out as tasks.
+It mines one thread for what is worth keeping, and ends in proposals.
+It edits no skill, no playbook, no `notes.md`, no plan and no `CLAUDE.md`: the home puts the proposals to the user, and what the user takes goes out as tasks.
 
-Skip it, and say so, when the thread is trivial or when everything that went wrong was a skill followed badly, not a skill that was wrong. A one-off is not a lesson.
+Skip it, and say so, when the thread is trivial or when everything that went wrong was a skill followed badly, not a skill that was wrong.
+A one-off is not a lesson.
 
 ## 1. Find the transcript
 
-A thread's transcript is one `.jsonl` file under `~/.claude/projects/`, in a directory named for the directory the thread ran in. This prints it:
+A thread's transcript is one `.jsonl` file under `~/.claude/projects/`, in a directory named for the directory the thread ran in.
+This prints it:
 
 ```sh
 P=~/.claude/projects
@@ -38,13 +47,17 @@ else
 fi
 ```
 
-Run as it is, it prints this thread's own file. For another thread, put one line before it in the same call: `S=<its session id>`, or `W=<the directory it ran in>` for the newest thread of that directory (a crewmate's is its worktree, `~/.t3/worktrees/<repo>/<slug>`). With a session id it looks for that one file name and opens nothing else. Do not list or read other files under `~/.claude/projects/`: they are other threads' conversations.
+Run as it is, it prints this thread's own file.
+For another thread, put one line before it in the same call: `S=<its session id>`, or `W=<the directory it ran in>` for the newest thread of that directory (a crewmate's is its worktree, `~/.t3/worktrees/<repo>/<slug>`).
+With a session id it looks for that one file name and opens nothing else.
+Do not list or read other files under `~/.claude/projects/`: they are other threads' conversations.
 
 On `no transcript`, stop and say what it printed.
 
 ## 2. Make the digest
 
-A transcript is mostly tool output and is too long to hand to a reviewer whole. This writes what was said and done, each turn headed by its line number in the transcript, and prints where:
+A transcript is mostly tool output and is too long to hand to a reviewer whole.
+This writes what was said and done, each turn headed by its line number in the transcript, and prints where:
 
 ```sh
 F=<the file step 1 printed>
@@ -70,13 +83,17 @@ fi
 
 On `no digest`, stop and say what it printed: no reviewer starts on an empty or cut-off digest.
 
-The digest is what the reviewers read. A reviewer that needs more of one turn opens the transcript at that line. What a subagent of that thread did is in its own file under `<the transcript without .jsonl>/subagents/`, and is not in the digest.
+The digest is what the reviewers read.
+A reviewer that needs more of one turn opens the transcript at that line.
+What a subagent of that thread did is in its own file under `<the transcript without .jsonl>/subagents/`, and is not in the digest.
 
 ## 3. Three reviewers at once
 
-A reviewer changes no file. Two things hold that, and neither is a sentence in its prompt: the tools it is started with, and a check of the worktree once it is back.
+A reviewer changes no file.
+Two things hold that, and neither is a sentence in its prompt: the tools it is started with, and a check of the worktree once it is back.
 
-The check first. This block is run before the reviewers with `when=before`, and after them with `when=after`:
+The check first.
+This block is run before the reviewers with `when=before`, and after them with `when=after`:
 
 ```sh
 when=<before or after>
@@ -105,7 +122,8 @@ else
 fi
 ```
 
-It records the commit the worktree is on, its status, and what is in every changed and every new file, from the top of the worktree wherever the shell is. So a second edit to a file this thread had already changed is seen too.
+It records the commit the worktree is on, its status, and what is in every changed and every new file, from the top of the worktree wherever the shell is.
+So a second edit to a file this thread had already changed is seen too.
 
 Then the reviewers: one message with three calls of the `Agent` tool (or, with no subagent tool, do it in this thread, one lens after another), each this one with its lens's prompt:
 
@@ -118,7 +136,9 @@ Then the reviewers: one message with three calls of the `Agent` tool (or, with n
 }
 ```
 
-The type is `Explore` because it is started with no Edit, Write or NotebookEdit tool, and it runs on this session's model at this session's effort (both seen on 2026-10-10, Claude Code 2.1.296). Never `general-purpose` or `claude`, which have every tool, and no `model`, `effort` or `isolation`. No other model family, and no T3 thread or delegated task in place of a subagent: a reviewer needs nothing that lasts.
+The type is `Explore` because it is started with no Edit, Write or NotebookEdit tool, and it runs on this session's model at this session's effort (both seen on 2026-10-10, Claude Code 2.1.296).
+Never `general-purpose` or `claude`, which have every tool, and no `model`, `effort` or `isolation`.
+No other model family, and no T3 thread or delegated task in place of a subagent: a reviewer needs nothing that lasts.
 
 | Lens | Prompt |
 |---|---|
@@ -126,36 +146,49 @@ The type is `Explore` because it is started with no Edit, Write or NotebookEdit 
 | Tooling | `references/tooling-reviewer.md` |
 | Divergent | `references/divergent-reviewer.md` |
 
-The files are beside this one, in `~/.claude/skills/reflect/`. Pass each as the prompt, whole, with the digest's path and the transcript's path put in where marked. A reviewer reads, looks things up, and returns a numbered list.
+The files are beside this one, in `~/.claude/skills/reflect/`.
+Pass each as the prompt, whole, with the digest's path and the transcript's path put in where marked.
+A reviewer reads, looks things up, and returns a numbered list.
 
 When the three are back, run the block with `when=after`, and do not write a file yourself between the two runs:
 
 - `worktree unchanged`: go on.
-- `worktree changed`: the run fails. Start no synthesiser and show no proposals. Say what the block printed and which reviewers ran, and undo nothing: what becomes of the change is the user's to say.
+- `worktree changed`: the run fails.
+  Start no synthesiser and show no proposals.
+  Say what the block printed and which reviewers ran, and undo nothing: what becomes of the change is the user's to say.
 - `no worktree check`: go on, and say at the end that only the reviewers' tools held them.
 
-An `Explore` reviewer still has Bash, and the check is there for that. It is after the fact: it finds a change and does not prevent one. Neither the tools nor the check stops a command that writes outside this worktree or to a file git ignores, or one that changes something elsewhere (`gh`, `git push`, an MCP tool).
+An `Explore` reviewer still has Bash, and the check is there for that.
+It is after the fact: it finds a change and does not prevent one.
+Neither the tools nor the check stops a command that writes outside this worktree or to a file git ignores, or one that changes something elsewhere (`gh`, `git push`, an MCP tool).
 
 ## 4. Synthesise
 
-One more Agent call (or, with no subagent tool, do it in this thread), the same call as a reviewer's with the description `reflect synthesiser`. Pass `references/synthesizer.md` whole, with each reviewer's full output put in where marked. It returns three lists: proposed edits, proposed plan entries, rejected.
+One more Agent call (or, with no subagent tool, do it in this thread), the same call as a reviewer's with the description `reflect synthesiser`.
+Pass `references/synthesizer.md` whole, with each reviewer's full output put in where marked.
+It returns three lists: proposed edits, proposed plan entries, rejected.
 
 Then run step 3's block with `when=after` once more, and take what it prints the same way: the synthesiser is held as the reviewers are.
 
 ## 5. Structure before text
 
-Read the proposed edits once more yourself. Any that a check, a test, a shell block or a script would enforce better than a sentence moves to the proposed plan entries (`principles/principle-encode-lessons-in-structure.md`, from the root of the repo this skill lives in). The order of remedies is the one in the `correct` skill: structure, then types, then a test, then a written rule.
+Read the proposed edits once more yourself.
+Any that a check, a test, a shell block or a script would enforce better than a sentence moves to the proposed plan entries (`principles/principle-encode-lessons-in-structure.md`, from the root of the repo this skill lives in).
+The order of remedies is the one in the `correct` skill: structure, then types, then a test, then a written rule.
 
 ## 6. End in proposals
 
-Nothing is applied. Show, with no preamble:
+Nothing is applied.
+Show, with no preamble:
 
-- **Proposed edits**: the synthesiser's table. One row per edit: the problem, the change, and the file and section it would land in.
+- **Proposed edits**: the synthesiser's table.
+  One row per edit: the problem, the change, and the file and section it would land in.
 - **Proposed plan entries**: one per item, in the shape of `templates/plan-entry.md` of this skill's repo with `Status: proposed`, each with a "Done when" a crewmate could meet, the evidence, and a t-shirt size.
 - **Rejected**: one line each, with the synthesiser's reason.
 - The cost, if it can be read: the four subagents' token counts as the Agent results gave them.
 
-Then stop. Where the proposals go depends on who ran this:
+Then stop.
+Where the proposals go depends on who ran this:
 
 - A home shows them to the user in its thread, and adds to the plan only what the user takes.
 - A crewmate or a scout whose brief named this skill puts them in its Result or its report, under a heading `### Reflect`, and the home takes it from there.

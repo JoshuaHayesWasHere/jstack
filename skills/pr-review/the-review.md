@@ -1,10 +1,18 @@
 ### The review
 
-The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
+The review is pstack's, in two parts.
+One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found.
+The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`.
+This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
 
-pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
+pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it.
+It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there.
+Nothing in the worktree changes, and nothing goes to `origin`.
 
-**1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
+**1.
+Room, and 2.
+Scope and intent.**
+One block does both, so that nothing is built on a machine with no room:
 
 ```sh
 BRIEF="$H/tasks/<slug>.md"
@@ -119,23 +127,66 @@ echo "$D/prompt.md"
 ```
 
 - Send the block whole, as it is, with only the slug and the pull request's url filled in, and with the block at the top, which sets `H` and `T`.
-- First it asks the machine for room. `jgauge room` is the home skill's check before a launch, the one copy of it, in `src/jgauge/room.sh` of the repo this skill lives in: the one-minute load against the core count, the available memory, the memory pressure, the file slots of `/tmp`, and the share of the plan's five-hour and weekly limit already used. Its thresholds are the first lines of that file: change one there. A review asks with `--light`, which skips the load: a review is about 2% of one core, since its time is the model's, and its one heavy step, the proof, runs in the short test lane, which bounds it. Memory, memory pressure, `/tmp` and the plan still hold a review. It prints `go`, or `wait: ` and the first reading with no room. A `note: ` line says a limit is not known, and the review goes on all the same.
-- The wait for room is this call, and nothing else. With `--wait 540` the check looks again every 15 seconds until it says `go` or nine minutes have passed. On `go` the block goes on by itself. So send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. When the nine minutes pass with no room, the block prints the last `wait: ` line, builds nothing and exits 75: start no reviewer, and send the same block again at once, in this same turn. A call that was cut off before it printed anything is sent again the same way. A check that did not run is a `wait` too, and exits 75 at once.
-- Never end the turn to wait for room, and never leave a check, a loop or a timer in the background to wait in your place: nothing wakes a reviewer when the machine has room, and the pull request would wait for a review that nobody runs. The block counts its own sends for this slug and head, in a file beside the directories it builds, a send that was cut off included, and forgets them on `go`. The sixth send with no room, about an hour in, prints the last answer and exits 69: give up as "No room" below says, and send the block no more.
+- First it asks the machine for room.
+  `jgauge room` is the home skill's check before a launch, the one copy of it, in `src/jgauge/room.sh` of the repo this skill lives in: the one-minute load against the core count, the available memory, the memory pressure, the file slots of `/tmp`,
+  and the share of the plan's five-hour and weekly limit already used.
+  Its thresholds are the first lines of that file: change one there.
+  A review asks with `--light`, which skips the load: a review is about 2% of one core, since its time is the model's, and its one heavy step, the proof, runs in the short test lane, which bounds it.
+  Memory, memory pressure, `/tmp` and the plan still hold a review.
+  It prints `go`, or `wait: ` and the first reading with no room.
+  A `note: ` line says a limit is not known, and the review goes on all the same.
+- The wait for room is this call, and nothing else.
+  With `--wait 540` the check looks again every 15 seconds until it says `go` or nine minutes have passed.
+  On `go` the block goes on by itself.
+  So send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
+  When the nine minutes pass with no room, the block prints the last `wait: ` line, builds nothing and exits 75: start no reviewer, and send the same block again at once, in this same turn.
+  A call that was cut off before it printed anything is sent again the same way.
+  A check that did not run is a `wait` too, and exits 75 at once.
+- Never end the turn to wait for room, and never leave a check, a loop or a timer in the background to wait in your place: nothing wakes a reviewer when the machine has room, and the pull request would wait for a review that nobody runs.
+  The block counts its own sends for this slug and head, in a file beside the directories it builds, a send that was cut off included, and forgets them on `go`.
+  The sixth send with no room, about an hour in, prints the last answer and exits 69: give up as "No room" below says, and send the block no more.
 - A brief with `Review: none` gets exit code 78 and nothing built: say that its brief asks for no review, and stop.
-- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask. The scope is the pull request's diff, `gh pr diff <url>`. The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief has a `Skills:` line that is not `none`, that line with what each named skill owes and the artifact the Results hold for each, as `jbriefs --skills-run` prints it with `jmerge`'s own reading, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text. That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
-- Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff is in it as GitHub sent it, not retyped by this thread. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
-- Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which. Nothing was reviewed: send the block once more, and if it fails again, write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
+- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask.
+  The scope is the pull request's diff, `gh pr diff <url>`.
+  The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief has a `Skills:` line that is not `none`, that line with what each named skill owes and the artifact the Results hold for each,
+  as `jbriefs --skills-run` prints it with `jmerge`'s own reading, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites,
+  read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text.
+  That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers,
+  which is why the `SCOPE` lines start at the start of a line.
+- Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote,
+  a file in a directory of its own under `/tmp`.
+  The diff is in it as GitHub sent it, not retyped by this thread.
+  Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
+- Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
+  Nothing was reviewed: send the block once more, and if it fails again, write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
 
-**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
+**3.
+The reading.**
+Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings.
+Read whatever the diff calls or is called by, and change nothing.
+Start no `Agent` call and no thread for it.
+Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
-**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
+**4.
+Lead judgment.**
+Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets.
+Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 
-- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in the forms "Outside the diff" gives. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
-- **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there with the reason: it is what lets the user overrule the lead. Neither goes to the crewmate.
-- The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding: fixed`, or `Finding: not fixed` with a reason (the crew skill, "The review").
+- **Act on** and **Consider** are the review's findings.
+  Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>)`, in the forms "Outside the diff" gives.
+  The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`.
+  The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`.
+  A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
+- **Noted** and **Dismissed** are counted, not sent.
+  Each count is a line of the section, and each dismissed finding keeps one line there with the reason: it is what lets the user overrule the lead.
+  Neither goes to the crewmate.
+- The buckets are the lead's reading.
+  What the crewmate does with a finding is still its own: `Finding: fixed`, or `Finding: not fixed` with a reason (the crew skill, "The review").
 
-**5. The one safety fact.** Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head. Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
+**5.
+The one safety fact.**
+Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head.
+Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
 
 ```sh
 D='<the directory of the prompt file>'
@@ -191,17 +242,44 @@ else
 fi
 ```
 
-- The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.
-- The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs. `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. The call waits on the proof for up to 9 minutes, and a proof holds the short lane for 2 minutes at most, so one call usually has its `exit` line. On `running`, send the block again, in this turn, as many times as it takes, until it prints `exit`.
-- **Never end your turn while your own proof waits or runs, and never say you will go on once it finishes**: nothing wakes a reviewer when a command ends, only a message does, and the Review would never be written. A proof an earlier call or an earlier turn started is joined (`joined`), not started again, and one that ended after the last call gives what it said (`checked`). A proof sent again after it gave its answer runs afresh, so fix `$D/proof.sh` and send the block again. On `stale`, the proof ran for a command that has changed since and is no proof: send the block again.
-- The one time the turn ends is when the block prints `waiting` and ends 76: with `--thread` the proof waits for no slot, so with every slot of the lane taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`, and nothing runs. End your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message. Never poll for a slot, and never end the turn with nothing said. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the proof waits for its slot in place, on `running`. A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and send the block again. Never take the `--short` off to get past the limit. An `exit 76` or `waiting` proved nothing either.
-- The crewmate's thread may rebase or push in this worktree while the review is out. The block runs the proof only at the head kept at the start with no rebase going on, and looks again after it. On a line that starts `unproven:`, whatever else it printed is not a proof of that head: the `Proof:` line is `unproven, the head moved under the proof`, with the finding below.
-- The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`. The block's own `uv run --project "$T/.."` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
-- The reviewer changes no file in the worktree. The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing. If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.
-- What ran and its last lines go on the section's `Proof:` line, in the one form `$T/review.md` shows, with a comma between its parts: the command, `exit <code>`, and the last line or two it printed. A passed proof names no failed exit code in its command or its fact, since any `exit <n>` with n not 0 refuses the line: write `the hook ended with status 1`, not `the hook said exit 1`, and put a command that holds one in `$D/proof.sh`, so that the line names the script.
-- Read `$D/proof.out` before judging a proof that did not exit 0. One that ran the real code and failed has found the fact false: that is a finding, an `error` against the changed line that breaks it. One that never reached the real code (a command not found, an import that failed, a usage error) proved nothing either way: fix the proof and run it again, and if it still cannot run, the fact is unproven. A fact that could not be proven by running code is written `Proof: unproven, <the fact>`, and that is itself a finding: `warning - the one fact the change is safe because of is unproven: <the fact>`.
+- The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`.
+  It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.
+- The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs.
+  `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first).
+  Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
+  The call waits on the proof for up to 9 minutes, and a proof holds the short lane for 2 minutes at most, so one call usually has its `exit` line.
+  On `running`, send the block again, in this turn, as many times as it takes, until it prints `exit`.
+- **Never end your turn while your own proof waits or runs, and never say you will go on once it finishes**: nothing wakes a reviewer when a command ends, only a message does, and the Review would never be written.
+  A proof an earlier call or an earlier turn started is joined (`joined`), not started again, and one that ended after the last call gives what it said (`checked`).
+  A proof sent again after it gave its answer runs afresh, so fix `$D/proof.sh` and send the block again.
+  On `stale`, the proof ran for a command that has changed since and is no proof: send the block again.
+- The one time the turn ends is when the block prints `waiting` and ends 76: with `--thread` the proof waits for no slot, so with every slot of the lane taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`,
+  and nothing runs.
+  End your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message.
+  Never poll for a slot, and never end the turn with nothing said.
+  On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the proof waits for its slot in place, on `running`.
+  A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and send the block again.
+  Never take the `--short` off to get past the limit.
+  An `exit 76` or `waiting` proved nothing either.
+- The crewmate's thread may rebase or push in this worktree while the review is out.
+  The block runs the proof only at the head kept at the start with no rebase going on, and looks again after it.
+  On a line that starts `unproven:`, whatever else it printed is not a proof of that head: the `Proof:` line is `unproven, the head moved under the proof`, with the finding below.
+- The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`.
+  The block's own `uv run --project "$T/.."` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
+- The reviewer changes no file in the worktree.
+  The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing.
+  If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.
+- What ran and its last lines go on the section's `Proof:` line, in the one form `$T/review.md` shows, with a comma between its parts: the command, `exit <code>`, and the last line or two it printed.
+  A passed proof names no failed exit code in its command or its fact, since any `exit <n>` with n not 0 refuses the line: write `the hook ended with status 1`, not `the hook said exit 1`, and put a command that holds one in `$D/proof.sh`,
+  so that the line names the script.
+- Read `$D/proof.out` before judging a proof that did not exit 0.
+  One that ran the real code and failed has found the fact false: that is a finding, an `error` against the changed line that breaks it.
+  One that never reached the real code (a command not found, an import that failed, a usage error) proved nothing either way: fix the proof and run it again, and if it still cannot run, the fact is unproven.
+  A fact that could not be proven by running code is written `Proof: unproven, <the fact>`, and that is itself a finding: `warning - the one fact the change is safe because of is unproven: <the fact>`.
 
-**6. Verdict.** The section's `Verdict:` is one of two words, and CI is neither:
+**6.
+Verdict.**
+The section's `Verdict:` is one of two words, and CI is neither:
 
 | pstack's verdict | `Verdict:` | When |
 |---|---|---|
@@ -209,5 +287,7 @@ fi
 | `PASS+NOTES` or `FAIL` | `findings` | the section's `Findings:` has at least one line |
 
 - A review that could not be done is neither: its section says `Verdict: not run` and why.
-- `Head:` is the head reviewed, and `Patch-id:` is `git patch-id --stable` of the diff from the base to that head. The block of step 1 of "After the review" prints both lines whole.
-- CI's `check` is not the verdict, and not the precondition either: a reviewer is launched when the pull request opens, beside its checks, and never on one whose check failed. A green pull request can still have findings, and `jmerge` merges only one that is green.
+- `Head:` is the head reviewed, and `Patch-id:` is `git patch-id --stable` of the diff from the base to that head.
+  The block of step 1 of "After the review" prints both lines whole.
+- CI's `check` is not the verdict, and not the precondition either: a reviewer is launched when the pull request opens, beside its checks, and never on one whose check failed.
+  A green pull request can still have findings, and `jmerge` merges only one that is green.
