@@ -734,8 +734,7 @@ class Doors:
 
     def serve(self) -> int:
         """Open the doors and serve until the process is stopped, or until the code on disk
-        is newer than the code that serves and starts: then it ends with `NEWER_CODE`, which
-        jbus-view.service starts again."""
+        is newer than the code that serves and starts: then it ends with `NEWER_CODE`."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)
