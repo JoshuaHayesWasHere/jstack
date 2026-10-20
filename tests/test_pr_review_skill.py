@@ -707,6 +707,29 @@ def gives_up(reviewer, why, sent):
     return reviewer("### No room", fill=filled)
 
 
+def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_at_its_head(
+    reviewer,
+):
+    """The section "No room" writes carries the reviewer's `By:` line, so its clean re-run at
+    the same head is the review, and in a pair another reviewer's section does not replace it."""
+    reviewer.brief.write_text(BRIEF + "Reviewer: mcp:9\n")
+    filled = {
+        "<the head kept at the start>": KEPT,
+        "<the last line the block of step 1 printed>": "wait: jgauge room did not run",
+        '<the thread id the line went to, or the two words "not sent">': "mcp:1",
+        "<the By: line Start printed>": "By: claudeAgent claude-opus-5-5",
+    }
+    assert reviewer("### No room", fill=filled)[1] == 0
+    gave_up = reviewer.brief.read_text()
+    assert "## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: not run\n" in gave_up
+    assert ready.short_of(gave_up, KEPT) == ready.NO_VERDICT
+    clean = f"\n## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: clean\nHead: {KEPT}\n"
+    assert ready.short_of(gave_up + clean, KEPT) == ""
+    other = clean.replace("claudeAgent claude-opus-5-5", "cursor grok-4.7 xhigh")
+    pair = gave_up.replace("Reviewer: mcp:9\n", "Reviewer: mcp:9\nReviewer: mcp:8\n") + other
+    assert ready.short_of(pair, KEPT) == ready.NO_VERDICT
+
+
 def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_whom_it_told(
     reviewer,
 ):
