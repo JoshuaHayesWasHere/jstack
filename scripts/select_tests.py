@@ -245,14 +245,23 @@ def called(path):
     return tuple(parts)
 
 
+@cache
+def spelled_by():
+    """Each run of parts, one after the other, in a path a test file spells, with the test
+    files that spell it: `inside` for every test file at once, read once."""
+    found = {}
+    for name, path in modules().items():
+        if TEST.fullmatch(path):
+            for spelling in spells(name):
+                for start in range(len(spelling)):
+                    for end in range(start + 1, len(spelling) + 1):
+                        found.setdefault(spelling[start:end], set()).add(path)
+    return found
+
+
 def readers(path):
     """The test files that spell this path, in a path of their own or of a module they import."""
-    parts = called(path)
-    return {
-        modules()[name]
-        for name in modules()
-        if TEST.fullmatch(modules()[name]) and any(inside(parts, one) for one in spells(name))
-    }
+    return set(spelled_by().get(called(path), ()))
 
 
 def fixture_readers(path):
