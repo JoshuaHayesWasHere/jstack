@@ -48,7 +48,7 @@ def opening(skill):
     """The skill's block that opens the playbook, and its `T=` line, as an agent reads them.
     An expert's `T=` line is in the block it runs before every other, which finds its folder:
     that block whole."""
-    text = (REPO / "skills" / skill / "SKILL.md").read_text()
+    text = as_read(REPO / "skills" / skill / "SKILL.md")
     (block,) = [
         found
         for found in FENCED.findall(text)

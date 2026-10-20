@@ -18,6 +18,7 @@ import test_tool_calls as calls
 import test_understanding_skills as added
 from jbus import mirror
 from test_handoff_pin import T3
+from test_home_thread import as_read
 
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "expert" / "SKILL.md"
@@ -55,7 +56,7 @@ Option: add the step: a release can be rolled back
 
 
 def blocks():
-    return [textwrap.dedent(found) for found in FENCED.findall(SKILL.read_text())]
+    return [textwrap.dedent(found) for found in FENCED.findall(as_read(SKILL))]
 
 
 def block(which):
