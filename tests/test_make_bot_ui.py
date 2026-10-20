@@ -128,6 +128,7 @@ def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addre
     assert oct(config.stat().st_mode & 0o777) == "0o600"
     assert run("url", config, stand_in.url).returncode == 0
     key = json.loads(config.read_text())["key"]
+    assert run("show-key", config).stdout == key
     signature = the_call().given["schedule"]["signature"]
 
     page = tmp_path / "page"

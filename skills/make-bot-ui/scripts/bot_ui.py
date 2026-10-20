@@ -70,10 +70,11 @@ def load(config: Path) -> dict:
 
 def save(config: Path, data: dict) -> None:
     config.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(config, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    written = config.with_name(f".{config.name}.{os.getpid()}")
+    descriptor = os.open(written, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w") as file:
         json.dump(data, file)
-    os.chmod(config, 0o600)
+    os.replace(written, config)
 
 
 def sign(key: str, body: bytes) -> str:
@@ -217,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise Refused(f"refused: {args.config} exists, its key stays")
             save(args.config, {"url": "", "key": secrets.token_urlsafe(32)})
         elif args.verb == "show-key":
-            print(load(args.config)["key"])
+            sys.stdout.write(load(args.config)["key"])
         elif args.verb == "url":
             save(args.config, {**load(args.config), "url": args.url})
         elif args.verb == "probe":
