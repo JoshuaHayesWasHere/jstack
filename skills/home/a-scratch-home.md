@@ -11,6 +11,7 @@ Get this thread's id from the `t3-code` server's `t3_thread_configuration` with 
 Run this in one call, with the id in place of `<threadId>`, and in place of `<name>` the name the user typed or nothing:
 
 ```sh
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ME='<threadId>'
 NAME='<name>'
 case $NAME in *'<'* | *'>'*) NAME= ;; esac

@@ -74,6 +74,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    Run this in this worktree, with the block at the top:
 
    ```sh
+   if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
    B="$H/tasks/<slug>.md"
    listed=$(uv run --project "$T/.." jbriefs --findings "$B")
    declined=$(printf '%s\n' "$listed" | awk '/^F[0-9]+ / {id = $(1)} /^  ruling: / {printf "%s%s", (n++ ? " " : ""), id}')
