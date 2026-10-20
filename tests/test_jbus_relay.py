@@ -857,3 +857,39 @@ def env_for_lane() -> dict[str, str]:
         "PAGER_HA_TOKEN": HA_TOKEN,
         "PAGER_HA_SERVICE": HA_SERVICE,
     }
+
+
+def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch):
+    """A beat that read the routes while one still failed, and is held before it writes,
+    cannot write over the beat that read them after the route recovered: the file left is
+    the newer one. The older beat is held inside its read, where a beat that read outside
+    the write lock would let the newer one write first."""
+    import threading
+
+    from jbus import relay as relaying
+
+    config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
+    relay = relaying.Relay(config, lambda line: None)
+    lane = relay.lanes[0]
+    lane.failing = {"route": lane.route.name, "since": "2026-10-20T12:00:00+00:00", "why": "503"}
+    held, go = threading.Event(), threading.Event()
+    now = relaying._now
+
+    def slow():
+        if threading.current_thread().name == "older":
+            held.set()
+            go.wait(5)
+        return now()
+
+    monkeypatch.setattr(relaying, "_now", slow)
+    older = threading.Thread(target=relay.beat, name="older")
+    older.start()
+    assert held.wait(5)
+    lane.failing = None
+    newer = threading.Thread(target=relay.beat, name="newer")
+    newer.start()
+    newer.join(0.3)
+    go.set()
+    older.join(5)
+    newer.join(5)
+    assert json.loads((tmp_path / "heartbeat.json").read_text())["failing"] == []
