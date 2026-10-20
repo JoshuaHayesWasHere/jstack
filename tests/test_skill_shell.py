@@ -29,7 +29,7 @@ from jgauge import cli as jgauge
 from jleak import cli as jleak
 from jmerge import cli as jmerge
 from jroles import cli as jroles
-from skill_blocks import FENCED, GUARD, REPO, SKILLS, as_read, blocks, run
+from skill_blocks import FENCED, GUARD, REPO, SKILLS, blocks, run
 
 STAND_IN = "1"
 
@@ -67,34 +67,27 @@ def test_a_block_inside_a_list_is_found_with_its_indent_taken_off():
     assert blocks(text) == ["if true; then\n    echo b\nfi\n", "echo c\n"]
 
 
-PLAYBOOK = "Run by: a scout, with a request.\n\n1. Read principles/a.md and principles/b.md.\n"
+SPLIT = (
+    'printed=" principles/a.md principles/b.md"\nfor cited in $printed; do echo "$cited"; done\n'
+)
 
 
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
-def test_the_scouts_playbook_block_prints_the_same_under_zsh_as_under_sh(tmp_path):
-    """Run as a scout runs it: the block at the top finds `$T` by the skill's link under
-    `~/.claude/skills` and `$H` by the repo it runs in, both made up here."""
-    root, user, repo = tmp_path / "root", tmp_path / "user", tmp_path / "demo"
-    for made in ("playbooks", "principles", "templates", "skills/scout"):
-        (root / made).mkdir(parents=True)
-    (root / "playbooks" / "look.md").write_text(PLAYBOOK)
-    for name in "ab":
-        (root / "principles" / f"{name}.md").write_text(f"the principle {name}\n")
+@pytest.mark.parametrize("skill", ["scout", "crew", "pr-review"])
+def test_after_the_block_at_the_top_zsh_splits_words_as_sh_does(skill, tmp_path):
+    """The loop the scout's playbook block ran at c228ac6, after the real block at the top of
+    each skill whose top block lacked the guard: zsh splits no unquoted word until it is asked
+    to read sh. The top block finds `$T` by the skill's link under `~/.claude/skills` and `$H`
+    by the repo it runs in, both made up here."""
+    user, repo = tmp_path / "user", tmp_path / "demo"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "scout").symlink_to(root / "skills" / "scout")
-    scouts = user / ".local" / "state" / "home" / "demo" / "scouts"
-    scouts.mkdir(parents=True)
-    (scouts / "a-question.md").write_text("# a-question\nPlaybook: look\n")
+    (user / ".claude" / "skills" / skill).symlink_to(SKILLS / skill)
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    body = next(one for one in blocks(as_read(SKILLS / "scout" / "SKILL.md")) if "printed=" in one)
     env = {"HOME": str(user), "PATH": os.environ["PATH"], "GIT_CONFIG_GLOBAL": os.devnull}
-    said = {}
-    for shell in ("sh", "zsh"):
-        done = run("scout", f"S=a-question\n{body}", shell, cwd=repo, env=env)
-        assert done.stderr == ""
-        said[shell] = done.stdout
-    assert said["zsh"] == said["sh"]
-    assert "the principle b" in said["zsh"]
+    said = {shell: run(skill, SPLIT, shell, cwd=repo, env=env) for shell in ("sh", "zsh")}
+    assert [(done.stderr, done.stdout) for done in said.values()] == [
+        ("", "principles/a.md\nprinciples/b.md\n")
+    ] * 2
 
 
 def parse_jbus(argv):
