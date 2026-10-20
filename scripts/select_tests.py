@@ -43,6 +43,7 @@ selects more and never less.
 """
 
 import ast
+import itertools
 import os
 import re
 import subprocess
@@ -77,10 +78,21 @@ def ready():
 
 
 def listed(text, label):
-    """The backticked entries of the first line of `text` that starts with `label`."""
-    for line in text.splitlines():
+    """The entries under the first line of `text` that starts with `label`: one backticked entry
+    on each `- ` line after it, up to the first line that is not one. A label line that holds an
+    entry, or a `- ` line that holds other than one, is a map no line per entry keeps apart."""
+    lines = text.splitlines()
+    for at, line in enumerate(lines):
         if line.startswith(f"{label}:"):
-            return BACKTICKED.findall(line)
+            if BACKTICKED.search(line):
+                raise Unread(f"{label}: holds an entry on its own line: {line}")
+            entries = []
+            for item in itertools.takewhile(lambda one: one.startswith("- "), lines[at + 1 :]):
+                found = BACKTICKED.fullmatch(item[2:])
+                if not found:
+                    raise Unread(f"{label}: has a line that is not one entry: {item}")
+                entries.append(found[1])
+            return entries
     return []
 
 

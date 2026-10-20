@@ -2,7 +2,10 @@
 
 `correct` and `reflect` turn what went wrong in a thread into a lesson kept where the next thread reads it, with `playbooks/correct.md`.
 
-Paths: `skills/correct/`, `skills/reflect/`, `playbooks/correct.md`
+Paths:
+- `skills/correct/`
+- `skills/reflect/`
+- `playbooks/correct.md`
 Tests: none
 
 ## Sub-features

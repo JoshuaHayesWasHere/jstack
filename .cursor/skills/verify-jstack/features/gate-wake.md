@@ -2,7 +2,14 @@
 
 A thread with a question only the user can answer pipes it to `jbus gate`, and a thread that has finished pipes its result to `jbus done`. jbus keeps each as an event in the project's outbox, and the next pass POSTs what waits to the project's webhook, at most once in five minutes. `jbus status` says what the last pass left.
 
-Paths: `src/jbus/questions.py`, `src/jbus/wake.py`, `src/jbus/alert.py`, `src/jbus/digest.py`, `src/jbus/record.py`, `src/jbus/word.py`, `src/jbus/asks.py`
+Paths:
+- `src/jbus/questions.py`
+- `src/jbus/wake.py`
+- `src/jbus/alert.py`
+- `src/jbus/digest.py`
+- `src/jbus/record.py`
+- `src/jbus/word.py`
+- `src/jbus/asks.py`
 Tests: none
 
 ## Sub-features

@@ -2,7 +2,10 @@
 
 `jgauge room` says whether the machine and the plan have room for one more thread: `go`, or `wait: ` and the first reading that has none. jbus asks it before every launch, so a row with no room waits and is launched on a later pass.
 
-Paths: `src/jgauge/`, `hooks/limits.sh`, `docs/jgauge.md`
+Paths:
+- `src/jgauge/`
+- `hooks/limits.sh`
+- `docs/jgauge.md`
 Tests: none
 
 ## Sub-features
