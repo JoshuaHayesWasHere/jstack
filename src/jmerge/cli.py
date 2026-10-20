@@ -1243,7 +1243,7 @@ class Repo:
             *self.about,
         )
         if ran.returncode:
-            return f"wait {number} {one.url}: the merge failed: {_said(ran)}"
+            return f"wait {number} {one.url}: {ready.MERGE_FAILED}: {_said(ran)}"
         if judged.rules:
             self.unruly = ready.RULES_CHANGED
         notes = [rebase] if rebase else []
