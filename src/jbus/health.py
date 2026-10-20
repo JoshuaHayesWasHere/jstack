@@ -308,6 +308,9 @@ def _minutes(since: Any, now: datetime) -> int | None:
 
 
 def relays(relay: Relay | None, now: datetime) -> list[Reading]:
+    """The relay's readings. Silence runs from the last body heard, which a restart keeps;
+    `started` is only for a relay that has never heard one, so one restarted often still
+    goes silent."""
     if relay is None:
         return [Reading("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
     found = [
@@ -319,8 +322,6 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
         )
     ]
     beat = relay.beat or {}
-    # Silence runs from the last body heard, which a restart keeps; `started` is only for a
-    # relay that has never heard one, so a relay restarted often still goes silent.
     age = _minutes(beat.get("beat"), now)
     limit = f"alerts after {BEAT_MINUTES} min"
     if age is None:
