@@ -1,0 +1,17 @@
+{
+  "$comment": "A FAKE skills.json in the shape `make skills-json` writes.",
+  "items": [
+    {
+      "name": "principle-fake",
+      "kind": "principle",
+      "path": "principles/principle-fake.md",
+      "source": "josh"
+    },
+    {
+      "name": "fake-skill",
+      "kind": "skill",
+      "path": "skills/fake-skill/SKILL.md",
+      "source": "josh"
+    }
+  ]
+}
