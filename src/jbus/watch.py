@@ -39,6 +39,7 @@ from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
 from jbus.t3 import Client, T3Error
 from jbus.wake import Changed, Depends, Pass, Slot, cut
+from jgauge import slot, waiters
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -76,7 +77,8 @@ class World:
     T3 Code's list leaves out an archived thread, so `jbus.archived` asks after a launched
     thread the list does not have: `archived` holds those that read back archived, by slug,
     `missing` the slugs whose thread T3 Code has no record of, and `unasked` those it could
-    not be asked about.
+    not be asked about. `waiting` holds the threads that wait on a test slot and are not woken
+    yet (`jgauge.waiters`), read once a pass.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -86,6 +88,7 @@ class World:
     unasked: set[str] = field(default_factory=set)
     open: dict[str, dict[str, Any]] = field(default_factory=dict)
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
+    waiting: set[str] = field(default_factory=set)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
@@ -216,7 +219,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     """
     if client is None:
         return _silent(run, "no token: run `jbus t3 login`")
-    world = World()
+    world = World(waiting={one.thread for one in waiters.read(slot.locks_dir()) if not one.woken})
     slug_of = tied(run)
     url_of = {slug: url for url, slug in slug_of.items()}
     try:
@@ -615,13 +618,19 @@ def judged(
     return found
 
 
-def unwritten(run: Pass, thread: dict[str, Any] | None, state: work.State) -> str:
+def unwritten(
+    run: Pass, thread: dict[str, Any] | None, state: work.State, waiting: set[str]
+) -> str:
     """Why a `stale` row has nobody on it, or nothing while its crew still has it.
 
     A thread that ended or hung with nothing written is `stale` for as long as jbus carries
     its crew on (`threads.resume`). From `UNWRITTEN_MINUTES` after its thread last wrote, or
     at once for a hung turn, the row is a leftover, sent to its home to close (`leftover`),
     and it is `left` until its home ends it, the thread goes on, or the row is removed.
+
+    A thread that ended its turn to wait on a test slot, and is one of `waiting`, is not left
+    however long it is quiet: jbus wakes it when a slot is free (`slotwait`). Once woken, the
+    rule above counts from its thread's last write again.
     """
     if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
         return ""
@@ -629,6 +638,8 @@ def unwritten(run: Pass, thread: dict[str, Any] | None, state: work.State) -> st
         return "its turn hung with nothing written"
     if thread is None:
         return "its thread is gone and nothing is written"
+    if waiters.thread_id(str(thread.get("threadId", ""))) in waiting:
+        return ""
     quiet = (run.now - when(thread["updatedAt"])).total_seconds() / 60
     if quiet < UNWRITTEN_MINUTES:
         return ""
@@ -647,7 +658,7 @@ def status(
     pull = world.open.get(slug) or world.merged.get(slug)
     word = work.status(state)
     reason = ""
-    if word == "stale" and (why := unwritten(run, found, state)):
+    if word == "stale" and (why := unwritten(run, found, state, world.waiting)):
         word, reason = "left", why
     elif word in ("merged", "left", "done"):
         result = last_result(brief_of(run, slug))
