@@ -17,13 +17,14 @@
 # than two. `make check TEST_WORKERS=4` sets the count by hand, and `CORES=4` the processors
 # it is counted from.
 #
-# The two shares and the number of test slots (`DEFAULT` in src/jgauge/slot.py) are one budget,
-# counted in workers: the slots times a desk's workers, plus the runners times a runner's, at
-# most one and a half for each of the machine's processors. On 24 processors with 3 slots and
-# 3 runners of quota 4 that is 3 x 6 + 3 x 6 = 36 workers. A worker averages 0.51 of a core
-# (measured 2026-10-19: 440 to 473 s of CPU for every run of the suite at 6 and 8 workers), so
-# every slot and every runner at once ask for about 18 of the 24. Change one of the numbers and
-# the sum changes: tests/test_check_command.py holds it to 36.
+# The desk share is also the full test slots' count (`test_slots` in src/jgauge/limits.py,
+# whose DESK_SHARE is this quarter): every slot at once runs at most one desk worker for each
+# of the machine's processors, 4 slots on 8 cores or more. A worker keeps 0.86 of a core busy
+# (measured on yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU for each 89 to 94 s run
+# at 6 workers), so every slot at once asks for about 21 of the 24. tests/test_check_command.py
+# holds the share and the count to each other. The runners are not in that count: they run in
+# a slice of their own, with its own CPU cap and a lower CPU weight, which the machine's own
+# config sets, and room's CPU pressure line holds launches when the two together run hot.
 CGROUP ?= /sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
