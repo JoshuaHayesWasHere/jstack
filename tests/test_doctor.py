@@ -397,6 +397,16 @@ def test_a_declared_instance_t3_lists_otherwise_is_old(user, listed, why):
     assert line_for(said, f"provider {PRIME}") == [f"old hard provider {PRIME} -> {why}"]
 
 
+def test_another_instance_t3_lists_in_a_shape_the_doctor_refuses_changes_no_line(user):
+    declared(user, {"cursor": {"enabled": True}, "codex": CODEX})
+    assert line_for(user.doctor()[1], "provider") == [
+        "ok optional provider inventory -> 3 declared",
+        "ok hard provider claudeAgent -> T3's built-in instance",
+        f"missing hard provider {PRIME} -> T3 does not list it",
+        "ok hard provider codex",
+    ]
+
+
 def test_t3_settings_that_cannot_be_read_make_each_declared_instance_old(user):
     declared(user, {})
     user.write(user.t3_settings, "{not json")

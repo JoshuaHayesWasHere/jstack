@@ -1001,6 +1001,10 @@ class ProviderInventory:
 
     path: Path
 
+    def ask(self, machine: Machine) -> str:
+        """infra declares the instances, and its install links the file here."""
+        return "run infra's install"
+
     def probe(self, machine: Machine) -> Found:
         if not self.path.exists():
             return Found.missing(str(self.path))
@@ -1028,9 +1032,11 @@ class ProviderInstance:
             listed = {}
         except (OSError, UnicodeDecodeError, ValueError, AttributeError):
             return Found.old(f"T3's settings cannot be read: {self.settings}")
-        if isinstance(listed, dict) and self.name in listed:
-            listed = {self.name: listed[self.name]}
-        found = instances(listed, machine.home)
+        if not isinstance(listed, dict):
+            return Found.old("T3's settings: providerInstances is not an object")
+        found = instances(
+            {self.name: listed[self.name]} if self.name in listed else {}, machine.home
+        )
         if isinstance(found, str):
             return Found.old(f"T3's settings: {found}")
         want = self.instance

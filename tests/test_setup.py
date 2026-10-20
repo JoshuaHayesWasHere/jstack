@@ -60,8 +60,7 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f"done roles {user.roles}",
         "already lavish-axi",
     ]
-    inventory = user.home / ".config" / "jstack" / "providers.json"
-    assert said[14] == f"needs you provider inventory -> {inventory}"
+    assert said[14] == "needs you provider inventory -> run infra's install"
     parts = [*user.parts(), f"optional units {user.units}"]
     assert said[15:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
