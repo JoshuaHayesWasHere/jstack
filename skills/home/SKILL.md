@@ -124,26 +124,7 @@ A row `the home` runs, in what the block in "Handing a task to a crewmate" that 
 
 ```sh
 name='<name>'
-if [ -z "$name" ]; then
-    name=$(awk '/^## / {exit} /^Playbook:/ {print $(2); exit}' "$M/plan.md" 2> /dev/null)
-fi
-case $name in
-"" | none) ;;
-*)
-    f="$T/../playbooks/$name.md"
-    if [ "${name#*/}" != "$name" ] || [ ! -f "$f" ]; then
-        echo "no playbook: playbooks/ has no $name.md"
-    else
-        by=$(sed -n 's/^Run by: //p' "$f" | head -n 1)
-        case ${by%%,*} in
-        "the home")
-            realpath "$f"
-            printf '%s\n' "$by" | sed -n 's/.* in a brief with //p' | grep -o '`[^`]*`' | tr -d '`' |
-                sed 's/^/asks of its brief: /' ;;
-        *) echo "not the home's: playbooks/$name.md is for ${by%%,*}" ;;
-        esac
-    fi ;;
-esac
+uv run --project "$T/.." jbus playbook home "$M/plan.md" --name "$name"
 ```
 
 It prints nothing when the name is `none`, or when none is given and the plan's head has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and tell the user what it printed. On `not the home's`, the file is for a crewmate or a scout: do the same again, and put its name on a brief or a request instead. When its first line is a path, read that file now. Copy its numbered steps into your todo list, word for word, before any todo of your own (with no todo tool, write the list in this thread), and work them in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the work is in another repo. A line under the path, `asks of its brief:`, is a line to write in each brief the playbook has you hand out. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so to the user.

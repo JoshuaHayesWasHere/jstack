@@ -1,0 +1,171 @@
+"""`jbus playbook <role> <brief>`: open the playbook a brief, a request or a plan names.
+
+This is the one way a thread opens a playbook. The crew, scout, home, expert and pr-review
+skills each call it, and none keeps a block of its own that reads the `Playbook:` line:
+`tests/test_one_way.py` fails on a skill that carries one again. The name is the first word
+of the first `Playbook:` line of the file's head (`jbriefs.parse.playbook_named`), or the
+one `--name` gives, which a home and an expert are given in place of a line.
+
+A name that is `none`, or no name, prints nothing. Otherwise the file is
+`playbooks/<name>.md` of the repo this package lives in, the one the skills live in too,
+also when the work is in another repo. A name with a `/`, or that is no file there, prints
+`no playbook: ...`. A playbook whose `Run by:` line names another role than the one asked
+for prints `not <role's>: ...`. A playbook of the role prints, by role:
+
+- `crewmate` and `scout`: its path; a `has` or `lacks` line for each line its `Run by:`
+  asks a brief to have; its numbered steps under a line that names them; a `no principle`
+  line for each citation of a file `principles/` does not have; and each principle it
+  cites, once and in full, under a line that names them all.
+- `home`: its path, and an `asks of its brief:` line for each line its `Run by:` asks.
+- `expert`: its path.
+- `reviewer`: what a reviewer is told of the crewmate's playbook, in place of the path:
+  its name, and the first paragraph of each principle it cites. A brief is a crewmate's,
+  so the reviewer opens a crewmate's playbook.
+
+`--named` prints the name alone, as the line gives it, and opens nothing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+from pathlib import Path
+
+import jbus
+from jbriefs import parse as briefs
+from jbus import verbs
+
+REPO = briefs.PLAYBOOKS.parent
+ROLES = {
+    "crewmate": "a crewmate",
+    "scout": "a scout",
+    "reviewer": "a crewmate",
+    "home": "the home",
+    "expert": "an expert",
+}
+WHOSE = {
+    "a crewmate": "a crewmate's",
+    "a scout": "a scout's",
+    "the home": "the home's",
+    "an expert": "an expert's",
+}
+CITED = re.compile(r"principles/[a-z0-9-]*\.md")
+ASKED = re.compile(r"`([^`]*)`")
+CHECKLIST = "a checklist to copy into your todo list as printed"
+STEP = re.compile(r"^[0-9]+\. ")
+
+
+def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]:
+    """What `jbus playbook` prints for `role`, with `text` the brief, request or plan, and
+    `name` the playbook's name where one is given in place of its line."""
+    name = name or briefs.playbook_named(text)
+    if name in ("", "none"):
+        return []
+    path = repo / "playbooks" / f"{name}.md"
+    if "/" in name or not path.is_file():
+        said = f"no playbook: playbooks/ has no {name}.md"
+        return [f"{said}: the crewmate worked with none" if role == "reviewer" else said]
+    playbook = path.read_text()
+    by = next(
+        (line[len("Run by: ") :] for line in playbook.splitlines() if line.startswith("Run by: ")),
+        "",
+    )
+    whose = by.split(",")[0]
+    if whose != ROLES[role]:
+        said = f"not {WHOSE[ROLES[role]]}: playbooks/{name}.md is for {whose}"
+        return [f"{said}: the crewmate worked with none" if role == "reviewer" else said]
+    asked = ASKED.findall(by.partition(" in a brief with ")[2])
+    cited = list(dict.fromkeys(CITED.findall(playbook)))
+    if role == "reviewer":
+        return _reviewed(name, [repo / one for one in cited if (repo / one).is_file()])
+    if role == "expert":
+        return [str(path.resolve())]
+    if role == "home":
+        return [str(path.resolve()), *(f"asks of its brief: {line}" for line in asked)]
+    said = [str(path.resolve())]
+    lines = text.splitlines()
+    for line in asked:
+        has = "has" if any(one.startswith(line) for one in lines) else "lacks"
+        said.append(f"{has} the line the playbook asks for: {line}")
+    steps = [line for line in playbook.splitlines() if STEP.match(line)]
+    if steps:
+        said.append(f"the steps of playbooks/{name}.md, {CHECKLIST}:")
+        said += steps
+    there = []
+    for one in cited:
+        if (repo / one).is_file():
+            there.append(one)
+        else:
+            said.append(f"no principle: playbooks/{name}.md cites {one}, which is not there")
+    if there:
+        names = " ".join(one.removeprefix("principles/").removesuffix(".md") for one in there)
+        said.append(f"the principles playbooks/{name}.md cites, each in full below: {names}")
+        for one in there:
+            said += ["", f"==> {one} <==", *(repo / one).read_text().splitlines()]
+    return said
+
+
+def _reviewed(name: str, cited: list[Path]) -> list[str]:
+    """The reviewer's lines: the playbook's name, and each cited principle's first paragraph,
+    the lines after its `# ` title up to the first blank line under them, joined."""
+    said = [f"Playbook: {name}, the steps the crewmate worked by."]
+    first = []
+    for path in cited:
+        lines = path.read_text().splitlines()
+        title = next((at for at, line in enumerate(lines) if line.startswith("# ")), None)
+        if title is None:
+            continue
+        paragraph: list[str] = []
+        for line in lines[title + 1 :]:
+            if line.strip():
+                paragraph.append(line)
+            elif paragraph:
+                break
+        if paragraph:
+            first.append(f"- {path.stem}: {' '.join(paragraph)}")
+    if first:
+        said += ["The principles it cites, and when each applies:", *first]
+    return said
+
+
+def _arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("role", choices=ROLES, help="who opens it")
+    parser.add_argument(
+        "brief", nargs="?", help="the brief, request or plan whose Playbook: line names it"
+    )
+    parser.add_argument("--name", default="", help="the playbook's name, in place of the line's")
+    parser.add_argument(
+        "--named", action="store_true", help="print the name the line gives, and open nothing"
+    )
+
+
+def _run(args: argparse.Namespace, config: jbus.Config | None) -> int:
+    text = ""
+    if args.brief is not None:
+        try:
+            text = Path(args.brief).read_text()
+        except OSError as error:
+            raise jbus.Refused(
+                f"no file: {args.brief} could not be read ({error.strerror})"
+            ) from None
+    elif not args.name:
+        raise jbus.Refused("refused: give the brief, request or plan, or --name")
+    if args.named:
+        named = args.name or briefs.playbook_named(text)
+        if named:
+            print(named)
+        return 0
+    for line in opened(args.role, text, args.name, REPO):
+        print(line)
+    return 0
+
+
+VERBS = (
+    verbs.Verb(
+        "playbook",
+        "open the playbook a brief, a request or a plan names, for the role that runs it",
+        _arguments,
+        _run,
+        config=False,
+    ),
+)

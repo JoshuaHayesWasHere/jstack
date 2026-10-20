@@ -28,17 +28,7 @@ An ask is one of five kinds. Three come from anybody: a `question` (a short answ
        echo "not filled in: put this thread's id, and the kind of ask or a playbook's name, in place of the placeholders"
        exit 1
        ;;
-   *)
-       f="$T/../playbooks/$name.md"
-       if [ "${name#*/}" != "$name" ] || [ ! -f "$f" ]; then
-           echo "no playbook: playbooks/ has no $name.md"
-       else
-           by=$(sed -n 's/^Run by: //p' "$f" | head -n 1)
-           case ${by%%,*} in
-           "an expert") realpath "$f" ;;
-           *) echo "not an expert's: playbooks/$name.md is for ${by%%,*}" ;;
-           esac
-       fi ;;
+   *) uv run --project "$T/.." jbus playbook expert --name "$name" ;;
    esac
    ```
 
