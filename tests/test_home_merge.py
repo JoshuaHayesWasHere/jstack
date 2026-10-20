@@ -44,6 +44,26 @@ OTHER_PASSED = run("SUCCESS", "lint")
 OTHER_FAILED = run("FAILURE", "lint")
 UNSTARTED = {**FAILED, "detailsUrl": "https://github.com/someone/repo/actions/runs/5/job/1"}
 
+
+def timed(conclusion, started, completed, name="check"):
+    """A check run that ran on 2026-10-18 from `started` to `completed`, as GitHub lists it."""
+    day = "2026-10-18T{}Z"
+    return {
+        **run(conclusion, name),
+        "startedAt": day.format(started),
+        "completedAt": day.format(completed),
+    }
+
+
+CANCELLED_EARLY = timed("CANCELLED", "00:28:37", "00:43:52")
+PASSED_LATER = timed("SUCCESS", "01:11:04", "01:23:33")
+ROLLUP_OF_D2FDB509 = (
+    CANCELLED_EARLY,
+    PASSED_LATER,
+    timed("SKIPPED", "00:26:17", "00:26:16", "full"),
+    timed("SKIPPED", "00:56:59", "00:56:59", "full"),
+)
+
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
     "files,changedFiles,isDraft"
@@ -582,6 +602,21 @@ SHORT = {
         {"head": PUSHED, "checks": (PASSED, FAILED)},
         NOT_PASSED,
     ),
+    "check passed, and a run that started later was cancelled": (
+        FIXED,
+        {"head": PUSHED, "checks": (PASSED_LATER, timed("CANCELLED", "01:30:00", "01:31:00"))},
+        NOT_PASSED,
+    ),
+    "check passed, and a run that started later failed": (
+        FIXED,
+        {"head": PUSHED, "checks": (timed("FAILURE", "01:30:00", "01:41:00"), PASSED_LATER)},
+        NOT_PASSED,
+    ),
+    "check's one run was cancelled": (
+        FIXED,
+        {"head": PUSHED, "checks": (CANCELLED_EARLY, OTHER_PASSED)},
+        NOT_PASSED,
+    ),
     "a commit status named check that failed": (
         FIXED,
         {
@@ -853,6 +888,12 @@ def test_a_pull_request_that_waits_is_left_and_logged(merged):
     assert merged.run() == [line]
     assert merged.untouched()
     assert [logged.split(" ", 2)[2] for logged in merged.log()] == [line]
+
+
+def test_a_check_cancelled_and_then_run_again_to_a_pass_is_green(merged):
+    merged.home.open_pull_request(merged.head, checks=ROLLUP_OF_D2FDB509)
+    assert merged.run("--check") == [f"ready 7 {merged.head} alpha alpha"]
+    assert merged.untouched()
 
 
 def test_a_look_at_what_is_ready_merges_and_logs_nothing(merged):

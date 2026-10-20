@@ -18,7 +18,7 @@ import ast
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -131,37 +131,57 @@ class PullRequest:
     added: tuple[str, ...] = ()
 
 
+def _at(text: str | None) -> datetime | None:
+    """A time GitHub gives, or None where it gives none: a run that never started has the
+    year 1, which is no time at all."""
+    try:
+        at = datetime.fromisoformat(text or "")
+    except (TypeError, ValueError):
+        return None
+    return at if at.tzinfo is not None and at.year > 1 else None
+
+
+def latest(rollup: list[dict]) -> list[dict]:
+    """The latest run of the check named `check`: the one that started last, then the one
+    that completed last.
+
+    A head keeps every run of its check, so a run that was cancelled and run again leaves
+    both, and only the last says what the head is. A run with no start or no end yet has not
+    ended and is later than any that has; runs that cannot be told apart are all the latest.
+    """
+    named = [one for one in rollup if REQUIRED in (one.get("name"), one.get("context"))]
+    end = datetime.max.replace(tzinfo=UTC)
+
+    def when(one: dict) -> tuple[datetime, datetime]:
+        return (_at(one.get("startedAt")) or end, _at(one.get("completedAt")) or end)
+
+    last = max(map(when, named), default=None)
+    return [one for one in named if when(one) == last]
+
+
 def passed(rollup: list[dict]) -> bool:
-    """Whether the check named `check` passed, whatever the other checks say.
+    """Whether the check named `check` passed in its latest run, whatever the other checks
+    say.
 
     A status context has a `context` and a `state`; a check run has a `name`, a `status` and
     a `conclusion`. A check that is missing, skipped, neutral, pending or failed has not
     passed, and nothing stands in for it.
     """
-    named = [one for one in rollup if REQUIRED in (one.get("name"), one.get("context"))]
-    return bool(named) and all(
+    runs = latest(rollup)
+    return bool(runs) and all(
         one.get("state") == "SUCCESS"
         or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
-        for one in named
+        for one in runs
     )
 
 
 def started(rollup: list[dict]) -> datetime | None:
-    """When the earliest run of the check named `check` started, or None where none says.
+    """When the latest run of the check named `check` started, or None where it says no time.
 
-    A run that never started has the year 1 for its start, which is no time at all.
+    The latest runs, where more than one, share their start.
     """
-    times = []
-    for one in rollup:
-        if REQUIRED not in (one.get("name"), one.get("context")):
-            continue
-        try:
-            at = datetime.fromisoformat(one.get("startedAt") or "")
-        except (TypeError, ValueError):
-            continue
-        if at.tzinfo is not None and at.year > 1:
-            times.append(at)
-    return min(times, default=None)
+    runs = latest(rollup)
+    return _at(runs[0].get("startedAt")) if runs else None
 
 
 def pull_request(listed: dict) -> PullRequest:

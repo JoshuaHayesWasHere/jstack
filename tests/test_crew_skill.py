@@ -1352,6 +1352,17 @@ def run(conclusion, job=None):
     return one
 
 
+def ran(conclusion, started, completed, name="check", job=None):
+    """A run of the check `name` that ran on 2026-10-18 from `started` to `completed`."""
+    day = "2026-10-18T{}Z"
+    return {
+        **run(conclusion, job),
+        "name": name,
+        "startedAt": day.format(started),
+        "completedAt": day.format(completed),
+    }
+
+
 STEPS = {"1": [], "2": [{"name": "Run make check", "conclusion": "failure"}]}
 RUNNING = {"__typename": "CheckRun", "status": "IN_PROGRESS", "conclusion": ""}
 ROLLUPS = {
@@ -1374,6 +1385,24 @@ ROLLUPS = {
     "one still running": ([run("SUCCESS"), RUNNING], "wait"),
     "one still running beside one that never started": ([run("FAILURE", 1), RUNNING], "wait"),
     "none reported yet": ([], "wait"),
+    "check cancelled, then run again to a pass, as #72's head was": (
+        [
+            ran("CANCELLED", "00:28:37", "00:43:52", job=2),
+            ran("SUCCESS", "01:11:04", "01:23:33"),
+            ran("SKIPPED", "00:26:17", "00:26:16", "full"),
+            ran("SKIPPED", "00:56:59", "00:56:59", "full"),
+        ],
+        "passed",
+    ),
+    "check passed, then a later run was cancelled": (
+        [ran("SUCCESS", "01:11:04", "01:23:33"), ran("CANCELLED", "01:30:00", "01:31:00", job=2)],
+        "failed",
+    ),
+    "check passed, then a later run failed": (
+        [ran("FAILURE", "01:30:00", "01:41:00", job=2), ran("SUCCESS", "01:11:04", "01:23:33")],
+        "failed",
+    ),
+    "check's one run was cancelled": ([ran("CANCELLED", "00:28:37", "00:43:52", job=2)], "failed"),
     "GitHub cannot be asked": (None, "wait"),
 }
 
