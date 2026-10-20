@@ -49,3 +49,11 @@ def test_a_brief_on_other_files_or_not_launched_is_not_named(claims):
         said[-1],
     ]
     assert said[-1].startswith("go: ")
+
+
+def test_a_task_with_no_brief_on_disk_waits_and_names_no_go(claims):
+    claims.write("alpha", where="`src/jmerge/cli.py`")
+    said = check(claims)
+    assert said == [
+        "wait: jmerge --claims has no line for task: write its brief first, then run this again"
+    ]

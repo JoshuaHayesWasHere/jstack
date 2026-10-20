@@ -689,10 +689,13 @@ On each message, do this without waiting for a word from the user.
    ```sh
    slug='<slug>'
    if ! said=$(uv run --project "$T/.." jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
-       printf '%s\n' "${said:-wait: jmerge --claims did not run}"
+       case $said in
+       wait:*) printf '%s\n' "$said" ;;
+       *) echo "wait: jmerge --claims did not finish, no overlap was read" ;;
+       esac
    else
        printf '%s\n' "$said" | awk -v slug="$slug" '
-           function paths(where, into,    n, i, part, found) {
+           function paths(where, into,    n, i, part) {
                n = split(where, part, "`")
                for (i = 2; i <= n; i += 2) if (part[i] ~ /[\/.]/) into[part[i]] = 1
            }
@@ -704,7 +707,7 @@ On each message, do this without waiting for a word from the user.
                at = index($(0), " Where: ")
                if (!at) next
                head = substr($(0), 1, at - 1)
-               if ($(1) == slug) { paths(substr($(0), at), mine); next }
+               if ($(1) == slug) { paths(substr($(0), at), mine); own = 1; next }
                if (substr(head, length($(1)) + 2, 13) == "not launched ") next
                state = substr(head, length($(1)) + 2)
                sub(/ [^ ]+$/, "", state)
@@ -713,6 +716,10 @@ On each message, do this without waiting for a word from the user.
                where[$(1)] = substr($(0), at)
            }
            END {
+               if (!own) {
+                   print "wait: jmerge --claims has no line for " slug ": write its brief first, then run this again"
+                   exit
+               }
                for (other in out) {
                    split("", theirs)
                    paths(where[other], theirs)
@@ -727,7 +734,7 @@ On each message, do this without waiting for a word from the user.
    fi
    ```
 
-   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
+   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
 4. Tell the user in a few lines, here: what landed, what was merged, what was launched with its link, what was parked, and what waits and why. When nothing is left planned or out, say that the planned work is done and show the open questions ("Gates").
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
