@@ -71,7 +71,7 @@ ACCOUNT_KEYS = re.compile(
 LOCK = ".jroles-mirror.lock"
 JSON = ".claude.json"
 _OURS = re.compile(
-    r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\.(mirror|sync)\..*"
+    r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\..*"
 )
 DRIFT, BROKEN = 1, 2
 

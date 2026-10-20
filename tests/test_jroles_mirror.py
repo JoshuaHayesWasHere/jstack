@@ -276,3 +276,15 @@ def test_a_run_holds_the_main_homes_lock_while_it_writes(home, capsys, monkeypat
     monkeypatch.setattr(module, "apply", apply)
     mirror(capsys)
     assert held and all(held)
+
+
+def test_claude_codes_own_temp_beside_claude_json_is_left_where_it_is(home, capsys):
+    """Claude Code writes `.claude.json` by a temp file it renames: a run that moved it into
+    `~/.claude` would turn the mirror's `.claude.json` into a link once the rename lands."""
+    prime = home / ".claude_prime"
+    temp = write(prime / ".claude.json.tmp.33724.6382429c52d5", "{}\n")
+    code, said, _ = mirror(capsys, "--check", "--instance", PRIME)
+    assert not any(temp.name in line for line in said)
+    mirror(capsys, "--instance", PRIME)
+    assert temp.is_file() and not temp.is_symlink()
+    assert not (home / ".claude" / temp.name).exists()
