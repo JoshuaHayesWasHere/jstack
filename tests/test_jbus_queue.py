@@ -749,8 +749,8 @@ def test_dispatch_off_a_stop_file_or_the_limit_reached_launch_nothing(kitchen, o
     assert len(kitchen.t3.launches) == 1
 
 
-@pytest.mark.parametrize(("written", "cap"), [(None, 12), (3, 3), (1, 1)])
-def test_a_config_with_no_max_running_runs_the_crew_cap_of_12(kitchen, written, cap):
+@pytest.mark.parametrize(("written", "cap"), [(None, 16), (3, 3), (1, 1)])
+def test_a_config_with_no_max_running_runs_the_crew_cap_of_16(kitchen, written, cap):
     kitchen.config(max_running=written)
     assert jbus.load(kitchen.config_dir).max_running == cap
 
@@ -762,7 +762,7 @@ def test_a_max_running_under_1_is_refused_with_one_line(kitchen, written):
         jbus.load(kitchen.config_dir)
     path = kitchen.config_dir / "config.toml"
     assert str(refused.value) == (
-        f"refused: {path} has max_running = {written}: give 1 or more, or leave it out for 12"
+        f"refused: {path} has max_running = {written}: give 1 or more, or leave it out for 16"
     )
 
 
