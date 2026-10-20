@@ -20,11 +20,11 @@ thread on to the instance `jroles.pool.choose` names in its pool:
   the first reset, and nothing sent. The first pass after that reset goes on as above.
 
 Which threads: the crews the briefs name on a `Thread:` line that still owe something, and the
-homes in a `home-id`, the root home's and each scope's. Each failed run is handled once: its key, `failover|<thread>|<run>`, is
-kept in `sent.json` after the carry-on is queued, and the stall has its own key, the reset. A
-crash between the two calls is safe: the configure sets the same selection again, and the send
-has the key as its retry key. A slug read here is in `Pass.limited`, and `threads.resume` leaves
-it alone: its carry-ons are not for a limit.
+homes in a `home-id`, the root home's and each scope's. Each failed run is handled once: its
+key, `failover|<thread>|<run>`, is kept in `sent.json` after the carry-on is queued, and the
+stall has its own key, the reset. A crash between the two calls is safe: the configure sets the
+same selection again, and the send has the key as its retry key. A slug read here is in
+`Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a limit.
 """
 
 from __future__ import annotations
