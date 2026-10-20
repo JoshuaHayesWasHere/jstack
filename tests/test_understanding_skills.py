@@ -4,7 +4,6 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 import time
 from pathlib import Path
 
@@ -77,12 +76,6 @@ def problems(directory):
     for path in sorted(directory.rglob("*.md")):
         found += em_dashes(path)
     return found
-
-
-def json_blocks(text):
-    """The body of every `json` block in a skill, indent taken off, in order."""
-    found = re.findall(r"^([ \t]*)```json\n(.*?)^\1```$", text, re.M | re.S)
-    return [textwrap.dedent(body) for _, body in found]
 
 
 def named_files(skill):
@@ -193,7 +186,7 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
     [
         pytest.param(name, body, id=f"{name}:{number}")
         for name in ADDED
-        for number, body in enumerate(json_blocks((SKILLS / name / "SKILL.md").read_text()), 1)
+        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "json"), 1)
     ],
 )
 def test_a_subagent_an_added_skill_starts_is_read_only_on_this_sessions_model(name, body):

@@ -14,7 +14,14 @@ from pathlib import Path
 
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
-FENCED = re.compile(r"^([ \t]*)```sh\n(.*?)^\1```$", re.M | re.S)
+
+
+def fence(language):
+    """The fenced blocks of `language`: a block's closing fence has its opening's indent."""
+    return re.compile(rf"^([ \t]*)```{language}\n(.*?)^\1```$", re.M | re.S)
+
+
+FENCED = fence("sh")
 GUARD = 'if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi'
 NAMED = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 
@@ -42,9 +49,9 @@ def as_read(path):
     return "".join(out)
 
 
-def blocks(text):
-    """The body of every `sh` block in `text`, indent taken off, in order."""
-    return [textwrap.dedent(body) for _, body in FENCED.findall(text)]
+def blocks(text, language="sh"):
+    """The body of every block of `language` in `text`, indent taken off, in order."""
+    return [textwrap.dedent(body) for _, body in fence(language).findall(text)]
 
 
 def located(text):
