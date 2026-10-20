@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -119,7 +120,7 @@ class Repo:
             env={
                 **os.environ,
                 "HOME": str(self.user),
-                "PATH": f"{self.stub}:{os.environ['PATH']}",
+                "PATH": f"{self.stub}:{Path(sys.executable).parent}:{os.environ['PATH']}",
                 "CALLS": str(self.stub / "calls"),
                 "OPEN": str(self.stub / "open"),
                 "SAYS": str(self.stub / "says"),

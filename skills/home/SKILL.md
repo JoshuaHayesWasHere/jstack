@@ -16,7 +16,7 @@ There are no subagents doing the work. Each task is one ordinary thread, and its
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/home/../../templates)
-whose() { uv run --project "$T/.." jbus home --directory "${1}"; }
+whose() { if [ -z "${1}" ]; then echo "$H"; else uv run --project "$T/.." jbus home --directory "${1}"; fi; }
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
