@@ -77,6 +77,17 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
     assert not re.search(r"[A-Za-z0-9_-]{30,}", json.dumps(FIXTURE["token_response"]))
 
 
+def test_no_page_of_docs_jbus_holds_a_url_a_key_or_a_token():
+    pages = sorted((REPO / "docs/jbus").glob("*.md"))
+    assert len(pages) > 10
+    allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
+    for path in pages:
+        text = path.read_text()
+        for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
+            assert allowed.match(host) or host == "", f"{path.name}: {host}"
+        assert not re.search(r"Bearer [A-Za-z0-9_-]{20,}", text), path.name
+
+
 def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
     page = (REPO / "docs/configuration.md").read_text()
     (example,) = [

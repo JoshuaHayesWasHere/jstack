@@ -81,7 +81,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
 | `webhook_url` | Empty | The top-level webhook, the monitor of every project: `jbus` POSTs it every project's events for you, and it is the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither: half a pair is refused. |
-| `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus.md#what-blocks) has the bodies. |
+| `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither: half a pair is refused. Both are secret like the webhook's. |
 
 The model a crew is launched on is not a key here: `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source. A `modelSelection` key left from before is not read.
@@ -99,9 +99,9 @@ Each `[[project]]` table is one repo:
 | `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, no pull request is held for its migrations. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. Any other value is refused. |
 
-To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus.md#add-a-project) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
+To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus/add-a-project.md) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
 
-`jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](jbus.md#set-up-jbus) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
+`jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](jbus/set-up-jbus.md) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
 
 Two more paths change what `jbus` does:
 
@@ -181,7 +181,7 @@ printf '%s' "$input" | jq -r '.model.display_name'
 
 ## The state tree's remote
 
-The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus.md#back-up-the-homes-state)). The remote is a private repository of yours, which nothing else pushes to:
+The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus/back-up-the-homes-state.md)). The remote is a private repository of yours, which nothing else pushes to:
 
 ```sh
 git -C ~/.local/state/home remote add origin <url>

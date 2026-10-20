@@ -36,7 +36,7 @@ This page says what the Chef is sent, what it may run, and how to make one as a 
 | `events[].text` | The whole text when there is one: a Result, a Review, a Report, a gate. |
 | `events[].loud` | `user` or `quiet`. An event with `user` also has its own `say`. |
 
-[Events and the webhook](jbus.md#events-and-the-webhook) has the kinds at each level. A project's webhook is posted its `user` events, and nothing quiet.
+[Events and the webhook](jbus/events-and-the-webhook.md) has the kinds at each level. A project's webhook is posted its `user` events, and nothing quiet.
 
 Each POST carries the project's `webhook_key` in two headers, `Authorization: Bearer <key>` and `X-Automation-Key: <key>`. Its `User-Agent` is `jbus`.
 
@@ -52,7 +52,7 @@ The Chef runs `jbus queue` and nothing else that changes state.
 | `jbus queue hold <slug>` | Takes a row's approval back. |
 | `jbus queue apply` | Runs a batch of those three verbs from stdin, all or none. |
 
-The Chef never approves by itself. An approval takes no name and no time: it names your own message, which jbus reads from T3 Code, or a word or an answer jbus keeps, and jbus writes who ran the command and when. `--sha` ties the go to one text of the brief. The fourth basis, `--rule <n> --follows <parent slug>`, is not your word for the row: a home uses it for a follow-up to a row you approved. jbus refuses nobody by who runs it and records who did, so the Chef's own rule is what keeps it from using this basis. The row then says you did not speak of it, and the digest's `by_rule` counts those rows so the Chef can tell you. [The queue](jbus.md#the-queue) has the format of a batch.
+The Chef never approves by itself. An approval takes no name and no time: it names your own message, which jbus reads from T3 Code, or a word or an answer jbus keeps, and jbus writes who ran the command and when. `--sha` ties the go to one text of the brief. The fourth basis, `--rule <n> --follows <parent slug>`, is not your word for the row: a home uses it for a follow-up to a row you approved. jbus refuses nobody by who runs it and records who did, so the Chef's own rule is what keeps it from using this basis. The row then says you did not speak of it, and the digest's `by_rule` counts those rows so the Chef can tell you. [The queue](jbus/the-queue.md) has the format of a batch.
 
 The Chef does not merge, does not run `jmerge --accept`, and does not edit a brief after your go. A pull request that `jmerge` holds is yours: the `waiting-on-user` line holds the command, and you run it.
 

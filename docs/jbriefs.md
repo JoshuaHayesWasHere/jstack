@@ -31,7 +31,7 @@ Every path it prints is from the root of the jstack checkout.
 
 ## What an approval binds to
 
-A go from the user is bound to the brief's goal, scope and done-when: its title, `Task:`, `Done when:`, `Where:`, `Do not touch:` and `Size:` (`MEANING` in `src/jbriefs/meaning.py`, a fingerprint made with no model). An edit to `Skills:`, `Decisions:`, `Design:`, `Proves it:`, `Review:`, `Playbook:`, `Pull request:` or a note keeps the go (`NOT_MEANING` lists them), and a change to any of the six asks again. The checks of `jbriefs.parse.faults` run when a row is first queued; a row with a go is grandfathered, so a check added later refuses neither its brief nor its launch. [What an approval is bound to](jbus.md#what-an-approval-is-bound-to) has the rules.
+A go from the user is bound to the brief's goal, scope and done-when: its title, `Task:`, `Done when:`, `Where:`, `Do not touch:` and `Size:` (`MEANING` in `src/jbriefs/meaning.py`, a fingerprint made with no model). An edit to `Skills:`, `Decisions:`, `Design:`, `Proves it:`, `Review:`, `Playbook:`, `Pull request:` or a note keeps the go (`NOT_MEANING` lists them), and a change to any of the six asks again. The checks of `jbriefs.parse.faults` run when a row is first queued; a row with a go is grandfathered, so a check added later refuses neither its brief nor its launch. [What an approval is bound to](jbus/the-queue.md#what-an-approval-is-bound-to) has the rules.
 
 ## Skills a brief names
 
