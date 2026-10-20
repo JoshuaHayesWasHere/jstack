@@ -14,7 +14,7 @@ import pytest
 
 import jbus
 import jmerge.cli
-from jbus import cli
+from jbus import alive, cli
 from test_jbus_kitchen import KEY, NOW, OPTIONS, PROJECT
 
 FAILED = (
@@ -77,7 +77,7 @@ def test_a_jmerge_command_that_hangs_is_a_failed_command_after_the_timeout(tmp_p
 
 def alarm(now):
     said = []
-    assert cli.alarm(jbus.load(), now, said.append) == 0
+    assert alive.alarm(jbus.load(), now, said.append) == 0
     return said
 
 
@@ -134,7 +134,7 @@ STALE = (
 
 def stale(now, limit="2h"):
     said = []
-    assert cli.stale(jbus.load(), cli.span(limit), now, said.append) == 0
+    assert alive.stale(jbus.load(), alive.span(limit), now, said.append) == 0
     return said
 
 
@@ -180,7 +180,7 @@ def test_the_alarm_verb_takes_a_limit_in_minutes_hours_or_days(kitchen):
     assert (code, said.startswith("pass seen: last ended ")) == (0, True)
     code, said = kitchen.main("alarm", "--stale", "2x")
     assert code == 2 and "a limit is a number and m, h or d, as 2h: not 2x" in said
-    assert [cli.span(given) for given in ("15m", "2h", "1d")] == [
+    assert [alive.span(given) for given in ("15m", "2h", "1d")] == [
         timedelta(minutes=15),
         timedelta(hours=2),
         timedelta(days=1),
@@ -228,7 +228,7 @@ def test_a_webhook_url_that_cannot_be_used_is_in_no_line_and_not_in_the_status(k
     )
     said = []
     assert cli.poll(jbus.load(), NOW, said.append) == 1
-    assert cli.alarm(jbus.load(), NOW + timedelta(minutes=6), said.append) == 1
+    assert alive.alarm(jbus.load(), NOW + timedelta(minutes=6), said.append) == 1
     assert cli.poll(jbus.load(), NOW + timedelta(hours=1), said.append) == 1
     failed = [line for line in said if "failed demo: " in line]
     assert [line.split(":")[0] for line in failed] == ["pass failed demo", "alarm failed demo"] + [

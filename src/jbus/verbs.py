@@ -8,11 +8,12 @@ gathers them, and `jbus.cli.main` builds its parsers from what it gives: a new v
 `ValueError` that names both, raised when `jbus.cli` is imported.
 
 A step of a pass is declared the same way, as `STEPS = (Step(...),)`: the slot of
-`jbus.cli.first_half` it runs in, its rank there, its name, the function that runs it, and
-what the pass must have for it to run. `ranked` gathers them, a slot's steps by rank, and
-`first_half` runs them where the slot is: a new step is a `Step` in its feature's module,
-and no line in `jbus.cli`. `jbus steps` prints the order. A rank two modules declare in one
-slot is a `ValueError` that names both, raised when `jbus.cli` is imported.
+`jbus.cli.first_half` or `jbus.cli.second_half` it runs in, its rank there, its name, the
+function that runs it, and what the pass must have for it to run. `ranked` gathers them, a
+slot's steps by rank, and each half runs them where the slot is: a new step is a `Step` in
+its feature's module, and no line in `jbus.cli`. `jbus steps` prints the order. A rank two
+modules declare in one slot is a `ValueError` that names both, raised when `jbus.cli` is
+imported.
 
 `project` and `here` are the two ways a verb reads which project it is for.
 
@@ -24,6 +25,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import pkgutil
+import re
 import subprocess
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -67,22 +69,26 @@ class Verb:
     config: bool = True
 
 
-NEEDS = ("sight", "client", "world")
+NEEDS = ("sight", "client", "world", "rows")
 SLOTS = {
     "before-watch": ("first in the pass, before merge.merge", ("client",)),
-    "tellers": ("after watch.look", NEEDS),
-    "after-expedite": ("after expedite.tell, before dispatch.turns", NEEDS),
+    "tellers": ("after watch.look", ("sight", "client", "world")),
+    "after-expedite": ("after expedite.tell, before dispatch.turns", ("sight", "client", "world")),
+    "derive": ("after the launches, first in the second half", NEEDS),
+    "after-derive": ("after derive", NEEDS),
+    "close": ("after after-derive, before alert.flush, the last of a pass", NEEDS),
 }
 
 
 @dataclass(frozen=True)
 class Step:
-    """One step of a pass's first half. `run` is given the pass's `jbus.cli.Half`.
+    """One step of a pass. `run` is given the pass's `jbus.cli.Half`.
 
     `rank` orders the steps of one slot, in steps of 10. `needs` is what the pass must have
     for it to run, of `NEEDS`: `sight`, a `removed.json` that parses, which a pass that is
     blind has not; `client`, a sign-in to T3 Code; `world`, the answers of T3 Code and
-    GitHub. A step whose needs the pass has not is skipped.
+    GitHub; `rows`, the rows of a queue that parses, judged (`Half.states`), which only the
+    second half has. A step whose needs the pass has not is skipped.
     """
 
     slot: str
@@ -177,8 +183,49 @@ def here(config: jbus.Config, name: str | None) -> jbus.Project:
     raise jbus.Refused(f"refused: no project for this repo ({repo or 'not a repo'})")
 
 
+def parser(found: dict[str, Verb], description: str | None) -> argparse.ArgumentParser:
+    """The parser of `jbus`, with a parser for each verb `declared` found."""
+    made = argparse.ArgumentParser(prog="jbus", description=description, allow_abbrev=False)
+    made.add_argument("--project", help="the project's name in the config, when it has several")
+    commands = made.add_subparsers(dest="command", required=True)
+    for verb in found.values():
+        verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))
+    made.usage = usage(made)
+    return made
+
+
+def words_left(args: argparse.Namespace, extra: list[str]) -> list[str]:
+    """The user's words that Python 3.12.3's argparse left over, and what is left after them.
+
+    A verb's `words` follow its number and its options. That argparse fills `words` with
+    nothing when it reads the number, and hands the words back unparsed; later 3.12 releases
+    and 3.13 read them as words. So where `words` came back empty, every plain string left
+    over is a word, and so is everything after `--`."""
+    if getattr(args, "words", None) != [] or not extra:
+        return extra
+    words: list[str] = []
+    left: list[str] = []
+    after = False
+    for given in extra:
+        if after or not given.startswith("-"):
+            words.append(given)
+        elif given == "--":
+            after = True
+        else:
+            left.append(given)
+    args.words = words
+    return left
+
+
+def usage(parser: argparse.ArgumentParser) -> str:
+    """The parser's own usage, as Python 3.13 and later print it: 3.12 puts the ` ...` after
+    the verbs on a line of its own."""
+    usage = parser.format_usage().removeprefix("usage: ").rstrip("\n")
+    return re.sub(r"\n *\.\.\.$", " ...", usage)
+
+
 def _steps(args: argparse.Namespace, config: jbus.Config | None) -> int:
-    """`jbus steps`: each step of a pass's first half, in the order it runs, with its needs."""
+    """`jbus steps`: each step of a pass, in the order it runs, with its needs."""
     for slot, steps in ranked(jbus.__path__).items():
         for step in steps:
             needs = f" ({', '.join(step.needs)})" if step.needs else ""

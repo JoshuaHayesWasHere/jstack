@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import cli
+from jbus import cli, rotation
 from test_jbus_kitchen import NOW, RESULT
 from test_jbus_queue import add, brief, go, queued_before, rows, sha12, widened
 
@@ -243,6 +243,6 @@ def test_a_pass_in_which_dispatch_read_no_row_says_so_or_keeps_what_still_holds(
         def share(*_):
             raise RuntimeError("no launch step")
 
-        kitchen.monkeypatch.setattr(cli, "share", share)
+        kitchen.monkeypatch.setattr(rotation, "share", share)
     assert cli.poll(jbus.load(), LATER, lambda _: None) == (off == "raised")
     assert waits(kitchen) == {"alpha": alpha, "beta": beta, "gamma": ("not approved", FIRST)}

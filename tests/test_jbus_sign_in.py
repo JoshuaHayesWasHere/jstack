@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import pytest
 
 import jbus
-from jbus import cli
+from jbus import cli, record
 from test_jbus_kitchen import KEY, NOW, TOKEN, Webhook
 
 EXPIRES = datetime(2026, 10, 20, 21, 8, tzinfo=UTC)
@@ -183,7 +183,7 @@ def test_status_names_the_reminder_and_keeps_the_sign_in_line(kitchen, top, mach
 def test_status_with_no_sign_in_says_so(kitchen):
     (kitchen.config_dir / "t3.json").unlink()
     config = jbus.load()
-    assert cli.status(config, NOW)["sign_in_reminder"] == "none: no sign-in is stored"
+    assert record.status(config, NOW)["sign_in_reminder"] == "none: no sign-in is stored"
 
 
 def test_a_project_moved_to_the_top_of_the_config_says_no_mark_again(kitchen, top, machine):

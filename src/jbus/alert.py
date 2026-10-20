@@ -28,6 +28,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import jbus
 import jsettings
@@ -144,6 +145,25 @@ def told(state: Path, key: str) -> None:
         else:
             one.alerted = True
             _keep(state, key, one)
+
+
+def recovered(
+    config: jbus.Config,
+    runs: list[wake.Pass],
+    guarded: Callable[[str, Callable[[], Any]], Any],
+    raised: dict[str, str],
+) -> None:
+    """After a pass in which nothing raised, end the `PASS` streak and then the `STALE` one,
+    and send each recovered line to every project, each send `guarded` by its project's
+    name. A send that raises leaves its streak, and the next, for the next pass."""
+    for key in (PASS, STALE):
+        if raised:
+            break
+        line = ok(config.state_dir, key, user=config.user)
+        for run in runs:
+            guarded(run.project.name, lambda run=run, line=line: deliver(run, line))
+        if line and not raised:
+            told(config.state_dir, key)
 
 
 def retire(state: Path, key: str) -> None:

@@ -22,7 +22,7 @@ for the top-level webhook alone (`wake.Box.machine_route`), and that project's f
 it. `jbus events` of that project lists it.
 
 The `sign_in` line of each project in the status file is another thing, and stays as it was:
-`cli.expiring`, within `warn_days`.
+`expiring`, within `warn_days`.
 """
 
 from __future__ import annotations
@@ -132,3 +132,12 @@ def plan(config: Config, now: datetime) -> str:
     else:
         ahead = f"each day to {last}"
     return f"{KIND} to {where} {ahead}, and when it runs out at {stamp}"
+
+
+def expiring(config: Config, now: datetime) -> str:
+    """What is said of a sign-in within `warn_days` of running out, or nothing."""
+    expires = t3.expiry(config.token_path)
+    if expires is None or expires - now > timedelta(days=config.warn_days):
+        return ""
+    user = config.user
+    return f"T3 sign-in expires {user.day(expires)} {user.word(expires)}, run jbus t3 login"

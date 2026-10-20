@@ -129,9 +129,9 @@ def test_a_refusal_or_a_t3_error_is_printed_and_the_answer_is_1(error, said, mon
     assert out.getvalue() == said
 
 
-def test_cli_runs_the_shell_s_three_verbs_and_no_feature_s():
+def test_cli_runs_the_pass_s_one_verb_and_no_feature_s():
     mine = [name for name, verb in cli.DECLARED.items() if verb.run.__module__ == cli.__name__]
-    assert mine == ["poll", "alarm", "view"]
+    assert mine == ["poll"]
     assert not [name for name in vars(cli) if name.startswith("_") and name[1:] in cli.DECLARED]
 
 
@@ -188,8 +188,8 @@ def test_the_words_python_3_12_3_hands_back_are_the_verbs_words():
     back unparsed: a plain string left over is a word, and so is all after `--`. An option
     left over is still not one."""
     args = argparse.Namespace(words=[])
-    assert cli._words_left(args, ["fine", "--strange", "--", "-x", "y"]) == ["--strange"]
+    assert verbs.words_left(args, ["fine", "--strange", "--", "-x", "y"]) == ["--strange"]
     assert args.words == ["fine", "-x", "y"]
     given = argparse.Namespace(words=["kept"])
-    assert cli._words_left(given, ["--strange"]) == ["--strange"]
+    assert verbs.words_left(given, ["--strange"]) == ["--strange"]
     assert given.words == ["kept"]

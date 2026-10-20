@@ -17,7 +17,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, cli, item, wake
+from jbus import alert, alive, cli, item, wake
 from test_jbus_kitchen import NOW, OPTIONS
 
 SRC = pathlib.Path(jbus.__file__).parent
@@ -181,7 +181,7 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("mirror.py", "what")] == {"result", "review", "report", "gate", "gate answered"}
     assert sent[("wake.py", "kind")] == set()
     assert sent[("wake.py", "CONDITION")] == {"condition"}
-    assert sent[("cli.py", "'heartbeat'")] == {"heartbeat"}
+    assert sent[("record.py", "'heartbeat'")] == {"heartbeat"}
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
     assert unknown(SRC) == {"word"}
@@ -312,7 +312,7 @@ def test_an_alarm_that_cannot_queue_its_alert_alerts_again_on_the_next_one(kitch
     with monkeypatch.context() as stopped:
         stopped.setattr(alert, "deliver", lambda *_, **__: (_ for _ in ()).throw(KeyboardInterrupt))
         with pytest.raises(KeyboardInterrupt):
-            cli.alarm(jbus.load(), later(2), lambda _: None)
+            alive.alarm(jbus.load(), later(2), lambda _: None)
     assert kitchen.lines("alert") == []
     assert jbus.read_json(kitchen.state_dir / "streaks.json", {})["pass"]["alerted"] is False
     assert alarm(later(3)) == ["pass failed: 4 in a row", "alert sent: demo"]
@@ -373,7 +373,7 @@ PASS = (
 
 def alarm(now):
     said = []
-    assert cli.alarm(jbus.load(), now, said.append) == 0
+    assert alive.alarm(jbus.load(), now, said.append) == 0
     return said
 
 
