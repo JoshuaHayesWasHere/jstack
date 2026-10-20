@@ -299,6 +299,45 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
     ]
 
 
+NESTED = {
+    "tests/area/scene.py": "import alpha.util\n",
+    "tests/area/conftest.py": "import pytest\n\n\n@pytest.fixture\ndef spot():\n    pass\n",
+    "tests/area/test_area_one.py": "from area.scene import S\n",
+    "tests/area/test_area_two.py": "def test_two(spot):\n    pass\n",
+}
+
+
+@pytest.mark.parametrize(
+    ("path", "chosen"),
+    [
+        ("src/alpha/util.py", {"tests/area/test_area_one.py"}),
+        ("tests/area/scene.py", {"tests/area/test_area_one.py"}),
+        ("tests/area/conftest.py", {"tests/area/test_area_one.py", "tests/area/test_area_two.py"}),
+        ("tests/area/test_area_two.py", {"tests/area/test_area_two.py"}),
+    ],
+)
+def test_a_test_file_in_a_folder_of_tests_is_selected_by_its_imports_and_its_folders_conftest(
+    repo, path, chosen
+):
+    write(repo.root, NESTED)
+    repo.base = repo.commit()
+
+    selected = repo.selected(repo.change([path]))
+
+    assert {one for one in selected if one.startswith("tests/area/")} == chosen
+
+
+def test_the_summary_counts_a_test_file_in_a_folder_of_tests(repo, tmp_path):
+    write(repo.root, NESTED)
+    repo.base = repo.commit()
+    head = repo.change(["pyproject.toml"])
+    flat = len(list((repo.root / "tests").glob("test_*.py")))
+
+    _, lines = summary(repo, head, tmp_path)
+
+    assert int(SUMMARY.fullmatch(lines[0])["of"]) == flat + 2
+
+
 def test_a_deleted_test_is_not_named(repo):
     head = repo.change(["src/alpha/util.py"], gone=["tests/test_alpha.py"])
 
@@ -387,24 +426,39 @@ def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
     assert ran.stderr.startswith("select_tests.py: git diff failed: ")
 
 
-def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
+def whole(tmp_path):
+    """A repo with the map, the tests and the fixtures of this one."""
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
-    (tmp_path / "tests").mkdir()
-    for test in (REPO / "tests").glob("*.py"):
-        shutil.copy2(test, tmp_path / "tests" / test.name)
-    for page in (REPO / "tests" / "fixtures").rglob("*"):
-        if page.is_file():
-            write(tmp_path, {page.relative_to(REPO).as_posix(): page.read_text()})
+    for test in (REPO / "tests").rglob("*"):
+        named = test.relative_to(REPO).as_posix()
+        if test.is_file() and (named.startswith(select.FIXTURES) or test.suffix == ".py"):
+            shutil.copy2(test, repo.put(named))
     repo.base = repo.commit()
+    return repo
+
+
+def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
+    repo = whole(tmp_path)
 
     head = repo.change(["src/jbus/view/page.html"])
 
     selected = repo.selected(head)
-    assert "tests/test_jbus_view.py" in selected
-    assert "tests/test_jbus_view_page.py" not in selected
+    assert "tests/view/test_view_server.py" in selected
+    assert not [one for one in selected if one.startswith("tests/view/page/")]
     assert set(select.cross_cutting()) <= set(selected)
     assert "tests/test_drift.py" not in selected
+
+
+@pytest.mark.parametrize("panel", ["bus", "checks", "words", "you"])
+def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel, tmp_path):
+    repo = whole(tmp_path)
+
+    head = repo.change([f"src/jbus/view/panels/{panel}/panel.py"])
+
+    selected = repo.selected(head)
+    assert f"tests/view/test_view_{panel}.py" in selected
+    assert not [one for one in selected if one.startswith("tests/view/page/")]
 
 
 SUMMARY = re.compile(
@@ -571,8 +625,8 @@ def test_every_test_file_is_run_by_a_change_to_something_or_is_cross_cutting():
         run |= set(tests) - {"all"}
     left = [
         test
-        for test in tracked("tests/test_*.py")
-        if test not in run and not select.opens_browser(test)
+        for test in tracked("tests/")
+        if select.TEST.fullmatch(test) and test not in run and not select.opens_browser(test)
     ]
     assert left == []
 
@@ -597,11 +651,14 @@ def hook(name, globals=None, locals=None, fromlist=(), level=0):
 
 
 builtins.__import__ = hook
-for path in sorted(Path(tests).glob("*.py")):
+for path in sorted(Path(tests).rglob("*.py")):
+    name = ".".join(path.relative_to(tests).with_suffix("").parts)
+    if name.startswith("fixtures."):
+        continue
     try:
-        importlib.import_module(path.stem)
+        importlib.import_module(name)
     except BaseException as error:
-        failed.append(f"{path.stem}: {error!r}")
+        failed.append(f"{name}: {error!r}")
 print(json.dumps({"seen": sorted(seen), "failed": failed}))
 """
 

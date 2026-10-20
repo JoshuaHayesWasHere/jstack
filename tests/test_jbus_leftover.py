@@ -17,7 +17,7 @@ from jbus import leftover, threads, view
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL, column, listed, result, sends
-from test_jbus_view import Served
+from view.scene import Served
 
 NOTE = "the docs page for the new flag, " + "section by section, " * 12 + "to its end"
 ASK = (
