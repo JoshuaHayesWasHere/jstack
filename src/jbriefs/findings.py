@@ -16,6 +16,10 @@ finding or the next one, so a finding keeps its id whatever is written after it.
 reviewers' findings of one head are one finding (`_same`): the same file, lines at most
 `NEAR` apart, the same principle, both raised. A finding one reviewer raised and another
 dismissed there is kept as two, the dismissal printed beside it (`Finding.contradicts`).
+A reviewer is its `By:` line, whose last word is its number, `#<n>`, the line of the role
+map's review list it was launched for: two reviewers of one model are two (`Section.seat`).
+The `Reviewer:` lines say whom a round waits for (`Roster`): once one carries its number, the
+numbered ones alone, and the unnumbered lines before them are a launch they replaced.
 A section a reviewer wrote again at the same head takes the place of its earlier one: which
 lines merge is decided as if it had not, so no id moves, and a finding every line of which is
 in such a section keeps its id and counts for nothing (`Finding.superseded`).
@@ -118,7 +122,8 @@ class Section:
     """One `## Review` section: who wrote it, its verdict's first word, its head, the
     findings it lists (`found` counts them) and the ones it dismissed. `scoped` is a scoped
     pass, which has a `Scope:` line, `rulings` its word on each decline by id, and `line`
-    the index of its heading among the brief's lines."""
+    the index of its heading among the brief's lines. `by` is the whole `By:` text, the
+    number included, and `seat` that number, or None for a `By:` line with none."""
 
     by: str = ""
     verdict: str = ""
@@ -129,6 +134,69 @@ class Section:
     scoped: bool = False
     rulings: tuple[tuple[str, Ruling], ...] = ()
     line: int = 0
+
+    @property
+    def seat(self) -> int | None:
+        found = _SEAT.search(self.by)
+        return int(found[1]) if found else None
+
+
+_SEAT = re.compile(r"\s#(\d+)$")
+
+
+@dataclass(frozen=True)
+class Legacy:
+    """A brief none of whose `Reviewer:` lines carries a number, read as before the numbers:
+    `named` lines that name a thread, against the distinct `By:` texts of the sections, and
+    only where more than one is named."""
+
+    named: int
+
+    @property
+    def size(self) -> int:
+        return self.named
+
+    def owed(self, sections: list[Section]) -> int:
+        wrote = len({one.by for one in sections if one.by})
+        return self.named - wrote if self.named > 1 and wrote < self.named else 0
+
+    def counted(self, sections: list[Section]) -> list[Section]:
+        return sections
+
+
+@dataclass(frozen=True)
+class Numbered:
+    """A brief with a `Reviewer: <threadId> #<n>` line: the round waits for each number
+    those lines name, a set, so a seat launched again does not count twice. The unnumbered
+    `Reviewer:` lines are a launch these replaced and are waited on no more, and the
+    sections with no number are not the round's word: their findings still need their
+    answers. A seat is written by a section that carries its number, at any head."""
+
+    seats: frozenset[int]
+
+    @property
+    def size(self) -> int:
+        return len(self.seats)
+
+    def owed(self, sections: list[Section]) -> int:
+        return len(self.seats - {one.seat for one in sections})
+
+    def counted(self, sections: list[Section]) -> list[Section]:
+        return [one for one in sections if one.seat is not None]
+
+
+Roster = Legacy | Numbered
+
+
+def roster(text: str) -> Roster:
+    """Whom the round waits for, from the `Reviewer:` lines that name a thread."""
+    named = [
+        line.strip()
+        for line in text.splitlines()
+        if line.startswith("Reviewer:") and "".join(line.split()[1:2]) not in ("", "none", "none,")
+    ]
+    seats = frozenset(int(found[1]) for line in named if (found := _SEAT.search(line)))
+    return Numbered(seats) if seats else Legacy(len(named))
 
 
 @dataclass(frozen=True)
@@ -239,12 +307,12 @@ class Finding:
 @dataclass
 class Triage:
     """A brief's findings, merged and answered: `sections` in order, `findings` by id,
-    `answers` by id, and the `Reviewer:` lines that name a thread (`named`)."""
+    `answers` by id, and whom the round waits for (`roster`)."""
 
     sections: list[Section] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
     answers: dict[str, Answer] = field(default_factory=dict)
-    named: int = 0
+    roster: Roster = field(default_factory=lambda: Legacy(0))
 
     def blocking(self) -> tuple[Finding, ...]:
         """The findings that hold the merge: each Act on finding with no answer that
@@ -504,12 +572,7 @@ def triage(text: str) -> Triage:
             for ident, ruling in section.rulings:
                 if ident in by_id:
                     by_id[ident].ruling = ruling
-    named = sum(
-        1
-        for line in text.splitlines()
-        if line.startswith("Reviewer:") and "".join(line.split()[1:2]) not in ("", "none", "none,")
-    )
-    return Triage(sections, findings, answers, named)
+    return Triage(sections, findings, answers, roster(text))
 
 
 def listed(said: Triage) -> list[str]:
@@ -568,9 +631,10 @@ def left(said: Triage) -> str:
     sent = said.sent()
     if not said.sections:
         return "wait: the review is not written in the brief yet"
-    wrote = len({one.by for one in said.sections if one.by})
-    if said.named > 1 and wrote < said.named:
-        return f"wait: {wrote} of {said.named} reviewers have written their section"
+    owed = said.roster.owed(said.sections)
+    if owed:
+        size = said.roster.size
+        return f"wait: {size - owed} of {size} reviewers have written their section"
     open_ = [one for one in sent if not one.ended]
     if open_:
         line = f"not yet: {len(open_)} of {len(sent)} findings have no Finding: line"

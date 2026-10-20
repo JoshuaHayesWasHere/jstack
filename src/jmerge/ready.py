@@ -349,7 +349,6 @@ def _worst(verdicts: list[str]) -> str:
 @dataclass
 class Said:
     none: bool = False
-    reviewers: int = 0
     written: bool = False
     verdict: str = ""
     ran: int = 0
@@ -377,7 +376,8 @@ def said_of(text: str) -> Said:
     said.triage = triage
     said.written = bool(triage.sections)
     said.rounds = [
-        Round(one.verdict, one.head, one.found, one.by, one.scoped) for one in triage.sections
+        Round(one.verdict, one.head, one.found, one.by, one.scoped)
+        for one in triage.roster.counted(triage.sections)
     ]
     said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
     sent = [one for one in triage.findings if one.blocks]
@@ -387,8 +387,6 @@ def said_of(text: str) -> Said:
         if line.startswith("Review:") and not seen:
             seen = True
             said.none = _second(line) == "none"
-        if line.startswith("Reviewer:") and _second(line) not in ("", "none", "none,"):
-            said.reviewers += 1
         if line.startswith("Fixed:"):
             said.fixed = _second(line)
         if line.startswith("Second pass:"):
@@ -442,7 +440,7 @@ def _round(said: Said) -> None:
     said.ran = sum(
         any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
     )
-    if len({one.by for one in said.rounds if one.by}) < said.reviewers > 1:
+    if said.triage.roster.owed(said.triage.sections):
         said.verdict = ""
 
 
