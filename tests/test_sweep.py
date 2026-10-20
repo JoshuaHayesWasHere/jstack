@@ -520,6 +520,27 @@ def test_a_worktree_is_kept_when_no_process_list_can_be_read(scene, monkeypatch,
     assert scene.look() == [removable("scout-find-out", WORKTREE, LOCAL)]
 
 
+@pytest.mark.parametrize("listable", [False, True], ids=["unlistable", "without this process"])
+def test_a_process_list_that_cannot_be_read_whole_is_no_answer(tmp_path, monkeypatch, listable):
+    proc = tmp_path / "proc"
+    other = proc / str(os.getpid() + 1 if listable else os.getpid())
+    other.mkdir(parents=True)
+    (other / "cwd").symlink_to(tmp_path)
+    if not listable:
+        proc.chmod(0o111)
+    monkeypatch.setattr(cli, "PROC", proc)
+    try:
+        assert cli._running(str(tmp_path)) is None
+    finally:
+        proc.chmod(0o755)
+
+
+def test_a_readable_process_list_finds_this_process(tmp_path, monkeypatch):
+    assert cli._running(str(tmp_path)) == 0
+    monkeypatch.chdir(tmp_path)
+    assert cli._running(str(tmp_path)) == os.getpid()
+
+
 def test_the_first_reason_is_the_records_before_the_worktrees(scene):
     tree = scene.crewmate("alpha", state="OPEN", status="not done", left="a file")
     (tree / "notes.txt").write_text("not committed\n")

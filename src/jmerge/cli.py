@@ -1116,12 +1116,14 @@ PROC = Path("/proc")
 
 def _running(tree: str) -> int | None:
     try:
-        os.readlink(PROC / "self" / "cwd")
+        listed = [PROC / name for name in os.listdir(PROC) if name.isdigit()]
     except OSError:
+        return None
+    if PROC / str(os.getpid()) not in listed:
         return None
     inside = os.path.realpath(tree)
     found = []
-    for entry in PROC.glob("[0-9]*"):
+    for entry in listed:
         try:
             at = os.readlink(entry / "cwd")
         except OSError:
