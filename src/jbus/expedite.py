@@ -20,6 +20,13 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix,
   with the two ranges, the patch the last review saw and the patch at the head, or where
   no range can be worked out, run the crew skill's block, which says what to do;
+- `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
+  skill's block of "A second pass", which launches the one scoped pass a blocking decline is
+  owed, also where nothing was pushed;
+- `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each and answer
+  it `fixed`, or, where the crew still holds the decline, tell its home. Its stall goes to
+  the home's thread and not to the user (`OVERRULED_HOME`): only a decline on one of
+  `findings.RISKS` is the user's, and that one is a `hold` no crew is asked to lift;
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
 - `unreviewed`, `it has no review yet`: launch the reviewer it is owed, or send the one that
@@ -68,7 +75,7 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import findings
-from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
+from jbus import END_TURN, dispatch, leftover, merge, read_json, rebase, word, write_json
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.wake import Pass
@@ -98,6 +105,12 @@ NO_FIX_RANGE = (
 RERUN = Path(__file__).parents[2] / "templates" / "rerun.md"
 ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
 AGAIN = "/pr-review run {slug} again"
+OVERRULED_HOME = (
+    "jbus: {slug}'s pull request #{number} waits on its crew, which has not acted on it in "
+    "{since} passes: {reason}. A decline the scoped pass did not uphold is the crew's to fix, "
+    "and yours to settle with it where it holds the decline; {user} is not asked, since the "
+    "finding is on none of review-triage's categories. Its crew's thread is {thread}."
+)
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
@@ -244,6 +257,25 @@ TABLE = (
         unless=_no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
+    ),
+    Short(
+        "declines",
+        "wait",
+        re.compile(ready.DECLINES_UNRULED.pattern),
+        'Run the block of the crew skill\'s "A second pass" in your worktree and do what it '
+        "prints: each blocking decline is ruled on by one scoped pass, also where nothing was "
+        "pushed, and the block writes the `Scoped review:` line and gives the launch.",
+        reviewed=True,
+    ),
+    Short(
+        "overruled",
+        "wait",
+        re.compile(ready.DECLINES_OVERRULED.pattern),
+        "The scoped pass did not uphold the decline of the findings the reason names. Fix each, "
+        "push, and answer it `Finding F<n>: fixed, ...`: declining it again does not lift the "
+        'ruling. Where you still hold a decline, send the home one line ("Telling the home"), '
+        "`<slug>: <pull request url>, the decline of F<n> is not upheld and I hold it: <why>`, "
+        "and end your turn: the home settles it with you.",
     ),
     Short(
         "renumber",
@@ -401,12 +433,44 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "
                 f"crew was told{work}, at {head[:12]}, {reason}; its crew's thread is {thread}"
             )
-            run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
+            if row.kind != "overruled" or not _to_home(run, client, slug, number, since, reason):
+                run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
             if row.word == "hold" and busy is False and entry.get("idle", 0) >= PASSES:
                 entry["users"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
     return hand
+
+
+def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reason: str) -> bool:
+    """Send the home the stall of a decline not upheld, once for the slug and the reason, in
+    place of the user. False where there is no home or the message did not go: then the
+    stall is the user's, as any other is."""
+    brief = _brief(run, slug)
+    thread = word.home(leftover.home_of(run.home, brief))
+    if not thread:
+        return False
+    digest = f"overruled|{slug}|{reason}"
+    if digest in run.box.sent():
+        return True
+    text = OVERRULED_HOME.format(
+        slug=slug,
+        number=number,
+        since=since,
+        reason=reason,
+        user=run.user.user,
+        thread=dispatch.thread_of(brief) or "not known",
+    )
+    client.recipients = client.recipients | {thread}
+    asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": digest}
+    try:
+        client.call("t3_thread_send", asked)
+    except T3Error as error:
+        run.say(f"wait {slug}: its home could not be told of the decline not upheld ({error})")
+        return False
+    run.box.mark(digest)
+    run.say(f"{STALL} {slug}: told its home, thread {thread}, of #{number}: {reason}")
+    return True
 
 
 def _tell(

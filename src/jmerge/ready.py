@@ -171,6 +171,7 @@ MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
+_RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
@@ -483,13 +484,11 @@ def _scoped_since(said: Said) -> bool:
     """Whether a scoped pass that ran is written after the last `Scoped review:` line: the
     review it owes, also of the head the review saw, where nothing was pushed and the pass
     is owed only for its declines."""
-    return any(
-        one.scoped and one.ran and one.line > said.asked_at for one in said.triage.sections
-    )
+    return any(one.scoped and one.ran and one.line > said.asked_at for one in said.triage.sections)
 
 
 def _ruled(named: tuple[findings.Finding, ...]) -> str:
-    return " and ".join(f"{one.id}: {one.ruling.why}" for one in named)
+    return " and ".join(_RULED.format(id=one.id, why=one.ruling.why) for one in named)
 
 
 def unruled(said: Said) -> str:
