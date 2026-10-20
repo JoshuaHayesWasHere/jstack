@@ -142,7 +142,7 @@ READS = {
     "expert": {"expert-answer.md", "gates.md"},
     "grilling": {"grill-page.html"},
     "handoff": {"handoff-seed.md", "handoff.md"},
-    "home": {"brief.md", "gates.md", "plan-entry.md", "scout-request.md"},
+    "home": {"brief.md", "context", "gates.md", "plan-entry.md", "scout-request.md"},
     "pr-review": {"rerun.md", "review.md"},
     "scout": {
         "brief.md",
@@ -156,9 +156,17 @@ READS = {
 }
 
 
+def top(path):
+    """A file of a folder under `templates/`, as the folder: the skeleton of a context pack is
+    read as one template."""
+    if TEMPLATES.resolve() in path.parents:
+        return TEMPLATES.resolve() / path.relative_to(TEMPLATES.resolve()).parts[0]
+    return path
+
+
 @pytest.mark.parametrize("skill", SKILLS)
 def test_each_skill_names_the_templates_it_reads(skill, tmp_path):
-    found = {Path(file) for file in resolved(skill, tmp_path)[1]}
+    found = {top(Path(file)) for file in resolved(skill, tmp_path)[1]}
     names = {path.name for path in found if path.parent == TEMPLATES.resolve()}
     reads = READS.get(skill, set())
     lost = ", ".join(f"$T/{name}" for name in sorted(reads - names))
@@ -178,7 +186,7 @@ def test_every_file_a_skill_names_under_its_templates_is_there(skill, tmp_path):
 def test_the_skills_between_them_read_every_template_but_the_hooks_and_the_playbooks(tmp_path):
     read = set()
     for skill in SKILLS:
-        read.update(Path(file) for file in resolved(skill, tmp_path)[1])
+        read.update(top(Path(file)) for file in resolved(skill, tmp_path)[1])
     in_templates = {path for path in read if path.parent == TEMPLATES.resolve()}
     units = {
         path for path in TEMPLATES.resolve().iterdir() if path.suffix in (".service", ".timer")
