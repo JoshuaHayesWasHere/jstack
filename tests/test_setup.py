@@ -60,8 +60,10 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f"done roles {user.roles}",
         "already lavish-axi",
     ]
+    inventory = user.home / ".config" / "jstack" / "providers.json"
+    assert said[14] == f"needs you provider inventory -> {inventory}"
     parts = [*user.parts(), f"optional units {user.units}"]
-    assert said[14:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
+    assert said[15:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
@@ -233,9 +235,9 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     said = done.stdout.splitlines()
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
-    probed, units, left = 14, 1, 2
+    probed, units, left = 15, 1, 3
     count = probed + len(user.parts()) + units - left
-    assert said[-2:] == [f"setup: 0 done, {count} already, 2 needs you, exit 0", "doctor: ok"]
+    assert said[-2:] == [f"setup: 0 done, {count} already, 3 needs you, exit 0", "doctor: ok"]
     assert user.snapshot() == before
 
 

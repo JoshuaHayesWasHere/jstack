@@ -937,3 +937,156 @@ class Roles:
 
     def drop(self, machine: Machine) -> Dropped:
         return unseed(machine, self.path, "roles")
+
+
+BUILT_IN = "claudeAgent"
+
+
+@dataclass(frozen=True)
+class Instance:
+    """One provider instance as the inventory declares it, in T3's own `providerInstances`
+    shape: `{driver, enabled, config: {homePath?}}`. `home` is the homePath with `~` expanded
+    and no trailing `/`, None for none."""
+
+    driver: str
+    enabled: bool
+    home: Path | None
+
+
+def instances(value: object, home: Path) -> dict[str, Instance] | str:
+    """The instances of a `providerInstances` object, or why it is not one. A homePath that
+    is not absolute once `~` is expanded is refused: T3 would read it from its own cwd."""
+    if not isinstance(value, dict):
+        return "it is not an object of provider instances"
+    found = {}
+    for name, each in value.items():
+        if not isinstance(each, dict) or not isinstance(each.get("driver"), str):
+            return f"{name} has no driver"
+        enabled, config = each.get("enabled", True), each.get("config", {})
+        if not isinstance(enabled, bool) or not isinstance(config, dict):
+            return f"{name}'s enabled or config is not T3's shape"
+        path = config.get("homePath")
+        if path is not None and not isinstance(path, str):
+            return f"{name}'s homePath is not a path"
+        where = None
+        if path:
+            where = Path(str(home) + path[1:] if path == "~" or path.startswith("~/") else path)
+            if not where.is_absolute():
+                return f"{name}'s homePath {path} is not absolute"
+        found[name] = Instance(each["driver"], enabled, where)
+    return found
+
+
+def declared(path: Path, home: Path) -> dict[str, Instance] | str:
+    """The inventory at `path`, or why it cannot be taken. A missing file is `{}`."""
+    try:
+        return instances(json.loads(path.read_text()), home)
+    except FileNotFoundError:
+        return {}
+    except (OSError, UnicodeDecodeError, ValueError):
+        return "it cannot be read as JSON"
+
+
+def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:
+    """The home of each declared Claude instance, `~/.claude` for none, each once."""
+    homes = [each.home or home / ".claude" for each in declared.values() if each.driver == BUILT_IN]
+    return list(dict.fromkeys(homes))
+
+
+@dataclass(frozen=True)
+class ProviderInventory:
+    """${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json, the provider instances this
+    machine should run, in T3's `providerInstances` shape. infra's install links it there;
+    jstack only reads it. missing: no file, so nothing is declared. old: not that shape."""
+
+    path: Path
+
+    def probe(self, machine: Machine) -> Found:
+        if not self.path.exists():
+            return Found.missing(str(self.path))
+        found = declared(self.path, machine.home)
+        if isinstance(found, str):
+            return Found.old(found)
+        return Found.ok(f"{len(found)} declared")
+
+
+@dataclass(frozen=True)
+class ProviderInstance:
+    """One declared instance against T3's own settings, which are only read.
+    ok: T3 lists it with the declared driver, enabled and homePath, or it is T3's built-in
+    `claudeAgent`, declared with no other home and not listed. missing: T3 does not list it.
+    old: T3 lists it otherwise, or its settings cannot be read."""
+
+    name: str
+    instance: Instance
+    settings: Path
+
+    def probe(self, machine: Machine) -> Found:
+        try:
+            listed = json.loads(self.settings.read_text()).get("providerInstances", {})
+        except FileNotFoundError:
+            listed = {}
+        except (OSError, UnicodeDecodeError, ValueError, AttributeError):
+            return Found.old(f"T3's settings cannot be read: {self.settings}")
+        if isinstance(listed, dict) and self.name in listed:
+            listed = {self.name: listed[self.name]}
+        found = instances(listed, machine.home)
+        if isinstance(found, str):
+            return Found.old(f"T3's settings: {found}")
+        want = self.instance
+        if self.name not in found:
+            central = want.home in (None, machine.home / ".claude")
+            if self.name == BUILT_IN and want.driver == BUILT_IN and want.enabled and central:
+                return Found.ok("T3's built-in instance")
+            return Found.missing("T3 does not list it")
+        there = found[self.name]
+        if there.driver != want.driver:
+            return Found.old(f"T3's driver is {there.driver}, declared {want.driver}")
+        if there.enabled != want.enabled:
+            return Found.old(f"T3 lists it {'enabled' if there.enabled else 'disabled'}")
+        if there.home != want.home:
+            said, meant = _short(there.home, machine), _short(want.home, machine)
+            return Found.old(f"T3's homePath is {said}, declared {meant}")
+        return Found.ok()
+
+
+def _short(path: Path | None, machine: Machine) -> str:
+    if path is None:
+        return "none"
+    if path.is_relative_to(machine.home):
+        return f"~/{path.relative_to(machine.home)}"
+    return str(path)
+
+
+@dataclass(frozen=True)
+class HomeSkills:
+    """A Claude home's `skills`, which must be the central jstack skills: the same directory
+    as `central` (~/.claude/skills), or entries each of which resolves into `skills`, the
+    checkout's. Hidden entries are the agent's own and are not counted. missing: no skills
+    there. old: where a linked `skills` points, else the first entry that points elsewhere."""
+
+    home: Path
+    central: Path
+    skills: Path
+
+    def probe(self, machine: Machine) -> Found:
+        path = self.home / "skills"
+        if not path.exists():
+            return Found.missing(f"link it to {self.central}")
+        if self.central.exists() and os.path.samefile(path, self.central):
+            return Found.ok()
+        if not path.is_dir():
+            return Found.old(f"{os.path.realpath(path)} is not a directory")
+        ours = os.path.realpath(self.skills)
+        try:
+            entries = sorted(each for each in path.iterdir() if not each.name.startswith("."))
+        except OSError:
+            return Found.old("it cannot be listed")
+        stray = next(
+            (each for each in entries if os.path.dirname(os.path.realpath(each)) != ours), None
+        )
+        if entries and stray is None:
+            return Found.ok()
+        if path.is_symlink() or stray is None:
+            return Found.old(os.path.realpath(path))
+        return Found.old(f"{stray} points at {os.path.realpath(stray)}")
