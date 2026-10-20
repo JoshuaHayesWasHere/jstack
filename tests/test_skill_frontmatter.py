@@ -41,21 +41,21 @@ def misnamed(path):
 
 
 def misnamed_entries(root):
-    """Each skill entry of `root`/skills.json whose name is no skills/ folder with a SKILL.md."""
-    entries = json.loads((root / "skills.json").read_text())
+    """Each skill item of `root`/skills.json whose name is not the folder of its path."""
+    items = json.loads((root / "skills.json").read_text())["items"]
     return [
-        f"names {entry['name']!r}, which is no folder under skills/"
-        for entry in entries
-        if entry["kind"] == "skill" and not (root / "skills" / entry["name"] / "SKILL.md").is_file()
+        f"skills.json names {item['path']} {item['name']!r}, not {Path(item['path']).parent.name!r}"
+        for item in items
+        if item["kind"] == "skill" and item["name"] != Path(item["path"]).parent.name
     ]
 
 
 def problems(path):
     """What stops the skill at `path` from being one that loads only when it is typed."""
-    found = misnamed(path)
     fields = front(path.read_text())
     if fields is None:
-        return found
+        return ["has no frontmatter"]
+    found = []
     if not fields.get("description"):
         found.append("has no description")
     if KEY not in fields:
@@ -139,7 +139,10 @@ def test_a_key_in_the_text_and_not_the_frontmatter_is_a_problem(tmp_path):
 
 
 def test_a_name_that_is_not_the_folder_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("a-skill", "other")) == ["is named 'other', not 'a-skill'"]
+    path = tmp_path / "a-skill" / "SKILL.md"
+    path.parent.mkdir()
+    path.write_text(GOOD.replace("a-skill", "other"))
+    assert misnamed(path) == ["is named 'other', not 'a-skill'"]
 
 
 def test_no_description_is_a_problem(tmp_path):
@@ -171,6 +174,8 @@ def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp
     if renamed:
         (tmp_path / "skills/fake-skill").rename(tmp_path / "skills/fake-renamed")
         (tmp_path / ".cursor/skills/fake-verify").rename(tmp_path / ".cursor/skills/fake-moved")
+        listed = tmp_path / "skills.json"
+        listed.write_text(listed.read_text().replace("skills/fake-skill/", "skills/fake-renamed/"))
     done = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", "named_for_its"],
         cwd=tmp_path,
@@ -192,4 +197,4 @@ def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp
     if renamed:
         assert "is named 'fake-skill', not 'fake-renamed'" in done.stdout
         assert "is named 'fake-verify', not 'fake-moved'" in done.stdout
-        assert "names 'fake-skill', which is no folder under skills/" in done.stdout
+        assert "names skills/fake-renamed/SKILL.md 'fake-skill', not 'fake-renamed'" in done.stdout
