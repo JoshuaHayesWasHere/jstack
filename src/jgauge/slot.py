@@ -3,13 +3,15 @@
 A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`, held by this process and
 not by the command, so it is free again when the command ends or when this process dies.
 
-There are two lanes. The full lane is for a whole suite and has N slots. The short lane is
-for a run of a second or a minute, a reviewer's proof or a crewmate's targeted tests: it has
-slots of its own, `test-slot-short.<n>.lock`, so it never waits behind a full suite, and a
-command in it is stopped at its time limit, so a full suite cannot sit there. A short command
-runs in a process group of its own, and the stop and every signal go to the whole group: a
-`sh -c` wrapper does not leave its pytest running once the slot is free. Out of the terminal's
-group, an interrupt reaches it only through this process, which passes it on.
+There are two lanes. The full lane is for a whole suite and has N slots, `test_slots` in
+`jgauge.limits`: derived from the machine unless `--slots`, `TEST_SLOTS` or the local machine
+file sets it. The short lane is for a run of a second or a minute, a reviewer's proof or a
+crewmate's targeted tests: it has slots of its own, `short_slots` there, as
+`test-slot-short.<n>.lock`, so it never waits behind a full suite, and a command in it is
+stopped at its time limit, so a full suite cannot sit there. A short command runs in a process
+group of its own, and the stop and every signal go to the whole group: a `sh -c` wrapper does
+not leave its pytest running once the slot is free. Out of the terminal's group, an interrupt
+reaches it only through this process, which passes it on.
 
 A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
 and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`)
@@ -29,10 +31,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jgauge import waiters
+from jgauge import limits, waiters
 
-DEFAULT = 3
-SHORT_SLOTS = 3
 SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2
 STOP_GRACE_SECONDS = 5.0
@@ -55,7 +55,8 @@ def full(slots: int) -> Lane:
 
 
 def short() -> Lane:
-    return Lane("test-slot-short", SHORT_SLOTS, f"{SHORT_SLOTS} short slots", SHORT_LIMIT_SECONDS)
+    slots = limits.resolve(limits.Name.SHORT_SLOTS).value
+    return Lane("test-slot-short", slots, f"{slots} short slots", SHORT_LIMIT_SECONDS)
 
 
 class BadCount(Exception):
@@ -63,14 +64,12 @@ class BadCount(Exception):
 
 
 def count(asked: str | None) -> int:
-    named, value = "--slots", asked
-    if value is None:
-        named, value = "TEST_SLOTS", os.environ.get("TEST_SLOTS")
-    if value is None:
-        return DEFAULT
-    if not value.isdecimal() or int(value) < 1:
-        raise BadCount(f"{named} is {value!r}, and the number of slots is 1 or more")
-    return int(value)
+    """The full lane's slots: `--slots`, else `TEST_SLOTS`, else the machine file, else the
+    machine's derived count."""
+    try:
+        return limits.resolve(limits.Name.TEST_SLOTS, flag=asked).value
+    except limits.Refused as error:
+        raise BadCount(str(error)) from error
 
 
 def locks_dir() -> Path:

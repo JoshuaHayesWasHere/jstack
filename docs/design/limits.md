@@ -31,7 +31,7 @@ room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=100 SLOTS=85  src/jgauge/room.
 To change a machine size, the owner edits one file, which takes these two keys and refuses any other:
 
 ```toml
-# ~/.config/jstack/limits.toml
+# ~/.config/jstack/machine.toml
 test_slots = 5
 ```
 
@@ -86,7 +86,7 @@ The count is 4 on every machine of 8 cores or more because the desk share is a q
 The crew cap derives the 24 the owner set by hand, so no yelena number lives in jstack.
 
 Each key has one local home.
-`test_slots` and `short_slots` live in `~/.config/jstack/limits.toml`, beside jsettings' `config.toml` and not in it, so that file's strict three keys stay who the user is and the time zone.
+`test_slots` and `short_slots` live in `~/.config/jstack/machine.toml`, beside jsettings' `config.toml` and not in it, so that file's strict three keys stay who the user is and the time zone.
 `max_running` stays in jbus's config, where it lives today: jbus hands the raw value to `resolve`, which checks it as it checks any count.
 The order is `--slots`, then `TEST_SLOTS` (both for the full lane only), then the local home, then the derivation.
 `jgauge limits` prints the derived value beside an override, and a `note:` when `TEST_SLOTS` is set, since `jbus.service` does not see it.
@@ -128,7 +128,7 @@ The judge and I picked round-two b, with two grafts and one cut:
 ## Alternatives considered
 
 - A registry of every number run by the shell callers through Python (round one): it puts a Python boundary in front of two shell callers that need none and moves six numbers that are not sizes.
-- All three keys in `limits.toml` with jbus's `max_running` as an alias: two homes for one value need a rule for when they differ.
+- All three keys in `machine.toml` with jbus's `max_running` as an alias: two homes for one value need a rule for when they differ.
 - A slot count written by jbus into a state file that every caller reads: a second writer of shared state, and a desk caller that breaks where jbus is not running.
 - Slots derived from the caller's cgroup quota: `jbus.service`, a scope and a container on one machine would count differently.
 - Three slots, from a budget of three quarters of the cores (round-two a): it leaves the knee for less throughput and was not what the owner chose; the load run decides if four holds with crews and runners beside it.

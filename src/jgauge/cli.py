@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 import jroles
-from jgauge import sample, session, slot, transcript, waiters
+from jgauge import limits, sample, session, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
 
@@ -104,12 +104,12 @@ def _since(asked: str) -> int:
 def cmd_sample(args: argparse.Namespace) -> int:
     log = sample.log_path()
     if not args.report:
-        if args.since is not None or args.pressure is not None:
-            args.usage("--since and --pressure go with --report")
+        if args.since is not None or args.until is not None or args.pressure is not None:
+            args.usage("--since, --until and --pressure go with --report")
         sample.take(log)
         return 0
     pressure = sample.PRESSURE_LINE if args.pressure is None else args.pressure
-    print("\n".join(sample.report(log, args.since, pressure)))
+    print("\n".join(sample.report(log, args.since, pressure, args.until)))
     return 0
 
 
@@ -129,12 +129,35 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
     if args.short:
         if args.slots is not None:
             args.usage("--short takes a slot of the short lane, and --slots counts the full lane")
-        return slot.run(command, slot.short(), args.thread)
+        try:
+            lane = slot.short()
+        except limits.Refused as error:
+            args.usage(str(error))
+        return slot.run(command, lane, args.thread)
     try:
         slots = slot.count(args.slots)
     except slot.BadCount as error:
         args.usage(str(error))
     return slot.run(command, slot.full(slots), args.thread)
+
+
+def cmd_limits(args: argparse.Namespace) -> int:
+    """Print the three machine sizes as their callers get them, then room's lines."""
+    jbus_config = Path(os.environ.get("JBUS_CONFIG_DIR") or Path.home() / ".config" / "jbus")
+    try:
+        found = limits.every(jbus_config / "config.toml")
+    except limits.Refused as error:
+        raise SystemExit(f"jgauge: {error}") from error
+    for one in found:
+        print(one.line())
+    room = " ".join(f"{name}={sample.room_line(name)}" for name in sample.ROOM_LINES)
+    print(f"room {room}  {sample.ROOM}")
+    if os.environ.get("TEST_SLOTS") is not None:
+        print(
+            f"note: TEST_SLOTS={os.environ['TEST_SLOTS']} is set here and jbus.service does not"
+            f" see it: set test_slots in {limits.path()}"
+        )
+    return 0
 
 
 def parser() -> argparse.ArgumentParser:
@@ -218,6 +241,12 @@ def parser() -> argparse.ArgumentParser:
         help="with --report, count rows from this time: seconds since the epoch or an ISO date",
     )
     sampled.add_argument(
+        "--until",
+        metavar="TIME",
+        type=_since,
+        help="with --report, count rows before this time, as --since takes it",
+    )
+    sampled.add_argument(
         "--pressure",
         metavar="LINE",
         type=float,
@@ -231,13 +260,16 @@ def parser() -> argparse.ArgumentParser:
         usage="jgauge test-slot [--slots N | --short] [--thread ID | --waiters] -- command ...",
     )
     held.add_argument(
-        "--slots", metavar="N", help=f"how many slots (default: TEST_SLOTS, else {slot.DEFAULT})"
+        "--slots",
+        metavar="N",
+        help="how many slots (default: TEST_SLOTS, else test_slots in the machine file, else"
+        " derived from the machine: `jgauge limits` prints it)",
     )
     held.add_argument(
         "--short",
         action="store_true",
-        help=f"take one of the {slot.SHORT_SLOTS} slots of the short lane, which never waits on a"
-        f" full suite, and stop the command at {slot.SHORT_LIMIT_SECONDS:g} s",
+        help="take one of the slots of the short lane (short_slots in `jgauge limits`), which"
+        f" never waits on a full suite, and stop the command at {slot.SHORT_LIMIT_SECONDS:g} s",
     )
     held.add_argument(
         "--thread",
@@ -251,6 +283,17 @@ def parser() -> argparse.ArgumentParser:
     )
     held.add_argument("argv", nargs=argparse.REMAINDER, help="the command, after `--`")
     held.set_defaults(run=cmd_test_slot, usage=held.error)
+
+    sizes = commands.add_parser(
+        "limits",
+        help="print the machine's sizes (test slots, short slots, crew cap), where each came"
+        " from, and room's lines",
+        description="Print test_slots, short_slots and max_running as their callers get them:"
+        " from a flag or TEST_SLOTS, the local file (~/.config/jstack/machine.toml, or"
+        " max_running in ~/.config/jbus/config.toml), else derived from the machine's cores and"
+        " memory. Then room's lines, from src/jgauge/room.sh. docs/limits.md lists every limit.",
+    )
+    sizes.set_defaults(run=cmd_limits)
     return top
 
 

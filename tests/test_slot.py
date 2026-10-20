@@ -11,6 +11,7 @@ import pytest
 
 import daemons
 from jgauge import slot
+from test_machine_limits import fake_proc
 from test_room import BIN
 
 RUNS_UNTIL_RELEASED = (
@@ -22,12 +23,15 @@ RUNS_UNTIL_RELEASED = (
 
 @pytest.fixture
 def slots(tmp_path):
-    """Run `jgauge test-slot` on a machine of its own, whose lock files a test can hold."""
+    """Run `jgauge test-slot` on a machine of its own, whose lock files a test can hold: 24
+    processors and 62 GiB, so 4 full slots and 3 short ones, and no limits file."""
     home, state = tmp_path / "home", tmp_path / "state"
     locks = home / ".local" / "state" / "locks"
     state.mkdir()
-    env = {**os.environ, "HOME": str(home), "D": str(state)}
-    env.pop("TEST_SLOTS", None)
+    proc = fake_proc(tmp_path / "proc", 24, 62)
+    env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc)}
+    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME"):
+        env.pop(name, None)
     going, taken = [], []
 
     def start(*args, command=None, name=None, **more):
@@ -172,12 +176,12 @@ def test_a_holder_told_to_stop_stops_its_command_too(slots):
 @pytest.mark.parametrize(
     ("args", "env", "held", "count"),
     [
-        ([], {}, (1, 2, 3), 3),
-        ([], {"TEST_SLOTS": "4"}, (1, 2, 3, 4), 4),
+        ([], {}, (1, 2, 3, 4), 4),
+        ([], {"TEST_SLOTS": "3"}, (1, 2, 3), 3),
         (["--slots", "1"], {"TEST_SLOTS": "3"}, (1,), 1),
     ],
 )
-def test_the_number_of_slots_is_the_flag_then_the_variable_then_three(
+def test_the_number_of_slots_is_the_flag_then_the_variable_then_the_machine(
     slots, args, env, held, count
 ):
     slots.hold(*held)
@@ -235,9 +239,7 @@ def test_the_short_lane_waits_only_on_its_own_slots(slots):
     holders = [slots("--short", name=name) for name in "abc"]
     assert slots.waits(lambda: slots.started() == ["a", "b", "c"])
     ran = slots("--short", command=["echo", "ran"])
-    assert (
-        ran.stderr.readline() == f"test-slot: waiting for one of {slot.SHORT_SLOTS} short slots\n"
-    )
+    assert ran.stderr.readline() == "test-slot: waiting for one of 3 short slots\n"
     assert slots("--slots", "1", command=["echo", "full"]).communicate(timeout=5) == ("full\n", "")
     slots.release("a")
     assert holders[0].wait(timeout=5) == 0
@@ -266,9 +268,9 @@ def test_a_short_job_past_its_limit_is_stopped_and_says_so(slots, tmp_path):
 
 
 def test_a_full_suite_does_not_enter_the_short_lane(slots):
-    slots.hold(1, 2, 3)
+    slots.hold(1, 2, 3, 4)
     ran = slots(name="a")
-    assert ran.stderr.readline() == "test-slot: waiting for one of 3 slots\n"
+    assert ran.stderr.readline() == "test-slot: waiting for one of 4 slots\n"
     time.sleep(2.5 * slot.LOOK_EVERY_SECONDS)
     assert (ran.poll(), slots.started()) == (None, [])
     assert not list(slots.locks.glob("test-slot-short.*"))

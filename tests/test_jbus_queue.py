@@ -14,6 +14,7 @@ import jbus
 import test_tool_calls as tools
 from jbus import cli, queue, wake
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID, Kitchen
+from test_machine_limits import fake_proc
 
 AT = "2026-10-11 17:58 ET"
 HEAD = (
@@ -749,8 +750,12 @@ def test_dispatch_off_a_stop_file_or_the_limit_reached_launch_nothing(kitchen, o
     assert len(kitchen.t3.launches) == 1
 
 
-@pytest.mark.parametrize(("written", "cap"), [(None, 24), (3, 3), (1, 1)])
-def test_a_config_with_no_max_running_runs_the_crew_cap_of_24(kitchen, written, cap):
+@pytest.mark.parametrize(("written", "cap"), [(None, 12), (3, 3), (1, 1)])
+def test_a_config_with_no_max_running_runs_the_crew_cap_the_machine_derives(
+    kitchen, monkeypatch, tmp_path, written, cap
+):
+    """12 processors and 32 GiB derive a crew a processor: `max_running` in `jgauge.limits`."""
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 12, 32)))
     kitchen.config(max_running=written)
     assert jbus.load(kitchen.config_dir).max_running == cap
 
@@ -762,7 +767,7 @@ def test_a_max_running_under_1_is_refused_with_one_line(kitchen, written):
         jbus.load(kitchen.config_dir)
     path = kitchen.config_dir / "config.toml"
     assert str(refused.value) == (
-        f"refused: {path} has max_running = {written}: give 1 or more, or leave it out for 24"
+        f"refused: max_running in {path} is {written}, and the number of max_running is 1 or more"
     )
 
 
