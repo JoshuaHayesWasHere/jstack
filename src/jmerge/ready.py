@@ -47,6 +47,7 @@ MERGE_OFF = "auto-merge is off for this repo"
 NO_BRIEF = "no brief has a Result that names it"
 DRAFT = "draft"
 RULES = "src/jmerge/"
+GRAMMAR = "docs/jmerge.md#patterns"
 RULES_CHANGED = "jmerge's rules changed in this run"
 MAIN_MOVED = "main moved while it was judged"
 KEPT = "every line kept"
@@ -798,7 +799,8 @@ def patterns_of(text: str) -> tuple[str, ...]:
     """The patterns of a file of paths (protected, guarded, CI): one per line, `#` for a comment.
 
     A pattern that cannot be read as the rules of `_protects` read one is refused, with a
-    ValueError that names it: one that is taken and protects nothing is no guardrail.
+    ValueError that names it and `GRAMMAR`: one that is taken and protects nothing is no
+    guardrail.
     """
     lines = (line.strip() for line in text.splitlines())
     patterns = tuple(line for line in lines if line and not line.startswith("#"))
@@ -809,7 +811,7 @@ def patterns_of(text: str) -> tuple[str, ...]:
             or pattern.startswith("!")
             or "\\" in pattern
         ):
-            raise ValueError(pattern)
+            raise ValueError(f"{pattern} (the grammar: {GRAMMAR})")
     return patterns
 
 
