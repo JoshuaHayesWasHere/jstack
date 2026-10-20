@@ -64,7 +64,7 @@ F="$H/reports/grill-<slug>.html"
    [ -f "$F" ] || cp "$T/grill-page.html" "$F"
    ```
 
-2. Write the round into the file's `round-data` block, by hand, and change nothing else in the file. The comment above the block names every key. Each question has an `id` that says what it decides, and exactly one option with `"recommended": true`: that one is checked when the page opens, so a question the user leaves alone is a yes. A block that breaks a rule draws no round: the page lists what is wrong and sends nothing.
+2. Write the round into the file's `round-data` block, by hand, and change nothing else in the file. `$T/grill-round.schema.json` names every key and says what each holds. Each question has an `id` that says what it decides, and exactly one option with `"recommended": true`: that one is checked when the page opens, so a question the user leaves alone is a yes. A block that breaks a rule draws no round: the page lists what is wrong and sends nothing.
 3. Open the session, once per grill. The block prints the session's status, any warning Lavish gave, and on its last line the address Lavish printed: give the user that one, as it is. If it exits with `no session`, it has printed what Lavish said: the grill goes on as text. On `status: user-ended` the user closed this page and it was not opened again: give no address, and go on as text.
 
    ```sh
