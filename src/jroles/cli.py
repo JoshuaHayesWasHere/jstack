@@ -25,17 +25,22 @@ from datetime import UTC, datetime
 from jroles import ROLES, Refused, mirror, pool
 
 
-def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
-    argv = sys.argv[1:] if argv is None else argv
-    if argv[:1] == ["mirror"]:
-        return mirror.main(argv[1:])
-    parser = argparse.ArgumentParser(
+def parser() -> argparse.ArgumentParser:
+    """The parser of `jroles`; `jroles mirror` parses its own words (`mirror.main`)."""
+    made = argparse.ArgumentParser(
         prog="jroles",
         description=__doc__.split("\n\n")[1],
         epilog="jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
     )
-    parser.add_argument("role", choices=(*ROLES, "mirror"))
-    role = parser.parse_args(argv).role
+    made.add_argument("role", choices=(*ROLES, "mirror"))
+    return made
+
+
+def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["mirror"]:
+        return mirror.main(argv[1:])
+    role = parser().parse_args(argv).role
     try:
         routed = pool.routes(role, now or datetime.now(UTC))
     except Refused as refused:

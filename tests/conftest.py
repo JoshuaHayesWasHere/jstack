@@ -30,6 +30,8 @@ one of a guarded path asks for `rules`, the package with a list that guards five
 `test_jmerge_guarded`. Each imports its module when it is asked for: `test_home_merge` runs
 `uv cache dir` as it loads, and a run with no `uv` on PATH that asks for none of them still
 loads this file.
+
+A test that lifts an `sh` block out of a skill lifts it with `skill_blocks`, named below.
 """
 
 import os
@@ -41,6 +43,7 @@ import repo_template
 from jbus import health, item, record
 from test_jbus_kitchen import Kitchen
 
+pytest_plugins = ["skill_blocks"]
 no_daemons_left = daemons.no_daemons_left
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
 NAMED = f'user = "Robin"\n{ZONE}'

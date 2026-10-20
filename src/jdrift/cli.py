@@ -128,16 +128,18 @@ def compare(clone: Path, pinned: Pinned, with_diff: bool) -> tuple[str, list[Lin
     return header, lines
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="jdrift", description=__doc__.split("\n\n")[1])
-    parser.add_argument(
+def parser() -> argparse.ArgumentParser:
+    made = argparse.ArgumentParser(prog="jdrift", description=__doc__.split("\n\n")[1])
+    made.add_argument(
         "--diff", action="store_true", help="the unified diff under each changed line"
     )
-    parser.add_argument(
-        "--strict", action="store_true", help="exit 1 on a changed, gone or new line"
-    )
-    parser.add_argument("--upstream", default=URL, metavar="URL", help=f"the repo to clone ({URL})")
-    args = parser.parse_args(argv)
+    made.add_argument("--strict", action="store_true", help="exit 1 on a changed, gone or new line")
+    made.add_argument("--upstream", default=URL, metavar="URL", help=f"the repo to clone ({URL})")
+    return made
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
     try:
         if shutil.which("git") is None:
             raise Refused("git is not on PATH")
