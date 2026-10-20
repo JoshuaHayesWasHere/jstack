@@ -8,7 +8,9 @@ on claudeAgent's weekly limit, which reset on the 18th at 4pm ET. It was moved t
 claudeAgent_claude_prime by hand the next day at about 15:39 ET, and prime hit its five-hour
 window about 9 minutes later."""
 
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -383,3 +385,233 @@ def test_a_role_map_that_names_no_crew_line_launches_with_no_selection(kitchen, 
     kitchen.poll()
     (given,) = kitchen.t3.launches
     assert "modelSelection" not in given
+
+
+RECORDED = Path(__file__).parent / "fixtures" / "usage-limit-2026-10-20.json"
+TONIGHT = json.loads(RECORDED.read_text())
+TONIGHT_RESET = 1792470600
+AT_0416 = datetime(2026, 10, 20, 4, 16, tzinfo=UTC)
+CLAUDE_POOL = (
+    f"crew: claudeAgent claude-opus-5-5 {POOL}\n"
+    "review: codex gpt-6-sol effort=xhigh\n"
+    "review: cursor grok-4.7 effort=xhigh fast=off\n"
+)
+
+
+def tonight(kitchen, on="claudeAgent"):
+    """The 12 threads of project jstack that got tonight's cap, as T3 Code recorded them at
+    04:13:31Z to 04:15:27Z, each failed on its latest run, which ran on `on`. The fixture is
+    the 15 `system_notice` items of `~/.t3/userdata/statev2.sqlite` whose itemId ends
+    `:five_hour:1792470600`, with each one's thread title and run."""
+    made = {}
+    for at, recorded in TONIGHT["threads"].items():
+        runs = [{**run, "providerInstanceId": on} for run in recorded["runs"]]
+        items = [item for item in TONIGHT["items"] if item["threadId"] == at]
+        selection = {**runs[-1]["modelSelection"], "instanceId": on}
+        made[at] = kitchen.t3.thread(
+            "",
+            "failed",
+            threadId=at,
+            title=recorded["title"],
+            latestRunId=runs[-1]["runId"],
+            itemCount=len(items),
+            runs=runs,
+            read_items=items,
+            selection=selection,
+            snoozed=False,
+        )
+    return made
+
+
+@pytest.mark.parametrize(("ran_on", "other"), [("claudeAgent", PRIME), (PRIME, "claudeAgent")])
+def test_tonights_caps_move_all_twelve_threads_to_the_other_account_once(
+    kitchen, pools, ran_on, other
+):
+    """9 crews and 3 scoped reviewers whose `review` lines name Codex and Cursor: each one is
+    on the crew's Claude pool, moves to the other account with its model and options, and is
+    told to carry on once."""
+    pools.write_text(CLAUDE_POOL)
+    made = tonight(kitchen, on=ran_on)
+    assert sorted(t["title"].split(":")[0] for t in made.values()) == ["crew"] * 9 + ["review"] * 3
+    kitchen.poll(AT_0416)
+    assert sorted(configures(kitchen), key=lambda given: given["threadId"]) == [
+        {
+            "threadId": at,
+            "modelSelection": {
+                **TONIGHT["threads"][at]["runs"][-1]["modelSelection"],
+                "instanceId": other,
+            },
+        }
+        for at, thread in sorted(made.items())
+    ]
+    assert sorted(given["threadId"] for given in sends(kitchen)) == sorted(made)
+    assert all(f"now on {other}" in given["message"] for given in sends(kitchen))
+    assert all(thread["selection"]["instanceId"] == other for thread in made.values())
+    assert ledger.file_of(ran_on).read_text() == f"five_hour 100 {TONIGHT_RESET}\n"
+    assert not ledger.file_of(other).exists()
+    assert len(failovers(kitchen)) == 12
+    kitchen.poll(AT_0416 + timedelta(minutes=3))
+    assert len(sends(kitchen)) == 12 and len(configures(kitchen)) == 12
+
+
+def test_a_reviewer_is_told_to_carry_on_its_review_and_logged_under_its_own_thread(kitchen, pools):
+    pools.write_text(CLAUDE_POOL)
+    made = tonight(kitchen)
+    kitchen.poll(AT_0416)
+    (reviewer,) = [t for t in made.values() if t["title"].startswith("review: hot-semantic")]
+    (carry,) = [given for given in sends(kitchen) if given["threadId"] == reviewer["threadId"]]
+    brief = kitchen.home / "tasks" / "hot-semantic-lines.md"
+    assert f"read `{brief}` and the pull request first" in carry["message"]
+    assert "skills/pr-review/SKILL.md" in carry["message"]
+    (line,) = [one for one in failovers(kitchen) if one.startswith("failover review hot-sem")]
+    assert line.startswith("failover review hot-semantic-lines: five_hour limit until ")
+    assert [e["slug"] for e in kitchen.events("failover") if e["line"] == line] == [
+        reviewer["threadId"]
+    ]
+
+
+def test_a_scout_moves_and_reads_its_request(kitchen):
+    thread = kitchen.t3.thread("probe", "failed", title="scout: probe")
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    (given,) = configures(kitchen)
+    assert given["modelSelection"]["instanceId"] == PRIME
+    (carry,) = sends(kitchen)
+    assert f"read `{kitchen.home / 'scouts' / 'probe.md'}` first" in carry["message"]
+    assert failovers(kitchen)[0].startswith("failover scout probe: five_hour limit")
+
+
+REVIEWED = "## Review\nHead: abc\nVerdict: findings\n"
+REPORTED = "## Report\nThe answer.\n"
+DONE = "## Result\nStatus: done\nLeft: none\nBranch: alpha, no pull request\n"
+
+
+@pytest.mark.parametrize(
+    ("title", "kind", "text"),
+    [
+        ("crew: alpha", "tasks", DONE),
+        ("review: alpha", "tasks", REVIEWED),
+        ("review: alpha, scoped", "tasks", REVIEWED),
+        ("scout: alpha", "scouts", REPORTED),
+    ],
+)
+def test_a_thread_that_owes_nothing_is_left_alone(kitchen, title, kind, text):
+    kitchen.brief("alpha", text, kind=kind)
+    thread = kitchen.t3.thread("alpha", "failed", title=title)
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert configures(kitchen) == [] and sends(kitchen) == [] and failovers(kitchen) == []
+
+
+def test_a_home_titled_thread_no_home_id_holds_is_left_alone(kitchen):
+    thread = kitchen.t3.thread("home", "failed", title="home: demo")
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert configures(kitchen) == [] and sends(kitchen) == []
+
+
+def test_a_crew_of_every_project_of_the_config_moves(kitchen):
+    side = kitchen.second()
+    thread = kitchen.t3.thread("beta", "failed", project=side.project)
+    failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    (given,) = configures(kitchen)
+    assert given == {
+        "threadId": thread["threadId"],
+        "modelSelection": SELECTION | {"instanceId": PRIME},
+    }
+    (carry,) = sends(kitchen)
+    assert f"read `{side.home / 'tasks' / 'beta.md'}`" in carry["message"]
+
+
+def test_a_claude_reviewer_moves_in_the_crew_pool_and_one_on_codex_stays(kitchen, pools):
+    pools.write_text(CLAUDE_POOL)
+    claude = kitchen.t3.thread("alpha", "failed", title="review: alpha")
+    codex = kitchen.t3.thread("beta", "failed", title="review: beta")
+    codex["selection"] = {"instanceId": "codex", "model": "gpt-6-sol"}
+    failed_on(claude, SESSION, notice=("five_hour", SESSION_RESET))
+    failed_on(codex, SESSION, ran_on="codex", run="run-2", notice=("five_hour", SESSION_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert configures(kitchen) == [
+        {"threadId": claude["threadId"], "modelSelection": SELECTION | {"instanceId": PRIME}}
+    ]
+    assert kitchen.lines("stall") == [
+        f"capped review beta: codex is capped until {SESSION_RESET.isoformat()}; "
+        "it is sent on at the first reset"
+    ]
+
+
+def replayed(kitchen, *more):
+    return kitchen.main("--project", "demo", "failover", "--replay", str(RECORDED), *more)
+
+
+def scratch(kitchen, on="claudeAgent"):
+    thread = kitchen.t3.thread("scratch", "completed", title="crew: scratch")
+    thread["selection"] = {**SELECTION, "instanceId": on}
+    return thread
+
+
+@pytest.mark.parametrize(("on", "other"), [("claudeAgent", PRIME), (PRIME, "claudeAgent")])
+def test_the_replay_moves_a_live_thread_once_and_leaves_the_ledger_alone(kitchen, on, other):
+    thread = scratch(kitchen, on)
+    code, out = replayed(kitchen, "--thread", thread["threadId"])
+    assert code == 0, out
+    assert configures(kitchen) == [
+        {"threadId": thread["threadId"], "modelSelection": SELECTION | {"instanceId": other}}
+    ]
+    (carry,) = sends(kitchen)
+    assert f"now on {other}" in carry["message"]
+    assert carry["clientRequestId"].startswith(f"failover|{thread['threadId']}|replay:")
+    assert "failover scratch: five_hour limit until " in out
+    assert f"carry-on on {on} to {other}, model claude-sonnet-5-5" in out
+    assert ledger.read(["claudeAgent", PRIME]) == {}
+    code, again = replayed(kitchen, "--thread", thread["threadId"])
+    assert code == 0 and again.startswith("already replayed")
+    assert len(sends(kitchen)) == 1 and len(configures(kitchen)) == 1
+
+
+def test_the_replay_moves_the_recorded_reset_to_now(kitchen):
+    """`resets in 17m` at 04:15:27Z is as many minutes after the replay."""
+    thread = scratch(kitchen)
+    before = datetime.now(UTC)
+    code, out = replayed(kitchen, "--thread", thread["threadId"], "--dry-run")
+    after = datetime.now(UTC)
+    last = datetime(2026, 10, 20, 4, 15, 27, 240000, tzinfo=UTC)
+    left = datetime.fromtimestamp(TONIGHT_RESET, UTC) - last
+    until = datetime.fromisoformat(out.split("limit until ")[1].split(",")[0])
+    assert before + left <= until <= after + left
+
+
+def test_a_dry_run_replay_prints_the_move_and_writes_nothing(kitchen):
+    thread = scratch(kitchen)
+    code, out = replayed(kitchen, "--thread", thread["threadId"], "--dry-run")
+    assert code == 0
+    assert out.startswith("dry run, nothing written: failover scratch: five_hour limit until ")
+    assert f"carry-on on claudeAgent to {PRIME}" in out
+    written = {"t3_thread_configure", "t3_thread_send", "t3_thread_organize"}
+    assert not [tool for tool, _ in kitchen.t3.calls if tool in written]
+    assert ledger.read(["claudeAgent", PRIME]) == {}
+    assert not [key for key in kitchen.marks() if key.startswith("failover|")]
+
+
+def test_the_replay_refuses_a_thread_that_is_no_role_of_the_project(kitchen):
+    other = kitchen.t3.thread("chat", "completed", title="a chat")
+    code, out = replayed(kitchen, "--thread", other["threadId"])
+    assert code == 1
+    assert (
+        out.strip() == f"refused: {other['threadId']} is no crew, reviewer, scout or home of demo"
+    )
+    assert configures(kitchen) == [] and sends(kitchen) == []
+
+
+def test_the_replay_fills_the_window_the_ledger_has_running(kitchen):
+    """The status line keeps claudeAgent's five-hour window at 42% with a reset later than the
+    recording's moved to now: the cap fills that window, as a real cap would, and the thread
+    moves."""
+    running = datetime.now(UTC) + timedelta(hours=4)
+    ledger.write(ledger.Record("claudeAgent", "five_hour", 42, int(running.timestamp())))
+    thread = scratch(kitchen)
+    code, out = replayed(kitchen, "--thread", thread["threadId"], "--dry-run")
+    assert code == 0
+    until = datetime.fromtimestamp(int(running.timestamp()), UTC).isoformat()
+    assert f"five_hour limit until {until}, carry-on on claudeAgent to {PRIME}" in out
