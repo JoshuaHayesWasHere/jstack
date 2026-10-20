@@ -919,3 +919,12 @@ def test_every_line_of_a_role_is_a_pool_and_any_one_full_waits(tmp_path):
     assert looked.stdout == (
         "wait: the weekly limit is 100.0% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
     )
+
+
+def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(tmp_path):
+    """Some awks stop on a directory they are asked to read: room skips it before awk reads."""
+    env = pooled(machine(tmp_path, **IDLE, plan=CAPPED), POOLED)
+    Path(f"{env['LIMITS']}.{PRIME}").mkdir()
+    looked = ran(env)
+    assert looked.stdout == "go\n"
+    assert looked.stderr.endswith(f"the pool has room on {PRIME}\n")

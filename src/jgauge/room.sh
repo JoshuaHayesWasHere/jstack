@@ -15,6 +15,12 @@ room() (
     echo "wait: $POOL is not a pool of provider instances"
     return
   fi
+  hollow=" "
+  for instance in $(echo "$POOL" | tr ',' ' '); do
+    file=$LIMITS
+    if [ "$instance" != claudeAgent ]; then file=$LIMITS.$instance; fi
+    if [ -d "$file" ]; then hollow="$hollow$instance "; fi
+  done
   load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)
   cores=$(nproc 2> /dev/null)
   memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
@@ -50,7 +56,7 @@ room() (
   awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
     -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
     -v LOAD="$LOAD" -v CPU="$CPU" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
-    -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v pool="$POOL" -v now="$(date +%s)" '
+    -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v pool="$POOL" -v hollow="$hollow" -v now="$(date +%s)" '
     function span(left) {
       return (left < 86400 ? "" : int(left / 86400) " d ") sprintf("%d h %d min", left % 86400 / 3600, left % 3600 / 60)
     }
@@ -65,7 +71,7 @@ room() (
       if (instance in read) return
       read[instance] = 1
       file = instance == "claudeAgent" ? LIMITS : LIMITS "." instance
-      while ((getline row < file) > 0)
+      while (!index(hollow, " " instance " ") && (getline row < file) > 0)
         if (split(row, at, " ") == 3 && at[1] in window && at[2] ~ number && at[3] ~ /^[0-9]+$/) {
           used[instance, at[1]] = at[2]
           left[instance, at[1]] = at[3] - now
