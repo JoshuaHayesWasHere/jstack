@@ -256,19 +256,7 @@ A line about a pull request is sent only while the home is the one that merges: 
 ```sh
 B="$H/tasks/<slug>.md"
 line='<fixed or waits>'
-named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
-first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
-was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }
-D=
-if [ -n "$named" ] && [ "$named" != "$(first "$H/home-id")" ] && [ "$named" != "$(was "$H/handoff.md")" ]; then
-    D=$(find "$H/" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | sort | while IFS= read -r d; do
-        id=$(first "$d/home-id")
-        old=$(was "$d/handoff.md")
-        if [ -z "$id$old" ]; then continue; fi
-        if [ "${d##*/}" = "$named" ] || [ "$id" = "$named" ] || [ "$old" = "$named" ]; then echo "$H/${d##*/}"; fi
-    done | tail -n 1)
-fi
-D=${D:-$H}
+D=$(uv run --project "$T/.." jbus home --directory "$B")
 scope=
 if [ "$D" != "$H" ]; then scope=${D##*/}; fi
 if [ "$line" != fixed ] && [ "$line" != waits ]; then
@@ -289,23 +277,10 @@ On `home merges`, **the thread that hears of a pull request** is the one the blo
 Whom to send it to is this. Shell variables do not last from one call to the next, so run it in one call with the block at the top and `B` set to the brief, `$H/tasks/<slug>.md`:
 
 ```sh
-named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
-first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
-was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }
-D=
-if [ -n "$named" ] && [ "$named" != "$(first "$H/home-id")" ] && [ "$named" != "$(was "$H/handoff.md")" ]; then
-    D=$(find "$H/" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | sort | while IFS= read -r d; do
-        id=$(first "$d/home-id")
-        old=$(was "$d/handoff.md")
-        if [ -z "$id$old" ]; then continue; fi
-        if [ "${d##*/}" = "$named" ] || [ "$id" = "$named" ] || [ "$old" = "$named" ]; then echo "$H/${d##*/}"; fi
-    done | tail -n 1)
-fi
-D=${D:-$H}
-if [ -s "$D/home-id" ]; then first "$D/home-id"; fi
+uv run --project "$T/.." jbus home "$B"
 ```
 
-It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`. A brief names no thread, so no home's start or handoff changes it. One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home. A scope is a directory of `$H` whose `home-id` holds an id or whose handoff has a `Was home:` line, and a line that names no such directory is the root home's: it is `jmerge`'s rule, and `whose` in the home skill, so a brief has one home to all three. Between a handoff and the next home's start the file is gone and the block prints nothing. Run it each time there is something to tell, and do not keep the id from an earlier run: the next home's start puts its own id in the file.
+It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`. A brief names no thread, so no home's start or handoff changes it. One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home. `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them. Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing. Run it each time there is something to tell, and do not keep the id from an earlier run: the next home's start puts its own id in the file.
 
 If it prints a thread id, send that thread the message with the `t3-code` server's `t3_thread_send` (if your harness defers it, load it first). If it prints nothing, there is no home: send nothing. The Result on disk is the record, and jbus, or the next home, reads it from there.
 
