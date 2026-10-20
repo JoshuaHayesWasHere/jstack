@@ -19,9 +19,12 @@ import pytest
 
 import jbus
 from jbus import (
+    alert,
     cli,
     dispatch,
     expedite,
+    item,
+    leftover,
     mainmoved,
     merge,
     mirror,
@@ -32,8 +35,11 @@ from jbus import (
     stall,
     threads,
     verbs,
+    waiting,
+    wake,
     watch,
     word,
+    work,
 )
 from test_jbus_expedite import NO_FIXED, URL, Short
 from test_jbus_fresh_head import Due
@@ -171,6 +177,27 @@ BEFORE = {
     ),
 }
 
+DERIVED = "queue.derive queue.load leftover.tell stall.unclosed"
+JUDGED = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
+CLOSE = "Box.snapshot_due Box.sweep_owed alert.flush"
+AFTER = {
+    "short": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "question": f"{DERIVED} {JUDGED} Box.began {CLOSE}",
+    "word": f"{DERIVED} {JUDGED} Box.began {CLOSE}",
+    "main moved": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "stale": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "t3 down": f"{JUDGED} {CLOSE}",
+    "signed out": f"{JUDGED} {CLOSE}",
+    "blind": f"stall.tell waiting.cadence {CLOSE}",
+    "words.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "questions.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "queue.json": f"stall.tell waiting.keep questions.read waiting.cadence Box.began {CLOSE}",
+}
+EVENING = (
+    f"{DERIVED} merge.unplaced {JUDGED} Box.began Box.snapshot_due Box.snapshot_sent "
+    "Box.prune Box.forget Box.sweep_owed merge.sweep Box.swept alert.flush"
+)
+
 CALLED = (
     (word, "deliver"),
     (merge, "merge"),
@@ -196,6 +223,26 @@ CALLED = (
     (remarks, "tell"),
     (dispatch, "turns"),
 )
+SECOND = (
+    (queue, "derive"),
+    (leftover, "tell"),
+    (stall, "unclosed"),
+    (merge, "unplaced"),
+    (work, "write"),
+    (item, "follow"),
+    (stall, "tell"),
+    (waiting, "keep"),
+    (waiting, "cadence"),
+    (wake.Box, "began"),
+    (wake.Box, "snapshot_due"),
+    (wake.Box, "snapshot_sent"),
+    (wake.Box, "prune"),
+    (wake.Box, "forget"),
+    (wake.Box, "sweep_owed"),
+    (merge, "sweep"),
+    (wake.Box, "swept"),
+    (alert, "flush"),
+)
 
 
 def moved(before):
@@ -209,32 +256,34 @@ def moved(before):
     return calls
 
 
-def traced(kitchen, monkeypatch, *more):
-    """One pass, and what its first half called, in order, with the events it queued."""
-    calls, inside = [], []
-    for module, name in (*CALLED, *more):
+def traced(kitchen, monkeypatch, *more, at=NOW + timedelta(hours=1)):
+    """One pass, what each of its halves called, in order, and the events it queued."""
+    calls = {"first_half": [], "second_half": []}
+    inside = []
+    for module, name in (*CALLED, *SECOND, *more):
         real = getattr(module, name)
+        where = module.__qualname__ if isinstance(module, type) else module.__name__[5:]
 
-        def spy(*args, real=real, called=f"{module.__name__[5:]}.{name}", **kwargs):
+        def spy(*args, real=real, called=f"{where}.{name}", **kwargs):
             if inside:
-                calls.append(called)
+                calls[inside[-1]].append(called)
             return real(*args, **kwargs)
 
         monkeypatch.setattr(module, name, spy)
-    first = cli.first_half
+    for which in calls:
 
-    def half(*args):
-        inside.append(True)
-        try:
-            return first(*args)
-        finally:
-            inside.clear()
+        def half(*args, real=getattr(cli, which), which=which):
+            inside.append(which)
+            try:
+                return real(*args)
+            finally:
+                inside.clear()
 
-    monkeypatch.setattr(cli, "first_half", half)
+        monkeypatch.setattr(cli, which, half)
     kitchen.forget()
-    kitchen.poll(NOW + timedelta(hours=1))
+    kitchen.poll(at)
     events = [(e["event"], re.sub("[0-9a-f]{12}", "<head>", e["line"])) for e in kitchen.events()]
-    return calls, events
+    return calls["first_half"], calls["second_half"], events
 
 
 def short(kitchen):
@@ -311,7 +360,18 @@ def test_a_pass_calls_what_it_called_and_says_what_it_said_before_the_steps(
 ):
     FIXTURES[fixture](kitchen)
     calls, events = BEFORE[fixture]
-    assert traced(kitchen, monkeypatch) == (moved(calls), events)
+    first, second, said = traced(kitchen, monkeypatch)
+    assert (first, said) == (moved(calls), events)
+    assert second == AFTER[fixture].split()
+
+
+def test_the_evening_pass_snapshots_and_sweeps_in_the_order_it_did(kitchen, monkeypatch):
+    short(kitchen)
+    _, second, events = traced(kitchen, monkeypatch, at=NOW + timedelta(hours=7))
+    assert (second, events) == (
+        EVENING.split(),
+        [("jmerge", JMERGE), ("snapshot", "snapshot demo: 2026-10-12")],
+    )
 
 
 MADE_UP = """
@@ -339,7 +399,7 @@ def made_up(tmp_path, monkeypatch):
 def test_a_new_module_s_step_runs_in_its_place_with_no_line_in_cli(kitchen, monkeypatch, made_up):
     monkeypatch.setattr(cli, "RANKED", verbs.ranked(jbus.__path__))
     short(kitchen)
-    calls, events = traced(kitchen, monkeypatch, (made_up, "step"))
+    calls, _, events = traced(kitchen, monkeypatch, (made_up, "step"))
     expected = moved(BEFORE["short"][0])
     expected.insert(expected.index("stall.hung") + 1, "madeup.step")
     assert (calls, events) == (expected, BEFORE["short"][1])
