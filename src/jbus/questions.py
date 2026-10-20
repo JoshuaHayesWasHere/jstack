@@ -392,6 +392,11 @@ def _labels() -> list[str]:
     return [line.split(":", 1)[0] + ":" for line in head if ":" in line]
 
 
+def _filled(said: str) -> bool:
+    """Whether a label's text, as `mirror.field` keeps it, is more than its placeholder."""
+    return bool(said.strip()) and not said.strip().startswith("<")
+
+
 def _shaped(lines: str) -> None:
     """`Refused`, with what is wrong, for lines that are not one gate of the template filled in."""
     rows = lines.splitlines()
@@ -402,12 +407,11 @@ def _shaped(lines: str) -> None:
     elif "Status: open" not in rows:
         what = "the gate has no Status: open line"
     else:
-        filled = re.compile(r"[^<]")
         bare = [
             label
             for label in _labels()
             if not any(
-                row.startswith(f"{label} ") and filled.match(row[len(label) + 1 :]) for row in rows
+                row.startswith(f"{label} ") and _filled(row[len(label) + 1 :]) for row in rows
             )
         ]
         if not bare:

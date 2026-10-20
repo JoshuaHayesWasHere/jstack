@@ -178,6 +178,14 @@ def test_a_number_starts_above_the_gates_a_gates_file_has(kitchen):
             "the gate has no Default: line that is filled in",
         ),
         (
+            gate().replace("Default: the first one", "Default:   <what the thread did>"),
+            "the gate has no Default: line that is filled in",
+        ),
+        (
+            gate().replace("Default: the first one", "Default:   "),
+            "the gate has no Default: line that is filled in",
+        ),
+        (
             gate().replace("Undo: pick the other\n", ""),
             "the gate has no Undo: line that is filled in",
         ),
