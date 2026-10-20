@@ -872,6 +872,31 @@ class Limits:
 
 
 @dataclass(frozen=True)
+class StateRepo:
+    """The homes' state tree, which `jbus snapshot` commits and pushes to its `origin`.
+    ok: a git repo whose top is this directory, with an origin, named in the detail with
+    any credentials taken out of it. missing: not a git repo, or no origin to push to."""
+
+    path: Path
+
+    def ask(self, machine: Machine) -> str:
+        """The url is the user's own private repository: the command names where it goes."""
+        add = f"git -C {self.path} remote add origin <url>"
+        if self.probe(machine).detail == "not a git repo":
+            return f"git init {self.path} && {add}"
+        return add
+
+    def probe(self, machine: Machine) -> Found:
+        top = machine.run(["git", "-C", str(self.path), "rev-parse", "--show-toplevel"])
+        if top.code != 0 or Path(top.out.strip()).resolve() != self.path.resolve():
+            return Found.missing("not a git repo")
+        origin = machine.run(["git", "-C", str(self.path), "remote", "get-url", "origin"])
+        if origin.code != 0 or not origin.out.strip():
+            return Found.missing("no remote")
+        return Found.ok(re.sub(r"//[^/@]*@", "//", origin.out.strip()))
+
+
+@dataclass(frozen=True)
 class JstackConfig:
     """${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml, read by the loader the commands use.
     The install never creates it. missing: no file, the commands run on their defaults

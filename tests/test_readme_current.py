@@ -65,7 +65,7 @@ OPTIONAL = {
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "`lavish-axi`": ("lavish-axi",),
 }
-NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory")
+NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory", "state repo")
 NAMED = (
     "ci-paths.txt",
     "fresh-check",

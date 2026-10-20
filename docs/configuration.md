@@ -2,7 +2,7 @@
 
 jstack runs with none of these files. Each one changes a default or switches on an optional layer. This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries and the limits file, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
+`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
 
 | File | Sets | Written by |
 |---|---|---|
@@ -13,6 +13,7 @@ jstack runs with none of these files. Each one changes a default or switches on 
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
 | `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `hooks/limits.sh`, `jbus` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
+| `origin` of the git repo `~/.local/state/home` | Where `jbus snapshot` pushes the homes' state | You |
 
 The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variable is set. `jbus` reads its own directory from `JBUS_CONFIG_DIR`.
 
@@ -178,6 +179,16 @@ printf '%s' "$input" | jq -r '.model.display_name'
 
 `hooks/limits.sh` prints nothing and exits 0 on any input, so it adds nothing to your line.
 
+## The state tree's remote
+
+The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus.md#back-up-the-homes-state)). The remote is a private repository of yours, which nothing else pushes to:
+
+```sh
+git -C ~/.local/state/home remote add origin <url>
+```
+
+With no `origin` a snapshot keeps its commit and fails, and the failure alerts once. `install.sh --doctor` prints `ok optional state repo ~/.local/state/home -> <url>`, or `missing` with `not a git repo` or `no remote`.
+
 ## Switches for one repo
 
 These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout. [State](state.md) lists the other files there, which the threads write.
@@ -198,7 +209,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 | `LIMITS` | `~/.local/state/claude/limits` | `hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
 | `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `install.sh` |
 | `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus` |
-| `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus` |
+| `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus`, `install.sh --doctor` |
 | `TEST_SLOTS` | `3` | `jgauge test-slot` |
 | `JGAUGE_LOCKS_DIR` | `~/.local/state/locks` | `jgauge test-slot`, `jbus` |
 | `JMERGE_TIMEOUT` | `120` | `jmerge` |
