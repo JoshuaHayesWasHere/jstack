@@ -17,8 +17,8 @@ it prints `stale <instance>: <why>`. A home that is read has its file's time set
 when no line changed, so `--check` tells a reader that stopped from an account that is idle.
 
 A reset comes back a little different on each call (21:29:59.74, then 21:30:00.31): it is
-rounded to the minute, or the merge rule, the later reset wins, would keep an old share behind
-a reset one second later. A window with no reset is not open, and gives no line.
+floored to the second, as the other writers do, and the ledger's merge takes resets a few
+minutes apart as one window. A window with no reset is not open, and gives no line.
 """
 
 from __future__ import annotations
@@ -103,8 +103,7 @@ def records(instance: str, usage: object) -> list[ledger.Record]:
             at = datetime.fromisoformat(str(resets))
         except ValueError as error:
             raise ValueError(f"the {window} reset is not a time") from error
-        minute = round(at.timestamp() / 60) * 60
-        found.append(ledger.Record(instance, window, round(float(used), 2), minute))
+        found.append(ledger.Record(instance, window, round(float(used), 2), int(at.timestamp())))
     return found
 
 

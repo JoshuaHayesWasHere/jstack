@@ -75,5 +75,6 @@ def claude_instances(declared: dict[str, Instance], home: Path) -> dict[str, Pat
     for name, each in declared.items():
         if each.driver == BUILT_IN:
             found.setdefault(each.home or home / ".claude", name)
-    found.setdefault(home / ".claude", BUILT_IN)
+    if BUILT_IN not in found.values():
+        found.setdefault(home / ".claude", BUILT_IN)
     return {name: where for where, name in found.items()}

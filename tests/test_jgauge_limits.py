@@ -18,7 +18,7 @@ PRIME = "claudeAgent_claude_prime"
 MAIN_ACCOUNT, PRIME_ACCOUNT = "9282d67c-main", "3c536e2a-prime"
 FIVE = "2026-10-20T21:29:59.738902+00:00"
 WEEK = "2026-10-25T19:59:59.738929+00:00"
-FIVE_AT, WEEK_AT = 1792531800, 1792958400
+FIVE_AT, WEEK_AT = 1792531799, 1792958399
 
 
 def usage(five, week, five_at=FIVE, week_at=WEEK):
@@ -171,7 +171,7 @@ def test_both_ledger_files_get_both_windows_from_each_homes_own_token(machine):
     code, out, err = machine.run()
     assert (code, err) == (0, "")
     assert machine.lines("claudeAgent") == [f"five_hour 42 {FIVE_AT}", f"seven_day 36 {WEEK_AT}"]
-    assert machine.lines(PRIME) == [f"five_hour 3.5 {FIVE_AT}", f"seven_day 0 {WEEK_AT}"]
+    assert machine.lines(PRIME) == [f"five_hour 3.5 {FIVE_AT + 1}", f"seven_day 0 {WEEK_AT}"]
     assert sorted(machine.endpoint.tokens) == sorted(
         (machine.token(name), "oauth-2025-04-20") for name in ("claudeAgent", PRIME)
     )
@@ -188,7 +188,10 @@ def test_a_reset_that_moves_by_a_second_between_calls_does_not_freeze_the_share(
     machine.run()
     machine.answer("claudeAgent", usage(47.0, 37.0, five_at="2026-10-20T21:29:59.912000+00:00"))
     machine.run()
-    assert machine.lines("claudeAgent") == [f"five_hour 47 {FIVE_AT}", f"seven_day 37 {WEEK_AT}"]
+    assert machine.lines("claudeAgent") == [
+        f"five_hour 47 {FIVE_AT + 1}",
+        f"seven_day 37 {WEEK_AT}",
+    ]
 
 
 def test_an_expired_token_falls_back_to_a_fresh_cache_and_is_never_used(machine):
@@ -287,3 +290,18 @@ def test_a_reading_merges_by_the_ledgers_rule_and_never_lowers_a_cap_of_the_same
     machine.run()
     assert machine.lines("claudeAgent") == [f"five_hour 100 {FIVE_AT}", f"seven_day 36 {WEEK_AT}"]
     assert time.time() - machine.ledger.stat().st_mtime < 60
+
+
+@pytest.mark.parametrize(
+    "given", ["2026-10-20T21:29:59.919173+00:00", "2026-10-20T21:30:00.310194+00:00"]
+)
+def test_a_cap_another_writer_floored_to_the_second_is_the_same_window_and_stands(machine, given):
+    """`hooks/limits.sh` and jbus write a reset to the second; the endpoint's lands a second
+    either side of it. Both are one window, and the lower share never replaces the cap."""
+    machine.ledger.parent.mkdir(parents=True)
+    machine.ledger.write_text("five_hour 100 1792531799\n")
+    machine.answer("claudeAgent", usage(63.0, 36.0, five_at=given))
+    machine.answer(PRIME, usage(1.0, 2.0))
+    machine.run()
+    (five,) = [line for line in machine.lines("claudeAgent") if line.startswith("five_hour")]
+    assert five.split()[1] == "100"

@@ -282,3 +282,13 @@ def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env)
         "stub",
         "xdg",
     ]
+
+
+def test_a_reset_a_second_off_is_the_same_window_and_a_cap_on_it_stands(env):
+    """`jgauge limits` and jbus write the same window a second either side of the status line:
+    the script merges as `jroles.ledger.merge` does, and a lower share never replaces the cap."""
+    Path(env["LIMITS"]).write_text(f"five_hour 100 {SOON + 1}\n")
+    write(handed(five_hour=(63, SOON)), env)
+    assert kept(env) == f"five_hour 100 {SOON + 1}\n"
+    write(handed(five_hour=(12, LATER)), env)
+    assert kept(env) == f"five_hour 12 {LATER}\n"
