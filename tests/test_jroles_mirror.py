@@ -231,3 +231,48 @@ def test_a_run_that_stopped_after_the_move_merges_what_the_backup_holds(home, ca
     assert os.readlink(prime / "projects") == str(main / "projects")
     assert (main / "projects" / "-repo" / "prime-only.jsonl").exists()
     assert module.check(module.Main.of(home), one) == []
+
+
+def test_a_move_whose_name_main_took_meanwhile_is_not_nested_and_the_next_run_merges_it(
+    home, capsys
+):
+    """Two runs on two mirrors planned the same move: the second finds the name in
+    `~/.claude` and leaves its entry, and the run after backs it up and merges it."""
+    from jroles import mirror as module
+
+    main, third = home / ".claude", home / ".claude_third"
+    write(third / "agents" / "theirs.md", "third's agent\n")
+    one = module.Mirror(THIRD, third)
+    (step,) = [step for step in module.plan(module.Main.of(home), one) if step.kind == "move"]
+    write(main / "agents" / "mine.md", "an agent prime made\n")
+    said = module.apply(module.Main.of(home), one, step)
+    assert said == [
+        f"kept      {third / 'agents'}: {main / 'agents'} is there now, and the next run merges it"
+    ]
+    assert not (main / "agents" / "agents").exists()
+    mirror(capsys, "--instance", THIRD)
+    assert os.readlink(third / "agents") == str(main / "agents")
+    assert (main / "agents" / "theirs.md").read_text() == "third's agent\n"
+    assert not (main / "agents" / "agents").exists()
+
+
+def test_a_run_holds_the_main_homes_lock_while_it_writes(home, capsys, monkeypatch):
+    import fcntl
+
+    from jroles import mirror as module
+
+    held = []
+    real = module.apply
+
+    def apply(main, one, step):
+        with (main.home / module.LOCK).open("a") as probe:
+            try:
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                held.append(False)
+            except BlockingIOError:
+                held.append(True)
+        return real(main, one, step)
+
+    monkeypatch.setattr(module, "apply", apply)
+    mirror(capsys)
+    assert held and all(held)

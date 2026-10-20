@@ -261,6 +261,8 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
             said += [line for line in merge(backup, there, backup) if line not in said]
         return [f"backup    {at} -> {backup}", *said, f"linked    {at} -> {there}"]
     if step.kind == "move":
+        if os.path.lexists(there):
+            return [f"kept      {at}: {there} is there now, and the next run merges it"]
         shutil.move(at, there)
         at.symlink_to(there)
         return [f"moved     {at} -> {there}, linked"]
@@ -290,11 +292,15 @@ def check(main: Main, mirror: Mirror) -> list[str]:
 
 
 def run(main: Main, mirror: Mirror) -> list[str]:
-    """Make one mirror so, under its lock, and say what changed: nothing when nothing did."""
+    """Make one mirror so, under its lock and the main home's, and say what changed: nothing
+    when nothing did. The main home's lock is what keeps two runs on two mirrors from moving
+    the same new name into `~/.claude` at once: each plan is read and applied with no other
+    run writing there."""
     if not mirror.home.is_dir():
         raise Refused(f"jroles mirror: {mirror.instance}: {mirror.home} is missing")
-    with (mirror.home / LOCK).open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with (mirror.home / LOCK).open("a") as own, (main.home / LOCK).open("a") as shared_lock:
+        fcntl.flock(own, fcntl.LOCK_EX)
+        fcntl.flock(shared_lock, fcntl.LOCK_EX)
         return [line for step in plan(main, mirror) for line in apply(main, mirror, step)]
 
 

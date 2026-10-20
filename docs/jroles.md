@@ -102,7 +102,8 @@ A run reads each mirror, then changes only what differs:
 | Shared keys of `.claude.json` that differ | Writes the file again, mode 600 | `synced    shared keys of ~/.claude.json into <file>` |
 
 A run with nothing to do prints nothing and writes nothing.
-Each mirror is changed under its own lock, `<home>/.jroles-mirror.lock`, so two runs never interleave.
+Each mirror is changed under its own lock, `<home>/.jroles-mirror.lock`, and under the main home's, `~/.claude/.jroles-mirror.lock`, so no two runs interleave, on one mirror or on two that would move the same new entry into `~/.claude`.
+A move whose target appeared in `~/.claude` since the plan was read is not made: it prints `kept`, and the next run backs the entry up and merges it.
 A directory is merged before it is moved and again after, so a run that stopped halfway leaves nothing unmerged, and the next run picks up where it stopped.
 A mirror whose home is not there is said on stderr, and the run exits 2: the home is made by the account's first login, which is infra's.
 
