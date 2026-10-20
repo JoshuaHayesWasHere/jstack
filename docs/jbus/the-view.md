@@ -77,7 +77,8 @@ The answer is recorded as `jbus answer` records it: by the user of your settings
 
 There is no sign-in.
 The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
-Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`, and a client that is not a browser sets the `Origin` header as it likes. Only a write that has an answer to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`, and a client that is not a browser sets the `Origin` header as it likes.
+Only a write that has an answer or a message to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
 
 ### Steer a work item
 
