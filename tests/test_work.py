@@ -11,6 +11,7 @@ import pytest
 
 import jbus
 from jbus import queue, work
+from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_queue import add, rows
 
@@ -214,7 +215,7 @@ def test_a_pull_request_on_a_step_is_that_step_and_a_hung_thread_over_it_is_hung
     kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}"))
     thread = kitchen.t3.thread("alpha", "completed")
     kitchen.set("open.json", [kitchen.opened("alpha", 9)])
-    kitchen.set("jmerge.txt", f"wait 9 {PULL}: no review yet\n")
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.NO_REVIEW}\n")
     kitchen.poll()
     assert said(kitchen) == ("review", True)
     thread.update(status="running", updatedAt=iso(NOW - timedelta(minutes=25)))

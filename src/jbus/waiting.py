@@ -83,6 +83,7 @@ import contextlib
 import hashlib
 import re
 from collections.abc import Collection
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -109,7 +110,28 @@ if TYPE_CHECKING:
 
 EVENTS = {"waiting": "user"}
 EVENT = "waiting"
-KINDS = ("gate", "row", "left", "approve", "hold", "config")
+
+
+@dataclass(frozen=True)
+class Kind:
+    """A kind of what waits on the user, and how the page shows it: `label` heads its list in
+    the drawer of what waits on the user, `verb` is the button of an item of it, and `shown`
+    is its place in that drawer, where a pass lists the kinds in the order of `KINDS`."""
+
+    name: str
+    label: str
+    verb: str
+    shown: int
+
+
+KINDS = (
+    Kind("gate", "Open gates", "Accept default", 5),
+    Kind("row", "Tasks at a gate", "Fix brief", 1),
+    Kind("left", "Left over by tasks that ended", "Close it", 2),
+    Kind("approve", "Rows to approve", "Approve launch", 4),
+    Kind("hold", "Pull requests jmerge holds for your word", "Review merge", 3),
+    Kind("config", "Setup jbus lacks", "Set up", 6),
+)
 ASKS = ("hold", "approve", "config")
 
 Item = dict[str, Any]
@@ -137,12 +159,27 @@ def _named_before(state: Path) -> list[Path]:
     return [state / f"{was}.json" for was, now in old_names().items() if f"{now}.json" == NAME]
 
 
+def kinds() -> list[str]:
+    """The name of each kind, in the order of `KINDS`."""
+    return [one.name for one in KINDS]
+
+
+def verb(name: str) -> str:
+    """The button of an item of the kind `name`."""
+    return next(one.verb for one in KINDS if one.name == name)
+
+
+def shown() -> list[dict[str, Any]]:
+    """The kinds as the page has them, in the order it shows them."""
+    return [asdict(one) for one in sorted(KINDS, key=lambda one: one.shown)]
+
+
 def kind(key: str) -> str:
     """The kind a key names: `#<n>` is a hold, and any other says it before its colon."""
     if key.startswith("#"):
         return "hold"
     named = key.partition(":")[0].removeprefix("re-")
-    return named if named in KINDS else "config"
+    return named if named in kinds() else "config"
 
 
 def short(one: Item) -> str:
@@ -371,7 +408,7 @@ def keep(
     for key, one in items.items():
         stamps = [one.get("since", now), before.get(key, {}).get("since", now)]
         one["since"] = _earlier(*stamps)
-    listed = sorted(items.values(), key=lambda one: KINDS.index(one["kind"]))
+    listed = sorted(items.values(), key=lambda one: kinds().index(one["kind"]))
     if was is not None and set(before) != set(items):
         new = [one for one in listed if one["key"] not in before]
         gone = [one for key, one in before.items() if key not in items]

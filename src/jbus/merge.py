@@ -14,7 +14,7 @@ theirs.
 A sweep is `jmerge`'s too, and jbus only ever asks what one would remove: `SWEEP` is the
 one command it runs for it, and it has `--check`.
 
-A reason no rule of `RULES` names puts its pull request on no step, and the view shows it
+A reason no rule of `rules` names puts its pull request on no step, and the view shows it
 in the Unknown lane. `unplaced` sends the row's home one queued message, once for a row and
 a reason text, since the fix is a rule, which a home briefs. It is a quiet event, and the
 row is not the user's: it is not in `waiting-on-user.json`. Two reasons are on no step by
@@ -51,9 +51,9 @@ UNPLACED = "unplaced"
 OFF_STEP = (ready.OTHER_HOME, ready.DRAFT)
 TOLD = (
     "jbus: the view cannot place {slug}. jmerge said of its pull request #{number} `{said}`, "
-    "and `merge.RULES` in src/jbus/merge.py has no rule for it, so it shows in the Unknown "
-    "lane. Brief the fix and queue it: the reason as a named constant in src/jmerge/ready.py, "
-    "and a rule in `merge.RULES` that puts it on its step. {user} is not asked: send {user} "
+    "and `merge.rules` in src/jbus/merge.py has no rule for it, so it shows in the Unknown "
+    "lane. Brief the fix and queue it: the reason as a named `Reason` in src/jmerge/ready.py, "
+    "which names the step it puts it on. {user} is not asked: send {user} "
     "nothing about it. A question only {user} can answer is a gate: take the default and pipe "
     "it to `jbus gate <the fix's slug>`."
 )
@@ -86,34 +86,30 @@ def parse(text: str) -> Line | None:
     return Line(word, int(number), (name or "").rstrip(","))
 
 
-RULES = (
-    ("hold", r"^needs [^\s,]+, |needs the user's word|which the user lands|^its base is "),
-    ("hold", r"a stack its brief does not name|auto-merge is off|held a third rebase"),
-    ("hold", r"^its queue row is held|^its queue cannot be read"),
+ELSEWHERE = (
     ("proof", r"no proven safety fact"),
-    ("second", r"second pass is not written|the rebase changed the (content|patch) after"),
-    ("second", r"scoped review has not ruled|not the one its review saw|no head to compare"),
-    ("second", r"scoped review of it is not written"),
-    ("rebase", r"needs a rebase|^the rebase dropped|conflicts with (its base|today's)"),
-    ("rebase", r"fails on \S+ over today's|^its Rebase line|^its migration \S+ takes number"),
-    ("check", r"check has not (passed|finished)|fresh check|GitHub has not decided"),
-    ("check", r"its check has no start time|could not be fetched|moved while it was judged"),
-    ("check", r"jmerge's (own )?rules"),
-    ("check", r"^merges after \S+ \(.*\), not merged yet"),
-    ("check", r"^it adds a migration, and #\S+, which merges before it, is "),
-    ("findings", r"findings are not handled|^its head moved after|^its Fixed line"),
-    ("findings", r"have no Finding line"),
-    ("review", r"no review yet|review has no verdict"),
-    ("result", r"^no brief has a Result that names it"),
-    ("result", "^" + re.escape(ready.SKILLS_UNRUN).replace(r"\{names\}", ".+")),
+    ("second", r"the rebase changed the patch after"),
+    ("rebase", r"needs a rebase"),
+    ("check", r"check has not finished|fresh check|could not be fetched|jmerge's own rules"),
+    ("findings", r"^its head moved after"),
 )
-_RULES = tuple((step, re.compile(pattern)) for step, pattern in RULES)
 _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
+
+
+def rules() -> tuple[tuple[str, str], ...]:
+    """The `(step, pattern)` of each reason `jmerge` writes, in the order they are tried:
+    `ELSEWHERE`, then each `ready.Reason` from the start of the reason, where it is declared.
+
+    `ELSEWHERE` is what `jmerge` writes from outside `ready` (its run, its proof and its
+    range-diff), and what an older `jmerge` wrote, which a log still holds. It comes first:
+    `ready.MAIN_CHANGED` with `it needs a rebase`, which `jmerge` says of a guarded path, is
+    on the rebase step."""
+    return ELSEWHERE + tuple((one.step, "^" + one.pattern) for one in ready.reasons().values())
 
 
 def step(said: str) -> str:
     """The step a pull request waits on, from what `jmerge` last said of it, `<word>: <reason>`:
-    a `hold` is `hold`, and a `wait` is on the first step of `RULES` whose pattern its reason
+    a `hold` is `hold`, and a `wait` is on the first step of `rules` whose pattern its reason
     matches. Nothing for a line with no reason, or a reason no rule names."""
     word, _, reason = said.partition(": ")
     if not reason:
@@ -121,7 +117,7 @@ def step(said: str) -> str:
     if word == "hold":
         return "hold"
     reason = _GUARDED.sub("", reason)
-    return next((step for step, pattern in _RULES if pattern.search(reason)), "")
+    return next((step for step, pattern in rules() if re.search(pattern, reason)), "")
 
 
 class Said(list[str]):
