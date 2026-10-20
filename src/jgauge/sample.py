@@ -1,15 +1,22 @@
-"""A log of the machine's load and pressure, a row every 15 s from a user timer, and a report
-of how often the load was over room's line while CPU pressure was low.
+"""A log of the machine's load, pressure and /tmp files, a row every 15 s from a user timer,
+and a report of a span of it: how often the load was over room's line while CPU pressure was
+low, the peaks against room's other lines, and the stalls jbus recorded in the span.
 
 The log is one TSV file under a header of COLUMNS. A field that cannot be read (no
 /proc/pressure/io, a kernel with no `full` line for cpu) is empty, never a crash. It holds 30
 days at most: once its first row is older than that, the sampler writes it again with the last
-29 days, so the file is rewritten about once a day and not on every sample."""
+29 days, so the file is rewritten about once a day and not on every sample. A log written
+before the two /tmp columns is written again once, with those fields empty in its old rows.
+
+The stalls are read from each project's `events.jsonl` under jbus's state directory: a
+`stall`, a `slot-wake` (a thread that waited for a test slot, and how many minutes), and a
+`gate` that says a row had no room for its passes."""
 
 from __future__ import annotations
 
 import datetime
 import fcntl
+import json
 import os
 import re
 import time
@@ -26,12 +33,16 @@ COLUMNS = (
     "load15",
     *(f"{r}_{k}_{w}" for r in RESOURCES for k in KINDS for w in WINDOWS),
 )
+BEFORE_TMP = COLUMNS
+COLUMNS = (*BEFORE_TMP, "tmp_files", "tmp_used")
 EVERY_SECONDS = 15
 PRESSURE_LINE = 10.0
 DAY = 86400
 KEEP_DAYS = 30
 PRUNED_TO_DAYS = 29
+STALL_MINUTES = 5
 ROOM = Path(__file__).with_name("room.sh")
+ROOM_LINES = ("LOAD", "CPU", "MEMORY", "PRESSURE", "CUSHION", "SLOTS")
 
 
 def log_path() -> Path:
@@ -43,11 +54,22 @@ def proc() -> Path:
     return Path(os.environ.get("PROC") or "/proc")
 
 
-def load_line() -> int:
-    """Room's load line, `LOAD=` in room.sh, the one copy: a percent of the cores."""
-    found = re.search(r"^\s*LOAD=(\d+)$", ROOM.read_text(), re.MULTILINE)
+def tmpfs() -> Path:
+    """The filesystem whose file slots are counted, room.sh's `TMPFS`."""
+    return Path(os.environ.get("TMPFS") or "/tmp")
+
+
+def jbus_state() -> Path:
+    named = os.environ.get("JBUS_STATE_DIR")
+    return Path(named) if named else Path.home() / ".local" / "state" / "jbus"
+
+
+def room_line(name: str) -> int:
+    """One of room's lines, `<name>=` in room.sh, the one copy: `LOAD` is a percent of the
+    cores, `CPU` and `PRESSURE` a share of time, `MEMORY` GB, `CUSHION` and `SLOTS` percents."""
+    found = re.search(rf"^\s*{name}=(\d+)$", ROOM.read_text(), re.MULTILINE)
     if not found:
-        raise SystemExit(f"jgauge: {ROOM} has no LOAD= line to read room's load line from")
+        raise SystemExit(f"jgauge: {ROOM} has no {name}= line to read room's line from")
     return int(found[1])
 
 
@@ -80,6 +102,16 @@ def row(now: int) -> list[str]:
     for resource in RESOURCES:
         read = _pressure(_read(root / "pressure" / resource))
         fields |= {f"{resource}_{key}": value for key, value in read.items()}
+    try:
+        files = os.statvfs(tmpfs())
+    except OSError:
+        pass
+    else:
+        if files.f_files:
+            fields |= {
+                "tmp_files": str(files.f_files),
+                "tmp_used": str(files.f_files - files.f_ffree),
+            }
     return [fields.get(name, "") for name in COLUMNS]
 
 
@@ -88,6 +120,20 @@ def _first_time(log: Path) -> int | None:
         next(lines, None)
         first = next(lines, "").split("\t", 1)[0]
     return int(first) if first.isdecimal() else None
+
+
+def _widen(log: Path) -> None:
+    """Write a log of the columns before /tmp's again under today's header, its old rows with
+    the two /tmp fields empty."""
+    part = log.with_name(f".{log.name}.part")
+    with log.open() as old, part.open("w") as new:
+        next(old)
+        new.write("\t".join(COLUMNS) + "\n")
+        for line in old:
+            new.write(line.rstrip("\n") + "\t" * (len(COLUMNS) - len(BEFORE_TMP)) + "\n")
+        new.flush()
+        os.fsync(new.fileno())
+    part.replace(log)
 
 
 def _prune(log: Path, now: int) -> None:
@@ -118,6 +164,9 @@ def take(log: Path) -> None:
             log.write_text(header)
         with log.open() as lines:
             found = lines.readline()
+        if found == "\t".join(BEFORE_TMP) + "\n":
+            _widen(log)
+            found = header
         if found != header:
             raise SystemExit(f"jgauge: {log} has other columns than a sample writes: {found!r}")
         first = _first_time(log)
@@ -156,7 +205,9 @@ def _share(part: int, whole: int) -> str:
     return f"{100 * part / whole:.1f}%" if whole else "-"
 
 
-def report(log: Path, start: int | None, pressure_line: float) -> list[str]:
+def report(
+    log: Path, start: int | None, pressure_line: float, until: int | None = None
+) -> list[str]:
     at = {name: n for n, name in enumerate(COLUMNS)}
     rows = []
     if log.exists():
@@ -164,17 +215,22 @@ def report(log: Path, start: int | None, pressure_line: float) -> list[str]:
             next(lines, None)
             for line in lines:
                 fields = line.rstrip("\n").split("\t")
+                if len(fields) == len(BEFORE_TMP):
+                    fields += [""] * (len(COLUMNS) - len(BEFORE_TMP))
                 if len(fields) == len(COLUMNS) and fields[0].isdecimal():
-                    if start is None or int(fields[0]) >= start:
+                    if (start is None or int(fields[0]) >= start) and (
+                        until is None or int(fields[0]) < until
+                    ):
                         rows.append(fields)
     if not rows:
-        return [f"rows: 0 in {log}"]
+        said = [f"rows: 0 in {log}"]
+        return said + ([_stalls(start, until)] if start is not None and until is not None else [])
     times = [int(fields[0]) for fields in rows]
     first, last = min(times), max(times)
     shown = [
         datetime.datetime.fromtimestamp(one).strftime("%Y-%m-%d %H:%M:%S") for one in (first, last)
     ]
-    line = load_line()
+    line = room_line("LOAD")
     read = over = low = 0
     for fields in rows:
         load = _number(fields[at["load1"]])
@@ -196,4 +252,87 @@ def report(log: Path, start: int | None, pressure_line: float) -> list[str]:
         f" {over} of {read} rows ({_share(over, read)})",
         f"and CPU pressure under {pressure_line:g}: {low} of {read} rows ({_share(low, read)}),"
         f" {low} of the {over} over the line ({_share(low, over)})",
+        *_peaks(rows, at),
+        _stalls(min(times), max(times) + EVERY_SECONDS),
     ]
+
+
+def _peaks(rows: list[list[str]], at: dict[str, int]) -> list[str]:
+    """The highest load, CPU pressure, memory pressure and /tmp use of the rows, and how many
+    rows were at or over room's line for each."""
+    lines = []
+    for column, name, room in (
+        ("cpu_some_avg60", "CPU pressure (some avg60)", "CPU"),
+        ("memory_some_avg60", "memory pressure (some avg60)", "PRESSURE"),
+    ):
+        read = [n for fields in rows if (n := _number(fields[at[column]])) is not None]
+        line = room_line(room)
+        over = sum(n >= line for n in read)
+        top = f"{max(read):g}" if read else "-"
+        lines.append(
+            f"{name}: at most {top}; at or over room's line of {line}:"
+            f" {over} of {len(read)} rows ({_share(over, len(read))})"
+        )
+    loads = [
+        (load, cores)
+        for fields in rows
+        if (load := _number(fields[at["load1"]])) is not None
+        and (cores := _number(fields[at["cores"]]))
+    ]
+    if loads:
+        load, cores = max(loads)
+        lines.append(
+            f"1-minute load: at most {load:g}, {100 * load / cores:.0f}% of {cores:g} cores"
+        )
+    used = [
+        (int(fields[at["tmp_used"]]), int(fields[at["tmp_files"]]))
+        for fields in rows
+        if fields[at["tmp_used"]].isdecimal() and fields[at["tmp_files"]].isdecimal()
+    ]
+    line = room_line("SLOTS")
+    if used:
+        most, files = max(used)
+        over = sum(taken * 100 > total * line for taken, total in used)
+        lines.append(
+            f"/tmp files: at most {most} of {files} ({_share(most, files)}); over room's line of"
+            f" {line}%: {over} of {len(used)} rows"
+        )
+    else:
+        lines.append("/tmp files: no row has them")
+    return lines
+
+
+def _stalls(start: int, until: int) -> str:
+    """What jbus recorded in the span as a thread or a row held up: its `stall` events, the
+    threads woken from a wait for a test slot and how many waited over STALL_MINUTES, and the
+    rows gated for no room."""
+    stalls = waits = timed = long = longest = rooms = 0
+    files = sorted(jbus_state().glob("*/events.jsonl"))
+    for path in files:
+        for line in _read(path).splitlines():
+            try:
+                event = json.loads(line)
+                moment = datetime.datetime.fromisoformat(event["at"]).timestamp()
+            except (ValueError, KeyError, TypeError):
+                continue
+            if not start <= moment < until:
+                continue
+            said = str(event.get("line") or "")
+            if event.get("event") == "stall":
+                stalls += 1
+            elif event.get("event") == "slot-wake":
+                waits += 1
+                found = re.search(r", after (\d+) min$", said)
+                if found:
+                    timed += 1
+                    long += int(found[1]) > STALL_MINUTES
+                    longest = max(longest, int(found[1]))
+            elif event.get("event") == "gate" and ": no room for " in said:
+                rooms += 1
+    if not files:
+        return f"jbus events: none read, {jbus_state()} has no events.jsonl"
+    return (
+        f"jbus events in {len(files)} projects: {stalls} stalls, {waits} threads woken from a"
+        f" wait for a test slot (of the {timed} that say how long, {long} waited over"
+        f" {STALL_MINUTES} min, the longest {longest} min), {rooms} rows gated for no room"
+    )
