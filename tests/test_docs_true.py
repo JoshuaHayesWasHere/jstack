@@ -250,7 +250,14 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
     }
     assert bus.verbs["plan"].flags == {"--scope": True} and bus.verbs["plan"].choices == ("close",)
     assert bus.verbs["t3"].choices == ("login", "launch-test") and bus.verbs["t3"].verbs == {}
-    assert sorted(trees["jgauge"].verbs) == ["context", "room", "sample", "session", "test-slot"]
+    assert sorted(trees["jgauge"].verbs) == [
+        "context",
+        "limits",
+        "room",
+        "sample",
+        "session",
+        "test-slot",
+    ]
     assert trees["jmerge"].flags["--check"] is False and trees["jmerge"].flags["--accept"] is True
     assert sorted(trees["jroles"].verbs) == ["mirror"] and "crew" in trees["jroles"].choices
     assert trees["jroles"].verbs["mirror"].flags == {"--check": False, "--instance": True}
