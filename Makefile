@@ -17,7 +17,7 @@
 # than two. `make check TEST_WORKERS=4` sets the count by hand, and `CORES=4` the processors
 # it is counted from.
 #
-# The desk share is also the full test slots' count (`test_slots` in src/jgauge/limits.py,
+# The desk share is also the full test slots' count (`test_slots` in src/jgauge/sizes.py,
 # whose DESK_SHARE is this quarter): every slot at once runs at most one desk worker for each
 # of the machine's processors: 4 slots on most machines of 8 cores or more, 5 on 10, 11 or
 # 15. A worker keeps 0.86 of a core busy (measured on yelena, 24 processors, 2026-10-20: 456

@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from jgauge import slot, waiters
-from test_machine_limits import fake_proc
+from test_machine_sizes import fake_proc
 from test_room import BIN
 
 REPO = Path(__file__).parent.parent

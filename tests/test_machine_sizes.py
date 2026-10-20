@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from jgauge import cli, limits
-from jgauge.limits import From, Machine, Name
+from jgauge import cli, sizes
+from jgauge.sizes import From, Machine, Name
 
 BIN = Path(sys.executable).parent
 KIB_PER_GIB = 1024 * 1024
@@ -45,7 +45,7 @@ def test_the_facts_are_the_processors_and_the_memory_of_the_whole_machine(tmp_pa
 
 def test_a_fact_that_cannot_be_read_is_taken_as_its_fallback(tmp_path):
     found = Machine.here(tmp_path / "no-proc")
-    assert found == Machine(limits.FALLBACK_CORES, limits.FALLBACK_GIB, ("cores", "memory"))
+    assert found == Machine(sizes.FALLBACK_CORES, sizes.FALLBACK_GIB, ("cores", "memory"))
     assert (
         found.says() == "2 cores, 4 GiB (cores not read, taken as 2) (memory not read, taken as 4)"
     )
@@ -65,42 +65,42 @@ def test_a_fact_that_cannot_be_read_is_taken_as_its_fallback(tmp_path):
 )
 def test_each_size_is_derived_from_the_cores_and_the_memory(cores, gib, full, short, crews):
     machine = Machine(cores, gib)
-    assert limits.derive(Name.TEST_SLOTS, machine) == full
-    assert limits.derive(Name.SHORT_SLOTS, machine) == short
-    assert limits.derive(Name.MAX_RUNNING, machine) == crews
+    assert sizes.derive(Name.TEST_SLOTS, machine) == full
+    assert sizes.derive(Name.SHORT_SLOTS, machine) == short
+    assert sizes.derive(Name.MAX_RUNNING, machine) == crews
 
 
 @pytest.mark.parametrize("cores", [1, 2, 3, 4, 8, 12, 16, 24, 32, 64, 128])
 def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores):
-    slots = limits.derive(Name.TEST_SLOTS, Machine(cores, 1024))
-    assert slots * limits.desk_workers(cores) <= max(cores, limits.desk_workers(cores))
+    slots = sizes.derive(Name.TEST_SLOTS, Machine(cores, 1024))
+    assert slots * sizes.desk_workers(cores) <= max(cores, sizes.desk_workers(cores))
 
 
 def test_the_flag_wins_then_the_variable_then_the_file_then_the_machine(machine):
-    assert limits.resolve(Name.TEST_SLOTS).came_from is From.DERIVED
-    assert limits.resolve(Name.TEST_SLOTS).value == 4
+    assert sizes.resolve(Name.TEST_SLOTS).came_from is From.DERIVED
+    assert sizes.resolve(Name.TEST_SLOTS).value == 4
     written = write_machine(machine, "test_slots = 2\nshort_slots = 5\n")
-    assert limits.resolve(Name.TEST_SLOTS) == limits.Limit(
+    assert sizes.resolve(Name.TEST_SLOTS) == sizes.Limit(
         Name.TEST_SLOTS, 2, From.FILE, str(written), 4
     )
-    assert limits.resolve(Name.SHORT_SLOTS).value == 5
+    assert sizes.resolve(Name.SHORT_SLOTS).value == 5
     os.environ["TEST_SLOTS"] = "3"
     assert (
-        limits.resolve(Name.TEST_SLOTS).line() == "test_slots     3  env TEST_SLOTS=3 (derived: 4)"
+        sizes.resolve(Name.TEST_SLOTS).line() == "test_slots     3  env TEST_SLOTS=3 (derived: 4)"
     )
-    assert limits.resolve(Name.TEST_SLOTS, flag="1").came_from is From.FLAG
+    assert sizes.resolve(Name.TEST_SLOTS, flag="1").came_from is From.FLAG
 
 
 def test_the_crew_cap_is_jbus_value_else_the_machine(machine):
     path = machine / "config.toml"
-    given = limits.resolve(Name.MAX_RUNNING, written=6, written_in=path)
+    given = sizes.resolve(Name.MAX_RUNNING, written=6, written_in=path)
     assert (given.value, given.came_from, given.where, given.derived) == (
         6,
         From.FILE,
         str(path),
         8,
     )
-    assert limits.resolve(Name.MAX_RUNNING, written=None).value == 8
+    assert sizes.resolve(Name.MAX_RUNNING, written=None).value == 8
 
 
 @pytest.mark.parametrize(
@@ -118,8 +118,8 @@ def test_the_crew_cap_is_jbus_value_else_the_machine(machine):
 )
 def test_a_limits_file_that_cannot_be_used_refuses_in_one_line(machine, text, why):
     path = write_machine(machine, text)
-    with pytest.raises(limits.Refused) as refused:
-        limits.resolve(Name.TEST_SLOTS)
+    with pytest.raises(sizes.Refused) as refused:
+        sizes.resolve(Name.TEST_SLOTS)
     assert str(refused.value).startswith(why.format(path=path))
 
 
@@ -130,7 +130,7 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(machi
     os.environ["JBUS_CONFIG_DIR"] = str(jbus)
     os.environ["TEST_SLOTS"] = "3"
     try:
-        assert cli.main(["limits"]) == 0
+        assert cli.main(["sizes"]) == 0
     finally:
         del os.environ["JBUS_CONFIG_DIR"]
     out = capsys.readouterr().out.splitlines()
@@ -147,8 +147,8 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(machi
 
 
 def test_the_module_runs_with_the_standard_library_alone(machine):
-    """`jgauge.limits` imports nothing of jstack, so a bare `python3 -I` can run it."""
-    source = Path(limits.__file__).read_text()
+    """`jgauge.sizes` imports nothing of jstack, so a bare `python3 -I` can run it."""
+    source = Path(sizes.__file__).read_text()
     imported = {
         line.split()[1].split(".")[0]
         for line in source.splitlines()
@@ -165,7 +165,7 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
         "pathlib",
     }
     ran = subprocess.run(
-        [str(BIN / "python"), "-I", "-c", f"exec(open({str(limits.__file__)!r}).read())"],
+        [str(BIN / "python"), "-I", "-c", f"exec(open({str(sizes.__file__)!r}).read())"],
         capture_output=True,
         text=True,
         check=False,
@@ -179,9 +179,9 @@ def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not
     env = {key: value for key, value in os.environ.items() if key not in ("PROC", "TEST_SLOTS")}
     env |= {"XDG_CONFIG_HOME": str(tmp_path / "config"), "JBUS_CONFIG_DIR": str(tmp_path)}
 
-    def sizes(cpus=None):
+    def counted(cpus=None):
         ran = subprocess.run(
-            [str(BIN / "jgauge"), "limits"],
+            [str(BIN / "jgauge"), "sizes"],
             env=env,
             capture_output=True,
             text=True,
@@ -190,6 +190,6 @@ def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not
         )
         return ran.stdout.splitlines()[:3]
 
-    whole = sizes()
-    assert sizes({min(os.sched_getaffinity(0))}) == whole
-    assert whole[0].split()[1] == str(limits.derive(Name.TEST_SLOTS, Machine.here()))
+    whole = counted()
+    assert counted({min(os.sched_getaffinity(0))}) == whole
+    assert whole[0].split()[1] == str(sizes.derive(Name.TEST_SLOTS, Machine.here()))

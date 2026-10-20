@@ -10,7 +10,7 @@ import time
 import test_room as room
 from crew.helpers import FENCED, SKILL, block, held_open, sections
 from jbriefs import parse as briefs
-from test_machine_limits import fake_proc
+from test_machine_sizes import fake_proc
 
 
 def checked(tmp_path, command, limit=60, heading="Do the task", then=None):

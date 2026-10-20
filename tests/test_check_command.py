@@ -41,7 +41,7 @@ from pathlib import Path
 
 import pytest
 
-from jgauge import limits
+from jgauge import sizes
 
 REPO = Path(__file__).parent.parent
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
@@ -211,8 +211,8 @@ def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores)
     `make` is the one that counts. At 0.86 of a core a worker (yelena, 2026-10-20), every slot
     at once keeps at most 86% of the processors busy."""
     desk = workers(f"CORES={cores}")
-    assert desk == limits.desk_workers(cores)
-    slots = limits.derive(limits.Name.TEST_SLOTS, limits.Machine(cores, 1024))
+    assert desk == sizes.desk_workers(cores)
+    slots = sizes.derive(sizes.Name.TEST_SLOTS, sizes.Machine(cores, 1024))
     assert slots * desk <= max(cores, desk)
 
 

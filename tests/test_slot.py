@@ -11,7 +11,7 @@ import pytest
 
 import daemons
 from jgauge import slot
-from test_machine_limits import fake_proc
+from test_machine_sizes import fake_proc
 from test_room import BIN
 
 RUNS_UNTIL_RELEASED = (

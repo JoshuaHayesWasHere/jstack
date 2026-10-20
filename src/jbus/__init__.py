@@ -55,7 +55,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import jsettings
-from jgauge import limits
+from jgauge import sizes
 
 Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
@@ -363,10 +363,8 @@ def load(directory: Path | None = None) -> Config:
     except jsettings.Invalid as error:
         raise Refused(f"refused: {error}") from error
     try:
-        cap = limits.resolve(
-            limits.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path
-        )
-    except limits.Refused as error:
+        cap = sizes.resolve(sizes.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path)
+    except sizes.Refused as error:
         raise Refused(f"refused: {error}") from error
     home = Path.home()
     return Config(

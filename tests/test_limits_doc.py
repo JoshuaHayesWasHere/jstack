@@ -6,7 +6,7 @@ test that pinned it would fail every pull request that touched that file."""
 import re
 from pathlib import Path
 
-from jgauge import limits, sample
+from jgauge import sample, sizes
 
 REPO = Path(__file__).parent.parent
 DOC = REPO / "docs" / "limits.md"
@@ -36,7 +36,7 @@ def test_each_row_that_names_a_file_of_this_repo_gives_text_it_holds():
 
 def test_every_machine_size_and_every_room_line_has_a_row():
     text = DOC.read_text()
-    for name in limits.Name:
+    for name in sizes.Name:
         assert f"`{name}`" in text
     for name in sample.ROOM_LINES:
         assert f"`{name}={sample.room_line(name)}`" in text

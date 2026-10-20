@@ -30,7 +30,7 @@ import pytest
 import jbus
 import jsettings
 from jbus import alert, wake
-from jgauge import limits
+from jgauge import sizes
 from jinstall import needs as listed
 from jinstall.kinds import HomeSkills, HookGroup, Program, ProviderInstance, StatusLine
 from jinstall.machine import Machine
@@ -172,7 +172,7 @@ def test_the_defaults_the_configuration_page_gives_are_the_loaders(tmp_path):
     (project,) = config.projects
     given = dict(re.findall(r"^\| `(\w+)` \| `([^`]+)` \|", section(said, "jbus"), re.M))
     assert "| `max_running` | Derived: one a processor, while each has 2 GiB |" in said
-    assert limits.CREW_GIB == 2
+    assert sizes.CREW_GIB == 2
     assert given == {
         "dispatch": str(config.dispatch).lower(),
         "room_passes": str(config.room_passes),

@@ -4,7 +4,7 @@ A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`, held by this p
 not by the command, so it is free again when the command ends or when this process dies.
 
 There are two lanes. The full lane is for a whole suite and has N slots, `test_slots` in
-`jgauge.limits`: derived from the machine unless `--slots`, `TEST_SLOTS` or the local machine
+`jgauge.sizes`: derived from the machine unless `--slots`, `TEST_SLOTS` or the local machine
 file sets it. The short lane is for a run of a second or a minute, a reviewer's proof or a
 crewmate's targeted tests: it has slots of its own, `short_slots` there, as
 `test-slot-short.<n>.lock`, so it never waits behind a full suite, and a command in it is
@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jgauge import limits, waiters
+from jgauge import sizes, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2
@@ -55,7 +55,7 @@ def full(slots: int) -> Lane:
 
 
 def short() -> Lane:
-    slots = limits.resolve(limits.Name.SHORT_SLOTS).value
+    slots = sizes.resolve(sizes.Name.SHORT_SLOTS).value
     return Lane("test-slot-short", slots, f"{slots} short slots", SHORT_LIMIT_SECONDS)
 
 
@@ -67,8 +67,8 @@ def count(asked: str | None) -> int:
     """The full lane's slots: `--slots`, else `TEST_SLOTS`, else the machine file, else the
     machine's derived count."""
     try:
-        return limits.resolve(limits.Name.TEST_SLOTS, flag=asked).value
-    except limits.Refused as error:
+        return sizes.resolve(sizes.Name.TEST_SLOTS, flag=asked).value
+    except sizes.Refused as error:
         raise BadCount(str(error)) from error
 
 

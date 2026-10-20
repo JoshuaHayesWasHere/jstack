@@ -18,7 +18,7 @@ purpose: a run's workers are sized to the run, and the machine's slots to the ma
 
 The order, first that is set wins: `--slots` and `TEST_SLOTS` (the full lane only), the local
 home, the derivation. `TEST_SLOTS` is an override for one run: set in a shell profile it is a
-count `jbus.service` does not see, and `jgauge limits` says so.
+count `jbus.service` does not see, and `jgauge sizes` says so.
 
 Room's six lines stay in room.sh, ratios and floors that mean the same on any machine, and the
 Makefile keeps its worker share, since CI has no jstack venv. `docs/limits.md` lists every
