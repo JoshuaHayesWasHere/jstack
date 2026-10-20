@@ -26,13 +26,14 @@ In each block below, set `app=` to the `<app>` typed, or leave it empty, and `sc
 ## 1. Send the scouts
 
 Run this:
-It finds the verify skill on the default branch, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<MMDD>-<feature>.md`:
+It finds the verify skill on the default branch, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<commit>-<feature>.md`, where `<commit>` is the default branch's commit the audit reads:
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=${H:-~/.local/state/home/$R}
 app=''
 scope=''
+git fetch -q origin 2> /dev/null
 base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo HEAD)
 dirs=$(git ls-tree -d --name-only "$base" .claude/skills/ 2> /dev/null | grep '^\.claude/skills/verify-' || true)
 if [ -n "$app" ]; then dirs=$(printf '%s\n' "$dirs" | grep -x ".claude/skills/verify-$app" || true); fi
@@ -44,7 +45,7 @@ elif [ "$(printf '%s\n' "$dirs" | wc -l)" -gt 1 ]; then
 else
     dir=$dirs
     app=${dir#.claude/skills/verify-}
-    run="maintain-$app-$(date +%m%d)"
+    run="maintain-$app-$(git rev-parse --short=7 "$base")"
     features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | grep -vx README || true)
     if [ -z "$features" ]; then
         echo "no feature map: $dir/features/ on $base has no feature file: brief a crewmate to seed it, as section 3 of /create-verification-skill says"
@@ -81,6 +82,8 @@ fi
 On `no verify skill`, `no feature map` or `which one`, do what it says and stop.
 On `run:`, launch each request it wrote or kept as the home skill's "Sending a scout" launches a durable scout, from its step 2, with the slug the line names.
 Launch at most ten in a step, as `playbooks/swarm.md` has it: the next ten go out once the reports of the first are in.
+Run again at the same commit, the block keeps every request of the run and writes only the ones missing.
+Once the default branch has moved, the same command starts a new audit, with a new run name.
 
 ## 2. Write the crewmate's brief
 
