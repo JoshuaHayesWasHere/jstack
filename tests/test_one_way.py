@@ -54,8 +54,9 @@ def test_no_skill_and_no_hook_carries_a_copy_of_a_block_a_command_owns():
 def test_a_copy_put_back_into_a_skill_is_caught_and_named_with_its_command(
     feature, command, fragment
 ):
-    skill = (REPO / "skills" / "crew" / "SKILL.md").read_text()
-    copied = f"{skill}\n   ```sh\n   name=$(awk '{fragment} {{print $(2); exit}}' \"$B\")\n   ```\n"
+    copied = (
+        f"# A skill\n\n   ```sh\n   name=$(awk '{fragment} {{print $(2); exit}}' \"$B\")\n   ```\n"
+    )
     (said,) = faults([("skills/crew/SKILL.md", copied)])
     assert said.endswith(f"is a copy of the {feature} block: call `{command}` in its place")
 
