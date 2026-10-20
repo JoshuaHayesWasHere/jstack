@@ -16,7 +16,7 @@ import jsettings
 from jbriefs import findings
 from jbus import merge
 from jmerge import ready
-from test_jbus_kitchen import NOW, OPTIONS, PROJECT
+from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 from test_pr_review_skill import ASKED, block
@@ -591,7 +591,7 @@ def test_a_gate_a_crew_parks_is_the_user_s_at_once(short, kitchen):
         "demo",
         "gate",
         "alpha",
-        stdin="a made up question\nDefault: the first\n" + OPTIONS,
+        stdin=GATE.format(n="<n>", asked="a made up question", status="open", slug="alpha"),
     )
     assert code == 0
     (event,) = kitchen.events("gate")

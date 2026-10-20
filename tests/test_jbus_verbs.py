@@ -19,7 +19,7 @@ import pytest
 
 import jbus
 from jbus import cli, t3, verbs
-from test_jbus_kitchen import OPTIONS
+from test_jbus_kitchen import GATE
 
 HELP = Path(__file__).parent / "fixtures" / "jbus-help"
 PAGES = sorted(path.stem for path in HELP.glob("*.txt"))
@@ -171,7 +171,7 @@ def test_a_gate_from_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_pat
     other = tmp_path / "another-repo"
     kitchen.git("init", "-q", str(other), cwd=tmp_path)
     kitchen.monkeypatch.chdir(other)
-    lines = "## Gate <n>: which way?\nDefault: the first\n" + OPTIONS
+    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=lines) == (
         1,
         "refused: no project for this repo (another-repo)\n",

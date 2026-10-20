@@ -11,7 +11,7 @@ from datetime import timedelta
 
 import pytest
 
-from test_jbus_kitchen import KEY, NOW, OPTIONS, RESULT, Kitchen
+from test_jbus_kitchen import KEY, NOW, RESULT, Kitchen, asking
 from test_jbus_queue import add, brief, go, sha12, widened
 
 URL = "https://example.test/pull/286"
@@ -321,7 +321,9 @@ def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wa
 def test_a_webhook_whose_last_post_failed_has_each_root_in_the_journal_each_hour(kitchen):
     held(kitchen)
     kitchen.main(
-        "gate", "alpha", stdin="## Gate <n>: which one?\nStatus: open\nDefault: one\n" + OPTIONS
+        "gate",
+        "alpha",
+        stdin=asking(default="one"),
     )
     kitchen.webhook.status = 500
     said = kitchen.poll()
