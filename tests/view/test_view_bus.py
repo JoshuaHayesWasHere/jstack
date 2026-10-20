@@ -83,9 +83,9 @@ def test_the_room_is_the_one_answer_jgauge_room_gives(scene, served):
         "memory": 6,
         "pressure": 10,
         "slots": 85,
-        "plan": 100,
+        "plan": 90,
     }
-    scene.machine(five_hour=91.0)
+    scene.machine(five_hour=89.0)
     assert served.json("/state.json?project=demo")["room"]["answer"] == "go"
     scene.machine(five_hour=100.0)
     room = served.json("/state.json?project=demo")["room"]
