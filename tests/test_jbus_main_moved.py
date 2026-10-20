@@ -125,6 +125,7 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
         "main": main,
         "at": NOW.isoformat(),
         "check": "green",
+        "green": main,
     }
 
 

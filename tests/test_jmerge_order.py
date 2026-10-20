@@ -7,8 +7,9 @@ Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed he
 user's home has a jbus config whose project is this checkout.
 
 A red main is the other word the project's state has of a pull request: while jbus's
-`main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that main, the brief `main-red-<sha12>`,
-merges, and every other pull request waits for a green one."""
+`main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that
+main, the brief `main-red-<sha12>`, merges, and every other pull request waits for a green
+one."""
 
 import json
 

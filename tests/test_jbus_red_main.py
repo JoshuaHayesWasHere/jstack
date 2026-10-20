@@ -1,8 +1,8 @@
 """A red main changes the order: the fix jbus files for it is queued ahead of every row of its
-project and is the next launch there, `main.json` (`mainmoved`'s record) keeps the last tip of main
-that was green and the red tip that is not, `jmerge` reads that file (`tests/test_jmerge_order.py`), and a
-launched brief names the green sha on a `Green main:` line. Run as `tests/test_jbus_watch.py`
-runs: the real pass, against the fakes.
+project and is the next launch there, `main.json` (`mainmoved`'s record) keeps the last tip
+of main that was green and the red tip that is not, `jmerge` reads that file
+(`tests/test_jmerge_order.py`), and a launched brief names the green sha on a `Green main:`
+line. Run as `tests/test_jbus_watch.py` runs: the real pass, against the fakes.
 """
 
 import json
@@ -99,7 +99,8 @@ def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
 
 def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitchen):
     """`mainmoved` keeps the red tip as `broken`, and `jmerge` reads the same sha from the same
-    file: no other file of the project's state names a red main."""
+        file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, which is no
+    record of which tip is red: no other file of the project's state names a red main."""
     checks(kitchen, tip(kitchen), "success")
     kitchen.poll()
     red = move(kitchen, "failure")
@@ -109,8 +110,9 @@ def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitch
     assert jmerge_rows.red(jmerge_rows.main(kitchen.checkout), "beta").endswith(
         f"{red[:12]}, its fix merges first"
     )
-    named = [path.name for path in kitchen.state.rglob("*.json") if red in path.read_text()]
-    assert named == ["main.json"]
+    named = {path.name for path in kitchen.state.rglob("*.json") if red in path.read_text()}
+    assert named == {"main.json", "checks.json"}
+    assert json.loads((kitchen.state / "checks.json").read_text())[red] == "failed"
     move(kitchen, "success")
     kitchen.poll(NOW + timedelta(minutes=6))
     assert jmerge_rows.main(kitchen.checkout).red == ""
