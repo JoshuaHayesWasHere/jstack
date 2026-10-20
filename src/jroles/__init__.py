@@ -3,10 +3,13 @@
 This module is the model: the map's lines, read into one answer for one role. The map is
 `${XDG_CONFIG_HOME:-~/.config}/jstack/roles`, one line a role, `#` for a comment:
 
-    crew: <provider> <model> [<instanceId>] [effort=<low|medium>]
+    crew: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]
     review: inherit
 
 A role with no line, or with `inherit`, is launched on the model of the thread that launches it.
+The instances are the role's pool, in order: a launch goes to the first of them with headroom
+in the ledger (`jroles.pool`). A line that names none has the provider's built-in instance as
+its pool of one.
 
 A Claude selection always carries its effort, `medium` where the line names none. T3 Code
 launches a model with no effort option at that model's own default, which is `high` for some
@@ -44,13 +47,20 @@ class Selection:
 
     provider: str
     model: str
-    instance_id: str | None = None
+    pool: tuple[str, ...] = ()
     effort: str | None = None
 
-    def as_json(self) -> dict[str, object]:
+    @property
+    def instances(self) -> tuple[str, ...]:
+        """The pool, or the provider's built-in instance where the line names none."""
+        return self.pool or (self.provider,)
+
+    def as_json(self, instance: str | None = None) -> dict[str, object]:
+        """The selection on `instance`, the first of the pool where none is given. A line that
+        names no instance launches on the provider's own, and names none either."""
         given: dict[str, object] = {"provider": self.provider, "model": self.model}
-        if self.instance_id is not None:
-            given["instanceId"] = self.instance_id
+        if self.pool:
+            given["instanceId"] = instance or self.pool[0]
         if self.effort is not None:
             given["options"] = [{"id": "effort", "value": self.effort}]
         return given
@@ -84,13 +94,17 @@ def read_map(text: str, role: str) -> Selection | None:
         raise Refused(f"refused {role}: {words[0]} is not {_names()}")
     named = _EFFORT.fullmatch(words[-1])
     plain, effort = (words[:-1], named[1]) if named else (words, None)
-    if words[0] != "claudeAgent":
+    provider, model, *listed = plain
+    pool = tuple(listed[0].split(",")) if listed else ()
+    if not all(pool) or len(set(pool)) != len(pool):
+        raise Refused(f"refused {role}: the pool {listed[0]} names an instance twice or none")
+    if provider != "claudeAgent":
         if effort is not None:
             raise Refused(f"refused {role}: only a Claude line names an effort")
-        return Selection(*plain)
+        return Selection(provider, model, pool)
     if effort is not None and effort not in EFFORTS:
         raise Refused(f"refused {role}: effort={effort} is not low or medium")
-    return Selection(*plain, effort=effort or EFFORT)
+    return Selection(provider, model, pool, effort or EFFORT)
 
 
 def _names() -> str:

@@ -94,7 +94,6 @@ class Project:
 class Config:
     server: str
     runtime_mode: str | None
-    model_selection: dict[str, Any] | None
     dispatch: bool
     max_running: int
     warn_days: int
@@ -323,7 +322,6 @@ def load(directory: Path | None = None) -> Config:
     return Config(
         server=server,
         runtime_mode=raw.get("runtimeMode") or None,
-        model_selection=dict(raw["modelSelection"]) if raw.get("modelSelection") else None,
         dispatch=bool(raw.get("dispatch", True)),
         max_running=max_running,
         warn_days=int(raw.get("warn_days", 5)),

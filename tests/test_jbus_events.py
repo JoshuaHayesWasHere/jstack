@@ -263,6 +263,7 @@ TABLE = {
     "waiting": "user",
     "alert": "user",
     "stall": "user",
+    "failover": "quiet",
     "sign-in": "user",
     "waiting-on-user": "quiet",
     "condition": "quiet",

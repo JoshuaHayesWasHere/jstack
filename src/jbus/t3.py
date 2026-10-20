@@ -1,10 +1,12 @@
-"""The T3 Code server, as an outside MCP client: the sign-in, and six tools.
+"""The T3 Code server, as an outside MCP client: the sign-in, and eight tools.
 
 `login` registers jbus with the server, sends the user to its approval page, and keeps the
 token it is given, with when it was given. `expiry` is when that token runs out. `Client`
 then calls the tools in `TOOLS` at `<server>/mcp`, and no other: a test reads this package
-for any other name. Two of the six change a thread, and `Client.call` lets each through in
-one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names, and
+for any other name. Three of the eight change a thread, and `Client.call` lets each through in
+one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names,
+`t3_thread_configure` to move a thread a brief or a home names to another instance of its
+role's pool, with its model and options as they were (`jbus.failover`), and
 `t3_thread_send` as a queued message, with a retry key, to a thread a brief's `Thread:`
 line names, or to the thread in a home's `home-id`: for the user's word (`jbus.word`), and
 for a task of that home's that ended with something left (`jbus.leftover`).
@@ -32,9 +34,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import jroles
 from jbus import Config, Refused, queue, read_json, verbs, write_json
+from jroles import pool
 
 TOOLS = (
+    "t3_thread_configuration",
+    "t3_thread_configure",
     "t3_thread_launch",
     "t3_thread_list",
     "t3_thread_read",
@@ -230,6 +236,7 @@ class Client:
         self._session: str | None = None
         self._ids = 0
         self.recipients: frozenset[str] = frozenset()
+        self.moves: dict[str, tuple[dict[str, Any], tuple[str, ...]]] = {}
 
     def _rpc(self, method: str, params: dict[str, Any] | None, *, notify: bool = False) -> Any:
         self._ids += 1
@@ -288,6 +295,17 @@ class Client:
                 return "is only called to settle or archive a thread it names"
             if not arguments["threadId"]:
                 return "names no thread to settle or archive"
+        if tool == "t3_thread_configure":
+            if set(arguments) != {"threadId", "modelSelection"}:
+                return "is only called with a thread and a model selection"
+            if arguments["threadId"] not in self.recipients:
+                return f"to {arguments['threadId']}: no brief has it on a Thread: line"
+            was, instances = self.moves.get(arguments["threadId"], ({}, ()))
+            chosen = arguments["modelSelection"]
+            if not isinstance(chosen, dict) or chosen.get("instanceId") not in instances:
+                return "is only called to move a thread to an instance of its role's pool"
+            if {**chosen, "instanceId": None} != {**was, "instanceId": None}:
+                return "changes only the instance: the model and the options stay as they were"
         if tool == "t3_thread_send":
             if set(arguments) != {"threadId", "message", "mode", "clientRequestId"}:
                 return "is only called with a thread, a message, a mode and a retry key"
@@ -410,8 +428,15 @@ def _t3(args: argparse.Namespace, config: Config) -> int:
     }
     if config.runtime_mode:
         arguments["runtimeMode"] = config.runtime_mode
-    if config.model_selection:
-        arguments["modelSelection"] = config.model_selection
+    try:
+        routed = pool.route("crew", datetime.now(UTC))
+    except jroles.Refused as error:
+        raise Refused(str(error)) from error
+    if routed and routed.choice.instance is None:
+        print(f"no launch: {routed.choice.why}")
+        return pool.WAIT
+    if routed:
+        arguments["modelSelection"] = routed.as_json()
     made = client.call("t3_thread_launch", arguments)
     print(made.get("threadId") or made)
     return 0

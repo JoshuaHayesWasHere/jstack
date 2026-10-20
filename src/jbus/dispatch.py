@@ -38,10 +38,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import jroles
 from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
+from jroles import pool
 
 EVENTS = {"overlap": "quiet"}
 _PATH = re.compile(r"`([^`\s]+)`")
@@ -110,8 +112,11 @@ def write_missing(run: Pass) -> None:
             write_thread(run, slug, launched(run, slug), replace=False)
 
 
-def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
-    """What `t3_thread_launch` is called with: the home skill's crew launch, the brief in it."""
+def arguments(
+    run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None
+) -> dict[str, Any]:
+    """What `t3_thread_launch` is called with: the home skill's crew launch, the brief in it,
+    and the model selection the role map's `crew` line gives on the instance `routed` chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
@@ -125,8 +130,8 @@ def arguments(run: Pass, slug: str, brief: str, base: str) -> dict[str, Any]:
     }
     if run.config.runtime_mode:
         made["runtimeMode"] = run.config.runtime_mode
-    if run.config.model_selection:
-        made["modelSelection"] = run.config.model_selection
+    if routed is not None:
+        made["modelSelection"] = routed.as_json()
     return made
 
 
@@ -213,12 +218,14 @@ def settle_lost(run: Pass, client: Client) -> None:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
 
 
-def room(run: Pass) -> tuple[str, list[str]]:
-    """Why there is no room for a launch, or nothing, and the notes `jgauge room` gave.
+def room(run: Pass, instance: str | None) -> tuple[str, list[str]]:
+    """Why there is no room for a launch, or nothing, and the notes `jgauge room` gave. The
+    plan's limits are read for `instance`, the one the launch goes to, or for the built-in
+    one where the launch inherits.
 
     A check that did not run, or that said neither `go` nor `wait: `, is no room either.
     """
-    ran = run.run("jgauge", "room")
+    ran = run.run("jgauge", "room", *(("--instance", instance) if instance else ()))
     said = ran.stdout.strip()
     if ran.returncode == 0 and said == "go":
         noted = (line.partition("note: ") for line in ran.stderr.splitlines())
@@ -340,7 +347,20 @@ class Turns:
             if not wrote and on_disk.strip() != text.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
-            why, notes = room(run)
+            try:
+                routed = pool.route("crew", run.now)
+            except jroles.Refused as error:
+                run.gate(slug, "the role map gives the crew no model", str(error))
+                continue
+            choice = routed.choice if routed else pool.Choice(None, "")
+            if routed and choice.instance is None:
+                line = f"wait {slug}: no launch: {choice.why}"
+                until = choice.until.isoformat() if choice.until else ""
+                if run.find(slug, "stall", f"stall {slug}: {choice.why}", key=f"capped {until}"):
+                    run.say(line)
+                run.reasons[slug] = Slot()
+                return NO_ROOM
+            why, notes = room(run, choice.instance)
             for note in notes:
                 day = run.day
                 name = run.project.name
@@ -364,7 +384,7 @@ class Turns:
             try:
                 reply = client.call(
                     "t3_thread_launch",
-                    arguments(run, slug, text, base.stdout.strip().removeprefix("origin/")),
+                    arguments(run, slug, text, base.stdout.strip().removeprefix("origin/"), routed),
                 )
             except T3Refused as error:
                 path.unlink()
@@ -392,7 +412,8 @@ class Turns:
                 },
             )
             write_thread(run, slug, reply["threadId"])
-            run.say(f"launched {slug}: {reply['threadId']}")
+            on = f" on {choice.instance}, {choice.why}" if choice.why else ""
+            run.say(f"launched {slug}: {reply['threadId']}{on}")
             overlaps(run, slug, brief)
             return LAUNCHED
         return NOTHING

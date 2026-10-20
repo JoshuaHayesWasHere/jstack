@@ -45,7 +45,10 @@ def write(stdin, env):
 
 @pytest.fixture
 def env(tmp_path):
-    return machine(tmp_path, **IDLE, plan=None)
+    """The machine, for a status line of the built-in account, `~/.claude`."""
+    made = machine(tmp_path, **IDLE, plan=None)
+    made.pop("CLAUDE_CONFIG_DIR", None)
+    return made
 
 
 def kept(env):
@@ -231,3 +234,51 @@ def test_a_machine_with_no_jq_breaks_nothing(tmp_path, env):
     )
     assert (done.returncode, done.stdout, done.stderr) == (0, "", "")
     assert not Path(env["LIMITS"]).exists()
+
+
+PRIME = "claudeAgent_claude_prime"
+
+
+def inventory(tmp_path, env, prime_home):
+    """The provider inventory under the environment's config directory, with prime's home."""
+    config = tmp_path / "xdg"
+    (config / "jstack").mkdir(parents=True, exist_ok=True)
+    (config / "jstack" / "providers.json").write_text(
+        json.dumps(
+            {
+                "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+                PRIME: {"driver": "claudeAgent", "config": {"homePath": prime_home}},
+                "codex": {"driver": "codex"},
+            }
+        )
+    )
+    return {**env, "XDG_CONFIG_HOME": str(config)}
+
+
+@pytest.mark.parametrize("prime_home", ["~/.claude_prime", "{home}/.claude_prime/"])
+def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_path, env, prime_home):
+    """Each account's status line writes the file of the instance its CLAUDE_CONFIG_DIR is the
+    home of, so one account's limits never stand for another's."""
+    home = tmp_path / "home"
+    named = inventory(tmp_path, {**env, "HOME": str(home)}, prime_home.format(home=home))
+    write(handed(five_hour=(12, SOON), seven_day=(30, WEEK)), named)
+    full = handed(five_hour=(100, SOON), seven_day=(30, WEEK))
+    write(full, {**named, "CLAUDE_CONFIG_DIR": str(home / ".claude_prime")})
+    assert kept(env) == f"five_hour 12 {SOON}\nseven_day 30 {WEEK}\n"
+    assert (
+        Path(f"{env['LIMITS']}.{PRIME}").read_text()
+        == f"five_hour 100 {SOON}\nseven_day 30 {WEEK}\n"
+    )
+    assert ran(env, check()).stdout == "go\n"
+    waits = ran({**env, "INSTANCE": PRIME}, check()).stdout
+    assert waits.startswith("wait: the five-hour limit is 100% used")
+
+
+def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env):
+    named = inventory(tmp_path, env, "~/.claude_prime")
+    write(handed(five_hour=(100, SOON)), {**named, "CLAUDE_CONFIG_DIR": str(tmp_path / "other")})
+    assert sorted(path.name for path in Path(env["LIMITS"]).parent.iterdir()) == [
+        "proc",
+        "stub",
+        "xdg",
+    ]

@@ -708,7 +708,8 @@ class Pass:
     Its pull request, if one is opened later, is still a pull request to every step.
 
     `told` is the slugs whose thread this pass told to carry on: they wait on it, not on the
-    user.
+    user. `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`): a
+    carry-on is not for them, the failover sends it.
     """
 
     config: Config
@@ -720,6 +721,7 @@ class Pass:
     asked: dict[str, str] = field(default_factory=dict)
     held: set[str] = field(default_factory=set)
     told: set[str] = field(default_factory=set)
+    limited: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)

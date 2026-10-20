@@ -8,6 +8,21 @@ seen=$(jq -r '
   | select(.value | objects | [.used_percentage, .resets_at] | all(type == "number" and . >= 0))
   | "\(.key) \(.value.used_percentage * 100 | round / 100) \(.value.resets_at | floor)"' 2>/dev/null) || exit 0
 [ -n "$seen" ] || exit 0
+
+home=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
+while [ "${home%/}" != "$home" ]; do home=${home%/}; done
+inventory=${XDG_CONFIG_HOME:-$HOME/.config}/jstack/providers.json
+instance=$(jq -r --arg home "$home" --arg user "$HOME" '
+  def plain: (if . == "~" then $user elif startswith("~/") then $user + .[1:] else . end) | sub("/+$"; "");
+  [to_entries[] | select(.value.driver == "claudeAgent")
+    | select((.value.config.homePath // ($user + "/.claude") | plain) == $home) | .key] | first // empty
+' "$inventory" 2>/dev/null)
+if [ -z "$instance" ] && [ "$home" = "$HOME/.claude" ]; then instance=claudeAgent; fi
+case $instance in
+claudeAgent) ;;
+"" | *[!A-Za-z0-9_-]*) exit 0 ;;
+*) LIMITS=$LIMITS.$instance ;;
+esac
 [ ! -d "$LIMITS" ] || exit 0
 
 kept=$(cat "$LIMITS" 2>/dev/null)

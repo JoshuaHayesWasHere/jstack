@@ -1,4 +1,4 @@
-"""`jbus.t3` is the one way to T3 Code: the sign-in, its six tools and nothing else, a call
+"""`jbus.t3` is the one way to T3 Code: the sign-in, its eight tools and nothing else, a call
 that changes a thread refused before it goes out in any form but the one jbus makes, and a
 sign-in near its end said on the first pass of each day.
 
@@ -50,16 +50,18 @@ def test_the_test_launch_prints_the_thread_it_made(kitchen):
     assert given["message"] == "say hello and stop"
 
 
-def test_the_fixture_is_the_servers_mcp_url_its_six_tools_and_a_token_with_no_secret():
+def test_the_fixture_is_the_servers_mcp_url_its_eight_tools_and_a_token_with_no_secret():
     assert FIXTURE["mcp_url"].endswith("/mcp")
     assert [tool["name"] for tool in FIXTURE["tools"]] == sorted(t3.TOOLS)
     assert all(tool["inputSchema"]["type"] == "object" for tool in FIXTURE["tools"])
     assert FIXTURE["token_response"]["access_token"] == "str"
 
 
-def test_a_tool_that_is_not_one_of_the_six_is_never_called(kitchen):
+def test_a_tool_that_is_not_one_of_the_eight_is_never_called(kitchen):
     assert sorted(t3.TOOLS) == [
         "link_pull_request",
+        "t3_thread_configuration",
+        "t3_thread_configure",
         "t3_thread_launch",
         "t3_thread_list",
         "t3_thread_organize",
@@ -203,3 +205,43 @@ def test_a_desk_with_no_notify_send_still_gets_the_gate(kitchen):
     kitchen.monkeypatch.setattr(wake.shutil, "which", lambda _: None)
     kitchen.poll()
     assert kitchen.lines("condition") == [expires("2026-10-17")]
+
+
+WAS = {
+    "instanceId": "claudeAgent",
+    "model": "claude-sonnet-5-5",
+    "options": [{"id": "effort", "value": "medium"}],
+}
+POOL = ("claudeAgent", "claudeAgent_claude_prime")
+
+
+@pytest.mark.parametrize(
+    ("chosen", "says"),
+    [
+        ({**WAS, "instanceId": "codex"}, "to an instance of its role's pool"),
+        (
+            {**WAS, "instanceId": "claudeAgent_claude_prime", "model": "x"},
+            "changes only the instance",
+        ),
+        (
+            {**WAS, "instanceId": "claudeAgent_claude_prime", "options": []},
+            "changes only the instance",
+        ),
+    ],
+)
+def test_a_move_changes_only_the_instance_and_only_within_the_pool(kitchen, chosen, says):
+    client = t3.Client(kitchen.t3.url, kitchen.config_dir / "t3.json")
+    client.recipients = frozenset({"mcp:crew"})
+    asked = {"threadId": "mcp:crew", "modelSelection": chosen}
+    with pytest.raises(jbus.Refused, match="to an instance of its role's pool"):
+        client.call("t3_thread_configure", asked)
+    client.moves["mcp:crew"] = (WAS, POOL)
+    with pytest.raises(jbus.Refused, match=says):
+        client.call("t3_thread_configure", asked)
+    assert kitchen.t3.calls == []
+    kitchen.t3.thread("alpha", "failed", threadId="mcp:crew")
+    moved = {**WAS, "instanceId": "claudeAgent_claude_prime"}
+    client.call("t3_thread_configure", {"threadId": "mcp:crew", "modelSelection": moved})
+    assert kitchen.t3.calls == [
+        ("t3_thread_configure", {"threadId": "mcp:crew", "modelSelection": moved})
+    ]
