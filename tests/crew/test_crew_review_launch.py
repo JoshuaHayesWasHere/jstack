@@ -8,10 +8,11 @@ from pathlib import Path
 import pytest
 
 from crew.helpers import BRIEF, SKILL, said, with_field
+from test_home_thread import as_read
 
 
 def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
-    text = SKILL.read_text()
+    text = as_read(SKILL)
     (setting,) = [line for line in text.splitlines() if line.startswith("T=")]
     ((path, heading),) = re.findall(r'`(\$T/\S+/SKILL\.md)` "([^"]+)"', text)
 

@@ -26,6 +26,7 @@ from crew.helpers import (
     with_field,
 )
 from jmerge import cli, ready
+from test_home_thread import as_read
 
 REVIEWING = "a review of {} is running: rebase after its section is written"
 
@@ -215,7 +216,7 @@ def test_a_rebase_is_looked_through_for_lines_it_dropped_as_jmerge_looks(case, t
     dropped = says.removeprefix("Dropped: ").replace(", ", " and ")
     unsaid = f"the rebase dropped {dropped} with no Dropped on rebase line at {head[:12]}"
     assert held == ("wait", unsaid)
-    shape = re.search(r"`(Dropped on rebase: <file>[^`]+)`", SKILL.read_text())[1]
+    shape = re.search(r"`(Dropped on rebase: <file>[^`]+)`", as_read(SKILL))[1]
     assert shape == ("Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>")
     said = "".join(
         shape.replace("<file>", one.file)
