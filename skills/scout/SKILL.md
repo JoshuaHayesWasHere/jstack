@@ -149,7 +149,12 @@ lavish-axi "$H/reports/$S.html"
    uv run --project "$T/.." jbus home "$B"
    ```
 
-   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`. A request names no thread, so no home's start or handoff changes it. One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home. `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them. Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing. Run it each time there is something to tell, and do not keep the id from an earlier run: the next home's start puts its own id in the file.
+   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
+   A request names no thread, so no home's start or handoff changes it.
+   One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
+   `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.
+   Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing.
+   Run it each time there is something to tell, and do not keep the id from an earlier run: the next home's start puts its own id in the file.
 
    If it prints a thread id, send a message of at most five lines to that thread, with the `t3-code` server's `t3_thread_send` (if your harness defers it, load it first): the status, the recommendation in one line, and the path of each file written. If it prints nothing, there is no home listening: skip the report and send nothing, and the next home reads the report from disk.
 

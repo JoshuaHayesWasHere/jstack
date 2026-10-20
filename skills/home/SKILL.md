@@ -20,7 +20,11 @@ whose() { uv run --project "$T/.." jbus home --directory "${1}"; }
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
-That is **the block at the top**. Every block below is sh, and its last line makes zsh read them so: without it zsh stops a call at a pattern that matches no file. `$R` is the repo's name, the same from the main checkout and from any worktree of it. `$H` is the repo's state directory, which every home of the repo shares. `whose` prints the directory of the home a brief or a request is, by the one rule `jmerge`, jbus and every thread ask (`jbus home`, "Merging a pull request that is ready"): a block below asks it whether one is this home's.
+That is **the block at the top**.
+Every block below is sh, and its last line makes zsh read them so: without it zsh stops a call at a pattern that matches no file.
+`$R` is the repo's name, the same from the main checkout and from any worktree of it.
+`$H` is the repo's state directory, which every home of the repo shares.
+`whose` prints the directory of the home a brief or a request is, by the one rule `jmerge`, jbus and every thread ask (`jbus home`, "Merging a pull request that is ready"): a block below asks it whether one is this home's.
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 

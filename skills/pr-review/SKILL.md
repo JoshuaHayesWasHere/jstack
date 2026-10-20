@@ -251,7 +251,11 @@ Whom to send it to, in one call with the block at the top and `B` set to that br
 uv run --project "$T/.." jbus home "$B"
 ```
 
-It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`. A brief names no thread, so no home's start or handoff changes it. One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home. `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them. Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing.
+It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`.
+A brief names no thread, so no home's start or handoff changes it.
+One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
+`jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.
+Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing.
 
 If it prints a thread id, send that thread the message with `t3_thread_send`. If it prints nothing, there is no home: send nothing, and write `Sent to: not sent, no home` in the section, as step 4 says. jbus passes the findings on.
 
