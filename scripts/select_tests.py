@@ -122,8 +122,9 @@ def owns(patterns, path):
 @cache
 def modules():
     """Every module of `src/` and `tests/`, by its dotted name: the file it is, from the root. A
-    module in a folder of `tests/` is named from `tests/`, as `view.scene`, and the fixtures'
-    folder holds none."""
+    module in a folder of `tests/` is named from `tests/`, as `view.scene`: such a folder is a
+    package, so its `conftest.py` is not taken for the one of `tests/`. The fixtures' folder
+    holds none."""
     found = {}
     for path in sorted((ROOT / "src").rglob("*.py")):
         parts = list(path.relative_to(ROOT / "src").with_suffix("").parts)
@@ -132,8 +133,11 @@ def modules():
         found[".".join(parts)] = path.relative_to(ROOT).as_posix()
     for path in sorted((ROOT / "tests").rglob("*.py")):
         named = path.relative_to(ROOT).as_posix()
+        parts = list(path.relative_to(ROOT / "tests").with_suffix("").parts)
+        if parts[-1] == "__init__":
+            parts.pop()
         if not named.startswith(FIXTURES):
-            found[".".join(path.relative_to(ROOT / "tests").with_suffix("").parts)] = named
+            found[".".join(parts)] = named
     return found
 
 

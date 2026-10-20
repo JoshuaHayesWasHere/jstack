@@ -300,6 +300,7 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
 
 
 NESTED = {
+    "tests/area/__init__.py": "",
     "tests/area/scene.py": "import alpha.util\n",
     "tests/area/conftest.py": "import pytest\n\n\n@pytest.fixture\ndef spot():\n    pass\n",
     "tests/area/test_area_one.py": "from area.scene import S\n",
@@ -652,7 +653,7 @@ def hook(name, globals=None, locals=None, fromlist=(), level=0):
 
 builtins.__import__ = hook
 for path in sorted(Path(tests).rglob("*.py")):
-    name = ".".join(path.relative_to(tests).with_suffix("").parts)
+    name = ".".join(path.relative_to(tests).with_suffix("").parts).removesuffix(".__init__")
     if name.startswith("fixtures."):
         continue
     try:

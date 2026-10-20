@@ -3,9 +3,11 @@ list that is back under the cap fails until it leaves the list, so the list only
 test file that grows past the cap is split by feature into a folder of `tests/`, as
 `tests/view/` and `tests/crew/` are.
 
-With no `__init__.py` in `tests/`, pytest imports each test file by its file name alone, so two
-test files of one name in two folders fail the run with "import file mismatch": no two have
-one name.
+With no `__init__.py` in `tests/`, pytest imports each test file there by its file name alone,
+so two test files of one name fail the run with "import file mismatch": no two have one name.
+A folder of `tests/` is a package, with an `__init__.py`: its `conftest.py` is then imported as
+`view.conftest`, and not as `conftest`, which a test that imports from the one of `tests/`
+would find in its place.
 """
 
 from pathlib import Path
@@ -62,3 +64,19 @@ def test_no_two_test_files_have_one_name():
         if Path(name).name.startswith("test_"):
             names.setdefault(Path(name).name, []).append(name)
     assert [found for found in names.values() if len(found) > 1] == []
+
+
+def test_each_folder_of_the_tests_is_a_package():
+    folders = {
+        path.parent
+        for path in (REPO / "tests").rglob("*.py")
+        if path.parent != REPO / "tests" and "fixtures" not in path.relative_to(REPO).parts
+    }
+    assert (
+        sorted(
+            folder.relative_to(REPO).as_posix()
+            for folder in folders
+            if not (folder / "__init__.py").exists()
+        )
+        == []
+    )
