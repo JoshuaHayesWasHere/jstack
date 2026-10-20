@@ -15,7 +15,7 @@ import pytest
 import jbus
 import jmerge.cli
 from jbus import alive, cli
-from test_jbus_kitchen import KEY, NOW, OPTIONS, PROJECT
+from test_jbus_kitchen import ASK, KEY, NOW, PROJECT
 
 FAILED = (
     "alert: pass failed 3 times in a row since 11:00 ET: "
@@ -29,7 +29,7 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
         kitchen.main(
             "gate",
             "alpha",
-            stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+            stdin=ASK,
         )[0]
         == 0
     )
@@ -199,7 +199,7 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
     kitchen.main(
         "gate",
         "alpha",
-        stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+        stdin=ASK,
     )
     kitchen.poll(NOW + timedelta(minutes=59, seconds=30))
     kitchen.webhook.status = 200
@@ -224,7 +224,7 @@ def test_a_webhook_url_that_cannot_be_used_is_in_no_line_and_not_in_the_status(k
     kitchen.main(
         "gate",
         "alpha",
-        stdin="## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS,
+        stdin=ASK,
     )
     said = []
     assert cli.poll(jbus.load(), NOW, said.append) == 1

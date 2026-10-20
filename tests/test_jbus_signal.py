@@ -18,10 +18,10 @@ import pytest
 import jbus
 import jsettings
 from jbus import alert, alive, cli, item, wake
-from test_jbus_kitchen import NOW, OPTIONS
+from test_jbus_kitchen import ASK, NOW
 
 SRC = pathlib.Path(jbus.__file__).parent
-GATE = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
+GATE = ASK
 
 ET = jsettings.Settings(zone=ZoneInfo("America/New_York"), label="ET")
 

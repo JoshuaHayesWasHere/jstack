@@ -322,11 +322,14 @@ def test_a_homes_own_question_is_asked_under_its_own_slug_and_shown_to_it_alone(
 @pytest.mark.parametrize(
     ("entry", "said"),
     [
-        (FILLED, "not asked: the first line is not '## Gate <n>: ' and the question"),
+        (
+            FILLED,
+            "not asked: jbus said: not sent: the first line is not '## Gate <n>: ' and the "
+            "question.",
+        ),
         (
             a_gate("which way?", "home", Default=None),
-            "not asked: jbus said: refused: the gate has no Default: line, "
-            "so it does not say what was done in place of an answer",
+            "not asked: jbus said: not sent: the gate has no Default: line that is filled in.",
         ),
     ],
 )

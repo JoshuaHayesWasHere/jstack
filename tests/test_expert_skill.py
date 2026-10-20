@@ -467,9 +467,6 @@ def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
         ({"about": "no rollback"}, "what the finding is about is letters"),
         ({"about": ""}, "what the finding is about is letters"),
         ({"text": GATE.replace("Asked by:", "Asked:")}, "the gate has no line 'Asked by:"),
-        ({"text": "<the gate, filled in>"}, "the first line is not"),
-        ({"text": "The workflow has no rollback.\n"}, "the first line is not"),
-        ({"text": GATE.replace("the release", "<the question>")}, "the first line is not"),
     ],
 )
 def test_a_gate_that_is_not_filled_in_is_not_sent(scene, changed, why):
