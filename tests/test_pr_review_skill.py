@@ -1254,7 +1254,6 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     ("heading", "call"),
     [
         ("### Outside the diff", "diff"),
-        ("### Wider than the brief", "view"),
         ("### In flight", "view"),
         ("### In flight", "list"),
     ],
@@ -1276,16 +1275,65 @@ def test_the_count_dropped_is_a_line_of_the_review_section(reviewer):
     assert count.split(":")[0] in labels
 
 
+def branch_of_the_task(reviewer, where, *changed, result=""):
+    """The brief in the state `jmerge` reads, and a branch `a-task` of the worktree's repo that
+    changes the files named, which `jmerge --scope` is asked about by the skill's block."""
+    work = reviewer.work
+    brief = reviewer.brief.read_text() + (f"Where: {where}\n" if where else "") + result
+    tasks = reviewer.state / "home" / ".local" / "state" / "home" / work.name / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text(brief)
+    merge.git(work, "commit", "-q", "--allow-empty", "-m", "start")
+    merge.git(work, "update-ref", "refs/remotes/origin/main", "HEAD")
+    merge.git(work, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    merge.git(work, "checkout", "-q", "-b", "a-task")
+    for path in changed:
+        (work / path).parent.mkdir(parents=True, exist_ok=True)
+        (work / path).write_text(f"{path}\n")
+    merge.git(work, "add", "-A")
+    merge.git(work, "commit", "-q", "-m", "the task")
+
+
 def test_a_file_outside_the_brief_where_is_listed(reviewer):
-    reviewer.brief.write_text(BRIEF + "Where: `src/a.py`, `tests/`.\n")
-    reviewer.gh(files=["src/a.py", "tests/deep/test_a.py", "README.md", "src/a.pyc", "hooks/x.sh"])
-    assert reviewer.output("### Wider than the brief") == ["README.md", "src/a.pyc", "hooks/x.sh"]
+    branch_of_the_task(
+        reviewer,
+        "`src/a.py`, `tests/`",
+        "src/a.py",
+        "tests/deep/test_a.py",
+        "README.md",
+        "src/a.pyc",
+        "hooks/x.sh",
+    )
+    assert reviewer.output("### Wider than the brief") == [
+        "outside: README.md",
+        "outside: hooks/x.sh",
+        "outside: src/a.pyc",
+    ]
 
 
-def test_a_brief_whose_where_names_no_path_lists_nothing(reviewer):
-    reviewer.brief.write_text(BRIEF + "Where: wherever it takes.\n")
-    reviewer.gh(files=["README.md"])
+def test_a_file_the_result_gives_a_reason_for_is_wider_and_not_outside(reviewer):
+    branch_of_the_task(
+        reviewer,
+        "`src/a.py`",
+        "src/a.py",
+        "README.md",
+        "hooks/x.sh",
+        result="\n## Result\nWider: README.md: a test reads it\n",
+    )
+    assert reviewer.output("### Wider than the brief") == [
+        "wider: README.md: a test reads it",
+        "outside: hooks/x.sh",
+    ]
+
+
+def test_a_diff_inside_the_where_prints_nothing(reviewer):
+    branch_of_the_task(reviewer, "`src/`", "src/a.py")
     assert reviewer.output("### Wider than the brief") == []
+
+
+def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
+    branch_of_the_task(reviewer, "wherever it takes", "README.md")
+    assert reviewer("### Wider than the brief") == ([], 1)
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):

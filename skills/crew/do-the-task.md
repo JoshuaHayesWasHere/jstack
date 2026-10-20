@@ -72,6 +72,22 @@
 - Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`scripts/prose_lint.py`) fails a new line that holds two.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
+- Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
+  Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
+
+  ```sh
+  uv run --project "$T/.." jmerge --scope <slug>
+  ```
+
+  It prints nothing when every changed file is inside **Where**.
+  It prints `outside: <path>` for a file that is not, and `wider: <path>: <why>` for one the Result's `Wider:` line already gives a reason for.
+  Do not reason about it from the diff: this is the answer.
+  For each `outside:` line, take the file out of the diff when the task does not need it.
+  When it does, a test the change breaks, a page tied to a changed `--help`, keep one line for each file, `Wider: <path>: <why it had to change>`, for the Result.
+  It goes in the Result "End" writes, after the pull request opens, and not in a `## Result` of its own before it: the command reads the last Result, and prints `wider:` for the file from then on.
+  The pull request opens either way.
+  A file left `outside:` with no `Wider:` line is a finding of the review.
+
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 
   ```sh
