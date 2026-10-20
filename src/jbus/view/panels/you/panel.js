@@ -124,10 +124,10 @@ function sendBatch() {
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
   h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. Nothing else on the page writes, and nothing here approves.</p>' + note("mixed");
-  KINDS.forEach(function (k) {
-    var items = waits(k);
+  S.kinds.forEach(function (kind) {
+    var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;
-    h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + KIND[k][1] + '</h3>' +
+    h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + kind.label + '</h3>' +
       (k === "gate" && can.length ? '<p style="margin:0 0 5px"><button type="button" class="btn" id="tickall">Tick all ' + can.length + ' that can be answered here</button></p>' : "") +
       (items.length ? '<ul class="clean rows">' + items.map(function (w) {
       var here = k === hit && (!named || named === w.slug || named === w.number);

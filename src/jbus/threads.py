@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import replace
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -48,8 +48,74 @@ EVENTS = {"resume": "quiet", "relayed": "quiet"}
 RELAY = "jbus: the reviewer could not deliver these findings."
 SCOUT = "scout: "
 PREFIXES = ("crew: ", "review: ", SCOUT)
-ROLES = {"crew: ": "crew", "review: ": "reviewer", SCOUT: "scout", "home: ": "home"}
 OTHER = "other"
+
+
+@dataclass(frozen=True)
+class Role:
+    """A kind of thread, which the start of its title (`prefix`) gives it, and how the view
+    shows it: `holder` is who holds the work its thread is on (`work.holder`) and the shape
+    the page draws, `called` what the page calls one, `one` and `many` how the drawer of the
+    threads counts them, and `says` what one is. The drawer lists them in this order."""
+
+    name: str
+    prefix: str
+    holder: str
+    called: str
+    one: str
+    many: str
+    says: str
+
+
+ROLES = (
+    Role(
+        "crew",
+        "crew: ",
+        "crew",
+        "crewmate",
+        "crew",
+        "crews",
+        "The thread that does a task's one brief, in its own worktree: it writes the Result "
+        "and handles the findings.",
+    ),
+    Role(
+        "scout",
+        SCOUT,
+        "scout",
+        "scout",
+        "scout",
+        "scouts",
+        "A thread that researches one request, read-only, and writes its Report under it: it "
+        "changes nothing in the repo.",
+    ),
+    Role(
+        "reviewer",
+        "review: ",
+        "rev",
+        "reviewer",
+        "reviewer",
+        "reviewers",
+        "A fresh thread that reads a task's pull request and sends its findings to the crewmate.",
+    ),
+    Role(
+        "home",
+        "home: ",
+        "home",
+        "home",
+        "home",
+        "homes",
+        "The thread that plans the project's work and hands each task to a crewmate.",
+    ),
+    Role(
+        OTHER,
+        "",
+        "other",
+        "other thread",
+        "other thread",
+        "other threads",
+        "A thread whose title names no role, so what it works on is not known.",
+    ),
+)
 RUNS = 20
 SECOND = ", second pass"
 SCOPED = ", scoped"
@@ -277,13 +343,18 @@ def slug_in(title: str, prefix: str) -> str | None:
     return title.removeprefix(prefix).removesuffix(SECOND).removesuffix(SCOPED).strip()
 
 
+def shown() -> list[dict[str, str]]:
+    """The roles as the page has them, in the order of `ROLES`."""
+    return [asdict(role) for role in ROLES]
+
+
 def role_of(title: str) -> tuple[str, str]:
     """The role a thread's title gives it and the slug after it: `OTHER` and no slug for a
-    title that starts with none of `ROLES`."""
-    for prefix, role in ROLES.items():
-        slug = slug_in(title, prefix)
+    title that starts with the prefix of none of `ROLES`."""
+    for role in ROLES:
+        slug = slug_in(title, role.prefix) if role.prefix else None
         if slug is not None:
-            return role, slug
+            return role.name, slug
     return OTHER, ""
 
 

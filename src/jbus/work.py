@@ -468,7 +468,6 @@ def unforeseen(facts: Facts) -> State:
 
 
 AT_WORK = (Thread.STARTING, Thread.MOVING, Thread.QUIET)
-ROLES = {"crew": "crew", "reviewer": "rev", "scout": "scout", "home": "home", "other": "other"}
 
 
 @dataclass(frozen=True)
@@ -494,7 +493,10 @@ def holder(state: State, role: str = "", home: bool = False, after: bool = False
         if pattern.who != "crew":
             return Holder(state.who, state.waits, "")
         waits = "its thread" if state.waits == "its crewmate" else state.waits
-        return Holder(ROLES.get(role, "other"), waits, "")
+        from jbus import threads  # threads imports this module
+
+        held = next((one.holder for one in threads.ROLES if one.name == role), threads.OTHER)
+        return Holder(held, waits, "")
     if state.value not in ("leftover", "closed"):
         return Holder(state.who, state.waits, pattern.lane)
     merged = state.facts.pull == Pull.MERGED

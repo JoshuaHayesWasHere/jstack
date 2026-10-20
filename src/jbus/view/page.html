@@ -440,29 +440,21 @@
   var WHO = { user: "you", crew: "crewmate", home: "its home", rev: "reviewer", ci: "check runner", bus: "jbus", dep: "another task", ok: "done", unknown: "no rule names this reason yet; its home was told" };
   var UNKNOWN = null;
   function lanes() { return (S.tasks.some(function (t) { return t.step === UNKNOWN.key; }) ? [UNKNOWN] : []).concat(S.steps); }
-  var KIND = { row: ["at a gate", "Tasks at a gate"], left: ["left over", "Left over by tasks that ended"], hold: ["need your word", "Pull requests jmerge holds for your word"], approve: ["to approve", "Rows to approve"], gate: ["gates", "Open gates"], config: ["to set up", "Setup jbus lacks"] };
-  var KINDS = ["row", "left", "hold", "approve", "gate", "config"];
 
   var LIVE = { moving: "ok", quiet: "user", hung: "user", waiting: "plain", ended: "plain", unknown: "gap" }, TURN_UNDER_WAY = { moving: 1, quiet: 1, hung: 1 };
-  var ROLE = {
-    crew: ["crew", "crewmate", "Crewmates", "The thread that does a task's one brief, in its own worktree: it writes the Result and handles the findings."],
-    scout: ["scout", "scout", "Scouts", "A thread that researches one request, read-only, and writes its Report under it: it changes nothing in the repo."],
-    reviewer: ["rev", "reviewer", "Reviewers", "A fresh thread that reads a task's pull request and sends its findings to the crewmate."],
-    home: ["home", "home", "Home", "The thread that plans the project's work and hands each task to a crewmate."],
-    other: ["other", "other thread", "Other", "A thread whose title names no role, so what it works on is not known."]
-  };
+  var ROLE = {};
   var LIVESAY = { moving: "a turn is under way and it writes", quiet: "a turn is under way but it has written nothing for a while", hung: "it has written nothing for longer, or a run waits behind it", waiting: "it waits on a request", ended: "its turn ended: it is not working now", unknown: "the pass could not say" };
   var SHAPES = {
     user: ["You", "a diamond, amber", "Only you can move it: a gate to answer, a row to approve, or a merge jmerge holds for your word."],
-    crew: ["Crewmate", "a dot", ROLE.crew[3]],
-    home: ["Home", "a dome", ROLE.home[3]],
-    rev: ["Reviewer", "a triangle", ROLE.reviewer[3]],
+    crew: ["Crewmate", "a dot", ""],
+    home: ["Home", "a dome", ""],
+    rev: ["Reviewer", "a triangle", ""],
     ci: ["Check runner", "a square", "A GitHub Actions runner: the task waits for one to take its check, then for the check to end."],
     bus: ["jbus", "a bar, grey", "jbus itself has the next move, on its next pass, about once a minute."],
     dep: ["Another task", "a ring, grey", "It waits for another task to merge first: what follows it names that task."],
     ok: ["Done", "a hollow dot", "Merged today."],
-    scout: ["Scout", "a hexagon", ROLE.scout[3]],
-    other: ["Other thread", "a hollow square, grey", ROLE.other[3]],
+    scout: ["Scout", "a hexagon", ""],
+    other: ["Other thread", "a hollow square, grey", ""],
     unknown: ["Unknown", "a dashed square", "The view cannot work out who holds it, and does not guess: open it to see what is known."]
   };
   var MARKS = [
@@ -495,7 +487,9 @@
     "term:live": ["Live and frozen", "Live is read by the server each time the page asks. Frozen is what jbus wrote on its last pass, and stands as it left it while jbus is stopped."],
     "term:project": ["Project", "One repo jbus runs a queue for, with its own state. Every task, gate and outbox is one project's. A retired project is not shown."]
   };
-  Object.keys(SHAPES).forEach(function (w) { GLOSS["who:" + w] = [SHAPES[w][0], "Drawn as " + SHAPES[w][1] + ". " + SHAPES[w][2], w]; });
+  function shapes() { Object.keys(SHAPES).forEach(function (w) { GLOSS["who:" + w] = [SHAPES[w][0], "Drawn as " + SHAPES[w][1] + ". " + SHAPES[w][2], w]; }); }
+  function roles(list) { list.forEach(function (r) { ROLE[r.name] = r; if (SHAPES[r.holder]) SHAPES[r.holder][2] = r.says; }); shapes(); var box = $("hshapes"); if (box) put(box, shapeList()); }
+  shapes();
   MARKS.forEach(function (m) { GLOSS["mark:" + m[0]] = [m[1], m[2]]; });
   var NOTES = {};
   function stepGloss(key) {
@@ -520,9 +514,9 @@
   function threadChip(t, project) {
     var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = TURN_UNDER_WAY[t.live] ? t.live : "", q = asked(t);
     var word = q && q !== "missing" ? q : t.out ? t.live : "ended", age = u == null ? "" : " " + short(NOW - u);
-    var say = r[1] + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
+    var say = r.called + " " + (t.slug || t.title) + ": " + LIVESAY[t.live] + (q ? ", its request " + (q === "missing" ? "is not there" : q) : "") + (u == null ? "" : ", last wrote " + day(u)) + ". Open what it works on";
     var inner = '<i class="sh"></i><span class="lb">' + esc(t.slug || t.title) + '</span>' + (live ? '<i class="mk lv-' + live + '"></i>' : "") + ' <span class="src">' + esc(word + age) + '</span>';
-    var cls = "tok th w-" + r[0] + (t.out ? "" : " ended");
+    var cls = "tok th w-" + r.holder + (t.out ? "" : " ended");
     return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</a>'
       : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
   }
@@ -615,7 +609,7 @@
     });
     (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role][1], chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }
@@ -751,6 +745,7 @@
     return '<dl class="gloss">' + steps.map(function (s, i) { var g = stepGloss(s.key); return '<dt><span class="n' + (s.key === "unknown" ? " zero" : "") + '"' + (s.key === "unknown" ? "" : ' data-gloss="count:step"') + '>' + (s.key === "unknown" ? "?" : i + 1) + '</span>' + esc(s.name) + '</dt><dd>' + esc(g ? g[1] : "") + '</dd>'; }).join("") + '</dl>';
   }
   function fillSteps() { var box = $("hsteps"); if (box) put(box, stepList()); }
+  function shapeList() { return '<dl class="gloss">' + Object.keys(SHAPES).map(function (w) { return '<dt class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + ' <span class="src">' + esc(SHAPES[w][1]) + '</span></dt><dd>' + esc(SHAPES[w][2]) + '</dd>'; }).join("") + '</dl>'; }
   var noting = false;
   function notes() {
     if (S || NOTES.queued || noting || gone || !STACK || !STACK.projects.length) return;
@@ -768,7 +763,7 @@
     var h = head("Help", "Every term on the page");
     h += '<p class="src" style="margin-top:15px">Each <span class="hint" aria-hidden="true"></span> on the page opens one of these where it stands, by a tap, Enter or Space. Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
     h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
-    h += '<h3>Who holds a task, or what a thread is: its shape</h3><dl class="gloss">' + Object.keys(SHAPES).map(function (w) { return '<dt class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + ' <span class="src">' + esc(SHAPES[w][1]) + '</span></dt><dd>' + esc(SHAPES[w][2]) + '</dd>'; }).join("") + '</dl>';
+    h += '<h3>Who holds a task, or what a thread is: its shape</h3><div id="hshapes">' + shapeList() + '</div>';
     h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
@@ -1043,9 +1038,9 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); if ($("hsteps")) notes(); }
+  function tookStack(stack) { STACK = stack; roles(STACK.roles); NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); if ($("hsteps")) notes(); }
   function took(state) {
-    S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = "";
+    S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = ""; roles(S.roles);
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });

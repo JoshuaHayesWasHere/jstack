@@ -180,56 +180,7 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
     assert kitchen.lines() == []
 
 
-STEPS = {
-    "OTHER_HOME": "",
-    "DRAFT": "",
-    "MERGE_OFF": "hold",
-    "NO_BRIEF": "result",
-    "RULES_CHANGED": "check",
-    "MAIN_MOVED": "check",
-    "FRESH_QUEUED": "check",
-    "FRESH_CONFLICT": "rebase",
-    "NO_HEAD": "second",
-    "BASE": "hold",
-    "IN_STACK": "hold",
-    "IN_UNNAMED_STACK": "hold",
-    "REVIEW_NONE": "hold",
-    "NO_REVIEW": "review",
-    "NO_VERDICT": "review",
-    "NO_FIXED": "findings",
-    "NOT_PUSHED": "findings",
-    "SECOND_UNWRITTEN": "second",
-    "FIX_UNREVIEWED": "second",
-    "UNENDED": "findings",
-    "FIXED_NO_COMMIT": "findings",
-    "REBASE_UNSAID": "rebase",
-    "REBASE_UNTRUE": "rebase",
-    "CANNOT_CHECK": "rebase",
-    "DROPPED": "rebase",
-    "NOT_UPHELD": "hold",
-    "UNRULED_DROPS": "hold",
-    "SCOPED_UNRULED": "second",
-    "CONTENT_CHANGED": "second",
-    "NOT_PASSED": "check",
-    "CONFLICTS": "rebase",
-    "UNDECIDED": "check",
-    "TOUCHES": "hold",
-    "RENAMES_UNSAID": "hold",
-    "UNLISTED": "hold",
-    "NO_START": "check",
-    "GUARDED_UNENDED": "findings",
-    "NOT_SEEN": "second",
-    "MAIN_CHANGED": "check",
-    "FRESH_FAILS": "rebase",
-    "REBASE_HELD": "hold",
-    "SKILLS_UNRUN": "result",
-    "ROW_HELD": "hold",
-    "MERGES_AFTER": "check",
-    "MIGRATION_TAKEN": "rebase",
-    "MIGRATION_MERGING": "check",
-    "MIGRATION_REBASING": "check",
-    "QUEUE_UNREADABLE": "hold",
-}
+STEPS = {name: reason.step for name, reason in ready.reasons().items()}
 WORDS = {"REQUIRED", "RULES", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
 
 
@@ -242,10 +193,11 @@ def _filled(template):
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
-    """Every reason `jmerge.ready` holds by name, each on its step (`STEPS`). One that is
-    added with no rule, or that stops matching its rule, fails here, and so does a constant
-    that is named nowhere. `WORDS` are what `ready` names that is no reason: the check's
-    name, the rules' path, and the words of a note and of a local check's result.
+    """Every reason `jmerge.ready` holds by name is on the step it is declared with
+    (`STEPS`). One that stops matching its own pattern, or that an earlier rule takes for
+    another step, fails here, and so does a constant that is no `Reason` and no word.
+    `WORDS` are what `ready` names that is no reason: the check's name, the rules' path,
+    and the words of a note and of a local check's result.
 
     Two reasons are on no step, and the view shows them as Unknown and tells no home:
     `OTHER_HOME` is a pull request of another home, which that home's own view places, and
@@ -257,8 +209,21 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
         if name.isupper() and isinstance(value, str) and not name.startswith("_")
     }
     assert named - WORDS == set(STEPS)
+    assert (STEPS["OTHER_HOME"], STEPS["DRAFT"]) == ("", "")
     reasons = {name: _filled(getattr(ready, name)) for name in STEPS}
     assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
+
+
+def test_a_reason_declared_in_ready_is_placed_on_its_step_with_no_other_edit(monkeypatch):
+    """A new reason is one declaration in `ready`: `merge.step` places it on the step it
+    names, and a reason no declaration names is on none."""
+    said = "wait: its frobnicator {name} is not wound"
+    assert merge.step(said.format(name="x1")) == ""
+    monkeypatch.setattr(ready, "NOT_WOUND", ready.Reason("findings", said[6:]), raising=False)
+    assert merge.step(said.format(name="x1")) == "findings"
+    assert merge.step(f"wait: guarded (touches a.py), {ready.NOT_WOUND.format(name='b')}") == (
+        "findings"
+    )
 
 
 @pytest.mark.parametrize(
@@ -397,7 +362,7 @@ def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
     assert (sent["threadId"], sent["mode"]) == (home["threadId"], "queue")
     said = sent["message"]
     assert "alpha" in said and f"`wait: {UNPLACED}`" in said
-    assert "`merge.RULES` in src/jbus/merge.py has no rule for it" in said
+    assert "`merge.rules` in src/jbus/merge.py has no rule for it" in said
     assert "Brief the fix" in said
     assert listed(kitchen, "unplaced") == [] and loud(kitchen) == []
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: another reason nobody has printed\n")

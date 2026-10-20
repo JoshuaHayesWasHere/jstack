@@ -31,7 +31,20 @@ import pytest
 import daemons
 import jbus
 import jsettings
-from jbus import cli, leftover, merge, noticed, questions, queue, record, view, waiting, word, work
+from jbus import (
+    cli,
+    leftover,
+    merge,
+    noticed,
+    questions,
+    queue,
+    record,
+    threads,
+    view,
+    waiting,
+    word,
+    work,
+)
 from jbus.view import panels
 from jbus.view import state as built
 from jbus.view.panels.checks import panel as checks_panel
@@ -175,9 +188,8 @@ def judge_row(one, state=None):
 def table():
     """A queue with every way a row waits: the three ways a queued row does, and the
     pull requests that `jmerge` waits on or holds."""
-    dropped = (
-        "wait: the rebase dropped 2 of main's lines in src/a.py with no Dropped on rebase line"
-    )
+    lost = "2 of main's lines in src/a.py"
+    dropped = f"wait: {ready.DROPPED.format(lost=lost, head='0123456789ab')}"
     moved = "wait: the rebase changed the content after its review; scoped review of a..b c..d"
     old = et(ago(minutes=50))
     return [
@@ -3720,7 +3732,10 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     assert [one["kind"] for one in needs] == ["config", "approve", "gate", "left", "row", "hold"]
     assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
     assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
-    assert {one["verb"] for one in needs} <= {*panel_you.VERBS.values(), panel_you.ANSWER}
+    assert {one["verb"] for one in needs} <= {
+        *(one.verb for one in waiting.KINDS),
+        panel_you.ANSWER,
+    }
     assert [one["verb"] for one in needs] == [
         "Set up",
         "Approve launch",
@@ -3750,8 +3765,36 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     assert demo["needs"] == [one for one in needs if one["project"] == "demo"]
 
 
-def test_a_kind_the_waiting_list_has_is_a_kind_with_a_verb():
-    assert set(panel_you.VERBS) == set(waiting.KINDS)
+def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_with_them(
+    served, monkeypatch
+):
+    """The drawer of what waits on the user lists the kinds by their `shown` place, and an
+    item's button is its kind's verb: a kind added to `waiting.KINDS` is there with no other
+    edit."""
+    kinds = served.json("/state.json?project=demo")["kinds"]
+    assert [one["name"] for one in kinds] == ["row", "left", "hold", "approve", "gate", "config"]
+    assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
+    added = waiting.Kind("chore", "Chores for you", "Do it", 7)
+    monkeypatch.setattr(waiting, "KINDS", (*waiting.KINDS, added))
+    assert served.json("/state.json?project=demo")["kinds"][-1] == asdict(added)
+    assert waiting.kind("chore:sweep") == "chore"
+
+
+def test_the_roles_are_in_state_json_and_stack_json_and_an_added_role_with_them(
+    served, monkeypatch
+):
+    """The page and its panels name a thread's role from these: a role added to
+    `threads.ROLES` is in both with no other edit, and its title gives it."""
+    roles = served.json("/state.json?project=demo")["roles"]
+    assert [one["name"] for one in roles] == ["crew", "scout", "reviewer", "home", "other"]
+    assert served.json("/stack.json")["roles"] == roles
+    added = threads.Role("chef", "chef: ", "home", "chef", "chef", "chefs", "Cooks.")
+    monkeypatch.setattr(threads, "ROLES", (*threads.ROLES[:-1], added, threads.ROLES[-1]))
+    assert asdict(added) in served.json("/state.json?project=demo")["roles"]
+    assert served.json("/stack.json")["roles"][-2] == asdict(added)
+    assert threads.role_of("chef: oat-milk") == ("chef", "oat-milk")
+    crews = (state for facts in work.every() if (state := work.judge(facts)).pattern.who == "crew")
+    assert work.holder(next(crews), role="chef").who == "home"
 
 
 def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_needs_you(
