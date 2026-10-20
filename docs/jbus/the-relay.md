@@ -53,7 +53,7 @@ The body is one JSON object:
 
 The relay decides it as `jbus item approve` or `jbus item steer` does, with `where: chat`, in the project's state, and writes one line of the item's log.
 Sous Chef steers only as itself, and an approval by it is refused: only the user approves.
-A decision by the user rests on the chat message, kept as the line's `ref` with his words as `said` and `checked: false`, since nothing reads them back from the chat.
+A decision by the user rests on the chat message, kept as the line's `ref` with the quoted words as `said` and `checked: false`, since nothing reads them back from the chat.
 An approval from chat is taken only where its words name the item, by its id or its slug, and the item is routine.
 A card whose line is no longer the item's last is refused, with the line that came after, so a card acted on twice moves the item once.
 The answer is 200 with `{"id", "item", "line"}`, the line written; 400 for a body that lacks a field; 403 for a `by` that is neither, or the user with no message or words; 404 for a project the config does not have; 409 with `{"refused"}`, the sentence, for a decision jbus refuses; and 503 when the config cannot be read.

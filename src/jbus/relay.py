@@ -557,7 +557,7 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
     button confirms. `seen_event` is the card's `id`, and the line it names must still be the
     item's last, so a card acted on twice moves the item once. `by` is Sous Chef, which steers
     as itself and approves nothing, or the user, with `message`, the chat message's id or
-    link, and `words`, his words quoted from it: those are kept unchecked (`steer.chat`), and
+    link, and `words`, the words quoted from it: those are kept unchecked (`steer.chat`), and
     an approval from chat is taken only for a routine item they name. Anyone else is 403, and
     a decision jbus refuses is 409 with its sentence.
     """
@@ -581,7 +581,7 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
         if not message.strip() or not words.strip():
             return 403, {
                 "refused": f"refused: a decision by {user.user} names the chat message it was "
-                "said in and quotes his words"
+                "said in and quotes the words"
             }
         basis: steer.Basis | None = steer.chat(message, words, user, now or datetime.now(UTC))
     elif by == SOUS_CHEF:
