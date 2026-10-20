@@ -21,6 +21,7 @@ HEAD = (
     "| pr | checks | updated | why | since |"
 )
 RULE = "|" + " --- |" * 14
+SINCE = "since 2026-10-12 11:00 ET"
 NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
     "id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and "
@@ -743,6 +744,53 @@ def test_dispatch_off_a_stop_file_or_the_limit_reached_launch_nothing(kitchen, o
     assert len(kitchen.t3.launches) == 1
 
 
+@pytest.mark.parametrize(("written", "cap"), [(None, 12), (3, 3), (1, 1)])
+def test_a_config_with_no_max_running_runs_the_crew_cap_of_12(kitchen, written, cap):
+    kitchen.config(max_running=written)
+    assert jbus.load(kitchen.config_dir).max_running == cap
+
+
+@pytest.mark.parametrize("written", [0, -2])
+def test_a_max_running_under_1_is_refused_with_one_line(kitchen, written):
+    kitchen.config(max_running=written)
+    with pytest.raises(jbus.Refused) as refused:
+        jbus.load(kitchen.config_dir)
+    path = kitchen.config_dir / "config.toml"
+    assert str(refused.value) == (
+        f"refused: {path} has max_running = {written}: give 1 or more, or leave it out for 12"
+    )
+
+
+def test_a_pass_with_no_max_running_launches_every_row_that_shares_no_file(kitchen):
+    kitchen.config(max_running=None)
+    for slug in ("alpha", "beta", "gamma"):
+        add(kitchen, slug)
+    said = kitchen.poll()
+    assert sorted(given["title"] for given in kitchen.t3.launches) == [
+        "crew: alpha",
+        "crew: beta",
+        "crew: gamma",
+    ]
+    assert not any(line.startswith("max_running is") for line in said)
+
+
+def test_each_row_the_cap_holds_is_said_with_when_it_began_to_wait(kitchen):
+    kitchen.config(max_running=1)
+    for priority, slug in enumerate(("first", "second", "third"), start=1):
+        add(kitchen, slug, priority=priority)
+    said = kitchen.poll()
+    assert [line for line in said if line.startswith("max_running is")] == [
+        f"max_running is 1 across all projects: second waits, {SINCE}",
+        f"max_running is 1 across all projects: third waits, {SINCE}",
+    ]
+    later = NOW + timedelta(minutes=3)
+    said = kitchen.poll(later)
+    assert [line for line in said if line.startswith("max_running is")] == [
+        f"max_running is 1 across all projects: second waits, {SINCE}",
+        f"max_running is 1 across all projects: third waits, {SINCE}",
+    ]
+
+
 def test_rows_launch_lowest_priority_first_and_one_at_a_time(kitchen):
     add(kitchen, "later", priority=5)
     add(kitchen, "sooner", priority=2)
@@ -935,7 +983,7 @@ def test_crews_out_in_one_project_fill_the_cap_for_every_project(kitchen):
         kitchen.t3.thread(f"out{place}", "running")
     said = kitchen.poll()
     assert kitchen.t3.launches == []
-    assert "max_running is 8 across all projects: b1 waits" in said
+    assert f"max_running is 8 across all projects: b1 waits, {SINCE}" in said
     assert gates(kitchen) == [] and sent(other) == []
     assert not rotation(kitchen).exists()
 
@@ -1024,7 +1072,7 @@ def test_a_project_whose_github_does_not_answer_still_counts_its_crews(kitchen):
     said = kitchen.poll()
     assert launches(kitchen) == ["a1"]
     assert "wait other: could not ask GitHub: gh exited 1: it said nothing" in said
-    assert "max_running is 3 across all projects: a2 waits" in said
+    assert f"max_running is 3 across all projects: a2 waits, {SINCE}" in said
 
 
 def test_no_room_on_the_machine_ends_the_turns_for_every_project(kitchen):
@@ -1057,7 +1105,9 @@ def test_a_row_ahead_of_the_first_that_waits_for_a_slot_is_gated_with_no_slot_fr
     said = kitchen.poll()
     assert kitchen.t3.launches == []
     assert sent(other) == ["condition settled: a settled thread already has this slug"]
-    assert ("max_running is 1 across all projects: ready waits" in said) == (stop == "cap")
+    assert (f"max_running is 1 across all projects: ready waits, {SINCE}" in said) == (
+        stop == "cap"
+    )
 
 
 @pytest.mark.parametrize("off", ["config", "stop"])

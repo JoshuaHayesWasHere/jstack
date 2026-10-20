@@ -179,7 +179,10 @@ def test_a_row_that_takes_the_last_slot_does_not_hide_the_chain_behind_it(kitche
     changed = brief("jbus-d", "One more line.\n")
     add(kitchen, "jbus-d", priority=4, depends="ps-agnostic", approve=False, text=changed)
     said = kitchen.poll(later(3))
-    assert "max_running is 1 across all projects: ready waits" in said
+    assert any(
+        line.startswith("max_running is 1 across all projects: ready waits, since ")
+        for line in said
+    )
     assert not any(line.startswith("cleared") for line in said)
     assert [one["key"] for one in shown(kitchen)] == ["re-approve:jbus-d", "#286"]
     assert shown(kitchen)[1]["unblocks"] == ROWS[:3]

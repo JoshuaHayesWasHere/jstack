@@ -215,7 +215,7 @@ An edit of `panel.js` is live on the next request, and the server restarts itsel
 2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
 3. Run `sh <checkout>/install.sh` again. With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`, `jbus-snapshot.timer` and `jbus-ci.timer`. `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`. `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](#back-up-the-homes-state)). `jbus-ci.timer` writes the week's CI report ([Measure the CI](#measure-the-ci)).
 
-[Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once.
+[Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once, 12 when the file does not set it.
 
 jbus does not renew the sign-in. It lasts as long as the token says, or 30 days when the token gives no lifetime. Once it runs out jbus launches nothing, so jbus reminds you, with a `sign-in` event for you, posted once for the machine to the top-level webhook (to the first project's own webhook when there is no top-level pair) and kept in the first project's `jbus events`. The days are counted by the calendar of your zone, to the day the sign-in runs out:
 
@@ -485,7 +485,7 @@ A pass launches a row only when all of these hold:
 - the brief's `Proves it:` line, where its head has one, names something outside the agent;
 - every slug in `depends` is merged;
 - no branch of its name exists, and no settled thread has its slug;
-- fewer than `max_running` crewmates are out across every project in the config;
+- fewer than `max_running` crewmates (12 unless the config sets it) are out across every project in the config;
 - `jgauge room` prints `go`.
 
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
@@ -497,7 +497,7 @@ Rows launch lowest `priority` first. A launch sends the brief in the message, as
 - **A lost reply is never launched twice.** jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks a lost reply's thread up.
 - **Overlap stops no launch.** Each crewmate has its own worktree and branch. A launch that shares a path with a brief that is out sends `overlap <slug>: shares <paths> with <holder>; whichever merges second rebases`, once per pair.
 
-`max_running` is one count for the machine. Each pass adds up the crewmates that are out in every project before it launches anything. The free slots go to the projects in turns, in the order of the config, one row a turn. `~/.local/state/jbus/rotation.json` names the project whose turn is first. If T3 Code does not answer for one project, that pass launches nothing in any project.
+`max_running` is one count for the machine. Each pass adds up the crewmates that are out in every project before it launches anything. The free slots go to the projects in turns, in the order of the config, one row a turn. `~/.local/state/jbus/rotation.json` names the project whose turn is first. If T3 Code does not answer for one project, that pass launches nothing in any project. Once the count is reached, each pass prints one line for every row it holds, `max_running is <n> across all projects: <slug> waits, since <time>`, where the time is when the row began to wait for a slot.
 
 ## A thread that left T3 Code's list
 

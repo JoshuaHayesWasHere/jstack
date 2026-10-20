@@ -45,6 +45,7 @@ all. The merge is where it is settled, and `jbus.rebase` tells the crew that mus
 
 from __future__ import annotations
 
+import itertools
 import os
 import re
 from collections.abc import Iterator
@@ -301,6 +302,7 @@ def no_room(run: Pass, slug: str, why: str, waited: dict[str, Any]) -> None:
 
 
 LAUNCHED, NOTHING, NO_ROOM = "launched", "nothing", "no room"
+SLOT = "no slot"
 
 
 @dataclass
@@ -466,16 +468,19 @@ class Turns:
         """No more launches in this pass: read the rows left for why each waits.
 
         The rows ahead of the first one that waits for a slot are owed their gates, slot or
-        no slot. With `cap`, the slots are what ran out, and that first row is said.
+        no slot. With `cap`, the slots are what ran out, and every row that waits is said,
+        with the time it began to wait for a slot: its `since`, or now for a new wait.
         """
-        for row, _ in self._ready(full=False):
+        waits = [row for row, _ in itertools.islice(self._ready(full=False), 1)]
+        waits += [row for row, _ in self._ready(full=True)]
+        limit = self.run.config.max_running
+        for row in waits:
             self.run.reasons[row["slug"]] = Slot()
             if cap:
-                limit = self.run.config.max_running
-                self.run.say(f"max_running is {limit} across all projects: {row['slug']} waits")
-            break
-        for row, _ in self._ready(full=True):
-            self.run.reasons[row["slug"]] = Slot()
+                held = row.get("why") == SLOT and row.get("since")
+                since = held or self.run.user.stamp(self.run.now)
+                who = f"{row['slug']} waits, since {since}"
+                self.run.say(f"max_running is {limit} across all projects: {who}")
 
 
 def turns(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> Turns:
