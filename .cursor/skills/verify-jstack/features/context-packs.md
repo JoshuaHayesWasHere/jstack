@@ -2,7 +2,13 @@
 
 A repo's context pack under `docs/context/` is linted, its citations are verified against the commits they name, and its stale notes are listed: `jpack lint`, `jpack verify` and `jpack stale`, which jbus runs once a day per project with a pack, and a home's start reads the pack's `INDEX.md`.
 
-Paths: `src/jpack/`, `src/jbus/packs.py`, `templates/context/`, `docs/context.md`, `docs/jpack.md`, `skills/home/`
+Paths:
+- `src/jpack/`
+- `src/jbus/packs.py`
+- `templates/context/`
+- `docs/context.md`
+- `docs/jpack.md`
+- `skills/home/`
 Tests: none
 
 ## Sub-features
