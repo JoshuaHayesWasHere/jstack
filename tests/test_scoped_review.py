@@ -19,7 +19,7 @@ from test_home_thread import as_read
 SKILL = reviews.SKILL
 
 
-SECTION = as_read(SKILL).split("\n### A scoped pass\n")[1].split("\n## ")[0]
+SECTION = as_read(SKILL).split("\n### A scoped pass\n")[-1].split("\n## ")[0]
 MESSAGE = re.compile(r"`(/pr-review run (\S+) scoped (\S+) (\S+))`")
 
 
