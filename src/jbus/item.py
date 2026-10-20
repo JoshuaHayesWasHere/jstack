@@ -726,11 +726,17 @@ def last(line: dict[str, Any], user: jsettings.Settings) -> str:
 
 
 def view_link(project: str, name: str) -> str:
-    """The item's page in jbus view, at the first name `JBUS_VIEW_NAMES` gives, else the
-    address `JBUS_VIEW_HOST` gives, else 127.0.0.1."""
+    """The item's page in jbus view: at the first origin `JBUS_VIEW_ORIGINS` gives, the
+    proxy the view is reached through, else at the first name `JBUS_VIEW_NAMES` gives, else
+    the address `JBUS_VIEW_HOST` gives, else 127.0.0.1, at the view's port."""
+    page = f"/#/{project}/item/{name}"
+    origins = [one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(",")]
+    origin = next((one for one in origins if one), "")
+    if origin:
+        return origin.rstrip("/") + page
     names = [one.strip() for one in os.environ.get("JBUS_VIEW_NAMES", "").split(",")]
     host = next((one for one in names if one), os.environ.get("JBUS_VIEW_HOST") or "127.0.0.1")
-    return f"http://{host}:{VIEW_PORT}/#/{project}/item/{name}"
+    return f"http://{host}:{VIEW_PORT}{page}"
 
 
 def card(item: Item, line: dict[str, Any], user: jsettings.Settings) -> dict[str, Any]:

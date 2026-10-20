@@ -559,7 +559,9 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
     as itself and approves nothing, or the user, with `message`, the chat message's id or
     link, and `words`, the words quoted from it: those are kept unchecked (`steer.chat`), and
     an approval from chat is taken only for a routine item they name. Anyone else is 403, and
-    a decision jbus refuses is 409 with its sentence.
+    a decision jbus refuses is 409 with its sentence, as is a verb the item's card does not
+    offer now (`item.actions`): a review item, a merge, a secret or the config, is decided in
+    the view and takes no message or hold from chat either.
     """
     wrong = [key for key in TEXT if not isinstance(body.get(key), str) or not body[key].strip()]
     wrong += [key for key in ("words", "message") if not isinstance(body.get(key, ""), str)]
@@ -590,6 +592,16 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
         return 403, {"refused": f"refused: a decision from chat is by {SOUS_CHEF} or {user.user}"}
     seen = body["seen_event"].removeprefix(f"{project.name}.")
     state = config.state(project)
+    found = item.items(state).get(body["item"])
+    if found is not None:
+        found = item.judged(state, found)
+        if body["verb"] not in item.actions(found):
+            link = item.view_link(project.name, found.id)
+            what = "a review item" if found.risk is item.Risk.REVIEW else str(found.state)
+            return 409, {
+                "refused": f"refused: {found.id} is {what}, and its card offers no "
+                f"{body['verb']} from chat: decide it in the view, {link}"
+            }
     box = wake.Box(state, project)
     where = item.Where.CHAT
     try:
