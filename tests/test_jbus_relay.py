@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import contextlib
 import http.server
+import itertools
 import json
 import os
+import re
 import signal
-import socket
 import subprocess
 import sys
 import threading
@@ -32,26 +33,27 @@ printf '%s\\n' "$*" >> "$(dirname "$0")/notified"
 """
 
 
-def free_port() -> int:
-    with socket.socket() as one:
-        one.bind(("127.0.0.1", 0))
-        return one.getsockname()[1]
+LISTENING = re.compile(r"relay: listening on 127\.0\.0\.1:(\d+)$", re.M)
+MARKS = itertools.count(1)
 
 
 class Webhook:
     """A webhook that records each POST it takes. `answer` is the status it gives, `delay`
     how long it waits first, and `hold` how long it waits between taking a POST and answering
-    it. `tried` keeps the body of every POST, answered 200 or not."""
+    it. `arrived` counts the POSTs that reached it, before the delay, and `tried` keeps the
+    body of every POST, answered 200 or not."""
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
         self.paths: list[str] = []
         self.answer, self.delay, self.hold = 200, 0.0, 0.0
+        self.arrived = 0
         self.tried: list[dict] = []
         hook = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self) -> None:
+                hook.arrived += 1
                 time.sleep(hook.delay)
                 data = self.rfile.read(int(self.headers["Content-Length"]))
                 code = hook.answer
@@ -71,7 +73,9 @@ class Webhook:
         self.server.daemon_threads = True
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.url = f"{self.base}/hook"
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+        ).start()
 
     def bodies(self, route: str) -> list[dict]:
         return [body for _, body in self.posts if body["relay"]["route"] == route]
@@ -93,8 +97,12 @@ def hooks():
 
 
 class Relay:
+    """The relay on a port it picks: `up` reads the port from its line `relay: listening on`,
+    and from then on keeps each line it says, for `said` and `stop`."""
+
     def __init__(self, env: dict[str, str], state) -> None:
-        self.port, self.state = free_port(), state
+        self.port, self.state = 0, state
+        self.lines: list[str] = []
         self.bin = state.parent / "bin"
         self.bin.mkdir(parents=True, exist_ok=True)
         (self.bin / "notify-send").write_text(NOTIFY_SEND)
@@ -102,7 +110,7 @@ class Relay:
         self.env = {
             **{k: v for k, v in os.environ.items() if not k.startswith("RELAY_")},
             "PATH": f"{self.bin}:{os.environ['PATH']}",
-            "RELAY_PORT": str(self.port),
+            "RELAY_PORT": "0",
             "RELAY_STATE": str(state),
             "RELAY_TIMEOUT_SECONDS": "1",
             "RELAY_RETRY_SECONDS": "0.3",
@@ -117,14 +125,30 @@ class Relay:
         )
 
     def up(self) -> Relay:
-        for _ in range(200):
-            if self.process.poll() is not None:
-                raise AssertionError(f"the relay ended: {self.process.stdout.read()}")
-            with socket.socket() as one:
-                if one.connect_ex(("127.0.0.1", self.port)) == 0:
-                    return self
-            time.sleep(0.02)
-        raise AssertionError("the relay did not listen")
+        out, self.process.stdout = self.process.stdout, None
+        self.reader = threading.Thread(target=self.lines.extend, args=(out,), daemon=True)
+        self.reader.start()
+        end = time.monotonic() + 10
+        while not (listening := LISTENING.search(self.said())):
+            if not self.reader.is_alive():
+                raise AssertionError(f"the relay ended: {self.said()}")
+            if time.monotonic() > end:
+                raise AssertionError(f"the relay did not listen: {self.said()}")
+            time.sleep(0.01)
+        self.port = int(listening[1])
+        return self
+
+    def said(self) -> str:
+        """What the relay has said so far, as far as it has been read."""
+        return "".join(self.lines)
+
+    def heard(self) -> str:
+        """Everything the relay said up to now. It says the lines of a POST before it answers
+        it, so once the line of an ack it answers last is read, so is each line before it."""
+        mark = f"mark-{next(MARKS)}"
+        assert self.ack(mark) == 404
+        until(lambda: f"named event {mark}," in self.said())
+        return self.said()
 
     def send(self, body: dict, key: str = INBOUND) -> tuple[int, dict]:
         request = urllib.request.Request(
@@ -164,7 +188,11 @@ class Relay:
         return held
 
     def stop(self) -> str:
-        return daemons.stop(self.process)
+        said = daemons.stop(self.process)
+        if self.process.stdout is None:
+            self.reader.join(5)
+            said = self.said()
+        return said
 
 
 def env_for(hooks) -> dict[str, str]:
@@ -245,10 +273,10 @@ def test_a_reminder_or_refresh_blocks_whole(relay, hooks, kind):
 def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks):
     sous_chef, _, _ = hooks
 
-    relay.send(body(event("merged", "quiet")))
+    _, said = relay.send(body(event("merged", "quiet")))
 
     until(lambda: sous_chef.bodies("everything"))
-    time.sleep(0.3)
+    assert f"relay: took event {said['id']}, spooled for everything\n" in relay.heard()
     assert sous_chef.bodies("blocking") == []
 
 
@@ -293,7 +321,8 @@ def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     first.stop()
     again = Relay(env_for(hooks), tmp_path / "state").up()
     assert again.send(sent)[0] == 202
-    time.sleep(0.5)
+    assert "not sent again" in again.heard()
+    assert again.spooled("everything") == [] and again.spooled("blocking") == []
     said = again.stop()
 
     assert len(sous_chef.bodies("everything")) == 1 and len(sous_chef.bodies("blocking")) == 1
@@ -307,7 +336,7 @@ def test_a_body_with_its_own_id_is_sent_once(relay, hooks):
     relay.send({**body(event("merged", "quiet", "beta")), "id": "evt-1"})
 
     until(lambda: sous_chef.bodies("everything"))
-    time.sleep(0.3)
+    assert "relay: everything has event evt-1 already, not sent again" in relay.heard()
     (sent,) = sous_chef.bodies("everything")
     assert sent["relay"]["id"] == "evt-1" and sent["events"][0]["slug"] == "alpha"
 
@@ -339,15 +368,14 @@ def test_a_slow_webhook_does_not_hold_back_taking_the_next_event(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.delay = 3.0
     relay.send(body(event("gate", "user")))
-    time.sleep(0.1)
+    until(lambda: sous_chef.arrived == 2)
 
     start = time.monotonic()
     code, _ = relay.send(body(event("alert", "user", "beta")))
 
     assert code == 202 and time.monotonic() - start < 0.5
     assert len(relay.spooled("blocking")) == 2
-    time.sleep(1.5)
-    assert "relay: POST to sous-chef (blocking) failed for event" in relay.stop()
+    until(lambda: "relay: POST to sous-chef (blocking) failed for event" in relay.said())
 
 
 def test_the_wrong_inbound_key_is_refused_and_spools_nothing(relay):
@@ -383,12 +411,12 @@ def test_a_target_url_that_is_not_http_fails_the_start(hooks, tmp_path):
 def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
     sous_chef, _, _ = hooks
     alert = body(event("alert", "user"))
-    running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}, tmp_path / "state").up()
+    running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}, tmp_path / "state").up()
 
     running.send(alert)
     until(lambda: len(sous_chef.bodies("blocking")) == 1)
     until(lambda: len(sous_chef.bodies("everything")) == 1)
-    time.sleep(1.2)
+    time.sleep(0.35)
     running.send(alert)
 
     until(lambda: len(sous_chef.bodies("blocking")) == 2)
@@ -405,7 +433,7 @@ def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_aga
 
     code, said = relay.send(body(event("gate", "user")))
     assert code == 202
-    time.sleep(0.5)
+    until(lambda: f"(blocking) failed for event {said['id']}: HTTP {answer}\n" in relay.said())
     assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"]]
 
     sous_chef.answer = 200
@@ -415,16 +443,16 @@ def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_aga
 
 def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_path):
     sous_chef, _, _ = hooks
-    env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "1"}
+    env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}
     first = Relay(env, tmp_path / "state").up()
     first.send({**body(event("merged", "quiet")), "id": "evt-1"})
     until(lambda: sous_chef.bodies("everything"))
     first.stop()
-    time.sleep(1.2)
+    time.sleep(0.35)
 
     again = Relay(env, tmp_path / "state").up()
     again.send({**body(event("merged", "quiet")), "id": "evt-1"})
-    time.sleep(0.5)
+    assert "evt-1 already, not sent again" in again.heard()
     said = again.stop()
 
     assert len(sous_chef.bodies("everything")) == 1
@@ -488,8 +516,10 @@ def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
 
     _, first = relay.send(body(event("gate", "user")))
     _, later = relay.send(body(event("stall", "user", "beta")))
-    until(lambda: len(pager.posts) == 2)
-    time.sleep(1.0)
+    until(lambda: len(pager.posts) == 2 and len(relay.notified()) == 2)
+    failed = relay.said().count("(blocking) failed for event")
+    until(lambda: relay.said().count("(blocking) failed for event") >= failed + 2)
+    assert relay.said().count("relay: paged") == 2
 
     assert sorted(pages(pager)) == sorted(
         [
@@ -507,10 +537,10 @@ def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
 def test_a_sous_chef_that_takes_the_page_pages_nothing(relay, hooks):
     sous_chef, _, pager = hooks
 
-    relay.send(body(event("gate", "user")))
-    until(lambda: sous_chef.bodies("blocking"))
-    time.sleep(0.5)
+    _, said = relay.send(body(event("gate", "user")))
+    until(lambda: f"relay: sent event {said['id']} to sous-chef (blocking)" in relay.said())
 
+    assert "relay: paged" not in relay.heard() and "failed" not in relay.said()
     assert pager.posts == [] and relay.notified() == []
 
 
@@ -521,13 +551,14 @@ def test_an_item_open_at_45_minutes_pages_once_and_not_twice(relay, hooks):
     relay.send(second("events", 0, open_))
     relay.send(second("reminder", 15, open_))
     relay.send(second("refresh", 44, open_))
-    time.sleep(0.5)
+    assert "relay: paged" not in relay.heard()
     assert pager.posts == []
     relay.send(second("refresh", 45, open_))
     until(lambda: pager.posts)
     relay.send(second("refresh", 105, open_))
     relay.send(second("reminder", 106, open_))
-    time.sleep(0.5)
+    assert relay.heard().count("relay: paged") == 1
+    until(relay.notified)
 
     assert pages(pager) == ["jstack: gate 33: tea or coffee?, blocking 45 min"]
     assert relay.notified() == [
@@ -562,8 +593,8 @@ def test_an_item_closed_at_44_minutes_pages_nothing(relay, hooks):
     relay.send(second("refresh", 44, staying | {"opened": at(30), "since": at(30)}))
     relay.send(second("refresh", 60, staying | {"opened": at(30), "since": at(30)}))
     relay.send(second("refresh", 120))
-    time.sleep(0.5)
 
+    assert "relay: paged" not in relay.heard()
     assert pager.posts == [] and relay.notified() == []
 
 
@@ -589,7 +620,7 @@ def test_an_acknowledged_item_does_not_page(relay, hooks):
     relay.send(second("refresh", 60, seen, unseen))
 
     until(lambda: pager.posts)
-    time.sleep(0.5)
+    assert relay.heard().count("relay: paged") == 1
     assert pages(pager) == ["jstack: hand-merge #12: held, blocking 60 min"]
 
 
@@ -621,7 +652,7 @@ def test_a_down_pager_keeps_the_page_to_send_again(relay, hooks):
     pager.answer = 503
 
     relay.send(second("refresh", 50, item()))
-    time.sleep(0.5)
+    until(lambda: "relay: POST to pager (page) failed" in relay.said() and relay.notified())
     assert pager.posts == [] and len(relay.notified()) == 1
     pager.answer = 200
 
@@ -638,7 +669,8 @@ def test_a_page_home_assistant_refuses_for_good_is_not_paged_again(relay, hooks)
     until(lambda: dead.is_dir() and list(dead.glob("*.json")))
     relay.send(second("refresh", 110, item()))
     relay.send(second("reminder", 111, item()))
-    time.sleep(0.5)
+    assert relay.heard().count("relay: paged") == 1
+    until(relay.notified)
 
     assert len(list(dead.glob("*.json"))) == 1
     assert len(relay.notified()) == 1
@@ -688,7 +720,7 @@ def put_away(pid: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("how", "more"), [("fail", ()), ("hang", ("--timeout", "3"))], ids=["assert", "timeout"]
+    ("how", "more"), [("fail", ()), ("hang", ("--timeout", "1"))], ids=["assert", "timeout"]
 )
 def test_a_test_that_fails_or_times_out_leaves_no_relay(tmp_path, how, more):
     pytest_run = run_leaves(tmp_path, how, *more)

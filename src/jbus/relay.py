@@ -1,8 +1,9 @@
 """`jbus relay`: take what jbus posts on 127.0.0.1 and send it on to Sous Chef, never dropping
 a body without a line in the journal.
 
-The relay listens on `RELAY_PORT` (4390) of 127.0.0.1 and takes a POST whose
-`X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body it
+The relay listens on `RELAY_PORT` (4390) of 127.0.0.1, or on a free port it picks for 0, and
+names the port it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST
+whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body it
 takes has an id: the body's own `id` when that is a short name, else a hash of the body, so a
 body posted twice has one id. Each route of `ROUTES` picks what it sends of the body, and the
 picked body, with `relay: {"id", "route"}` beside its keys, is written to the route's spool
@@ -636,7 +637,7 @@ class Relay:
 
     def serve(self) -> None:
         server = http.server.ThreadingHTTPServer(("127.0.0.1", self.config.port), self.handler())
-        self.say(f"relay: listening on 127.0.0.1:{self.config.port}")
+        self.say(f"relay: listening on 127.0.0.1:{server.server_address[1]}")
         server.serve_forever()
 
 
