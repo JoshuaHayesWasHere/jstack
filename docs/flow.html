@@ -351,6 +351,7 @@
       <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
       <tr><td><code>jmerge --sweep --check</code></td><td>To see both lists</td><td><code>removable</code> in place of <code>removed</code></td><td>Nothing</td></tr>
       <tr><td><code>jmerge --claims</code></td><td>Before every launch</td><td>One line per brief that still holds files, across the homes of the repo</td><td>Nothing</td></tr>
+      <tr><td><code>jmerge --scope &lt;slug&gt;</code></td><td>Before a pull request opens, and in its review</td><td>Each changed file the brief's <code>Where:</code> does not cover</td><td>Nothing</td></tr>
     </tbody>
   </table>
   <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code> has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>src/jmerge/sweep.py</code>.</p></details>

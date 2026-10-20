@@ -125,6 +125,7 @@ It lifts the hold at the head the hold was said at, which `jmerge` keeps in `hol
 | `--accept <number>` | Lifts the hold of one pull request and merges it, with `--by` and `--at`. |
 | `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each `refs/jstack/green-tree/<tree>` marker on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. |
+| `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. A branch that is gone is asked of its pull request. |
 | `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
 | `--all` | Merges the pull requests of the repo's other homes too. |
 | `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |

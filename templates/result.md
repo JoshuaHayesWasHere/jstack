@@ -5,6 +5,7 @@ Proof:
 - <a "Done when" line, in a few words>: <the command run and what it printed, or what was looked at>
 Branch: <name>   Pull request: <url or none>
 Changed: <one or two lines on what changed>
+Wider: <path>: <why it had to change>   <one such line for each file `jmerge --scope <slug>` prints as `outside:`, as the crew skill's "Do the task" says; none when it prints nothing>
 Playbook: <the playbook the step-3 block opened, or none>; <each of its steps in order, as <n> done or <n> skip: <reason>, with no ; in a reason>
 Skills run:   <one item for each name on the brief's Skills: line, or none when it names none; jmerge waits on a named one with no artifact>
 - <the name, as `jbriefs --skills` printed it>: <its artifact, as `templates/skill-artifacts.md` says, its further lines indented by two spaces>

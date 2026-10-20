@@ -28,7 +28,10 @@ jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
 
-`add` checks the brief when a row is first queued, so a brief that could not launch is never put to you for a go. The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them: a line still `<...>`, quoted or as a list item, or a `Pull request:` or `Review:` line still offering its choices (`review | none`), is not filled in. Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`. A brief short of any of these is refused with one line for each fault, and nothing is queued:
+`add` checks the brief when a row is first queued, so a brief that could not launch is never put to you for a go.
+The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them: a line still `<...>`, quoted or as a list item, or a `Pull request:` or `Review:` line still offering its choices (`review | none`), is not filled in.
+Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Where:` line at least one path under the repo (in backticks, or a word with a `/`, a glob or an extension; prose and a flag are not paths), its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`.
+A brief short of any of these is refused with one line for each fault, and nothing is queued:
 
 ```text
 refused: alpha's brief has 2 faults, and nothing is queued
