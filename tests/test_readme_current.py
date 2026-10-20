@@ -39,7 +39,7 @@ from test_install import line_for
 REPO = Path(__file__).parent.parent
 README = REPO / "README.md"
 DOCS = REPO / "docs"
-PAGES = (README, *sorted(DOCS.glob("*.md")))
+PAGES = (README, *sorted(DOCS.glob("**/*.md")))
 COMMANDS = tuple(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 LIMIT = 15_000
 SCREEN = 25
@@ -109,7 +109,9 @@ IS = (
 
 
 def page(name):
-    return (DOCS / name).read_text()
+    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`."""
+    paths = (DOCS / name, *sorted((DOCS / Path(name).stem).glob("*.md")))
+    return "\n".join(path.read_text() for path in paths)
 
 
 def pages():

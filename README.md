@@ -85,7 +85,7 @@ These steps take a new machine from a clone to one merged pull request.
 	jmerge
 	```
 
-Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus.md#set-up-jbus) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
+Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
 
 To remove jstack from the machine, run `sh install.sh --uninstall`. It takes away only what names this checkout.
 
