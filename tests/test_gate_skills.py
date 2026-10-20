@@ -3,15 +3,15 @@
 A review's step 5 (blast-radius) leaves a `Proof:` line in its `## Review` section, and
 `jmerge` merges a guarded path only where that line proves the one safety fact at the head.
 A hold is lifted by `jmerge --accept`, the user's hand-merge, which asks for the same fact.
-A design call (`/architect`) leaves a `Design:` line in the brief, and jbus launches no
-approved row whose brief has none.
+A design call (`/architect`) leaves a `Design:` line in the brief, and `jbus queue add` queues
+no brief that has none. A row already approved is grandfathered and launches.
 
 `jmerge` is run against `test_home_merge`'s fake `gh` and real origin, and the pass as
 `tests/test_jbus.py` runs it: the real command against a faked T3 Code server."""
 
 import json
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,11 +21,11 @@ import jsettings
 import test_home_merge as merge
 import test_jmerge_rangediff as rangediff
 from jbriefs import parse
-from jbus import dispatch, queue, stall
+from jbus import stall
 from jmerge import proof, ready
 from test_briefs import TEMPLATE
-from test_jbus_kitchen import NOW, Kitchen
-from test_jbus_queue import add, brief, gates, go, queued_before
+from test_jbus_kitchen import Kitchen
+from test_jbus_queue import add, brief, gates, queued_before
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
 
 HEAD = merge.PUSHED
@@ -621,116 +621,60 @@ def test_a_brief_is_designed_by_a_design_line_in_its_head(case):
 UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "")
 
 
-def test_queue_add_refuses_what_the_launch_would_gate():
-    """The launch's checks are the ones `jbus queue add` makes: the launch is a backstop."""
+def test_queue_add_refuses_a_brief_with_no_design_line():
+    """A lint runs when a row is first queued: `jbus queue add` is where a brief is refused."""
     assert parse.NO_DESIGN in parse.faults(UNDESIGNED)
     assert parse.faults(brief("alpha")) == []
 
 
-def test_an_approved_row_whose_brief_has_no_design_line_is_gated_once_for_that_brief(kitchen):
+def launched(kitchen):
+    return [given["title"] for given in kitchen.t3.launches]
+
+
+def test_an_approved_row_whose_brief_has_no_design_line_is_grandfathered_and_launches(kitchen):
+    """A lint added after a row's go does not refuse it: it launches, and no gate is sent."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", UNDESIGNED)
     add(kitchen, "beta", priority=2)
-    said = [kitchen.poll(), kitchen.poll(NOW + timedelta(minutes=3))]
-    assert gates(kitchen) == [f"condition alpha: {parse.NO_DESIGN}"]
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    assert not any("launched alpha" in line for line in said[0] + said[1])
-    queued_before(kitchen, "alpha", UNDESIGNED + "One more line.\n")
-    kitchen.poll(NOW + timedelta(minutes=6))
-    kitchen.poll(NOW + timedelta(minutes=9))
-    assert gates(kitchen) == [f"condition alpha: {parse.NO_DESIGN}"] * 2
-    add(kitchen, "alpha", text=brief("alpha"))
-    kitchen.poll(NOW + timedelta(minutes=12))
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
-    assert len(gates(kitchen)) == 2
+    kitchen.poll()
+    assert gates(kitchen) == []
+    assert launched(kitchen) == ["crew: alpha", "crew: beta"]
 
 
-def test_a_row_whose_brief_proves_it_by_the_agents_word_is_gated_and_one_with_no_line_launches(
-    kitchen,
-):
-    """A brief from before the `Proves it:` line has none, and launches as it did."""
+def test_a_row_whose_brief_proves_it_by_the_agents_word_launches_as_it_was_approved(kitchen):
     kitchen.config(max_running=6)
     said_by_reviewer = brief("alpha").replace("`make check`", "reviewed by reviewer")
     queued_before(kitchen, "alpha", said_by_reviewer)
-    add(kitchen, "beta", priority=2)
-    kitchen.poll()
-    kitchen.poll(NOW + timedelta(minutes=3))
-    why = parse.proof("reviewed by reviewer").why
-    assert why.startswith("brief's Proves it: line names the reviewer, the agent's own word (")
-    assert gates(kitchen) == [f"condition alpha: {why}"]
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    add(kitchen, "alpha", text=brief("alpha").replace("`make check`", "`make check` exits 0"))
-    kitchen.poll(NOW + timedelta(minutes=6))
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
-    assert len(gates(kitchen)) == 1
     queued_before(kitchen, "gamma", brief("gamma").replace("Proves it: `make check`\n", ""))
-    kitchen.poll(NOW + timedelta(minutes=9))
-    assert kitchen.t3.launches[-1]["title"] == "crew: gamma" and len(gates(kitchen)) == 1
-
-
-SHAPED_AFTER = datetime(2026, 10, 16, 15, 0, tzinfo=UTC)
-SIZED = "Size: S\n"
+    kitchen.poll()
+    assert gates(kitchen) == []
+    assert launched(kitchen) == ["crew: alpha", "crew: gamma"]
 
 
 @pytest.mark.parametrize(
-    ("more", "why"),
-    [
-        ("", parse.sized("")),
-        (SIZED + "Playbook: fix\n", parse.playbook("Playbook: fix\n")),
-        (SIZED + "Playbook: feature.\n", parse.playbook("Playbook: feature.\n")),
-    ],
+    "more",
+    ["", "Size: S\nPlaybook: fix\n", "Size: S\nPlaybook: feature.\n"],
     ids=["no size", "fix", "feature."],
 )
-def test_a_row_approved_since_the_rule_is_gated_for_no_size_or_no_playbook(kitchen, more, why):
-    kitchen.monkeypatch.setattr(queue, "clock", lambda: SHAPED_AFTER)
+def test_a_row_approved_with_no_size_or_no_playbook_launches_as_it_was_approved(kitchen, more):
     kitchen.config(max_running=6)
     shapeless = (
         brief("alpha")
-        .replace(SIZED, "")
+        .replace("Size: S\n", "")
         .replace("Playbook: feature\n", more or "Playbook: feature\n")
     )
     queued_before(kitchen, "alpha", shapeless)
-    add(kitchen, "beta", priority=2)
     kitchen.poll()
-    kitchen.poll(NOW + timedelta(minutes=3))
-    assert why.startswith(("brief has no Size: line (", "brief's Playbook: line names "))
-    assert gates(kitchen) == [f"condition alpha: {why}"]
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    add(kitchen, "alpha", text=brief("alpha").replace("Playbook: feature", "Playbook: none"))
-    kitchen.poll(NOW + timedelta(minutes=6))
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta", "crew: alpha"]
-    assert len(gates(kitchen)) == 1
-
-
-def test_a_row_approved_before_the_first_pass_that_asks_launches_as_it_was_approved(kitchen):
-    """Grandfathered: the first pass that asks for a size and a playbook keeps its time, so
-    a row approved before it, as every row on the queue when the rule merged was, launches
-    as it did. One approved since, in a later pass, is asked."""
-    unshaped = {
-        slug: brief(slug).replace(SIZED, "").replace("Playbook: feature", "Playbook: fix")
-        for slug in ("alpha", "beta")
-    }
-    queued_before(kitchen, "alpha", unshaped["alpha"])
-    queued_before(kitchen, "beta", unshaped["beta"], approve=False)
-    kitchen.poll(NOW + timedelta(minutes=1))
-    since = json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"]
-    assert datetime.fromisoformat(since) == NOW + timedelta(minutes=1)
     assert gates(kitchen) == []
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
-    kitchen.monkeypatch.setattr(queue, "clock", lambda: NOW + timedelta(minutes=2))
-    assert go(kitchen, "beta")[0] == 0
-    kitchen.poll(NOW + timedelta(minutes=4))
-    assert gates(kitchen) == [f"condition beta: {parse.sized('')}"]
-    assert json.loads((kitchen.state / dispatch.SHAPED).read_text())["since"] == since
+    assert launched(kitchen) == ["crew: alpha"]
 
 
-def test_a_brief_with_no_design_line_is_gated_before_what_it_depends_on_has_merged(kitchen):
-    """The remedy is a new brief and a new approval: it is not kept for the last merge."""
+def test_a_row_with_a_go_waits_on_what_it_depends_on_and_is_not_gated_for_a_lint(kitchen):
     kitchen.config(max_running=6)
     add(kitchen, "beta", approve=False)
     queued_before(kitchen, "alpha", UNDESIGNED, depends="beta")
     kitchen.poll()
-    assert gates(kitchen) == [f"condition alpha: {parse.NO_DESIGN}"]
+    assert gates(kitchen) == []
     assert kitchen.t3.launches == []
 
 

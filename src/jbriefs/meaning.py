@@ -1,12 +1,13 @@
 """What a brief asks for, as a fingerprint an approval is bound to, and the rule that says
 whether a later brief still asks for the same thing.
 
-It is deterministic and asks no model. The fields read are the ones that carry scope and
-risk: every field of the brief but `WORDING` (the title, Task, Decisions, Design, Read,
-Change, Rests on, Sources and Ruled out), so a field the template does not name, such as
-an eval's `Candidates:`, counts, and so does anything under a `## ` in the brief. `Home:`
-and `Thread:` (`ROUTING`) say whom a brief is sent to, not what it asks for, and are left
-out too.
+It is deterministic and asks no model. An approval binds to the goal, the scope and the
+done-when of a brief, and to nothing else: the fields of `MEANING` (the title, Task, Done
+when, Where, Do not touch and Size). Every other field (`NOT_MEANING`: Skills, Decisions,
+Design, Proves it, Review, Playbook, Pull request, Stack, Read, Change, Rests on, Sources,
+Ruled out, and `Home:` and `Thread:`, which say whom a brief is sent to) says how the work
+is done or who runs it, and so does a field the template does not name and anything under a
+`## ` in the brief. An edit to any of them keeps the go.
 
 Each field becomes lines, and each line its tokens (`tokens`):
 
@@ -19,17 +20,20 @@ Each field becomes lines, and each line its tokens (`tokens`):
 
 A list field (`Done when:` and any other with `- ` items) is a line for each item, a
 re-wrapped item joined into one; any other field is one line. The lines of a field are
-sorted, and the fields go in a fixed order: `SCOPE` first, as the template lists them,
-then any other by its label. The values of `VALUES` (Size, Playbook, Review, Pull request
-and Stack) are kept exact whole, lowercased and with their white space collapsed.
+sorted, and the fields go in the order of `MEANING`, each present even when the brief has
+none of it. The value of `VALUES` (Size) is kept exact whole, lowercased and with its white
+space collapsed.
 
-A brief means what the approved one meant (`same`) when it has the same fields, each with
-as many lines, and each line of the approved one pairs with one line of the new one whose
-exact tokens are the same and whose words are the same, but that a word of `NEAR` letters
-or more may be within `EDITS` edits of the approved word: a typo fixed. So a typo, a
-change of formatting, punctuation or case, lines or fields put in another order, and any
-edit to the wording fields keep the go. A line added, taken out or changed, a path, a
-number or a value changed, re-ask.
+A brief means what the approved one meant (`same`) when each field has as many lines, and
+each line of the approved one pairs with one line of the new one whose exact tokens are the
+same and whose words are the same, but that a word of `NEAR` letters or more may be within
+`EDITS` edits of the approved word: a typo fixed. So a typo, a change of formatting,
+punctuation or case, and lines put in another order keep the go. A line added, taken out or
+changed in a field of `MEANING`, a path, a number or a value changed, re-ask.
+
+An approval recorded before the title and Task were read has neither in its fingerprint
+(`LEGACY`), and holds for any title and Task. The fields it recorded that are no longer
+meaning are not compared.
 
 Its limit: it compares words, not meaning. A reword that swaps one content word for
 another ("must" for "may", "all" for "any") re-asks, by design: a check with no model
@@ -47,30 +51,26 @@ import re
 
 from jbriefs import parse
 
-WORDING = (
-    parse.TITLE,
-    "Task",
+MEANING = (parse.TITLE, "Task", "Done when", "Where", "Do not touch", "Size")
+NOT_MEANING = (
+    "Home",
+    "Thread",
+    "Skills",
     "Decisions",
     "Design",
+    "Proves it",
+    "Review",
+    "Playbook",
+    "Pull request",
+    "Stack",
     "Read",
     "Change",
     "Rests on",
     "Sources",
     "Ruled out",
 )
-ROUTING = ("Home", "Thread")
-SCOPE = (
-    "Done when",
-    "Proves it",
-    "Size",
-    "Where",
-    "Do not touch",
-    "Pull request",
-    "Review",
-    "Playbook",
-    "Stack",
-)
-VALUES = ("Size", "Playbook", "Review", "Pull request", "Stack")
+LEGACY = tuple(label for label in MEANING if label not in (parse.TITLE, "Task"))
+VALUES = ("Size",)
 FILLER = frozenset(
     "a an the of to in on at for by with is are was be been it its that this as from so then "
     "there".split()
@@ -124,20 +124,18 @@ def _lines(lines: list[str]) -> list[str]:
 
 
 def meaning(text: str) -> Meaning:
-    """The fingerprint of a brief: `[label, lines]` for each field it reads, in order."""
+    """The fingerprint of a brief: `[label, lines]` for each field of `MEANING`, in order."""
     held: dict[str, list[str]] = {}
     for label, lines in parse.fields(text):
-        if label not in WORDING + ROUTING:
+        if label in MEANING:
             held.setdefault(label, []).extend(lines)
-    order = [label for label in SCOPE if label in held]
-    order += sorted(label for label in held if label not in SCOPE)
     made: Meaning = []
-    for label in order:
+    for label in MEANING:
         if label in VALUES:
-            value = " ".join(" ".join(held[label]).split()).lower().rstrip(".")
+            value = " ".join(" ".join(held.get(label, [])).split()).lower().rstrip(".")
             lines = [[EXACT + value]] if value else []
         else:
-            lines = [tokens(line) for line in _lines(held[label])]
+            lines = [tokens(line) for line in _lines(held.get(label, []))]
             lines = [line for line in lines if line]
         made.append([label, sorted(lines)])
     return made
@@ -189,9 +187,11 @@ def _pairs(approved: list, now: list, alike) -> bool:
 
 def same(approved: Meaning, now: Meaning) -> bool:
     """Whether a brief whose fingerprint is `now` asks for what the approved one did."""
-    if [label for label, _ in approved] != [label for label, _ in now]:
-        return False
+    was, here = dict(approved), dict(now)
+    labels = MEANING if parse.TITLE in was else LEGACY
     return all(
-        _pairs(was, lines, lambda one, other: _pairs(one, other, _near))
-        for (_, was), (_, lines) in zip(approved, now, strict=True)
+        _pairs(
+            was.get(label, []), here.get(label, []), lambda one, other: _pairs(one, other, _near)
+        )
+        for label in labels
     )
