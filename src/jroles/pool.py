@@ -95,34 +95,36 @@ class Route:
         return self.selection.as_json(self.choice.instance)
 
 
-def selection(role: str) -> Selection | None:
-    """The role's line of the map, its pool checked against the inventory, or None where the
-    role inherits. Refused for a map or an inventory it cannot use."""
+def selections(role: str) -> tuple[Selection, ...]:
+    """The role's lines of the map, in order, each pool checked against the inventory, or none
+    where the role inherits. Only `review` has more than one. Refused for a map or an inventory
+    it cannot use."""
     where = config_dir()
     try:
         text = (where / "roles").read_text()
     except FileNotFoundError:
-        return None
+        return ()
     except (OSError, UnicodeDecodeError) as error:
         reason = error.strerror if isinstance(error, OSError) else "it is not UTF-8"
         raise Refused(f"cannot read {where / 'roles'}: {reason}") from error
     chosen = read_map(text, role)
-    if chosen is None:
-        return None
+    if not chosen:
+        return ()
     try:
         drivers = declared((where / "providers.json").read_text())
     except FileNotFoundError:
         drivers = None
     except (OSError, UnicodeDecodeError) as error:
         raise Refused(f"refused {role}: providers.json cannot be read ({error})") from error
-    check(role, chosen, drivers)
+    for one in chosen:
+        check(role, one, drivers)
     return chosen
 
 
-def route(role: str, now: datetime) -> Route | None:
-    """Where a launch of `role` goes now, or None where it inherits."""
-    chosen = selection(role)
-    if chosen is None:
-        return None
-    pool = chosen.instances
-    return Route(chosen, choose(pool, ledger.read(pool), now))
+def routes(role: str, now: datetime) -> tuple[Route, ...]:
+    """Where each launch of `role` goes now, one for each of its lines, or none where it
+    inherits."""
+    return tuple(
+        Route(chosen, choose(chosen.instances, ledger.read(chosen.instances), now))
+        for chosen in selections(role)
+    )
