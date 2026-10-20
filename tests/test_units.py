@@ -1,5 +1,5 @@
 """The systemd units of `templates/`: systemd takes each one's documentation, a section of
-docs/jbus.md that is there, and an exit status a unit names is the one its program exits with."""
+docs/ that is there, and an exit status a unit names is the one its program exits with."""
 
 import configparser
 import re
@@ -12,9 +12,9 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 TEMPLATES = REPO / "templates"
-DOCS = REPO / "docs" / "jbus.md"
+DOCS = REPO / "docs"
 UNITS = sorted(path.name for path in TEMPLATES.iterdir() if path.suffix in (".service", ".timer"))
-DOCUMENTED = re.compile(r"file:%Y/\.\./docs/jbus\.md#([a-z0-9-]+)")
+DOCUMENTED = re.compile(r"file:%Y/\.\./docs/([a-z]+\.md)#([a-z0-9-]+)")
 
 
 def unit(name):
@@ -24,8 +24,8 @@ def unit(name):
     return read
 
 
-def anchors():
-    headings = re.findall(r"^#+ (.+)$", DOCS.read_text(), re.M)
+def anchors(page):
+    headings = re.findall(r"^#+ (.+)$", (DOCS / page).read_text(), re.M)
     return {re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings}
 
 
@@ -38,19 +38,23 @@ def test_the_units_are_the_ones_install_links():
         "jbus-snapshot-failed.service",
         "jbus-snapshot.service",
         "jbus-snapshot.timer",
+        "jbus-stale.service",
+        "jbus-stale.timer",
         "jbus-view.service",
         "jbus.service",
         "jbus.timer",
+        "jgauge-sample.service",
+        "jgauge-sample.timer",
     ]
 
 
 @pytest.mark.parametrize("name", UNITS)
-def test_each_unit_names_the_section_of_the_jbus_page_that_says_what_it_does(name, tmp_path):
+def test_each_unit_names_the_section_of_the_docs_that_says_what_it_does(name, tmp_path):
     documentation = unit(name)["Unit"]["Documentation"]
     for uri in documentation.split():
         found = DOCUMENTED.fullmatch(uri)
-        assert found, f"{name}: {uri} is not file:%Y/../docs/jbus.md#<section>"
-        assert found[1] in anchors(), f"{name}: docs/jbus.md has no section #{found[1]}"
+        assert found, f"{name}: {uri} is not file:%Y/../docs/<page>.md#<section>"
+        assert found[2] in anchors(found[1]), f"{name}: docs/{found[1]} has no section #{found[2]}"
     if not shutil.which("systemd-analyze"):
         pytest.skip("no systemd-analyze on PATH")
     probe = tmp_path / name.replace(".timer", ".service")

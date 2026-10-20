@@ -1,7 +1,6 @@
-# Runs jgauge-sample.service every 15 s. OnUnitActiveSec counts from the last start, so
-# OnBootSec gives it a first one; with AccuracySec=1s a row comes every 15 to 16 s.
 [Unit]
 Description=jgauge sample: load and pressure every 15 s
+Documentation=file:%Y/../docs/jgauge.md#jgauge
 
 [Timer]
 OnBootSec=1min
