@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
+import crew.helpers as crew
 import jsettings
-import test_crew_skill as crew
 import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded

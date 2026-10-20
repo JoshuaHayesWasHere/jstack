@@ -12,7 +12,7 @@ import pytest
 
 from jbus.view.panels.usage import panel as usage
 from jgauge import session
-from test_jbus_view import NOW, Scene, Served, iso, out
+from view.scene import NOW, Scene, Served, iso, out
 
 SECRET = "made-up-secret-plum-7f3a9c"
 JGAUGE = Path(sys.executable).with_name("jgauge")
