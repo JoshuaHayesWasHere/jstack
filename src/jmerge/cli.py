@@ -58,7 +58,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import jsettings
-from jmerge import claims, proof, rangediff, ready, rows, sweep
+from jmerge import claims, green, proof, rangediff, ready, rows, sweep
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -201,12 +201,17 @@ class Fresh:
     recorded. `TIMEOUT` is under what a jbus pass allows jmerge, which is under the unit's
     start timeout (`tests/test_jbus.py`).
 
+    Before it starts one, it asks for a green marker of the merge's tree (`green.marker`):
+    a run of the check that passed the whole suite on that exact tree, or the desk's ref.
+    With one, the pass is recorded with the tree and the marker, and nothing is run.
+
     A pass is the one thing pushed: the merge that passed, to the ref `sweep.marker` names
     for its tree. The merge that lands has that tree, so its run of the check skips the
     suite. A marker that could not be pushed costs that skip and nothing else.
     """
 
     TIMEOUT = 15 * 60
+    ASK_TIMEOUT = 10
     AUTHOR = {
         "GIT_AUTHOR_NAME": "jmerge",
         "GIT_AUTHOR_EMAIL": "jmerge@localhost",
@@ -250,20 +255,27 @@ class Fresh:
         asked = {"head": head, "main": tip, "command": self.command}
         recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
         if recorded and was.get("result") != ready.TIMED_OUT:
-            return self._said(str(was.get("result")), head, tip, str(was.get("unmarked") or ""))
+            return self._said(str(was.get("result")), head, tip, was)
         if isinstance(was, dict) and self.stands(number, was, head, tip, files):
             return "", ready.fresh_kept(self.command, head, str(was["main"]), tip)
         if not self.run:
             return (ready.FRESH_QUEUED, "") if recorded else None
-        if self.ran or self._held():
-            return ready.FRESH_QUEUED, ""
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
         if merged.returncode == 1:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return self._not_run(merged), ""
+        tree = _first_word(merged.stdout)
+        found = self.marked(tree)
+        if found:
+            record = {**asked, "result": ready.PASSED, "tree": tree, "marker": found.at}
+            now = datetime.now().astimezone()
+            self._keep(number, {**record, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"})
+            return self._said(ready.PASSED, head, tip, record)
+        if self.ran or self._held():
+            return ready.FRESH_QUEUED, ""
         self.ran = True
-        started = self.start(number, head, tip, _first_word(merged.stdout))
+        started = self.start(number, head, tip, tree)
         return started or ready.FRESH_QUEUED, ""
 
     def stands(
@@ -275,10 +287,16 @@ class Fresh:
         worktree of the head merged over `tip`, so a module either side imports there is
         read. A test file every change selects (`Cross-cutting:`) is one in common too, so
         in a repo that has one no pass is kept. Where any of it cannot be told, it does
-        not."""
+        not. A pass taken from a marker (`marker` in the record) never stands: the marker
+        names one tree, and a main that moved makes another."""
         older = str(was.get("main") or "")
         mine = (was.get("result"), was.get("head"), was.get("command"))
-        if not files or not older or mine != (ready.PASSED, head, self.command):
+        if (
+            not files
+            or not older
+            or was.get("marker")
+            or mine != (ready.PASSED, head, self.command)
+        ):
             return False
         changed = _text(self.main, "git", "diff", "--name-only", "--no-renames", older, tip)
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
@@ -318,6 +336,28 @@ class Fresh:
             text=True,
             env={**os.environ, **self.AUTHOR},
         )
+
+    def marked(self, tree: str) -> green.Marker | None:
+        """The green marker of this tree, from GitHub: a run of the check that ran the whole
+        suite on it and passed, or the desk's ref. None where there is none, or where GitHub
+        could not say, and then the check runs as it would have."""
+
+        def ask(path: str) -> object:
+            answer = subprocess.run(
+                ["gh", "api", f"repos/{{owner}}/{{repo}}/{path}"],
+                cwd=self.main,
+                capture_output=True,
+                text=True,
+                timeout=self.ASK_TIMEOUT,
+            )
+            if answer.returncode:
+                raise RuntimeError(_said(answer))
+            return json.loads(answer.stdout)
+
+        try:
+            return green.marker(ask, tree)[0]
+        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, LookupError):
+            return None
 
     def _held(self) -> bool:
         """A check is running: its process holds the lock."""
@@ -389,8 +429,11 @@ class Fresh:
             encoding="utf-8",
         )
 
-    def _said(self, result: str, head: str, tip: str, unmarked: str = "") -> tuple[str, str]:
+    def _said(self, result: str, head: str, tip: str, was: dict) -> tuple[str, str]:
+        if result == ready.PASSED and was.get("marker"):
+            return "", ready.fresh_skipped(str(was.get("tree")), str(was["marker"]), head, tip)
         if result == ready.PASSED:
+            unmarked = str(was.get("unmarked") or "")
             more = f", its tree is not marked ({unmarked})" if unmarked else ""
             return "", ready.fresh_note(self.command, head, tip) + more
         if result != ready.FAILED:
