@@ -246,7 +246,9 @@ def approve(
 
     From chat it is taken only where the words name the item and its risk is `routine`: a
     review item is approved in the view, whose link the refusal names, and so is one that
-    was redirected. Its line has `by_id`, which ends a redirect (`Item.redirect`).
+    was redirected. Its line has `by_id`, which ends a redirect (`Item.redirect`). Before
+    it ends one, it finishes the redirect's row change where a steer died before making it
+    (`_redirect`), under the same lock: once the mark is gone, `settle` no longer looks.
     """
     where = Where(where)
     if by != user.user:
@@ -256,9 +258,21 @@ def approve(
     with _locked(state):
         if where is Where.CHAT:
             _from_chat(state, id, words, project)
+        _finish(state, id)
         made = _put(state, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more)
     told(box, made)
     return made
+
+
+def _finish(state: Path, id: str) -> None:
+    """Make the row change of the item's open redirect, where its line is written and the
+    row has not changed: nothing where there is no redirect, or the row has it already."""
+    item = items(state).get(id)
+    if item is None or not item.redirect:
+        return
+    made = next((one for one in read(state) if one.get("id") == item.redirect), None)
+    if made and made.get("brief") and item.slug:
+        _redirect(state, made)
 
 
 def _from_chat(state: Path, id: str, words: str, project: str) -> None:
