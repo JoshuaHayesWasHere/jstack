@@ -3,6 +3,8 @@ nothing for it: the second pull request to merge rebases. It is the block of the
 run as a home runs it, over `jmerge --claims` against a fake `gh` and a temporary state
 directory."""
 
+import os
+
 import pytest
 
 from test_claims import Claims, result
@@ -57,3 +59,25 @@ def test_a_task_with_no_brief_on_disk_waits_and_names_no_go(claims):
     assert said == [
         "wait: jmerge --claims has no line for task: write its brief first, then run this again"
     ]
+
+
+def test_a_durable_scout_with_no_brief_goes(claims):
+    (claims.home.state / "scouts").mkdir()
+    (claims.home.state / "scouts" / "task.md").write_text("# task: a scout\n")
+    claims.write("alpha", where="`src/jmerge/cli.py`")
+    said = check(claims)
+    assert len(said) == 1 and said[0].startswith("go: ")
+
+
+def test_a_claims_run_that_fails_part_way_waits_and_shows_no_line(claims, tmp_path):
+    claims.write("task", thread=False, where="`src/jmerge/cli.py`")
+    stub = tmp_path / "failing"
+    stub.mkdir()
+    (stub / "uv").write_text(
+        "#!/bin/sh\necho 'task not launched root Where: `src/jmerge/cli.py`'\nexit 1\n"
+    )
+    (stub / "uv").chmod(0o755)
+    path = f"{stub}:{claims.home.stub}:{os.environ['PATH']}"
+    script = f"{paths()}\n{block('overlaps ').replace('<slug>', 'task')}"
+    said = claims.home.sh(script, path=path)
+    assert said == ["wait: jmerge --claims did not finish, no overlap was read"]

@@ -688,7 +688,9 @@ On each message, do this without waiting for a word from the user.
 
    ```sh
    slug='<slug>'
-   if ! said=$(uv run --project "$T/.." jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
+   if [ -f "$H/scouts/$slug.md" ] && ! [ -f "$H/tasks/$slug.md" ]; then
+       echo "go: a scout changes no files, so it overlaps nothing"
+   elif ! said=$(uv run --project "$T/.." jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
        case $said in
        wait:*) printf '%s\n' "$said" ;;
        *) echo "wait: jmerge --claims did not finish, no overlap was read" ;;
@@ -734,7 +736,7 @@ On each message, do this without waiting for a word from the user.
    fi
    ```
 
-   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
+   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. A scout's request, in `scouts/` with no brief in `tasks/`, gets `go` alone. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
 4. Tell the user in a few lines, here: what landed, what was merged, what was launched with its link, what was parked, and what waits and why. When nothing is left planned or out, say that the planned work is done and show the open questions ("Gates").
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
