@@ -489,23 +489,33 @@ IDENTITY = ("-c", "user.name=t", "-c", "user.email=t@example.com")
 
 
 class Template(NamedTuple):
-    """The repo a kitchen's `repo` copies: a checkout, its bare origin, and the commit of `main`."""
+    """The repos a test copies in place of building its own, all at one commit of `main`.
 
+    `plain` is a checkout with that one commit and no remote, as `test_home_merge`'s `Home`
+    makes. `checkout` is the same with `origin`, a bare repo that has `main` as its default.
+    """
+
+    plain: Path
     checkout: Path
     origin: Path
     main: str
 
 
-def built(checkout, origin):
-    """A main checkout on `main`, with an origin that has that branch as its default.
+def built(root):
+    """The template, made in `root` by the git processes a kitchen's `repo` started each time.
 
-    It is seven git processes, so it is run once for each worker, by the fixture
-    `kitchen_template` of conftest, and each kitchen copies what it made (`copied`).
+    The fetch names the origin's path in FETCH_HEAD, which a copy would keep, so the file
+    goes: nothing in the kitchen reads it.
     """
-    root = checkout.parent
+    plain, checkout, origin = root / "plain", root / "checkout", root / "origin.git"
+    root.mkdir(parents=True, exist_ok=True)
     for args, cwd in (
-        (("init", "-q", "-b", "main", str(checkout)), root),
-        (("commit", "-q", "--allow-empty", "-m", "start"), checkout),
+        (("init", "-q", "-b", "main", str(plain)), root),
+        (("commit", "-q", "--allow-empty", "-m", "start"), plain),
+    ):
+        subprocess.run(["git", *IDENTITY, *args], cwd=cwd, check=True)
+    shutil.copytree(plain, checkout, symlinks=True)
+    for args, cwd in (
         (("init", "-q", "--bare", "-b", "main", str(origin)), root),
         (("remote", "add", "origin", str(origin)), checkout),
         (("push", "-q", "origin", "main"), checkout),
@@ -513,13 +523,11 @@ def built(checkout, origin):
         (("remote", "set-head", "origin", "main"), checkout),
     ):
         subprocess.run(["git", *IDENTITY, *args], cwd=cwd, check=True)
-    # The fetch names the origin's path in FETCH_HEAD. A copy would keep that path, the
-    # template's, and nothing in the kitchen reads the file.
     (checkout / ".git" / "FETCH_HEAD").unlink()
     main = subprocess.run(
-        ["git", "rev-parse", "main"], cwd=checkout, check=True, capture_output=True, text=True
+        ["git", "rev-parse", "main"], cwd=plain, check=True, capture_output=True, text=True
     )
-    return Template(checkout, origin, main.stdout.strip())
+    return Template(plain, checkout, origin, main.stdout.strip())
 
 
 def copied(template, checkout, origin):
@@ -552,10 +560,13 @@ class Kitchen:
     """One project with jbus set up for it: config, state, a main checkout, and the fakes.
 
     `second` adds another project to the same config, T3 Code server, `gh` and `jmerge`.
+
+    Its repo is a copy of the worker's `template`, built in `template_root` on the worker's
+    first `repo`. conftest's `kitchen_template` gives the root.
     """
 
-    # Set for each worker by conftest's `kitchen_template`; with none, `repo` builds its own.
     template = None
+    template_root = None
 
     def __init__(self, tmp_path, monkeypatch):
         tmp_path.mkdir(exist_ok=True)
@@ -651,12 +662,18 @@ class Kitchen:
     def repo(self, checkout, origin):
         """A main checkout on `main`, with an origin that has that branch as its default.
 
-        It is a copy of the worker's template, or with none built, as the template is.
+        It is a copy of the worker's template.
         """
-        if Kitchen.template is None:
-            built(checkout, origin)
-        else:
-            copied(Kitchen.template, checkout, origin)
+        copied(Kitchen.templated(), checkout, origin)
+
+    @classmethod
+    def templated(cls):
+        """The worker's template, built on the first call."""
+        if cls.template is None:
+            if cls.template_root is None:
+                raise RuntimeError("no template root: conftest's kitchen_template gives it")
+            cls.template = built(cls.template_root)
+        return cls.template
 
     def second(self, name="other"):
         """Add a project to the config, after the ones it has. The answer is where it is.
@@ -983,11 +1000,12 @@ def said(cwd, *args):
 
 
 def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
-    tmp_path, monkeypatch, kitchen_template
+    tmp_path, monkeypatch
 ):
     """Two kitchens push a commit each and see only their own. The template's origin is at the
     commit it was built with, after every test this worker ran before this one, and after this.
     """
+    kitchen_template = Kitchen.templated()
     assert said(kitchen_template.origin, "rev-parse", "main") == kitchen_template.main
     kitchens = {name: Kitchen(tmp_path / name, monkeypatch) for name in ("one", "two")}
     try:
