@@ -222,7 +222,7 @@ RERUN = REPO / "templates" / "rerun.md"
 def started(reviewer, asked, brief=""):
     """What the reviewer's Start 1 prints for a message and a brief, and how it ended."""
     reviewer.brief.write_text(BRIEF + brief)
-    return reviewer("### Start", "asked=", fill={ASKED: asked})
+    return reviewer("### Start", "case $asked", fill={ASKED: asked})
 
 
 @pytest.mark.parametrize("brief", ["", NO_SECTION, SECTION])
@@ -254,6 +254,89 @@ def test_a_plain_message_under_a_review_stops_and_names_the_line_it_would_accept
 def test_a_scoped_message_goes_under_a_review(reviewer):
     asked = "/pr-review run a-task scoped aaa..bbb ccc..ddd"
     assert started(reviewer, asked, SECTION)[0][0].startswith("go: ")
+
+
+DUAL = "review: codex gpt-6-sol effort=xhigh\nreview: cursor grok-4.7 effort=xhigh fast=off\n"
+CODEX, CURSOR = "By: codex gpt-6-sol xhigh", "By: cursor grok-4.7 xhigh"
+
+
+CONFIG = "<what t3_thread_configuration printed, or nothing where this session has no such tool>"
+
+
+def by(reviewer, asked, roles=None, thread=None):
+    """The `By:` line Start's first block prints for a message, from the thread's own
+    configuration where it is given, else over a role map or none."""
+    config = reviewer.state / "config"
+    if roles is not None:
+        (config / "jstack").mkdir(parents=True, exist_ok=True)
+        (config / "jstack" / "roles").write_text(roles)
+    fill = {ASKED: asked}
+    if thread is not None:
+        fill[CONFIG] = json.dumps(thread)
+    (said,), code = reviewer("### Start", "jroles review", fill=fill, XDG_CONFIG_HOME=str(config))
+    assert code == 0
+    return said
+
+
+def test_each_reviewer_names_the_line_of_the_review_list_it_was_launched_on(reviewer):
+    assert by(reviewer, "/pr-review run a-task 1", DUAL) == CODEX
+    assert by(reviewer, "/pr-review run a-task 2", DUAL) == CURSOR
+    assert by(reviewer, "/pr-review run a-task", DUAL) == CODEX
+    assert by(reviewer, "/pr-review run a-task scoped aaa..bbb ccc..ddd", DUAL) == CODEX
+    assert by(reviewer, "/pr-review run a-task 2", "review: claudeAgent claude-opus-5-5\n") == (
+        "By: inherit"
+    )
+    assert by(reviewer, "/pr-review run a-task", "review: inherit\n") == "By: inherit"
+
+
+def test_the_by_line_is_read_from_the_thread_itself_whatever_the_map_says_now(reviewer):
+    """A capped pool, a refused map or one edited after the launch changes nothing: the
+    thread's own configuration names its provider, model and effort."""
+    cursor = {
+        "threadId": "mcp:2",
+        "modelSelection": {
+            "instanceId": "cursor",
+            "model": "grok-4.7",
+            "options": [
+                {"id": "reasoning_effort", "value": "xhigh"},
+                {"id": "fastMode", "value": False},
+            ],
+        },
+    }
+    assert by(reviewer, "/pr-review run a-task 2", "review: inherit\n", cursor) == CURSOR
+    codex = {
+        "modelSelection": {
+            "provider": "codex",
+            "instanceId": "codex",
+            "model": "gpt-6-sol",
+            "options": [{"id": "reasoningEffort", "value": "xhigh"}],
+        }
+    }
+    assert by(reviewer, "/pr-review run a-task again", DUAL, codex) == CODEX
+    claude = {"modelSelection": {"instanceId": "claudeAgent", "model": "claude-opus-5-5"}}
+    assert by(reviewer, "/pr-review run a-task", None, claude) == "By: claudeAgent claude-opus-5-5"
+
+
+def numbered(reviewer, asked, mine, brief):
+    reviewer.brief.write_text(BRIEF + brief)
+    return reviewer(
+        "### Start",
+        "case $asked",
+        fill={ASKED: asked, "<the By: line the block above printed>": mine},
+    )
+
+
+def test_a_second_reviewer_writes_beside_the_first_and_never_twice_for_its_line(reviewer):
+    first = SECTION.replace("## Review\n", f"## Review\n{CODEX}\n")
+    said, code = numbered(reviewer, "/pr-review run a-task 2", CURSOR, first)
+    assert code == 0 and said[0].startswith("go: "), said
+    said, code = numbered(reviewer, "/pr-review run a-task 1", CODEX, first)
+    assert code == 0 and said[0].startswith("stop: "), said
+    assert "the line I accept: /pr-review run a-task again" in said
+    said, code = numbered(reviewer, "/pr-review run a-task 1", CODEX, "")
+    assert code == 0 and said[0].startswith("go: "), said
+    said, code = numbered(reviewer, "/pr-review run a-task again", CODEX, first)
+    assert code == 0 and said[0].startswith("go: "), said
 
 
 FULL_RUN = "- Check command: `make check`\n- Full run: reviewer\n"
@@ -622,6 +705,29 @@ def gives_up(reviewer, why, sent):
         '<the thread id the line went to, or the two words "not sent">': sent,
     }
     return reviewer("### No room", fill=filled)
+
+
+def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_at_its_head(
+    reviewer,
+):
+    """The section "No room" writes carries the reviewer's `By:` line, so its clean re-run at
+    the same head is the review, and in a pair another reviewer's section does not replace it."""
+    reviewer.brief.write_text(BRIEF + "Reviewer: mcp:9\n")
+    filled = {
+        "<the head kept at the start>": KEPT,
+        "<the last line the block of step 1 printed>": "wait: jgauge room did not run",
+        '<the thread id the line went to, or the two words "not sent">': "mcp:1",
+        "<the By: line Start printed>": "By: claudeAgent claude-opus-5-5",
+    }
+    assert reviewer("### No room", fill=filled)[1] == 0
+    gave_up = reviewer.brief.read_text()
+    assert "## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: not run\n" in gave_up
+    assert ready.short_of(gave_up, KEPT) == ready.NO_VERDICT
+    clean = f"\n## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: clean\nHead: {KEPT}\n"
+    assert ready.short_of(gave_up + clean, KEPT) == ""
+    other = clean.replace("claudeAgent claude-opus-5-5", "cursor grok-4.7 xhigh")
+    pair = gave_up.replace("Reviewer: mcp:9\n", "Reviewer: mcp:9\nReviewer: mcp:8\n") + other
+    assert ready.short_of(pair, KEPT) == ready.NO_VERDICT
 
 
 def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_whom_it_told(
@@ -1818,7 +1924,8 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
         "Sent to": "mcp:crew",
     }
     template = (REPO / "templates" / "review.md").read_text().splitlines()
-    assert template[4].startswith("Reviewers: 1, ")
+    assert template[1].startswith("By: ")
+    assert template[5].startswith("Reviewers: 1, ")
     lines = []
     for line in template:
         label = line.split(":")[0]

@@ -29,6 +29,7 @@ from jmerge.rangediff import Verdict
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
+_RANKS = {"clean": 0, "findings": 1}
 _ENDED = re.compile(r"Finding: (fixed, .|not fixed, .+, because .)")
 _REBASE = re.compile(
     r"Rebase: patch (unchanged|changed in (.+)), before ([0-9a-f]{40}), head ([0-9a-f]{40})"
@@ -384,20 +385,32 @@ def being_rebased(why: str) -> bool:
 
 @dataclass
 class Round:
-    """One `## Review` section of a brief: its verdict, its head and its count of findings."""
+    """One `## Review` section of a brief: its verdict, its head, its count of findings and
+    the reviewer its `By:` line names, a line of the role map's review list."""
 
     verdict: str = ""
     head: str = ""
     found: int = 0
+    by: str = ""
+
+
+def _worst(verdicts: list[str]) -> str:
+    """The verdict of the sections at one head: one that did not run outranks findings,
+    and findings outrank clean."""
+    return max(verdicts, key=lambda verdict: _RANKS.get(verdict, len(_RANKS)))
 
 
 @dataclass
 class Said:
     """What a brief says of its pull request's review, read line by line. `rounds` is each
-    `## Review` section in order. `second` and `scoped` say whether any `Second pass:` or
-    `Scoped review:` line said one is needed, guarded or not, whatever a later line says."""
+    `## Review` section in order. The sections that name one head are one round, one from
+    each reviewer the role map lists: `verdict` is the worst of the last round's, and `ran`
+    counts the rounds that ran. `reviewers` counts the `Reviewer:` lines that name a thread.
+    `second` and `scoped` say whether any `Second pass:` or `Scoped review:` line said one is
+    needed, guarded or not, whatever a later line says."""
 
     none: bool = False
+    reviewers: int = 0
     written: bool = False
     verdict: str = ""
     ran: int = 0
@@ -442,10 +455,13 @@ def said_of(text: str) -> Said:
         if _ENDED.match(line):
             said.ended += 1
         if review and line.startswith("Verdict:"):
-            said.verdict = said.rounds[-1].verdict = _second(line)
-            said.ran += said.verdict in ("clean", "findings")
+            said.rounds[-1].verdict = _second(line)
         if review and line.startswith("Head:"):
             said.reviewed = said.rounds[-1].head = _second(line)
+        if review and line.startswith("By:"):
+            said.rounds[-1].by = line[len("By:") :].strip()
+        if line.startswith("Reviewer:") and _second(line) not in ("", "none", "none,"):
+            said.reviewers += 1
         if line.startswith("Fixed:"):
             said.fixed = _second(line)
         if line.startswith("Second pass:"):
@@ -463,7 +479,28 @@ def said_of(text: str) -> Said:
         if line.startswith("CI fix:"):
             named = _CI_FIX.fullmatch(line.strip())
             said.pushed, said.saw = (named[1], named[2]) if named else ("", "")
+    _round(said)
     return said
+
+
+def _round(said: Said) -> None:
+    """The verdict of the last round and the count of rounds that ran. Within a round each
+    reviewer's last section is its word: a re-run at the same head replaces what it wrote
+    before, a `Verdict: not run` included. A round waits for
+    every reviewer the `Reviewer:` lines name: the reviewers are told apart by their `By:`
+    lines, whichever head each saw, and until each has written the review has no verdict."""
+    if not said.rounds:
+        return
+    heads: dict[str, dict[str, str]] = {}
+    for number, one in enumerate(said.rounds):
+        heads.setdefault(one.head or f"#{number}", {})[one.by] = one.verdict
+    last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
+    said.verdict = _worst(list(last.values()))
+    said.ran = sum(
+        any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
+    )
+    if len({one.by for one in said.rounds if one.by}) < said.reviewers > 1:
+        said.verdict = ""
 
 
 def _ci_fix(said: Said) -> tuple[str, str]:

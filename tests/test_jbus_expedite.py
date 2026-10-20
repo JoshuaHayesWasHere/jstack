@@ -302,7 +302,7 @@ def reviewer_says(tmp_path, asked, brief):
     """What the reviewer's Start 1 prints when `asked` starts it on a brief."""
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
-    script = block("### Start", "asked=").replace("<slug>", "alpha").replace(ASKED, asked)
+    script = block("### Start", "case $asked").replace("<slug>", "alpha").replace(ASKED, asked)
     env = {**os.environ, "H": str(tmp_path), "T": str(REPO / "templates")}
     ran = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, check=True)
     return ran.stdout.splitlines()

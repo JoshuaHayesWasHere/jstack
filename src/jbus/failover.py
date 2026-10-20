@@ -143,15 +143,15 @@ def _when(stamps: list[Any]) -> datetime | None:
 
 
 def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
-    """The pool a thread of `role` on `instance` moves in: its role line's, where that names
-    the instance, else the instance alone."""
+    """The pool a thread of `role` on `instance` moves in: the first of its role's lines that
+    names the instance, else the instance alone."""
     try:
-        chosen = pool.selection(role)
+        chosen = pool.selections(role)
     except jroles.Refused as error:
         run.say(f"wait {run.project.name}: the role map gives {role} no pool ({error})")
-        chosen = None
-    instances = chosen.instances if chosen else ()
-    return instances if instance in instances else (instance,)
+        chosen = ()
+    lines = [one.instances for one in chosen if instance in one.instances]
+    return lines[0] if lines else (instance,)
 
 
 def failover(run: Pass, client: Client, world: World) -> None:
