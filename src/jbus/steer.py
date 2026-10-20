@@ -3,8 +3,8 @@
 `steer` is the one place a steer is decided, from the chat, the view or the command: a
 message to the item's home, a hold of its row's go, or a redirect to a new brief. It is one
 `steered` line of the item's log (`jbus.item`), refused and writing nothing where the item
-moved since the line its writer saw. `approve` is the user's go for an item by its id, and
-from chat only where the words name the item and its risk is routine.
+moved since the line its writer saw. `approve` is the user's go for an item by its id,
+taken from chat only where the words name the item and its risk is routine.
 
 A message is sent to the thread of the item's home through `word.post`, and what became of
 it is kept in `item-sends.json` beside the log, since a send is no move: a pass sends each
