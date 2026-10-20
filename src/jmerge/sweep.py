@@ -7,9 +7,10 @@ what the command found out from git and GitHub; nothing here runs a command.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Literal
+
+from jbus import mirror
 
 WORKTREE = "the worktree"
 LOCAL = "the local branch"
@@ -110,7 +111,7 @@ def of_request(slug: str, text: str) -> Record:
     """A scout is finished when its last Report says `Status: done` and names no page.
 
     `Page: none` names none, and neither does `Page: none, <why>`, which a scout writes when it
-    could build none: the pattern is the one the scout skill's own block settles the thread on.
+    could build none: `jbus.mirror.page` reads it, as the scout skill's own block does.
     A page may still wait on the user, and the scout goes on in its worktree when they answer.
     Whether its session has ended cannot be told from here, so a Report with a page is kept.
     """
@@ -120,8 +121,7 @@ def of_request(slug: str, text: str) -> Record:
         short = f"not done, {source} has no Report"
     else:
         short = _status(report, "Report", only=False)
-        page = [line.split("Page:", 1)[1].strip(" \t") for line in report if "Page:" in line]
-        if not short and page and not re.match(r"none(,|$)", page[-1]):
+        if not short and mirror.page("\n".join(report)):
             short = "its Report has a page, which may wait on the user"
     return Record(source, f"scout-{slug}", _thread(text), short, False, "")
 
