@@ -135,7 +135,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 34 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`skills/` holds 36 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -163,7 +163,7 @@ The other 26 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `install.sh` | Installs, checks and removes jstack on a machine. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
-| `.cursor/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
+| `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
 
 ## Develop
 
@@ -179,7 +179,7 @@ The Python code is one `uv` project.
 
 `tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` (`.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook. Its `launch.sh` prints `ready:` only after `jbus --project demo queue show` and `jmerge --check` have run there. Its `doctor.sh` fails a feature whose seed the sandbox lacks: `bad  <feature>: seed lacks <x>`.
+`verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook. Its `launch.sh` prints `ready:` only after `jbus --project demo queue show` and `jmerge --check` have run there. Its `doctor.sh` fails a feature whose seed the sandbox lacks: `bad  <feature>: seed lacks <x>`.
 
 ## License
 

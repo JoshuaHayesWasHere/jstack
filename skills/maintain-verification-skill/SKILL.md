@@ -21,26 +21,20 @@ The home does no research and drives nothing: it writes requests and a brief, an
 The reading is done by scouts, one per feature file, and the live pass by one crewmate, each a durable thread with its own file under `$H`.
 No step starts a subagent.
 
-Every block below starts with these lines, and with `app=` set to the `<app>` typed, or left empty:
+In each block below, set `app=` to the `<app>` typed, or leave it empty, and `scope=` to the scope's name in a scoped home, or leave it empty in the root home.
+
+## 1. Send the scouts
+
+Run this:
+It finds the verify skill on the default branch, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<MMDD>-<feature>.md`:
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=${H:-~/.local/state/home/$R}
-T=$(realpath ~/.claude/skills/maintain-verification-skill/../../templates)
 app=''
 scope=''
-```
-
-`scope=` is the scope's name in a scoped home, and empty in the root home.
-
-## 1. Send the scouts
-
-Run this with the lines above.
-It finds the verify skill on the default branch, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<MMDD>-<feature>.md`:
-
-```sh
 base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo HEAD)
-dirs=$(git ls-tree -d --name-only "$base" .claude/skills/ | grep '^\.claude/skills/verify-' || true)
+dirs=$(git ls-tree -d --name-only "$base" .claude/skills/ 2> /dev/null | grep '^\.claude/skills/verify-' || true)
 if [ -n "$app" ]; then dirs=$(printf '%s\n' "$dirs" | grep -x ".claude/skills/verify-$app" || true); fi
 if [ -z "$dirs" ]; then
     echo "no verify skill: $base has no .claude/skills/verify-${app:-*}/: brief a crewmate to run /create-verification-skill instead"
@@ -90,9 +84,13 @@ Launch at most ten in a step, as `playbooks/swarm.md` has it: the next ten go ou
 
 ## 2. Write the crewmate's brief
 
-Once every scout of the run has reported, or has gone quiet after one message from the home, run this with the lines above and `run=` set to the run the first block printed:
+Once every scout of the run has reported, or has gone quiet after one message from the home, run this, with `run=` set to the run the first block printed:
 
 ```sh
+R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+H=${H:-~/.local/state/home/$R}
+T=$(realpath ~/.claude/skills/maintain-verification-skill/../../templates 2> /dev/null)
+scope=''
 run='<run>'
 dir=$(cat "$H/scouts/$run.dir" 2> /dev/null)
 B="$H/tasks/$run.md"
@@ -139,7 +137,7 @@ else
         echo "Ruled out: a subagent per feature (not durable), driving the app from the home or a scout"
     } > "$B"
     echo "wrote: tasks/$run.md"
-    uv run --project "$T/.." python -c '
+    uv run --project "${T:?the templates of jstack are not found}/.." python -c '
 import sys
 from jbriefs.parse import faults
 found = faults(open(sys.argv[1]).read())
