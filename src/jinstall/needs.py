@@ -40,6 +40,8 @@ from jinstall.kinds import (
     declared,
 )
 from jinstall.machine import Machine
+from jinstall.mirrored import Mirrored
+from jinstall.mirrored import declared as mirrors
 
 T3_FLOOR: str | None = None
 UV_FLOOR: tuple[int, ...] | None = None
@@ -89,6 +91,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  provider inventory            ProviderInventory
       hard      provider <id>                 ProviderInstance, for each declared instance
       hard      skills <home>                 HomeSkills, for each declared Claude home
+      optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
     Carried, in the order they are put. Uninstall walks them backwards:
       hard      ~/.claude/skills/<skill>      Link
@@ -147,6 +150,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     found += [
         Need(f"skills {each}", Level.HARD, HomeSkills(each, roots[0], repo / "skills"))
         for each in claude_homes(providers, home)
+    ]
+    found += [
+        Need(f"mirror {each.home}", Level.OPTIONAL, Mirrored(each))
+        for each in mirrors(inventory, home)
     ]
     found += [
         Need(str(root / skill), Level.HARD, Link(root / skill, repo / "skills" / skill))

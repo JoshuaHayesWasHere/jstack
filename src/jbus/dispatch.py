@@ -23,6 +23,11 @@ does not refuse it, whatever its `Design:`, `Proves it:`, `Skills:`, `Size:` or 
 line says, and `jbus queue show` lists such rows. What stops a launch is a brief that the go
 no longer holds for (`jbriefs.meaning`).
 
+Before a launch puts a thread on a mirror instance (`jroles.mirror`, a home of providers.json
+that is not the main one), `mirrored` asks `jroles mirror --check` of it. On drift
+it runs the mirror once and asks again, and an instance still not mirrored is passed over by
+the pool for the rest of the pass: the launch goes to the next instance with headroom, or waits.
+
 A file another brief names never stops a launch: each crew has its own worktree and branch.
 A launch that shares a path with a brief still out sends one `overlap` event, and that is
 all. The merge is where it is settled, and `jbus.rebase` tells the crew that must rebase.
@@ -39,11 +44,12 @@ from pathlib import Path
 from typing import Any
 
 import jroles
+import jroles.mirror
 from jbus import mainstate, queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
-from jroles import pool
+from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
 _PATH = re.compile(r"`([^`\s]+)`")
@@ -237,6 +243,48 @@ def settle_lost(run: Pass, client: Client) -> None:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
 
 
+def mirrored(run: Pass, slug: str, instance: str, checked: dict[str, bool]) -> bool:
+    """Whether a thread may be put on `instance`: it is no mirror of providers.json, or
+    `jroles mirror --check` finds it mirrored, at once or after one run of the mirror. The
+    answer is kept in `checked` for the pass, and an instance that is not mirrored is said for
+    each slug it stops."""
+    if instance not in checked:
+        try:
+            named = {one.instance for one in jroles.mirror.declared(Path.home())}
+        except jroles.Refused:
+            named = {instance}
+        asked = ("jroles", "mirror", "--instance", instance)
+        ok = instance not in named or run.run(*asked, "--check").returncode == 0
+        if not ok:
+            run.run(*asked)
+            ok = run.run(*asked, "--check").returncode == 0
+        checked[instance] = ok
+    if not checked[instance]:
+        run.say(f"wait {slug}: {instance} is not mirrored")
+    return checked[instance]
+
+
+def mirrored_choice(
+    run: Pass,
+    slug: str,
+    instances: tuple[str, ...],
+    checked: dict[str, bool],
+    here: str | None = None,
+    kept: ledger.Ledger | None = None,
+) -> pool.Choice:
+    """The pool's choice for `instances` with every instance that is not mirrored passed
+    over, on the ledger `kept`, as it is on disk where none is given. `here`, the instance a
+    thread is on already, is no move and is not asked."""
+    skip: dict[str, str] = {}
+    kept = ledger.read(instances) if kept is None else kept
+    while True:
+        choice = pool.choose(instances, kept, run.now, skip)
+        at = choice.instance
+        if at is None or at == here or mirrored(run, slug, at, checked):
+            return choice
+        skip[at] = f"{at} is not mirrored"
+
+
 def room(run: Pass, instance: str | None) -> tuple[str, list[str]]:
     """Why there is no room for a launch, or nothing, and the notes `jgauge room` gave. The
     plan's limits are read for `instance`, the one the launch goes to, or for the built-in
@@ -286,6 +334,7 @@ class Turns:
     world: World
     left: list[queue.Row]
     waited: dict[str, Any] = field(default_factory=dict)
+    checked: dict[str, bool] = field(default_factory=dict)
 
     def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str]]:
         """Read rows off `left`, and give each that only a slot can still stop, with its brief.
@@ -373,11 +422,20 @@ class Turns:
             except jroles.Refused as error:
                 run.gate(slug, "the role map gives the crew no model", str(error))
                 continue
+            if routed:
+                found = mirrored_choice(run, slug, routed.selection.instances, self.checked)
+                routed = pool.Route(routed.selection, found)
             choice = routed.choice if routed else pool.Choice(None, "")
             if routed and choice.instance is None:
                 line = f"wait {slug}: no launch: {choice.why}"
-                until = choice.until.isoformat() if choice.until else ""
-                if run.find(slug, "stall", f"stall {slug}: {choice.why}", key=f"capped {until}"):
+                if choice.until is None or choice.passed:
+                    run.say(line)
+                elif run.find(
+                    slug,
+                    "stall",
+                    f"stall {slug}: {choice.why}",
+                    key=f"capped {choice.until.isoformat()}",
+                ):
                     run.say(line)
                 run.reasons[slug] = Slot()
                 return NO_ROOM

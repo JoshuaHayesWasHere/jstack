@@ -136,6 +136,10 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
 
+Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](jroles.md#mirrors)).
+The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
+The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
+
 `install.sh` links every skill into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`. Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
