@@ -25,6 +25,7 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs import parse as briefs
+from jbriefs.home import thread_of
 from jbus import Refused, questions, queue, read_json, t3, verbs, wake, word, write_json
 from jbus.item import (
     OWNER,
@@ -351,7 +352,7 @@ def deliver(
             whose=whose.format(user=user, **line),
             **{**line, "words": line.get("words", "")},
         )
-        thread = word.home(home)
+        thread = thread_of(home)
         key = f"item|{project}|{line['item']}|{line['id']}"
         waits = word.post(client, thread, message, key)
         at = "" if waits else now.astimezone(UTC).isoformat(timespec="seconds")

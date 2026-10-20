@@ -39,19 +39,7 @@
            return
        fi
        before=$(awk '/^## / {review = ($(0) == "## Review")} review && /^Verdict: (clean|findings)$/ {n++} END {print n + 0}' "$B")
-       named=$(sed -n 's/^Home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$B" 2> /dev/null | head -n 1)
-       first() { awk 'NF {print $(1); exit}' "${1}" 2> /dev/null; }
-       was() { sed -n 's/^Was home:[[:space:]]*\([^[:space:]][^[:space:]]*\).*/\1/p' "${1}" 2> /dev/null | head -n 1; }
-       D=
-       if [ -n "$named" ] && [ "$named" != "$(first "$H/home-id")" ] && [ "$named" != "$(was "$H/handoff.md")" ]; then
-           D=$(find "$H/" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | sort | while IFS= read -r d; do
-               id=$(first "$d/home-id")
-               old=$(was "$d/handoff.md")
-               if [ -z "$id$old" ]; then continue; fi
-               if [ "${d##*/}" = "$named" ] || [ "$id" = "$named" ] || [ "$old" = "$named" ]; then echo "$H/${d##*/}"; fi
-           done | tail -n 1)
-       fi
-       D=${D:-$H}
+       D=$(uv run --project "$T/.." jbus home --directory "$B")
        scope=
        if [ "$D" != "$H" ]; then scope=${D##*/}; fi
        if [ "$before" = 0 ]; then

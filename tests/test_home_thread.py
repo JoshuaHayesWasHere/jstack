@@ -89,7 +89,7 @@ def about_the_home_id(skill):
     skill, the one that writes a home's own: step 3 of its start. For the handoff skill, the
     one that removes a home's own: its step 6."""
     own = {"home": '> "$M/home-id"', "handoff": 'rm -f "$M/home-id"'}
-    return block(skill, own.get(skill, '-s "$D/home-id"'))
+    return block(skill, own.get(skill, 'jbus home "$B"'))
 
 
 def start_block():
@@ -176,7 +176,8 @@ class Scene:
 
     def whom_to_tell(self, skill):
         """What the skill's own check prints in a worktree: the thread to tell, or nothing."""
-        return self.run(skill, about_the_home_id(skill), self.worktree).stdout
+        block = f'B="$H/tasks/{SLUG}.md"\n{about_the_home_id(skill)}'
+        return self.run(skill, block, self.worktree).stdout
 
 
 @pytest.fixture

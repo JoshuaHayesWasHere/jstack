@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import jsettings
+from jbriefs import home as home_rule
 from jbriefs import parse
 from jbus import mainstate
 from jmerge import claims, green, proof, rangediff, ready, rows, sweep
@@ -145,11 +146,6 @@ def rules_are_mains(package: Path) -> str | Behind:
         at = f"not behind origin/{default}" if on == default else f"on {on or 'no branch'}"
         return f"jmerge's own rules are not {default}'s: their checkout is {at}"
     return Behind(package, default)
-
-
-def _was(handoff: Path) -> str:
-    was = re.search(r"^Was home:[ \t]*(\S+)", _read(handoff), re.M)
-    return was[1] if was else ""
 
 
 class Checked(NamedTuple):
@@ -462,9 +458,8 @@ class Repo:
         self.numbers_on: set[int] | None = None
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
-        self.listed = _first_word(_read(state / "home-id"))
+        self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
-        self.was = _was(state / "handoff.md")
 
     @functools.cached_property
     def queue(self) -> list[dict] | None:
@@ -543,10 +538,8 @@ class Repo:
     @functools.cached_property
     def homes(self) -> Homes:
         named, running = {}, {}
-        for scope in sorted(path for path in self.state.glob("*") if path.is_dir()):
-            now, was = _first_word(_read(scope / "home-id")), _was(scope / "handoff.md")
-            if now or was:
-                named.update(dict.fromkeys(filter(None, [scope.name, now, was]), scope.name))
+        for scope, now, was in home_rule.scopes(self.state):
+            named.update(dict.fromkeys(filter(None, [scope.name, now, was]), scope.name))
             if now:
                 running[now] = scope.name
         named.update(dict.fromkeys(filter(None, [self.listed, self.was]), claims.ROOT))
