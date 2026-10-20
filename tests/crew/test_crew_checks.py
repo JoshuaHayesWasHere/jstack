@@ -31,7 +31,7 @@ class Pushed:
 
     def says(self):
         ran = subprocess.run(
-            ["sh", "-c", block("Stay on the pull request", "jmerge --checks").replace("<slug>", "alpha")],
+            ["sh", "-c", block("Stay on the pull request", "--checks").replace("<slug>", "alpha")],
             capture_output=True,
             text=True,
             cwd=self.work,
