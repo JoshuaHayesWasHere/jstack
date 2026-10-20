@@ -429,7 +429,7 @@ def _t3(args: argparse.Namespace, config: Config) -> int:
     if config.runtime_mode:
         arguments["runtimeMode"] = config.runtime_mode
     try:
-        routed = pool.route("crew", datetime.now(UTC))
+        (routed,) = pool.routes("crew", datetime.now(UTC)) or (None,)
     except jroles.Refused as error:
         raise Refused(str(error)) from error
     if routed and routed.choice.instance is None:

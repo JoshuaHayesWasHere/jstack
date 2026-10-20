@@ -348,7 +348,7 @@ class Turns:
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
             try:
-                routed = pool.route("crew", run.now)
+                (routed,) = pool.routes("crew", run.now) or (None,)
             except jroles.Refused as error:
                 run.gate(slug, "the role map gives the crew no model", str(error))
                 continue

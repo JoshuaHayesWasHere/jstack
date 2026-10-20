@@ -100,6 +100,67 @@ def test_every_finding_has_its_ending_before_the_fixed_line_is_written(brief, sa
     assert said(tmp_path, "The review", "Finding:", brief) == [says]
 
 
+def by(who, findings, head="a" * 40):
+    """A section one reviewer of several wrote: its `By:` line and the head it saw."""
+    listed = "".join(f"- {finding}\n" for finding in findings) or "- none\n"
+    return (
+        f"\n## Review\nBy: {who}\nVerdict: findings\nHead: {head}\nFindings:\n{listed}Dropped: 0\n"
+    )
+
+
+LAUNCHED = "Reviewer: mcp:codex\nReviewer: mcp:cursor\n"
+
+
+@pytest.mark.parametrize(
+    ("brief", "says"),
+    [
+        pytest.param(
+            BRIEF + LAUNCHED + by("codex gpt-6-sol xhigh", TWO[:1]),
+            "wait: 1 of 2 reviewers have written their section",
+            id="one of two reviewers written waits, whatever its findings",
+        ),
+        pytest.param(
+            BRIEF + LAUNCHED + FIXED_ONE + by("codex gpt-6-sol xhigh", TWO[:1]),
+            "wait: 1 of 2 reviewers have written their section",
+            id="an ending written early does not stand for the reviewer still out",
+        ),
+        pytest.param(
+            BRIEF
+            + LAUNCHED
+            + FIXED_ONE
+            + ANSWERED_ONE
+            + by("codex gpt-6-sol xhigh", TWO[:1])
+            + by("cursor grok-4.7 xhigh", TWO[1:]),
+            "write Fixed: <the head you pushed>, 2 findings each have their ending",
+            id="the sections of one head are one review, and a fix for either is a fix",
+        ),
+        pytest.param(
+            BRIEF
+            + LAUNCHED
+            + ANSWERED_ONE * 2
+            + by("codex gpt-6-sol xhigh", TWO[:1])
+            + by("cursor grok-4.7 xhigh", TWO[1:]),
+            "write Fixed: none needed, <reason>: 2 findings, none fixed",
+            id="both declined is none needed",
+        ),
+        pytest.param(
+            BRIEF
+            + LAUNCHED
+            + FIXED_ONE
+            + ANSWERED_ONE
+            + ANSWERED_ONE
+            + by("codex gpt-6-sol xhigh", TWO[:1])
+            + by("cursor grok-4.7 xhigh", TWO[1:])
+            + by("codex gpt-6-sol xhigh", TWO[1:], head="b" * 40),
+            "write Fixed: none needed, <reason>: 1 findings of the last review, none fixed",
+            id="a scoped review after the pair is the last review, and the pair is not",
+        ),
+    ],
+)
+def test_with_two_reviewers_the_findings_wait_for_both_and_are_one_review(brief, says, tmp_path):
+    assert said(tmp_path, "The review", "Finding:", brief) == [says]
+
+
 OLD_NONE = "Second pass: none, the fix stayed inside the files the findings named"
 
 

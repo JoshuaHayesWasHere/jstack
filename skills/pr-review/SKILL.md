@@ -84,18 +84,43 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
 
 ### Start
 
-1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. Then decide whether this message may start a review, with this, putting the message this thread was started with, whole, in place of the words in angle brackets:
+1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. Then work out who this reviewer is, and then whether this message may start a review.
+
+   Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on. Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first). Run this with the block at the top, with what it printed, whole, and the message this thread was started with in place of the words in angle brackets. Keep what it prints, the `By:` line:
+
+   ```sh
+   asked='<the message this thread was started with, whole>'
+   config='<what t3_thread_configuration printed, or nothing where this session has no such tool>'
+   case $config in "<"*) config= ;; esac
+   by=$(printf '%s' "$config" | jq -r '.modelSelection | [(.provider // .instanceId), .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
+   if [ -z "$by" ]; then
+       n=$(printf '%s\n' "$asked" | awk '$(4) ~ /^[0-9]+$/ {print $(4); exit} {print 1}')
+       by=$(uv run --project "$T/.." jroles review 2> /dev/null | sed -n "${n}p" |
+           jq -r '[.provider, .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
+   fi
+   echo "By: ${by:-inherit}"
+   ```
+
+   Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value, so two reviewers of one pull request have two `By:` lines: `By: codex gpt-6-sol xhigh` and `By: cursor grok-4.7 xhigh`. Only a session with no `t3_thread_configuration` falls back on the line of the role map's review list the message's number names, as `jroles review` prints it now, and on `By: inherit` where it prints none. Then decide whether this message may start a review, with this, with the same message and that `By:` line in place of the words in angle brackets:
 
    ```sh
    B="$H/tasks/<slug>.md"
    asked='<the message this thread was started with, whole>'
+   by='<the By: line the block above printed>'
    case $asked in
    "/pr-review run <slug> scoped "*) echo "go: a scoped pass, as \"A scoped pass\" says" ;;
+   *" again") echo "go: a second pass, or the review the brief is still owed, the message ends in again" ;;
+   "/pr-review run <slug> "[0-9]*)
+       if awk -v by="$by" '/^## / {review = ($(0) == "## Review")} review && $(0) == by {found = 1} END {exit !found}' "$B"; then
+           echo "stop: the brief has a ## Review with $by, and a reviewer writes one section for its line"
+           echo "the line I accept: /pr-review run <slug> again"
+           sed 's|{slug}|<slug>|g' "$T/rerun.md"
+       else
+           echo "go: the brief has no ## Review with $by, so this is that line's review"
+       fi ;;
    *)
        if ! grep -qx '## Review' "$B"; then
            echo "go: the brief has no ## Review, so this is the review it is owed"
-       elif [ "${asked##* }" = again ]; then
-           echo "go: a second pass, the brief has a ## Review and the message ends in again"
        else
            echo "stop: the brief has a ## Review and the message does not end in again"
            echo "the line I accept: /pr-review run <slug> again"
@@ -104,7 +129,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    esac
    ```
 
-   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none. On `stop`, say what it printed, the line it would accept included, and end: no review, no section. On `go`, go on. `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works. The message of a first launch is the plain `/pr-review run <slug>`.
+   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none. A message that ends in a number is one reviewer of several, launched on that line of the role map's review list: it writes its own section beside the others', at the same head, and it is refused only where a section with its own `By:` line is there. On `stop`, say what it printed, the line it would accept included, and end: no review, no section. On `go`, go on. `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works. The message of a first launch is the plain `/pr-review run <slug>`.
    - Read the brief's `Review:` line as above. If it is `none`, say that its brief asks for no review, and stop: no review, no message to the crewmate, no section.
 2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
 3. Check the ground, and stop with the reason if any line fails:
@@ -121,33 +146,37 @@ When "Start" is done, and whenever a step names "The review" or one of its steps
 A reviewer that gives up says so, to the crewmate and in the brief, so that the pull request never waits for a review nobody is going to run. It gives up only on exit 69 of the block of step 1, which is its sixth send that did not go on.
 
 1. See where the line goes: the block of step 4 of "After the review", with `not run` for the verdict. Send that thread one line with `t3_thread_send`, and on `home` the thread "Telling the home" finds: `<slug>: the review of <url> at <the head kept at the start> was not run. The run block was sent six times and never went on, and its last answer was "<the last line it printed>". This pass reviewed nothing, and the pull request waits for the user's word: park a gate.`
-2. Write the section. Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed, and the thread id the line went to in place of the words in angle brackets. Where the line went to nobody, `sent` is the two words `not sent`:
+2. Write the section. Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed, the `By:` line Start printed, and the thread id the line went to in place of the words in angle brackets. Where the line went to nobody, `sent` is the two words `not sent`:
 
    ```sh
    B="$H/tasks/<slug>.md"
    kept='<the head kept at the start>'
    why='<the last line the block of step 1 printed>'
    sent='<the thread id the line went to, or the two words "not sent">'
+   by='<the By: line Start printed>'
+   case $by in "<"*) by= ;; esac
    [ -f "$B" ] || { echo "no section: there is no brief at $B"; exit 1; }
    case $sent in
    "" | "not sent"* | "<"*)
        echo "no section: the line went to nobody, so the brief stays as it is and jbus tells the crewmate that no review came"
        exit 0 ;;
    esac
-   if awk -v kept="$kept" '/^## / {last = $(0); verdict = head = ""} /^Verdict:/ {verdict = $(0)} /^Head:/ {head = $(2)} END {exit !(last == "## Review" && verdict == "Verdict: not run" && head == kept)}' "$B"; then
+   if awk -v kept="$kept" -v by="$by" '/^## / {last = $(0); verdict = head = mine = ""} /^Verdict:/ {verdict = $(0)} /^Head:/ {head = $(2)} /^By: / {mine = $(0)} END {exit !(last == "## Review" && verdict == "Verdict: not run" && head == kept && mine == by)}' "$B"; then
        echo "no section: the brief already ends in a review of $kept that was not run"
        exit 0
    fi
    {
        [ -z "$(tail -c1 "$B")" ] || echo
-       printf '\n## Review\nVerdict: not run\n'
+       printf '\n## Review\n'
+       if [ -n "$by" ]; then printf '%s\n' "$by"; fi
+       printf 'Verdict: not run\n'
        printf 'Why: the run block was sent six times and never went on, and its last answer was "%s"\n' "$why"
        printf 'Head: %s   Unchanged by the review: not checked, no review ran\n' "$kept"
        printf 'Sent to: %s\n' "$sent"
    } >> "$B" && echo "written: ## Review with Verdict: not run, in $B"
    ```
 
-   The section is not a review: `jmerge` reads it as a review with no verdict and merges nothing on it. Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict"). It is written only when the crewmate was told. A section nobody was told of would hide the pull request from jbus, which tells a crewmate of a pull request with no review (`unreviewed`) or with no second pass (`second`) and of nothing else here. Sent a second time for the same head, the block writes no second section.
+   The section is not a review: `jmerge` reads it as a review with no verdict and merges nothing on it. Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not. Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict"). It is written only when the crewmate was told. A section nobody was told of would hide the pull request from jbus, which tells a crewmate of a pull request with no review (`unreviewed`) or with no second pass (`second`) and of nothing else here. Sent a second time for the same head, the block writes no second section.
 3. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
 
 ### After the review

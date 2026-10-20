@@ -96,10 +96,91 @@ def test_a_role_named_twice_is_a_bad_line(roles):
     assert roles("crew", text) == ("", "bad line 2: crew: grok grok-build\n")
 
 
-def test_a_provider_that_is_not_one_of_the_three_is_refused(roles):
-    text = "crew: cursor composer-2\nscout: grok grok-build\n"
-    assert roles("crew", text) == ("", "refused crew: cursor is not Claude, Codex or Grok\n")
+def test_a_provider_that_is_not_one_of_the_four_is_refused(roles):
+    text = "crew: opencode composer-2\nscout: grok grok-build\n"
+    assert roles("crew", text) == (
+        "",
+        "refused crew: opencode is not Claude, Codex, Cursor or Grok\n",
+    )
     assert roles("scout", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+
+
+DUAL = """review: codex gpt-6-sol effort=xhigh
+review: cursor grok-4.7 effort=xhigh fast=off
+"""
+
+
+def test_two_review_lines_print_two_selections_in_order_each_with_its_own_option_ids(roles):
+    assert roles("review", DUAL) == (
+        '{"provider": "codex", "model": "gpt-6-sol", "options": [{"id": "reasoningEffort", '
+        '"value": "xhigh"}]}\n'
+        '{"provider": "cursor", "model": "grok-4.7", "options": [{"id": "reasoning_effort", '
+        '"value": "xhigh"}, {"id": "fastMode", "value": false}]}\n',
+        "",
+    )
+    flipped = "".join(reversed(DUAL.splitlines(keepends=True)))
+    assert [json.loads(line)["provider"] for line in roles("review", flipped).out.splitlines()] == [
+        "cursor",
+        "codex",
+    ]
+
+
+def test_a_review_list_leaves_the_other_roles_one_line_each(roles):
+    assert roles("crew", MAP.replace("review: inherit\n", DUAL)) == (
+        '{"provider": "codex", "model": "gpt-5-codex"}\n',
+        "",
+    )
+
+
+@pytest.mark.parametrize(
+    ("line", "options"),
+    [
+        ("review: cursor grok-4.7", None),
+        ("review: cursor grok-4.7 fast=on", [{"id": "fastMode", "value": True}]),
+        ("review: cursor grok-4.7 fast=off", [{"id": "fastMode", "value": False}]),
+        ("review: codex gpt-6-sol cx-work effort=max", [{"id": "reasoningEffort", "value": "max"}]),
+        ("review: claudeAgent claude-opus-5-5", [{"id": "effort", "value": "medium"}]),
+    ],
+)
+def test_each_provider_names_its_effort_and_fast_by_its_own_option_id(roles, line, options):
+    selection = json.loads(roles("review", line + "\n").out)
+    assert selection.get("options") == options
+
+
+@pytest.mark.parametrize(
+    ("line", "why"),
+    [
+        ("review: claudeAgent claude-opus-5-5 effort=high", "effort=high is not low or medium"),
+        (
+            "review: codex gpt-6-sol effort=turbo",
+            "effort=turbo is not low, medium, high, xhigh, max or ultra",
+        ),
+        ("review: cursor grok-4.7 effort=max", "effort=max is not low, medium, high or xhigh"),
+        ("review: cursor grok-4.7 fast=maybe", "fast=maybe is not on or off"),
+        ("review: codex gpt-6-sol fast=off", "only a Cursor line names fast"),
+        ("review: grok grok-build effort=low", "a Grok line names no effort"),
+    ],
+)
+def test_a_level_the_provider_does_not_list_refuses_every_review_line(roles, line, why):
+    """One refused line refuses the list: half a list of reviewers is a review nobody chose."""
+    text = f"review: codex gpt-6-sol effort=xhigh\n{line}\ncrew: grok grok-build\n"
+    assert roles("review", text) == ("", f"refused review: {why}\n")
+    assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "review: inherit",
+        "review: cursor grok-4.7 fast=off fast=on",
+        "review: cursor grok-4.7 effort=low effort=high",
+        "review: cursor fast=off grok-4.7",
+        "review: cursor grok-4.7 speed=fast",
+    ],
+)
+def test_inherit_beside_a_review_line_and_a_word_named_twice_are_bad_lines(roles, line):
+    text = f"review: codex gpt-6-sol\n{line}\n"
+    assert roles("review", text) == ("", f"bad line 2: {line}\n")
 
 
 def test_a_map_that_cannot_be_read_is_said_on_stderr_and_the_launch_inherits(
@@ -130,13 +211,15 @@ def test_with_no_xdg_config_home_the_map_is_under_the_home_directory(tmp_path, m
     assert capsys.readouterr().out == '{"provider": "grok", "model": "grok-build"}\n'
 
 
-@pytest.mark.parametrize("role", ["crew", "scout"])
-def test_what_it_prints_is_a_model_selection_the_launch_tool_takes(roles, role):
-    selection = json.loads(roles(role, MAP).out)
+@pytest.mark.parametrize(("role", "text"), [("crew", MAP), ("scout", MAP), ("review", DUAL)])
+def test_what_it_prints_is_a_model_selection_the_launch_tool_takes(roles, role, text):
+    selections = [json.loads(line) for line in roles(role, text).out.splitlines()]
     twins = [call for call in LAUNCHES if "modelSelection" in call.given]
+    assert selections
     assert twins
     for twin in twins:
-        assert errors(twin, {**twin.given, "modelSelection": selection}) == []
+        for selection in selections:
+            assert errors(twin, {**twin.given, "modelSelection": selection}) == []
 
 
 @pytest.mark.parametrize(
@@ -162,11 +245,7 @@ def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, level)
     assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
 
 
-def test_only_a_claude_line_names_an_effort_and_only_last(roles):
-    assert roles("crew", "crew: codex gpt-5-codex effort=low\n") == (
-        "",
-        "refused crew: only a Claude line names an effort\n",
-    )
+def test_an_effort_comes_after_the_model_and_instance(roles):
     line = "crew: claudeAgent effort=low claude-opus-5-5"
     assert roles("crew", line + "\n") == ("", f"bad line 1: {line}\n")
     line = "crew: claudeAgent claude-opus-5-5 a b effort=low"
@@ -255,6 +334,24 @@ def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
     both = f"claudeAgent and {PRIME} are both capped until 2026-10-18T20:00:00+00:00"
     assert pooled("crew") == (75, "", f"jroles: crew waits: {both}\n")
     assert pooled("review")[0] == 75
+
+
+def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_nothing(pooled):
+    """Half a list of reviewers is a review nobody chose: every line waits for the reset."""
+    (pooled.config / "roles").write_text(
+        "review: codex gpt-6-sol codex effort=xhigh\n"
+        f"review: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    assert [json.loads(line)["provider"] for line in pooled("review")[1].splitlines()] == [
+        "codex",
+        "claudeAgent",
+    ]
+    cap("codex", WEEKLY)
+    assert pooled("review") == (
+        75,
+        "",
+        "jroles: review waits: codex is capped until 2026-10-18T20:00:00+00:00\n",
+    )
 
 
 def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):

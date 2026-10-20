@@ -824,10 +824,10 @@ fi
 It prints the brief's mode, then what to do. The mode is the brief's `Review:` line, the first line that starts with it: `none`, or `review` for anything else. A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do. The same words inside the task's text or a result do not count.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
-- `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of that line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
-- `review`, and `launch a reviewer`: launch one. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
+- `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
+- `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
-To launch one, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread. Then add the line `Reviewer: <threadId>` to the Result, and go on as "Stay on the pull request" says. Do not wait for the reviewer or read its thread.
+To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread: each line `jroles review` prints is one reviewer, told its number. Then add one line `Reviewer: <threadId>` to the Result for each, in the order they were launched, and go on as "Stay on the pull request" says. Do not wait for the reviewer or read its thread.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
@@ -844,7 +844,7 @@ fi
 
 On `tell the home`, add the line, then send the thread that hears of a pull request ("Telling the home") one line: `<slug>: <pull request url> at <full head commit> is green and has no review (<the brief says Review: none, or no launch tool in this session>): it waits for the user's word`. The pull request is green by now, since that is when this section is reached. On `send nothing`, the line is there and the home has been told, or jbus merges and it was not to be: one message, not one per wake.
 
-The findings come back as a message in this thread. The reviewer sends it to the thread on the brief's `Thread:` line, home or no home. When the reviewer could not send it, jbus does, once, and that message begins `jbus: the reviewer could not deliver these findings.` and holds the `## Review` section whole: it is the same wake. Fix what you agree with and say here why for the rest, each by its severity as below. Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again. Handling the findings sends the home nothing. A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
+The findings come back as a message in this thread, one from each reviewer. With more than one reviewer, push nothing for the findings until each has written its section: the block below prints `wait` until then, and on it end your turn, since the last reviewer's message wakes this thread. Then the findings of all of them are handled together, and pushed once. The reviewer sends it to the thread on the brief's `Thread:` line, home or no home. When the reviewer could not send it, jbus does, once, and that message begins `jbus: the reviewer could not deliver these findings.` and holds the `## Review` section whole: it is the same wake. Fix what you agree with and say here why for the rest, each by its severity as below. Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again. Handling the findings sends the home nothing. A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
 
 Every finding ends one of two ways, and none is left unanswered. Add one line to the Result for each, in one of these two shapes:
 
@@ -860,7 +860,10 @@ Then run this, with the block at the top. It counts the findings in the brief's 
 ```sh
 B="$H/tasks/<slug>.md"
 awk '
-    /^## / {review = ($(0) == "## Review"); list = 0; if (review) {written = 1; before = found}}
+    /^## / {review = ($(0) == "## Review"); list = 0; if (review) {written = 1; was = before; before = found}}
+    review && /^Head:/ {if ($(2) == round) before = was; round = $(2)}
+    review && /^By: / && !($(0) in by) {by[$(0)]; wrote++}
+    /^Reviewer: / && $(2) !~ /^none/ {named++}
     review && /^Findings:/ {list = 1; next}
     /^Dropped:/ {list = 0}
     list && /^- / && $(0) != "- none" {found++}
@@ -869,6 +872,7 @@ awk '
     END {
         for (i = before + 1; i <= ended; i++) last += mended[i]
         if (!written) print "wait: the review is not written in the brief yet"
+        else if (named > 1 && wrote < named) print "wait: " wrote + 0 " of " named " reviewers have written their section"
         else if (ended < found) print "not yet: " found - ended " of " found " findings have no Finding: line"
         else if (before && found > before && !last) print "write Fixed: none needed, <reason>: " found - before " findings of the last review, none fixed"
         else if (fixed) print "write Fixed: <the head you pushed>, " found " findings each have their ending"
@@ -877,7 +881,7 @@ awk '
     }' "$B"
 ```
 
-On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `not yet`, a finding has no ending: give it one. Otherwise it says which `Fixed:` line to write. It counts and does not match: it cannot tell which finding a line is about, so two lines for one finding pass for two. A finding is a line that starts `- ` between `Findings:` and `Dropped:`, so one that wraps or follows a blank line is still counted, and a review with no `Dropped:` line counts every such line to the end of its section. After a second pass or a scoped review the findings of every review are counted, and the earlier `Finding:` lines stay and answer the earlier findings: add the new ones under them, since the block reads them in order. The lines past the count of the earlier reviews' findings answer the last review, and where that review has findings and none of them is fixed, the block says `none needed` whatever an earlier pass fixed. The `Finding:` lines say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head: `jmerge` reads only the `Fixed:` line, and merges on it.
+On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no ending: give it one. Otherwise it says which `Fixed:` line to write. It counts and does not match: it cannot tell which finding a line is about, so two lines for one finding pass for two. A finding is a line that starts `- ` between `Findings:` and `Dropped:`, so one that wraps or follows a blank line is still counted, and a review with no `Dropped:` line counts every such line to the end of its section. After a second pass or a scoped review the findings of every review are counted, and the earlier `Finding:` lines stay and answer the earlier findings: add the new ones under them, since the block reads them in order. The sections of one head are one review, one from each reviewer. The lines past the count of the earlier reviews' findings answer the last review, and where that review has findings and none of them is fixed, the block says `none needed` whatever an earlier pass fixed. The `Finding:` lines say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head: `jmerge` reads only the `Fixed:` line, and merges on it.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 
