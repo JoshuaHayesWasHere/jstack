@@ -56,7 +56,7 @@ Each value is one word with no space and no comma. A file with any other key, or
 server = "http://127.0.0.1:<port>"
 runtimeMode = "full-access"
 dispatch = true
-max_running = 16
+max_running = 24
 
 [[project]]
 name = "<project>"
@@ -74,7 +74,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
 | `dispatch` | `true` | `dispatch = false` launches nothing. |
-| `max_running` | `16` | How many crewmates may be out at once, counted across every project. A value under 1 is refused. |
+| `max_running` | `24` | How many crewmates may be out at once, counted across every project. A value under 1 is refused. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days before the sign-in runs out its gate starts. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
