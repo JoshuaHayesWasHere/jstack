@@ -1111,10 +1111,17 @@ class Repo:
         return ", ".join([f'merged {number} {slug} {commit} "{one.title}"', *notes])
 
 
-def _running(tree: str) -> int:
+PROC = Path("/proc")
+
+
+def _running(tree: str) -> int | None:
+    try:
+        os.readlink(PROC / "self" / "cwd")
+    except OSError:
+        return None
     inside = os.path.realpath(tree)
     found = []
-    for entry in Path("/proc").glob("[0-9]*"):
+    for entry in PROC.glob("[0-9]*"):
         try:
             at = os.readlink(entry / "cwd")
         except OSError:

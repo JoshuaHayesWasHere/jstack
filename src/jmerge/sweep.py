@@ -37,7 +37,7 @@ class Found:
     trees: str = ""
     dirty: bool = False
     stray: tuple[str, ...] = ()
-    pid: int = 0
+    pid: int | None = 0
     based: str = ""
 
 
@@ -124,6 +124,8 @@ def kept(record: Record, found: Found) -> str:
         if found.merged:
             where += " or in its merged pull request"
         return f"{'unpushed, ' if ref == LOCAL else ''}{ref} has a commit that is not in {where}"
+    if found.pid is None:
+        return f"no process list could be read to tell whether a process is running in {found.tree}"
     if found.pid:
         return f"a process is running in {found.tree} (pid {found.pid})"
     return found.based

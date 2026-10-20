@@ -15,6 +15,7 @@ import pytest
 import daemons
 import test_scout as scout
 from jbus import mirror
+from jmerge import cli
 from test_home_merge import NAME, git
 
 THREAD = "mcp:thread-of-{}"
@@ -495,6 +496,27 @@ def test_a_worktree_a_process_is_running_in_is_kept(scene):
     finally:
         running.kill()
         running.wait()
+    assert scene.look() == [removable("scout-find-out", WORKTREE, LOCAL)]
+
+
+def test_a_worktree_is_kept_when_no_process_list_can_be_read(scene, monkeypatch, capsys, tmp_path):
+    tree = scene.scout("find-out")
+    home = scene.home
+    for name, value in {
+        "HOME": str(home.user),
+        "PATH": f"{home.stub}:{os.environ['PATH']}",
+        "STUB": str(home.stub),
+        "ORIGIN": str(home.origin),
+    }.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.chdir(scene.main)
+    monkeypatch.setattr(cli, "PROC", tmp_path / "no-proc")
+    before = scene.everything()
+    assert cli.main(["--sweep"]) == 0
+    why = f"no process list could be read to tell whether a process is running in {tree}"
+    assert capsys.readouterr().out.splitlines() == [f"kept scout-find-out: {why}"]
+    assert scene.everything() == before
+    monkeypatch.undo()
     assert scene.look() == [removable("scout-find-out", WORKTREE, LOCAL)]
 
 
