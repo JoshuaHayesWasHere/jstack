@@ -505,10 +505,12 @@ def built(root):
     """The template, made in `root` by the git processes a kitchen's `repo` started each time.
 
     The fetch names the origin's path in FETCH_HEAD, which a copy would keep, so the file
-    goes: nothing in the kitchen reads it.
+    goes: nothing in the kitchen reads it. A build that failed partway leaves its files in
+    `root`, so the root is emptied first, and the next try fails on its own cause.
     """
     plain, checkout, origin = root / "plain", root / "checkout", root / "origin.git"
-    root.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(root, ignore_errors=True)
+    root.mkdir(parents=True)
     for args, cwd in (
         (("init", "-q", "-b", "main", str(plain)), root),
         (("commit", "-q", "--allow-empty", "-m", "start"), plain),
