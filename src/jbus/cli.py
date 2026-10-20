@@ -490,15 +490,14 @@ def poll(
         guarded(REMINDER, lambda: signin.remind(config, now))
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
-        for key in (alert.PASS, alert.STALE):
-            if raised:
-                break
-            recovered = alert.ok(config.state_dir, key, user=config.user)
-            for half in halves:
-                name = half.run.project.name
-                guarded(name, lambda half=half, line=recovered: alert.deliver(half.run, line))
-            if recovered and not raised:
-                alert.told(config.state_dir, key)
+        if not raised:
+            for key in (alert.PASS, alert.STALE):
+                recovered = alert.ok(config.state_dir, key, user=config.user)
+                for half in halves:
+                    name = half.run.project.name
+                    guarded(name, lambda half=half, line=recovered: alert.deliver(half.run, line))
+                if recovered and not raised:
+                    alert.told(config.state_dir, key)
         report = status(config, now)
         if report["homes_off_bus"] != last.get("homes_off_bus", []):
             say(f"homes not on the bus: {', '.join(report['homes_off_bus']) or 'none'}")
