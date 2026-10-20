@@ -94,25 +94,6 @@
   <pre id="copy" hidden></pre>
 </div></div>
 
-<!--
-  The round. This block is the only part of the file a thread writes for a grill. A scout's page
-  may also put sections of its report in <main>, above the one with id "settled-sec". The script
-  and the rest of the markup stay as they are.
-
-  slug      the page's name, as in grill-<slug>.html
-  round     the number of the open round, from 1
-  title     the page's heading
-  lead      one paragraph under it (optional)
-  settled   the answers of the earlier rounds, oldest first, each
-            { "round", "id", "title", "answer", "left_as_recommended", "note" }
-  questions the open round, each { "id", "title", "body", "options" }, where an option is
-            { "id", "label", "why" } and exactly one option also has "recommended": true.
-            A gate adds "built_on" and "undo". No two questions share an id, and no two
-            options of one question do. The page says so itself when a rule here is broken.
-
-  Text is shown as written, never as markup. A word between backticks is shown as code, and
-  a blank line in a body starts a new paragraph.
--->
 <script type="application/json" id="round-data">
 {
   "slug": "example",
@@ -137,12 +118,12 @@
 <script>
 (function () {
   'use strict';
+  var LAVISH_RESTORES_PICKS_WITHIN_MS = 400;
   var cards = [];
   var sent = false;
 
   function byId(id) { return document.getElementById(id); }
   function twice(ids) { return ids.filter(function (id, i) { return ids.indexOf(id) !== i; }); }
-  // The block is written by hand each round: what is wrong with it, in words for the page.
   function problemsOf(text) {
     var round;
     try { round = JSON.parse(text); } catch (err) { return { found: ['The round is not valid JSON: ' + err.message] }; }
@@ -182,8 +163,7 @@
     return;
   }
   var data = read.round;
-  // Text with `code` spans becomes nodes, never markup.
-  function rich(parent, text) {
+  function appendTextWithCode(parent, text) {
     String(text).split('`').forEach(function (part, i) {
       if (!part) return;
       if (i % 2) { var c = document.createElement('code'); c.textContent = part; parent.appendChild(c); }
@@ -194,20 +174,18 @@
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
-    if (text !== undefined) rich(n, text);
+    if (text !== undefined) appendTextWithCode(n, text);
     return n;
   }
   function plain(text) { return String(text).replace(/`/g, ''); }
   function gateLine(name, text) {
     var p = el('p', 'gate');
     p.appendChild(el('b', '', name));
-    return rich(p, text);
+    return appendTextWithCode(p, text);
   }
 
   function card(q) {
     var form = el('form', 'q');
-    // Lavish puts back a session's picks by this name after a reload, so it carries the round:
-    // a question asked again in a later round starts from its recommended option.
     form.setAttribute('data-lavish-question', data.round + ':' + q.id);
     form.addEventListener('submit', function (ev) { ev.preventDefault(); });
     form.appendChild(el('div', 'id', q.id));
@@ -269,9 +247,9 @@
   function state(text) { byId('state').textContent = text; }
 
   document.title = plain(data.title) + ': round ' + data.round;
-  rich(byId('eyebrow'), '`' + data.slug + '` · round ' + data.round);
-  rich(byId('title'), data.title);
-  rich(byId('lead'), data.lead || '');
+  appendTextWithCode(byId('eyebrow'), '`' + data.slug + '` · round ' + data.round);
+  appendTextWithCode(byId('title'), data.title);
+  appendTextWithCode(byId('lead'), data.lead || '');
   byId('round-title').textContent = 'Round ' + data.round;
   (data.settled || []).forEach(function (a) {
     var tr = el('tr');
@@ -297,7 +275,6 @@
       sent = true;
       state('sent');
     } else {
-      // What Lavish would have sent, as its poll returns it.
       var box = byId('copy');
       box.textContent = text + '\n\nContext data:\n' + JSON.stringify(context(list), null, 2);
       box.hidden = false;
@@ -306,8 +283,7 @@
   });
 
   count();
-  // Lavish puts back picks and notes after a reload without firing an event: count again once it has.
-  window.addEventListener('load', function () { setTimeout(count, 400); });
+  window.addEventListener('load', function () { setTimeout(count, LAVISH_RESTORES_PICKS_WITHIN_MS); });
 })();
 </script>
 </body>
