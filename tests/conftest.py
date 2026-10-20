@@ -20,7 +20,9 @@ No test leaves a daemon running: one starts it with `daemons.start`, and the aut
 that is killed takes its daemons with it (`tests/daemons.py` says how).
 
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
-one project.
+one project. Its repo, a checkout and its origin, is a copy of one built once for each worker
+in the directory `kitchen_template` gives (`repo_template`), so a kitchen starts no git
+process to make it.
 
 A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`;
 one of a guarded path asks for `rules`, the package with a list that guards five paths, and
@@ -35,6 +37,7 @@ import os
 import pytest
 
 import daemons
+import repo_template
 from jbus import item, record
 from test_jbus_kitchen import Kitchen
 
@@ -102,6 +105,17 @@ def no_machine_state(tmp_path_factory, monkeypatch):
 def named_user(jstack_config):
     """The settings name a user, so a level and a kind of event had that name once."""
     jstack_config.write_text(NAMED)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def kitchen_template(tmp_path_factory):
+    """Where this worker builds the repos every kitchen's `repo` and every `Home` copies.
+
+    They are built on the first copy, so a run that asks for none starts no git process.
+    """
+    repo_template.root = tmp_path_factory.mktemp("kitchen-template")
+    yield
+    repo_template.template, repo_template.root = None, None
 
 
 @pytest.fixture
