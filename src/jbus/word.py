@@ -52,7 +52,7 @@ import fcntl
 import hashlib
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
@@ -347,23 +347,20 @@ def _deliver(half: Half) -> None:
         half.run.gate(half.run.project.name, "words.json does not parse", str(path(half.run.state)))
 
 
-def scratch(half: Half) -> None:
-    """The whole pass of each scratch home: its words that wait go to its thread. A scratch
-    home is no project of the pass (`jbus.load`), so this step runs once a pass, in the first
-    project's. One whose `words.json` does not parse is said, and is no gate: a scratch home
-    has no webhook to ask it on."""
-    run = half.run
-    if run.project != run.config.projects[0]:
-        return
-    for one in run.config.scratch:
-        home = Pass(run.config, one.addressee(), run.now, run.say)
+def scratch(
+    config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
+) -> None:
+    """The whole pass of each scratch home, a chore of the pass: its words that wait go to its
+    thread. A scratch home is no project of the pass (`jbus.load`), so it is no step of one.
+    One whose `words.json` does not parse is said, and is no gate: a scratch home has no
+    webhook to ask it on."""
+    for one in config.scratch:
+        run = Pass(config, one.addressee(), now, say)
         try:
-            deliver(home, half.client)
+            deliver(run, client)
         except Unparsable as error:
-            run.say(f"wait {one.name}: {error}")
+            say(f"wait {one.name}: {error}")
 
 
-STEPS = (
-    verbs.Step("before-watch", 10, "word.deliver", _deliver),
-    verbs.Step("before-watch", 50, "word.scratch", scratch),
-)
+STEPS = (verbs.Step("before-watch", 10, "word.deliver", _deliver),)
+CHORES = (verbs.Chore(20, "the scratch homes", scratch),)

@@ -34,7 +34,7 @@ config (`jbus.view`).
 `jbus project add` is no pass either: it adds one project's table to the config, and the
 next pass loads it (`jbus.project`).
 A scratch home of the config is no project of the pass, and no repo step is run for it
-(`jbus.load`): its words go to its thread in the first project's pass (`word.scratch`).
+(`jbus.load`): its words go to its thread in a chore of the pass (`word.scratch`).
 Beside the status file is the record of the pass
 (`record`), written when the pass starts and again when it ends.
 No model reads anything.
@@ -70,7 +70,6 @@ from jbus import (
 )
 
 LAUNCH = "the launch"
-REMINDER = "the sign-in reminder"
 
 
 @dataclass
@@ -261,7 +260,8 @@ def poll(
             say(f"wait: crews out not known ({', '.join(raised)}: the pass raised)")
         else:
             guarded(LAUNCH, lambda: rotation.share(config, halves, say))
-        guarded(REMINDER, lambda: signin.remind(config, now))
+        for chore in CHORES:
+            guarded(chore.name, lambda chore=chore: chore.run(config, client, now, say))
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:
@@ -278,6 +278,7 @@ VERBS = (
 )
 DECLARED = verbs.declared(jbus.__path__)
 RANKED = verbs.ranked(jbus.__path__)
+CHORES = verbs.chores(jbus.__path__)
 
 
 def main(argv: list[str] | None = None) -> int:

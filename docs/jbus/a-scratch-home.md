@@ -32,7 +32,7 @@ The home skill writes it when the thread starts as the scratch home (`skills/hom
 `jbus word --to <name>` sends your word to that thread, as [Your word to a home](your-word-to-a-home.md) says, and a word recorded `--from` the home's own thread is kept and not posted back.
 `jbus word --all` is the home of every project, and a scratch home is none: a word about the repos does not reach it.
 A word that waits, as one sent before the home's start wrote its `home-id`, goes on the next pass: the words that wait for its thread are the whole of a scratch home's pass.
-That step runs once a pass, in the first repo project's, so a config with no repo project carries a scratch word only when `jbus word` sends it.
+It is a chore of the pass, run once a pass for the machine and for no project, so it runs in a config that has no repo project too.
 
 ## Where it shows
 

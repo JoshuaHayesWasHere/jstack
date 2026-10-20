@@ -107,3 +107,21 @@ def test_a_word_that_waited_for_the_home_id_goes_on_the_next_pass(kitchen, scrat
     (scratch / "home-id").write_text("mcp:scratch-home\n")
     kitchen.poll()
     assert [one["threadId"] for one in sends(kitchen)] == ["mcp:scratch-home"]
+
+
+def test_a_config_of_scratch_homes_alone_still_delivers_a_word_that_waited(kitchen, scratch):
+    """No repo project at all: the pass has no project's half, and the word goes all the same."""
+    text = (kitchen.config_dir / "config.toml").read_text()
+    server = text.splitlines()[0]
+    kitchen.write(
+        kitchen.config_dir / "config.toml",
+        f'{server}\n[[project]]\nname = "{NAME}"\nkind = "scratch"\nprojectId = "{SCRATCH_ID}"\n',
+    )
+    assert jbus.load().projects == ()
+    (scratch / "home-id").unlink()
+    code, out = kitchen.main("word", "--to", NAME, *SAID)
+    assert code == 0 and out.startswith(f"waits: {NAME},"), out
+    (scratch / "home-id").write_text("mcp:scratch-home\n")
+    kitchen.poll()
+    assert [one["threadId"] for one in sends(kitchen)] == ["mcp:scratch-home"]
+    assert kitchen.status()["scratch"][NAME]["home_thread"] == "mcp:scratch-home"

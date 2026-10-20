@@ -23,19 +23,24 @@ elif ! listed=$(jbus status 2> /dev/null | jq -r '(.scratch // {}) | keys[]'); t
     echo "not known: jbus status did not answer, so nothing is written"
 elif [ -z "$NAME" ] && [ "$(printf '%s\n' "$listed" | grep -c .)" != 1 ]; then
     echo "which: name the scratch home, one of: $(printf '%s ' $listed)"
-elif ! printf '%s\n' "$listed" | grep -qx "${NAME:-$listed}"; then
-    echo "not added: jbus has no scratch home ${NAME}: add it with jbus project add ${NAME} --scratch --project-id <the No project id>"
 else
     NAME=${NAME:-$listed}
-    mkdir -p "$S/$NAME"
-    printf '%s\n' "$ME" > "$S/$NAME/home-id"
-    echo "started: $ME is the scratch home $NAME, in $S/$NAME/home-id"
+    if ! printf '%s\n' "$NAME" | grep -Eqx '[A-Za-z0-9][A-Za-z0-9._-]*'; then
+        echo "not a name: a scratch home's name is letters, digits, dots, dashes and underscores, and starts with a letter or a digit"
+    elif ! printf '%s\n' "$listed" | grep -Fqx -- "$NAME"; then
+        echo "not added: jbus has no scratch home ${NAME}: add it with jbus project add ${NAME} --scratch --project-id <the No project id>"
+    else
+        mkdir -p "$S/$NAME"
+        printf '%s\n' "$ME" > "$S/$NAME/home-id"
+        echo "started: $ME is the scratch home $NAME, in $S/$NAME/home-id"
+    fi
 fi
 ```
 
 On `started`, tell the user in one line that this thread is the scratch home and that `jbus word --to <name>` reaches it.
 On `not added` with a name, find the "No project" id with `t3_project_list` (the entry whose `workspaceRoot` is `~/.t3/scratch`), run the command the line gives with it, and run the block again: `jbus project add` is the only writer of jbus's config, so never open, print or edit that file.
 On `which`, ask the user which name, once.
+On `not a name`, ask the user for a name of that form, once.
 On any other line, tell the user the line as it is.
 A later start writes its own id over the last one, so the newest scratch home thread is the one a word reaches.
 

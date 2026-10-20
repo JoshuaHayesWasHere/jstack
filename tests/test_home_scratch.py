@@ -46,6 +46,19 @@ def test_a_named_home_jbus_does_not_list_is_added_first_and_nothing_is_written(t
     assert not (state / "drafts").exists()
 
 
+@pytest.mark.parametrize("name", ["..", "../ab", "a/b"])
+def test_a_name_with_a_path_in_it_writes_nothing_however_jbus_lists_the_homes(tmp_path, name):
+    said, state = run(tmp_path, name=name, scratch=("ab",))
+    assert said.startswith("not a name:")
+    assert not (tmp_path / "me" / ".local").exists()
+
+
+def test_a_name_is_matched_as_it_is_written_and_not_as_a_pattern(tmp_path):
+    said, state = run(tmp_path, name="s.ratch")
+    assert said.startswith("not added: jbus has no scratch home s.ratch")
+    assert not state.exists()
+
+
 @pytest.mark.parametrize("scratch", [(), ("one", "two")])
 def test_with_none_or_many_listed_and_no_name_it_asks_which(tmp_path, scratch):
     said, state = run(tmp_path, scratch=scratch)
