@@ -14,16 +14,17 @@ thread on to the instance `jroles.pool.choose` names in its pool:
 - the first instance with headroom: the thread is put on it with `t3_thread_configure`, the
   model and the options (effort, fast mode) as `t3_thread_configuration` gave them, only the
   `instanceId` changed, and sent one queued carry-on. A thread already on it is only sent the
-  carry-on;
+  carry-on. It works both ways: a thread capped on a later instance goes back to an earlier one
+  with headroom, as one capped on the first goes on to the next;
 - none, while every instance of the pool is capped: one `stall` event (user level) that names
   the first reset, and nothing sent. The first pass after that reset goes on as above.
 
 Which threads: the crews the briefs name on a `Thread:` line that still owe something, and the
-homes in a `home-id`. Each failed run is handled once: its key, `failover|<thread>|<run>`, is
-kept in `sent.json` after the carry-on is queued, and the stall has its own key, the reset. A
-crash between the two calls is safe: the configure sets the same selection again, and the send
-has the key as its retry key. A slug read here is in `Pass.limited`, and `threads.resume` leaves
-it alone: its carry-ons are not for a limit.
+homes in a `home-id`, the root home's and each scope's. Each failed run is handled once: its
+key, `failover|<thread>|<run>`, is kept in `sent.json` after the carry-on is queued, and the
+stall has its own key, the reset. A crash between the two calls is safe: the configure sets the
+same selection again, and the send has the key as its retry key. A slug read here is in
+`Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a limit.
 """
 
 from __future__ import annotations

@@ -159,7 +159,13 @@ To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/
 
 ## The limits file
 
-The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used. `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`. `hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`. An account the inventory does not declare writes nothing. `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit. `jgauge room` reads the built-in instance's file, or the one `--instance <id>` names. `LIMITS` names another path for the built-in instance's file, and the others are beside it.
+The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
+`~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
+`hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+An account the inventory does not declare writes nothing.
+`jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
+`jgauge room` reads the file of each instance of the role's pool ([jroles](jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
+`LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
 | Row | Meaning |
 |---|---|
