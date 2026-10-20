@@ -165,8 +165,8 @@ def reviewer(tmp_path):
         )
         return ran.stdout.splitlines(), ran.returncode
 
-    def output(heading, about="", findings=()):
-        printed, code = start(heading, about, findings)
+    def output(heading, about="", findings=(), **more):
+        printed, code = start(heading, about, findings, **more)
         assert code == 0
         return printed
 
@@ -1386,9 +1386,9 @@ def test_a_brief_that_names_its_reviewer_is_found(reviewer, result, reviewer_thr
 
 
 def test_the_home_is_told_only_when_it_left_its_thread_id(reviewer):
-    assert reviewer.output("### Telling the home") == []
+    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == []
     (reviewer.state / "home-id").write_text("mcp:home\n")
-    assert reviewer.output("### Telling the home") == ["mcp:home"]
+    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == ["mcp:home"]
 
 
 @pytest.mark.parametrize(
@@ -1418,7 +1418,7 @@ def test_the_findings_go_to_the_thread_line_with_a_home_or_with_none(
     if home is not None:
         (reviewer.state / "home-id").write_text(home)
     assert where(reviewer, "findings").split(": ")[0] == goes
-    assert reviewer.output("### Telling the home") == ([told] if told else [])
+    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == ([told] if told else [])
 
 
 DONE = f"\n## Result\nStatus: done\nBranch: a-task   Pull request: {URL}\n"
