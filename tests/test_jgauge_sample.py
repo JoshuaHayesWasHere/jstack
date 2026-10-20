@@ -37,6 +37,7 @@ def machine(tmp_path, monkeypatch):
     monkeypatch.setenv("PROC", str(proc))
     monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
     monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path / "jbus"))
+    monkeypatch.setenv("TMPFS", str(tmp_path))
     monkeypatch.setenv("TZ", "UTC")
     time.tzset()
     yield proc, log
@@ -59,8 +60,11 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     assert len(lines) == 3
     row = lines[1].split("\t")
     assert before <= int(row[0]) <= int(time.time())
-    files = os.statvfs("/tmp")
-    assert int(row[17]) == files.f_files and 0 < int(row[18]) <= files.f_files
+    files = os.statvfs(machine[0].parent)
+    if files.f_files:
+        assert int(row[17]) == files.f_files and 0 < int(row[18]) <= files.f_files
+    else:
+        assert row[17:] == ["", ""]
     assert row[1:17] == [
         str(len(os.sched_getaffinity(0))),
         *("11.54", "8.96", "7.51"),
