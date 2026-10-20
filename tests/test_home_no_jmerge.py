@@ -14,7 +14,7 @@ import pytest
 
 import jsettings
 from jmerge import claims, cli, ready
-from test_home_thread import named
+from test_home_thread import as_read, named
 
 SKILLS = Path(__file__).parent.parent / "skills"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -50,9 +50,10 @@ cat "$OPEN"
 """
 
 
-def blocks(skill):
-    """Each `sh` block of a skill, as an agent reads it, with the line it starts on."""
-    text = skill.read_text()
+def blocks(skill, read=Path.read_text):
+    """Each `sh` block of a skill, with the line it starts on: of the file alone, or with
+    `as_read`, of the skill as an agent reads it."""
+    text = read(skill)
     return [
         (text.count("\n", 0, found.start(1)) + 1, textwrap.dedent(found.group(1)))
         for found in FENCED.finditer(text)
@@ -64,7 +65,7 @@ def first(skill):
     home, and the one that says who merges, for the skill that has them."""
     found = []
     for mark in (r"^H=", r"^ME=", r"\bmerges="):
-        found += [text for _, text in blocks(skill) if re.search(mark, text, re.M)][:1]
+        found += [text for _, text in blocks(skill, as_read) if re.search(mark, text, re.M)][:1]
     return found
 
 
@@ -139,7 +140,7 @@ class Repo:
     def merge(self, *flags, me=ME):
         """The merge step, as the home skill says to run it, with what it says to add to
         its `jmerge` line."""
-        (step,) = [text for _, text in blocks(HOME) if "flags=''" in text]
+        (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]
         (line,) = [line for line in step.splitlines() if line.startswith("flags=")]
         return self.sh(*first(HOME), step.replace(line, f"flags='{' '.join(flags)}'"), me=me)
 
@@ -335,7 +336,7 @@ def test_a_playbooks_landing_is_the_merge_step_with_its_flags_line(repo, playboo
     says, and the step is run: they reach its one `jmerge` line, and no other block runs."""
     given = LANDING.findall((PLAYBOOKS / f"{playbook}.md").read_text())
     assert [line.replace("<name>", "demo") for line in given] == [f"flags='{a}'" for a in asked]
-    (step,) = [text for _, text in blocks(HOME) if "flags=''" in text]
+    (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]
     (own,) = [line for line in step.splitlines() if line.startswith("flags=")]
     repo.switch(ME)
     for line in given:
@@ -358,8 +359,8 @@ def test_what_a_landing_merged_is_not_news_to_the_merge_step(repo):
 
 
 def test_a_sweep_joined_after_the_merge_step_still_runs(repo):
-    (step,) = [text for _, text in blocks(HOME) if "flags=''" in text]
-    (sweep,) = [text for _, text in blocks(HOME) if "--sweep" in text]
+    (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]
+    (sweep,) = [text for _, text in blocks(HOME, as_read) if "--sweep" in text]
     repo.switch(f"{ME}\n")
     (repo.stub / "ends").write_text("3\n")
     assert repo.sh(*first(HOME), step, sweep) == ["home merges"]

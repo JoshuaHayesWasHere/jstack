@@ -17,6 +17,7 @@ import pytest
 import test_crew_skill as crew
 import test_home_merge as merge
 import test_playbooks as shape
+from test_home_thread import as_read
 
 REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
@@ -251,7 +252,7 @@ def test_each_value_a_template_offers_opens_a_playbook_or_is_none(skill, tmp_pat
 def rows(templates):
     """What the home's block prints with `$T` at `templates`: a row for each file in the
     `playbooks/` beside it, as the name and what follows `Run by:`."""
-    text = (REPO / "skills" / "home" / "SKILL.md").read_text()
+    text = as_read(REPO / "skills" / "home" / "SKILL.md")
     (block,) = [
         found for found in FENCED.findall(text) if "Run by:" in found and "Playbook:" not in found
     ]
