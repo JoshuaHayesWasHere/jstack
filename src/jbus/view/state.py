@@ -99,6 +99,7 @@ from jbus import (
 )
 from jbus.live import LIVENESS, OUT
 from jbus.threads import OTHER, REPORT, ROLES
+from jbus.threads import shown as shown_roles
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.wake import LOG
@@ -110,7 +111,7 @@ NO_REVIEWER = "no reviewer has started"
 NO_REVIEW = "no review yet"
 WHOLE = NOTE + 2 * LINE
 WORDS = 600
-FRAME = ("at", "project", "projects", "repo", "sources", "summary")
+FRAME = ("at", "project", "projects", "repo", "sources", "summary", "kinds", "roles")
 _PULL = re.compile(rf"https://{re.escape(HOST)}/([\w.-]+/[\w.-]+)/pull/\d+")
 _LOGGED = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d) (.+)$")
 _STAMP = re.compile(r"(\d{4}-\d\d-\d\d \d\d:\d\d)(?: \S+)?")
@@ -792,7 +793,7 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
         live, updated = _live(one.get("live")), when(one.get("wrote") or one.get("updatedAt"))
         thread = {
             "title": text(one.get("title"), 120),
-            "role": one.get("role") if one.get("role") in ROLES.values() else OTHER,
+            "role": one.get("role") if one.get("role") in {role.name for role in ROLES} else OTHER,
             "slug": text(one.get("slug"), 80),
             "status": text(one.get("status"), 20),
             "live": live,
@@ -882,7 +883,11 @@ def asker(home: Path, slug: str, threads: Any) -> tuple[str, str]:
     if not thread:
         return "", ""
     for one in threads if isinstance(threads, list) else []:
-        if isinstance(one, dict) and one.get("id") == thread and one.get("role") in ROLES.values():
+        if (
+            isinstance(one, dict)
+            and one.get("id") == thread
+            and one.get("role") in {role.name for role in ROLES if role.prefix}
+        ):
             return thread, one["role"]
     for kind, role in (("tasks", "crew"), ("scouts", "scout")):
         try:
@@ -1194,6 +1199,8 @@ class Read:
             "repo": self.where,
             "sources": self.listed,
             "summary": keep(summary(self), SUMMARY),
+            "kinds": waiting.shown(),
+            "roles": shown_roles(),
         }
         for panel in self.panels:
             if panel.first:
@@ -1348,9 +1355,10 @@ def stack(
     found: tuple[panels.Panel, ...] | None = None,
     names: list[str] | None = None,
 ) -> dict[str, Any]:
-    """What `/stack.json` holds: the machine once, the steps of the line, a summary of
-    each project of `names`, or of each the state directory has, and the user's two queues
-    across them: `needs`, oldest first, and `proceeds`, the soonest to go ahead first.
+    """What `/stack.json` holds: the machine once, the steps of the line and the roles of a
+    thread (`threads.ROLES`), a summary of each project of `names`, or of each the state
+    directory has, and the user's two queues across them: `needs`, oldest first, and
+    `proceeds`, the soonest to go ahead first.
 
     The machine is what one jbus and one room serve every project with: the pass and the
     timer, the room and the plan's use, and the runner units. Each project is read as
@@ -1399,6 +1407,7 @@ def stack(
         "at": iso(now),
         "machine": machine,
         "steps": line,
+        "roles": shown_roles(),
         "projects": every,
         "needs": needs,
         "proceeds": proceeds,

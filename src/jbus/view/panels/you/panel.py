@@ -77,14 +77,6 @@ _NEED = {
     )
 } | {"answerable": None, "unblocks": [None]}
 SHAPE = {"waiting": [_WAITS], "gates": [_GATE], "needs": [_NEED], "proceeds": [_NEED]}
-VERBS = {
-    "gate": "Accept default",
-    "approve": "Approve launch",
-    "hold": "Review merge",
-    "row": "Fix brief",
-    "left": "Close it",
-    "config": "Set up",
-}
 ANSWER = "Answer"
 REVERSIBLE, MERGES = "reversible", "merge to main"
 NEEDS, PROCEEDS = "needs", "proceeds"
@@ -154,7 +146,7 @@ def _waiting(
     it, a new question has the time it was asked, and a new gate of a file has none. A
     leftover of a task that ended has the words its task says (`words`), not the pass's.
     A question jbus holds has what the page needs to answer it (`_question`)."""
-    kept = [one for one in left or [] if one["kind"] in waiting.KINDS]
+    kept = [one for one in left or [] if one["kind"] in waiting.kinds()]
     since = {one["key"]: one.get("since") for one in kept}
     asked = questions.load(state)
     held = {str(one.number): one for one in asked}
@@ -188,7 +180,7 @@ def _waiting(
         | _question(
             held.get(str(one.get("number"))) if questions.listed(one) else None, home, threads
         )
-        for one in sorted(listed, key=lambda one: waiting.KINDS.index(one["kind"]))
+        for one in sorted(listed, key=lambda one: waiting.kinds().index(one["kind"]))
     ]
 
 
@@ -293,7 +285,7 @@ def _need(
         "what": _cut(what, 100),
         "why": _cut(why, WHY),
         "since": waits["since"],
-        "verb": ANSWER if kind == "gate" and not accepts else VERBS[kind],
+        "verb": ANSWER if kind == "gate" and not accepts else waiting.verb(kind),
         "answerable": waits["answerable"],
         "default": _cut(default, 600),
         "risk": MERGES if kind == "hold" else (one.holds if one and one.holds else REVERSIBLE),

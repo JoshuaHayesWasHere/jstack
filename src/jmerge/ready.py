@@ -6,16 +6,18 @@ This is the one copy of the rules. They are read from what GitHub lists for a pu
 and from the brief whose Result names it; nothing here runs a command.
 
 Every reason `jmerge` writes after `wait:` or `hold:` from here is a named constant of this
-module, formatted where it names a value, and a function returns one and never a string of
-its own: the steps of the view are worked out from them (`jbus.merge.RULES`), and its tests
-name each one. A constant whose name starts with `_` is a piece of a reason or a note of a
-`ready` or `merged` line.
+module, a `Reason` that names the step of the view it waits on, formatted where it names a
+value, and a function returns one and never a string of its own: the view places a pull
+request from them (`jbus.merge.step`), so a new reason is placed where it is declared. A
+constant whose name starts with `_` is a piece of a reason or a note of a `ready` or `merged`
+line.
 """
 
 from __future__ import annotations
 
 import ast
 import re
+import string
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -40,68 +42,128 @@ _NOT_UPHELD = "Drops: not upheld "
 _CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
 _HELD = re.compile(r"Rebase hold: at ([0-9a-f]{40}), |Rebase hold lifted: ")
 _MIGRATION = re.compile(r"(\d+)_")
+_VALUE = ".+"
 
-OTHER_HOME = "another home's"
+
+class Reason(str):
+    """A reason `jmerge` writes after `wait:` or `hold:`, as text, with the step of the view a
+    pull request it names waits on (`jbus.merge.step`): `""` for one on no step. Its text is a
+    template where it names a value, and `format` gives the plain text."""
+
+    step: str
+
+    def __new__(cls, step: str, text: str) -> Reason:
+        made = super().__new__(cls, text)
+        made.step = step
+        return made
+
+    @property
+    def pattern(self) -> str:
+        """A regex of the text, each value it names standing for any text."""
+        return "".join(
+            re.escape(literal) + (_VALUE if name is not None else "")
+            for literal, name, _, _ in string.Formatter().parse(self)
+        )
+
+
+def reasons() -> dict[str, Reason]:
+    """Every reason of this module, by its name, in the order they are declared."""
+    return {name: value for name, value in globals().items() if isinstance(value, Reason)}
+
+
+OTHER_HOME = Reason("", "another home's")
 REQUIRED = "check"
-MERGE_OFF = "auto-merge is off for this repo"
-NO_BRIEF = "no brief has a Result that names it"
-DRAFT = "draft"
+MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
+NO_BRIEF = Reason("result", "no brief has a Result that names it")
+DRAFT = Reason("", "draft")
 RULES = "src/jmerge/"
-RULES_CHANGED = "jmerge's rules changed in this run"
-MAIN_MOVED = "main moved while it was judged"
+RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
+MAIN_MOVED = Reason("check", "main moved while it was judged")
 KEPT = "every line kept"
 PASSED = "passed"
 FAILED = "failed"
 TIMED_OUT = "timed out"
-FRESH_QUEUED = "a fresh check is queued"
-FRESH_CONFLICT = "it conflicts with today's main"
-NO_HEAD = "its review names no head to compare its rebase with"
+FRESH_QUEUED = Reason("check", "a fresh check is queued")
+FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
+NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
 
-BASE = "its base is {base}, not {default}"
-IN_STACK = "it is in the stack {stack}, which the user lands"
-IN_UNNAMED_STACK = "it is in a stack its brief does not name, which the user lands"
-REVIEW_NONE = "its brief says Review: none, so it needs the user's word"
-NO_REVIEW = "it has no review yet"
-SKILLS_UNRUN = "its Result has no artifact under Skills run: for {names}, which its brief names"
-NO_VERDICT = "its review has no verdict"
-NO_FIXED = "its findings are not handled: the Result has no Fixed line"
-NOT_PUSHED = "its findings are not handled: nothing was pushed after them"
-SECOND_UNWRITTEN = "its fix changed more than the findings named: the second pass is not written"
-FIX_UNREVIEWED = "its fix is not reviewed: the scoped review of it is not written"
-UNENDED = "its findings are not handled: {left} of {found} have no Finding line"
-FIXED_NO_COMMIT = "its Fixed line names no commit"
-REBASE_UNSAID = "its Rebase line does not say what the rebase did to the patch"
-REBASE_UNTRUE = "its Rebase line says the patch is unchanged, and the rebase changed it"
-CANNOT_CHECK = (
+BASE = Reason("hold", "its base is {base}, not {default}")
+IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
+IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
+REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
+NO_REVIEW = Reason("review", "it has no review yet")
+SKILLS_UNRUN = Reason(
+    "result",
+    "its Result has no artifact under Skills run: for {names}, which its brief names",
+)
+NO_VERDICT = Reason("review", "its review has no verdict")
+NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
+NOT_PUSHED = Reason("findings", "its findings are not handled: nothing was pushed after them")
+SECOND_UNWRITTEN = Reason(
+    "second",
+    "its fix changed more than the findings named: the second pass is not written",
+)
+FIX_UNREVIEWED = Reason("second", "its fix is not reviewed: the scoped review of it is not written")
+UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
+FIXED_NO_COMMIT = Reason("findings", "its Fixed line names no commit")
+REBASE_UNSAID = Reason("rebase", "its Rebase line does not say what the rebase did to the patch")
+REBASE_UNTRUE = Reason(
+    "rebase",
+    "its Rebase line says the patch is unchanged, and the rebase changed it",
+)
+CANNOT_CHECK = Reason(
+    "rebase",
     "its Rebase line cannot be checked: "
-    "the patch of {commit} cannot be worked out in the main checkout"
+    "the patch of {commit} cannot be worked out in the main checkout",
 )
-DROPPED = "the rebase dropped {lost} with no Dropped on rebase line at {head}"
-NOT_UPHELD = "needs {user}, the review did not uphold the drop in {refused}"
-UNRULED_DROPS = "needs {user}, the review of {head} did not rule on the drops in {files}"
-SCOPED_UNRULED = "the scoped review has not ruled on the drops in {files}"
-CONTENT_CHANGED = "the rebase changed the content after its review; scoped review of {command}"
-NOT_PASSED = f"{REQUIRED} has not passed"
-CONFLICTS = "it conflicts with its base"
-UNDECIDED = "GitHub has not decided whether it merges"
-TOUCHES = "needs {user}, touches {path}"
-RENAMES_UNSAID = "needs {user}, GitHub did not say which paths its renames left"
-UNLISTED = "needs {user}, GitHub listed {listed} of the {changed} files it changes"
-NO_START = "its check has no start time"
-GUARDED_UNENDED = "{left} of its {found} findings have no Finding line"
-NOT_SEEN = "its head is not the one its review saw"
-MAIN_CHANGED = "{default} changed {paths} after its check started at {since}; it needs {needs}"
+DROPPED = Reason("rebase", "the rebase dropped {lost} with no Dropped on rebase line at {head}")
+NOT_UPHELD = Reason("hold", "needs {user}, the review did not uphold the drop in {refused}")
+UNRULED_DROPS = Reason(
+    "hold",
+    "needs {user}, the review of {head} did not rule on the drops in {files}",
+)
+SCOPED_UNRULED = Reason("second", "the scoped review has not ruled on the drops in {files}")
+CONTENT_CHANGED = Reason(
+    "second",
+    "the rebase changed the content after its review; scoped review of {command}",
+)
+NOT_PASSED = Reason("check", f"{REQUIRED} has not passed")
+CONFLICTS = Reason("rebase", "it conflicts with its base")
+UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
+TOUCHES = Reason("hold", "needs {user}, touches {path}")
+RENAMES_UNSAID = Reason("hold", "needs {user}, GitHub did not say which paths its renames left")
+UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")
+NO_START = Reason("check", "its check has no start time")
+GUARDED_UNENDED = Reason("findings", "{left} of its {found} findings have no Finding line")
+NOT_SEEN = Reason("second", "its head is not the one its review saw")
+MAIN_CHANGED = Reason(
+    "check",
+    "{default} changed {paths} after its check started at {since}; it needs {needs}",
+)
 FRESH_CHECK = "a fresh check"
-FRESH_FAILS = "{command} fails on {head} over today's main {tip}"
-REBASE_HELD = "its crew held a third rebase after fixed and green, and its gate asks the user"
-ROW_HELD = "its queue row is held: approve it again to let it merge"
-MERGES_AFTER = "merges after {slug} ({open}), not merged yet"
-QUEUE_UNREADABLE = "its queue cannot be read, so its holds and merge order are not known"
-MIGRATION_TAKEN = (
-    "its migration {name} takes number {number}, which {default} has: renumber it to {free}"
+FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
+REBASE_HELD = Reason(
+    "hold",
+    "its crew held a third rebase after fixed and green, and its gate asks the user",
 )
-MIGRATION_MERGING = "it adds a migration, and #{number}, which merges before it, is merging"
-MIGRATION_REBASING = "it adds a migration, and #{number}, which merges before it, is being rebased"
+ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
+MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
+QUEUE_UNREADABLE = Reason(
+    "hold",
+    "its queue cannot be read, so its holds and merge order are not known",
+)
+MIGRATION_TAKEN = Reason(
+    "rebase",
+    "its migration {name} takes number {number}, which {default} has: renumber it to {free}",
+)
+MIGRATION_MERGING = Reason(
+    "check",
+    "it adds a migration, and #{number}, which merges before it, is merging",
+)
+MIGRATION_REBASING = Reason(
+    "check",
+    "it adds a migration, and #{number}, which merges before it, is being rebased",
+)
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -311,7 +373,7 @@ def short_on_migration(names: tuple[str, ...], on_default: set[int], default: st
     return ""
 
 
-_TAKEN = re.compile(re.sub(r"\\\{\w+\\\}", ".+", re.escape(MIGRATION_TAKEN)) + "$")
+_TAKEN = re.compile(MIGRATION_TAKEN.pattern + "$")
 
 
 def being_rebased(why: str) -> bool:
