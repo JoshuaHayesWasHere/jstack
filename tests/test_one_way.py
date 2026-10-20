@@ -8,7 +8,10 @@ place. A copy pasted back into a skill is the mistake this catches: a copy drift
 others, and one of them broke under zsh while the tests ran it under `sh` alone.
 """
 
+import os
+import re
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -18,6 +21,7 @@ REPO = Path(__file__).parent.parent
 
 ONE_WAY = [
     ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),
+    ("gate", "jbus gate <slug>, the gate's lines on stdin", "grep -c '^## '"),
 ]
 
 
@@ -72,3 +76,69 @@ def test_the_command_that_owns_a_feature_is_one_jbus_runs(feature, command, frag
     )
     assert ran.returncode == 0, ran.stderr
     assert ran.stdout.startswith(f"usage: jbus {verb} ")
+
+
+# A row the fragment cannot catch: each block of the feature is run, and a check in front of
+# the command, whatever its words, stops the lines before the command.
+FENCED = re.compile(r"^([ \t]*)```sh\n(.*?)^\1```", re.M | re.S)
+NOT_ONE_GATE = """\
+## Gate <n>: <the question>
+Asked by: one-way, thread mcp:one-way
+## Gate <n>: a second one"""
+
+RUN = [
+    ("gate", "jbus gate", "<the gate, filled in>", NOT_ONE_GATE),
+]
+FILLS = {
+    "'<slug>'": "'one-way'",
+    "'<project>'": "'demo'",
+    "'<about>'": "'one-way'",
+}
+
+
+def blocks(placeholder):
+    """Each shell block of a skill that holds `placeholder`, by the file and line it starts at."""
+    for path in sorted((REPO / "skills").glob("*/*.md")):
+        text = path.read_text()
+        for found in FENCED.finditer(text):
+            if placeholder in found[2]:
+                line = text.count("\n", 0, found.start()) + 1
+                yield f"{path.relative_to(REPO)}:{line}", textwrap.dedent(found[2])
+
+
+def run(tmp_path, command, block):
+    """`block` with `lines` in place of the placeholder, beside a fake `command` that keeps its
+    stdin. What the block printed, and what reached the command."""
+    bin_dir, kept = tmp_path / "bin", tmp_path / "kept"
+    bin_dir.mkdir(exist_ok=True)
+    fake = bin_dir / command.split()[0]
+    fake.write_text(f'#!/bin/sh\ncat > "{kept}"\necho "queued: question 1"\n')
+    fake.chmod(0o755)
+    kept.unlink(missing_ok=True)
+    for placeholder, fill in FILLS.items():
+        block = block.replace(placeholder, fill)
+    ran = subprocess.run(
+        ["sh", "-c", f"SEP=$(printf '\\037'); own=home; N=one; T={REPO / 'templates'}\n{block}"],
+        capture_output=True,
+        text=True,
+        env={"HOME": str(tmp_path), "PATH": f"{bin_dir}{os.pathsep}/usr/bin{os.pathsep}/bin"},
+        cwd=tmp_path,
+    )
+    return ran.stdout + ran.stderr, kept.read_text() if kept.exists() else None
+
+
+@pytest.mark.parametrize(
+    ("feature", "command", "placeholder", "lines"), RUN, ids=[r[0] for r in RUN]
+)
+def test_each_block_of_a_feature_leaves_its_checks_to_the_command(
+    tmp_path, feature, command, placeholder, lines
+):
+    found = list(blocks(placeholder))
+    assert found, f"no skill has a block for {feature}: the placeholder {placeholder} moved"
+    for where, block in found:
+        said, reached = run(tmp_path, command, block.replace(placeholder, lines))
+        kept = [line for line in lines.splitlines() if not line.startswith("Asked by:")]
+        assert reached is not None and all(line in reached for line in kept), (
+            f"{where}: the block for {feature} did not hand {command} the lines and said "
+            f"{said.strip()!r}: leave the checks to {command}, which owns them"
+        )

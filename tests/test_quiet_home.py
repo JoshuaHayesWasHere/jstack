@@ -142,10 +142,6 @@ def test_a_fixed_pull_request_of_a_scoped_home_is_a_gate_while_jbus_merges(quiet
     assert quiet.who_merges("fixed").startswith("home merges: send the line")
 
 
-def test_the_scout_sends_a_gate_by_the_crew_skills_block():
-    assert block("scout", "jbus gate") == block("crew", "jbus gate")
-
-
 @pytest.mark.parametrize("skill", SENDERS)
 def test_a_gate_is_queued_by_the_real_jbus_and_the_home_is_sent_nothing(quiet, skill):
     quiet.jbus()

@@ -159,20 +159,33 @@ def test_a_number_starts_above_the_gates_a_gates_file_has(kitchen):
 
 
 @pytest.mark.parametrize(
-    "lines",
+    ("lines", "why"),
     [
-        "## Gate <n>: tea or coffee?\nStatus: open\n" + OPTIONS,
-        "a made up question\n" + OPTIONS,
-        gate().replace("Default: the first one", "Default: <what the thread did>"),
+        (
+            "a made up question\n" + OPTIONS,
+            "the first line is not '## Gate <n>: ' and the question",
+        ),
+        ("alpha: gate\n" + gate(), "the first line is not '## Gate <n>: ' and the question"),
+        (gate(asked="<the question>"), "the first line is not '## Gate <n>: ' and the question"),
+        (gate() + gate(asked="milk?"), "it is not one gate"),
+        (gate(status="answered"), "the gate has no Status: open line"),
+        (
+            "## Gate <n>: tea or coffee?\nStatus: open\n" + OPTIONS,
+            "the gate has no Asked by: line that is filled in",
+        ),
+        (
+            gate().replace("Default: the first one", "Default: <what the thread did>"),
+            "the gate has no Default: line that is filled in",
+        ),
+        (
+            gate().replace("Undo: pick the other\n", ""),
+            "the gate has no Undo: line that is filled in",
+        ),
     ],
 )
-def test_lines_with_no_default_are_refused_and_nothing_is_kept(kitchen, lines):
+def test_lines_that_are_not_one_gate_of_the_template_filled_in_are_not_sent(kitchen, lines, why):
     code, said = kitchen.main("gate", "alpha", stdin=lines)
-    assert (code, said) == (
-        1,
-        "refused: the gate has no Default: line, so it does not say what was done in place "
-        "of an answer\n",
-    )
+    assert (code, said) == (1, f"not sent: {why}.\n")
     assert not (kitchen.state / "questions.json").exists()
     assert kitchen.lines("gate") == []
 
@@ -507,7 +520,11 @@ def test_a_file_that_does_not_parse_loses_no_number(kitchen):
 
 
 SHELF = "Context: the shelf\nOption: tea (default, recommended): stay\nOption: coffee: they go\n"
-BARE = "## Gate <n>: tea or coffee?\nStatus: open\nDefault: tea\nUndo: pour it out\n"
+BARE = (
+    "## Gate <n>: tea or coffee?\nStatus: open\nAsked by: alpha, thread mcp:a-thread\n"
+    "Default: tea\n"
+    "Built on it: the cups\nUndo: pour it out\n"
+)
 FORM = (
     "Write the options and pipe the gate again: each option you weighed is one line, the "
     'default you took among them: "Option: <short name> (default, recommended): <what follows '

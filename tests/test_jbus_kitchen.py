@@ -867,7 +867,17 @@ RESULT = "\n## Result\nStatus: done\nBranch: alpha   Pull request: none\nLeft: n
 OPTIONS = (
     "Option: the first (default, recommended): nothing changes\nOption: the other: one thing more\n"
 )
-ASK = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
+
+
+def asking(question="which one?", default="the first"):
+    """A gate of `templates/gates.md` filled in, asking `question`, with the two `OPTIONS`."""
+    return (
+        f"## Gate <n>: {question}\nStatus: open\nAsked by: alpha, thread mcp:a-thread\n"
+        f"Default: {default}\nBuilt on it: nothing\nUndo: pick the other\n" + OPTIONS
+    )
+
+
+ASK = asking()
 
 
 def complete(slug, more=""):

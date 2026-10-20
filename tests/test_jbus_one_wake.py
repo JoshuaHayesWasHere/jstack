@@ -22,17 +22,17 @@ from test_jbus_kitchen import (
     ASK,
     KEY,
     NOW,
-    OPTIONS,
     PASS,
     PROJECT,
     QUARTER_PAST_FIVE,
     RESULT,
     Webhook,
+    asking,
     settles,
 )
 from test_jbus_queue import add, go
 
-GATE = "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS
+GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
@@ -487,7 +487,7 @@ def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kit
             kitchen.main(
                 "gate",
                 slug,
-                stdin=f"## Gate <n>: which {slug}?\nStatus: open\nDefault: the first\n" + OPTIONS,
+                stdin=asking(f"which {slug}?"),
             )[0]
             == 0
         )
@@ -502,11 +502,11 @@ def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kit
         "slug": "one",
         "event": "gate",
         "line": "gate one: question 1: which one?",
-        "text": "## Gate <n>: which one?\nStatus: open\nDefault: the first\n" + OPTIONS.strip(),
+        "text": ASK.strip(),
         "loud": "user",
         "say": "demo: gate one: question 1: which one?",
     }
-    kitchen.main("gate", "four", stdin="## Gate <n>: which four?\nDefault: the first\n" + OPTIONS)
+    kitchen.main("gate", "four", stdin=GATE.replace("which one?", "which four?"))
     kitchen.poll(NOW + timedelta(minutes=4, seconds=59))
     assert len(kitchen.webhook.posts) == 1
     kitchen.poll(NOW + timedelta(minutes=5))

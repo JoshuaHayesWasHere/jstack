@@ -22,7 +22,7 @@ from test_jbus_kitchen import GATE, KEY, NOW
 from test_jbus_wake import KEY as HOOK_KEY
 from test_jbus_wake import Webhook
 
-ASKED = "alpha: gate\n" + GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
+ASKED = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
 
 
 @pytest.fixture
