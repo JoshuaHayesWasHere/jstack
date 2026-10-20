@@ -414,9 +414,10 @@ def test_rules_that_are_only_behind_are_pulled_and_judge_on_the_next_run(rules, 
     edit(other)
     push(other)
     behind = "jmerge's own rules are behind main's, and a run that merges pulls them"
-    assert cli.rules_are_mains(package, pull=False) == behind
+    assert cli.rules_are_mains(package) == behind
     assert (package / "guarded.txt").read_text() != "skills/\n"
-    assert cli.rules_are_mains(package) == "jmerge pulled main's rules; judged on the next run"
+    pulled = cli.rules_are_mains(package).pull()
+    assert pulled == "jmerge pulled main's rules; judged on the next run"
     assert (package / "guarded.txt").read_text() == "skills/\n"
     assert cli.rules_are_mains(package) == ""
 

@@ -206,7 +206,7 @@ def test_a_rebase_is_looked_through_for_lines_it_dropped_as_jmerge_looks(case, t
     git(pr.main, "fetch", "-q", "origin")
     head = pr.head()
     repo = cli.Repo(pr.main, tmp_path / "home", None, False, user=jsettings.DEFAULTS)
-    rebase = repo.unsaid("main", before, head)
+    rebase = repo.rebase_since_review("main", before, head)
     assert rebase == ready.Rebase("changed", ("mine.txt", "shared.txt"), before, head)
     lost = repo.dropped("main", rebase, head)
     held = ready.drops(lost, "", head, user=jsettings.DEFAULTS)

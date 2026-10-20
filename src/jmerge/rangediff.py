@@ -1,14 +1,3 @@
-"""Whether a rebase changed the content of a reviewed patch, as `git range-diff` shows it.
-
-A review is of a head. A rebase gives the branch another head, and the review still covers
-it when the commits say the same thing over another base: the lines they add and remove are
-the ones the review saw, and only the context around them or the place of a hunk moved. A
-line that is added or removed on one side alone is content no review saw.
-
-`verdict` is the one answer. It fails closed: a commit that is not here, a git that fails
-or takes too long, or an output that cannot be read is a content change.
-"""
-
 from __future__ import annotations
 
 import re
@@ -27,8 +16,6 @@ TIMEOUT = 60
 
 @dataclass(frozen=True)
 class Verdict:
-    """What a rebase did to the content of a reviewed patch."""
-
     clean: bool
     command: str
     why: str
@@ -37,7 +24,7 @@ class Verdict:
 
 
 class _Failed(Exception):
-    """Git could not say. Its text is the reason."""
+    pass
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -73,18 +60,6 @@ def _have(repo: Path, commit: str) -> None:
 
 
 def content_change(said: str) -> tuple[str, bool]:
-    """The first line of a range-diff that changes the content of the patch, or nothing,
-    and whether a commit stands on one side alone (`<` or `>`): squashed, split, added or
-    dropped, which a pair by pair reading cannot judge.
-
-    Under a pair marked `!` each line is the diff of two diffs: after the indent, one sign
-    for the side that has the line, then the line of that side's diff. A line both sides
-    have is no change. Of the others, four kinds are where the patch sits or who wrote it,
-    not what it says, and each is known by how it starts: a context line or a line of the
-    commit message (a space), a hunk header, an empty line, and the author. Every other
-    line is content. No part of a commit is passed over by its name: a file may be called
-    what git calls the metadata.
-    """
     first = ""
     unpaired = False
     for line in said.splitlines():
@@ -104,8 +79,6 @@ def content_change(said: str) -> tuple[str, bool]:
 
 
 def _changes(diff: str) -> dict[str, Counter[str]]:
-    """What a diff adds and removes, by file: every line of a file's part but its context,
-    its hunk headers and its `index` line, each with how often it is there."""
     files: dict[str, Counter[str]] = {}
     lines: Counter[str] = Counter()
     for line in diff.splitlines():
@@ -127,11 +100,6 @@ def _same_changes(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> str
 
 
 def verdict(repo: Path, reviewed: str, head: str, default: str) -> Verdict:
-    """Whether the review of `reviewed` carries over to `head`, a rebase of it.
-
-    Each side is the commits from where it left the origin's default branch, so the origin
-    is as fresh as the caller fetched it.
-    """
     command = f"git range-diff --no-color origin/{default}..{reviewed} origin/{default}..{head}"
     if not (_COMMIT.fullmatch(reviewed) and _COMMIT.fullmatch(head)):
         return Verdict(False, command, "the reviewed head and the head are not both full commits")
