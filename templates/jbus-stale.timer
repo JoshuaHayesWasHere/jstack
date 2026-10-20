@@ -1,0 +1,12 @@
+# Runs jbus-stale.service every 15 minutes, on a timer of its own: stopping jbus.timer does not
+# stop this one.
+[Unit]
+Description=jbus stale: a look for a missing pass every 15 minutes
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=15min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
