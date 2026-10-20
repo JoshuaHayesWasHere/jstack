@@ -13,6 +13,7 @@ A home that was never added is named. Each folder under `~/.local/state/home` wi
 A home with no repo is added with `--scratch` in place of `--checkout`: [A scratch home](a-scratch-home.md) says what it writes and what jbus does for it.
 
 The command first keeps the file as it was, beside it, as `config.toml.<time>.bak`. Both files are mode 600. Every other table stays as it is, and the new table has `name`, `checkout` and `projectId` and no webhook. The new project takes the top-level webhook at the top of the config when there is one ([Events and the webhook](events-and-the-webhook.md)). With none there, jbus POSTs nothing for it.
+A scratch home's table has `name`, `kind` and `projectId` in their place.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`. Each pass is a new run of `jbus poll` that loads the config, so no unit is restarted. No line it prints has a value of a key of the config.
 
@@ -25,4 +26,7 @@ It refuses, and writes nothing, in these cases:
 | `refused: the config already has a project with that checkout` | A table of another name has that checkout. |
 | `refused: --checkout is not a directory` | The path is no directory on this machine. |
 | `refused: a project's name is letters, digits, dots, dashes and underscores` | The name has another character in it. |
+| `refused: --project-id is empty` | The id is empty. |
 | `refused: no config at <path>` | jbus is not set up yet. [Set up jbus](set-up-jbus.md) comes first. |
+
+The command takes `--checkout` or `--scratch`, one of the two: with both or neither, it prints its usage and exits 2, and writes nothing.
