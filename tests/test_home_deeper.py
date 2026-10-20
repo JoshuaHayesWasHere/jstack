@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test_home_thread import as_read
+
 REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -18,7 +20,7 @@ KINDS = ("research", "perf", "analysis", "outcome")
 
 
 def block():
-    (found,) = [one for one in FENCED.findall(SKILL.read_text()) if "picked=" in one]
+    (found,) = [one for one in FENCED.findall(as_read(SKILL)) if "picked=" in one]
     return textwrap.dedent(found)
 
 

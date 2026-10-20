@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 
+from test_home_thread import as_read
 from test_writing import skill_problems
 
 REPO = Path(__file__).parent.parent
@@ -14,7 +15,7 @@ ANSWER = re.compile(r"^➡️ .+$", re.M)
 
 
 def planning():
-    return HOME.read_text().split("\n## Planning\n", 1)[1].split("\n## ", 1)[0]
+    return as_read(HOME).split("\n## Planning\n", 1)[1].split("\n## ", 1)[0]
 
 
 def round_problems(text):
