@@ -147,4 +147,4 @@ All in `.cursor/skills/verify-jstack/scripts/`, which `$VERIFY_JSTACK_SCRIPTS` n
 
 When jstack changes, the map in `features/` is what goes stale first: `/maintain-verification-skill` keeps it honest.
 
-Each feature file also has a `Paths:` line, the paths it owns, and a `Tests:` line, the tests that read it in a way no import shows, and `features/README.md` a `Cross-cutting:` line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `tests/test_select_tests.py` fails on a path the map leaves out.
+Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and `features/README.md` a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `tests/test_select_tests.py` fails on a path the map leaves out.

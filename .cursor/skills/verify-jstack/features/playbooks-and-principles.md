@@ -2,7 +2,11 @@
 
 A playbook is the steps of one kind of work, and a principle is a rule a step cites. A brief names a playbook, `jbriefs pick` picks one, and the thread that takes the brief works its steps.
 
-Paths: `playbooks/`, `principles/`, `templates/playbook.md`, `docs/playbooks.md`
+Paths:
+- `playbooks/`
+- `principles/`
+- `templates/playbook.md`
+- `docs/playbooks.md`
 Tests: none
 
 ## Sub-features

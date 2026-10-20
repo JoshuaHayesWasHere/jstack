@@ -2,7 +2,13 @@
 
 The jbus queue is a table of work waiting for a crew thread. A user adds a row with its brief, approves the brief they were shown, and the next pass launches a crew thread for it, writes the thread into the brief, and shows it in the table.
 
-Paths: `src/jbus/queue.py`, `src/jbus/dispatch.py`, `src/jbus/work.py`, `src/jbus/waiting.py`, `src/jbus/stall.py`, `src/jbus/plan.py`
+Paths:
+- `src/jbus/queue.py`
+- `src/jbus/dispatch.py`
+- `src/jbus/work.py`
+- `src/jbus/waiting.py`
+- `src/jbus/stall.py`
+- `src/jbus/plan.py`
 Tests: none
 
 ## Sub-features

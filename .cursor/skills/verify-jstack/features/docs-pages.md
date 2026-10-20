@@ -2,7 +2,8 @@
 
 The pages under `docs/` explain jstack: one page for each command, the flow (`docs/flow.html`, `flow.md`, `flow.svg`), the state tree, the hooks and the configuration. Each says what the code does today.
 
-Paths: `docs/`
+Paths:
+- `docs/`
 Tests: none
 
 ## Sub-features
