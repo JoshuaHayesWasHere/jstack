@@ -2,7 +2,10 @@
 
 `jmerge` prints one line for each open pull request: `ready` when it is reviewed, fixed and green, `wait` with the reason when it is short of that, and `hold` when it touches a path only the user merges. With `--check` it prints the decision and merges nothing. `jmerge --claims` prints the files each brief still out holds.
 
-Paths: `src/jmerge/`, `src/jsettings/`, `docs/jmerge.md`
+Paths:
+- `src/jmerge/`
+- `src/jsettings/`
+- `docs/jmerge.md`
 Tests: none
 
 ## Sub-features

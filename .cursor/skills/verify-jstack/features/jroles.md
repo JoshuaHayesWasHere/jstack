@@ -2,7 +2,10 @@
 
 `jroles <role>` prints the model selection a launch of that role takes, from the role map in the user's config, on the first instance of the role's pool with headroom in the ledger. The skills put what it prints into their launch calls, and `jbus` takes the `crew` line the same way.
 
-Paths: `src/jroles/`, `docs/jroles.md`, `hooks/limits.sh`
+Paths:
+- `src/jroles/`
+- `docs/jroles.md`
+- `hooks/limits.sh`
 Tests: none
 
 ## Sub-features

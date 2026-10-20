@@ -27,22 +27,27 @@ ALSO = ("evals/", ".cursor/", "install.sh")
 README = """\
 # A map
 
-Cross-cutting: `tests/test_tree.py`
+Cross-cutting:
+- `tests/test_tree.py`
 """
 ALPHA = """\
 # Alpha
 
 What alpha does.
 
-Paths: `src/alpha/`, `docs/alpha.md`
-Tests: `tests/test_glob.py`
+Paths:
+- `src/alpha/`
+- `docs/alpha.md`
+Tests:
+- `tests/test_glob.py`
 """
 BETA = """\
 # Beta
 
 What beta does.
 
-Paths: `src/beta/*.py`
+Paths:
+- `src/beta/*.py`
 Tests: none
 """
 FILES = {
@@ -457,6 +462,45 @@ def test_an_all_says_which_path_forced_it(repo, tmp_path):
 def test_an_unread_map_says_so_in_the_summary(repo, tmp_path):
     head = repo.change(["src/alpha/a.py"])
     shutil.rmtree(repo.root / "src" / "jmerge")
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert SUMMARY.fullmatch(lines[0])["forced"] == "unread"
+
+
+def test_a_list_holds_the_entries_under_its_label_up_to_the_next_label_or_a_blank_line():
+    text = "Paths:\n- `src/a/`\n- `docs/a.md`\nTests: none\n\n- `src/b/`\n"
+
+    assert select.listed(text, "Paths") == ["src/a/", "docs/a.md"]
+    assert select.listed(text, "Tests") == []
+
+
+@pytest.mark.parametrize("label", ["Paths", "Tests", "Cross-cutting"])
+@pytest.mark.parametrize(
+    "lines",
+    [["{label}: `src/a/`, `src/b/`"], ["{label}:", "- `src/a/`, `src/b/`"]],
+    ids=["on the label line", "on a list line"],
+)
+def test_a_line_that_holds_two_entries_is_refused(label, lines):
+    text = "\n".join(line.format(label=label) for line in lines) + "\n"
+
+    with pytest.raises(select.Unread, match=label):
+        select.listed(text, label)
+
+
+@pytest.mark.parametrize("line", ["* `src/b/`", "-`src/b/`", "  - `src/b/`", "src/b/"])
+def test_a_list_line_that_is_not_an_entry_is_refused_and_does_not_end_the_list(line):
+    text = f"Paths:\n- `src/a/`\n{line}\n- `src/c/`\n"
+
+    with pytest.raises(select.Unread, match="not one entry"):
+        select.listed(text, "Paths")
+
+
+def test_a_map_line_with_two_entries_selects_all(tmp_path):
+    two = ALPHA.replace("- `src/alpha/`\n- `docs/alpha.md`", "- `src/alpha/`, `docs/alpha.md`")
+    repo = Repo(tmp_path, features={"README.md": README, "alpha.md": two, "beta.md": BETA})
+    head = repo.change(["src/alpha/a.py"])
 
     printed, lines = summary(repo, head, tmp_path)
 
