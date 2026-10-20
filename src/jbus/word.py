@@ -225,6 +225,23 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
     return True
 
 
+def post(client: Client | None, thread: str, message: str, key: str) -> str:
+    """Send one queued message to a home's thread, under the retry key `key`, so a second
+    send of the same key is the first. The answer is why it did not go, or nothing where T3
+    Code took it. `jbus.item` sends a steer's message through here too."""
+    if not thread or client is None:
+        return NO_T3 if thread else NO_HOME
+    client.recipients = client.recipients | {thread}
+    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
+    try:
+        client.call("t3_thread_send", asked)
+    except T3Refused:
+        return REFUSED
+    except T3Error:
+        return NO_ANSWER
+    return ""
+
+
 def deliver(run: Pass, client: Client | None) -> None:
     """Send each word that waits to the home's thread, once. One that cannot go waits on.
 
@@ -234,24 +251,13 @@ def deliver(run: Pass, client: Client | None) -> None:
         if one.sent_at:
             continue
         thread, name = home(run.home), run.project.name
-        if not thread or client is None:
-            waits = NO_T3 if thread else NO_HOME
-        else:
-            key = f"{KIND}|{name}|{one.id}|{thread}"
-            client.recipients = client.recipients | {thread}
-            message = MESSAGE.format(**asdict(one))
-            asked = {"threadId": thread, "message": message, "mode": "queue"}
-            try:
-                client.call("t3_thread_send", {**asked, "clientRequestId": key})
-            except T3Refused:
-                waits = REFUSED
-            except T3Error:
-                waits = NO_ANSWER
-            else:
-                at = run.now.astimezone(UTC).isoformat(timespec="seconds")
-                if _change(run, one, thread=thread, sent_at=at, waits=""):
-                    run.say(f"{KIND} {name}: sent to {thread}")
-                continue
+        key = f"{KIND}|{name}|{one.id}|{thread}"
+        waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
+        if not waits:
+            at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+            if _change(run, one, thread=thread, sent_at=at, waits=""):
+                run.say(f"{KIND} {name}: sent to {thread}")
+            continue
         if waits != one.waits and _change(run, one, waits=waits):
             run.say(f"wait {name}: a word of {one.at} {waits}")
 
