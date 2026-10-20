@@ -48,8 +48,6 @@ RUNNERS = 3
 RUNNER_QUOTA = 4
 PROCESSORS = 24
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
-# A cgroup directory with no `cpu.max`: the count is the test's to give, never the quota of
-# whatever the suite itself runs under.
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
 SCRATCH = """
@@ -79,7 +77,9 @@ def check(*args, **more):
 
     A run started as `make check TEST_WORKERS=2` hands that on to every make under it, so the
     count asked about here is the Makefile's own only with those variables taken out. What
-    says the run is a runner's goes with them: the count is a desk's unless `more` says so.
+    says the run is a runner's goes with them: the count is a desk's unless `more` says so. The
+    cgroup is one with no `cpu.max` unless `more` names one, so the count is never the quota of
+    whatever the suite itself runs under.
     """
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     env.update(UNLIMITED | more)
