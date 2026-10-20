@@ -147,7 +147,10 @@ When "Start" is done, and whenever a step names "The review" or one of its steps
 A reviewer that gives up says so, to the crewmate and in the brief, so that the pull request never waits for a review nobody is going to run. It gives up only on exit 69 of the block of step 1, which is its sixth send that did not go on.
 
 1. See where the line goes: the block of step 4 of "After the review", with `not run` for the verdict. Send that thread one line with `t3_thread_send`, and on `home` the thread "Telling the home" finds: `<slug>: the review of <url> at <the head kept at the start> was not run. The run block was sent six times and never went on, and its last answer was "<the last line it printed>". This pass reviewed nothing, and the pull request waits for the user's word: park a gate.`
-2. Write the section. Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed, the `By:` line Start printed, and the thread id the line went to in place of the words in angle brackets. Where the line went to nobody, `sent` is the two words `not sent`:
+2. Write the section.
+   Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed, the `By:` line Start printed, and the thread id the line went to in place of the words in angle brackets.
+   Where the line went to nobody, `sent` is the two words `not sent`.
+   For a scoped pass, `scope` is the `Scope:` line step 1 of "A scoped pass" printed, and for any other pass it is left empty:
 
    ```sh
    B="$H/tasks/<slug>.md"
@@ -155,7 +158,9 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
    why='<the last line the block of step 1 printed>'
    sent='<the thread id the line went to, or the two words "not sent">'
    by='<the By: line Start printed>'
+   scope=''
    case $by in "<"*) by= ;; esac
+   case $scope in "<"*) scope= ;; esac
    [ -f "$B" ] || { echo "no section: there is no brief at $B"; exit 1; }
    case $sent in
    "" | "not sent"* | "<"*)
@@ -171,13 +176,20 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
        printf '\n## Review\n'
        if [ -n "$by" ]; then printf '%s\n' "$by"; fi
        printf 'Verdict: not run\n'
+       if [ -n "$scope" ]; then printf '%s\n' "$scope"; fi
        printf 'Why: the run block was sent six times and never went on, and its last answer was "%s"\n' "$why"
        printf 'Head: %s   Unchanged by the review: not checked, no review ran\n' "$kept"
        printf 'Sent to: %s\n' "$sent"
    } >> "$B" && echo "written: ## Review with Verdict: not run, in $B"
    ```
 
-   The section is not a review: `jmerge` reads it as a review with no verdict and merges nothing on it. Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not. Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict"). It is written only when the crewmate was told. A section nobody was told of would hide the pull request from jbus, which tells a crewmate of a pull request with no review (`unreviewed`) or with no second pass (`second`) and of nothing else here. Sent a second time for the same head, the block writes no second section.
+   The section is not a review: `jmerge` reads it as a review with no verdict and merges nothing on it.
+   Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not.
+   Its `Scope:` line, on a scoped pass, keeps it a scoped pass: a scoped section takes the place of no section but a scoped one, so the first review of the same head keeps its findings.
+   Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict").
+   It is written only when the crewmate was told.
+   A section nobody was told of would hide the pull request from jbus, which tells a crewmate of a pull request with no review (`unreviewed`) or with no second pass (`second`) and of nothing else here.
+   Sent a second time for the same head, the block writes no second section.
 3. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
 
 ### After the review
