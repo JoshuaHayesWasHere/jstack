@@ -3,6 +3,7 @@ and says so in one line, instead of waiting in the call. Run as `tests/test_slot
 real `jgauge test-slot`, against lock files in a home of its own."""
 
 import fcntl
+import json
 import os
 import subprocess
 from datetime import UTC, datetime, timedelta
@@ -178,3 +179,38 @@ def test_a_file_that_does_not_parse_is_an_empty_list_and_is_written_over(tmp_pat
     assert waiters.read(tmp_path) == []
     waiters.register(tmp_path, THREAD, "short", 3, ["a"], NOW)
     assert [one.thread for one in waiters.read(tmp_path)] == [THREAD]
+
+
+def test_a_thread_given_with_and_without_its_prefix_is_one_waiter_with_one_place(machine):
+    held = hold_full(machine)
+    try:
+        jgauge(machine, "--slots", "2", "--", "make", "check", thread="thread-9")
+        (first,) = waiters.read(machine.locks)
+        jgauge(machine, "--slots", "2", "--", "make", "check", thread=THREAD)
+    finally:
+        for fd in held:
+            os.close(fd)
+    (one,) = waiters.read(machine.locks)
+    assert (one.thread, one.id, one.since) == (THREAD, first.id, first.since)
+    waiters.drop(machine.locks, "thread-9")
+    assert waiters.read(machine.locks) == []
+
+
+def test_records_on_disk_under_both_forms_collapse_to_the_older_on_the_next_change(tmp_path):
+    def record(thread, since, id):
+        made = waiters.Waiter(thread, "full", 2, ("make", "check"), since, id)
+        return {**vars(made), "command": list(made.command)}
+
+    written = [
+        record("thread-9", "2026-10-12T15:00:40Z", "older"),
+        record(THREAD, "2026-10-12T15:00:57Z", "newer"),
+    ]
+    path = tmp_path / waiters.NAME
+    path.write_text(json.dumps(written))
+    (one,) = waiters.read(tmp_path)
+    assert (one.thread, one.id, one.since) == (THREAD, "older", "2026-10-12T15:00:40Z")
+    assert json.loads(path.read_text()) == written
+    waiters.register(tmp_path, "other", "full", 2, ["true"], NOW)
+    on_disk = [(one["thread"], one["id"]) for one in json.loads(path.read_text())]
+    assert on_disk[0] == (THREAD, "older") and len(on_disk) == 2
+    assert on_disk[1][0] == "mcp:other"
