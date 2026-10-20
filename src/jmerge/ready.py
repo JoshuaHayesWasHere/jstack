@@ -271,13 +271,6 @@ def brief_of(url: str, tasks: Path) -> Path | None:
     return None
 
 
-def home_of(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("Home:"):
-            return "".join(line.removeprefix("Home:").split()[:1])
-    return ""
-
-
 def stack_of(text: str) -> str | None:
     for line in text.splitlines():
         if line.startswith("## "):

@@ -2,6 +2,7 @@
 thread. A thread reads the id in that home's `home-id` each time it sends, so a new home
 rewrites no brief. Every block here is lifted from the skill that gives it."""
 
+import os
 import shutil
 import subprocess
 
@@ -42,7 +43,7 @@ class Homes(Scene):
             [shell, "-c", f"{paths(reader)}\n{block}"],
             capture_output=True,
             text=True,
-            env={"PATH": "/usr/bin:/bin", "HOME": str(self.user)},
+            env={"PATH": os.environ["PATH"], "HOME": str(self.user)},
             cwd=self.worktree,
         )
         assert (ran.stderr, ran.returncode) == ("", 0)
@@ -72,9 +73,41 @@ def homes(tmp_path):
     return Homes(tmp_path)
 
 
-def test_the_three_skills_find_the_home_with_one_text():
-    crew = about_the_home_id("crew")
-    assert [about_the_home_id(reader) for reader in READERS] == [crew] * len(READERS)
+SETTLED = {
+    "a Home: line below the head is not read": (
+        {"home-id": f"{THREAD}\n", f"{SCOPE}/home-id": f"{OTHER}\n"},
+        ("## Result", f"Home: {SCOPE}"),
+        f"{THREAD}\n",
+    ),
+    "a Was home: id equal to the home-id is nobody": (
+        {"home-id": f"{THREAD}\n", "handoff.md": f"# handoff\n\nWas home: {THREAD}\n"},
+        (),
+        "",
+    ),
+    "a home-id is matched by its first word": (
+        {"home-id": f"{THREAD} (the root)\n", f"{SCOPE}/home-id": f"{OTHER} (a note)\n"},
+        (f"Home: {OTHER}",),
+        f"{OTHER}\n",
+    ),
+    "an empty Was home: line is none": (
+        {"home-id": f"{THREAD}\n", f"{SCOPE}/handoff.md": "# handoff\n\nWas home:  \n"},
+        (f"Home: {SCOPE}",),
+        f"{THREAD}\n",
+    ),
+}
+
+
+@pytest.mark.parametrize("shell", ["sh", "zsh"])
+@pytest.mark.parametrize("reader", READERS)
+@pytest.mark.parametrize("case", SETTLED)
+def test_each_reader_asks_jbus_home_and_gets_the_one_rule(homes, case, reader, shell):
+    if not shutil.which(shell):
+        pytest.skip(f"{shell} is not installed")
+    files, lines, told = SETTLED[case]
+    for name, text in files.items():
+        (homes.home_dir / name).write_text(text)
+    slug = homes.sent(reader, "a-task", *lines)
+    assert homes.reports_to(reader, slug, shell) == told
 
 
 @pytest.mark.parametrize("reader", READERS)

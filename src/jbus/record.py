@@ -36,7 +36,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from jbus import Config, alert, project, read_json, signin, t3, wake, word, write_json
+from jbriefs.home import thread_of
+from jbus import Config, alert, project, read_json, signin, t3, wake, write_json
 from jbus.queue import Row
 from jbus.watch import World, checks
 
@@ -237,7 +238,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
         "scratch": {
             one.name: {
                 "project_id": one.project_id,
-                "home_thread": word.home(config.home(one.addressee())),
+                "home_thread": thread_of(config.home(one.addressee())),
             }
             for one in config.scratch
         },

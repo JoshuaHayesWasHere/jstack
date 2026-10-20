@@ -75,7 +75,8 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import findings
-from jbus import END_TURN, dispatch, leftover, merge, read_json, rebase, word, write_json
+from jbriefs.home import home_of, thread_of
+from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.wake import Pass
@@ -451,7 +452,7 @@ def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reas
     where the view shows it, on the findings step, and a message that did not go is sent
     again on the next pass."""
     brief = _brief(run, slug)
-    thread = word.home(leftover.home_of(run.home, brief))
+    thread = thread_of(home_of(run.home, brief))
     if not thread:
         run.say(f"wait {slug}: #{number} waits on its crew, {reason}, and it has no home to tell")
         return

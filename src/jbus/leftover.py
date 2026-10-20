@@ -12,10 +12,8 @@ slug asked with its answer or that it is open, and the two ways to end it. The r
 is told once for a row and a `Left:` text, and again when the text changes. A home that
 took over from the one that was told is told too, and its 30 minutes start then.
 
-The home is the one the brief's `Home:` line names (`home_of`), as it is for a crewmate and
-for `jmerge`: a scope by its name, by the id in its `home-id` or by the `Was home:` line of
-its handoff, and the root for a brief with no such line or one that names no scope. Its
-thread is the first word of that home's `home-id`, read on each pass.
+The home is the one the brief's `Home:` line names, and its thread the first word of that
+home's `home-id`, read on each pass: `jbriefs.home`, the rule a crewmate and `jmerge` ask.
 
 `leftover.json` in a project's state directory is the record, a `Record` for each slug:
 
@@ -46,13 +44,13 @@ still blocks `REMIND_MINUTES` after it opened is reminded of once, and every
 from __future__ import annotations
 
 import hashlib
-import re
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from jbus import mirror, questions, queue, read_json, verbs, word, write_json
+from jbriefs.home import home_of, thread_of
+from jbus import mirror, questions, queue, read_json, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, World, brief_of, last_result, named
@@ -106,8 +104,6 @@ UNWRITTEN = (
     "default and pipe it to `jbus gate {slug}`. jbus says this row to {user} once if it is "
     "still open {minutes} min from now."
 )
-_HOME = re.compile(r"^Home:[ \t]*(\S+)", re.M)
-_WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
 
 
 @dataclass(frozen=True)
@@ -176,35 +172,6 @@ def note(brief: str) -> str:
     return "" if text == "none" else text
 
 
-def home_of(home: Path, brief: str) -> Path:
-    """The directory of the home a brief is, by its `Home:` line.
-
-    A scope is a directory of the home's state whose `home-id` holds an id or whose handoff
-    has a `Was home:` line, and the line names it by the directory's name or by either id.
-    A brief with no line, or one that names the root's thread or no scope, is the root's.
-    """
-
-    def read(file: Path) -> str:
-        try:
-            return file.read_text(errors="replace")
-        except OSError:
-            return ""
-
-    def ids(directory: Path) -> tuple[str, str]:
-        was = _WAS.search(read(directory / "handoff.md"))
-        return (read(directory / "home-id").split()[:1] or [""])[0], was[1] if was else ""
-
-    line = _HOME.search(brief.partition("\n## ")[0])
-    name = line[1] if line else ""
-    if not name or name in ids(home):
-        return home
-    for scope in sorted((one for one in home.glob("*") if one.is_dir()), reverse=True):
-        now, was = ids(scope)
-        if (now or was) and name in (scope.name, now, was):
-            return scope
-    return home
-
-
 def _pull(world: World, slug: str, brief: str) -> str:
     """The slug's pull request and whether it merged, as the message says it."""
     url, number = named(mirror.last_result(brief))
@@ -264,7 +231,7 @@ def _judge(
     out: set[str] | None,
 ) -> Record:
     """A leftover's record after this pass: whose thread has it, and the message, sent once."""
-    thread = word.home(home_of(run.home, brief))
+    thread = thread_of(home_of(run.home, brief))
     if not thread:
         return replace(record, why=NO_HOME)
     has = bool(record.told) and record.thread == thread

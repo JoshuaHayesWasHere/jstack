@@ -22,6 +22,7 @@ REPO = Path(__file__).parent.parent
 ONE_WAY = [
     ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),
     ("gate", "jbus gate <slug>, the gate's lines on stdin", "grep -c '^## '"),
+    ("home", 'uv run --project "$T/.." jbus home "$B"', "s/^Home:[[:space:]]*"),
 ]
 
 

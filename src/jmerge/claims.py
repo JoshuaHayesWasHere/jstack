@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from jbriefs import parse
-from jmerge import ready, sweep
+from jbriefs import home, parse
+from jmerge import sweep
 
 ROOT = "root"
 NOBODY = ""
@@ -75,7 +75,7 @@ def scope(text: str, changed: list[str]) -> list[str]:
 
 
 def home_of(text: str, homes: dict[str, str]) -> str:
-    return homes.get(ready.home_of(text), ROOT)
+    return homes.get(home.named(text), ROOT)
 
 
 def of_brief(
