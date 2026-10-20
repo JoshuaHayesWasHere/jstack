@@ -2,10 +2,10 @@
 
 A tree that passed has a marker, and there are two, asked for in this order:
 
-- the desk's: a ref `refs/jstack/green-tree/<tree id>` (`sweep.marker`), which `jmerge`
-  pushes when its fresh check of a head merged over main passes. It is at the commit that
-  passed, and it counts only when that commit's tree is the one asked for. Only somebody who
-  may push to the repo can write a ref, so a fork cannot leave one.
+- the desk's: a ref `refs/jstack/green-tree/<tree id>` (`REF`, named by `sweep.marker`),
+  which `jmerge` pushes when its fresh check of a head merged over main passes. It is at
+  the commit that passed, and it counts only when that commit's tree is the one asked for.
+  Only somebody who may push to the repo can write a ref, so a fork cannot leave one.
 - a run's: an artifact named `green-tree-<tree id>`, which a run of the check uploads for
   the tree it checked out once the whole suite passed there: the `full` job on main, and a
   pull request's `check` job when its selection was the whole suite.
@@ -25,10 +25,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from jmerge.sweep import MARKERS as REF
-
 WORKFLOW = ".github/workflows/check.yml"
 ARTIFACT = "green-tree-"
+REF = "refs/jstack/green-tree/"
 
 Ask = Callable[[str], Any]
 

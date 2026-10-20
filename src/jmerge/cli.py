@@ -287,10 +287,16 @@ class Fresh:
         worktree of the head merged over `tip`, so a module either side imports there is
         read. A test file every change selects (`Cross-cutting:`) is one in common too, so
         in a repo that has one no pass is kept. Where any of it cannot be told, it does
-        not."""
+        not. A pass taken from a marker (`marker` in the record) never stands: the marker
+        names one tree, and a main that moved makes another."""
         older = str(was.get("main") or "")
         mine = (was.get("result"), was.get("head"), was.get("command"))
-        if not files or not older or mine != (ready.PASSED, head, self.command):
+        if (
+            not files
+            or not older
+            or was.get("marker")
+            or mine != (ready.PASSED, head, self.command)
+        ):
             return False
         changed = _text(self.main, "git", "diff", "--name-only", "--no-renames", older, tip)
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)

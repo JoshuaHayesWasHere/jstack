@@ -131,3 +131,32 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
     ]
     assert len(checked.ran()) == 1
     assert kitchen.calls() == []
+
+
+def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
+    """A pass that ran stands over a main that moved off its tests
+    (`tests/test_jmerge_fresh.py`). A skip does not: its marker names the tree it was taken
+    on, and the new main makes another, which has none."""
+    kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
+    stub = kitchen.home.stub
+    (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))
+    (stub / "artifacts").mkdir()
+    (stub / "runs").mkdir()
+    checked = fresh.Checked(kitchen, "true", "src/demo/two.py")
+    merged = tree(kitchen, checked.head, checked.main)
+    marked(kitchen, merged)
+    (kitchen.home.state / "merge-off").write_text("")
+    kitchen.run()
+    assert checked.known()["7"]["marker"] == URL and checked.ran() == []
+    (kitchen.home.state / "merge-off").unlink()
+    now = kitchen.on_main({"src/demo/one.py": "theirs\n" + fresh.LINES})
+    assert kitchen.run("--check") == [
+        f"wait 7 {fresh.url(7)}: {fresh.STALE.format('src/demo/two.py')}"
+    ]
+    (said,) = kitchen.after_check()
+    assert said.startswith("merged 7 two ")
+    assert (
+        f", fresh: {checked.command} passed on {checked.head[:12]} over {now[:12]}, revert: "
+        in said
+    )
+    assert len(checked.ran()) == 1

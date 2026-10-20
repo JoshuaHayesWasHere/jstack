@@ -664,7 +664,7 @@ def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_
     assert ", quota none, " in ran.stdout and ran.stdout.endswith("cpu none, cgroup cpu none\n")
 
 
-def green_tree(tmp_path, answers, **env):
+def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     """Run the script in a new repo against a `gh` that answers from these files.
 
     The answers are by path, or a function that gives them for the repo's tree. With none for
@@ -701,7 +701,7 @@ def green_tree(tmp_path, answers, **env):
         )
         (bin / "gh").chmod(0o755)
     ran = subprocess.run(
-        [sys.executable, str(GREEN_TREE)],
+        [*python, str(GREEN_TREE)],
         cwd=repo,
         capture_output=True,
         text=True,
@@ -757,6 +757,16 @@ def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_
         f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
         f"api {RUN}",
     ]
+
+
+@pytest.mark.skipif(not Path("/usr/bin/python3").is_file(), reason="no system python3")
+def test_the_lookup_runs_on_the_runners_bare_python_before_uv_sync(tmp_path):
+    """The step runs before `uv sync`: the system's python3, isolated and with no site
+    packages, so an import of anything installed fails here."""
+    bare = ("/usr/bin/python3", "-I", "-S")
+    outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, bare)
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
 
 
 def test_a_tree_with_no_marker_runs_the_suite(tmp_path):
