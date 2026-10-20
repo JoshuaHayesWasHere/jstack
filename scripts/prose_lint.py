@@ -9,8 +9,9 @@ line, and a moved file adds only the lines that changed.
 
 A line is judged in its place in the file at HEAD, read whole, so it knows what the line is
 in. These are not prose and are never judged: a line in a code fence, in the front matter, in
-an HTML comment, of a table, a heading, and a field (`Key: value`, as a brief's `Task:` or
-`Done when:`) with the list items and indented lines under it up to a blank line.
+an HTML comment, of a table (with or without a leading `|`), a heading (`#` or setext), and a
+field (`Key: value`, as a brief's `Task:` or `Done when:`) with the list items and indented
+lines under it up to a blank line.
 
 `sentences` decides what a sentence is, and nothing else does: a `.`, `!` or `?`, with any
 closing quote, bracket or emphasis after it, then a space and a word that starts with a
@@ -22,6 +23,7 @@ desk, and `HEAD^1` in a pull request's CI, the tip of main in GitHub's merge com
 only the standard library, so it runs before `uv sync`.
 """
 
+import codecs
 import re
 import subprocess
 import sys
@@ -35,6 +37,8 @@ WORD_BEFORE = re.compile(r"(\S+?)[.!?]+[\"')\]*_]*$")
 FENCE = re.compile(r"^\s*(```|~~~)")
 HEADING = re.compile(r"^\s{0,3}#{1,6}(\s|$)")
 TABLE = re.compile(r"^\s*\|")
+DELIMITER = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$|^\s*\|\s*:?-+:?\s*\|\s*$")
+UNDERLINE = re.compile(r"^\s{0,3}(=+|-+)\s*$")
 FIELD = re.compile(r"^[A-Z][\w-]*(?: [\w-]+){0,2}:(?:\s|$)")
 UNDER_A_FIELD = re.compile(r"^(\s+\S|\s*[-*+] |\s*\d+\. )")
 LIST_MARK = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
@@ -96,7 +100,26 @@ def prose(lines):
             continue
         field = False
         judged.append(not (HEADING.match(line) or TABLE.match(line)))
-    return judged
+    return [
+        one and not other for one, other in zip(judged, tables_and_underlined(lines), strict=True)
+    ]
+
+
+def tables_and_underlined(lines):
+    """For each line, whether it is of a table whose rows need not start with `|` (its header,
+    its delimiter row and the rows under it up to a blank line), or a setext heading (a line
+    with a line of `=` or `-` under it) or that heading's underline."""
+    found = [False] * len(lines)
+    for at, line in enumerate(lines):
+        if at and lines[at - 1].strip() and "|" in lines[at - 1] and DELIMITER.match(line):
+            found[at - 1] = True
+            below = at
+            while below < len(lines) and lines[below].strip() and "|" in lines[below]:
+                found[below] = True
+                below += 1
+        elif at and lines[at - 1].strip() and UNDERLINE.match(line) and not found[at - 1]:
+            found[at - 1] = found[at] = True
+    return found
 
 
 def added(diff):
@@ -104,15 +127,26 @@ def added(diff):
     found, path = {}, None
     for line in diff.splitlines():
         if line.startswith("+++ "):
-            path = line[6:] if line.startswith("+++ b/") else None
+            path = named(line[4:])
         elif path and (hunk := HUNK.match(line)):
             first, count = int(hunk[1]), int(hunk[2] or 1)
             found.setdefault(path, []).extend(range(first, first + count))
     return found
 
 
+def named(header):
+    """The path of a diff's `+++` header, or `None` for `/dev/null`: git ends a name that has
+    a space with a tab, and quotes one with a quote, a backslash or a control character."""
+    header = header.removesuffix("\t")
+    if header.startswith('"') and header.endswith('"'):
+        header = codecs.escape_decode(header[1:-1])[0].decode()
+    return header[2:] if header.startswith("b/") else None
+
+
 def git(*args):
-    ran = subprocess.run(["git", *args], capture_output=True, text=True)
+    ran = subprocess.run(
+        ["git", "-c", "core.quotePath=false", *args], capture_output=True, text=True
+    )
     if ran.returncode:
         sys.exit(f"prose_lint.py: git {args[0]} failed: {ran.stderr.strip()}")
     return ran.stdout

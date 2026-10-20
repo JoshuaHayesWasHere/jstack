@@ -134,6 +134,34 @@ def test_fences_tables_front_matter_fields_headings_and_comments_are_not_judged(
     assert check(repo) == (0, [])
 
 
+TABLE_WITH_NO_LEADING_PIPE = """\
+Name. Two. | Cell. Two.
+--- | ---
+Row. Two. | Cell. Two.
+
+A setext heading. Two sentences.
+================================
+
+Another one. Two sentences.
+---------------------------
+"""
+
+
+def test_a_table_with_no_leading_pipe_and_a_setext_heading_are_not_judged(repo):
+    change(repo, "docs/table.md", lambda _: TABLE_WITH_NO_LEADING_PIPE)
+    assert check(repo) == (0, [])
+    change(repo, "docs/table.md", lambda text: text + "\nA paragraph. Two sentences.\n")
+    assert check(repo)[0] == 1
+
+
+@pytest.mark.parametrize("path", ["docs/my notes.md", "docs/café.md", 'docs/a"quote.md'])
+def test_a_path_git_quotes_or_ends_with_a_tab_is_judged(repo, path):
+    change(repo, path, lambda _: "One. Two.\n")
+    code, said = check(repo)
+    assert code == 1
+    assert said[0].startswith(f"{path}:1: ")
+
+
 def test_only_markdown_of_the_four_folders_is_judged(repo):
     change(repo, "src/notes.md", lambda _: "One. Two.\n")
     change(repo, "templates/new.txt", lambda _: "One. Two.\n")
