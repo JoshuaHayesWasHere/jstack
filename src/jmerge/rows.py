@@ -115,7 +115,8 @@ def red(main: mainstate.Main, slug: str) -> str:
     """Why the pull request of the brief `slug` waits while main is red, or nothing.
 
     The fix of a red main (`mainstate.fix_of`) is the one pull request that merges: any
-    other would land on a main that does not pass, and the fix then lands on it too.
+    other would land on a main that does not pass, and the fix then lands on it too. Any
+    `main-red-*` fix merges, the one of an older red tip too: one fix often mends both.
     """
     if not main.red or mainstate.fix_of(slug):
         return ""

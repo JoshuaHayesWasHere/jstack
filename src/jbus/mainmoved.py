@@ -17,7 +17,9 @@ out of the pass's list of open pull requests.
 The message's key, `mainmoved|<slug>|#<number>|<main 12>`, is its retry key at T3 Code and
 its mark in `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
 pass that got no answer looks again, and the mark keeps what was told from being told twice.
-A tip whose check has not ended is looked at again each pass, whether or not it is new.
+A pass that still owes a send writes only `fixed`, the green tip, so main reads as green for
+`mainstate` while the record keeps the commit to look at again. A tip whose check has not
+ended is looked at again each pass, whether or not it is new.
 So does a pass in which GitHub had not yet said whether a red head the rebase message went to
 still conflicts.
 
@@ -167,6 +169,8 @@ def tell(run: Pass, client: Client, world: World) -> None:
         if held:
             record["held"] = held
         write_json(path, record)
+    else:
+        write_json(path, {**was, mainstate.FIXED: main})
 
 
 STEPS = (

@@ -553,7 +553,7 @@ class Repo:
         return rows.read(self.main)
 
     @functools.cached_property
-    def red(self) -> mainstate.Main:
+    def main_state(self) -> mainstate.Main:
         """What jbus last kept of the default branch's check, read once for a run: the
         answer `rows.red` asks. Nothing writes it during a run but jbus, so a main that
         turns green in this run (a fix that merges) frees the others on the next."""
@@ -1053,7 +1053,7 @@ class Repo:
             return brief.stem, "wait", short, note, None
         short = (
             rows.short(self.queue, brief.stem)
-            or rows.red(self.red, brief.stem)
+            or rows.red(self.main_state, brief.stem)
             or self.short_on_migrations(one, default)
         )
         if short:

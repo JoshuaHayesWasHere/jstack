@@ -9,10 +9,12 @@ import json
 from datetime import timedelta
 
 import jbus.queue
+import jbus.wake
+import test_jbus_main_moved
 from jbus import mainstate
 from jmerge import rows as jmerge_rows
 from test_jbus_kitchen import NOW, approved, complete, go, queued
-from test_jbus_main_moved import checks, move, tip
+from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_watch import main_of, main_red
 
 
@@ -99,7 +101,7 @@ def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
 
 def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitchen):
     """`mainmoved` keeps the red tip as `broken`, and `jmerge` reads the same sha from the same
-        file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, which is no
+    file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, which is no
     record of which tip is red: no other file of the project's state names a red main."""
     checks(kitchen, tip(kitchen), "success")
     kitchen.poll()
@@ -116,6 +118,29 @@ def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitch
     move(kitchen, "success")
     kitchen.poll(NOW + timedelta(minutes=6))
     assert jmerge_rows.main(kitchen.checkout).red == ""
+
+
+crews = test_jbus_main_moved.launched
+
+
+def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews):
+    """A red crew whose head GitHub has not judged yet is owed its message, so `tell` keeps the
+    old commit to look at again: the red main is still freed for `jmerge` on that pass."""
+    red = tip(crews)
+    crews.set("open.json", [pull(crews, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
+    crews.box = jbus.wake.Box(crews.state, jbus.load().projects[0])
+    crews.box.mark("rebase|alpha|cccccccccccc")
+    green = move(crews)
+    crews.poll()
+    record = json.loads((crews.state / "main.json").read_text())
+    assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
+    assert kept(crews) == mainstate.Main(green=green)
+    assert jmerge_rows.main(crews.checkout).red == ""
+
+
+def test_a_record_from_before_broken_was_kept_names_its_failed_tip_as_red():
+    record = {"main": "d" * 40, "check": "failed"}
+    assert mainstate.of(record) == mainstate.Main(red="d" * 40)
 
 
 def test_a_launched_brief_names_the_last_green_main_on_a_green_main_line(kitchen):
