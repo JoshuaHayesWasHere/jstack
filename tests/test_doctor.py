@@ -396,6 +396,20 @@ def test_a_declared_instance_t3_lists_with_its_home_is_ok(user):
     ]
 
 
+def test_a_second_claude_home_is_old_until_jroles_mirror_makes_it_a_mirror(user):
+    from jroles import mirror
+
+    listed = {"codex": CODEX, PRIME: prime(str(user.home / ".claude_prime"))}
+    declared(user, listed)
+    home = user.home / ".claude_prime"
+    (old,) = line_for(user.doctor()[1], f"mirror {home}")
+    assert old.startswith(f"old optional mirror {home} -> would ") and "jroles mirror" in old
+    mirror.run(mirror.Main.of(user.home), mirror.Mirror(PRIME, home))
+    code, said = user.doctor()
+    assert (code, said[-1]) == (0, "doctor: ok")
+    assert line_for(said, f"mirror {home}") == [f"ok optional mirror {home}"]
+
+
 @pytest.mark.parametrize(
     ("listed", "why"),
     [

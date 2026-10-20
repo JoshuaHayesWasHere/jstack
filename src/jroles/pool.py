@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -29,22 +30,39 @@ WAIT = 75
 @dataclass(frozen=True)
 class Choice:
     """Where a launch or a move goes, and why it is not the pool's first instance. `instance`
-    is None while every instance is capped, and `until` is then the first reset."""
+    is None while every instance is capped or passed over, and `until` is then the first
+    reset, None where none is capped. `passed` is each instance `skip` passed over."""
 
     instance: str | None
     why: str
     until: datetime | None = None
+    passed: tuple[str, ...] = ()
 
 
-def choose(pool: tuple[str, ...], kept: ledger.Ledger, now: datetime) -> Choice:
-    """The first instance of `pool` with headroom in `kept`."""
-    capped = []
+def choose(
+    pool: tuple[str, ...],
+    kept: ledger.Ledger,
+    now: datetime,
+    skip: Mapping[str, str] | None = None,
+) -> Choice:
+    """The first instance of `pool` with headroom in `kept`, passing over each instance
+    `skip` names, for the reason it gives (`jbus`: one that is not mirrored). With every
+    instance passed over for `skip` there is no instance and no reset to wait for."""
+    skip = skip or {}
+    capped, passed = [], tuple(instance for instance in pool if instance in skip)
+    told = [skip[instance] for instance in passed]
     for instance in pool:
+        if instance in skip:
+            continue
         until = ledger.capped_until(kept, instance, now)
         if until is None:
-            why = "; ".join(f"{name} is capped until {at.isoformat()}" for name, at in capped)
-            return Choice(instance, why)
+            whys = [f"{name} is capped until {at.isoformat()}" for name, at in capped]
+            return Choice(instance, "; ".join([*whys, *told]), passed=passed)
         capped.append((instance, until))
+    if passed:
+        whys = [f"{name} is capped until {at.isoformat()}" for name, at in capped]
+        first = min((until for _, until in capped), default=None)
+        return Choice(None, "; ".join([*whys, *told]), first, passed)
     first = min(until for _, until in capped)
     names = [name for name, _ in capped]
     if len(names) == 1:

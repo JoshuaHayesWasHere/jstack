@@ -43,6 +43,8 @@ UNITS = [
     "jbus.timer",
     "jgauge-sample.service",
     "jgauge-sample.timer",
+    "jroles-mirror.service",
+    "jroles-mirror.timer",
 ]
 TIMERS = [
     "jbus-ci.timer",
@@ -50,6 +52,7 @@ TIMERS = [
     "jbus-stale.timer",
     "jbus.timer",
     "jgauge-sample.timer",
+    "jroles-mirror.timer",
 ]
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
