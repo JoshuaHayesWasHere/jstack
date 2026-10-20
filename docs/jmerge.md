@@ -22,7 +22,7 @@ A pull request that waits is not a failure. `jmerge` exits non-zero when it coul
 
 ## What ready means
 
-Each item below is a reason a pull request waits. `jmerge` prints one reason for a pull request. `Repo.waits` in `src/jmerge/cli.py` has their order. "Protected and guarded paths" adds a hold and a stricter gate.
+Each item below is a reason a pull request waits. `jmerge` prints one reason for a pull request. `Repo.judge` in `src/jmerge/cli.py` has their order. "Protected and guarded paths" adds a hold and a stricter gate.
 
 - **A draft waits.** A draft is never merged, with any flag: `wait <number> <url>: draft`.
 - **A brief names it.** A brief's Result has the pull request on its `Branch:` line. A brief that belongs to another home of the repo waits as `another home's`, unless `--all` is given.

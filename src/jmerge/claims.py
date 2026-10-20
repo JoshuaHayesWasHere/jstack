@@ -6,6 +6,7 @@ from jbriefs import parse
 from jmerge import ready, sweep
 
 ROOT = "root"
+NOBODY = ""
 NOT_LAUNCHED = "not launched"
 OUT = "out"
 NO_WHERE = "no Where line"

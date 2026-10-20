@@ -570,6 +570,11 @@ def dropped(main: str, own: str, head: str) -> tuple[int, int]:
 
 
 @dataclass(frozen=True)
+class NoPatch:
+    commit: str
+
+
+@dataclass(frozen=True)
 class Drop:
     file: str
     mains: int

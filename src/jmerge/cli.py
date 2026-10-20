@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import NamedTuple
 
 import jsettings
 from jbriefs import parse
@@ -77,6 +78,12 @@ def patch_id(cwd: Path, base: str, commit: str) -> str | None:
     return None if summed.returncode else b"".join(summed.stdout.split()[:1]).decode()
 
 
+def _write_whole(path: Path, text: str) -> None:
+    new = path.with_name(f"{path.name}.{os.getpid()}.new")
+    new.write_text(text, encoding="utf-8")
+    os.replace(new, path)
+
+
 def _first_word(text: str) -> str:
     return "".join(text.split()[:1])
 
@@ -92,7 +99,28 @@ def patterns(path: Path) -> tuple[str, ...]:
         ) from None
 
 
-def rules_are_mains(package: Path, pull: bool = True) -> str:
+class Behind(str):
+    package: Path
+    default: str
+
+    def __new__(cls, package: Path, default: str) -> Behind:
+        made = super().__new__(
+            cls, f"jmerge's own rules are behind {default}'s, and a run that merges pulls them"
+        )
+        made.package, made.default = package, default
+        return made
+
+    def pull(self) -> str:
+        pulled = _run(self.package, "git", "pull", "-q", "--ff-only")
+        if pulled.returncode:
+            return (
+                f"jmerge's own rules are behind {self.default}'s and were not pulled "
+                f"({_said(pulled)})"
+            )
+        return f"jmerge pulled {self.default}'s rules; judged on the next run"
+
+
+def rules_are_mains(package: Path) -> str | Behind:
     if _run(package, "git", "rev-parse", "--show-toplevel").returncode:
         return "jmerge's own rules are not in a git checkout"
     if not _run(package, "git", "ls-files", "--", ".").stdout.strip():
@@ -116,17 +144,17 @@ def rules_are_mains(package: Path, pull: bool = True) -> str:
     if on != default or not behind:
         at = f"not behind origin/{default}" if on == default else f"on {on or 'no branch'}"
         return f"jmerge's own rules are not {default}'s: their checkout is {at}"
-    if not pull:
-        return f"jmerge's own rules are behind {default}'s, and a run that merges pulls them"
-    pulled = _run(package, "git", "pull", "-q", "--ff-only")
-    if pulled.returncode:
-        return f"jmerge's own rules are behind {default}'s and were not pulled ({_said(pulled)})"
-    return f"jmerge pulled {default}'s rules; judged on the next run"
+    return Behind(package, default)
 
 
 def _was(handoff: Path) -> str:
     was = re.search(r"^Was home:[ \t]*(\S+)", _read(handoff), re.M)
     return was[1] if was else ""
+
+
+class Checked(NamedTuple):
+    short: str
+    note: str
 
 
 class Fresh:
@@ -164,23 +192,21 @@ class Fresh:
             return {}
         return known if isinstance(known, dict) else {}
 
-    def of(
-        self, number: int, head: str, tip: str, files: tuple[str, ...] | None
-    ) -> tuple[str, str] | None:
+    def of(self, number: int, head: str, tip: str, files: tuple[str, ...] | None) -> Checked | None:
         was = self.known().get(str(number))
         asked = {"head": head, "main": tip, "command": self.command}
         recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
         if recorded and was.get("result") != ready.TIMED_OUT:
             return self._said(str(was.get("result")), head, tip, was)
         if isinstance(was, dict) and self.stands(number, was, head, tip, files):
-            return "", ready.fresh_kept(self.command, head, str(was["main"]), tip)
+            return Checked("", ready.fresh_kept(self.command, head, str(was["main"]), tip))
         if not self.run:
-            return (ready.FRESH_QUEUED, "") if recorded else None
+            return Checked(ready.FRESH_QUEUED, "") if recorded else None
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
         if merged.returncode == 1:
-            return ready.FRESH_CONFLICT, ""
+            return Checked(ready.FRESH_CONFLICT, "")
         if merged.returncode:
-            return self._not_run(merged), ""
+            return Checked(self._not_run(merged), "")
         tree = _first_word(merged.stdout)
         found = self.marked(tree)
         if found:
@@ -189,10 +215,10 @@ class Fresh:
             self._keep(number, {**record, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"})
             return self._said(ready.PASSED, head, tip, record)
         if self.ran or self._held():
-            return ready.FRESH_QUEUED, ""
+            return Checked(ready.FRESH_QUEUED, "")
         self.ran = True
         started = self.start(number, head, tip, tree)
-        return started or ready.FRESH_QUEUED, ""
+        return Checked(started or ready.FRESH_QUEUED, "")
 
     def stands(
         self, number: int, was: dict, head: str, tip: str, files: tuple[str, ...] | None
@@ -319,21 +345,20 @@ class Fresh:
         return 0
 
     def _keep(self, number: int, record: dict) -> None:
-        (self.state / "fresh.json").write_text(
-            json.dumps({**self.known(), str(number): record}, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        known = {**self.known(), str(number): record}
+        _write_whole(self.state / "fresh.json", json.dumps(known, indent=2) + "\n")
 
-    def _said(self, result: str, head: str, tip: str, was: dict) -> tuple[str, str]:
+    def _said(self, result: str, head: str, tip: str, was: dict) -> Checked:
         if result == ready.PASSED and was.get("marker"):
-            return "", ready.fresh_skipped(str(was.get("tree")), str(was["marker"]), head, tip)
+            tree, marker = str(was.get("tree")), str(was["marker"])
+            return Checked("", ready.fresh_skipped(tree, marker, head, tip))
         if result == ready.PASSED:
             unmarked = str(was.get("unmarked") or "")
             more = f", its tree is not marked ({unmarked})" if unmarked else ""
-            return "", ready.fresh_note(self.command, head, tip) + more
+            return Checked("", ready.fresh_note(self.command, head, tip) + more)
         if result != ready.FAILED:
-            return result, ""
-        return ready.short_on_fresh(result, self.command, head, tip), ""
+            return Checked(result, "")
+        return Checked(ready.short_on_fresh(result, self.command, head, tip), "")
 
     def mark(self, commit: str) -> str:
         tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
@@ -383,6 +408,19 @@ class Fresh:
                     return ready.TIMED_OUT, made
         finally:
             _run(self.main, "git", "worktree", "remove", "--force", str(at))
+
+
+class Homes(NamedTuple):
+    known: dict[str, str]
+    running: dict[str, str]
+
+
+class Judgement(NamedTuple):
+    slug: str
+    verb: str
+    why: str
+    note: str
+    judged: ready.Judged | None
 
 
 class Repo:
@@ -489,22 +527,21 @@ class Repo:
         return ""
 
     def others(self, text: str) -> bool:
-        return claims.home_of(text, self.homes()) != self.asking
+        return claims.home_of(text, self.homes.known) != self.asking
 
     @functools.cached_property
     def asking(self) -> str:
-        named, running = self._homes
         if self.mine == self.listed:
             return claims.ROOT
-        if self.mine in running:
-            return running[self.mine]
-        return "" if self.listed or self.mine in named else claims.ROOT
-
-    def homes(self) -> dict[str, str]:
-        return self._homes[0]
+        if self.mine in self.homes.running:
+            return self.homes.running[self.mine]
+        root_runs, handed_off = bool(self.listed), self.mine in self.homes.known
+        if root_runs or handed_off:
+            return claims.NOBODY
+        return claims.ROOT
 
     @functools.cached_property
-    def _homes(self) -> tuple[dict[str, str], dict[str, str]]:
+    def homes(self) -> Homes:
         named, running = {}, {}
         for scope in sorted(path for path in self.state.glob("*") if path.is_dir()):
             now, was = _first_word(_read(scope / "home-id")), _was(scope / "handoff.md")
@@ -515,7 +552,7 @@ class Repo:
         named.update(dict.fromkeys(filter(None, [self.listed, self.was]), claims.ROOT))
         if self.listed:
             running[self.listed] = claims.ROOT
-        return named, running
+        return Homes(known=named, running=running)
 
     def claimed(self) -> int:
         asked = _run(
@@ -538,7 +575,7 @@ class Repo:
         if asked.returncode or open_pulls is None:
             print(f"wait: could not ask GitHub{asked_why(asked)}", flush=True)
             return 1
-        homes = self.homes()
+        homes = self.homes.known
         for brief in sorted((self.state / "tasks").glob("*.md")):
             claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes)
             if claim:
@@ -612,11 +649,9 @@ class Repo:
         return branch, "" if branch else asked_why(asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
-        """What stands on a remote branch, or nothing: an open pull request based on it.
-
-        GitHub changes the base of such a pull request when the branch is deleted after its
-        own pull request merged, which is the stack's order changed by a clean-up. A GitHub
-        that does not answer keeps the branch.
+        """GitHub retargets an open pull request based on a branch deleted after its own pull
+        request merged, so deleting it would change a stack's order:
+        https://github.blog/changelog/2020-05-19-pull-request-retargeting/
         """
         asked = _run(
             self.main,
@@ -644,11 +679,9 @@ class Repo:
         return f"the open pull request{several} {' '.join(map(str, numbers))} {verb} based on it"
 
     def left(self, one: ready.PullRequest) -> tuple[str, ...] | None:
-        """The paths a pull request's renames left, or None where GitHub did not say.
-
-        The list of open pull requests has a rename under its new path alone, so this is
-        one more question, asked only of a pull request that has a rename and is short of
-        nothing else.
+        """`gh pr list` lists a rename under its new path alone, and only the files endpoint
+        gives the path it left, as `previous_filename`:
+        https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files
         """
         if not one.renamed:
             return ()
@@ -697,7 +730,7 @@ class Repo:
             _run(self.main, "git", "fetch", "-q", "origin")
         return rangediff.verdict(self.main, reviewed, head, default)
 
-    def unsaid(self, base: str, covered: str, head: str) -> ready.Rebase | None:
+    def rebase_since_review(self, base: str, covered: str, head: str) -> ready.Rebase | None:
         forks = []
         for commit in (covered, head):
             fork = _run(self.main, "git", "merge-base", f"origin/{base}", commit)
@@ -716,7 +749,7 @@ class Repo:
         files = sorted({file for patch in patches for file in patch.splitlines()})
         return ready.Rebase("changed", tuple(files), covered, head)
 
-    def apart(self, base: str, under: str, head: str) -> bool:
+    def left_main_elsewhere(self, base: str, under: str, head: str) -> bool:
         for _ in range(2):
             forks = [
                 _run(self.main, "git", "merge-base", f"origin/{base}", commit)
@@ -730,12 +763,14 @@ class Repo:
             _run(self.main, "git", "fetch", "-q", "origin")
         return True
 
-    def dropped(self, base: str, rebase: ready.Rebase, head: str) -> tuple[ready.Drop, ...] | str:
+    def dropped(
+        self, base: str, rebase: ready.Rebase, head: str
+    ) -> tuple[ready.Drop, ...] | ready.NoPatch:
         forks = []
         for commit in (rebase.before, rebase.head, head):
             fork = _run(self.main, "git", "merge-base", f"origin/{base}", commit)
             if fork.returncode:
-                return commit
+                return ready.NoPatch(commit)
             forks.append(fork.stdout.strip())
         old, new, _ = forks
         if old == new:
@@ -746,13 +781,13 @@ class Repo:
             for fork, commit in ((old, rebase.before), (new, rebase.head))
         ]
         if None in patches:
-            return rebase.before
+            return ready.NoPatch(rebase.before)
         lost = []
         for file in sorted({file for patch in patches if patch for file in patch.splitlines()}):
             main = _text(self.main, *diff, old, new, "--", file)
             own = _text(self.main, *diff, old, rebase.before, "--", file)
             if main is None or own is None:
-                return rebase.before
+                return ready.NoPatch(rebase.before)
             counts = [
                 ready.dropped(main, own, _text(self.main, "git", "show", f"{at}:{file}") or "")
                 for at in dict.fromkeys((rebase.head, head))
@@ -784,8 +819,7 @@ class Repo:
         found = self.fresh.of(one.number, one.head, tip, files) if asks else None
         if found is None:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
-        short, note = found
-        return short, "" if short else tip, note
+        return found.short, "" if found.short else tip, found.note
 
     def related(
         self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
@@ -812,28 +846,24 @@ class Repo:
     def proven_at(self, one: ready.PullRequest) -> str:
         return self.carried.get(one.number) or one.head
 
-    def waits(
-        self, one: ready.PullRequest, default: str
-    ) -> tuple[str, str, str, str, ready.Judged | None]:
+    def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
-        if one.number in self.order and found[1] == "wait" and ready.being_rebased(found[2]):
+        if one.number in self.order and found.verb == "wait" and ready.being_rebased(found.why):
             self.rebasing.add(one.number)
         else:
             self.rebasing.discard(one.number)
         return found
 
-    def judge(
-        self, one: ready.PullRequest, default: str
-    ) -> tuple[str, str, str, str, ready.Judged | None]:
+    def judge(self, one: ready.PullRequest, default: str) -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
         if one.draft:
-            return brief.stem if brief else "", "wait", ready.DRAFT, "", None
+            return Judgement(brief.stem if brief else "", "wait", ready.DRAFT, "", None)
         if brief is None:
-            return "", "wait", ready.NO_BRIEF, "", None
+            return Judgement("", "wait", ready.NO_BRIEF, "", None)
         text = _read(brief)
         if self.others(text) and not self.every:
-            return brief.stem, "wait", ready.OTHER_HOME, "", None
+            return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         short = ready.held(one, default, ready.stack_of(text), self.land)
         short = short or ready.rebase_held(text, one.head) or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
@@ -846,10 +876,10 @@ class Repo:
             if _run(self.main, "git", "fetch", "-q", "origin").returncode:
                 short = f"{one.base} could not be fetched to see what its rebase kept"
             elif covered and (rebase is None or not rebase.files):
-                rebase = self.unsaid(one.base, covered, one.head) or rebase
+                rebase = self.rebase_since_review(one.base, covered, one.head) or rebase
             found = () if short or rebase is None else self.dropped(one.base, rebase, one.head)
-            if isinstance(found, str):
-                short = ready.cannot_check(found)
+            if isinstance(found, ready.NoPatch):
+                short = ready.cannot_check(found.commit)
             else:
                 lost = found
         if rebase is None and covered is None:
@@ -858,7 +888,12 @@ class Repo:
         note = ""
         silent = ready.unexplained(lost, text, one.head)
         under = ready.under_fix(rebase, text, one.head)
-        if under and covered is None and not short and self.apart(one.base, under, one.head):
+        if (
+            under
+            and covered is None
+            and not short
+            and self.left_main_elsewhere(one.base, under, one.head)
+        ):
             covered = under
         reviewed = None if short or silent else covered
         if reviewed == "":
@@ -870,14 +905,14 @@ class Repo:
                 self.carried[one.number] = reviewed
             note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
         if short:
-            return brief.stem, "wait", short, note, None
+            return Judgement(brief.stem, "wait", short, note, None)
         short = (
             rows.short(self.queue, brief.stem)
             or rows.red(self.main_state, brief.stem)
             or self.short_on_migrations(one, default)
         )
         if short:
-            return brief.stem, "wait", short, note, None
+            return Judgement(brief.stem, "wait", short, note, None)
         left = self.left(one)
         lifted = self.accepted == (one.number, one.head)
         kind, why = ready.drops(lost, text, one.head, user=self.user)
@@ -886,29 +921,31 @@ class Repo:
             self.lifts.append(why)
             kind = ""
         if kind:
-            return brief.stem, kind, why, note, None
+            return Judgement(brief.stem, kind, why, note, None)
         hold = ready.needs_the_user(one, self.protected, left, user=self.user)
         if lifted and hold:
             self.lifts.append(hold)
             hold = ""
         if hold:
-            return brief.stem, "hold", hold, note, None
+            return Judgement(brief.stem, "hold", hold, note, None)
         short, tip, fresh = self.stale(one, left)
         if short:
-            return brief.stem, "wait", short, note, None
+            return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
         left = left or ()
         path = ready.guarded_path(one, self.guarded, left)
         if path:
             short = self.short_of_guarded(one, text, rebase, note)
             if short:
-                return brief.stem, "wait", f"guarded (touches {path}), {short}", note, None
+                return Judgement(
+                    brief.stem, "wait", f"guarded (touches {path}), {short}", note, None
+                )
         if (self.state / "merge-off").exists():
-            return brief.stem, "wait", ready.MERGE_OFF, note, None
+            return Judgement(brief.stem, "wait", ready.MERGE_OFF, note, None)
         rules = bool(path) and ready.changes_the_rules(one, left)
         if one.number in self.order:
             self.through = one.number
-        return brief.stem, "", "", note, ready.Judged(path, tip, rules, fresh)
+        return Judgement(brief.stem, "", "", note, ready.Judged(path, tip, rules, fresh))
 
     def holds(self) -> dict[str, str]:
         try:
@@ -922,9 +959,7 @@ class Repo:
 
     def holds_are(self, holds: dict[str, str]) -> None:
         if holds != self.holds() and self.state.is_dir():
-            new = self.state / "holds.json.new"
-            new.write_text(json.dumps(holds) + "\n", encoding="utf-8")
-            os.replace(new, self.state / "holds.json")
+            _write_whole(self.state / "holds.json", json.dumps(holds) + "\n")
 
     def accept(
         self,
@@ -936,9 +971,9 @@ class Repo:
         check: bool,
     ) -> int:
         about = f"{one.number} {one.url}"
-        slug, verb, why, _, _ = self.waits(one, default)
-        if verb != "hold":
-            state = f"it waits: {why}" if verb else "jmerge merges it by itself"
+        first = self.waits(one, default)
+        if first.verb != "hold":
+            state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
             say(f"refused {about}: it is not held, {state}")
             return 1
         was = self.holds().get(str(one.number), "")
@@ -946,7 +981,7 @@ class Repo:
             held = f"was at {was[:12]}" if was else "is not on record, run jmerge first"
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
-        text = _read(self.state / "tasks" / f"{slug}.md")
+        text = _read(self.state / "tasks" / f"{first.slug}.md")
         at = self.proven_at(one)
         proven = proof.fact(text, at)
         if proven is None:
@@ -954,17 +989,17 @@ class Repo:
             return 1
         safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
-        slug, verb, short, rebase, judged = self.waits(one, default)
-        if judged is None:
-            say(f"{verb} {about}: {short}")
+        found = self.waits(one, default)
+        if found.judged is None:
+            say(f"{found.verb} {about}: {found.why}")
             return 1
-        why = " and ".join(self.lifts) or why
+        why = " and ".join(self.lifts) or first.why
         if check:
-            ready_line = f"ready {one.number} {one.head} {one.branch} {slug}"
+            ready_line = f"ready {one.number} {one.head} {one.branch} {found.slug}"
             say(f"{ready_line}, accepted: {why}, {safe}")
             return 0
         say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
-        said = self.merge(one, slug, rebase, judged)
+        said = self.merge(one, found.slug, found.note, found.judged)
         say(said)
         if not said.startswith("merged "):
             return 1
@@ -1025,10 +1060,10 @@ class Repo:
                 return f"wait {number} {one.url}: {guarded}{ready.MAIN_MOVED}"
             again += 1
             self.numbers_on = None
-            _, verb, why, rebase, found = self.waits(one, one.base)
-            if found is None:
-                return f"{verb} {number} {one.url}: {why}"
-            judged = found
+            again_judged = self.waits(one, one.base)
+            if again_judged.judged is None:
+                return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
+            rebase, judged = again_judged.note, again_judged.judged
         ran = _run(
             self.main,
             "gh",
@@ -1166,9 +1201,9 @@ class Sweep:
         return ran.returncode == 0
 
     def _safe(self, commit: str, head: str, pull: str) -> bool:
-        """Whether a commit's work is in the default branch, or in the merged pull request.
-
-        The merged head may no longer be here, once its branch is gone: GitHub keeps it.
+        """GitHub keeps a pull request's head as `refs/pull/<number>/head` after its branch is
+        deleted, so a merged head no longer here is fetched from there:
+        https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally
         """
         if commit == head or self._within(commit, self.tip):
             return True
@@ -1415,6 +1450,11 @@ def main(argv: list[str] | None = None) -> int:
         return Repo(main_checkout, state, args.home, args.all, user=user).claimed()
     if args.scope:
         return Repo(main_checkout, state, args.home, args.all, user=user).scoped(args.scope)
+
+    def rules() -> str:
+        found = rules_are_mains(PACKAGE)
+        return found.pull() if isinstance(found, Behind) and not args.check else found
+
     repo = Repo(
         main_checkout,
         state,
@@ -1424,7 +1464,7 @@ def main(argv: list[str] | None = None) -> int:
         patterns(PROTECTED),
         patterns(GUARDED),
         patterns(CI_PATHS),
-        lambda: rules_are_mains(PACKAGE, pull=not args.check),
+        rules,
         PACKAGE.resolve().is_relative_to(main_checkout.resolve()),
         Fresh(main_checkout, state, run=not args.check),
         user=user,
@@ -1474,15 +1514,15 @@ def main(argv: list[str] | None = None) -> int:
         return repo.accept(found, default, args.by, args.at, say, args.check)
 
     for one in repo.line_up(listed, default):
-        slug, verb, why, rebase, judged = repo.waits(one, default)
-        if verb == "hold" and not args.check:
+        found = repo.waits(one, default)
+        if found.verb == "hold" and not args.check:
             repo.hold(one)
-        if judged is None:
-            say(f"{verb} {one.number} {one.url}: {why}")
+        if found.judged is None:
+            say(f"{found.verb} {one.number} {one.url}: {found.why}")
         elif args.check:
-            ready_line = f"ready {one.number} {one.head} {one.branch} {slug}"
-            note = f"guarded: {judged.path}" if judged.path else ""
-            say(", ".join(filter(None, [ready_line, rebase, note, judged.fresh])))
+            ready_line = f"ready {one.number} {one.head} {one.branch} {found.slug}"
+            guarded = f"guarded: {found.judged.path}" if found.judged.path else ""
+            say(", ".join(filter(None, [ready_line, found.note, guarded, found.judged.fresh])))
         else:
-            say(repo.merge(one, slug, rebase, judged))
+            say(repo.merge(one, found.slug, found.note, found.judged))
     return 0
