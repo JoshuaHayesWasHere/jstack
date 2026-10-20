@@ -182,6 +182,26 @@ def test_a_page_moved_whole_is_never_judged_and_a_moved_page_only_for_what_chang
     assert [one.split(": ")[0] for one in said[:-1]] == [f"docs/moved.md:{at}"]
 
 
+def test_a_page_moved_and_mostly_rewritten_is_judged_only_for_its_new_lines(repo):
+    git(repo, "mv", "docs/old.md", "docs/moved.md")
+    page = repo / "docs" / "moved.md"
+    kept = LONG + " Nobody rewraps it."
+    new = [f"A new line {n}." for n in range(60)]
+    page.write_text("\n".join([kept, *new, "A new paragraph. It holds two sentences."]) + "\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "move and rewrite")
+    code, said = check(repo)
+    assert code == 1
+    assert [one.split(": ")[0] for one in said[:-1]] == ["docs/moved.md:62"]
+
+
+def test_a_paragraph_moved_to_another_page_is_not_judged(repo):
+    kept = LONG + " Nobody rewraps it."
+    change(repo, "docs/old.md", lambda text: text.replace(kept + "\n", ""))
+    change(repo, "skills/new/SKILL.md", lambda _: kept + "\n")
+    assert check(repo) == (0, [])
+
+
 def test_a_removed_line_is_never_judged(repo):
     change(repo, "docs/old.md", lambda text: text.replace(LONG + " Nobody rewraps it.\n", ""))
     assert check(repo) == (0, [])

@@ -4,8 +4,9 @@ It reads what a pull request adds or changes with `git diff --unified=0 --find-r
 <base>...HEAD`, in the Markdown files of `docs/`, `skills/`, `playbooks/` and `templates/`,
 and fails on each added line that holds more than one sentence. It prints one fault a line,
 `<file>:<line>: ...: <the line>`, and exits 1. A line the diff does not add is never judged,
-so old prose stays as it is until a pull request touches it: a file moved whole adds no
-line, and a moved file adds only the lines that changed.
+so old prose stays as it is until a pull request touches it. A line the same diff removes
+somewhere, word for word, is moved and not added: a page moved, however much of it is
+rewritten, or a paragraph moved to another place or file, is judged only for what changed.
 
 A line is judged in its place in the file at HEAD, read whole, so it knows what the line is
 in. These are not prose and are never judged: a line in a code fence, in the front matter, in
@@ -27,6 +28,7 @@ import codecs
 import re
 import subprocess
 import sys
+from collections import Counter
 
 FOLDERS = ("docs/", "skills/", "playbooks/", "templates/")
 ABBREVIATIONS = {"e.g", "i.e", "etc", "vs", "cf", "approx", "incl", "no", "mr", "mrs", "ms", "dr"}
@@ -134,6 +136,13 @@ def added(diff):
     return found
 
 
+def removed(diff):
+    """The lines a `--unified=0` diff removes, in any file, each as often as it removes it."""
+    return Counter(
+        line[1:].rstrip() for line in diff.splitlines() if line[:1] == "-" and line[:4] != "--- "
+    )
+
+
 def named(header):
     """The path of a diff's `+++` header, or `None` for `/dev/null`: git ends a name that has
     a space with a tab, and quotes one with a quote, a backslash or a control character."""
@@ -155,7 +164,7 @@ def git(*args):
 def faults(base):
     """Each added prose line of more than one sentence, as `(path, number, line)`."""
     diff = git("diff", "--unified=0", "--find-renames", "--no-ext-diff", f"{base}...HEAD", "--")
-    found = []
+    found, moved = [], removed(diff)
     for path, numbers in added(diff).items():
         if not path.startswith(FOLDERS) or not path.endswith(".md"):
             continue
@@ -163,7 +172,9 @@ def faults(base):
         judged = prose(lines)
         for number in numbers:
             line = lines[number - 1]
-            if judged[number - 1] and len(sentences(LIST_MARK.sub("", line))) > 1:
+            if moved[line.rstrip()]:
+                moved[line.rstrip()] -= 1
+            elif judged[number - 1] and len(sentences(LIST_MARK.sub("", line))) > 1:
                 found.append((path, number, line))
     return found
 
