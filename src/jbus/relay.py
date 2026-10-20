@@ -27,7 +27,19 @@ Both routes go to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_K
 URL or key is missing, empty or REPLACE_ME, or a missing inbound key, is refused at start: the
 relay names each such key in the journal, never its value, and exits 2, which
 `jbus-relay.service` does not restart. State is in `RELAY_STATE`, ~/.local/state/jbus-relay:
-`spool/<route>/`, `sent/<route>`, `dead/<route>/` and `watch.json`.
+`spool/<route>/`, `sent/<route>`, `dead/<route>/`, `watch.json` and `heartbeat.json`.
+
+The heartbeat is `heartbeat.json`, written each `BEAT_SECONDS`, on each body taken, and when a
+route begins or ends to fail: `beat`, when it was written; `started`, when this relay started;
+`heard`, when the relay last took a body, kept across a restart; `silent_minutes`,
+`RELAY_SILENT_MINUTES` (90), how long with no body is silence; `failing`, each route whose
+last POST failed and was not followed by one that went, with when it began to fail, why, and
+how many bodies wait, kept across a restart while the route still holds a body, and ended by
+a body refused for good when none waits behind it; and `refused`, each body a target refused
+for good in the last day, with its route, when, why and its file in `dead/`, kept across a
+restart. The relay judges none of it: `jbus health` reads it and pages (`jbus.health`). jbus
+posts a `refresh` to `blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it
+posts to hears a body at least that often.
 
 When Sous Chef is silent the relay pages a second way, the `pager` target (Home Assistant's
 mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify-send` beside
@@ -59,7 +71,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +90,10 @@ NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 SERVICE = re.compile(r"[a-z0-9_]{1,128}")
 SECRET_URL = re.compile(r"\S+://\S*[@?]\S*?(?=[:,;)]?(\s|$))")
 PAGE_MINUTES = leftover.REMIND_MINUTES + 30
+SILENT_MINUTES = leftover.REFRESH_MINUTES + 30
+BEAT_SECONDS = 60
+REFUSED_KEPT = timedelta(days=1)
+HEARTBEAT = "heartbeat.json"
 
 
 def everything(body: Body) -> Body | None:
@@ -146,6 +162,7 @@ class Settings:
     timeout: float
     retry: float
     dedup: float
+    silent: float = SILENT_MINUTES
 
 
 def _unusable(env: Mapping[str, str], key: str) -> str | None:
@@ -185,9 +202,10 @@ def settings(env: Mapping[str, str]) -> Settings:
             timeout=float(env.get("RELAY_TIMEOUT_SECONDS", "15")),
             retry=float(env.get("RELAY_RETRY_SECONDS", "300")),
             dedup=float(env.get("RELAY_DEDUP_SECONDS", "900")),
+            silent=float(env.get("RELAY_SILENT_MINUTES", str(SILENT_MINUTES))),
         )
     except ValueError as error:
-        numbers = "RELAY_PORT or a RELAY_*_SECONDS"
+        numbers = "RELAY_PORT, RELAY_SILENT_MINUTES or a RELAY_*_SECONDS"
         raise Refused(f"{numbers}: {error}") from None
 
 
@@ -273,6 +291,9 @@ class Lane:
         self.last = max((int(path.stem.split("-")[0]) for path in waiting), default=0)
         self.lock = threading.Lock()
         self.wake = threading.Event()
+        self.failing: Body | None = None
+        self.changed: Callable[[], None] = lambda: None
+        self.refused: Callable[[Body], None] = lambda one: None
 
     @staticmethod
     def _id(path: Path) -> str:
@@ -359,6 +380,17 @@ class Lane:
                 said = f"relay: POST to {self.target.name} ({self.route.name}) failed"
                 said = f"{said} for event {id}"
                 if not error.final:
+                    since = (self.failing or {}).get("since") or _now()
+                    was, self.failing = (
+                        self.failing,
+                        {
+                            "route": self.route.name,
+                            "since": since,
+                            "why": str(error),
+                        },
+                    )
+                    if was != self.failing:
+                        self.changed()
                     self.say(f"{said}: {error}")
                     self._silent(self._waiting())
                     return False
@@ -368,8 +400,17 @@ class Lane:
                 with self.lock:
                     self.held.discard(id)
                 self.say(f"{said}: {error}, refused for good, kept in {self.dead / path.name}")
+                if self.failing and not self._waiting():
+                    self.failing = None
+                    self.changed()
+                self.refused(
+                    {"route": self.route.name, "at": _now(), "why": str(error), "file": path.name}
+                )
                 continue
             self._done(path, id, own=json.loads(data).get("id") == id)
+            if self.failing:
+                self.failing = None
+                self.changed()
             self.say(f"relay: sent event {id} to {self.target.name} ({self.route.name})")
         return True
 
@@ -382,6 +423,10 @@ class Lane:
                 self.say(f"relay: {self.route.name} could not read or clear its spool: {error!r}")
                 went = False
             self.wake.wait(None if went else self.config.retry)
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _when(value: Any) -> datetime | None:
@@ -540,6 +585,20 @@ class Relay:
         ]
         self.watched = config.state / "watch.json"
         self.watch = Watch.load(self.watched)
+        self.beating = config.state / HEARTBEAT
+        try:
+            heard = json.loads(self.beating.read_text()).get("heard")
+        except (OSError, ValueError, AttributeError):
+            heard = None
+        self.heard: str | None = heard if _when(heard) else None
+        self.refusals: list[Body] = self._refusals()
+        self.refuse_lock = threading.Lock()
+        self._failing()
+        self.beat_lock = threading.Lock()
+        self.started = _now()
+        for lane in [*self.lanes, self.pager.lane]:
+            lane.changed = self.beat
+            lane.refused = self.refuse
 
     def _unheard(self, route: Route) -> Callable[[str, Body], None] | None:
         return self.pager.unheard if route.pick is blocking else None
@@ -552,6 +611,8 @@ class Relay:
             if watch != self.watch:
                 self.watch = watch
                 self.watch.save(self.watched)
+        self.heard = _now()
+        self.beat()
         self.say(f"relay: took event {id}, spooled for {', '.join(spooled) or 'no route'}")
         for page, line in pages:
             self.pager.page(page, line)
@@ -568,9 +629,79 @@ class Relay:
         self.say(f"relay: event {id} acknowledged, {len(pages)} item(s) seen")
         return len(pages)
 
+    def _refusals(self) -> list[Body]:
+        """The refusals the last heartbeat kept, of the last `REFUSED_KEPT`."""
+        try:
+            kept = json.loads(self.beating.read_text()).get("refused")
+        except (OSError, ValueError, AttributeError):
+            return []
+        recent = []
+        for one in kept if isinstance(kept, list) else []:
+            at = _when(one.get("at")) if isinstance(one, dict) else None
+            if at and datetime.now(UTC) - at < REFUSED_KEPT:
+                recent.append(one)
+        return recent
+
+    def _failing(self) -> None:
+        """Each route the last heartbeat names as failing, while it still holds a body: a
+        restart does not end a failure, and it keeps the time it began."""
+        try:
+            kept = json.loads(self.beating.read_text()).get("failing")
+        except (OSError, ValueError, AttributeError):
+            return
+        lanes = {lane.route.name: lane for lane in [*self.lanes, self.pager.lane]}
+        for one in kept if isinstance(kept, list) else []:
+            lane = lanes.get(one.get("route")) if isinstance(one, dict) else None
+            if lane and _when(one.get("since")) and lane._waiting():
+                lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
+
+    def refuse(self, one: Body) -> None:
+        """A body was refused for good: keep it for the heartbeat, and beat. Each lane's thread
+        calls it, so the list is changed under a lock."""
+        with self.refuse_lock:
+            self.refusals = [*self._recent(), one]
+        self.beat()
+
+    def _recent(self) -> list[Body]:
+        now = datetime.now(UTC)
+        return [one for one in self.refusals if now - _when(one["at"]) < REFUSED_KEPT]
+
+    def beat(self) -> None:
+        """Write the heartbeat: see the module. One that cannot be written is said.
+
+        The state is read and written under one lock, so a beat that read it before a route
+        began or ended to fail cannot be written over the beat that read it after."""
+        part = self.beating.with_suffix(".part")
+        with self.beat_lock:
+            with self.refuse_lock:
+                refused = self._recent()
+            failing = []
+            for lane in [*self.lanes, self.pager.lane]:
+                if lane.failing:
+                    failing.append({**lane.failing, "waiting": len(lane._waiting())})
+            made = {
+                "beat": _now(),
+                "started": self.started,
+                "heard": self.heard,
+                "silent_minutes": self.config.silent,
+                "failing": failing,
+                "refused": refused,
+            }
+            try:
+                part.write_text(json.dumps(made))
+                os.replace(part, self.beating)
+            except OSError as error:
+                self.say(f"relay: could not write the heartbeat: {error}")
+
+    def beats(self) -> None:
+        while True:
+            self.beat()
+            time.sleep(BEAT_SECONDS)
+
     def start(self) -> None:
         for lane in [*self.lanes, self.pager.lane]:
             threading.Thread(target=lane.run, name=lane.route.name, daemon=True).start()
+        threading.Thread(target=self.beats, name="heartbeat", daemon=True).start()
 
     def handler(self) -> type[http.server.BaseHTTPRequestHandler]:
         relay = self

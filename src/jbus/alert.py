@@ -6,10 +6,12 @@ webhook <project>` for a POST of the project's that the top-level webhook did no
 `blocking webhook <project>` for a body of the project's that the second target did not take,
 `jmerge <project>` for a `jmerge` that did not run, `snapshot` for a snapshot of the homes'
 state tree that did not finish, `stale` for a look by `jbus alarm --stale` that found no pass
-ended within its limit. `failed` counts one and gives the alert line once the count
-has reached the threshold. `ok` ends the streak, and gives the recovered
-line when it had alerted. Everything else is silence: the failures before the threshold, the
-ones after the alert, and a success with no alert before it.
+ended within its limit, and `health <check>` for an incident `jbus.health` found. `failed`
+counts one and gives the alert line once the count has reached the threshold. `ok` ends the
+streak, and gives the recovered line when it had alerted. An incident is a streak that
+`opened` starts and `closed` ends, with the line its caller gives. Everything else is
+silence: the failures before the threshold, the ones after the alert, and a success with no
+alert before it.
 
 A line is owed until `told` says it is queued, and only then is the streak marked: a
 caller that raises, or is killed, between the line and the queue gets the line again on
@@ -132,6 +134,38 @@ def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
     if one is None or not one.alerted:
         return None
     return f"recovered: {key} after {one.count} failures since {_since(one, user)}"
+
+
+def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
+    """An incident under `key` is found. The answer is `alert: <line>` from the look that
+    found it until `told`, and nothing after: it is paged once. `line` says the number and
+    what it is against. The streak is written when the incident starts and not on each
+    look, so its count stays 1: it is no failure in a row."""
+    with _locked(state):
+        one = streak(state, key)
+        if one is None:
+            one = Streak(key, 1, now.isoformat(), False)
+            _keep(state, key, one)
+    return None if one.alerted else f"alert: {line}"
+
+
+def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str | None:
+    """The incident under `key` was measured and is under its limit again. The answer is
+    `recovered: <line>` for one that was paged, until `told`, and nothing where there is none.
+
+    One whose start was never told, since its page did not go, is not ended unseen: the
+    answer says when it began as well, and the streak is marked as paged, so `told` ends it
+    and a page that does not go this time goes as a plain recovered line on the next look."""
+    with _locked(state):
+        one = streak(state, key)
+        owed = one is not None and not one.alerted
+        if one is not None and owed:
+            one.alerted = True
+            _keep(state, key, one)
+    if one is None:
+        return None
+    began = f" (it began {_since(one, user)}, and that page did not go)" if owed else ""
+    return f"recovered: {line}{began}"
 
 
 def told(state: Path, key: str) -> None:

@@ -38,7 +38,7 @@ import pytest
 
 import daemons
 import repo_template
-from jbus import item, record
+from jbus import health, item, record
 from test_jbus_kitchen import Kitchen
 
 no_daemons_left = daemons.no_daemons_left
@@ -75,6 +75,13 @@ def no_user_units(tmp_path_factory, monkeypatch):
 def no_heartbeat(request, monkeypatch):
     if request.module.__name__ != "test_jbus_alive":
         monkeypatch.setattr(record, "heartbeat", lambda run, last: None)
+
+
+@pytest.fixture(autouse=True)
+def no_health(request, monkeypatch):
+    """The health step looks at the machine the test runs on: only its own tests have it."""
+    if request.module.__name__ != "test_jbus_health":
+        monkeypatch.setattr(health, "watch", lambda config, now, say: [])
 
 
 @pytest.fixture(autouse=True)

@@ -144,6 +144,22 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 | `failover <name>: <window> limit until <time>, carry-on on <a> to <b>, ...` in a `jbus` pass | A crew or a home capped on `<a>` was moved to `<b>`, either way between the instances of its pool. | Nothing: it carries on there. |
 | `capped <instance>: <window> until <time>` in a `jbus` pass | A thread's turn ended on that instance's usage limit, and the ledger now has it. | Nothing: the thread is moved to the next instance of its pool, or waits for the reset. |
 
+## A page or `jbus health` says `health <check>`
+
+`jbus health` prints each check of the machine with its number and its limit, and a pass pages the ones over it ([The health check](jbus/the-health-check.md)).
+
+| Line | Meaning | Do this |
+|---|---|---|
+| `alert: health disk <mount>: <n>% of its space used ...` or `inodes <mount>` | The mount is at 80% or more. | Free space there. Under `/tmp`, old `pytest-of-*` directories no live process holds are not data. |
+| `alert: health timeout jbus: ...` | systemd stopped a pass at `TimeoutStartSec`. | `journalctl --user -u jbus.service` shows the pass. |
+| `alert: health timeout jmerge: ...` | A pass stopped `jmerge` at its timeout. | Run `jmerge --check` in the main checkout and see where it waits. |
+| `alert: health relay: jbus-relay.service is <state>` or `relay heartbeat` | The relay the config posts to is not running. | `systemctl --user status jbus-relay`, and [The relay](jbus/the-relay.md) for a refused start. |
+| `alert: health relay silent: ...` | No body reached the relay in `RELAY_SILENT_MINUTES`. | See whether passes run (`jbus status`) and post to the relay's port. |
+| `alert: health relay errors: ...` | Sous Chef or the pager has refused the relay's POSTs for 10 minutes. | The relay's journal names the target and the status. |
+| `alert: health relay refused: ...` | A target refused a body for good, and the relay will not send it again. | Read the body in the `dead/` file the line names, and mend what the target refused. |
+| `alert: health capped <instance>: ...` | The instance is at 100% of a window: launches skip it until the reset. | Nothing: they resume by themselves, and `recovered: ... launches on <instance> resume` says so. |
+| `?    health <check>: ... could not be read` | The source of the check did not answer. | Run the command it reads (`journalctl`, `systemctl --user show`) by hand. |
+
 ## `jbus` asks for `webhook_url` and `webhook_key`
 
 A project with no `webhook_url` or no `webhook_key` is one of the things that wait on you. Each hour `jbus` raises this line on the desktop and prints it in the journal:

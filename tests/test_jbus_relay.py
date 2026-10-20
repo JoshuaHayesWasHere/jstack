@@ -748,3 +748,148 @@ def test_a_pytest_killed_outright_leaves_no_relay(tmp_path):
         pytest_run.kill()
         pytest_run.communicate()
         put_away(relay_pid(tmp_path))
+
+
+def beat(relay) -> dict:
+    return json.loads((relay.state / "heartbeat.json").read_text())
+
+
+def test_the_heartbeat_names_the_last_body_heard_and_the_silence_it_is_held_to(hooks, tmp_path):
+    relay = Relay({**env_for(hooks), "RELAY_SILENT_MINUTES": "45"}, tmp_path / "state").up()
+    until(lambda: (relay.state / "heartbeat.json").exists())
+    first = beat(relay)
+    assert first["heard"] is None and first["silent_minutes"] == 45 and first["failing"] == []
+    relay.send(body(event("gate", "user")))
+    until(lambda: beat(relay)["heard"] is not None)
+    heard = datetime.fromisoformat(beat(relay)["heard"])
+    assert abs(datetime.now(UTC) - heard) < timedelta(seconds=30)
+    relay.stop()
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: beat(again)["silent_minutes"] == 90)
+    assert beat(again)["heard"] == heard.isoformat() and beat(again)["silent_minutes"] == 90
+    again.stop()
+
+
+def test_the_heartbeat_names_a_route_whose_posts_fail_until_one_goes(relay, hooks):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 503
+    relay.send(body(event("gate", "user")))
+    until(lambda: any(one["route"] == "blocking" for one in beat(relay)["failing"]))
+    (failing,) = [one for one in beat(relay)["failing"] if one["route"] == "blocking"]
+    assert failing["why"] == "HTTP 503" and failing["waiting"] == 1
+    sous_chef.answer = 200
+    relay.send(body(event("stall", "user", "beta")))
+    until(lambda: beat(relay)["failing"] == [] and relay.spooled("blocking") == [])
+
+
+def test_a_silence_that_is_not_a_number_fails_the_start(hooks, tmp_path):
+    started = Relay({**env_for(hooks), "RELAY_SILENT_MINUTES": "soon"}, tmp_path / "state")
+    assert started.process.wait(timeout=10) == 2
+    assert "RELAY_SILENT_MINUTES" in started.process.stdout.read()
+
+
+def test_a_body_refused_for_good_is_in_the_heartbeat_also_after_a_restart(hooks, tmp_path):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 400
+    relay = Relay(env_for(hooks), tmp_path / "state").up()
+    relay.send(body(event("gate", "user")))
+    until(lambda: {one["route"] for one in beat(relay)["refused"]} == {"everything", "blocking"})
+    refused = beat(relay)["refused"]
+    assert {one["why"] for one in refused} == {"HTTP 400"}
+    assert all((relay.state / "dead" / one["route"] / one["file"]).exists() for one in refused)
+    relay.stop()
+    beating = relay.state / "heartbeat.json"
+    beating.write_text(json.dumps({**beat(relay), "old": True}))
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: "old" not in beat(again))
+    assert beat(again)["refused"] == refused
+    again.stop()
+
+
+def test_a_failing_route_stays_failing_from_when_it_began_across_a_restart(hooks, tmp_path):
+    sous_chef, _, _ = hooks
+    sous_chef.answer = 503
+    relay = Relay(env_for(hooks), tmp_path / "state").up()
+    relay.send(body(event("gate", "user")))
+    until(lambda: {one["route"] for one in beat(relay)["failing"]} == {"everything", "blocking"})
+    began = {one["route"]: one["since"] for one in beat(relay)["failing"]}
+    relay.stop()
+    beating = relay.state / "heartbeat.json"
+    beating.write_text(json.dumps({**beat(relay), "old": True}))
+    again = Relay(env_for(hooks), tmp_path / "state").up()
+    until(lambda: "old" not in beat(again))
+    assert {one["route"]: one["since"] for one in beat(again)["failing"]} == began
+    sous_chef.answer = 200
+    until(lambda: beat(again)["failing"] == [])
+    again.stop()
+
+
+def test_a_body_refused_for_good_keeps_the_failure_of_the_bodies_behind_it(tmp_path, monkeypatch):
+    """A final 4xx ends a route's failure only when nothing waits behind it: a body still
+    failing behind it keeps the time the failure began."""
+    from jbus import relay as relaying
+
+    answers = {"first": relaying.Failed("HTTP 503"), "second": relaying.Failed("HTTP 503")}
+
+    def post(target, data, timeout):
+        raise answers[json.loads(data)["id"]]
+
+    monkeypatch.setattr(relaying, "post", post)
+    config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
+    lane = relaying.Lane(relaying.ROUTES[0], config.targets["sous-chef"], config, lambda line: None)
+    lane.take("first", {"id": "first"})
+    lane.take("second", {"id": "second"})
+    assert lane.drain() is False
+    began = lane.failing["since"]
+    answers["first"] = relaying.Failed("HTTP 400", final=True)
+    assert lane.drain() is False
+    assert lane.failing == {"route": "everything", "since": began, "why": "HTTP 503"}
+    answers["second"] = relaying.Failed("HTTP 400", final=True)
+    assert lane.drain() is True and lane.failing is None
+
+
+def env_for_lane() -> dict[str, str]:
+    return {
+        "RELAY_INBOUND_KEY": INBOUND,
+        "GROK_WEBHOOK_URL": "http://127.0.0.1:9/",
+        "GROK_WEBHOOK_KEY": SOUS_CHEF_KEY,
+        "PAGER_HA_URL": "http://127.0.0.1:9",
+        "PAGER_HA_TOKEN": HA_TOKEN,
+        "PAGER_HA_SERVICE": HA_SERVICE,
+    }
+
+
+def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch):
+    """A beat that read the routes while one still failed, and is held before it writes,
+    cannot write over the beat that read them after the route recovered: the file left is
+    the newer one. The older beat is held inside its read, where a beat that read outside
+    the write lock would let the newer one write first."""
+    import threading
+
+    from jbus import relay as relaying
+
+    config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
+    relay = relaying.Relay(config, lambda line: None)
+    lane = relay.lanes[0]
+    lane.failing = {"route": lane.route.name, "since": "2026-10-20T12:00:00+00:00", "why": "503"}
+    held, go = threading.Event(), threading.Event()
+    now = relaying._now
+
+    def slow():
+        if threading.current_thread().name == "older":
+            held.set()
+            go.wait(5)
+        return now()
+
+    monkeypatch.setattr(relaying, "_now", slow)
+    older = threading.Thread(target=relay.beat, name="older")
+    older.start()
+    assert held.wait(5)
+    lane.failing = None
+    newer = threading.Thread(target=relay.beat, name="newer")
+    newer.start()
+    newer.join(0.3)
+    go.set()
+    older.join(5)
+    newer.join(5)
+    assert json.loads((tmp_path / "heartbeat.json").read_text())["failing"] == []
