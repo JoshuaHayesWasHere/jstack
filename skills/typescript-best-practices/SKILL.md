@@ -10,7 +10,9 @@ card: "House standards for text and code | 4 | TypeScript practices a thread loa
 
 Source: pstack, `pstack/skills/typescript-best-practices/SKILL.md`
 
-The source's frontmatter has `paths:` for `**/*.ts` and `**/*.tsx`, which loads it whenever such a file is read. That line is dropped here: a skill in this repo loads only when it is typed, so nothing brings these rules in by a file's path. Type `/typescript-best-practices` at the start of TypeScript work, or have the brief tell the crewmate to read this file.
+The source's frontmatter has `paths:` for `**/*.ts` and `**/*.tsx`, which loads it whenever such a file is read.
+That line is dropped here: a skill in this repo loads only when it is typed, so nothing brings these rules in by a file's path.
+Type `/typescript-best-practices` at the start of TypeScript work, or have the brief tell the crewmate to read this file.
 
 Run this first:
 
@@ -22,7 +24,9 @@ else
 fi
 ```
 
-It prints the root of the repo this skill lives in. Every path below that starts with `playbooks/`, `principles/` or `skills/` is from that root, and a path that starts with `references/` is beside this file. On `no root` the skill was loaded from somewhere else: the root is two directories above the real place of this file, not of a link to it.
+It prints the root of the repo this skill lives in.
+Every path below that starts with `playbooks/`, `principles/` or `skills/` is from that root, and a path that starts with `references/` is beside this file.
+On `no root` the skill was loaded from somewhere else: the root is two directories above the real place of this file, not of a link to it.
 
 Apply `principles/principle-type-system-discipline.md` first: read it in full.
 

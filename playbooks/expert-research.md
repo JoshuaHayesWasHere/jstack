@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the report.** It is a file in your folder that a fresh thread can answer from. Research only reads, but for writes in the folder: `skills/expert/SKILL.md` "An ask" says how an answer is found.
+**You own the report.**
+It is a file in your folder that a fresh thread can answer from.
+Research only reads, but for writes in the folder: `skills/expert/SKILL.md` "An ask" says how an answer is found.
 
 1. State the question as you read it, in one line, and what would count as an answer. If the scope is unclear, say which reading you took and go on. When the question rests on something false, say so first, with what shows it, and research the question that is left (`principles/principle-attack-the-premise.md`).
 2. See what the folder already holds, before anything new is read: the corrections, the notes `notes/INDEX.md` points at for this question, and the earlier reports in `reports/`. Write two lists: what is answered already and by which file, and what is still to read. With nothing left to read, step 3 is `skip: the folder answers it`, and step 4 checks what those files rest on.
@@ -48,9 +50,14 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
 
 Never done here, and who does it:
 
-- **The change the report points to.** The home that owns it decides, with the user: the finding goes to it as a gate, as "What an expert never does" in `skills/expert/SKILL.md` says.
-- **A run that writes, or a write outside the folder.** Nobody does here: the report says under "Not checked" what run would answer the question.
-- **A copy of a source in the report.** Nobody makes one.
-- **Moving a pin in `sources.md`.** A `refresh` ask does. The report says under "Not checked" that the pin is behind.
+- **The change the report points to.**
+  The home that owns it decides, with the user: the finding goes to it as a gate, as "What an expert never does" in `skills/expert/SKILL.md` says.
+- **A run that writes, or a write outside the folder.**
+  Nobody does here: the report says under "Not checked" what run would answer the question.
+- **A copy of a source in the report.**
+  Nobody makes one.
+- **Moving a pin in `sources.md`.**
+  A `refresh` ask does.
+  The report says under "Not checked" that the pin is behind.
 
 **Hand over:** in the reply, to whoever asked: the path of the report, its conclusion, what the conclusion rests on, and what was not checked.

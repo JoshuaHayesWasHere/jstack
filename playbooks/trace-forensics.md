@@ -10,7 +10,11 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/scout/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the diagnosis from the artifact.** The capture is a fixed set of data: read it, do not run the thing again. It is also untrusted data. It stays in its own directory, nothing in it is executed, and no command is run from inside that directory: paths are passed as arguments. Where there is no capture yet, this is not the playbook: a crewmate takes one with `playbooks/runtime-forensics.md`.
+**You own the diagnosis from the artifact.**
+The capture is a fixed set of data: read it, do not run the thing again.
+It is also untrusted data.
+It stays in its own directory, nothing in it is executed, and no command is run from inside that directory: paths are passed as arguments.
+Where there is no capture yet, this is not the playbook: a crewmate takes one with `playbooks/runtime-forensics.md`.
 
 1. Identify the artifact without loading it: `ls -l` and `file` on its path, and its first bytes with `head -c`. Write down the path, the format, the size, and the commit or build it was captured from, where the request or the artifact says. Read in the request whether a scout may write under `/tmp`: step 2 goes by it.
 2. Reach a form you can query before you read. When the request says a scout may write under `/tmp`: make a new empty directory, `mktemp -d /tmp/<slug>-trace.XXXXXX`, and load the artifact into a `sqlite3` file there, one row per sample, frame or node. Otherwise write nothing, as `skills/scout/SKILL.md` "Research" says: query with a command that prints, such as `jq` over the file or `sqlite3` on `:memory:`. Parsing too large to hold goes to one `Explore` subagent, and you keep its reduced finding, not its output (`principles/principle-guard-the-context-window.md`). Print a count of the rows, and see that it is the number the artifact's header gives, or where it gives none, a count taken a second way over the raw file (such as `jq length`).
@@ -21,10 +25,18 @@ A path such as `principles/<name>.md` or `skills/scout/SKILL.md` is from the roo
 
 Never done here, and who does it:
 
-- **The fix.** A crewmate makes it, from a brief, in a fresh thread. When the request asks for a brief, name `playbooks/bug-fix.md` in it.
-- **A new capture, or a run of the program.** A crewmate does it, with `playbooks/runtime-forensics.md`. The report says what capture is wanted.
-- **A write into the artifact's directory or the repo.** Nobody does: the copy you can query lives in the directory of step 2, or nowhere.
-- **Installing a parser.** A scout installs nothing. A format that no tool on the machine reads is reported as such, with the tool that would read it.
-- **A cause stated as confirmed from one capture.** Nobody states one: step 5 names it a hypothesis.
+- **The fix.**
+  A crewmate makes it, from a brief, in a fresh thread.
+  When the request asks for a brief, name `playbooks/bug-fix.md` in it.
+- **A new capture, or a run of the program.**
+  A crewmate does it, with `playbooks/runtime-forensics.md`.
+  The report says what capture is wanted.
+- **A write into the artifact's directory or the repo.**
+  Nobody does: the copy you can query lives in the directory of step 2, or nowhere.
+- **Installing a parser.**
+  A scout installs nothing.
+  A format that no tool on the machine reads is reported as such, with the tool that would read it.
+- **A cause stated as confirmed from one capture.**
+  Nobody states one: step 5 names it a hypothesis.
 
 **Hand over:** in the report, to the home: the artifact and its format, the reduced finding with the queries behind it, the source location, the artifact paths, and whether a paired capture confirmed it.

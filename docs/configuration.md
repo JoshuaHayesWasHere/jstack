@@ -1,8 +1,11 @@
 # Configuration
 
-jstack runs with none of these files. Each one changes a default or switches on an optional layer. This page lists every file you write, each key in it, the default, and the command or script that reads it.
+jstack runs with none of these files.
+Each one changes a default or switches on an optional layer.
+This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
+`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found.
+[Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
 
 | File | Sets | Written by |
 |---|---|---|
@@ -15,11 +18,15 @@ jstack runs with none of these files. Each one changes a default or switches on 
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
 | `origin` of the git repo `~/.local/state/home` | Where `jbus snapshot` pushes the homes' state | You |
 
-The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variable is set. `jbus` reads its own directory from `JBUS_CONFIG_DIR`.
+The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variable is set.
+`jbus` reads its own directory from `JBUS_CONFIG_DIR`.
 
 ## jstack
 
-`~/.config/jstack/config.toml` says who jstack works for and in which time zone. A plain `install.sh` never creates it. `install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse. With no file, every key has its default.
+`~/.config/jstack/config.toml` says who jstack works for and in which time zone.
+A plain `install.sh` never creates it.
+`install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse.
+With no file, every key has its default.
 
 ```toml
 user = "sam"
@@ -33,11 +40,17 @@ timezone_label = "CET"
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `install.sh --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
 
-Each value is one word with no space and no comma. A file with any other key, or with a `timezone` that is not an IANA name, is refused. `jmerge` and `jbus` then stop with the one line that says why. They do not fall back to the defaults.
+Each value is one word with no space and no comma.
+A file with any other key, or with a `timezone` that is not an IANA name, is refused.
+`jmerge` and `jbus` then stop with the one line that says why.
+They do not fall back to the defaults.
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment. It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest. The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](jroles.md#pools)).
+`~/.config/jstack/roles` names the model each role's thread is launched on.
+It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment.
+It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
+The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -47,11 +60,17 @@ Each value is one word with no space and no comma. A file with any other key, or
 | `home` | `inherit` | The model of the next home's thread. | `jroles`, for the `handoff` skill |
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
-`inherit` is the model of the thread that launches. [jroles](jroles.md) has the providers and an example. `install.sh --setup` writes the file once, where there is none, with every role `inherit`.
+`inherit` is the model of the thread that launches.
+[jroles](jroles.md) has the providers and an example.
+`install.sh --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
 
-`~/.config/jbus/config.toml` lists the repos `jbus` looks after. `jbus` does not run without it, and nothing else needs it. `install.sh --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`. The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read. `JBUS_CONFIG_DIR` names another directory for it.
+`~/.config/jbus/config.toml` lists the repos `jbus` looks after.
+`jbus` does not run without it, and nothing else needs it.
+`install.sh --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`.
+The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read.
+`JBUS_CONFIG_DIR` names another directory for it.
 
 ```toml
 server = "http://127.0.0.1:<port>"
@@ -68,7 +87,8 @@ webhook_url = "<the Chef's webhook>"
 webhook_key = "<its key>"
 ```
 
-These keys go above the first `[[project]]`. `jbus` reads every key on this page, and so does the doctor, through the same loader.
+These keys go above the first `[[project]]`.
+`jbus` reads every key on this page, and so does the doctor, through the same loader.
 
 | Key | Default | What it sets |
 |---|---|---|
@@ -84,7 +104,8 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither: half a pair is refused. Both are secret like the webhook's. |
 
-The model a crew is launched on is not a key here: `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source. A `modelSelection` key left from before is not read.
+The model a crew is launched on is not a key here: `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source.
+A `modelSelection` key left from before is not read.
 
 Each `[[project]]` table is one repo:
 
@@ -99,9 +120,12 @@ Each `[[project]]` table is one repo:
 | `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, no pull request is held for its migrations. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. Any other value is refused. |
 
-To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus/add-a-project.md) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
+To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus/add-a-project.md) says what it writes.
+A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
 
-`jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](jbus/set-up-jbus.md) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
+`jbus t3 login` writes the sign-in beside the config, as `t3.json`.
+You do not write that file.
+[jbus](jbus/set-up-jbus.md) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
 
 Two more paths change what `jbus` does:
 
@@ -112,7 +136,8 @@ Two more paths change what `jbus` does:
 
 ## Provider instances
 
-`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in its own home. infra's install writes it and links it there. jstack never writes it, and `install.sh --doctor` only reads it. Its shape is T3's own `providerInstances` in `~/.t3/userdata/settings.json`: an object keyed by instance id.
+`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in its own home. infra's install writes it and links it there. jstack never writes it, and `install.sh --doctor` only reads it.
+Its shape is T3's own `providerInstances` in `~/.t3/userdata/settings.json`: an object keyed by instance id.
 
 ```json
 {
@@ -122,7 +147,8 @@ Two more paths change what `jbus` does:
 }
 ```
 
-The doctor compares each declared instance with what T3's settings list, and reads those settings only. infra renders them. It prints these lines:
+The doctor compares each declared instance with what T3's settings list, and reads those settings only. infra renders them.
+It prints these lines:
 
 | Line | Meaning |
 |---|---|
@@ -135,11 +161,14 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
 
-`install.sh` links every skill into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`. Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
+`install.sh` links every skill into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`.
+Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
 
-`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them. You write none of them by hand. [Hooks](hooks.md) shows each entry and says what its script does.
+`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them.
+You write none of them by hand.
+[Hooks](hooks.md) shows each entry and says what its script does.
 
 | File | Key | Runs | Read by |
 |---|---|---|---|
@@ -151,24 +180,37 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `hooks/outbound-command.sh` | Claude Code |
 | `~/.claude/settings.json` | `statusLine` | `hooks/limits.sh` | Claude Code |
 
-It also links `.git/hooks/pre-push` of the main checkout to `hooks/pre-push.sh`. That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](jleak.md)).
+It also links `.git/hooks/pre-push` of the main checkout to `hooks/pre-push.sh`.
+That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](jleak.md)).
 
-The install leaves every other key of those files as it was. It writes `statusLine` when the key is absent, and replaces one that runs `hooks/limits.sh` of another checkout. It leaves a status line of your own as it is.
+The install leaves every other key of those files as it was.
+It writes `statusLine` when the key is absent, and replaces one that runs `hooks/limits.sh` of another checkout.
+It leaves a status line of your own as it is.
 
 To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/off`.
 
 ## The limits file
 
-The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used. `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`. `hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`. An account the inventory does not declare writes nothing. `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit. `jgauge room` reads the built-in instance's file, or the one `--instance <id>` names. `LIMITS` names another path for the built-in instance's file, and the others are beside it.
+The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
+`~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
+`hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+An account the inventory does not declare writes nothing.
+`jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
+`jgauge room` reads the built-in instance's file, or the one `--instance <id>` names.
+`LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
 | Row | Meaning |
 |---|---|
 | `five_hour <used> <reset>` | The share of the five-hour limit used, in percent, and the time of its reset in Unix seconds. |
 | `seven_day <used> <reset>` | The same for the weekly limit. |
 
-Each file has these rows. Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
+Each file has these rows.
+Without the file, `jgauge room` still prints `go` when the machine has room.
+It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
 
-If you have a status line of your own, `install.sh` leaves it alone and the file is not written. Pipe the status line's input to the script from your own command. Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
+If you have a status line of your own, `install.sh` leaves it alone and the file is not written.
+Pipe the status line's input to the script from your own command.
+Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
 
 ```sh
 #!/bin/sh
@@ -181,17 +223,20 @@ printf '%s' "$input" | jq -r '.model.display_name'
 
 ## The state tree's remote
 
-The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus/back-up-the-homes-state.md)). The remote is a private repository of yours, which nothing else pushes to:
+The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus/back-up-the-homes-state.md)).
+The remote is a private repository of yours, which nothing else pushes to:
 
 ```sh
 git -C ~/.local/state/home remote add origin <url>
 ```
 
-With no `origin` a snapshot keeps its commit and fails, and the failure alerts once. `install.sh --doctor` prints `ok optional state repo ~/.local/state/home -> <url>`, or `missing` with `not a git repo` or `no remote`.
+With no `origin` a snapshot keeps its commit and fails, and the failure alerts once.
+`install.sh --doctor` prints `ok optional state repo ~/.local/state/home -> <url>`, or `missing` with `not a git repo` or `no remote`.
 
 ## Switches for one repo
 
-These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout. [State](state.md) lists the other files there, which the threads write.
+These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout.
+[State](state.md) lists the other files there, which the threads write.
 
 | File | Default | Holds | What it switches | Read by |
 |---|---|---|---|---|

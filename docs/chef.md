@@ -1,14 +1,21 @@
 # The Chef
 
-The Chef is the agent behind a project's webhook. `jbus` does the routine work with no model, and the Chef is where a model reads what `jbus` found: it tells you what needs you, and it puts your decisions into the queue.
+The Chef is the agent behind a project's webhook.
+`jbus` does the routine work with no model, and the Chef is where a model reads what `jbus` found: it tells you what needs you, and it puts your decisions into the queue.
 
-The Chef is optional. With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads. It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself. It also counts the missing webhook as something that waits on you: each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
+The Chef is optional.
+With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads.
+It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself.
+It also counts the missing webhook as something that waits on you:
+each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
 
 This page says what the Chef is sent, what it may run, and how to make one as a T3 Code thread.
 
 ## What the Chef is sent
 
-`jbus` POSTs JSON to the project's `webhook_url`, at most once in five minutes, and only when an event for you waits. The Chef behind the top-level `webhook_url` is the monitor of every project: it gets every project's events for you, also those of a project that has a Chef of its own, each with its `project`. A project with no pair of its own has the top-level Chef alone:
+`jbus` POSTs JSON to the project's `webhook_url`, at most once in five minutes, and only when an event for you waits.
+The Chef behind the top-level `webhook_url` is the monitor of every project: it gets every project's events for you, also those of a project that has a Chef of its own, each with its `project`.
+A project with no pair of its own has the top-level Chef alone:
 
 ```json
 {
@@ -36,9 +43,11 @@ This page says what the Chef is sent, what it may run, and how to make one as a 
 | `events[].text` | The whole text when there is one: a Result, a Review, a Report, a gate. |
 | `events[].loud` | `user` or `quiet`. An event with `user` also has its own `say`. |
 
-[Events and the webhook](jbus/events-and-the-webhook.md) has the kinds at each level. A project's webhook is posted its `user` events, and nothing quiet.
+[Events and the webhook](jbus/events-and-the-webhook.md) has the kinds at each level.
+A project's webhook is posted its `user` events, and nothing quiet.
 
-Each POST carries the project's `webhook_key` in two headers, `Authorization: Bearer <key>` and `X-Automation-Key: <key>`. Its `User-Agent` is `jbus`.
+Each POST carries the project's `webhook_key` in two headers, `Authorization: Bearer <key>` and `X-Automation-Key: <key>`.
+Its `User-Agent` is `jbus`.
 
 ## What the Chef may run
 
@@ -52,22 +61,43 @@ The Chef runs `jbus queue` and nothing else that changes state.
 | `jbus queue hold <slug>` | Takes a row's approval back. |
 | `jbus queue apply` | Runs a batch of those three verbs from stdin, all or none. |
 
-The Chef never approves by itself. An approval takes no name and no time: it names your own message, which jbus reads from T3 Code, or a word or an answer jbus keeps, and jbus writes who ran the command and when. `--sha` ties the go to one text of the brief. The fourth basis, `--rule <n> --follows <parent slug>`, is not your word for the row: a home uses it for a follow-up to a row you approved. jbus refuses nobody by who runs it and records who did, so the Chef's own rule is what keeps it from using this basis. The row then says you did not speak of it, and the digest's `by_rule` counts those rows so the Chef can tell you. [The queue](jbus/the-queue.md) has the format of a batch.
+The Chef never approves by itself.
+An approval takes no name and no time: it names your own message, which jbus reads from T3 Code, or a word or an answer jbus keeps, and jbus writes who ran the command and when.
+`--sha` ties the go to one text of the brief.
+The fourth basis, `--rule <n> --follows <parent slug>`, is not your word for the row: a home uses it for a follow-up to a row you approved. jbus refuses nobody by who runs it and records who did,
+so the Chef's own rule is what keeps it from using this basis.
+The row then says you did not speak of it, and the digest's `by_rule` counts those rows so the Chef can tell you.
+[The queue](jbus/the-queue.md) has the format of a batch.
 
-The Chef does not merge, does not run `jmerge --accept`, and does not edit a brief after your go. A pull request that `jmerge` holds is yours: the `waiting-on-user` line holds the command, and you run it.
+The Chef does not merge, does not run `jmerge --accept`, and does not edit a brief after your go.
+A pull request that `jmerge` holds is yours: the `waiting-on-user` line holds the command, and you run it.
 
 ## Make the Chef in T3 Code
 
-A T3 Code webhook task runs one turn of a thread for each request. That thread is the Chef.
+A T3 Code webhook task runs one turn of a thread for each request.
+That thread is the Chef.
 
-1. Open a new thread in T3 Code, in the project `jbus` looks after. If the repo has an automatic home, type `/nohome` first.
-2. Ask the thread to make a webhook task with `schedule_task`, bound to this thread, with the prompt below. T3 Code needs T3 Connect remote access to give the task a URL.
-3. Put the URL the thread reports in `webhook_url`, in `~/.config/jbus/config.toml`, and a long random string in `webhook_key`. At the top of the file, above the first `[[project]]`, the pair is the monitor of every project: it is posted every project's events for you, and it is the webhook of every project that has no pair of its own. In a project's table it is that project's own, posted beside the top-level one. With an empty `webhook_url`, `jbus` POSTs nothing, and a `webhook_url` with an empty `webhook_key` is refused.
-4. Wait for the first POST. `jbus` sends one when a pass finds an event for you, and a project's first pass sends none. The Chef's thread then runs one turn. After that, `jbus status` shows no last error for the project. An empty error before the first POST proves nothing.
+1. Open a new thread in T3 Code, in the project `jbus` looks after.
+   If the repo has an automatic home, type `/nohome` first.
+2. Ask the thread to make a webhook task with `schedule_task`, bound to this thread, with the prompt below.
+   T3 Code needs T3 Connect remote access to give the task a URL.
+3. Put the URL the thread reports in `webhook_url`, in `~/.config/jbus/config.toml`, and a long random string in `webhook_key`.
+   At the top of the file, above the first `[[project]]`, the pair is the monitor of every project: it is posted every project's events for you, and it is the webhook of every project that has no pair of its own.
+   In a project's table it is that project's own, posted beside the top-level one.
+   With an empty `webhook_url`, `jbus` POSTs nothing, and a `webhook_url` with an empty `webhook_key` is refused.
+4. Wait for the first POST.
+   `jbus` sends one when a pass finds an event for you, and a project's first pass sends none.
+   The Chef's thread then runs one turn.
+   After that, `jbus status` shows no last error for the project.
+   An empty error before the first POST proves nothing.
 
-A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret: anyone who has it can start a turn of the Chef. The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600. The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote. `jbus` does not sign the body, so leave the task's `signature` unset.
+A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret: anyone who has it can start a turn of the Chef.
+The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600.
+The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote.
+`jbus` does not sign the body, so leave the task's `signature` unset.
 
-One request is one full turn of the thread. `jbus` sends a webhook at most one POST in five minutes for each project, so the top-level Chef may get one from each project in the same five minutes.
+One request is one full turn of the thread.
+`jbus` sends a webhook at most one POST in five minutes for each project, so the top-level Chef may get one from each project in the same five minutes.
 
 ### A prompt to start from
 
@@ -93,4 +123,5 @@ The request:
 {{body}}
 ```
 
-`{{body}}` is the JSON of the POST. T3 Code fills the placeholders in before the turn starts, and the thread sees the request through them alone.
+`{{body}}` is the JSON of the POST.
+T3 Code fills the placeholders in before the turn starts, and the thread sees the request through them alone.

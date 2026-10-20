@@ -10,7 +10,8 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the skill's voice.** Its reader is an agent that follows it to the letter, in a thread that has read nothing else.
+**You own the skill's voice.**
+Its reader is an agent that follows it to the letter, in a thread that has read nothing else.
 
 1. Read the skill as it is on disk, every file it names, and the skills whose threads it hands to or hears from. A change to one side of a handover is checked against the other side.
 2. Write the change. When in doubt, delete. Keep only prose that changes a decision. Tell the reader to do the thing and skip the reason, and explain only where the rule confuses without one. Match the tone to the scope. A rule you are about to write a second time belongs in something that runs, a shell block, a check or a test, and not in more text (`principles/principle-encode-lessons-in-structure.md`). Point at the one place a fact lives (a template, a config file, another skill by its path) and do not restate it.
@@ -20,8 +21,13 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Reaching running threads.** Nobody does: a thread keeps the skill text it loaded, so the change is read by threads started after the merge. Say in the Result if a thread now out depends on it.
-- **Installing the skill.** The user does: a new skill needs a link from where skills are loaded, outside the repo. Name the link in the Result for the user to make.
-- **Adding the next skill.** The home plans it: a workflow you keep meeting that no skill covers is a line under "Noticed".
+- **Reaching running threads.**
+  Nobody does: a thread keeps the skill text it loaded, so the change is read by threads started after the merge.
+  Say in the Result if a thread now out depends on it.
+- **Installing the skill.**
+  The user does: a new skill needs a link from where skills are loaded, outside the repo.
+  Name the link in the Result for the user to make.
+- **Adding the next skill.**
+  The home plans it: a workflow you keep meeting that no skill covers is a line under "Noticed".
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: what the skill does now, the design decisions that matter, and what you ran to validate it.

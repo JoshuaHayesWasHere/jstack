@@ -1,6 +1,9 @@
 # The view
 
-`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it.
+`jbus view` is a server, not a pass.
+It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped.
+It listens on `127.0.0.1`, on port 4388 or the one `--port` names.
+`sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it.
 
 | Variable | What it does |
 |---|---|
@@ -8,24 +11,41 @@
 | `JBUS_VIEW_NAMES` | The host names, with commas, that a request may use beside `localhost` and the two addresses. A request under any other `Host` gets 403. |
 | `JBUS_VIEW_ORIGINS` | The origins, with commas, the view is reached at through a proxy that passes the `Host` header on, such as `https://<host name>`. A request under the host of one, with the scheme's default port or none, is known, and a write under it is taken only from that exact origin. The view refuses, at its start, a value that is not `http://` or `https://`, a host and an optional port, with no path. |
 
-To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
+To show the page, the view reads no config of jbus and no secret.
+It takes `GET` requests and one write, `POST /answer`.
+Any other method gets 405.
 
 ### The look
 
-The page follows the system's light or dark setting. The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one. Light is a warm canvas, `#FAF7F2`, with white cards. Dark is a calm `#14191A` with `#1C2324` cards. Each colour is one token named for its role, `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`. Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:root` block. Colour means something or is not used: amber (`due`) is what waits on you, red (`missed`) is what broke. A holder is told by its shape and its name, not by a colour, and nothing healthy or merged is drawn green. `tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every ground, a control's border and the focus ring at 3:1.
+The page follows the system's light or dark setting.
+The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one.
+Light is a warm canvas, `#FAF7F2`, with white cards.
+Dark is a calm `#14191A` with `#1C2324` cards.
+Each colour is one token named for its role, `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`.
+Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:root` block.
+Colour means something or is not used: amber (`due`) is what waits on you, red (`missed`) is what broke.
+A holder is told by its shape and its name, not by a colour, and nothing healthy or merged is drawn green.
+`tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every ground, a control's border and the focus ring at 3:1.
 
-The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `src/jbus/view/OFL.txt`. The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title. Mono is for slugs and commits.
+The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `src/jbus/view/OFL.txt`.
+The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title.
+Mono is for slugs and commits.
 
 ### What the bare link shows
 
-The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once. A project is a directory of `~/.local/state/jbus` that holds a `queue.json`. A project retired to `~/.local/state/jbus-retired` is never read, and is not shown. From the top:
+The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once.
+A project is a directory of `~/.local/state/jbus` that holds a `queue.json`.
+A project retired to `~/.local/state/jbus-retired` is never read, and is not shown.
+From the top:
 
 | Part | What it shows |
 |---|---|
 | Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a setup. A gate with a default, or one that closes on the 2 hours of silence, is in the folded list "Will proceed on default" under it, with the time it goes ahead, and its "Accept default" is the one filled button of the page: it waits 10 seconds, Undo stops it, and only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page the new noticed lines are a token beside the queue, labelled "not counted". Nothing waiting says "Nothing needs you" and the time of the last pass. The queue is built in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
 | Projects | One link for each project, to its page: a name, a dot (amber when something of it needs you, red when something is broken, hollow otherwise), a plain reason only when broken ("CI 3 failed", "bus outbox 2", "1 source unread"), and the count of open tasks and of merges of today. A healthy project says nothing else. |
 
-The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine as one word: "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red. The word links to the pulse drawer, where the machine's parts are. When jbus has stopped or the server does not answer, one line under the header says so once.
+The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine as one word: "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
+The word links to the pulse drawer, where the machine's parts are.
+When jbus has stopped or the server does not answer, one line under the header says so once.
 
 A project's row opens its page, `#/<project>`, which has nothing else on its first screen but:
 
@@ -47,19 +67,32 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 | `#/<project>/task/<slug>` | That page with the drawer of one task open. |
 | `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/infra/gate/3`, `#/infra/you/gate` or `#/infra/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
 
-`&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
+`&theme=light` or `&theme=dark` after any of them sets the theme.
+An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
 
-A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
+A drawer opened from a drawer opens over it.
+Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back.
+The browser's back closes the drawer in front and forward opens it again.
+Close goes to the page under every drawer.
+The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
 
-A link to a project the state directory does not have, a retired one included, says there is no such project. A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
+A link to a project the state directory does not have, a retired one included, says there is no such project.
+A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
 
-The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one. `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once for the answer, however many projects there are, and asks GitHub for the runs of each repo, kept a minute. A part of the page whose drawing did not change is not drawn again. An answer to a gate goes to the one project whose page it is: `POST /answer?project=<project>`, and a write that names no project gets 404.
+The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one.
+`/stack.json` runs the machine's checks (systemd, the room script, the runner units) once for the answer, however many projects there are, and asks GitHub for the runs of each repo, kept a minute.
+A part of the page whose drawing did not change is not drawn again.
+An answer to a gate goes to the one project whose page it is: `POST /answer?project=<project>`, and a write that names no project gets 404.
 
 ### Answer a question on the page
 
-The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked. A gate that jbus holds as a question opens from its row. A gate that lives only in a home's `gates.md` is listed, and cannot be answered on the page.
+The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked.
+A gate that jbus holds as a question opens from its row.
+A gate that lives only in a home's `gates.md` is listed, and cannot be answered on the page.
 
-An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button. A line above the button says what will be sent and to which thread, or that nothing is sent. There are three ways to close the gate:
+An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button.
+A line above the button says what will be sent and to which thread, or that nothing is sent.
+There are three ways to close the gate:
 
 | You do | The button says | What jbus does |
 |---|---|---|
@@ -69,19 +102,32 @@ An opened gate shows who asked, the context, the default taken, what was built o
 
 A question with no options on record opens with no cards: the default and your own words both work.
 
-To close several gates at once, tick their rows, or tick every row with the one control above the list, then use "Accept the default for N". A batch only takes defaults, so it sends nothing to any thread. To pick another option or to use your own words, open that gate by itself.
+To close several gates at once, tick their rows, or tick every row with the one control above the list, then use "Accept the default for N".
+A batch only takes defaults, so it sends nothing to any thread.
+To pick another option or to use your own words, open that gate by itself.
 
-The answer is recorded as `jbus answer` records it: by the user of your settings, at the server's clock, in `jbus view`. An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send. If T3 Code refuses it or does not answer, the question is closed all the same, the page says why the answer was not sent, and the next pass sends it. A question is answered once: a second answer is refused, and the page shows the first one.
+The answer is recorded as `jbus answer` records it: by the user of your settings, at the server's clock, in `jbus view`.
+An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send.
+If T3 Code refuses it or does not answer, the question is closed all the same, the page says why the answer was not sent, and the next pass sends it.
+A question is answered once: a second answer is refused, and the page shows the first one.
 
-There is no sign-in. The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer for you. Whoever can reach the port can answer, as any shell on this machine can with `jbus answer`. Only a write that has an answer to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+There is no sign-in.
+The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer for you.
+Whoever can reach the port can answer, as any shell on this machine can with `jbus answer`.
+Only a write that has an answer to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
 
 ### Add a panel
 
-A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other file names it.
+A panel is one folder, `src/jbus/view/panels/<name>/`, with two files.
+No other file names it.
 
-1. `panel.py` is its data. `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
-2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
+1. `panel.py` is its data.
+   `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
+2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML.
+   Add `card` for a card on the first screen.
 3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count beside the Needs you queue.
-4. Set `FIRST = True` in `panel.py` only when the first screen needs the data. Without it the page asks `/panel/<name>.json` when the drawer opens.
+4. Set `FIRST = True` in `panel.py` only when the first screen needs the data.
+   Without it the page asks `/panel/<name>.json` when the drawer opens.
 
-An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.
+An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`.
+`src/jbus/view/panels/__init__.py` lists everything a panel may declare.

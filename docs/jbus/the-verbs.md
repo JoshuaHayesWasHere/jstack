@@ -1,6 +1,9 @@
 # The verbs
 
-`jbus` takes one verb. `--project <name>` goes before the verb, as in `jbus --project demo queue show`, and names a project of the config. Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` speak for the project whose repo they are run in. `jbus events`, `jbus t3 launch-test` and the `jbus queue` verbs take the config's one project, or with several the one whose repo they are run in.
+`jbus` takes one verb.
+`--project <name>` goes before the verb, as in `jbus --project demo queue show`, and names a project of the config.
+Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` speak for the project whose repo they are run in.
+`jbus events`, `jbus t3 launch-test` and the `jbus queue` verbs take the config's one project, or with several the one whose repo they are run in.
 
 | Verb | What it does |
 |---|---|
@@ -26,6 +29,10 @@
 | `jbus ci [--days <n>] [--report]`, `jbus ci --notice <field=value>...` | Keeps the Actions jobs and pull requests of the last `--days` days (14) of the project in `ci.jsonl` and `ci-prs.jsonl`, and prints the nine CI targets with how each was counted. `--report` also writes the week's report and alerts on a missed target. `--notice` is for a CI job, and prints the annotation that gives the collector its telemetry. [Measure the CI](measure-the-ci.md) has the rest. |
 | `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for it to run. A step is declared beside its feature, as `STEPS` in its module, and a pass skips one whose needs it has not. |
 
-A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
+A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone.
+A time with no zone is in your time zone.
+In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`.
+`jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`. `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+`jbus poll`, `jbus alarm`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
+`jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.

@@ -8,4 +8,6 @@ card: "Catch up and keep track | 3 | Restates the last message in plain language
 
 Source: pstack, `pstack/skills/bro/SKILL.md`
 
-Restate your last message. Stop using jargon and speak coherently. State it more simply and concisely, like one human talking to another.
+Restate your last message.
+Stop using jargon and speak coherently.
+State it more simply and concisely, like one human talking to another.

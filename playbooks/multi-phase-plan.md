@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the plan, not the code.** The plan is the deliverable: entries in `$M/plan.md` that a crewmate each works line by line and the user can audit from the evidence. Write nothing in the repo.
+**You own the plan, not the code.**
+The plan is the deliverable: entries in `$M/plan.md` that a crewmate each works line by line and the user can audit from the evidence.
+Write nothing in the repo.
 
 1. Size it first (`principles/principle-subtract-before-you-add.md`). Work that is one pull request with an obvious approach is one entry: write it by "Planning" in `skills/home/SKILL.md`, and steps 2 to 7 are `skip: one entry`.
 2. List every open question, and settle each before an entry is written (`principles/principle-never-block-on-the-human.md`). One that a run can settle is a brief with `Playbook: prototype`, launched and waited for: its Result goes under the entry's `Decisions:`, with what it proved and what stays unproven. One that reading can settle is a scout's. Only a product or preference call that no run settles goes to the user, as a round of the grilling skill with options, or as a gate with a default once work is out.
@@ -22,11 +24,17 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Implementing any of it.** A crewmate does, one per entry, from its brief.
-- **An entry with no `Done when` a command or a person can run.** Nobody launches one: it is not scoped yet, and goes back to step 2.
-- **Ten live lanes and a performance gate on every pull request.** Nobody does until a repo has a verify skill: the review and the repo's checks are the proof.
-- **A stack of pull requests.** Nobody does here: step 5 orders by merge.
-- **A second plan file with appendices.** Nobody writes one: the alternatives and the evidence are in the scouts' Reports and the prototypes' Results, which the entries name.
-- **Asking for a go on each entry.** Nobody does: step 7 is the one go.
+- **Implementing any of it.**
+  A crewmate does, one per entry, from its brief.
+- **An entry with no `Done when` a command or a person can run.**
+  Nobody launches one: it is not scoped yet, and goes back to step 2.
+- **Ten live lanes and a performance gate on every pull request.**
+  Nobody does until a repo has a verify skill: the review and the repo's checks are the proof.
+- **A stack of pull requests.**
+  Nobody does here: step 5 orders by merge.
+- **A second plan file with appendices.**
+  Nobody writes one: the alternatives and the evidence are in the scouts' Reports and the prototypes' Results, which the entries name.
+- **Asking for a go on each entry.**
+  Nobody does: step 7 is the one go.
 
 **Hand over:** in this thread, to the user: the plan's path, the entries with their order and what each waits on, what the prototypes proved and what stays unproven, the playbook the batch runs by, and the open gates.

@@ -1,15 +1,26 @@
 ## Scoped homes
 
-A scoped home is a home like any other, for one goal: it plans, launches and, on `home merges`, merges its own tasks by this skill, from its own directory. On `jbus merges` nobody merges a scoped home's pull requests ("Merging a pull request that is ready"). The homes of a repo do not plan each other's work, and they are quiet towards each other:
+A scoped home is a home like any other, for one goal: it plans, launches and, on `home merges`, merges its own tasks by this skill, from its own directory.
+On `jbus merges` nobody merges a scoped home's pull requests ("Merging a pull request that is ready").
+The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
-- A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch. Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words. A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
-- Nothing else is sent: not a launch, a merge, a status, or that a scope has ended. The root home is sent nothing while a scope works, and reads the scope's files when the user asks for status. A scope that ends says so in its own `handoff.md`.
-- A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). It is relayed to no home: every home reads `standing.md` whole at its start.
-- No home asks another what it has out. The launch check of "When a thread sends a message" prints it.
+- A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
+  Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words.
+  A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
+- Nothing else is sent: not a launch, a merge, a status, or that a scope has ended.
+  The root home is sent nothing while a scope works, and reads the scope's files when the user asks for status.
+  A scope that ends says so in its own `handoff.md`.
+- A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task.
+  Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`).
+  It is relayed to no home: every home reads `standing.md` whole at its start.
+- No home asks another what it has out.
+  The launch check of "When a thread sends a message" prints it.
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one its section of `$H/notes.md` names.
 
-**Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
+**Making a scope** is the root home's, and only on the user's word.
+In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns,
+in the user's words, in place of `<what the scope owns>`:
 
 ```sh
 scope='<scope>'
@@ -80,11 +91,18 @@ else
 fi
 ```
 
-On `made:`, the scope has its plan, with the goal as its first line, and a dated section in the shared notes that says what it owns and its prefix. Start its home with `t3_thread_launch`, on `go` from `room`: send what the block printed after `launch: `, as it is. It starts in the main checkout, as every home does. A lost reply is looked for by that title, as "Handing a task to a crewmate" says. Give the user the link. With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
+On `made:`, the scope has its plan, with the goal as its first line, and a dated section in the shared notes that says what it owns and its prefix.
+Start its home with `t3_thread_launch`, on `go` from `room`: send what the block printed after `launch: `, as it is.
+It starts in the main checkout, as every home does.
+A lost reply is looked for by that title, as "Handing a task to a crewmate" says.
+Give the user the link.
+With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
 
-On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
+On `not made:` nothing is written: tell the user what the line says.
+A name or a prefix that is taken needs another from them.
 
-**Reading the scopes** is the root home's too, when the user asks for status. In one call with the block at the top and the block that finds this home:
+**Reading the scopes** is the root home's too, when the user asks for status.
+In one call with the block at the top and the block that finds this home:
 
 ```sh
 if [ "${M:?run the block that finds this home first}" = "$H" ]; then
@@ -113,4 +131,9 @@ if [ "${M:?run the block that finds this home first}" = "$H" ]; then
 fi
 ```
 
-It prints nothing in a repo with no scope, and nothing for a scoped home. For each scope it prints the scope's handoff, whole, then each entry of its plan that is not done, as its heading and its `Status:` line. A scope with a `home-id` has a home running, and that id makes its link. Tell the user each scope in a line or two: what is out, what is next, and that it is closed when its handoff says so. The rest of an entry is in `$H/<scope>/plan.md`: read it only when the user asks about that task. Send the scope's home nothing.
+It prints nothing in a repo with no scope, and nothing for a scoped home.
+For each scope it prints the scope's handoff, whole, then each entry of its plan that is not done, as its heading and its `Status:` line.
+A scope with a `home-id` has a home running, and that id makes its link.
+Tell the user each scope in a line or two: what is out, what is next, and that it is closed when its handoff says so.
+The rest of an entry is in `$H/<scope>/plan.md`: read it only when the user asks about that task.
+Send the scope's home nothing.

@@ -10,7 +10,11 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the stack's order, never a pull request and never the landing.** One crewmate owns each link, its reviewer the verdict, and the user lands the stack. You alone write the order: the `Stack:` line in each link's brief, and the base of its pull request. This is the one exception to "no stacking", in the user's words: "take it as written, and allow a stack for this one playbook". Each section named below is in `skills/home/SKILL.md`.
+**You own the stack's order, never a pull request and never the landing.**
+One crewmate owns each link, its reviewer the verdict, and the user lands the stack.
+You alone write the order: the `Stack:` line in each link's brief, and the base of its pull request.
+This is the one exception to "no stacking", in the user's words: "take it as written, and allow a stack for this one playbook".
+Each section named below is in `skills/home/SKILL.md`.
 
 1. Choose it, or leave it (`principles/principle-subtract-before-you-add.md`). A stack is for entries where each needs the change of the one before, and the user wants to review all of it before any lands. Entries that hold no file in common and may merge by themselves are `playbooks/autopilot-full.md`: say so, take that one, and the steps below are `skip: not a stack`. Say the stack in at most six lines, bottom first, and go on: the approved plan is the go (`principles/principle-never-block-on-the-human.md`).
 2. Write the order down before any launch. Put `Playbook: autopilot-stack` in the head of `$M/plan.md`, above the first entry: the exception holds for a plan with that line, and for no other. Name the stack with one word. Write the `Stack:` line into every link's brief, as "A stack the user lands" has it. Run the command there that reads the order back, and see every link once, in its place (`principles/principle-encode-lessons-in-structure.md`).
@@ -23,11 +27,19 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Merging or landing a link.** The user lands the stack, by their word to this thread or with their own clicks. `jmerge` holds every link until then.
-- **A rebase, a fix or a push from the home.** The link's own crewmate does, on its own wakes.
-- **A crewmate choosing or changing its base.** Nobody does: the base is what its brief's `Stack:` line gives, and only the home writes that line.
-- **A new order once a link is out.** The user decides: park it as a gate, with the default that the order stays.
-- **A stack under any other playbook.** Nobody does: there a dependent entry waits for the merge.
-- **GitHub's auto-merge, or Graphite.** Nobody does: `jmerge` merges at an exact head.
+- **Merging or landing a link.**
+  The user lands the stack, by their word to this thread or with their own clicks.
+  `jmerge` holds every link until then.
+- **A rebase, a fix or a push from the home.**
+  The link's own crewmate does, on its own wakes.
+- **A crewmate choosing or changing its base.**
+  Nobody does: the base is what its brief's `Stack:` line gives, and only the home writes that line.
+- **A new order once a link is out.**
+  The user decides: park it as a gate, with the default that the order stays.
+- **A stack under any other playbook.**
+  Nobody does: there a dependent entry waits for the merge.
+- **GitHub's auto-merge, or Graphite.**
+  Nobody does: `jmerge` merges at an exact head.
 
-**Hand over:** in this thread, to the user, when the top link is fixed and green and when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: the stack's name, the bottom and the top pull request, one line a link with its verdict, what is parked or left out and why, and the open gates.
+**Hand over:** in this thread, to the user, when the top link is fixed and green and when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: the stack's name, the bottom and the top pull request,
+one line a link with its verdict, what is parked or left out and why, and the open gates.

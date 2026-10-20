@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the measurement story.** Every fix is tied to a number you took, and a number is believed only after it is vetted. Reading the source is not measuring: no claim of a ceiling, a cause or a win without a run behind it.
+**You own the measurement story.**
+Every fix is tied to a number you took, and a number is believed only after it is vetted.
+Reading the source is not measuring: no claim of a ceiling, a cause or a win without a run behind it.
 
 1. Write the claim you expect to ship, in one sentence with its unit ("the export is 30% faster at the median on the 60k-row file"), and the one command that measures it: the repo's verify skill or harness where it has one, otherwise the command the brief names. Set a target the field would call ambitious, proved by the measurement and not by your own word (`principles/principle-depth-over-breadth.md`). Read `skills/benchmark-checklist/SKILL.md` in full now.
 2. Take the baseline with the block under "Taking the runs" in that skill, at least 5 rounds, on the untouched code, and vet it with the skill's seven questions before anything is planned from it (`principles/principle-explain-the-number.md`). Write down the median, the range, the failed runs and the commit, `git rev-parse HEAD`. A baseline that does not show the complaint is the wrong case: fix the case, not the code.
@@ -23,9 +25,16 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A loop of fixes toward a target.** A crewmate does, from a brief with `playbooks/hillclimb.md`. This playbook is one fix: what else the profile showed goes under "Noticed".
-- **Handing the fix to a subagent.** Nobody does: the one who measured types the change, on this session's own model and effort.
-- **A measurement outside the heavy-suite lock, when its command starts several workers.** Nobody does: the benchmark skill says how the lock goes around the runs.
-- **Relaxing the claim to fit the number.** Nobody does. A claim that was not met is reported as not met.
+- **A loop of fixes toward a target.**
+  A crewmate does, from a brief with `playbooks/hillclimb.md`.
+  This playbook is one fix: what else the profile showed goes under "Noticed".
+- **Handing the fix to a subagent.**
+  Nobody does: the one who measured types the change, on this session's own model and effort.
+- **A measurement outside the heavy-suite lock, when its command starts several workers.**
+  Nobody does: the benchmark skill says how the lock goes around the runs.
+- **Relaxing the claim to fit the number.**
+  Nobody does.
+  A claim that was not met is reported as not met.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: the claim, the baseline and the final number with their runs and range, the delta, the limiter, each change kept or reverted, and the command that takes the number again.
+**Hand over:** in the pull request and the Result, to the reviewer and the home: the claim, the baseline and the final number with their runs and range, the delta, the limiter, each change kept or reverted,
+and the command that takes the number again.

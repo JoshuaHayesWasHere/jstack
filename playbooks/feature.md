@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the design and the code.** The brief's "Done when" list is the target and its **Decisions** are settled: build to them. If you think a decision is wrong, say so in this thread with your reason and carry on with what does not depend on it.
+**You own the design and the code.**
+The brief's "Done when" list is the target and its **Decisions** are settled: build to them.
+If you think a decision is wrong, say so in this thread with your reason and carry on with what does not depend on it.
 
 1. Learn the subsystem from what the brief names: its `Read:` and `Rests on:` lines when a scout wrote it, otherwise the files the task needs and no more. The scout's report is the walkthrough. Do not research again what it found.
 2. Name the data shape and its organizing structure before you write logic (`principles/principle-model-the-domain.md`, `principles/principle-foundational-thinking.md`): a state machine over scattered booleans, a table or registry over branching, a typed model over a shape assumed in several files. Write the choice down in one or two lines. A new requirement is built in as if it had been there from the first day (`principles/principle-redesign-from-first-principles.md`).
@@ -24,8 +26,15 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Splitting the work across workers.** One crewmate, one worktree, one pull request. A feature that is really several pull requests is the home's to split: say so in the Result and build only what "Done when" asks.
-- **A second opinion on the design, past step 4's.** There is one review, after the pull request is green, by the reviewer. A design the user must settle is a question in this thread.
-- **Follow-up pull requests.** Nothing is stacked. A follow-up is a line under "Noticed" for the home to plan.
+- **Splitting the work across workers.**
+  One crewmate, one worktree, one pull request.
+  A feature that is really several pull requests is the home's to split: say so in the Result and build only what "Done when" asks.
+- **A second opinion on the design, past step 4's.**
+  There is one review, after the pull request is green, by the reviewer.
+  A design the user must settle is a question in this thread.
+- **Follow-up pull requests.**
+  Nothing is stacked.
+  A follow-up is a line under "Noticed" for the home to plan.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: what you built, what you chose and why, and the decisions still open. Design alternatives go in a table.
+**Hand over:** in the pull request and the Result, to the reviewer and the home: what you built, what you chose and why, and the decisions still open.
+Design alternatives go in a table.

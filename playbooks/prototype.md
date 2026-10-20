@@ -10,7 +10,11 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the design decision, not the code.** The prototype is a throwaway instrument, and the real build is another task. This is the one playbook where the smallest change of `principles/principle-laziness-protocol.md` and the usual bar of proof turn over: speed over polish, code quality does not matter, no planning. The rigour is in picking the right design cheaply. Propose a variant nobody asked for, throw an approach away and try another.
+**You own the design decision, not the code.**
+The prototype is a throwaway instrument, and the real build is another task.
+This is the one playbook where the smallest change of `principles/principle-laziness-protocol.md` and the usual bar of proof turn over: speed over polish, code quality does not matter, no planning.
+The rigour is in picking the right design cheaply.
+Propose a variant nobody asked for, throw an approach away and try another.
 
 1. Write the decision the prototype exists to make, in one line, and what you would have to see to settle it. No decision, no prototype: a brief that asks for a thing to be built is `playbooks/feature.md`'s. Stop and say so in the Result.
 2. When the design space is open, gather references before building: prior art in the repo and outside it, summed up as three or more directions (themes, layouts, approaches), each in a line. Pick the two or three to build and say why. The user may redirect in this thread, and you do not wait for it (`principles/principle-never-block-on-the-human.md`). When the brief sets the direction: `skip: the brief sets the direction`.
@@ -22,10 +26,19 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **Shipping the prototype's code, or committing it to the branch.** A crewmate builds the chosen direction, from a new brief with `playbooks/feature.md`. The home plans it from the Result.
-- **A pull request.** Nobody opens one: the branch has no commit, and the brief says `Pull request: ask first`.
-- **Tests, types and cleanup of the throwaway.** Nobody does: it is deleted, not kept.
-- **Variants built by subagents side by side.** Nobody does: one thread, one switcher, so the variants can be compared.
-- **Waiting for the user's pick.** The user picks when they read the Result. The gate holds the question.
+- **Shipping the prototype's code, or committing it to the branch.**
+  A crewmate builds the chosen direction, from a new brief with `playbooks/feature.md`.
+  The home plans it from the Result.
+- **A pull request.**
+  Nobody opens one: the branch has no commit, and the brief says `Pull request: ask first`.
+- **Tests, types and cleanup of the throwaway.**
+  Nobody does: it is deleted, not kept.
+- **Variants built by subagents side by side.**
+  Nobody does: one thread, one switcher, so the variants can be compared.
+- **Waiting for the user's pick.**
+  The user picks when they read the Result.
+  The gate holds the question.
 
-**Hand over:** in the Result, to the home and the user: the decision, the variants explored, the evidence for each (screenshots for a visual decision, the observed output or timing for a behaviour), the tradeoffs, your recommendation, and the scratch path. Say plainly that the prototype is throwaway.
+**Hand over:** in the Result, to the home and the user: the decision, the variants explored, the evidence for each (screenshots for a visual decision, the observed output or timing for a behaviour), the tradeoffs, your recommendation,
+and the scratch path.
+Say plainly that the prototype is throwaway.

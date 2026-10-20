@@ -10,7 +10,9 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the metric and the honesty of the experiment.** One change, one measurement, keep or revert. Never two untested changes at once, never a win claimed from reading code (`principles/principle-prove-it-works.md`).
+**You own the metric and the honesty of the experiment.**
+One change, one measurement, keep or revert.
+Never two untested changes at once, never a win claimed from reading code (`principles/principle-prove-it-works.md`).
 
 1. Fix the metric before anything is built: read the code path, name what can move the result (the size of the data, history, state, concurrency), and pick the case that shows the complaint. If none does, fix the case and do not climb. Then write three things: the one metric, which direction is better, and a stop predicate that pairs the brief's target with a floor on attempts, so a lucky early win cannot end the run ("30% under the baseline, and at least 6 attempts"). A brief with no number: set one, say it here, and carry on (`principles/principle-never-block-on-the-human.md`).
 2. Build the harness, show that it can tell cases apart, then freeze it (`principles/principle-build-the-lever.md`). It is one command, run by the block under "Taking the runs" in `skills/benchmark-checklist/SKILL.md`, read in full now. It prints its count of errors and of work done. Run it on a harder and an easier case and see them apart: if they are not, change the case or the metric. Vet it with that skill's seven questions (`principles/principle-explain-the-number.md`). Commit it, then do not touch it. Write down the baseline commit, median and range, and a passing run of the repo's check command, the gate every attempt must keep.
@@ -23,9 +25,15 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Never done here, and who does it:
 
-- **A change to the frozen harness.** Nobody does, in this task. A harness found wrong ends the run: say so in the Result, and the home plans the new one.
-- **A pull request per kept change.** Nobody does: one pull request.
-- **Attempts typed or measured by subagents side by side.** Nobody does: the measurement is the slow part and runs one at a time, under the heavy-suite lock when the harness starts several workers, as the benchmark skill says.
-- **Committing the log.** Nobody does, unless the brief says so: the Result carries it.
+- **A change to the frozen harness.**
+  Nobody does, in this task.
+  A harness found wrong ends the run: say so in the Result, and the home plans the new one.
+- **A pull request per kept change.**
+  Nobody does: one pull request.
+- **Attempts typed or measured by subagents side by side.**
+  Nobody does: the measurement is the slow part and runs one at a time, under the heavy-suite lock when the harness starts several workers, as the benchmark skill says.
+- **Committing the log.**
+  Nobody does, unless the brief says so: the Result carries it.
 
-**Hand over:** in the pull request and the Result, to the reviewer and the home: the metric and the target, baseline to final with the percent, the attempts (kept and reverted), each kept change on one line, the log's path and rows, and the best idea not yet tried.
+**Hand over:** in the pull request and the Result, to the reviewer and the home: the metric and the target, baseline to final with the percent, the attempts (kept and reverted), each kept change on one line, the log's path and rows,
+and the best idea not yet tried.

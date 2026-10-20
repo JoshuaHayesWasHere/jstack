@@ -1,8 +1,13 @@
 # Work items
 
-Every piece of work is a work item: one id, a source, an owner and one state, whatever it started from, chat, the view or a command. An item is named `w<n>`, from the project's counter, and no id is given twice. It has a slug once a row of the queue is linked to it, and none before: an item proposed in chat has no row yet.
+Every piece of work is a work item: one id, a source, an owner and one state, whatever it started from, chat, the view or a command.
+An item is named `w<n>`, from the project's counter, and no id is given twice.
+It has a slug once a row of the queue is linked to it, and none before: an item proposed in chat has no row yet.
 
-The record is `~/.local/state/jbus/<project>/items.jsonl`. It is only ever appended to, and never trimmed: `events.jsonl` keeps 14 days, and an item's history is kept whole. One line is one move, `{id, item, at, by, where, line, verb, ...}`: `id` names the line, as `w3.2` for the second line of `w3`, `where` is `chat`, `view`, `cli` or `pass`, and `line` says what happened. An item's state is what its lines come to, by one table of moves:
+The record is `~/.local/state/jbus/<project>/items.jsonl`.
+It is only ever appended to, and never trimmed: `events.jsonl` keeps 14 days, and an item's history is kept whole.
+One line is one move, `{id, item, at, by, where, line, verb, ...}`: `id` names the line, as `w3.2` for the second line of `w3`, `where` is `chat`, `view`, `cli` or `pass`, and `line` says what happened.
+An item's state is what its lines come to, by one table of moves:
 
 | State | Entered by |
 |---|---|
@@ -15,9 +20,13 @@ The record is `~/.local/state/jbus/<project>/items.jsonl`. It is only ever appen
 | `done` | A pass that finds its row merged or done. |
 | `dropped` | `jbus item drop`, or a pass that finds its row removed. |
 
-A move the table does not have is refused in one sentence, and nothing is written. Each line is also a quiet event of the kind `item.<verb>` (`item.proposed`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped`, and `item.linked` for a row linked to an item there was), so `jbus events` and the view's feed show it. A pass writes a line only when the state its row comes to changes: a pass with nothing new writes none.
+A move the table does not have is refused in one sentence, and nothing is written.
+Each line is also a quiet event of the kind `item.<verb>` (`item.proposed`, `item.approved`, `item.queued`, `item.launched`, `item.waiting`, `item.resumed`, `item.held`, `item.done`, `item.dropped`,
+and `item.linked` for a row linked to an item there was), so `jbus events` and the view's feed show it.
+A pass writes a line only when the state its row comes to changes: a pass with nothing new writes none.
 
-An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an open gate with a `Holds:` line or whose words name a secret or the config, and `routine` for anything else. `jbus item show` prints it.
+An item's risk is `review` for a merge `jmerge` holds, a `config` wait, and an open gate with a `Holds:` line or whose words name a secret or the config, and `routine` for anything else.
+`jbus item show` prints it.
 
 | Verb | What it does |
 |---|---|
