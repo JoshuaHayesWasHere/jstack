@@ -1,6 +1,8 @@
-"""`make check` runs the tests on a number of workers counted from the machine's processors,
-fewer on a runner of this machine than at a desk and never under two, and a test that passes
-leaves no directory under `/tmp`. A test that fails keeps its own.
+"""`make check` runs the tests on a number of workers counted from the processors the run may
+use: its cgroup's CPU quota where one is set, else the machine's. A desk takes a quarter of
+them, a runner of this machine one and a half for each processor of its quota, none under two.
+The workers steal the next test as each finishes, and the 25 slowest are printed. A test that
+passes leaves no directory under `/tmp`. A test that fails keeps its own.
 
 A runner is a run GitHub Actions started, which says so with `GITHUB_ACTIONS=true`, and says
 whose machine it is on with `RUNNER_ENVIRONMENT`: `github-hosted` or `self-hosted`. One of
@@ -19,9 +21,12 @@ clock differs between two workers that start in different seconds.
 where it says `all`. It is run here in a copy of the repo, against a `uv` that only says
 what it was asked.
 
-The machine's budget is one sum: the test slots times a desk's workers, plus the runners
-times a runner's. It is worked out here from the slot default and from what `make` prints.
-The runners are three, and no file of the repo counts them: their units are the machine's.
+The machine's budget is one sum, in workers: the test slots times a desk's workers, plus the
+runners times a runner's, at most one and a half for each of the machine's 24 processors. It is
+worked out here from the slot default and from what `make` prints: 3 x 6 + 3 x 6 = 36. A worker
+averages 0.51 of a core (measured 2026-10-19, 440 to 473 s of CPU a run at 6 and 8 workers), so
+that is about 18 cores busy of 24. The runners are three, each with a quota of 4 CPUs, and no
+file of the repo counts them: their units and confs are the machine's.
 """
 
 import os
@@ -38,8 +43,14 @@ from jgauge import slot
 
 REPO = Path(__file__).parent.parent
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
-SET_BY_A_RUN += ("RUNNER_ENVIRONMENT",)
+SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT")
 RUNNERS = 3
+RUNNER_QUOTA = 4
+PROCESSORS = 24
+SCHEDULE = ["--dist", "worksteal", "--durations=25"]
+# A cgroup directory with no `cpu.max`: the count is the test's to give, never the quota of
+# whatever the suite itself runs under.
+UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
 SCRATCH = """
 def test_a_passes(tmp_path):
@@ -71,7 +82,7 @@ def check(*args, **more):
     says the run is a runner's goes with them: the count is a desk's unless `more` says so.
     """
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
-    env.update(more)
+    env.update(UNLIMITED | more)
     made = subprocess.run(
         ["make", "-n", "check", *args],
         cwd=REPO,
@@ -105,15 +116,22 @@ def pytest_of(*args):
     """The words after `pytest` on the line of the pytest command `make -n <args>` would run."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     made = subprocess.run(
-        ["make", "-n", *args], cwd=REPO, env=env, capture_output=True, text=True, check=True
+        ["make", "-n", *args],
+        cwd=REPO,
+        env=env | UNLIMITED,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     (line,) = [line for line in made.stdout.splitlines() if " pytest" in line]
     return shlex.split(line)[shlex.split(line).index("pytest") + 1 :]
 
 
 def test_make_check_runs_the_tests_on_a_number_of_workers_set_in_one_place():
-    assert pytest_of("check", "CORES=12") == ["-n", "4", *LEAVES_OUT]
-    assert pytest_of("check", "TEST_WORKERS=2") == ["-n", "2", *LEAVES_OUT]
+    assert pytest_of("check", "CORES=24") == ["-n", "6", *SCHEDULE, *LEAVES_OUT]
+    assert pytest_of("check", "TEST_WORKERS=2") == ["-n", "2", *SCHEDULE, *LEAVES_OUT]
+    reported = ["-n", "6", *SCHEDULE, *LEAVES_OUT, "--junitxml=/x/junit.xml"]
+    assert pytest_of("check", "CORES=24", "JUNIT=/x/junit.xml") == reported
 
 
 def workers(*args, **more):
@@ -122,40 +140,83 @@ def workers(*args, **more):
     return int(tests[tests.index("-n") + 1])
 
 
-def test_the_workers_are_counted_from_the_processors_of_the_machine_the_run_is_on(tmp_path):
-    """The machine's processors are what `getconf` says, here one on `PATH` that says 30."""
-    (tmp_path / "getconf").write_text('#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] && echo 30\n')
+def test_the_workers_are_counted_from_the_processors_of_the_machine_where_no_quota_is_set(
+    tmp_path,
+):
+    """The machine's processors are what `getconf` says, here one on `PATH` that says 32."""
+    (tmp_path / "getconf").write_text('#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] && echo 32\n')
     (tmp_path / "getconf").chmod(0o755)
     path = f"{tmp_path}:{os.environ['PATH']}"
-    assert (workers(PATH=path), workers(PATH=path, GITHUB_ACTIONS="true")) == (10, 5)
+    assert (workers(PATH=path), workers(PATH=path, GITHUB_ACTIONS="true")) == (8, 48)
+    (tmp_path / "cpu.max").write_text("max 100000\n")
+    assert workers(PATH=path, CGROUP=str(tmp_path)) == 8
 
 
-def test_a_runner_runs_the_tests_on_fewer_workers_than_a_desk_and_neither_on_under_two():
-    for cores, desk, runner in ((1, 2, 2), (4, 2, 2), (12, 4, 2), (64, 21, 10)):
+def test_a_cgroup_quota_is_the_processors_a_run_counts_from_rounded_down_and_at_least_one(
+    tmp_path,
+):
+    """`cpu.max` is the quota and the period in microseconds, as `docker --cpus` writes it."""
+    runner = {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "self-hosted"}
+    counted = {}
+    for quota in ("400000 100000", "250000 100000", "50000 100000", "1200000 100000"):
+        (tmp_path / "cpu.max").write_text(quota + "\n")
+        counted[quota] = (workers(CGROUP=str(tmp_path)), workers(CGROUP=str(tmp_path), **runner))
+    assert counted == {
+        "400000 100000": (2, 6),
+        "250000 100000": (2, 3),
+        "50000 100000": (2, 2),
+        "1200000 100000": (3, 18),
+    }
+    assert workers("CORES=8", CGROUP=str(tmp_path), **runner) == 12
+
+
+def test_the_quota_is_read_from_the_cgroup_the_run_is_in():
+    """Its directory under /sys/fs/cgroup, as /proc/self/cgroup names it: a container's own
+    cgroup is `/`, and a `systemd-run --scope` names the scope.
+    """
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    made = subprocess.run(
+        ["make", "-s", "--eval", "cgroup: ; @echo $(CGROUP)", "cgroup"],
+        cwd=REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    (own,) = [
+        line for line in Path("/proc/self/cgroup").read_text().splitlines() if line[:3] == "0::"
+    ]
+    assert made.stdout == f"/sys/fs/cgroup{own[3:]}\n"
+
+
+def test_a_runner_runs_one_and_a_half_workers_a_processor_a_desk_a_quarter_and_none_under_two():
+    for cores, desk, runner in ((1, 2, 2), (4, 2, 6), (12, 3, 18), (24, 6, 36), (64, 16, 96)):
         counted = (workers(f"CORES={cores}"), workers(f"CORES={cores}", GITHUB_ACTIONS="true"))
         assert counted == (desk, runner), cores
 
 
-def test_a_runner_of_githubs_own_takes_every_processor_and_one_of_this_machine_a_sixth():
+def test_a_runner_of_githubs_own_takes_every_processor():
     hosted = ("GITHUB_ACTIONS=true", "RUNNER_ENVIRONMENT=github-hosted")
-    assert "uv run pytest -n 4" in check(*hosted, "CORES=4")[-1]
-    ours = check("CORES=12", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="self-hosted")
-    assert "uv run pytest -n 2" in ours[-1]
+    assert "uv run pytest -n 4 " in check(*hosted, "CORES=4")[-1]
+    ours = check("CORES=4", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="self-hosted")
+    assert "uv run pytest -n 6 " in ours[-1]
     assert workers(CORES="4", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="github-hosted") == 4
-    assert "uv run pytest -n 4" in check("CORES=12")[-1]
+    assert "uv run pytest -n 6 " in check("CORES=24")[-1]
     assert (workers(*hosted, "CORES=1"), workers(*hosted, "CORES=64")) == (2, 64)
-    assert workers("RUNNER_ENVIRONMENT=github-hosted", "CORES=12") == 4
+    assert workers("RUNNER_ENVIRONMENT=github-hosted", "CORES=24") == 6
 
 
-def test_every_slot_and_every_runner_at_once_ask_twelve_processors_for_fourteen_workers():
-    desk = workers("CORES=12")
-    runner = workers("CORES=12", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="self-hosted")
-    assert slot.DEFAULT * desk + RUNNERS * runner <= 14
+def test_every_slot_and_every_runner_at_once_ask_at_most_one_and_a_half_workers_a_processor():
+    """3 x 6 + 3 x 6 = 36 workers on 24 processors, at 0.51 of a core each about 18 busy."""
+    desk = workers(f"CORES={PROCESSORS}")
+    runner = workers(f"CORES={RUNNER_QUOTA}", GITHUB_ACTIONS="true")
+    assert (slot.DEFAULT, desk, RUNNERS, runner) == (3, 6, 3, 6)
+    assert slot.DEFAULT * desk + RUNNERS * runner <= 1.5 * PROCESSORS
 
 
 def test_a_count_of_processors_given_empty_is_read_as_two_and_the_tests_still_get_a_number():
     assert (workers("CORES="), workers(CORES="")) == (2, 2)
-    assert "uv run pytest -n 4" in check("TEST_WORKERS=4", GITHUB_ACTIONS="true")[-1]
+    assert "uv run pytest -n 4 " in check("TEST_WORKERS=4", GITHUB_ACTIONS="true")[-1]
 
 
 def test_a_passed_test_leaves_no_directory_behind_and_a_failed_one_keeps_its_own(tmp_path):
@@ -269,7 +330,7 @@ def check_fast(copy, path):
     """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     made = subprocess.run(
-        ["make", "check-fast", "BASE=HEAD^1", "CORES=12"],
+        ["make", "check-fast", "BASE=HEAD^1", "CORES=24"],
         cwd=copy,
         env=env | {"PATH": path},
         capture_output=True,
@@ -298,14 +359,17 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     check_fast(copy, path)
     tests = selected(copy)
     assert "tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
-    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 4", *OFF, *tests])]
+    assert asked.read_text().splitlines() == [
+        *LINT,
+        " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
+    ]
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(tmp_path):
     copy, path, asked = changed_copy(tmp_path, "pyproject.toml")
     check_fast(copy, path)
     assert selected(copy) == ["all"]
-    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 4", *OFF])]
+    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 6", *SCHEDULE, *OFF])]
 
 
 def test_check_fast_fails_on_a_base_that_is_not_a_commit_and_runs_nothing(tmp_path):
