@@ -186,3 +186,27 @@ def test_a_decline_by_id_of_a_finding_from_before_the_ids_answers_it():
     brief = RESULT + section(["error a.py:3 x", "warning b.py:1 y"])
     brief += "Finding F2: fixed, y\nFinding: fixed, x\n"
     assert findings.triage(brief).blocking() == ()
+
+
+TWO = Path(__file__).parent / "fixtures" / "findings" / "two-reviewers.md"
+
+
+def test_a_brief_two_reviewers_wrote_is_one_list_with_both_named_and_a_dismissal_beside(tmp_path):
+    from jmerge import ready
+
+    out = run(tmp_path, TWO.read_text())
+    heads = [line.split()[:2] for line in out.splitlines() if line[:1] == "F"]
+    assert heads == [
+        ["F1", "[Act"],
+        ["F2", "[Act"],
+        ["F3", "[Consider]"],
+        ["F4", "[Act"],
+        ["F5", "[Dismissed]"],
+    ]
+    assert f"  by: {CODEX}; {CURSOR}" in out.split("F2 ")[0]
+    assert "  contradicts: F4" in out.split("F5 ")[1]
+    assert (
+        out.splitlines()[-1]
+        == "next: write Fixed: <the head you pushed>, 4 findings each have their ending"
+    )
+    assert ready.short_of(TWO.read_text(), "1e16fb7dd82ea2dae3209f561f5273e559b46b4a") == ""
