@@ -651,7 +651,9 @@ def linkable(state: Path, given: str, slug: str) -> None:
 SENT = "item.sent"
 TO_HOME = "jbus: a steer of {item}, {title}, said in the {where}, line {id}. {whose}\n\n{words}"
 OWN = "It is {user}'s own word, as {basis} {ref} has it: take it as said by {user}."
-AGENTS = "It is {by}'s steer, not {user}'s word: weigh it as an agent's, and it approves nothing."
+AGENTS = (
+    "It is a steer by {by}, not {user}'s word: weigh it as an agent's, and it approves nothing."
+)
 CONFIRM = "refused: a hold takes --confirm: it takes the row's go back, and nothing is written"
 BASES = ("message", "word", "answer")
 
@@ -702,7 +704,7 @@ def steer(
         raise Refused("refused: a steer is said in the chat, the view or the command")
     if not by.strip():
         raise Refused("refused: a steer names who steers, with --by")
-    if basis is None and by == user.user:
+    if basis is None and user.user.casefold().startswith(by.strip().casefold()):
         raise Refused(
             f"refused: a steer by {user.user} rests on his word: --message, --word or --answer"
         )
