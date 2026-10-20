@@ -17,38 +17,43 @@ B="$H/tasks/<slug>.md"
 read -r passes saw written declined << EOF
 $(uv run --project "$T/.." jbriefs --findings "$B" --rounds)
 EOF
-read -r decided since launched asked sent stopped ruled wrote << EOF
-$(awk -v written="$written" '
+read -r decided since launched asked sent stopped ruled here ran << EOF
+$(awk -v written="$written" -v head="$(git rev-parse HEAD 2> /dev/null)" '
     BEGIN {split(written, heads, ","); for (one in heads) seen[heads[one]]}
-    function close_section() {if (section && after && scope && ran) wrote = "yes"; section = scope = ran = 0}
+    function close_section() {if (section && scope && pass && at == head) ran++; section = scope = pass = 0; at = ""}
     /^## / {close_section(); section = ($(0) == "## Review")}
     section && /^Scope:/ {scope = 1}
-    section && /^Verdict: (clean|findings)$/ {ran = 1}
+    section && /^Verdict: (clean|findings)$/ {pass = 1}
+    section && /^Head:/ {at = $(2)}
     /^Second pass:/ {decided = $(3); sub(/,$/, "", decided); since = $(5); sub(/,$/, "", since)}
     /^Second reviewer:/ {launched = "yes"}
     /^Scoped review: / {ruled = $(3); sub(/,$/, "", ruled)}
-    /^Scoped review: needed since / {asked = $(5); sub(/,$/, "", asked); after = 1; wrote = ""}
-    /^Scoped reviewer:/ {close_section(); wrote = ""}
+    /^Scoped review: needed since / {asked = $(5); sub(/,$/, "", asked)}
     /^Scoped reviewer:/ && $(NF - 1) == "of" {sent = $(NF); nobody = ($(3) ~ /^none/)}
+    /^Scoped reviewer:/ && $(NF - 1) == "of" && $(NF) == head && $(3) !~ /^none/ {here++}
     function word(value, unset) {return value == "" ? unset : value}
     END {
         close_section()
         print word(decided, "-"), word(since, "-"), word(launched, "no"),
             word(asked, "-"), (nobody ? "none:" : "") word(sent, "-"),
             (sent == "" || nobody || (sent in seen)) ? "-" : sent, word(ruled, "no"),
-            word(wrote, "no")
+            here + 0, ran + 0
     }' "$B")
 EOF
 scoped() {
-    if [ "$ruled" != needed ] || [ "$asked" != "$saw" ]; then return 0; fi
-    if [ "$wrote" = yes ] && [ "$declined" = - ]; then return 0; fi
+    if [ "$ruled" != needed ]; then return 0; fi
+    had=no
+    if [ "$asked" != "$saw" ] || [ "$ran" -gt 0 ]; then had=yes; fi
+    if [ "$had" = yes ] && [ "$declined" = - ]; then return 0; fi
     head=$(git rev-parse HEAD 2> /dev/null) || return 0
     base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD) && from=$(git merge-base "$base" "$head" 2> /dev/null) || from=
     if [ -z "$from" ]; then
         echo "scoped: this worktree does not know its default branch, so the range of the fix cannot be given"
-    elif [ "$wrote" = yes ] && ! old=$(git merge-base "$base" "$saw" 2> /dev/null); then
+    elif [ "$had" = yes ] && [ "$here" -gt "$ran" ]; then
+        echo "scoped: the scoped reviewer is launched, and its findings come to this thread"
+    elif [ "$had" = yes ] && ! old=$(git merge-base "$base" "$saw" 2> /dev/null); then
         echo "scoped: the head the review saw, $saw, is not a commit here, so its range cannot be given"
-    elif [ "$wrote" = yes ]; then
+    elif [ "$had" = yes ]; then
         echo "scoped: launch the scoped reviewer again, to rule on the declines of $(printf %s "$declined" | sed 's/,/, /g'), with /pr-review run <slug> scoped $old..$saw $from..$head"
     elif [ "$sent" = "none:$head" ]; then
         echo "scoped: no scoped reviewer could be launched for this head, and the home was told"
@@ -102,8 +107,9 @@ With no difference, nothing was pushed.
 One file outside `tests/` is enough, and the line names the first five.
 A blocking decline with no ruling is enough too, pushed or not: `jbriefs --findings --rounds` names those findings in its fourth field, and the line names them.
 The scoped reviewer it launches reads the earlier findings and your answers, and rules on each decline in its section, `Declines: upheld F2` or `Declines: not upheld F3: <the disproof>`.
-With nothing pushed its two ranges both end at the head the review saw, and the review of the fix is had once a scoped section that ran is written after the `Scoped review:` line and the last `Scoped reviewer:` line, whatever its head.
+With nothing pushed its two ranges both end at the head the review saw, and the review of the fix is had once a scoped section that ran names the head checked out here, or a review of a later head than the `Scoped review:` line names is written.
 A blocking decline still with no ruling after that, one the scoped pass's own findings brought or one it left out, launches the scoped reviewer again, with `again` in the line: add its `Scoped reviewer:` line under the others, as for the first.
+The block counts, at the head checked out here, the `Scoped reviewer:` lines that name it and the scoped sections that ran with it as their `Head:`, wherever in the brief each stands: while there are more of the first, the reviewer is at work and nothing is launched.
 A fix that cannot be compared with the head the review saw is owed a review.
 So is a fix pushed after a rebase, since the default branch's files then differ too: that is one review too many, never one too few.
 A pull request with more than one review and no `Scoped review:` line, the later one asked for after a rebase or by the user, is decided the same way, from the head the last review saw.
