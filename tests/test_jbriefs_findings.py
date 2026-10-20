@@ -151,3 +151,38 @@ def test_a_brief_that_cannot_be_read_is_said(tmp_path):
     )
     assert ran.returncode == 1
     assert "cannot be read" in ran.stderr
+
+
+def test_one_finding_takes_at_most_one_line_from_each_reviewer_the_nearest():
+    one = tagged("error src/a.py:10 x", principle="model-the-domain")
+    far = tagged("error src/a.py:14 far", principle="model-the-domain")
+    near = tagged("error src/a.py:11 near", principle="model-the-domain")
+    brief = RESULT + section([one], CODEX) + section([far, near], CURSOR)
+    listed = findings.triage(brief).findings
+    assert [(found.id, [r.what for r in found.raised]) for found in listed] == [
+        ("F1", ["x", "far"]),
+        ("F2", ["near"]),
+    ]
+
+
+def test_two_findings_tagged_with_no_principle_are_never_one():
+    one, other = tagged("error src/a.py:10 x"), tagged("error src/a.py:11 y")
+    brief = RESULT + section([one], CODEX) + section([other], CURSOR)
+    assert [found.id for found in findings.triage(brief).findings] == ["F1", "F2"]
+
+
+def test_a_section_its_reviewer_wrote_again_at_one_head_keeps_its_ids_and_blocks_nothing(
+    tmp_path,
+):
+    first = section([tagged("error src/a.py:10 x")], CODEX).replace("findings", "not run", 1)
+    again = section([tagged("warning src/b.py:2 y")], CODEX)
+    triage = findings.triage(RESULT + first + again)
+    assert [(one.id, one.superseded) for one in triage.findings] == [("F1", True), ("F2", False)]
+    assert [one.id for one in triage.blocking()] == ["F2"]
+    assert "superseded" in run(tmp_path, RESULT + first + again)
+
+
+def test_a_decline_by_id_of_a_finding_from_before_the_ids_answers_it():
+    brief = RESULT + section(["error a.py:3 x", "warning b.py:1 y"])
+    brief += "Finding F2: fixed, y\nFinding: fixed, x\n"
+    assert findings.triage(brief).blocking() == ()

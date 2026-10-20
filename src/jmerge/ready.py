@@ -549,10 +549,13 @@ def short_of(text: str, head: str) -> str:
     show two ways: the head is the one they were written on, or one has no `Finding:` line.
 
     A fix whose review is owed, the last `Scoped review: needed since <head>` line, is short
-    of it until a review of another head is written, and then of a `Finding:` line for each
-    finding. A `Second pass: needed since <head>` line, which a brief from before that rule
-    has, is read the same way. A line that ends `guarded` is not read here: what holds that
-    fix is the proof a guarded path is merged on (`short_of_guarded` and the proof's head).
+    of it until a review of another head is written. A `Second pass: needed since <head>`
+    line, which a brief from before that rule has, is read the same way. A line that ends
+    `guarded` is not read here: what holds that fix is the proof a guarded path is merged on
+    (`short_of_guarded` and the proof's head).
+
+    Last, on every path, each finding that blocks waits for an answer that counts
+    (`unanswered`, read by `jbriefs.findings`).
     """
     said = said_of(text)
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed

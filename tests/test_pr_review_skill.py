@@ -1209,7 +1209,14 @@ LEAD = {
 }
 
 
-@pytest.mark.parametrize(("findings", "dropped"), [(FINDINGS, 6), (LEAD, 2)])
+TAGGED = {
+    f"{finding} (bucket: {'Act on' if n % 2 else 'Consider'})"
+    + (" (risk: data)" if n == 1 else ""): kept
+    for n, (finding, kept) in enumerate(LEAD.items())
+}
+
+
+@pytest.mark.parametrize(("findings", "dropped"), [(FINDINGS, 6), (LEAD, 2), (TAGGED, 2)])
 def test_a_finding_outside_the_diff_is_dropped_and_counted(reviewer, findings, dropped):
     reviewer.gh()
     printed = reviewer.output("### Outside the diff", findings=findings)
