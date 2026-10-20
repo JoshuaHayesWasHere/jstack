@@ -13,6 +13,16 @@ def listed(pid: int) -> bool:
     return bool(ps.stdout.strip()) and not ps.stdout.startswith("Z")
 
 
+def until(check, seconds: float) -> None:
+    """Wait up to `seconds` for `check`: the kernel takes a killed child down a moment later."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if check():
+            return
+        time.sleep(0.02)
+    assert check()
+
+
 def test_a_daemon_that_ignores_sigterm_is_killed_with_what_it_started(monkeypatch):
     monkeypatch.setattr(daemons, "STOPPED_WITHIN", 0.5)
     stubborn = daemons.start(
@@ -25,8 +35,9 @@ def test_a_daemon_that_ignores_sigterm_is_killed_with_what_it_started(monkeypatc
     start = time.monotonic()
     daemons.stop(stubborn)
 
-    assert stubborn.poll() is not None and not listed(child)
+    assert stubborn.poll() is not None
     assert time.monotonic() - start < 5
+    until(lambda: not listed(child), 2)
 
 
 def test_stopping_a_daemon_twice_is_the_same_as_once():
