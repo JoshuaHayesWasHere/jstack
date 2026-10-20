@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -54,12 +55,12 @@ def _interval(asked: str) -> float:
     return seconds
 
 
-def _wait_for_room(look: list[str], limit: float, every: float) -> int:
+def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, str]) -> int:
     """Look until `room` says `go` or the limit passes, the last look at the limit itself.
     Print what the last look said, its notes too, and tell the two apart by the exit code."""
     until = time.monotonic() + limit
     while True:
-        looked = subprocess.run(look, capture_output=True, text=True)
+        looked = subprocess.run(look, capture_output=True, text=True, env=env)
         said = (looked.stdout.splitlines() or ["wait: the room check said nothing"])[-1]
         left = until - time.monotonic()
         if said == "go" or left <= 0:
@@ -72,9 +73,10 @@ def _wait_for_room(look: list[str], limit: float, every: float) -> int:
 
 def cmd_room(args: argparse.Namespace) -> int:
     look = ["sh", str(Path(__file__).with_name("room.sh"))]
+    env = {**os.environ, "SKIP_LOAD": "1" if args.light else "0"}
     if args.wait is None:
-        return subprocess.run(look).returncode
-    return _wait_for_room(look, args.wait, args.every)
+        return subprocess.run(look, env=env).returncode
+    return _wait_for_room(look, args.wait, args.every, env)
 
 
 def _list_waiters() -> int:
@@ -138,6 +140,12 @@ def parser() -> argparse.ArgumentParser:
         type=_interval,
         default=LOOK_EVERY_SECONDS,
         help="with --wait, how long between two looks (default: %(default)g)",
+    )
+    room.add_argument(
+        "--light",
+        action="store_true",
+        help="skip the load reading, for a thread that adds almost no CPU, such as a review:"
+        " memory, memory pressure, /tmp and the plan still hold it",
     )
     room.set_defaults(run=cmd_room)
 

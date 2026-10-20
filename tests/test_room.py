@@ -242,16 +242,16 @@ def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path)
 @pytest.mark.parametrize(
     ("used", "said"),
     [
-        ("85", "85% used, at or over 85%"),
-        ("85.01", "85.01% used, at or over 85%"),
-        ("100", "100% used, at or over 85%"),
+        ("100", "100% used, at or over 100%"),
+        ("100.0", "100.0% used, at or over 100%"),
+        ("101", "101% used, at or over 100%"),
     ],
 )
 def test_a_window_at_or_past_the_cushion_waits_and_says_which_and_when(
     tmp_path, window, used, said
 ):
     left = FRESH[window][1]
-    assert says(machine(tmp_path, **IDLE, plan={**FRESH, window: ("84.99", left)})) == "go"
+    assert says(machine(tmp_path, **IDLE, plan={**FRESH, window: ("99.99", left)})) == "go"
     line = says(machine(tmp_path, **IDLE, plan={**FRESH, window: (used, left + 59)}))
     resets = {2 * HOUR: "2 h 0 min", 90 * HOUR: "3 d 18 h 0 min"}[left]
     assert line == f"wait: the {WINDOWS[window]} limit is {said}, and resets in {resets}"
@@ -260,9 +260,9 @@ def test_a_window_at_or_past_the_cushion_waits_and_says_which_and_when(
 @pytest.mark.parametrize("window", WINDOWS)
 @pytest.mark.parametrize("left", [0, -1, -4 * HOUR])
 def test_a_window_past_its_reset_is_not_known_and_is_said(tmp_path, window, left):
-    spent = {**FRESH, window: ("99", 60)}
+    spent = {**FRESH, window: ("100", 60)}
     assert says(machine(tmp_path, **IDLE, plan=spent)).startswith(f"wait: the {WINDOWS[window]} ")
-    env = machine(tmp_path, **IDLE, plan={**spent, window: ("99", left)})
+    env = machine(tmp_path, **IDLE, plan={**spent, window: ("100", left)})
     stale = ran(env)
     assert stale.stdout == "go\n"
     assert stale.stderr == (
@@ -304,10 +304,10 @@ def test_a_window_past_its_reset_beside_a_missing_one_gives_both_reasons(tmp_pat
 
 
 def test_a_fresh_window_past_the_cushion_waits_beside_one_past_its_reset(tmp_path):
-    plan = {"five_hour": ("99", -HOUR), "seven_day": ("91.5", 30 * HOUR + 59)}
+    plan = {"five_hour": ("99", -HOUR), "seven_day": ("100", 30 * HOUR + 59)}
     half = ran(machine(tmp_path, **IDLE, plan=plan))
     assert half.stdout == (
-        "wait: the weekly limit is 91.5% used, at or over 85%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
     )
     assert half.stderr == ""
 
@@ -365,17 +365,17 @@ def test_a_limits_file_that_is_a_directory_goes_with_the_note(tmp_path):
 
 
 def test_the_one_window_a_file_gives_still_waits_past_the_cushion(tmp_path):
-    env = machine(tmp_path, **IDLE, plan=limits({"seven_day": ("91.5", 30 * HOUR + 59)}))
+    env = machine(tmp_path, **IDLE, plan=limits({"seven_day": ("100", 30 * HOUR + 59)}))
     half = ran(env)
     assert half.stdout == (
-        "wait: the weekly limit is 91.5% used, at or over 85%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
     )
     assert half.stderr == ""
 
 
 def test_the_cushion_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("CUSHION=85\n") == 1
-    changed = check().replace("CUSHION=85\n", "CUSHION=70\n")
+    assert check().count("CUSHION=100\n") == 1
+    changed = check().replace("CUSHION=100\n", "CUSHION=70\n")
     env = machine(tmp_path, **IDLE, plan={**FRESH, "five_hour": ("72", 20 * 60 + 59)})
     assert says(env) == "go"
     assert says(env, changed) == (
@@ -384,7 +384,7 @@ def test_the_cushion_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
 
 
 def test_the_machine_is_named_before_the_plan_and_five_hours_before_the_week(tmp_path):
-    spent = {"five_hour": ("95", HOUR), "seven_day": ("95", HOUR)}
+    spent = {"five_hour": ("100", HOUR), "seven_day": ("100", HOUR)}
     assert says(machine(tmp_path, **{**IDLE, "pressure": "54.31"}, plan=spent)).startswith(
         "wait: memory pressure "
     )
@@ -407,11 +407,11 @@ def test_the_check_reads_the_limits_file_of_the_account_it_runs_under(tmp_path):
     home = tmp_path / "home"
     (home / ".local" / "state" / "claude").mkdir(parents=True)
     (home / ".local" / "state" / "claude" / "limits").write_text(
-        limits({**FRESH, "seven_day": ("88", 5 * HOUR + 59)})
+        limits({**FRESH, "seven_day": ("100", 5 * HOUR + 59)})
     )
     env = {**machine(tmp_path, **IDLE), "HOME": str(home)}
     del env["LIMITS"]
-    assert re.fullmatch(r"wait: the weekly limit is 88% used, .* resets in 5 h 0 min", says(env))
+    assert re.fullmatch(r"wait: the weekly limit is 100% used, .* resets in 5 h 0 min", says(env))
 
 
 def waited(env, limit, every="0.05"):
@@ -669,6 +669,64 @@ def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_
     assert sorted(tmp.rglob("*")) == before
 
 
-def test_no_skill_holds_a_copy_of_the_check():
+def test_no_skill_holds_a_copy_of_the_check(tmp_path):
     held = [path for path in SKILLS.rglob("*") if path.is_file() and "CUSHION=" in path.read_text()]
-    assert held == [] and "CUSHION=85\n" in ROOM.read_text()
+    assert held == []
+    used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
+    assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(
+        "wait: the five-hour limit is 100% used, at or over 100%,"
+    )
+
+
+def light(env, *more):
+    """What `jgauge room --light` printed and how it exited: the check a review asks."""
+    command = [str(BIN / "jgauge"), "room", "--light", *more]
+    ran = subprocess.run(command, env=env, capture_output=True, text=True, timeout=20)
+    return ran.stdout.splitlines(), ran.returncode
+
+
+@pytest.mark.parametrize(
+    ("load", "cores"), [("10.20", "12"), ("20.40", "24"), ("30.00", "24"), ("99.00", "4")]
+)
+def test_a_light_look_goes_at_a_load_that_holds_a_launch(tmp_path, load, cores):
+    env = machine(tmp_path, **{**IDLE, "load": load, "cores": cores})
+    assert says(env).startswith(f"wait: load {load} is at or over 85% of {cores} cores")
+    assert light(env) == (["go"], 0)
+    started = time.monotonic()
+    assert light(env, "--wait", "15") == (["go"], 0)
+    assert time.monotonic() - started < 5
+
+
+def test_a_light_look_needs_no_load_it_cannot_read(tmp_path):
+    env = machine(tmp_path, **IDLE)
+    (tmp_path / "proc" / "loadavg").unlink()
+    assert says(env) == "wait: the load or the core count could not be read"
+    assert light(env) == (["go"], 0)
+
+
+@pytest.mark.parametrize(
+    ("readings", "said"),
+    [
+        ({"memory": 6 * KB_PER_GB - 1}, "wait: 6.0 GB of memory available, under 6"),
+        ({"pressure": "10.00"}, "wait: memory pressure 10.00 is at or over 10"),
+        ({"slots": (1000, 851)}, "wait: {} has 851 of 1000 file slots used, over 85%"),
+        (
+            {"plan": {**FRESH, "five_hour": ("100", HOUR + 59)}},
+            "wait: the five-hour limit is 100% used, at or over 100%, and resets in 1 h 0 min",
+        ),
+    ],
+)
+def test_a_light_look_still_waits_on_every_other_reading_with_the_same_reason(
+    tmp_path, readings, said
+):
+    env = machine(tmp_path, **{**IDLE, "load": "30.00", "cores": "24", **readings})
+    said = said.format(env["TMPFS"])
+    assert light(env) == ([said], 0)
+    assert light(env, "--wait", "0.2", "--every", "0.05") == ([said], 75)
+    assert says(machine(tmp_path, **{**IDLE, **readings})) == said
+
+
+def test_a_look_with_no_flag_reads_the_load_whatever_its_environment_says(tmp_path):
+    env = {**machine(tmp_path, **{**IDLE, "load": "11.00"}), "SKIP_LOAD": "1"}
+    assert says(env) == "wait: load 11.00 is at or over 85% of 12 cores"
+    assert waited(env, "0") == (["wait: load 11.00 is at or over 85% of 12 cores"], 75)

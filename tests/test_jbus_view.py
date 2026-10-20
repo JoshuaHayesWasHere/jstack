@@ -2416,11 +2416,13 @@ def test_the_room_is_the_one_answer_jgauge_room_gives(scene, served):
     room = served.json("/state.json?project=demo")["room"]
     assert (room["answer"], room["why"], room["load"][0]) == ("go", "", 2.5)
     assert room["plan"]["five_hour"]["used"] == 23.0
-    assert room["limits"] == {"load": 85, "memory": 6, "pressure": 10, "slots": 85, "plan": 85}
+    assert room["limits"] == {"load": 85, "memory": 6, "pressure": 10, "slots": 85, "plan": 100}
     scene.machine(five_hour=91.0)
+    assert served.json("/state.json?project=demo")["room"]["answer"] == "go"
+    scene.machine(five_hour=100.0)
     room = served.json("/state.json?project=demo")["room"]
     assert room["answer"] == "wait"
-    assert room["why"].startswith("the five-hour limit is 91.0% used, at or over 85%")
+    assert room["why"].startswith("the five-hour limit is 100.0% used, at or over 100%")
 
 
 def test_github_is_asked_for_the_checks_card_once_a_minute(scene, served):
