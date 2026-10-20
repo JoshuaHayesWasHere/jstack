@@ -31,7 +31,7 @@ from pathlib import Path
 
 from jgauge import waiters
 
-DEFAULT = 2
+DEFAULT = 3
 SHORT_SLOTS = 3
 SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2

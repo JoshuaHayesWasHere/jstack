@@ -400,6 +400,7 @@ def test_each_job_is_cancelled_after_twenty_five_minutes_and_a_job_that_names_no
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
+SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml"'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 
 
@@ -450,7 +451,8 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/green_tree.py",
         "astral-sh/setup-uv",
         "uv sync --locked",
-        "make check",
+        SUITE,
+        "|",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
         'echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload'
@@ -476,7 +478,7 @@ def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
     found, _ = steps(CHECK.read_text(), "full")
     _, _, setup, sync, suite, *_ = found
-    assert (sync["run"], suite["run"]) == ("uv sync --locked", "make check")
+    assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
     ran = {
         (marker, by): [
             step.get("run", step.get("uses", "")).partition("@")[0]
@@ -487,7 +489,7 @@ def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_
         ]
         for marker, by in (("green", "desk"), ("green", "run"), ("none", ""), ("unknown", ""))
     }
-    everything = ["astral-sh/setup-uv", "uv sync --locked", "make check"]
+    everything = ["astral-sh/setup-uv", "uv sync --locked", SUITE]
     assert ran == {
         ("green", "desk"): everything[:2],
         ("green", "run"): [],
@@ -531,6 +533,72 @@ def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_
         ("failure", "failure"),
         ("failure", "skipped"),
     ]
+
+
+JUNIT = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="4" time="100.0">
+<testcase classname="tests.test_a" name="test_one" time="30.0" />
+<testcase classname="tests.test_a" name="test_two" time="20.0" />
+<testcase classname="tests.test_b.TestThings" name="test_three" time="40.0" />
+<testcase classname="tests.test_c" name="test_four" time="10.0"><failure message="no" /></testcase>
+</testsuite></testsuites>
+"""
+
+
+def summary_step():
+    """The shell of the `suite summary` step of `full`, as the runner gets it."""
+    lines = CHECK.read_text().splitlines()
+    at = lines.index("      - name: suite summary")
+    start = lines.index("        run: |", at) + 1
+    end = next(n for n in range(start, len(lines)) if lines[n] and lines[n][:10].strip())
+    return "\n".join(line[10:] for line in lines[start:end]) + "\n"
+
+
+def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_pressure(tmp_path):
+    """Run on a report of 100 s of tests in a 100 s wall on 4 workers, under a quota of 4."""
+    found, _ = steps(CHECK.read_text(), "full")
+    (summary,) = [step for step in found if step.get("name") == "suite summary"]
+    assert [o for o in OUTCOMES if worked(summary["if"], {"steps.suite.outcome": o})] == [
+        "success",
+        "failure",
+    ]
+    assert summary["continue-on-error"] is True
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "make").write_text("#!/bin/sh\necho 'uv run pytest -n 4 --dist worksteal -m x'\n")
+    (bin / "make").chmod(0o755)
+    files = {name: tmp_path / name for name in ("junit.xml", "cpu.max", "host", "cgroup", "out")}
+    files["junit.xml"].write_text(JUNIT)
+    files["cpu.max"].write_text("400000 100000\n")
+    files["host"].write_text("some avg10=1.00 avg60=2.00 avg300=3.00 total=4\nfull x\n")
+    files["cgroup"].write_text("some avg10=5.00 avg60=6.00 avg300=7.00 total=8\nfull y\n")
+    ran = subprocess.run(
+        ["bash", "-e", "-c", summary_step()],
+        env={"PATH": f"{bin}:/usr/bin:/bin", "JUNIT": str(files["junit.xml"])}
+        | {"CPU_MAX": str(files["cpu.max"]), "HOST_PRESSURE": str(files["host"])}
+        | {"CGROUP_PRESSURE": str(files["cgroup"]), "GITHUB_STEP_SUMMARY": str(files["out"])},
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+    line = (
+        "suite: 4 workers, quota 4, wall 100.0 s, test time 100.0 s, tail 75.0 s,"
+        " slowest tests/test_a.py 50.0 s,"
+        " host cpu some avg10=1.00 avg60=2.00 avg300=3.00 total=4,"
+        " cgroup cpu some avg10=5.00 avg60=6.00 avg300=7.00 total=8"
+    )
+    assert (ran.stdout, files["out"].read_text()) == (line + "\n", line + "\n")
+    files["cpu.max"].write_text("max 100000\n")
+    ran = subprocess.run(
+        ["bash", "-e", "-c", summary_step()],
+        env={"PATH": f"{bin}:/usr/bin:/bin", "JUNIT": str(files["junit.xml"])}
+        | {"CPU_MAX": str(files["cpu.max"]), "HOST_PRESSURE": str(tmp_path / "gone")}
+        | {"CGROUP_PRESSURE": str(tmp_path / "gone"), "GITHUB_STEP_SUMMARY": str(files["out"])},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert ", quota none, " in ran.stdout and ran.stdout.endswith("cpu none, cgroup cpu none\n")
 
 
 def green_tree(tmp_path, answers, **env):
