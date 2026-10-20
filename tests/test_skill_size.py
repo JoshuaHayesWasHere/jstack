@@ -11,7 +11,7 @@ from test_home_thread import NAMED, named
 REPO = Path(__file__).parent.parent
 CAP = 400
 ROLES = REPO / "skills"
-OVER = {ROLES / "crew", ROLES / "handoff"}
+OVER = {ROLES / "handoff"}
 SKILLS = sorted(ROLES.glob("*/SKILL.md"))
 SIDES = sorted(side for skill in SKILLS for side in skill.parent.glob("*.md") if side != skill)
 
