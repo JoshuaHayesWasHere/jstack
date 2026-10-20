@@ -9,8 +9,12 @@
 | `wait: <n> GB of memory available, under 6` | The machine is short of memory. | Close what holds the memory. |
 | `wait: memory pressure <n> is at or over 10` | Programs wait on memory. | Close what holds the memory. |
 | `wait: /tmp has <n> of <m> file slots used, over 85%` | `/tmp` is almost out of file slots. | Remove old test directories from `/tmp`. |
-| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit of the instance asked about (`--instance`, `claudeAgent` by default) is used up. The same line names `the weekly limit`. | Wait for the reset, or launch on another instance of the role's pool. |
-| `wait: <name> is not the name of a provider instance` | `--instance` was given a name with a character an instance id does not have. | Give the id as `orchestrator_capabilities` lists it. |
+| `wait: the five-hour limit is <n>% used, at or over 100%, and resets in <time>` | The plan's limit of the one instance asked about is used up: `--instance <id>`, or a role whose pool is that instance alone, or `claudeAgent` for a role with no pool. The same line names `the weekly limit`. | Wait for the reset, or give the role a pool of more than one instance ([jroles](../jroles.md#pools)). |
+| `wait: <a> and <b> are both at or over 100%: <a>'s <window> limit is <n>% used and resets in <time>, ...; the first resets in <time>` | Every instance of the pool of the role asked about (`--role`, `crew` by default) is full. Each is named with the window that holds it longest. | Wait for the first reset it names. |
+| `wait: <pool> is not a pool of provider instances` | `--instance`, or the role map's pool, gave a name with a character an instance id does not have. | Give the id as `orchestrator_capabilities` lists it. |
 | `wait: the load or the core count could not be read` | A reading is missing. The lines for the CPU pressure, the memory, the memory pressure and the file slots have the same form. | `jgauge room` reads `/proc` and `df`. Check that both work in this shell. |
 
 A `note: the plan's ... not known` line on stderr is no `wait:`. It says the limits file is missing or stale, and `jgauge room` still prints `go`.
+
+A `note: <a>'s <window> limit is 100% used and resets in <time>; the pool has room on <b>` line on stderr is no `wait:` either: one instance of the pool is full, `<b>` has room, and `jgauge room` prints `go`.
+A `note: room reads claudeAgent's limits: <why>` line says the role map could not be used, so the check read the file `LIMITS` names, as it does for a role with no pool.
