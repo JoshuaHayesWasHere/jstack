@@ -45,6 +45,7 @@ function dUsage(arg, data) {
 }
 panel({
   title: "Usage",
+  reads: "server",
   drawer: dUsage,
   adds: {
     task: function (t) { return usageLine('Usage: <span data-usage-task="' + esc(t.slug) + '">asking the server</span> ' + openBtn("usage:" + t.slug, "usage")); },

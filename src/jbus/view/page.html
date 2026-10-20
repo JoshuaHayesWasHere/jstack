@@ -451,7 +451,6 @@
     "term:noticed": ["Noticed, not counted", "A line a thread wrote under Noticed in its Result, Review or Report. Its home marks each one taken or dropped, so they wait on a home, not on you: the count of what waits on you leaves them out."],
     "term:threads": ["Threads", "Every thread the last pass saw for this project, by role, those out first. Out is a turn under way, or one that waits. Ended threads are dimmed, and each opens what it works on."],
     "term:line": ["The line", "Every open task, each on the one step it is on, in the shape of who holds it now. A step that holds no task is folded into one line of its name."],
-    "term:live": ["Live and frozen", "Live is read by the server each time the page asks. Frozen is what jbus wrote on its last pass, and stands as it left it while jbus is stopped."],
     "term:project": ["Project", "One repo jbus runs a queue for, with its own state. Every task, gate and outbox is one project's. A retired project is not shown."]
   };
   function shapes() { Object.keys(SHAPES).forEach(function (w) { GLOSS["who:" + w] = [SHAPES[w][0], "Drawn as " + SHAPES[w][1] + ". " + SHAPES[w][2], w]; }); }
@@ -637,9 +636,9 @@
   function top() { return LAYERS.length ? LAYERS[LAYERS.length - 1].target : ""; }
   function called(l) { return l.title || l.target.replace(/:/g, " "); }
   var READS = "", FETCHED = null;
-  function mark(p, at) { READS = p && !p.free ? p.reads || "pass" : ""; FETCHED = at; }
+  function mark(p, at) { READS = p && !p.free ? p.reads || "pass" : ""; FETCHED = at || (S && ms(S.at)) || lastAnswer; }
   function freshLine() {
-    var read = FETCHED || (S && ms(S.at)) || lastAnswer, end = S && S.jbus ? ms(S.jbus.last_end) : null;
+    var read = FETCHED, end = S && S.jbus ? ms(S.jbus.last_end) : null;
     if (!READS) return "";
     return gone ? "Stale: the view server does not answer" + (lastAnswer ? ", last answer " + hm(lastAnswer, true) : "")
       : !stopped ? "Updated " + hm(read, true)
