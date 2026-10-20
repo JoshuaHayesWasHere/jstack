@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from test_home_thread import as_read
 from test_jbus_kitchen import complete
 
 REPO = Path(__file__).parent.parent
@@ -30,7 +31,7 @@ def filled(text, **values):
 
 def blocks(skill):
     """Every shell block the skill gives, as an agent reads it."""
-    text = (REPO / "skills" / skill / "SKILL.md").read_text()
+    text = as_read(REPO / "skills" / skill / "SKILL.md")
     return [textwrap.dedent(block) for block in FENCED.findall(text)]
 
 

@@ -15,6 +15,7 @@ import pytest
 import jbus
 from jbus import digest, queue
 from jbus.view import state as view_state
+from test_home_thread import as_read
 from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12, widened
 
@@ -262,7 +263,7 @@ def test_a_batch_takes_the_rule_and_the_parent_and_a_parent_approved_in_the_same
 
 
 def test_the_command_the_home_skill_gives_for_a_follow_up_approves_one(kitchen):
-    skill = (Path(__file__).parent.parent / "skills" / "home" / "SKILL.md").read_text()
+    skill = as_read(Path(__file__).parent.parent / "skills" / "home" / "SKILL.md")
     section = skill.partition("### A follow-up approved by a standing rule\n")[2].partition("\n#")[
         0
     ]

@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from test_home_thread import as_read
+
 SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "a demo repo"
@@ -130,13 +132,13 @@ esac
 
 def block(about):
     """The one `sh` block of the skill that has a word in it, as an agent reads it."""
-    (found,) = [text for text in FENCED.findall(SKILL.read_text()) if about in text]
+    (found,) = [text for text in FENCED.findall(as_read(SKILL)) if about in text]
     return textwrap.dedent(found)
 
 
 def paths():
     """The block at the top of the skill, which sets `$H`."""
-    (found,) = [text for text in FENCED.findall(SKILL.read_text()) if re.search(r"^H=", text, re.M)]
+    (found,) = [text for text in FENCED.findall(as_read(SKILL)) if re.search(r"^H=", text, re.M)]
     return textwrap.dedent(found)
 
 
