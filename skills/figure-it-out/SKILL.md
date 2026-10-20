@@ -26,10 +26,12 @@ A path such as `playbooks/<name>.md` or `principles/<name>.md` is from `$T/..`, 
 ## Where it runs
 
 Run this with the block at the top, with this thread's id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` gives it as `threadId`.
+In a session with no tool that gives the id, put nothing in its place: that thread is the root home, as in `skills/home/SKILL.md` "The block that finds this home".
 
 ```sh
 ME='<threadId>'
 M=
+if [ -z "$ME" ]; then M=$H; fi
 for f in "$H"/home-id "$H"/*/home-id; do
     if [ -f "$f" ] && [ -n "$ME" ] && [ "$(awk 'NF {print $(1); exit}' "$f")" = "$ME" ]; then M=$(dirname "$f"); fi
 done
@@ -41,14 +43,16 @@ case ${by%%,*} in
 esac
 ```
 
-On `not a home`, this is a crewmate's thread or a plain one.
-Write the frame below in this thread and stop: plan nothing, write no brief, and fan nothing out.
-End with one line: the frame is for a home, and `/home` in the repo's main checkout turns it into entries.
+On `not a home`, this is a crewmate's thread or a plain one, and "The frame" below is yours with two changes: ground it on your own reading, since only a home sends a scout, and write its five lines in this thread, not under `$H`.
+Plan nothing, write no brief, and fan nothing out.
+A crewmate whose brief names this skill on its `Skills:` line puts the frame in its Result and goes on with its task.
+Any other thread stops there and ends with one line: the frame is for a home, and `/home` in the repo's main checkout turns it into entries.
 On `home: <dir>`, `<dir>` is `$M`, and the rest of this skill is yours.
 
 ## The frame
 
 Ground first: a scout's Report, never your own reading, as `skills/home/SKILL.md` "Sending a scout" says.
+Its request's "Deliver" list also asks what step 3 of `playbooks/multi-phase-plan.md` asks for, so that step is `skip: the frame's scout delivered it`.
 Then write `$H/reports/frame-<slug>.md` with these five lines, and show them to the user before any entry is written:
 
 - `Predicate:` done, as a check that can fail on the real thing (`principles/principle-prove-it-works.md`).
@@ -60,7 +64,7 @@ Then write `$H/reports/frame-<slug>.md` with these five lines, and show them to 
   It is planned first (`principles/principle-sequence-verifiable-units.md`).
 - `Harness:` the entry that builds the check before the work, with its baseline taken from the code as it is now, so each later check reads old value against new (`principles/principle-foundational-thinking.md`).
 
-A unit whose design is a one-way door goes by the `arena` line the block printed: on `arena`, its own entry, ahead of the entries that build on it, run as that playbook says; on `no arena`, its entry has `Stage: parked` and the reason, since that playbook's runners are subagents.
+A unit whose design is a one-way door goes by the `arena` line the block printed: on `arena`, its own entry, ahead of the entries that build on it, run as that playbook says; on `no arena`, its entry has `Stage: parked` and the reason, since that playbook's runners are subagents, and the Reply names it as open, with the entries that wait on it.
 A unit whose shape is already concrete gets no arena.
 
 ## The entries
@@ -69,11 +73,14 @@ Open `multi-phase-plan` with the block of "A playbook of the home's own" in `ski
 
 - The harness entry is first in the order paragraph, and each feature entry waits on it.
   The riskiest unit comes next.
-- Each entry's `Decisions:` names the frame's path, and its last `Done when` line, or the last entry's, is the frame's `Predicate:`.
-- Each brief names `show-me-your-work` on its `Skills:` line, so its crewmate logs a row as each unit lands and says the log's path in its Result.
+- Each entry's `Decisions:` names the frame's path.
+  The last entry's last `Done when` line is the frame's `Predicate:`.
+- Each brief names `show-me-your-work` on its `Skills:` line, so its crewmate logs a row as each unit lands.
+  Its `Decisions:` line says to commit the log into the tree, so the trail outlives the worktree.
+- Each brief's `Decisions:` line also says that no step starts a subagent: a playbook step that would, such as `playbooks/feature.md` step 4, is a `skip:`, and its work is done in the crewmate's own thread.
 
 Before a brief is queued, run this with the block at the top and the briefs' slugs in place of the words in angle brackets.
-It runs the brief lint that `jbus queue add` runs:
+It runs the brief lint that `jbus queue add` runs, and reads the `Skills:` line as the crew skill loads it:
 
 ```sh
 for slug in <the slugs>; do
@@ -82,11 +89,18 @@ for slug in <the slugs>; do
         echo "$slug: no brief at $f"
         continue
     fi
-    uv run --project "$T/.." python -c 'import sys; from jbriefs.parse import faults; print("\n".join(faults(open(sys.argv[-1]).read())))' "$f" |
-        sed "/^\$/d; s/^/$slug: /"
-    awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[[:space:]]*/, ""); print; exit}' "$f" | tr ',' '\n' |
-        sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -qx show-me-your-work ||
-        echo "$slug: its Skills: line does not name show-me-your-work"
+    if said=$(uv run --project "$T/.." python -c '
+import sys
+from jbriefs.parse import faults
+from jbriefs.skills import named
+text = open(sys.argv[-1]).read()
+logs = "show-me-your-work" in [one.name for one in named(text)]
+print("\n".join(faults(text) + ([] if logs else ["its Skills: line does not name show-me-your-work"])))
+' "$f"); then
+        printf '%s\n' "$said" | sed "/^\$/d; s/^/$slug: /"
+    else
+        echo "$slug: the lint did not run"
+    fi
 done
 ```
 
