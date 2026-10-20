@@ -35,6 +35,23 @@ One row, `hot-semantic-lines`, was held by room for 7 passes, 23:32 to 23:38, at
 
 The runners are infra's: 7 full runners of 4 CPUs and 4 GB, `jstack`, `infra`, `Winnifred` and `caveman`, and 2 fast ones, all under the system slice `gh-runner.slice`, capped at 20 CPUs and 32 GiB with CPUWeight 50, half a desk's weight.
 
+## The load runs at these limits
+
+Two runs on 2026-10-20, each sampled every 15 s by `jgauge sample` of this change, with `/tmp`'s file slots, and read with `jgauge sample --report --since --until`.
+
+| Run | Rows | CPU pressure, at most | At or over room's 40 | Memory pressure, at most | `/tmp` used, at most | 1-minute load, at most | jbus events |
+|---|---|---|---|---|---|---|---|
+| Every full and short slot kept busy, 12:20:47 to 12:53:42 | 132 | 52.15 | 13 rows | 0 | 43.1% | 56.1 | 0 stalls, 25 slot waits, 0 rows gated |
+| Real crews alone, 12:55:26 to 13:30:17 | 139 | 39.97 | 0 rows | 0 | 39.9% | 53.6 | 1 stall, 20 slot waits, 0 rows gated |
+
+In the first run four loopers kept the 4 full slots busy with whole suites and three kept the 3 short slots busy with targeted runs, each giving way for 3 minutes to any thread that waited on its lane.
+With those alone, from 12:22 to 12:36, CPU pressure stayed at 30 to 33.
+It went over 40 only after jbus launched 10 real crews in two passes, at 12:36:59 and 12:38:21, whose start-up, CI runs and checks came on top, in two spells of about 1 and 2 minutes; room then held the next launch for two passes.
+All 40 suites passed, at 135 to 183 s each, and 10 of the 224 short runs ended with one test in error; the one whose output was kept was a race in the tests, a copy of a template repo while git's maintenance holds `objects/maintenance.lock`.
+In the second run 23 to 35 agent processes ran, about 19 crews were out, and no row waited on the crew cap or on room.
+Threads waited for a test slot in 69 of the 139 samples, and while 4 or more waited, CPU pressure was 31 at the median and 40 at most, so the slots waited on the CPU and not on a count set too low.
+The stall was a review that had not been written, not the machine.
+
 ## The machine's sizes
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
