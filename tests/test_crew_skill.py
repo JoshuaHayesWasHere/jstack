@@ -633,6 +633,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
         env={
             **os.environ,
             "HOME": str(home),
+            "TEST_SLOTS": "3",
             "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
             "T": str(SKILL.parent.parent.parent / "templates"),
         },
@@ -763,6 +764,7 @@ def slot_script(text, home):
         env={
             **os.environ,
             "HOME": str(home),
+            "TEST_SLOTS": "3",
             "PATH": f"{home.parent / 'stub'}:{room.BIN}:{os.environ['PATH']}",
             "T": str(SKILL.parent.parent.parent / "templates"),
         },

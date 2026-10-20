@@ -398,6 +398,9 @@ class Scene:
         (self.proc / "pressure" / "memory").write_text(
             "some avg10=0.00 avg60=0.50 avg300=0.00 total=1\n"
         )
+        (self.proc / "pressure" / "cpu").write_text(
+            "some avg10=0.00 avg60=4.20 avg300=0.00 total=1\n"
+        )
         resets = int(time.time()) + 3600
         (self.root / "limits").write_text(
             f"five_hour {five_hour} {resets}\nseven_day 22.0 {resets}\n"
@@ -765,7 +768,7 @@ def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_r
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     room = scene.bin / "room.sh"
-    room.write_text("LOAD=85\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\nexit 3\n")
+    room.write_text("LOAD=200\nCPU=40\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\nexit 3\n")
     monkeypatch.setattr(room_panel, "ROOM", room)
     (scene.state_dir / "status.json").write_text("{not json")
     served = Served(scene)
@@ -803,7 +806,7 @@ def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path,
         f"*) cat {scene.root}/systemctl.txt ;;\nesac\n",
     )
     room = scene.bin / "room.sh"
-    limits = "LOAD=85\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\n"
+    limits = "LOAD=200\nCPU=40\nMEMORY=6\nPRESSURE=10\nSLOTS=85\nCUSHION=85\n"
     room.write_text(f'{limits}echo room >> {calls}\necho "go: there is room"\n')
     monkeypatch.setattr(room_panel, "ROOM", room)
     served = Served(scene)
@@ -2416,7 +2419,15 @@ def test_the_room_is_the_one_answer_jgauge_room_gives(scene, served):
     room = served.json("/state.json?project=demo")["room"]
     assert (room["answer"], room["why"], room["load"][0]) == ("go", "", 2.5)
     assert room["plan"]["five_hour"]["used"] == 23.0
-    assert room["limits"] == {"load": 85, "memory": 6, "pressure": 10, "slots": 85, "plan": 100}
+    assert room["cpu_pressure"] == 4.2
+    assert room["limits"] == {
+        "load": 200,
+        "cpu": 40,
+        "memory": 6,
+        "pressure": 10,
+        "slots": 85,
+        "plan": 100,
+    }
     scene.machine(five_hour=91.0)
     assert served.json("/state.json?project=demo")["room"]["answer"] == "go"
     scene.machine(five_hour=100.0)

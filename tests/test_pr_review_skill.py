@@ -527,8 +527,15 @@ def test_the_review_and_the_launch_both_ask_jgauge_room(tmp_path, jgauge):
 
 
 def test_a_load_that_holds_a_launch_holds_no_review(tmp_path):
-    assert room_calls(tmp_path, load="11.00") == [
-        "wait: load 11.00 is at or over 85% of 12 cores",
+    assert room_calls(tmp_path, load="24.00") == [
+        "wait: load 24.00 is at or over 200% of 12 cores",
+        "go",
+    ]
+
+
+def test_cpu_pressure_that_holds_a_launch_holds_no_review(tmp_path):
+    assert room_calls(tmp_path, cpu="90.00") == [
+        "wait: CPU pressure 90.00 is at or over 40",
         "go",
     ]
 
