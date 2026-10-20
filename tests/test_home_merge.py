@@ -57,8 +57,7 @@ def timed(conclusion, started, completed, name="check"):
 
 CANCELLED_EARLY = timed("CANCELLED", "00:28:37", "00:43:52")
 PASSED_LATER = timed("SUCCESS", "01:11:04", "01:23:33")
-# The rollup of d2fdb509, #72's head, as GitHub gave it: a cancelled run, then a run that passed.
-RERUN_PASSED = (
+ROLLUP_OF_D2FDB509 = (
     CANCELLED_EARLY,
     PASSED_LATER,
     timed("SKIPPED", "00:26:17", "00:26:16", "full"),
@@ -892,7 +891,7 @@ def test_a_pull_request_that_waits_is_left_and_logged(merged):
 
 
 def test_a_check_cancelled_and_then_run_again_to_a_pass_is_green(merged):
-    merged.home.open_pull_request(merged.head, checks=RERUN_PASSED)
+    merged.home.open_pull_request(merged.head, checks=ROLLUP_OF_D2FDB509)
     assert merged.run("--check") == [f"ready 7 {merged.head} alpha alpha"]
     assert merged.untouched()
 
