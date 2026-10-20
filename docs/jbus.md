@@ -215,7 +215,7 @@ An edit of `panel.js` is live on the next request, and the server restarts itsel
 2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
 3. Run `sh <checkout>/install.sh` again. With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer`, `jbus-stale.timer`, `jbus-snapshot.timer` and `jbus-ci.timer`. `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`. `jbus-stale.timer` looks every 15 minutes for a pass that ended in the last 2 hours, from 2 hours after it starts ([When jbus fails](#when-jbus-fails)). `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](#back-up-the-homes-state)). `jbus-ci.timer` writes the week's CI report ([Measure the CI](#measure-the-ci)).
 
-[Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once, 16 when the file does not set it.
+[Configuration](configuration.md#jbus) has every key of the file and its default. `dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once, 24 when the file does not set it.
 
 jbus does not renew the sign-in. It lasts as long as the token says, or 30 days when the token gives no lifetime. Once it runs out jbus launches nothing, so jbus reminds you, with a `sign-in` event for you, posted once for the machine to the top-level webhook (to the first project's own webhook when there is no top-level pair) and kept in the first project's `jbus events`. The days are counted by the calendar of your zone, to the day the sign-in runs out:
 
@@ -483,7 +483,7 @@ A pass launches a row only when all of these hold:
 - the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](#what-an-approval-is-bound-to));
 - every slug in `depends` is merged;
 - no branch of its name exists, and no settled thread has its slug;
-- fewer than `max_running` crewmates (16 unless the config sets it) are out across every project in the config;
+- fewer than `max_running` crewmates (24 unless the config sets it) are out across every project in the config;
 - `jgauge room` prints `go`.
 
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
