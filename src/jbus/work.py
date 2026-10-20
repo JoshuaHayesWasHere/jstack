@@ -487,13 +487,15 @@ def holder(state: State, role: str = "", home: bool = False, after: bool = False
     user's, unless its home has it (`home`, what `leftover.json` says) or, for a merged one
     whose `Left:` line is for after the merge (`after`), a thread is at work on it: then its
     home or its crewmate holds it, on the lane of work that is running.
+
+    A role's holder is in `threads.ROLES`, imported here since `threads` imports this module.
     """
     pattern = state.pattern
     if role:
         if pattern.who != "crew":
             return Holder(state.who, state.waits, "")
         waits = "its thread" if state.waits == "its crewmate" else state.waits
-        from jbus import threads  # threads imports this module
+        from jbus import threads
 
         held = next((one.holder for one in threads.ROLES if one.name == role), threads.OTHER)
         return Holder(held, waits, "")

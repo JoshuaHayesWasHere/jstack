@@ -86,9 +86,6 @@ def parse(text: str) -> Line | None:
     return Line(word, int(number), (name or "").rstrip(","))
 
 
-# What `jmerge` writes from outside `ready` (its run, its proof and its range-diff), and what
-# an older `jmerge` wrote, which a log still holds. They come first: `MAIN_CHANGED` with
-# `it needs a rebase`, which `jmerge` says of a guarded path, is on the rebase step.
 ELSEWHERE = (
     ("proof", r"no proven safety fact"),
     ("second", r"the rebase changed the patch after"),
@@ -101,7 +98,12 @@ _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
 
 def rules() -> tuple[tuple[str, str], ...]:
     """The `(step, pattern)` of each reason `jmerge` writes, in the order they are tried:
-    `ELSEWHERE`, then each `ready.Reason` from the start of the reason, where it is declared."""
+    `ELSEWHERE`, then each `ready.Reason` from the start of the reason, where it is declared.
+
+    `ELSEWHERE` is what `jmerge` writes from outside `ready` (its run, its proof and its
+    range-diff), and what an older `jmerge` wrote, which a log still holds. It comes first:
+    `ready.MAIN_CHANGED` with `it needs a rebase`, which `jmerge` says of a guarded path, is
+    on the rebase step."""
     return ELSEWHERE + tuple((one.step, "^" + one.pattern) for one in ready.reasons().values())
 
 
