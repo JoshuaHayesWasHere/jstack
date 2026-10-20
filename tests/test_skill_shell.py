@@ -124,15 +124,11 @@ CALL = re.compile(
     r"(?:\buv run(?: --[\w-]+)* --project \S+(?: --[\w-]+)* )?(?:[\w%~.${}/-]*/)?"
     rf"\b({'|'.join(PARSERS)})(?=\s|$|`|')"
 )
-# What may stand before a call: the start of the code, an operator, a keyword that a command
-# follows, `sh -c '`, or a unit's `ExecStart=`.
 BEFORE = re.compile(
     r"(?:^|[|;&(!`{]|\b(?:then|do|else|if|elif|while|until|exec|time)|-c\s+['\"]|ExecStart=)\s*$"
 )
 PLACEHOLDER = re.compile(r"<[^<>\s][^<>]*>")
 VARIABLE = re.compile(r"\$(?:\{[^}]*\}|\w+|[0-9@*#?$!])")
-# What a parser says of a verb or a flag it does not have. Prose names a verb or a flag with
-# no other argument, so a span in backquotes fails only on these.
 UNKNOWN = ("invalid choice", "unrecognized arguments", "ambiguous option")
 
 
@@ -168,7 +164,9 @@ def words(rest, quote):
 
 
 def calls(code):
-    """Each jstack call in a piece of shell: its command and its words."""
+    """Each jstack call in a piece of shell: its command and its words. A call stands at the
+    start of the code, after an operator, after a keyword a command follows, after `sh -c '`,
+    or after a unit's `ExecStart=` (`BEFORE`)."""
     code = substituted(code)
     for found in CALL.finditer(code):
         before = code[: found.start()]
@@ -228,7 +226,9 @@ def printed(span, blocks_text):
 
 
 def problems(paths, root=REPO):
-    """`<file>:<line>: <the call, filled in>: <what its parser said>` for each call refused."""
+    """`<file>:<line>: <the call, filled in>: <what its parser said>` for each call refused.
+    Prose names a verb or a flag with no other argument, so a span in backquotes fails only
+    on what a parser says of a verb or a flag it does not have (`UNKNOWN`)."""
     blocks_text = "\n".join(
         body for path in paths if path.suffix == ".md" for body in blocks(path.read_text())
     )
