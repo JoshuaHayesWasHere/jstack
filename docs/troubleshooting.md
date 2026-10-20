@@ -72,7 +72,7 @@ Find your line in the tables. A word in angle brackets stands for a value on you
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the seven commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
+| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the eight commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
 | `old hard commands jstack -> lacks <names>` | The tool was installed before those commands were added. | Run `sh install.sh`. |
 | `old hard commands jstack -> tool jgauge, from before the rename` | The tool is installed under its old name, `jgauge`. | Run `sh install.sh`. It removes the old tool. |
 | `old hard commands jstack -> tool jgauge, from before the rename, lacks <names>` | The old tool is installed, from before those commands were added. | Run `sh install.sh`. |
