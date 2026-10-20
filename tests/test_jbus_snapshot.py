@@ -74,23 +74,60 @@ def alarm():
     return said
 
 
-def test_a_change_is_committed_as_a_snapshot_at_the_users_time(tree):
+def no_remote(tree):
+    return f"snapshot: no remote: {tree} has no origin to push to"
+
+
+def test_a_change_is_committed_as_a_snapshot_at_the_users_time(tree, tmp_path):
+    with_origin(tree, tmp_path)
     (tree / "demo" / "tasks" / "a.md").write_text("# a: a task\n")
-    assert take() == (0, ["snapshot: committed, no remote to push to"])
+    assert take() == (0, ["snapshot: committed, pushed"])
     assert git(tree, "log", "-1", "--format=%s") == "snapshot 2026-10-12 11:00 ET"
     assert git(tree, "status", "--porcelain") == ""
     assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/tasks/a.md"
 
 
-def test_with_nothing_changed_nothing_is_committed(tree):
+def test_with_nothing_changed_nothing_is_committed(tree, tmp_path):
+    with_origin(tree, tmp_path)
     before = git(tree, "rev-parse", "HEAD")
-    assert take() == (0, ["snapshot: nothing changed, no remote to push to"])
+    assert take() == (0, ["snapshot: nothing changed, pushed"])
     assert git(tree, "rev-parse", "HEAD") == before
+
+
+def test_with_no_remote_a_change_is_committed_and_the_snapshot_fails(tree):
+    """A snapshot that backed up nowhere is not a success: the unit fails and alarms."""
+    (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
+    assert take() == (1, [no_remote(tree)])
+    assert git(tree, "log", "-1", "--format=%s") == "snapshot 2026-10-12 11:00 ET"
+    assert git(tree, "status", "--porcelain") == ""
+    before = git(tree, "rev-parse", "HEAD")
+    assert take() == (1, [no_remote(tree)])
+    assert git(tree, "rev-parse", "HEAD") == before
+
+
+def test_with_no_remote_the_alarm_alerts_once_and_a_pushed_snapshot_recovers(
+    kitchen, tree, tmp_path
+):
+    (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
+    assert take() == (1, [no_remote(tree)])
+    assert alarm() == ["snapshot failed", "alert sent: demo"]
+    assert take() == (1, [no_remote(tree)])
+    assert alarm() == ["snapshot failed"]
+    posted = [event for post in kitchen.webhook.posts for event in post]
+    assert [(e["event"], e["line"]) for e in posted] == [("alert", FAILED)]
+    assert kitchen.log("notify") == [f"jbus | {FAILED}"]
+    bare = with_origin(tree, tmp_path)
+    code, said = take()
+    assert (code, said[0]) == (0, "snapshot: nothing changed, pushed")
+    assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
+    (recovered,) = [line for line in kitchen.lines("alert") if line.startswith("recovered")]
+    assert recovered.startswith("recovered: snapshot after 2 failures since 11:00 ET")
+    assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
 
 
 def test_the_verb_takes_the_snapshot(kitchen, tree):
     (tree / "demo" / "notes.md").write_text("# notes\nmore\n")
-    assert kitchen.main("snapshot") == (0, "snapshot: committed, no remote to push to\n")
+    assert kitchen.main("snapshot") == (1, f"{no_remote(tree)}\n")
     assert git(tree, "log", "-1", "--format=%s").startswith("snapshot ")
 
 
@@ -147,7 +184,10 @@ def test_with_no_gitleaks_nothing_is_committed(tree, monkeypatch):
     assert git(tree, "rev-parse", "HEAD") == before
 
 
-def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recovered(kitchen, tree):
+def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recovered(
+    kitchen, tree, tmp_path
+):
+    with_origin(tree, tmp_path)
     assert alarm() == ["snapshot failed", "alert sent: demo"]
     assert alarm() == ["snapshot failed"]
     posted = [event for post in kitchen.webhook.posts for event in post]
@@ -155,7 +195,7 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recov
     assert kitchen.log("notify") == [f"jbus | {FAILED}"]
     (tree / "demo" / "notes.md").write_text("# notes\nback\n")
     code, said = take()
-    assert (code, said[0]) == (0, "snapshot: committed, no remote to push to")
+    assert (code, said[0]) == (0, "snapshot: committed, pushed")
     (recovered,) = [line for line in kitchen.lines("alert") if line.startswith("recovered")]
     assert recovered.startswith("recovered: snapshot after 2 failures since 11:00 ET")
     assert kitchen.log("notify")[1] == f"jbus | {recovered}"
@@ -255,7 +295,8 @@ def test_an_edit_snapshotted_with_why_is_one_pushed_commit_that_says_why(kitchen
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
 
 
-def test_a_snapshot_with_no_why_says_only_the_time(tree):
+def test_a_snapshot_with_no_why_says_only_the_time(tree, tmp_path):
+    with_origin(tree, tmp_path)
     (tree / "demo" / "standing.md").write_text("1. a rule\n")
     snapshot.take(tree, NOW, jbus.load().user)
     assert git(tree, "log", "-1", "--format=%s") == "snapshot 2026-10-12 11:00 ET"
@@ -333,8 +374,9 @@ def test_the_documented_undo_of_the_edit_that_made_the_file_removes_it(kitchen, 
     assert git(tree, "show", "--name-status", "--format=", "HEAD") == "D\tdemo/standing.md"
 
 
-def test_a_snapshot_waits_for_one_that_is_running(tree):
+def test_a_snapshot_waits_for_one_that_is_running(tree, tmp_path):
     """Each home snapshots after an edit, beside the timer: a second run waits, never collides."""
+    with_origin(tree, tmp_path)
     (tree / "demo" / "standing.md").write_text("1. a rule\n")
     before = git(tree, "rev-parse", "HEAD")
     lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
@@ -348,7 +390,7 @@ def test_a_snapshot_waits_for_one_that_is_running(tree):
         assert git(tree, "rev-parse", "HEAD") == before
         assert git(tree, "diff", "--cached", "--name-only") == ""
     second.join(10)
-    assert said == [(0, ["snapshot: committed, no remote to push to"])]
+    assert said == [(0, ["snapshot: committed, pushed"])]
     assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/standing.md"
 
 

@@ -4,7 +4,9 @@ the doctor asks, but for the three that give a kind a machine no argument of the
 reaches."""
 
 import os
+import shlex
 import shutil
+import subprocess
 import sys
 import time
 
@@ -18,7 +20,9 @@ TOKEN = "gho_a_token_the_doctor_never_prints"
 PROGRAMS = {
     "t3": f"echo 't3 v{NIGHTLY}'",
     "claude": "echo '2.1.296 (Claude Code)'",
-    "git": "echo 'git version 2.51.0'",
+    "git": "[ \"$1\" = --version ] && exec echo 'git version 2.51.0'; exec "
+    + shlex.quote(shutil.which("git"))
+    + ' "$@"',
     "jq": "echo 'jq-1.7.1'",
     "gh": f'[ "$1 $2" = "auth token" ] && echo {TOKEN}',
     "lavish-axi": "exit 0",
@@ -38,6 +42,7 @@ class Doctored(User):
         self.token = self.jbus / "t3.json"
         self.providers = self.home / ".config" / "jstack" / "providers.json"
         self.t3_settings = self.home / ".t3" / "userdata" / "settings.json"
+        self.state = self.home / ".local" / "state" / "home"
 
     def program(self, name, line):
         self.script(name, f"#!/bin/sh\n{line}\n")
@@ -83,7 +88,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         "ok hard gh",
         "ok hard gh sign-in",
     ]
-    assert said[8:14] == [
+    assert said[8:15] == [
         f"missing optional jbus config {user.jbus / 'config.toml'} -> jbus does not run without it",
         f"missing optional jbus sign-in {user.token} -> run jbus t3 login",
         f"missing optional limits {user.limits} -> hooks/limits.sh writes it, as the status line",
@@ -92,9 +97,10 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         f"missing optional roles {user.config.with_name('roles')}"
         " -> every role inherits the model of the thread that launches it",
         "ok optional lavish-axi",
+        f"missing optional state repo {user.state} -> not a git repo",
     ]
-    assert said[14] == f"missing optional provider inventory -> {user.providers}"
-    assert said[15:-1] == user.every("ok")
+    assert said[15] == f"missing optional provider inventory -> {user.providers}"
+    assert said[16:-1] == user.every("ok")
 
 
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
@@ -117,7 +123,7 @@ def test_the_doctor_writes_nothing_and_gives_checks_answer_for_each_part_both_pr
     assert user.listing() == []
     checked = user.run("--check")[1]
     assert checked == user.every("missing")
-    assert said[15:-1] == checked
+    assert said[16:-1] == checked
 
 
 def test_the_doctor_prints_the_units_once_they_are_due_as_check_does(user):
@@ -293,6 +299,19 @@ def test_a_limits_file_is_ok_while_one_reset_is_still_to_come(user):
     assert user.line("limits") == f"old {part} -> every reset in it is past, nothing writes it now"
     user.write(user.limits, "five_hour twelve soon\n")
     assert user.line("limits") == f"old {part} -> it gives no limit"
+
+
+def test_the_state_repo_is_ok_with_an_origin_and_missing_with_no_repo_or_no_remote(user):
+    part = f"optional state repo {user.state}"
+    assert user.line("state repo") == f"missing {part} -> not a git repo"
+    user.state.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(user.state)], check=True)
+    assert user.line("state repo") == f"missing {part} -> no remote"
+    url = "https://github.com/someone/state.git"
+    subprocess.run(["git", "-C", str(user.state), "remote", "add", "origin", url], check=True)
+    code, said = user.doctor()
+    assert (code, said[-1]) == (0, "doctor: ok")
+    assert line_for(said, "state repo") == [f"ok {part} -> {url}"]
 
 
 def test_a_jstack_config_the_loader_takes_is_ok_and_one_it_refuses_is_old(user):
