@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+import jsettings
+
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
 ROOM = REPO / "src" / "jgauge" / "room.sh"
@@ -267,16 +269,16 @@ def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path)
 @pytest.mark.parametrize(
     ("used", "said"),
     [
-        ("100", "100% used, at or over 100%"),
-        ("100.0", "100.0% used, at or over 100%"),
-        ("101", "101% used, at or over 100%"),
+        ("100", "100% used, at or over 90%"),
+        ("100.0", "100.0% used, at or over 90%"),
+        ("101", "101% used, at or over 90%"),
     ],
 )
 def test_a_window_at_or_past_the_cushion_waits_and_says_which_and_when(
     tmp_path, window, used, said
 ):
     left = FRESH[window][1]
-    assert says(machine(tmp_path, **IDLE, plan={**FRESH, window: ("99.99", left)})) == "go"
+    assert says(machine(tmp_path, **IDLE, plan={**FRESH, window: ("89.99", left)})) == "go"
     line = says(machine(tmp_path, **IDLE, plan={**FRESH, window: (used, left + 59)}))
     resets = {2 * HOUR: "2 h 0 min", 90 * HOUR: "3 d 18 h 0 min"}[left]
     assert line == f"wait: the {WINDOWS[window]} limit is {said}, and resets in {resets}"
@@ -332,7 +334,7 @@ def test_a_fresh_window_past_the_cushion_waits_beside_one_past_its_reset(tmp_pat
     plan = {"five_hour": ("99", -HOUR), "seven_day": ("100", 30 * HOUR + 59)}
     half = ran(machine(tmp_path, **IDLE, plan=plan))
     assert half.stdout == (
-        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100% used, at or over 90%, and resets in 1 d 6 h 0 min\n"
     )
     assert half.stderr == ""
 
@@ -393,17 +395,21 @@ def test_the_one_window_a_file_gives_still_waits_past_the_cushion(tmp_path):
     env = machine(tmp_path, **IDLE, plan=limits({"seven_day": ("100", 30 * HOUR + 59)}))
     half = ran(env)
     assert half.stdout == (
-        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100% used, at or over 90%, and resets in 1 d 6 h 0 min\n"
     )
     assert half.stderr == ""
 
 
-def test_the_cushion_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("CUSHION=100\n") == 1
-    changed = check().replace("CUSHION=100\n", "CUSHION=70\n")
+def test_the_cushion_is_the_users_headroom_and_the_reason_gives_it(tmp_path):
+    """`jgauge room` hands `room.sh` the headroom of the user's settings, the line a launch's
+    pool is chosen by, and the script alone falls back to the same default."""
+    assert check().count("CUSHION=${HEADROOM:-90}\n") == 1
+    assert f"{jsettings.DEFAULTS.headroom:g}" == "90"
     env = machine(tmp_path, **IDLE, plan={**FRESH, "five_hour": ("72", 20 * 60 + 59)})
     assert says(env) == "go"
-    assert says(env, changed) == (
+    (tmp_path / "config" / "jstack").mkdir(parents=True)
+    (tmp_path / "config" / "jstack" / "config.toml").write_text("headroom = 70\n")
+    assert says(env) == (
         "wait: the five-hour limit is 72% used, at or over 70%, and resets in 0 h 20 min"
     )
 
@@ -699,7 +705,7 @@ def test_no_skill_holds_a_copy_of_the_check(tmp_path):
     assert held == []
     used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
     assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(
-        "wait: the five-hour limit is 100% used, at or over 100%,"
+        "wait: the five-hour limit is 100% used, at or over 90%,"
     )
 
 
@@ -746,7 +752,7 @@ def test_a_light_look_skips_cpu_pressure_as_it_skips_the_load(tmp_path):
         ({"slots": (1000, 851)}, "wait: {} has 851 of 1000 file slots used, over 85%"),
         (
             {"plan": {**FRESH, "five_hour": ("100", HOUR + 59)}},
-            "wait: the five-hour limit is 100% used, at or over 100%, and resets in 1 h 0 min",
+            "wait: the five-hour limit is 100% used, at or over 90%, and resets in 1 h 0 min",
         ),
     ],
 )
@@ -779,7 +785,7 @@ def test_the_plan_is_read_for_the_instance_room_is_asked_about(tmp_path):
     asked = [str(BIN / "jgauge"), "room", "--instance"]
     on_prime = subprocess.run([*asked, PRIME], env=env, capture_output=True, text=True)
     assert on_prime.stdout == (
-        "wait: the weekly limit is 100% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100% used, at or over 90%, and resets in 1 d 6 h 0 min\n"
     )
     on_first = subprocess.run([*asked, "claudeAgent"], env=env, capture_output=True, text=True)
     assert (on_first.stdout, says(env)) == ("go\n", "go")
@@ -852,7 +858,7 @@ def test_a_pool_with_every_instance_full_waits_and_names_each_and_the_first_rese
     both = {"five_hour": ("100", 2 * HOUR + 59), "seven_day": ("100", 50 * HOUR + 59)}
     env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), both, CAPPED_WEEK)
     assert says(env) == (
-        f"wait: claudeAgent and {PRIME} are both at or over 100%: "
+        f"wait: claudeAgent and {PRIME} are both at or over 90%: "
         "claudeAgent's weekly limit is 100% used and resets in 2 d 2 h 0 min, "
         f"{PRIME}'s weekly limit is 100.0% used and resets in 1 d 6 h 0 min; "
         "the first resets in 1 d 6 h 0 min"
@@ -878,7 +884,7 @@ def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
     env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
     pooled(env, "crew: inherit", f"scout: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}")
     room = [str(BIN / "jgauge"), "room"]
-    full = "wait: the five-hour limit is 100% used, at or over 100%, and resets in 2 h 0 min\n"
+    full = "wait: the five-hour limit is 100% used, at or over 90%, and resets in 2 h 0 min\n"
     for asked, said in (
         ([], full),
         (["--role", "crew"], full),
@@ -894,7 +900,7 @@ def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
 def test_a_role_with_no_pool_reads_limits_as_before(tmp_path):
     """No role map, `inherit`, or a line that names no instance: the file LIMITS names."""
     env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
-    full = "wait: the five-hour limit is 100% used, at or over 100%, and resets in 2 h 0 min"
+    full = "wait: the five-hour limit is 100% used, at or over 90%, and resets in 2 h 0 min"
     assert says(env) == full
     assert says(pooled(env, "crew: inherit")) == full
     assert says(pooled(env, "crew: claudeAgent claude-opus-5-5")) == full
@@ -919,7 +925,7 @@ def test_every_line_of_a_role_is_a_pool_and_any_one_full_waits(tmp_path):
     asked = [str(BIN / "jgauge"), "room", "--role", "review"]
     looked = subprocess.run(asked, env=env, capture_output=True, text=True)
     assert looked.stdout == (
-        "wait: the weekly limit is 100.0% used, at or over 100%, and resets in 1 d 6 h 0 min\n"
+        "wait: the weekly limit is 100.0% used, at or over 90%, and resets in 1 d 6 h 0 min\n"
     )
 
 

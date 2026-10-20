@@ -20,12 +20,14 @@ The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variabl
 
 ## jstack
 
-`~/.config/jstack/config.toml` says who jstack works for and in which time zone. A plain `install.sh` never creates it. `install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse. With no file, every key has its default.
+`~/.config/jstack/config.toml` says who jstack works for, in which time zone, and how full an account may get before a launch passes it by.
+A plain `install.sh` never creates it. `install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse. With no file, every key has its default.
 
 ```toml
 user = "sam"
 timezone = "Europe/Berlin"
 timezone_label = "CET"
+headroom = 90
 ```
 
 | Key | Default | What it sets | Read by |
@@ -33,8 +35,10 @@ timezone_label = "CET"
 | `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take, whose own message `--message` asks for, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `install.sh --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
+| `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 
-Each value is one word with no space and no comma. A file with any other key, or with a `timezone` that is not an IANA name, is refused. `jmerge` and `jbus` then stop with the one line that says why. They do not fall back to the defaults.
+Each value but `headroom` is one word with no space and no comma.
+A file with any other key, or with a `timezone` that is not an IANA name, is refused. `jmerge` and `jbus` then stop with the one line that says why. They do not fall back to the defaults.
 
 ## Roles
 
@@ -186,9 +190,11 @@ The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), whe
 
 The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
+`jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](jgauge.md)).
 `hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 An account the inventory does not declare writes nothing.
 `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
+All three merge by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
 `jgauge room` reads the file of each instance of the role's pool ([jroles](jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
 `LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
@@ -197,9 +203,11 @@ An account the inventory does not declare writes nothing.
 | `five_hour <used> <reset>` | The share of the five-hour limit used, in percent, and the time of its reset in Unix seconds. |
 | `seven_day <used> <reset>` | The same for the weekly limit. |
 
-Each file has these rows. Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
+Each file has these rows, and a window that is not open has none.
+Without the file, `jgauge room` still prints `go` when the machine has room. It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
 
-If you have a status line of your own, `install.sh` leaves it alone and the file is not written. Pipe the status line's input to the script from your own command. Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
+If you have a status line of your own, `install.sh` leaves it alone, and `jgauge limits` still writes the file.
+To have the status line write it too, pipe the status line's input to the script from your own command. Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
 
 ```sh
 #!/bin/sh

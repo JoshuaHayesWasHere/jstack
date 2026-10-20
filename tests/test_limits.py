@@ -66,7 +66,7 @@ def test_a_window_past_the_cushion_in_the_written_file_makes_room_wait(env):
     write(handed(five_hour=(100, int(time.time()) + 3600 + 59), seven_day=(41.2, WEEK)), env)
     said = ran(env, check())
     assert said.stdout == (
-        "wait: the five-hour limit is 100% used, at or over 100%, and resets in 1 h 0 min\n"
+        "wait: the five-hour limit is 100% used, at or over 90%, and resets in 1 h 0 min\n"
     )
 
 

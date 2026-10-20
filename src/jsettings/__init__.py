@@ -1,6 +1,7 @@
-"""jsettings: who jstack works for and in which time zone, read the same way by every command.
+"""jsettings: who jstack works for, in which time zone, and how full an account may get before a
+launch passes it by, read the same way by every command.
 
-One file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the role map, with three
+One file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the role map, with four
 keys, each optional:
 
 - `user`: the one name that accepts a hold and approves a launch, and the name printed for
@@ -8,6 +9,9 @@ keys, each optional:
 - `timezone`: an IANA name, as `America/New_York` is, for every time printed and taken.
   Default the machine's own zone.
 - `timezone_label`: the word after such a time. Default what the zone prints for that time.
+- `headroom`: the share of a usage window, in percent, at which a new launch counts a provider
+  instance as full and goes to the next of its pool. Default 90. A move off a running thread
+  still waits for a real cap, 100.
 
 With no file every key has its default, and nothing here writes the file. `load` is the one
 reader: it gives the `Settings`, or raises `Invalid` with the one line that says why a file
@@ -24,7 +28,9 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, available_timezones
 
-KEYS = ("user", "timezone", "timezone_label")
+KEYS = ("user", "timezone", "timezone_label", "headroom")
+NAMES = KEYS[:3]
+HEADROOM = 90
 _NAME = re.compile(r"[^\s,]+")
 _AT = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)")
 
@@ -40,6 +46,7 @@ class Settings:
     user: str = "user"
     zone: ZoneInfo | None = None
     label: str = ""
+    headroom: float = HEADROOM
 
     def local(self, moment: datetime) -> datetime:
         """The moment in the zone. One with no zone of its own is taken as a time there."""
@@ -109,9 +116,16 @@ def load(file: Path | None = None) -> Settings:
     unknown = [key for key in raw if key not in KEYS]
     if unknown:
         raise Invalid(f"{file} has the key {unknown[0]}, not one of {', '.join(KEYS)}")
-    for key in KEYS:
+    for key in NAMES:
         if key in raw and not (isinstance(raw[key], str) and _NAME.fullmatch(raw[key])):
             raise Invalid(f"{file} has a {key} that is not one word with no comma")
+    headroom = raw.get("headroom", HEADROOM)
+    if (
+        isinstance(headroom, bool)
+        or not isinstance(headroom, int | float)
+        or not 0 < headroom <= 100
+    ):
+        raise Invalid(f"{file} has a headroom that is not a percent over 0 and up to 100")
     zone = None
     if "timezone" in raw:
         try:
@@ -123,4 +137,4 @@ def load(file: Path | None = None) -> Settings:
                     "zone database to find it in: the system has none and tzdata is not installed"
                 ) from error
             raise Invalid(f"{file} has the timezone {raw['timezone']}, not an IANA name") from error
-    return Settings(raw.get("user", "user"), zone, raw.get("timezone_label", ""))
+    return Settings(raw.get("user", "user"), zone, raw.get("timezone_label", ""), headroom)

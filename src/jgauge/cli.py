@@ -7,10 +7,12 @@ import shlex
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import jroles
-from jgauge import sample, session, sizes, slot, transcript, waiters
+import jsettings
+from jgauge import limits, sample, session, sizes, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
 
@@ -87,11 +89,26 @@ def _pool(role: str) -> str:
 
 def cmd_room(args: argparse.Namespace) -> int:
     look = ["sh", str(Path(__file__).with_name("room.sh"))]
-    env = {**os.environ, "SKIP_LOAD": "1" if args.light else "0"}
+    try:
+        headroom = jsettings.load().headroom
+    except jsettings.Invalid as error:
+        raise SystemExit(f"jgauge: {error}") from error
+    env = {**os.environ, "SKIP_LOAD": "1" if args.light else "0", "HEADROOM": f"{headroom:g}"}
     env["POOL"] = args.instance if args.instance is not None else _pool(args.role)
     if args.wait is None:
         return subprocess.run(look, env=env).returncode
     return _wait_for_room(look, args.wait, args.every, env)
+
+
+def cmd_limits(args: argparse.Namespace) -> int:
+    now = datetime.now(UTC)
+    try:
+        said = limits.check(now) if args.check else limits.run(now)
+    except limits.Stale as why:
+        raise SystemExit(f"jgauge: {why}") from None
+    if said:
+        print("\n".join(said))
+    return 1 if args.check and said else 0
 
 
 def _since(asked: str) -> int:
@@ -220,6 +237,25 @@ def parser() -> argparse.ArgumentParser:
         " of a role's pool",
     )
     room.set_defaults(run=cmd_room)
+
+    read = commands.add_parser(
+        "limits",
+        help="read each Claude account's five-hour and weekly use into the ledger, ahead of time",
+        description="For each Claude home of ~/.config/jstack/providers.json, and ~/.claude"
+        " where it names none, read the account's five-hour and weekly use from the usage"
+        " endpoint with the home's own token while it has not expired, else from the answer"
+        " Claude Code cached in its .claude.json while that is under 15 min old, and merge it"
+        " into the instance's ledger file. A home neither answers for keeps its last lines and"
+        " prints `stale <instance>: <why>`. No token is refreshed or printed, and neither file"
+        " is written.",
+    )
+    read.add_argument(
+        "--check",
+        action="store_true",
+        help="read nothing: print `stale <instance>: <why>` for each ledger file 15 min old or"
+        " more, or missing, and exit 1 if there is one",
+    )
+    read.set_defaults(run=cmd_limits)
 
     sampled = commands.add_parser(
         "sample",

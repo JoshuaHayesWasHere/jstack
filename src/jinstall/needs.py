@@ -42,6 +42,8 @@ from jinstall.kinds import (
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
+from jroles import ledger
+from jroles.inventory import claude_instances
 
 T3_FLOOR: str | None = None
 UV_FLOOR: tuple[int, ...] | None = None
@@ -132,7 +134,6 @@ def needs(machine: Machine) -> tuple[Need, ...]:
             Level.OPTIONAL,
             JbusSignIn(jbus.with_name("t3.json")),
         ),
-        Need(f"limits {limits}", Level.OPTIONAL, Limits(limits)),
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
@@ -143,6 +144,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     providers = {} if isinstance(providers, str) else providers
     t3 = home / ".t3" / "userdata" / "settings.json"
     found.append(Need("provider inventory", Level.OPTIONAL, ProviderInventory(inventory)))
+    found += [
+        Need(f"limits {file}", Level.OPTIONAL, Limits(file))
+        for file in (ledger.file_of(name, limits) for name in claude_instances(providers, home))
+    ]
     found += [
         Need(f"provider {name}", Level.HARD, ProviderInstance(name, instance, t3))
         for name, instance in providers.items()

@@ -41,6 +41,8 @@ UNITS = [
     "jbus-view.service",
     "jbus.service",
     "jbus.timer",
+    "jgauge-limits.service",
+    "jgauge-limits.timer",
     "jgauge-sample.service",
     "jgauge-sample.timer",
     "jroles-mirror.service",
@@ -51,6 +53,7 @@ TIMERS = [
     "jbus-snapshot.timer",
     "jbus-stale.timer",
     "jbus.timer",
+    "jgauge-limits.timer",
     "jgauge-sample.timer",
     "jroles-mirror.timer",
 ]

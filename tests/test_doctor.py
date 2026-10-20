@@ -88,18 +88,20 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         "ok hard gh",
         "ok hard gh sign-in",
     ]
-    assert said[8:15] == [
+    assert said[8:14] == [
         f"missing optional jbus config {user.jbus / 'config.toml'} -> jbus does not run without it",
         f"missing optional jbus sign-in {user.token} -> run jbus t3 login",
-        f"missing optional limits {user.limits} -> hooks/limits.sh writes it, as the status line",
         f"missing optional config {user.config}"
-        " -> defaults are used: user, timezone, timezone_label",
+        " -> defaults are used: user, timezone, timezone_label, headroom",
         f"missing optional roles {user.config.with_name('roles')}"
         " -> every role inherits the model of the thread that launches it",
         "ok optional lavish-axi",
         f"missing optional state repo {user.state} -> not a git repo",
     ]
-    assert said[15] == f"missing optional provider inventory -> {user.providers}"
+    assert said[14:16] == [
+        f"missing optional provider inventory -> {user.providers}",
+        f"missing optional limits {user.limits} -> jgauge limits writes it, every 2 min",
+    ]
     assert said[16:-1] == user.every("ok")
 
 
@@ -298,15 +300,18 @@ def test_a_jbus_sign_in_is_ok_until_its_token_runs_out(user):
     assert TOKEN not in "\n".join(user.doctor()[1])
 
 
-def test_a_limits_file_is_ok_while_one_reset_is_still_to_come(user):
+def test_a_limits_file_is_ok_while_it_was_read_in_the_last_15_minutes(user):
+    """`jgauge limits` sets the file's time on each read, also an idle account's with no line."""
     part = f"optional limits {user.limits}"
-    soon = int(time.time()) + 3600
-    user.write(user.limits, f"five_hour 12.5 {soon}\nseven_day 40 1790000000\n")
+    user.write(user.limits, "")
     assert user.line("limits") == f"ok {part}"
-    user.write(user.limits, "five_hour 12.5 1790000000\nseven_day 40 1790000001\n")
-    assert user.line("limits") == f"old {part} -> every reset in it is past, nothing writes it now"
-    user.write(user.limits, "five_hour twelve soon\n")
-    assert user.line("limits") == f"old {part} -> it gives no limit"
+    os.utime(user.limits, (time.time() - 16 * 60,) * 2)
+    assert user.line("limits") == (
+        f"old {part} -> {user.limits} was written 16 min ago, 15 min or more: run jgauge limits"
+    )
+    user.limits.unlink()
+    user.limits.mkdir()
+    assert user.line("limits") == f"old {part} -> it cannot be read"
 
 
 def test_the_state_repo_is_ok_with_an_origin_and_missing_with_no_repo_or_no_remote(user):
@@ -326,7 +331,8 @@ def test_a_jstack_config_the_loader_takes_is_ok_and_one_it_refuses_is_old(user):
     assert user.line("optional config") == f"ok {part}"
     user.write(user.config, 'name = "ada"\n')
     assert user.line("optional config") == (
-        f"old {part} -> {user.config} has the key name, not one of user, timezone, timezone_label"
+        f"old {part} -> {user.config} has the key name,"
+        " not one of user, timezone, timezone_label, headroom"
     )
 
 
@@ -335,7 +341,7 @@ def test_a_jstack_config_that_is_a_link_to_nothing_is_missing(user):
     user.config.symlink_to(user.home / "nowhere.toml")
     assert user.line("optional config") == (
         f"missing optional config {user.config}"
-        " -> defaults are used: user, timezone, timezone_label"
+        " -> defaults are used: user, timezone, timezone_label, headroom"
     )
 
 

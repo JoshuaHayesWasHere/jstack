@@ -90,4 +90,4 @@ def test_the_room_is_the_one_answer_jgauge_room_gives(scene, served):
     scene.machine(five_hour=100.0)
     room = served.json("/state.json?project=demo")["room"]
     assert room["answer"] == "wait"
-    assert room["why"].startswith("the five-hour limit is 100.0% used, at or over 100%")
+    assert room["why"].startswith("the five-hour limit is 100.0% used, at or over 90%")

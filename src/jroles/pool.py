@@ -3,9 +3,11 @@
 A role line names its pool in order (`crew: claudeAgent claude-opus-5-5
 claudeAgent,claudeAgent_claude_prime`). `choose` takes the first instance of it with headroom in
 the ledger (`jroles.ledger`): an instance is out only while one of its windows is full and has
-not reset. So every launch goes to the first account until it is capped, and a thread stays on
-the account it started on; nothing goes round the pool launch by launch. With every instance
-capped there is no instance, and the choice says when the first of them resets.
+not reset. A new launch counts a window full at the user's `headroom` (`jsettings`, 90 by
+default), and a move off a running thread (`jbus.failover`) only at a real cap, 100. So every
+launch goes to the first account until it nears its cap, and a thread stays on the account it
+started on until that account is capped; nothing goes round the pool launch by launch. With
+every instance full there is no instance, and the choice says when the first of them resets.
 
 The pool grows by a line of the provider inventory (`~/.config/jstack/providers.json`, T3
 Code's `providerInstances`) and one more id on the role line: an id the inventory does not
@@ -22,6 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+import jsettings
 from jroles import Refused, Selection, ledger, read_map
 
 WAIT = 75
@@ -44,17 +47,19 @@ def choose(
     kept: ledger.Ledger,
     now: datetime,
     skip: Mapping[str, str] | None = None,
+    full: float = ledger.FULL,
 ) -> Choice:
-    """The first instance of `pool` with headroom in `kept`, passing over each instance
-    `skip` names, for the reason it gives (`jbus`: one that is not mirrored). With every
-    instance passed over for `skip` there is no instance and no reset to wait for."""
+    """The first instance of `pool` with headroom in `kept`: none of its windows used to `full`
+    or more. It passes over each instance `skip` names, for the reason it gives (`jbus`: one
+    that is not mirrored). With every instance passed over for `skip` there is no instance and
+    no reset to wait for."""
     skip = skip or {}
     capped, passed = [], tuple(instance for instance in pool if instance in skip)
     told = [skip[instance] for instance in passed]
     for instance in pool:
         if instance in skip:
             continue
-        until = ledger.capped_until(kept, instance, now)
+        until = ledger.capped_until(kept, instance, now, full)
         if until is None:
             whys = [f"{name} is capped until {at.isoformat()}" for name, at in capped]
             return Choice(instance, "; ".join([*whys, *told]), passed=passed)
@@ -141,8 +146,21 @@ def selections(role: str) -> tuple[Selection, ...]:
 
 def routes(role: str, now: datetime) -> tuple[Route, ...]:
     """Where each launch of `role` goes now, one for each of its lines, or none where it
-    inherits."""
+    inherits. An instance is full at the user's headroom. Refused for settings it cannot use."""
+    chosen = selections(role)
+    if not chosen:
+        return ()
+    full = headroom(role)
     return tuple(
-        Route(chosen, choose(chosen.instances, ledger.read(chosen.instances), now))
-        for chosen in selections(role)
+        Route(one, choose(one.instances, ledger.read(one.instances), now, full=full))
+        for one in chosen
     )
+
+
+def headroom(role: str) -> float:
+    """The share at which a new launch of `role` counts an instance full, the user's
+    `headroom`. Refused for settings it cannot use."""
+    try:
+        return jsettings.load().headroom
+    except jsettings.Invalid as error:
+        raise Refused(f"refused {role}: {error}") from error

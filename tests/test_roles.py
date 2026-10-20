@@ -419,3 +419,25 @@ def test_a_pool_that_names_an_instance_twice_or_none_is_refused(roles, pool):
         "",
         f"refused crew: the pool {pool} names an instance twice or none\n",
     )
+
+
+def test_a_launch_passes_an_instance_by_at_the_headroom_and_a_move_waits_for_the_cap(pooled):
+    """`jgauge limits` wrote claudeAgent at 90% of its five hours: a new crew goes to prime, a
+    running thread stays (failover's choice counts only 100), and under 90 it comes back."""
+    from datetime import UTC, datetime
+
+    from jroles import ledger, pool
+
+    at = datetime(2026, 10, 17, 19, 45, tzinfo=UTC)
+    resets = int(at.timestamp()) + 3600
+    ledger.write(ledger.Record("claudeAgent", "five_hour", 90, resets))
+    code, out, err = pooled("crew")
+    assert (code, json.loads(out)["instanceId"]) == (0, PRIME)
+    assert err.startswith(f"jroles: crew on {PRIME}: claudeAgent is capped until ")
+    kept = ledger.read(("claudeAgent", PRIME))
+    assert pool.choose(("claudeAgent", PRIME), kept, at).instance == "claudeAgent"
+    (pooled.config / "config.toml").write_text("headroom = 95\n")
+    assert json.loads(pooled("crew")[1])["instanceId"] == "claudeAgent"
+    (pooled.config / "config.toml").unlink()
+    ledger.path().write_text(f"five_hour 89.9 {resets + 60}\n")
+    assert json.loads(pooled("crew")[1])["instanceId"] == "claudeAgent"

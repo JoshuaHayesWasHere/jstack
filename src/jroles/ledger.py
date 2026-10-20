@@ -8,14 +8,18 @@ The ledger is one file for each instance, a line for each window, as `room.sh` r
 The window is `five_hour` or `seven_day`, the share is percent used, and the reset is a Unix
 time. The built-in instance, `claudeAgent`, keeps the file `LIMITS` names
 (`~/.local/state/claude/limits` where it names none), and every other instance the file beside
-it, `<LIMITS>.<instanceId>`. Two writers keep them: `hooks/limits.sh`, from what Claude Code
-hands a status line, for the instance its `CLAUDE_CONFIG_DIR` is the home of; and `jbus`, from
-a turn T3 Code ended on a usage limit, at 100 until the reset that failure names (`cap_of`).
-`room.sh` and `jroles` read them.
+it, `<LIMITS>.<instanceId>`. Three writers keep them: `jgauge limits`, ahead of time, every two
+minutes, from each Claude account's own usage (`jgauge.limits`); `hooks/limits.sh`, from what
+Claude Code hands a status line, for the instance its `CLAUDE_CONFIG_DIR` is the home of; and
+`jbus`, from a turn T3 Code ended on a usage limit, at 100 until the reset that failure names
+(`cap_of`). `room.sh` and `jroles` read them.
 
-`merge` is the one rule both writers keep: for an instance and a window, the later reset wins,
-and for the same reset the larger share. So the same failure or the same status line merged
-twice changes nothing, and a window that reset is replaced by the next one.
+`merge` is the one rule every writer keeps: for an instance and a window, the later reset wins,
+and for the same reset the larger share. So the same failure or the same reading merged twice
+changes nothing, and a window that reset is replaced by the next one.
+
+An instance is full at `FULL`, a real cap, for a move off a running thread; a new launch counts
+it full earlier, at the user's `headroom` (`jsettings`), so it is passed by before the cap.
 """
 
 from __future__ import annotations
@@ -60,8 +64,8 @@ class Record:
     def line(self) -> str:
         return f"{self.window} {self.used:g} {self.resets}"
 
-    def full(self, now: datetime) -> bool:
-        return self.used >= FULL and self.resets > now.timestamp()
+    def full(self, now: datetime, at: float = FULL) -> bool:
+        return self.used >= at and self.resets > now.timestamp()
 
 
 Ledger = Mapping[tuple[str, str], Record]
@@ -132,12 +136,15 @@ def write(record: Record, base: Path | None = None) -> bool:
     return True
 
 
-def capped_until(ledger: Ledger, instance: str, now: datetime) -> datetime | None:
-    """When every full window of `instance` has reset, or None while it has headroom."""
+def capped_until(
+    ledger: Ledger, instance: str, now: datetime, full: float = FULL
+) -> datetime | None:
+    """When every window of `instance` used to `full` or more has reset, or None while it has
+    headroom."""
     resets = [
         record.resets
         for (named, _), record in ledger.items()
-        if named == instance and record.full(now)
+        if named == instance and record.full(now, full)
     ]
     return datetime.fromtimestamp(max(resets), UTC) if resets else None
 

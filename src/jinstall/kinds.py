@@ -19,7 +19,6 @@ import json
 import os
 import re
 import sys
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -33,7 +32,9 @@ import jleak
 import jroles
 import jsettings
 from jbus import t3
+from jgauge import limits
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
+from jroles.inventory import BUILT_IN, Instance, declared, instances
 
 
 class State(Enum):
@@ -843,32 +844,24 @@ class JbusSignIn:
 
 @dataclass(frozen=True)
 class Limits:
-    """The file `jgauge room` reads, in the rows it takes: `five_hour` or `seven_day`, the
-    share used, the time of the reset. The answer rests on the file, whoever writes it.
-    old: it gives no limit, or every reset time in it is past, so nothing writes it now."""
+    """One instance's file of the ledger, which `jgauge room` and `jroles` read and the
+    `jgauge-limits.timer` keeps fresh, every two minutes.
+    missing: no file, nothing read that account yet.
+    old: it cannot be read, or it was last written 15 min ago or more, so the reader stopped."""
 
     path: Path
 
     def ask(self, machine: Machine) -> str:
-        """Claude Code's status line, hooks/limits.sh, writes it on the first session."""
-        return "claude"
+        """The timer runs it; one run writes every account's file."""
+        return "jgauge limits"
 
     def probe(self, machine: Machine) -> Found:
-        try:
-            rows = self.path.read_text().splitlines()
-        except FileNotFoundError:
-            return Found.missing("hooks/limits.sh writes it, as the status line")
-        except (OSError, UnicodeDecodeError):
+        if self.path.is_dir():
             return Found.old("it cannot be read")
-        row = re.compile(r"(five_hour|seven_day) [0-9]+(\.[0-9]+)? ([0-9]+)")
-        resets = [
-            int(at[3]) for at in (row.fullmatch(" ".join(each.split())) for each in rows) if at
-        ]
-        if not resets:
-            return Found.old("it gives no limit")
-        if max(resets) <= time.time():
-            return Found.old("every reset in it is past, nothing writes it now")
-        return Found.ok()
+        if not self.path.exists():
+            return Found.missing("jgauge limits writes it, every 2 min")
+        why = limits.stale(self.path, datetime.now(UTC))
+        return Found.old(f"{why}: run jgauge limits") if why else Found.ok()
 
 
 @dataclass(frozen=True)
@@ -962,54 +955,6 @@ class Roles:
 
     def drop(self, machine: Machine) -> Dropped:
         return unseed(machine, self.path, "roles")
-
-
-BUILT_IN = "claudeAgent"
-
-
-@dataclass(frozen=True)
-class Instance:
-    """One provider instance as the inventory declares it, in T3's own `providerInstances`
-    shape: `{driver, enabled, config: {homePath?}}`. `home` is the homePath with `~` expanded
-    and no trailing `/`, None for none."""
-
-    driver: str
-    enabled: bool
-    home: Path | None
-
-
-def instances(value: object, home: Path) -> dict[str, Instance] | str:
-    """The instances of a `providerInstances` object, or why it is not one. A homePath that
-    is not absolute once `~` is expanded is refused: T3 would read it from its own cwd."""
-    if not isinstance(value, dict):
-        return "it is not an object of provider instances"
-    found = {}
-    for name, each in value.items():
-        if not isinstance(each, dict) or not isinstance(each.get("driver"), str):
-            return f"{name} has no driver"
-        enabled, config = each.get("enabled", True), each.get("config", {})
-        if not isinstance(enabled, bool) or not isinstance(config, dict):
-            return f"{name}'s enabled or config is not T3's shape"
-        path = config.get("homePath")
-        if path is not None and not isinstance(path, str):
-            return f"{name}'s homePath is not a path"
-        where = None
-        if path:
-            where = Path(str(home) + path[1:] if path == "~" or path.startswith("~/") else path)
-            if not where.is_absolute():
-                return f"{name}'s homePath {path} is not absolute"
-        found[name] = Instance(each["driver"], enabled, where)
-    return found
-
-
-def declared(path: Path, home: Path) -> dict[str, Instance] | str:
-    """The inventory at `path`, or why it cannot be taken. A missing file is `{}`."""
-    try:
-        return instances(json.loads(path.read_text()), home)
-    except FileNotFoundError:
-        return {}
-    except (OSError, UnicodeDecodeError, ValueError):
-        return "it cannot be read as JSON"
 
 
 def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:

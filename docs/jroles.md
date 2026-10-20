@@ -72,7 +72,9 @@ The instances a line names are the line's pool, in order:
 crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_claude_prime effort=medium
 ```
 
-A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`. So every launch goes to `claudeAgent` until a usage limit caps it, then to `claudeAgent_claude_prime`, and back to `claudeAgent` once its window has reset. Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)). One instance is a pool of one. A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
+A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`.
+So every launch goes to `claudeAgent` until it nears a usage limit, then to `claudeAgent_claude_prime`, and back to `claudeAgent` once its window has reset.
+Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)). One instance is a pool of one. A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
 
 The move goes both ways: a thread capped on `claudeAgent` goes on to `claudeAgent_claude_prime`, and one capped on `claudeAgent_claude_prime` goes back to `claudeAgent` while that one has headroom.
 The threads that move are every thread of every project in `~/.config/jbus/config.toml` that failed on a usage limit and is not settled: a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `) by its title, and the homes in a `home-id`, the root home's and each scope's.
@@ -89,10 +91,18 @@ A pool grows by one line of the provider inventory, `~/.config/jstack/providers.
 
 ## The ledger
 
-A usage limit, the five-hour or the weekly one, caps an instance until its window resets. The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](configuration.md#the-limits-file)). An instance has headroom while none of its windows is at 100% with its reset ahead. Two writers keep it, by one rule, the later reset winning and for the same reset the larger share: the status line (`hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, from a turn T3 Code ended on a usage limit (`src/jroles/ledger.py`).
+A usage limit, the five-hour or the weekly one, caps an instance until its window resets.
+The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](configuration.md#the-limits-file)).
+For a new launch an instance has headroom while none of its windows is at the user's `headroom` or over with its reset ahead, 90% by default ([configuration](configuration.md#jstack)).
+A thread already running moves off its instance only at a real cap, 100% (`jbus`, "A usage limit").
+Three writers keep the ledger, by one rule, the later reset winning and for the same reset the larger share (`src/jroles/ledger.py`).
+`jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](jgauge.md)).
+The other two write only when something happens: the status line (`hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, at 100% from a turn T3 Code ended on a usage limit.
+A source that fails writes nothing, so the last line stands and a capped account is never read as free.
+`jgauge limits --check` and `install.sh --check` name a file 15 minutes old or more.
 
 `jgauge room` reads the ledger for the pool of the role it checks for, `jgauge room --role <role>`, the crew's where it names none.
-It waits on the plan only while every instance of a line's pool is full, and the `wait:` names each instance and the first reset: `wait: claudeAgent and claudeAgent_claude_prime are both at or over 100%: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min, claudeAgent_claude_prime's weekly limit is 100% used and resets in 1 d 6 h 0 min; the first resets in 2 h 0 min`.
+It waits on the plan only while every instance of a line's pool is full, and the `wait:` names each instance and the first reset: `wait: claudeAgent and claudeAgent_claude_prime are both at or over 90%: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min, claudeAgent_claude_prime's weekly limit is 100% used and resets in 1 d 6 h 0 min; the first resets in 2 h 0 min`.
 An instance full on both windows is named by the one that resets later, since it has no headroom until then.
 While one instance is full and another has room, `jgauge room` prints `go` and a `note:` on stderr that names the full one and the first with room.
 For a role with several lines, `review`, each line is a pool, and one whose instances are all full holds the check.
