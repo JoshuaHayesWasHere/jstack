@@ -21,6 +21,7 @@ import test_room as room
 import test_tool_calls as tools
 from jbriefs import parse as briefs
 from jmerge import cli, rangediff, ready
+from test_home_thread import as_read
 from test_jbus_kitchen import NOW, Kitchen
 
 SKILL = Path(__file__).parent.parent / "skills" / "crew" / "SKILL.md"
@@ -2082,7 +2083,7 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
 def where_the_findings_go(home):
     """What step 4 of the pr-review skill's "After the review" prints, then whom its
     "Telling the home" finds, for the brief `alpha` in a home's state directory."""
-    skill = (SKILL.parent.parent / "pr-review" / "SKILL.md").read_text()
+    skill = as_read(SKILL.parent.parent / "pr-review" / "SKILL.md")
     printed = []
     for heading, about in (
         ("### After the review", "crewmate $thread"),

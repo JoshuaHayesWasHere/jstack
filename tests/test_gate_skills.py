@@ -24,6 +24,7 @@ from jbriefs import parse
 from jbus import stall
 from jmerge import proof, ready
 from test_briefs import TEMPLATE
+from test_home_thread import as_read
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
@@ -327,7 +328,7 @@ def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused
     template = (root / "templates" / "review.md").read_text()
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
     ran = form.split(" | ")[0]
-    step = (root / "skills" / "pr-review" / "SKILL.md").read_text()
+    step = as_read(root / "skills" / "pr-review" / "SKILL.md")
     (said,) = [line for line in step.splitlines() if "section's `Proof:` line" in line]
     ((plain, trap),) = re.findall(r"write `([^`]+)`, not `([^`]+)`", said)
     (code,) = re.findall(r"`(exit <n>)`", said)

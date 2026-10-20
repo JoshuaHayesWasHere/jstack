@@ -21,13 +21,13 @@ def linked(home, name, to=None):
 
 
 def stand_in(tmp_path, home, text):
-    """A repo whose pr-review skill is `text`, with interrogate linked into it."""
+    """A repo whose pr-review skill has `text` in "The review", with interrogate linked to it."""
     skills = tmp_path / "other" / "skills"
     (skills / "interrogate").mkdir(parents=True)
     (skills / "pr-review").mkdir()
-    (skills / "pr-review" / "SKILL.md").write_text(text)
+    (skills / "pr-review" / "the-review.md").write_text(text)
     linked(home, "interrogate", to=skills / "interrogate")
-    return skills / "pr-review" / "SKILL.md"
+    return skills / "pr-review" / "the-review.md"
 
 
 @pytest.mark.parametrize("name", ROOTED)
@@ -68,7 +68,7 @@ def test_interrogate_says_so_when_there_are_no_questions_to_print(repo, home, tm
         "has no questions 4 and 5 in a SCOPE text, "
         "so the reviewers get the rubric and the lens alone"
     )
-    assert run(body, repo, home) == [f"no questions: no root/skills/pr-review/SKILL.md {rest}"]
+    assert run(body, repo, home) == [f"no questions: no root/skills/pr-review/the-review.md {rest}"]
     skill = stand_in(tmp_path, home, "4. A step of a list that is no question.\n   - an item\n")
     assert run(body, repo, home) == [f"no questions: {skill} {rest}"]
 
