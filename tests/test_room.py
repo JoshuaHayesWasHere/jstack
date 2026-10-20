@@ -534,6 +534,120 @@ def test_a_room_asked_with_no_wait_answers_at_once_and_exits_0_as_before(tmp_pat
     assert (ran.stdout, ran.returncode) == ("wait: load 11.00 is at or over 85% of 12 cores\n", 0)
 
 
+STALE = 21 * 60
+
+
+def tmpfs(where, slots):
+    """A machine whose `$TMPFS` is made of files: `df` counts every entry under it as a used
+    slot, out of `slots`, so what is removed from it is freed at once."""
+    env = machine(where, **IDLE, slots=None)
+    put(
+        where / "stub" / "df",
+        '#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = -Pi ] || exit 64\n'
+        f'used=$(find "$2" -mindepth 1 | wc -l)\n'
+        f'echo "Filesystem Inodes IUsed IFree IUse% Mounted on"\n'
+        f'echo "tmpfs {slots} $used $(({slots} - used)) - $2"\n',
+        0o755,
+    )
+    return env, Path(env["TMPFS"])
+
+
+def runs(tmp, user, numbers, files=10, age=STALE):
+    """Runs of pytest left under `pytest-of-<user>`, each with `files` files, `age` seconds old."""
+    made = []
+    for number in numbers:
+        run = tmp / f"pytest-of-{user}" / f"pytest-{number}"
+        (run / "test_it0").mkdir(parents=True)
+        for n in range(files):
+            (run / "test_it0" / f"f{n}").write_text("")
+        made.append(run)
+    for path in [*made, *{run.parent for run in made}]:
+        os.utime(path, (time.time() - age,) * 2)
+    return made
+
+
+def test_a_full_tmp_of_stale_pytest_runs_is_cleared_and_then_goes(tmp_path):
+    env, tmp = tmpfs(tmp_path, 60)
+    runs(tmp, "joshua", [1, 2, 3])
+    runs(tmp, "other", [7])
+    (tmp / "keep").mkdir()
+    (tmp / "keep" / "data").write_text("")
+    cleared = ran(env)
+    assert cleared.stdout == "go\n"
+    assert cleared.stderr == (
+        f"room: removed 4 stale pytest directories under {tmp}, freeing 48 file slots\n"
+    )
+    assert sorted(path.relative_to(tmp).as_posix() for path in tmp.rglob("*")) == [
+        "keep",
+        "keep/data",
+        "pytest-of-joshua",
+        "pytest-of-other",
+    ]
+
+
+@pytest.mark.parametrize("how", ["cwd", "fd"])
+def test_a_pytest_run_a_live_process_holds_is_never_removed(tmp_path, how):
+    env, tmp = tmpfs(tmp_path, 99)
+    held, *stale = runs(tmp, "joshua", [1, 2, 3, 4, 5, 6, 7])
+    inside = held / "test_it0"
+    with open(inside / "f0") as open_file:
+        live = subprocess.Popen(
+            ["sleep", "60"],
+            cwd=inside if how == "cwd" else tmp_path,
+            stdin=open_file if how == "fd" else subprocess.DEVNULL,
+        )
+    try:
+        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
+        alone = ran(env)
+    finally:
+        live.kill()
+        live.wait()
+    assert alone.stdout == "go\n"
+    assert alone.stderr.startswith("room: removed 6 stale pytest directories under ")
+    assert held.is_dir() and len(list(inside.iterdir())) == 10
+    assert not any(path.exists() for path in stale)
+
+
+def test_held_or_fresh_pytest_runs_still_wait_and_nothing_is_removed(tmp_path):
+    env, tmp = tmpfs(tmp_path, 50)
+    fresh = runs(tmp, "joshua", [1, 2, 3], age=60)
+    (held,) = runs(tmp, "joshua", [4])
+    before = sorted(tmp.rglob("*"))
+    live = subprocess.Popen(["sleep", "60"], cwd=held)
+    try:
+        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
+        full = ran(env)
+    finally:
+        live.kill()
+        live.wait()
+    assert full.stdout == f"wait: {tmp} has 49 of 50 file slots used, over 85%\n"
+    assert full.stderr == ""
+    assert sorted(tmp.rglob("*")) == before and all(path.is_dir() for path in fresh)
+
+
+def test_a_tmp_with_room_is_not_cleared(tmp_path):
+    env, tmp = tmpfs(tmp_path, 1000)
+    made = runs(tmp, "joshua", [1, 2, 3])
+    room = ran(env)
+    assert (room.stdout, room.stderr) == ("go\n", "")
+    assert all(path.is_dir() for path in made)
+
+
+def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_path):
+    env, tmp = tmpfs(tmp_path, 11)
+    for name in ["pytest-1", "scratch-1", "pytest-of-joshua-not"]:
+        (tmp / name / "inside").mkdir(parents=True)
+    (tmp / "pytest-of-joshua" / "notes" / "pytest-3").mkdir(parents=True)
+    (tmp / "pytest-of-joshua" / "pytest-9").write_text("a file, not a run")
+    (tmp / "pytest-of-joshua" / "pytest-current").symlink_to(tmp / "pytest-2")
+    for path in tmp.rglob("*"):
+        os.utime(path, (time.time() - STALE,) * 2, follow_symlinks=False)
+    before = sorted(tmp.rglob("*"))
+    full = ran(env)
+    assert full.stdout.startswith("wait: ") and full.stderr == ""
+    assert sorted(tmp.rglob("*")) == before
+
+
 def test_no_skill_holds_a_copy_of_the_check():
     held = [path for path in SKILLS.rglob("*") if path.is_file() and "CUSHION=" in path.read_text()]
     assert held == [] and "CUSHION=85\n" in ROOM.read_text()
