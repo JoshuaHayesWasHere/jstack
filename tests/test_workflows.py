@@ -16,8 +16,10 @@ read access to the contents and no more, and none runs on `pull_request_target`.
 may also read the repo's artifacts, which is where a green run's marker is.
 
 A run of `full` whose tree a green run already tested skips the suite, by its steps and never
-by its job or its triggers, so `full` is always reported. Only `full` asks for a marker and
-leaves one: a marker says the full suite passed a tree. The script that asks is
+by its job or its triggers, so `full` is always reported. Only `full` asks for a marker, and
+`full` and a pull request's `check` that ran the whole suite leave one: a marker says the
+full suite passed a tree. A pull request's check also says, in its summary and its
+telemetry, whether the suite ran whole and on which tree. The script that asks is
 run here in a temporary repo, against a `gh` that answers from files.
 
 The drift step keeps jdrift's clone of pstack in the runner's temporary directory, which
@@ -426,21 +428,82 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
     found, keys = steps(CHECK.read_text(), "check")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:5] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
+        'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
         "make check-fast BASE=HEAD^1",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found)
+    assert all("if" not in step for step in found[:5])
+    assert found[4]["id"] == "suite"
 
 
-def test_only_the_full_suite_asks_for_a_marker_and_leaves_one():
-    marking = ("green_tree.py", "green-tree", "upload-artifact", "steps.tree", "steps.suite")
-    for job, marks in (("check", False), ("full", True)):
+def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
+    """A pull request's check skips nothing: its own run is the proof a marker stands on."""
+    asking = ("green_tree.py", "steps.tree.outputs.marker")
+    leaving = ("green-tree", "upload-artifact", "steps.suite", "steps.marker")
+    for job, asks in (("check", False), ("full", True)):
         said = " ".join(map(str, steps(CHECK.read_text(), job)[0]))
-        assert [word for word in marking if word in said] == (list(marking) if marks else []), job
+        assert [word for word in asking if word in said] == (list(asking) if asks else []), job
+        assert [word for word in leaving if word in said] == list(leaving), job
+
+
+def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
+    *_, mark, upload, report = steps(CHECK.read_text(), "check")[0]
+    assert [
+        (outcome, selection)
+        for outcome in OUTCOMES
+        for selection in ("all", "some", "")
+        if worked(
+            mark["if"], {"steps.suite.outcome": outcome, "steps.suite.outputs.selection": selection}
+        )
+    ] == [("success", "all")]
+    assert (mark["id"], mark["env"]) == ("marker", {"NAME": "${{ steps.tree.outputs.name }}"})
+    assert (
+        mark["run"] == 'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"'
+    )
+    assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
+    assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
+    assert upload["with"] == {
+        "name": "${{ steps.tree.outputs.name }}",
+        "path": "${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}",
+        "retention-days": "7",
+        "if-no-files-found": "error",
+    }
+
+
+def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tree(tmp_path):
+    """The step is run as the runner runs it, with a `uv` that records what it was asked."""
+    *_, report = steps(CHECK.read_text(), "check")[0]
+    assert report["continue-on-error"] is True
+    assert [
+        o
+        for o in OUTCOMES
+        if worked(report["if"], {"!cancelled()": True, "steps.suite.outcome": o})
+    ] == ["success", "failure", "cancelled", ""]
+    assert report["env"]["FULL"] == "${{ steps.suite.outputs.selection == 'all' }}"
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/uv"\n')
+    (bin / "uv").chmod(0o755)
+    tree = "ab" * 20
+    said = {}
+    for full in ("true", "false"):
+        summary = tmp_path / f"summary-{full}"
+        env = {"PATH": f"{bin}:/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(summary)}
+        env |= {"FULL": full, "NAME": f"green-tree-{tree}"}
+        subprocess.run(["sh", "-c", report["run"]], env=env, check=True)
+        said[full] = summary.read_text()
+    assert said == {
+        "true": f"full suite: yes, tree {tree}\n",
+        "false": f"full suite: no, tree {tree}\n",
+    }
+    assert (tmp_path / "uv").read_text().splitlines() == [
+        f"run jbus ci --notice full=true tree={tree}",
+        f"run jbus ci --notice full=false tree={tree}",
+    ]
 
 
 def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
