@@ -8,24 +8,29 @@ green: a main that moved while green was no reason for a branch to move. A red t
 as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
 when it landed, or a second red one, loses nothing, and the last tip whose check passed is
 kept as `green`: `main.json` is the one record of main's red tip, which `mainstate` reads for
-a launch and for `jmerge`. The tip's check is main's own, read as `main_check`
+a launch and for `jmerge`. Each tip main went through since the last pass is looked at in
+order (`landed`), so a tip that failed or passed under a newer one before a pass saw it
+counts, and a tip whose check has not ended is kept as `pending` and looked at again until
+a tip after it settles. A tip's check is main's own, read as `main_check`
 reads it. A conflict is not told here: only a push ends it, and
 `rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
 nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
 out of the pass's list of open pull requests.
 
-The message's key, `mainmoved|<slug>|#<number>|<main 12>`, is its retry key at T3 Code and
-its mark in `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
+The message names the green tip that ended the red, and its key,
+`mainmoved|<slug>|#<number>|<that tip 12>`, is its retry key at T3 Code and its mark in
+`sent.json`. The commit in `main.json` moves on only when no send is owed, so a
 pass that got no answer looks again, and the mark keeps what was told from being told twice.
 A pass that still owes a send writes only `fixed`, the green tip, so main reads as green for
-`mainstate` while the record keeps the commit to look at again. A tip whose check has not
-ended is looked at again each pass, whether or not it is new.
+`mainstate` while the record keeps the commit to look at again, and the next pass takes the
+red as ended there, whatever tip main is at by then.
 So does a pass in which GitHub had not yet said whether a red head the rebase message went to
 still conflicts.
 
 A message `rebase.held` keeps back, for a thread at work or a head that moved, holds nothing
 else up: a turn may last, and a pull request that turns red meanwhile was not red when main
-moved. Its slug goes on `held` in `main.json`, beside the commit, and each pass looks at
+moved. Its slug goes on `held` in `main.json`, beside the commit and the red tip with the
+green one that ended it (`broken` and `fixed`), and each pass looks at
 those slugs again, and at no other, until main moves again.
 
 A crew is told to rebase a head once, here or by `rebase.tell`. A red head that is also in
@@ -40,7 +45,7 @@ from __future__ import annotations
 from jbus import dispatch, mainstate, read_json, rebase, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import World, _check, checks
+from jbus.watch import World, _api, _check, checks
 
 EVENTS = {"mainmoved": "quiet"}
 RED = "red: checks failed"
@@ -48,6 +53,7 @@ NO_THREAD = "red pull request with no thread to tell"
 REFUSED = "T3 Code refused the main-moved message"
 MERGEABLE_UNKNOWN, MERGEABLE_CONFLICTING = "UNKNOWN", "CONFLICTING"
 SETTLED = ("green", "failed")
+WAITING = 10
 MESSAGE = (
     "jbus: main is green again at {main} while your pull request #{number} is {why}. If main "
     "was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
@@ -74,6 +80,30 @@ def main_check(run: Pass, sha: str) -> str:
     return answer
 
 
+def landed(run: Pass, last: str, main: str) -> list[str]:
+    """The tips main went through since `last`, oldest first and `main` the newest, along
+    first parents, as GitHub lists main's commits. Where `last` is not on that way (no record
+    yet, a main that was rewritten, more than `WAITING` tips, or no answer), it is the tips
+    back to the newest one whose check has settled."""
+    if main == last:
+        return [main]
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={main}&per_page={WAITING}")
+    commits = (
+        [commit for commit in said if isinstance(commit, dict)] if isinstance(said, list) else []
+    )
+    parent = {
+        commit.get("sha"): (commit.get("parents") or [{}])[0].get("sha") for commit in commits
+    }
+    tips, at = [], main
+    while at and at != last and len(tips) < WAITING:
+        tips.append(at)
+        at = parent.get(at)
+    if not last or at != last:
+        ended = (n for n, tip in enumerate(tips) if main_check(run, tip) in SETTLED)
+        tips = tips[: next(ended, len(tips) - 1) + 1]
+    return tips[::-1]
+
+
 def tell(run: Pass, client: Client, world: World) -> None:
     """Send the crew of a red pull request one message when main goes from red to green: the
     commit that fixed it may fix them.
@@ -94,17 +124,29 @@ def tell(run: Pass, client: Client, world: World) -> None:
     asked_before = main == last and was.get("check") in SETTLED
     if asked_before and not kept:
         return
-    check = main_check(run, main)
-    if check == "failed":
-        broken = main
-    fixed = check == "green" and bool(broken)
+    red, owed_at = broken, was.get(mainstate.FIXED, "")
+    if owed_at or was.get("check") == "green":
+        broken = ""
+    green, check, waiting = "", "", []
+    for tip in (
+        *(tip for tip in was.get("pending", []) if tip != main),
+        *landed(run, last or "", main),
+    ):
+        check = main_check(run, tip)
+        if check == "green":
+            green, broken, waiting = tip, "", []
+        elif check == "failed":
+            broken, waiting = tip, []
+        elif check == "pending":
+            waiting.append(tip)
+    fixed = (green or owed_at) if red and not broken else ""
     owed, held = False, []
     sent = read_json(run.state / "sent.json", [])
     for slug, pull in world.open.items() if last and fixed else ():
         if asked_before and slug not in kept:
             continue
         why, head, number = short_of(pull), pull.get("headRefOid", ""), pull["number"]
-        key = f"mainmoved|{slug}|#{number}|{main[:12]}"
+        key = f"mainmoved|{slug}|#{number}|{fixed[:12]}"
         if not head or not dispatch.launched(run, slug):
             continue
         mergeable = pull.get("mergeable")
@@ -124,13 +166,13 @@ def tell(run: Pass, client: Client, world: World) -> None:
             brief = ""
         thread = dispatch.thread_of(brief)
         if not thread:
-            run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {main[:12]}")
+            run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {fixed[:12]}")
             continue
         if rebase.held(run, client, world, slug, number, head):
             held.append(slug)
             continue
         message = MESSAGE.format(
-            main=main[:12],
+            main=fixed[:12],
             number=number,
             why=why,
             slug=slug,
@@ -143,7 +185,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         try:
             client.call("t3_thread_send", asked)
         except T3Refused as error:
-            run.gate(slug, REFUSED, f"{error}\n\n{message}", key=f"{REFUSED} {main[:12]}")
+            run.gate(slug, REFUSED, f"{error}\n\n{message}", key=f"{REFUSED} {fixed[:12]}")
             run.box.mark(key)
             run.box.mark(f"failed|{slug}|{head[:12]}")
             continue
@@ -155,22 +197,26 @@ def tell(run: Pass, client: Client, world: World) -> None:
         run.told.add(slug)
         run.box.mark(f"rebase|{slug}|{head[:12]}")
         run.box.mark(f"failed|{slug}|{head[:12]}")
-        line = f"mainmoved {slug}: told the crew (#{number}, main {main[:12]})"
-        run.find(slug, "mainmoved", line, message, key=f"#{number} {main[:12]}")
+        line = f"mainmoved {slug}: told the crew (#{number}, main {fixed[:12]})"
+        run.find(slug, "mainmoved", line, message, key=f"#{number} {fixed[:12]}")
         run.say(line)
     if not owed:
         at = was.get("at") if main == last else run.now.isoformat()
         record = {"main": main, "at": at, "check": check}
-        if broken and (held or check != "green"):
+        if broken:
             record["broken"] = broken
-        green = main if check == "green" else mainstate.of(was).green
+        elif held:
+            record["broken"], record[mainstate.FIXED] = red, fixed
+        if waiting:
+            record["pending"] = waiting[-WAITING:]
+        green = green or mainstate.of(was).green
         if green:
             record[mainstate.GREEN] = green
         if held:
             record["held"] = held
         write_json(path, record)
     else:
-        write_json(path, {**was, mainstate.FIXED: main})
+        write_json(path, {**was, mainstate.FIXED: fixed})
 
 
 STEPS = (

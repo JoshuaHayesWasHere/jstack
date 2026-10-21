@@ -3,7 +3,9 @@
 That file is the one record of main's red tip: `broken` is the tip whose check failed, kept
 until a green one follows, and `check` is what the tip at `main` says. `mainmoved.tell` is
 its only writer, each pass, whether or not a pull request merged lately, and it keeps
-`green` there too, the last tip whose check passed. So `red` here is `broken` while the tip
+`green` there too, the last tip whose check passed. It looks at every tip main went through
+since its last pass, so a tip that failed under a newer one still pending is `broken`, and
+one that passed after `broken` ends it. So `red` here is `broken` while the tip
 is not green, and `green` is the tip where its check passed, or the one kept before: a tip
 whose check has not ended, or was cancelled, changes neither.
 
@@ -13,7 +15,8 @@ is the brief `main-red-<sha12>` that `watch` files ahead of every row, so a slug
 with `FIX` is a fix. A file that is missing or cannot be read says nothing is known, and
 `jmerge` then merges as it did. A pass of `tell` that still owes a message keeps the
 record's commit to look at again and adds `fixed`, the green tip, so a main that turns green
-while T3 Code cannot be reached is green here at once. A record from before `broken` was
+while T3 Code cannot be reached is green here at once, and so does a pass whose message
+`rebase.held` kept back. A record from before `broken` was
 kept names a failed tip by its `check` alone, and that tip is red too.
 """
 
