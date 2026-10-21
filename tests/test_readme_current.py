@@ -120,9 +120,12 @@ def where(name):
 
 
 def page(name):
-    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`."""
+    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`: beside
+    it, or in the `docs/` of a feature its pages moved into."""
     found = where(name)
-    paths = (found, *sorted((found.parent / Path(name).stem).glob("*.md")))
+    stem = Path(name).stem
+    folders = {found.parent / stem, *REPO.glob(f"features/*/docs/{stem}")}
+    paths = (found, *sorted(path for folder in folders for path in folder.glob("*.md")))
     return "\n".join(path.read_text() for path in paths)
 
 

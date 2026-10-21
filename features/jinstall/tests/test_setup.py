@@ -13,6 +13,7 @@ import pytest
 from jinstall.__main__ import setup as run_setup
 from test_doctor import NIGHTLY, Doctored
 from test_install import REPO, SCRUBBED, UNITS, line_for, machine, worktree
+from testing.paths import skills
 
 GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; esac'
 SERVER = "http://127.0.0.1:3773"
@@ -216,7 +217,7 @@ def test_usage_names_setup(user):
 
 
 def skill_block():
-    text = (REPO / "skills" / "setup-pstack" / "SKILL.md").read_text()
+    text = (skills()["setup-pstack"] / "SKILL.md").read_text()
     (found,) = re.findall(r"^```sh\n(.*?)^```$", text, re.M | re.S)
     return found
 

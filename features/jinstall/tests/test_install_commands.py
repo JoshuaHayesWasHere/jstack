@@ -1,7 +1,7 @@
 """The commands part of `install.sh`, uv's tool `jstack`: an old one, one that lacks a command,
 one of another checkout, one shadowed, and one whose editable paths lack a package root that
 pyproject.toml lists, which `--check` says is `stale`, as an install from before a package moved
-is. Run as `tests/test_install.py` runs it, against its fake `uv`."""
+is. Run as `test_install.py` runs it, against its fake `uv`."""
 
 import pytest
 

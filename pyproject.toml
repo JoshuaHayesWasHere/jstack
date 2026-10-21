@@ -43,7 +43,7 @@ packages = [
     "src/jbus",
     "features/jdrift/src/jdrift",
     "src/jgauge",
-    "src/jinstall",
+    "features/jinstall/src/jinstall",
     "features/jleak/src/jleak",
     "src/jmerge",
     "features/jpack/src/jpack",
@@ -79,6 +79,7 @@ testpaths = [
     "features/expert/tests",
     "features/grilling/tests",
     "features/jdrift/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
     "features/jpack/tests",
     "features/jroles/tests",
@@ -99,6 +100,7 @@ testpaths = [
 ]
 pythonpath = [
     "features/jdrift/src",
+    "features/jinstall/src",
     "features/jleak/src",
     "features/jpack/src",
     "features/jroles/src",
@@ -110,6 +112,7 @@ pythonpath = [
     "features/expert/tests",
     "features/grilling/tests",
     "features/jdrift/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
     "features/jpack/tests",
     "features/jroles/tests",
@@ -156,6 +159,7 @@ line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 src = [
     "features/jdrift/src",
+    "features/jinstall/src",
     "features/jleak/src",
     "features/jpack/src",
     "features/jroles/src",
@@ -167,6 +171,7 @@ src = [
     "features/expert/tests",
     "features/grilling/tests",
     "features/jdrift/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
     "features/jpack/tests",
     "features/jroles/tests",

@@ -58,7 +58,7 @@ These steps take a new machine to one merged pull request.
 	jinstall --setup
 	```
 
-	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
+	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](features/jinstall/docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
 
 2. Check the install. Every line must start with `ok`.
 
@@ -120,7 +120,7 @@ Each command has one page.
 | `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [features/jdrift/docs/jdrift.md](features/jdrift/docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
-| `jinstall` | [docs/jinstall.md](docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
+| `jinstall` | [features/jinstall/docs/jinstall.md](features/jinstall/docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
 | `jleak` | [features/jleak/docs/jleak.md](features/jleak/docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
 | `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [features/jpack/docs/jpack.md](features/jpack/docs/jpack.md) | Checks a context pack. |
@@ -188,7 +188,7 @@ The Python code is one `uv` project.
 
 ## Releasing
 
-`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it. A version bump is a pull request. [Releasing](docs/jinstall.md#releasing) has the steps.
+`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it. A version bump is a pull request. [Releasing](features/jinstall/docs/jinstall.md#releasing) has the steps.
 
 ## License
 
