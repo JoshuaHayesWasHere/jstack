@@ -27,7 +27,7 @@ from test_jbus_kitchen import FIXTURE, NOW, REPO
 def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
     source = "\n".join(path.read_text() for path in sorted((REPO / "src/jbus").rglob("*.py")))
     counted = "\n".join(path.read_text() for path in sorted((REPO / "src/jgauge").rglob("*.py")))
-    counted += "\n" + (REPO / "src/jbriefs/parse.py").read_text()
+    counted += "\n" + (REPO / "features/jbriefs/src/jbriefs/parse.py").read_text()
     counted += "\n" + "\n".join(
         path.read_text() for path in sorted((REPO / "features/jpack/src/jpack").glob("*.py"))
     )

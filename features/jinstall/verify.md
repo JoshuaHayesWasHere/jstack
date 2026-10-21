@@ -7,7 +7,7 @@ Paths:
 - `/skills.json`
 - `features/jinstall/src/jinstall/`
 - `src/jbus/*.py`
-- `src/jbriefs/`
+- `features/jbriefs/src/jbriefs/`
 - `src/jgauge/`
 - `src/jmerge/`
 - `features/jpack/src/jpack/`

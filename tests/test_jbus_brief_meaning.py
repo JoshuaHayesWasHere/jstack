@@ -214,7 +214,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
 
 
 def test_queue_add_refuses_the_template_as_it_stands_with_a_fault_for_each_field(kitchen):
-    template = (REPO / "templates" / "brief.md").read_text()
+    template = (REPO / "features" / "jbriefs" / "templates" / "brief.md").read_text()
     code, said = add(kitchen, template)
     assert code == 1
     faults = said.splitlines()[1:]
@@ -316,7 +316,7 @@ def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest
 
 
 def test_the_two_lists_hold_every_field_the_template_names_once():
-    template = (REPO / "templates" / "brief.md").read_text()
+    template = (REPO / "features" / "jbriefs" / "templates" / "brief.md").read_text()
     labels = [label for label, _ in parse.fields(template) if label not in ("", parse.REST)]
     assert labels
     assert not set(meaning.MEANING) & set(meaning.NOT_MEANING)

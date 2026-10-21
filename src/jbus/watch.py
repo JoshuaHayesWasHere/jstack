@@ -857,7 +857,7 @@ def red_brief(
     red: list[dict],
     changed: list[str],
 ) -> str:
-    """The brief for the fix of a red main at `sha`, in `templates/brief.md`'s shape. `jobs`
+    """The brief for the fix of a red main at `sha`, in `features/jbriefs/templates/brief.md`'s shape. `jobs`
     is each failed check run's name, URL and failed tests, `red` the commits from `sha`
     down to the last green one, that one left out, and `changed` the files they changed."""
     tests = [test for _, _, failed in jobs for test in failed]
@@ -943,7 +943,7 @@ def _default_branch(run: Pass) -> str:
 def browser_red_brief(
     name: str, day: str, one: dict[str, Any], jobs: list[tuple[str, str, list[str]]]
 ) -> str:
-    """The brief for the fix of a red browser run, in `templates/brief.md`'s shape. `one` is
+    """The brief for the fix of a red browser run, in `features/jbriefs/templates/brief.md`'s shape. `one` is
     the run as GitHub lists it, and `jobs` is each failed job's name, URL and failed tests."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))

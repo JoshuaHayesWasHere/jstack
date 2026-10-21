@@ -1,5 +1,5 @@
 # The 25 principles at c228ac6, before each took pstack's name: the old name and the sha256 of the file.
-# tests/test_skills_named.py holds each principles/principle-<name>.md to it, with its links read back to the old names.
+# features/jbriefs/tests/test_skills_named.py holds each principles/principle-<name>.md to it, with its links read back to the old names.
 # An edit to a principle's content after the rename writes its new sha256 here, in the same pull request.
 attack-the-premise db0fc9210bd0f5bbf4b4ff96d0b834d177cef87c1da42c8c6485f9e46974e5c3
 boundary-discipline 498bb81dfa882a7fe0f73748bc2ba0da5bf1f1ed2651f379de511418f68a3ce8

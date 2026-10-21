@@ -392,7 +392,7 @@ def test_a_brief_that_asks_for_no_review_gets_none(reviewer):
 def test_each_value_the_brief_template_offers_is_one_the_review_knows(reviewer):
     (line,) = [
         line
-        for line in (REPO / "templates" / "brief.md").read_text().splitlines()
+        for line in (REPO / "features" / "jbriefs" / "templates" / "brief.md").read_text().splitlines()
         if line.startswith("Review:")
     ]
     ends = {}
