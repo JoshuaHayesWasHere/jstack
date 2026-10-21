@@ -207,7 +207,11 @@ class Home:
         self.main = tmp_path / "code" / NAME
         self.main.mkdir(parents=True)
         shutil.copytree(
-            repo_template.templated().plain, self.main, symlinks=True, dirs_exist_ok=True
+            repo_template.templated().plain,
+            self.main,
+            symlinks=True,
+            dirs_exist_ok=True,
+            ignore=repo_template.LOCKS,
         )
         self.code = None
 
@@ -855,7 +859,7 @@ class Merged:
         template, git_dir = repo_template.templated(), home.main / ".git"
         if (git_dir / "refs" / "heads" / "main").read_text().strip() != template.main:
             raise AssertionError("Merged is built on a Home whose main has moved")
-        shutil.copytree(template.origin, self.origin, symlinks=True)
+        shutil.copytree(template.origin, self.origin, symlinks=True, ignore=repo_template.LOCKS)
         with (git_dir / "config").open("a") as config:
             config.write(TRACKED.format(origin=self.origin))
         (git_dir / "refs" / "remotes" / "origin").mkdir(parents=True)

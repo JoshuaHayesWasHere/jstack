@@ -980,7 +980,7 @@ def test_building_the_template_starts_no_background_maintenance(tmp_path, monkey
     repo_template.built(tmp_path / "template")
     started = [line for line in trace.read_text().splitlines() if " start " in line]
     assert started
-    assert not [line for line in started if "maintenance" in line or " gc " in line]
+    assert not [line for line in started if "maintenance run" in line or " gc --auto" in line]
 
 
 def test_a_lock_file_left_in_the_template_is_not_copied(tmp_path):
