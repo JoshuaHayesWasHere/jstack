@@ -6,6 +6,8 @@ import json
 import shlex
 import shutil
 
+import pytest
+
 from test_home_merge import brief, git, merged_line, review
 
 FAKE_UV = """\
@@ -101,10 +103,10 @@ class Skilled:
     made from: the Claude Code layout's `source` links to it. Its main has the skill `demo` at
     `skills/demo/`, and an `install.sh` that keeps each run and changes nothing. With `moved`,
     the pull request's head moves the skill to `features/demo/`, and changes `skills.json` as
-    the generator would; with `edited`, it changes a file in the skill's folder and nothing
-    else; with neither, it changes neither."""
+    the generator would; each path of `touched` it writes a line to, a file it adds or one
+    it changes. Every head also changes `a.txt`, which is no skill's."""
 
-    def __init__(self, merged, moved=False, edited=False):
+    def __init__(self, merged, moved=False, touched=()):
         self.merged, self.stub = merged, merged.home.stub
         main, tree = merged.home.main, merged.tree
         (main / "install.sh").write_text(INSTALL)
@@ -119,9 +121,11 @@ class Skilled:
             (tree / "features").mkdir()
             git(tree, "mv", "skills/demo", "features/demo")
             (tree / "skills.json").write_text(CATALOG.format("features"))
-        if edited:
-            (tree / "skills" / "demo" / "notes.md").write_text("more\n")
-            git(tree, "add", "skills/demo/notes.md")
+        for path in touched:
+            (tree / path).parent.mkdir(parents=True, exist_ok=True)
+            with (tree / path).open("a") as written:
+                written.write("more\n")
+            git(tree, "add", path)
         git(tree, "commit", "-q", "--allow-empty", "-am", "the change")
         git(tree, "push", "-q", "-f", "origin", "alpha")
         merged.head = git(tree, "rev-parse", "HEAD")
@@ -149,17 +153,27 @@ def test_a_merge_that_moves_a_skill_runs_the_install_once(merged, monkeypatch):
     assert skilled.calls() == [""]
 
 
-def test_a_merge_that_adds_a_file_to_a_skill_runs_the_install_once(merged, monkeypatch):
+@pytest.mark.parametrize(
+    "touched",
+    ["skills/demo/notes.md", "skills/demo/SKILL.md", "plugin.json"],
+    ids=["a file added to a skill", "a file the catalog lists", "plugin.json"],
+)
+def test_a_merge_that_changes_what_the_install_reads_runs_it_once(merged, monkeypatch, touched):
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
-    skilled = Skilled(merged, edited=True)
+    skilled = Skilled(merged, touched=[touched])
     said = merged.run()
     assert said == [merged_line(merged.on_main()[0], INSTALLED.format(merged.home.main))]
     assert skilled.calls() == [""]
 
 
-def test_a_merge_that_changes_no_skill_runs_nothing(merged, monkeypatch):
+@pytest.mark.parametrize(
+    "touched",
+    [(), ("src/demo/a.py",), ("skills/demo/tests/test_a.py",), ("skills/demo/.notes",)],
+    ids=["nothing else", "code outside every skill", "a skill's tests", "a hidden file"],
+)
+def test_a_merge_that_changes_no_skill_runs_nothing(merged, monkeypatch, touched):
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
-    skilled = Skilled(merged)
+    skilled = Skilled(merged, touched=touched)
     said = merged.run()
     assert said == [merged_line(merged.on_main()[0])]
     assert skilled.calls() == []
