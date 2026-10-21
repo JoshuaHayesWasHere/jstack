@@ -79,7 +79,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     of each skills root for GoneLink, and the provider inventory, which names the instances
     and the Claude homes to probe. A release has no checkout, and lists neither the generated
     line nor the git hook. An inventory that cannot be taken
-    names none, and its own line says why.
+    names none, and its own line says why. A skills.json that cannot be read names no
+    skill, and each layout's line says why.
 
     Only probed:
       hard      linux                         Linux
@@ -127,7 +128,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     try:
         named = skills(machine.source)
     except UNREADABLE:
-        named = []  # Each layout's line says why the source cannot be read.
+        named = []
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
