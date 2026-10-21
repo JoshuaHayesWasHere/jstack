@@ -139,7 +139,7 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(machi
         "short_slots    2  derived from 8 cores, 16 GiB",
         f"max_running    6  file {jbus / 'config.toml'} (derived: 8)",
     ]
-    assert out[3].startswith("room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=100 SLOTS=85 ")
+    assert out[3].startswith("room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=90 SLOTS=85 ")
     assert out[4] == (
         "note: TEST_SLOTS=3 is set here and jbus.service does not see it:"
         f" set test_slots in {machine / 'config' / 'jstack' / 'machine.toml'}"
