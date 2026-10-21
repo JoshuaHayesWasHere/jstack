@@ -29,7 +29,8 @@ case "$1 $2" in
         branch=${2#repos/\\{owner\\}/\\{repo\\}/commits/}
         cat "$STUB/runs-${branch%/check-runs}" 2> /dev/null || echo '{"check_runs": []}' ;;
     "pr merge")
-        base=$(jq -r --argjson n "$3" '.[] | select(.number == $n) | .baseRefName' "$STUB/list.json")
+        base=$(jq -r --argjson n "$3" \
+            '.[] | select(.number == $n) | .baseRefName' "$STUB/list.json")
         tree=$(git -C "$ORIGIN" merge-tree --write-tree "refs/heads/$base" "$6") || exit 1
         case "$4 $5" in
             "--squash --match-head-commit") parents="-p refs/heads/$base" ;;
@@ -117,7 +118,9 @@ def test_it_squashes_into_that_branch_and_the_merged_line_names_it(kitchen):
     (said,) = kitchen.run()
     commit = tip(kitchen, TRAIN)
     assert said.startswith(f'merged 6 one {commit} "feat: one", into {TRAIN}, ')
-    assert kitchen.calls() == [f"pr merge 6 --squash --match-head-commit {head} --repo {kitchen.origin}"]
+    assert kitchen.calls() == [
+        f"pr merge 6 --squash --match-head-commit {head} --repo {kitchen.origin}"
+    ]
     assert git(kitchen.origin, "show", f"refs/heads/{TRAIN}:a.txt") == ("ours\n" + LINES).strip()
     assert tip(kitchen, "main") == main
 
@@ -183,7 +186,9 @@ def test_the_landing_of_the_train_on_main_is_a_merge_commit_and_keeps_the_branch
     (said,) = kitchen.run()
     commit = tip(kitchen, "main")
     assert said.startswith(f'merged 9 {TRAIN} {commit} "feat: {TRAIN}", ')
-    assert kitchen.calls() == [f"pr merge 9 --merge --match-head-commit {head} --repo {kitchen.origin}"]
+    assert kitchen.calls() == [
+        f"pr merge 9 --merge --match-head-commit {head} --repo {kitchen.origin}"
+    ]
     assert git(kitchen.origin, "rev-list", "--parents", "-n", "1", commit).split()[1:] == [
         main,
         head,
@@ -196,7 +201,6 @@ def test_blank_lines_and_spaces_in_the_file_name_no_branch(kitchen):
     head = into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
     (kitchen.home.state / "integration").write_text(f"\n  {TRAIN}  \n\n")
     assert kitchen.run("--check") == [f"ready 6 {head} one one"]
-
 
 
 def check_run(name, conclusion, started, sha="d" * 40):
