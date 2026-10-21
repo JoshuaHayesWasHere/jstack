@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "typescript-best-practices",
-  "description": "Loads the TypeScript rules before a .ts or .tsx edit.",
-  "owns": [
-    "skills/typescript-best-practices/**"
-  ]
+  "description": "Loads the TypeScript rules before a .ts or .tsx edit."
 }
