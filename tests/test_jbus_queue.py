@@ -661,6 +661,19 @@ def test_a_row_waits_silently_until_everything_it_depends_on_is_merged(kitchen):
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
 
 
+def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen):
+    """A train merges into its integration branch, not main: GitHub lists that merge with
+    every other, and the row that depends on it is launched as after any merge."""
+    add(kitchen, "beta", depends="alpha")
+    kitchen.brief("alpha", RESULT)
+    into_train = {**kitchen.merged("alpha", 7, "a" * 40), "baseRefName": "migration"}
+    kitchen.set("merged.json", [into_train])
+    kitchen.poll()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
+    listed = [line for line in kitchen.log("gh") if "--state merged" in line]
+    assert listed and not [line for line in listed if "--base" in line]
+
+
 def test_a_row_whose_files_a_brief_still_out_names_is_launched_all_the_same(kitchen):
     add(kitchen, "alpha")
     kitchen.set(

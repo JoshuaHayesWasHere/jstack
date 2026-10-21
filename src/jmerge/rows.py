@@ -8,6 +8,7 @@ from jbus import queue
 from jmerge import mainjson, ready
 
 NO_PULL = "no pull request yet"
+NOT_RED = ("success", "neutral", "skipped", "cancelled")
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,24 @@ def red(main: mainjson.Main, slug: str) -> str:
     if not main.red or mainjson.fix_of(slug):
         return ""
     return ready.MAIN_RED.format(sha=main.red[: mainjson.SHA])
+
+
+def base_red(base: str, runs: list[dict], slug: str) -> str:
+    """The red hold of a pull request into an integration branch: the latest run of each check
+    of the branch's tip, as GitHub's check runs list them, ended and did not pass. A cancelled
+    run is no failed check, as on main (`jbus.watch.NOT_RED`). A fix of a red main is not held,
+    as `red` does not hold it."""
+    latest: dict[str, dict] = {}
+    for one in sorted(runs, key=lambda run: str(run.get("started_at") or "")):
+        latest[str(one.get("name"))] = one
+    failed = [
+        one
+        for one in latest.values()
+        if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
+    ]
+    if not failed or mainjson.fix_of(slug):
+        return ""
+    return ready.BASE_RED.format(base=base, sha=str(failed[0].get("head_sha"))[: mainjson.SHA])
 
 
 def short(rows: list[queue.Row] | None, slug: str) -> str:
