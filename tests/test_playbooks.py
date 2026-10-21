@@ -163,7 +163,7 @@ def test_every_principle_is_named_by_a_playbook():
 @pytest.fixture
 def root(tmp_path):
     """A repo with the real template, and the files the playbook built below names."""
-    (tmp_path / "templates").mkdir()
+    (tmp_path / TEMPLATE).parent.mkdir(parents=True)
     shutil.copy(REPO / TEMPLATE, tmp_path / TEMPLATE)
     for skill in ROLES.values():
         (tmp_path / "skills" / skill).mkdir(parents=True)

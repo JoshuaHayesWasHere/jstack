@@ -30,6 +30,7 @@ SWEPT = (
     "features/*/src/**/*.js",
     "features/*/src/**/*.html",
     "hooks/*.sh",
+    "features/*/hooks/*.sh",
     "scripts/*.sh",
     "install.sh",
     "tests/**/*.py",

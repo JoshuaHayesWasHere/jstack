@@ -14,7 +14,7 @@ from jbriefs import pick
 from testing.layouts import assembled
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
+SKILL = REPO / "features" / "skill-library" / "skills" / "poteto-help" / "SKILL.md"
 HOOK = assembled() / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
@@ -159,7 +159,7 @@ def user(tmp_path, home):
     folder of the repo `demo` under its state."""
     made = tmp_path / "user"
     (made / ".claude" / "skills").mkdir(parents=True)
-    (made / ".claude" / "skills" / "poteto-help").symlink_to(SKILL.parent)
+    (made / ".claude" / "skills" / "poteto-help").symlink_to(assembled() / "skills" / "poteto-help")
     (made / ".local" / "state" / "home").mkdir(parents=True)
     (made / ".local" / "state" / "home" / "demo").symlink_to(home)
     return made
@@ -183,7 +183,7 @@ def test_the_skills_block_prints_the_same_lines_as_jbriefs_pick(user, home, demo
         ("tasks/tidy-gauge.md", str(home / "tasks" / "tidy-gauge.md")),
     ):
         said = run_block(user, demo, typed)
-        assert said[0] == f"root: {REPO}"
+        assert said[0] == f"root: {assembled()}"
         assert said[1:-1] == jbriefs(path)
         assert said[-1] == "setup: README.md, Quickstart" or said[-1].startswith("setup: sh ")
     asked = run_block(user, demo, QUESTION.strip())
