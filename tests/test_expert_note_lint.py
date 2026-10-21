@@ -12,7 +12,7 @@ from testing.layouts import assembled
 from testing.paths import REPO
 
 LINT = REPO / "src" / "jpack" / "lint-notes.sh"
-PLAYBOOK = REPO / "playbooks" / "expert-study.md"
+PLAYBOOK = REPO / "features" / "expert" / "playbooks" / "expert-study.md"
 
 CLEAN = """\
 # How long does the kettle take to boil?
