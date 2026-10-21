@@ -236,6 +236,7 @@ Run this in this worktree, with the block at the top and the head kept at the st
 
 ```sh
 kept='<the head kept at the start>'
+limit=540
 gate=$(sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$H/merge-gate" 2> /dev/null)
 if [ -z "$gate" ]; then
     exit 0
@@ -245,16 +246,22 @@ if ! view=$(gh pr view <url> --json baseRefName) || ! base=$(printf %s "$view" |
     echo "not run: where the pull request left its base could not be worked out" >&2
     exit 1
 fi
-out=$(BASE=$fork HEAD=$kept timeout 600 sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
+out=$(BASE=$fork HEAD=$kept timeout "$limit" sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
 code=$?
-if [ "$code" != 0 ]; then
+if [ "$code" = 124 ]; then
+    if [ $((limit % 60)) = 0 ]; then over="$((limit / 60)) minutes"; else over="$limit s"; fi
+    echo "error - the merge gate fails at $(printf %s "$kept" | cut -c1-12): it ran over $over and was stopped (principle: none) (bucket: Act on)"
+elif [ "$code" != 0 ]; then
     first=$(printf '%s\n' "$out" | sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}')
     echo "error - the merge gate fails at $(printf %s "$kept" | cut -c1-12): ${first:-exit $code} (principle: none) (bucket: Act on)"
 fi
 ```
 
+Send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
+It stops the gate after 9 minutes, so that the call ends inside that limit with an answer.
 It prints nothing for a repo with no gate, or for a gate that passes.
 On a gate that fails it prints one finding, an `error` at `-`, since what the change lacks is what the gate asks for, and it quotes the gate's first line: keep it as printed, with the rest.
+A gate that ran over the 9 minutes is that finding too, and it says the gate ran over and was stopped, as `jmerge` does at its own limit.
 The gate's arguments are the ones `jmerge` gives it: where the pull request left its base, and the head.
 Exit code 1 means that base could not be worked out, and the line above it says so: say in the section that the gate was not run.
 

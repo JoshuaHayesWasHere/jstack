@@ -1365,10 +1365,11 @@ def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
     assert reviewer("### Wider than the brief") == ([], 1)
 
 
-def gated(reviewer, gate=None):
+def gated(reviewer, gate=None, fill=None):
     """A pull request whose branch left main one commit back, a repo state with the merge
     gate `gate` (none where it is None), and the reviewer's run of "The merge gate" at the
-    head. What the block printed, its exit code, the merge base and the head."""
+    head, with the block's words in `fill` changed too. What the block printed, its exit
+    code, the merge base and the head."""
     work = reviewer.work
     origin = reviewer.state / "origin.git"
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", origin], check=True)
@@ -1394,7 +1395,8 @@ def gated(reviewer, gate=None):
     )
     if gate is not None:
         (reviewer.state / "merge-gate").write_text(f"\n  {gate}  \n")
-    printed, code = reviewer("### The merge gate", fill={"<the head kept at the start>": head})
+    fill = {"<the head kept at the start>": head, **(fill or {})}
+    printed, code = reviewer("### The merge gate", fill=fill)
     return printed, code, fork, head
 
 
@@ -1428,6 +1430,15 @@ def test_a_merge_gate_that_cannot_start_is_a_finding_too(reviewer, tmp_path):
     assert code == 0
     assert printed.startswith(f"error - the merge gate fails at {head[:12]}: merge-gate: ")
     assert printed.endswith("(principle: none) (bucket: Act on)")
+
+
+def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(reviewer):
+    printed, code, _, head = gated(reviewer, "sleep 30; :", fill={"limit=540": "limit=1"})
+    assert code == 0
+    assert printed == [
+        f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
+        "(principle: none) (bucket: Act on)"
+    ]
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):
