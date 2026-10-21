@@ -110,7 +110,7 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert [row["href"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
     assert seen["words"] <= EVERY, seen["words"]
     polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico", "/font.woff2")]
-    assert len(polls) == 3 and set(polls) == {"/stack.json"}
+    assert len(polls) == 9 and set(polls) == {"/stack.json"}
     drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("rows:")]
     assert drawn and [one for one in seen["changes"] if one["at"] > max(drawn) + 1000] == []
     assert seen["marked"] == 1
@@ -152,13 +152,14 @@ def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
     assert seen["cut"] == []
 
 
-def test_a_project_page_asks_its_state_each_poll_and_every_project_once_a_minute(scene, tmp_path):
-    """The switcher names every project, so a project's page asks `/stack.json` too: once when
-    it opens and then once a minute, beside its own `/state.json` each poll."""
+def test_a_project_page_asks_one_thing_each_poll_and_every_project_once_a_minute(scene, tmp_path):
+    """The page asks every 5 s, one request a poll. The switcher names every project, so a
+    project's page asks `/stack.json` too: beside its first read, and then once a minute in
+    place of its own `/state.json`."""
     stacked(scene)
     seen = look(scene, tmp_path, at=63000, budget=70000)
     asked = [one.partition("?")[0] for one in seen["asked"]]
-    assert (asked.count("/state.json"), asked.count("/stack.json")) == (5, 2)
+    assert (asked.count("/state.json"), asked.count("/stack.json")) == (14, 2)
     assert [one[0] for one in seen["header"]["pick"]] == ["", "demo", "larder", "pantry"]
 
 

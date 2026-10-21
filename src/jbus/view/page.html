@@ -278,6 +278,7 @@
   .w-other .sh { background: transparent; border: 2px solid var(--ink-2); border-radius: 2px; }
   .none { margin-top: 12.5px; border: 1.5px solid var(--hair); border-left: 6px solid var(--due); border-radius: 10px; padding: 12.5px 15px; background: var(--surface); }
   .none .big { font-size: 20px; font-weight: 700; display: block; margin-bottom: 5px; }
+  .ilk { font-family: var(--mono); font-size: 15px; color: var(--ink-2); }
   .crumbs { display: inline-flex; flex-wrap: wrap; gap: 0 7px; align-items: baseline; }
   .hdr .crumbs a + a::before { content: "/" / ""; color: var(--ink-2); padding-right: 7px; display: inline-block; }
   .crumbs a { color: var(--ink-2); text-decoration: none; }
@@ -354,9 +355,9 @@
 <script>
 (function () {
   "use strict";
-  var POLL_MS = 15000, STACK_EVERY_POLLS = 4, READ_TIMEOUT_MS = 8000, WRITE_TIMEOUT_MS = 30000, MISSED_TILL_GONE = 2;
+  var POLL_MS = 5000, STACK_EVERY_POLLS = 12, READ_TIMEOUT_MS = 8000, WRITE_TIMEOUT_MS = 30000, MISSED_TILL_GONE = 2;
   var $ = function (id) { return document.getElementById(id); };
-  var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {};
+  var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, ITEMS = {}, ITEM_OF = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
   var STACK = null, NOSUCH = "", PROJECT = null, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
@@ -571,13 +572,22 @@
     if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");
     return out.join(" ");
   }
+  var ITEM_WORD = { proposed: "Proposed", approved: "Approved", queued: "Queued", running: "Running", waiting_on_you: "Needs you", held: "Held", done: "Done", dropped: "Dropped" };
+  var ITEM_ROWS = { approved: 1, queued: 1, running: 1, waiting_on_you: 1, held: 1 };
+  function itemLink(it) { return '<a class="ilk" href="' + esc(href(PROJECT, "item:" + it.id)) + '" aria-label="Work item ' + esc(it.id) + ': open it">' + esc(it.id) + '</a>'; }
+  function itemAt(it) { var l = it.lines[it.lines.length - 1]; return l ? ms(l.at) : null; }
   function progRow(r) {
     var tone = r.rank === 0 ? " bad" : r.rank === 1 ? " ask" : "";
-    return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button></span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
+    return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button>' + (r.item ? " " + itemLink(r.item) : "") + '</span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
   }
   function progress() {
     var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key; }).map(function (t) {
-      return { key: t.slug, slug: t.slug, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t), age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+      var it = ITEM_OF[t.slug], held = it && it.state === "held" ? ' <span class="chip user">held</span>' : "";
+      return { key: t.slug, slug: t.slug, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+    });
+    S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key); }).forEach(function (it) {
+      var at = itemAt(it);
+      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
@@ -598,9 +608,11 @@
     put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : ""));
     $("calm").hidden = rows.length > 0;
     keyed($("prog"), "li", "pg", rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
-    $("merged-d").hidden = !merged.length;
-    say($("merged-s"), "Merged today \u00b7 " + merged.length);
-    put($("merged-l"), merged.map(function (m) { return '<li>' + openBtn("task:" + m.slug, m.slug) + '<span class="src">' + esc(m.pr) + '</span><span class="src">' + hm(ms(m.at)) + '</span></li>'; }).join("") + (merged.length ? '<li>' + openBtn("merged", "Every merge, with the time to merge") + '</li>' : ""));
+    var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
+    $("merged-d").hidden = !merged.length && !done.length;
+    say($("merged-s"), "Merged today \u00b7 " + (merged.length + done.length));
+    put($("merged-l"), merged.map(function (m) { return '<li>' + openBtn("task:" + m.slug, m.slug) + (ITEM_OF[m.slug] ? itemLink(ITEM_OF[m.slug]) : "") + '<span class="src">' + esc(m.pr) + '</span><span class="src">' + hm(ms(m.at)) + '</span></li>'; }).join("") +
+      done.map(function (it) { return '<li>' + openBtn("item:" + it.id, it.title || it.slug || it.id) + itemLink(it) + '<span class="src">done</span><span class="src">' + hm(itemAt(it)) + '</span></li>'; }).join("") + (merged.length ? '<li>' + openBtn("merged", "Every merge, with the time to merge") + '</li>' : ""));
     put($("health"), healthLine(sm) + "");
     $("health").className = "hl" + (sm.broken.length ? " op" : "");
     put($("unplaced"), sm.unplaced.length ? plural(sm.unplaced.length, "row", "rows") + ' the view cannot place: ' + sm.unplaced.map(function (u) { return openBtn("task:" + u, u); }).join(" ") : "");
@@ -625,7 +637,7 @@
     document.body.classList.toggle("stopped", stopped || gone);
     var read = ms(PROJECT ? S.at : STACK.at) || lastAnswer;
     say($("readat"), gone ? "Stale since " + hm(read) : "Updated " + hm(read) + " \u00b7 live"); $("readat").classList.toggle("stale", gone);
-    $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every 15 s";
+    $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
     if (!PROJECT) renderStack(); else renderProject();
@@ -696,7 +708,7 @@
       if (!r || !r.closed) { failed(r && r.error ? "The server refused the write: " + r.error + "." : UNKNOWN_END); return; }
       OPEN_GATE = null; TICKED_GATES = {}; BATCH = { busy: false, error: "" };
       $("dw").innerHTML = dSaid(r); $("dw-close").focus(); drawer.scrollTop = 0;
-      poll();
+      poll(true);
     }, function () { failed(UNKNOWN_END); });
   }
   function eventRow(e) {
@@ -924,7 +936,7 @@
     if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }
     return fetch(path, how).then(function (r) {
       if (!r.ok && !body) { var said = new Error("the server answered " + r.status); said.status = r.status; throw said; }
-      return r.json();
+      return r.json().then(function (said) { if (body && said && typeof said === "object") said.http = r.status; return said; });
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
@@ -935,6 +947,7 @@
     TASK = {}; S.tasks.forEach(function (t) { TASK[t.slug] = t; });
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
     DONE = {}; S.merged.forEach(function (m) { DONE[m.slug] = m; });
+    ITEMS = {}; ITEM_OF = {}; S.items.forEach(function (it) { ITEMS[it.id] = it; if (it.slug) ITEM_OF[it.slug] = it; });
     S.steps.concat([S.unknown]).forEach(function (s) { NOTES[s.key] = s.note; });
     render(); fillSteps();
   }
@@ -943,10 +956,11 @@
     if (missed >= MISSED_TILL_GONE) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
   var turnOf = 0, pending = "", beat = 0;
-  function poll() {
+  function poll(fresh) {
     var mine = turnOf;
     if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
-    if (!STACK || beat++ % STACK_EVERY_POLLS === STACK_EVERY_POLLS - 1) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
+    if (!STACK) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
+    else if (!fresh && ++beat % STACK_EVERY_POLLS === 0) return ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; heard(); render(); } }, function () { if (mine === turnOf) lost(); });
     return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
@@ -980,7 +994,7 @@
   window.addEventListener("hashchange", function () { route(); });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
   route();
-  setInterval(poll, POLL_MS);
+  setInterval(function () { poll(); }, POLL_MS);
 })();
 </script>
 <script>

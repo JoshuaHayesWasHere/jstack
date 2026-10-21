@@ -27,6 +27,7 @@ function dTask(slug) {
     (t.seen.live === "quiet" || t.seen.live === "hung" ? '<p style="margin:10px 0 0"><i class="mk lv-' + t.seen.live + '"></i> ' + esc(silence(t.seen.live, t.seen.wrote, t.seen.run_started, t.seen.queued)) + '</p>' : "") +
     (st.row ? '<p style="margin:10px 0 0">' + gap("the row disagrees") + ' ' + esc(st.row) + '.</p>' : "") +
     (t.unconfirmed ? '<p style="margin:10px 0 0">' + gap("not confirmed") + ' ' + esc(t.unconfirmed.line.replace(/^not confirmed /, "")) + '.</p>' : "") +
+    (ITEM_OF[slug] ? '<p style="margin:10px 0 0">Work item ' + openBtn("item:" + ITEM_OF[slug].id, ITEM_OF[slug].id) + ' <span class="chip plain">' + esc(ITEM_WORD[ITEM_OF[slug].state]) + '</span></p>' : "") +
     added("task", t).map(function (a) { return '<p style="margin:10px 0 0">' + a.said + '</p>'; }).join("") +
     '</div>';
   if (t.pr) h += ghBox(slug);

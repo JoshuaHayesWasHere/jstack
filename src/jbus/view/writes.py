@@ -1,5 +1,8 @@
 """The two writes of `jbus view`, `POST /answer` and `POST /steer`, and what every answer
 of the server is (`Answer`). The package's docstring says what each write takes and gives.
+A steer's `action` may also be `APPROVE`, the user's go for the item by its id, which
+`jbus.steer.approve` decides as `jbus item approve` does: it has no words to have, and it is
+how the page's Approve of a proposed item writes.
 
 `Writes` is the part of `jbus.view.App` that writes: what it reads, `sources`, `clock`
 and `config`, is the app's.
@@ -30,6 +33,8 @@ WHERE = "jbus view"
 BATCH = 200
 SEND = 15.0
 HTML, JSON = "text/html; charset=utf-8", "application/json"
+APPROVE = "approve"
+ACTIONS = {str(one) for one in item.Steer} | {APPROVE}
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,7 @@ def reader(sources: Sources) -> jbus.Config:
 
 
 class Writes:
-    """Close questions with the user's answer, and steer an item."""
+    """Close questions with the user's answer, and steer or approve an item."""
 
     sources: Sources
     clock: Callable[[], datetime]
@@ -206,7 +211,8 @@ class Writes:
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
 
     def _steer(self, name: str, body: bytes) -> Answer:
-        """Steer one item, through `steer.steer`, by the user of the settings, in the view."""
+        """Steer one item, through `steer.steer`, or approve it, through `steer.approve`, by the
+        user of the settings, in the view."""
         try:
             asked = json.loads(body)
             id, action, seen = asked["item"], asked["action"], asked["seen_event"]
@@ -214,11 +220,11 @@ class Writes:
             shaped = (
                 isinstance(id, str)
                 and 0 < len(id) <= 64
-                and action in {str(one) for one in item.Steer}
+                and action in ACTIONS
                 and isinstance(seen, str)
                 and bool(seen)
                 and isinstance(words, str)
-                and (bool(words.strip()) or action == item.Steer.HOLD)
+                and (bool(words.strip()) or action in (item.Steer.HOLD, APPROVE))
                 and isinstance(confirm, bool)
             )
         except (ValueError, TypeError, KeyError, AttributeError):
@@ -232,19 +238,33 @@ class Writes:
         heard = queue.Said(words or f"{action} {id}", state.iso(now), WHERE, False)
         basis = steer.Basis("view", WHERE, heard)
         try:
-            made = steer.steer(
-                state_dir,
-                box,
-                id,
-                action,
-                words,
-                seen,
-                user.user,
-                item.Where.VIEW,
-                confirm,
-                user=user,
-                basis=basis,
-            )
+            if action == APPROVE:
+                made = steer.approve(
+                    state_dir,
+                    box,
+                    id,
+                    by=user.user,
+                    where=item.Where.VIEW,
+                    words=words,
+                    seen=seen,
+                    user=user,
+                    project=name,
+                    basis=basis,
+                )
+            else:
+                made = steer.steer(
+                    state_dir,
+                    box,
+                    id,
+                    action,
+                    words,
+                    seen,
+                    user.user,
+                    item.Where.VIEW,
+                    confirm,
+                    user=user,
+                    basis=basis,
+                )
         except Refused as error:
             status = 400 if str(error) == steer.CONFIRM else 409
             say = str(error).removeprefix("refused: ").replace("--confirm", "confirm")
@@ -253,9 +273,10 @@ class Writes:
             traceback.print_exc(file=sys.stderr)
             say = "The server failed during the steer: the state below is what the record says."
             return self._steered(name, 500, id, say, now)
-        say = f"{id} {action} at {user.clock(now)}: {made['line']}"
+        did = "approved" if action == APPROVE else action
+        say = f"{id} {did} at {user.clock(now)}: {made['line']}"
         if action == item.Steer.MESSAGE:
-            say = f"{say}. {self._message(name, made['id'], now)}"
+            say = f"{say.rstrip('.')}. {self._message(name, made['id'], now)}"
         return self._steered(name, 200, id, say, now)
 
     def _message(self, name: str, line: str, now: datetime) -> str:

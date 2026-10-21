@@ -7,7 +7,14 @@ and nothing else will: a gate that holds (`Holds:`) or has no default, an approv
 merge, a row at a gate, a leftover, a setup. `proceeds` is a gate whose default is taken
 already: it closes with that default after 2 hours of silence (`questions.QUIET`), or, for
 a gate of a home's `gates.md`, stands as it is. A link's conflict asks its home and not the
-user, so it is on neither."""
+user, so it is on neither.
+
+A work item that is proposed is a need too, of the kind `ITEM`, approved by its id on the
+page (`_items`): its `item` and the line it was last `seen` at go with it, as a steer names
+them, and every other need has the two empty. One whose row waits for its approval is left
+to that row, since a go by the item's id is no go of the row. But a row whose item was
+redirected is approved by nothing but the item's id (`jbus.steer.approvable`): then the
+item's need stands in the row's place."""
 
 from __future__ import annotations
 
@@ -17,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from jbus import merge, mirror, questions, queue, waiting
+from jbus import item, merge, mirror, questions, queue, waiting
 from jbus.view.state import (
     _SLUG,
     WAITING_FILE,
@@ -74,12 +81,15 @@ _NEED = {
         "risk",
         "open",
         "due",
+        "item",
+        "seen",
     )
 } | {"answerable": None, "unblocks": [None]}
 SHAPE = {"waiting": [_WAITS], "gates": [_GATE], "needs": [_NEED], "proceeds": [_NEED]}
 ANSWER = "Answer"
 REVERSIBLE, MERGES = "reversible", "merge to main"
 NEEDS, PROCEEDS = "needs", "proceeds"
+ITEM, APPROVE = "item", "Approve"
 LINE = 200
 WHY = 60
 _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"])")
@@ -292,7 +302,47 @@ def _need(
         "unblocks": list(dict.fromkeys([*waits["unblocks"], *depends])),
         "open": _route(read.name, waits, slug),
         "due": due,
+        "item": "",
+        "seen": "",
     }
+
+
+def _approves(waits: dict[str, Any]) -> str:
+    """The slug of the row a need of the kind `approve` asks a go for, and else nothing."""
+    return (waits["slug"] or waits["key"].rpartition(":")[2]) if waits["kind"] == "approve" else ""
+
+
+def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict[str, Any]]:
+    """A need for each proposed item that only its id can approve: one whose row does not
+    wait for a go, as one with no row, and one that was redirected."""
+    lines = item.read(read.state)
+    made = []
+    for one in found.values():
+        if one.state is not item.State.PROPOSED or (one.slug in rows and not one.redirect):
+            continue
+        first = next(line for line in lines if line.get("item") == one.id)
+        review = item.judged(read.state, one).risk is item.Risk.REVIEW
+        redirected = f", redirected at {one.redirect}" if one.redirect else ""
+        made.append(
+            {
+                "project": read.name,
+                "kind": ITEM,
+                "key": f"{ITEM}:{one.id}",
+                "what": _cut(text(one.title) or one.slug or one.id, 100),
+                "why": _cut(f"{one.id}, proposed in {one.source}{redirected}", WHY),
+                "since": when(first.get("at")),
+                "verb": APPROVE,
+                "answerable": False,
+                "default": "",
+                "risk": str(item.Risk.REVIEW) if review else REVERSIBLE,
+                "unblocks": [],
+                "open": f"#/{quote(read.name, safe='')}/{ITEM}/{quote(one.id, safe='')}",
+                "due": None,
+                "item": one.id,
+                "seen": one.last_event,
+            }
+        )
+    return made
 
 
 def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any]]:
@@ -301,12 +351,18 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
     asked = {str(one.number): one for one in questions.load(read.state)}
     slugs = {task["pr"].removeprefix("#"): task["slug"] for task in read.tasks if task["pr"]}
     queues: dict[str, list[dict[str, Any]]] = {NEEDS: [], PROCEEDS: []}
+    found = item.items(read.state)
+    redirected = {one.slug for one in found.values() if one.slug and one.redirect}
     for one in waits:
+        if _approves(one) in redirected:
+            continue
         held = asked.get(one["number"]) if one["answerable"] else None
         tier = _tier(one, held)
         if tier:
             queues[tier].append(_need(read, one, held, slugs, tier))
-    return oldest(queues[NEEDS]), sorted(queues[PROCEEDS], key=lambda one: one["due"] or "~")
+    rows = {_approves(one) for one in waits} - {""}
+    needs = oldest([*queues[NEEDS], *_items(read, found, rows)])
+    return needs, sorted(queues[PROCEEDS], key=lambda one: one["due"] or "~")
 
 
 def build(read: Read) -> dict[str, Any]:
