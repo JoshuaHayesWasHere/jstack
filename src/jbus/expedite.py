@@ -219,6 +219,18 @@ TABLE = (
         sends=AGAIN,
     ),
     Short(
+        "twice",
+        "wait",
+        re.compile(ready.TWICE_UNWRITTEN.pattern),
+        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
+        f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
+        "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
+        "whose thread wrote no `## Review`. Fix nothing it finds: its findings go to a cleanup "
+        "row.",
+        reviewed=True,
+        sends=AGAIN,
+    ),
+    Short(
         "fix",
         "wait",
         re.compile(re.escape(ready.FIX_UNREVIEWED)),

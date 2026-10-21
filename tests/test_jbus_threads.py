@@ -119,6 +119,19 @@ def test_the_findings_of_an_after_brief_go_to_its_cleanup_row_and_never_to_the_c
     assert [line for line in kitchen.lines("gate") if "findings" in line] == []
 
 
+def test_a_twice_brief_s_second_review_is_never_relayed_and_its_first_is(kitchen):
+    """A `Review: twice` pull request answers its first review and files its second as a
+    cleanup row: a relay of the second would have the crew start a second fix round."""
+    first = review().replace("c" * 40, "d" * 40)
+    kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first + review())
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll()
+    assert sends(kitchen) == [] and kitchen.lines("relayed") == []
+    kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [one["threadId"] for one in sends(kitchen)] == ["mcp:crew"]
+
+
 def test_undelivered_findings_with_no_thread_line_are_a_gate_once_and_nothing_is_sent(kitchen):
     kitchen.brief("alpha", review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])

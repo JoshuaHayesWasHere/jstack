@@ -12,7 +12,8 @@
 
    | Write | When |
    |---|---|
-   | `Review: review` | always, unless the one below holds or the user says otherwise |
+   | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." It gets one review and one fix round, then a second review whose `warning` and `error` findings become a cleanup row and whose `info` findings are dropped, and it merges once that second review is written |
+   | `Review: review` | the user asks for a review whose findings are all fixed before the merge |
    | `Review: after` | the user's standing rule is speed first: it merges once its check passes, and its review's findings become a cleanup row that waits for the user's go |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 

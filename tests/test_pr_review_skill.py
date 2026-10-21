@@ -396,7 +396,7 @@ def test_each_value_the_brief_template_offers_is_one_the_review_knows(reviewer):
     for value in line.removeprefix("Review:").split("|"):
         reviewer.brief.write_text(BRIEF + f"Review: {value.strip()}\n")
         ends[value.strip()] = reviewer()[1]
-    assert ends == {"review": 0, "none": 78, "after": 0}
+    assert ends == {"twice": 0, "review": 0, "none": 78, "after": 0}
 
 
 @pytest.mark.parametrize(

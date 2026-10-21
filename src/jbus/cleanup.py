@@ -10,8 +10,13 @@ It prints that row's brief, `cleanup-<slug>`, when the last round's verdict is `
 each finding the crew would have been sent, with its path:line, the pull request, and the
 merge commit GitHub gives for it, or the head the review saw where it has not merged yet.
 It prints nothing and ends 1 with the reason on one line where no row is owed: the brief
-does not say `after`, the review is clean or has no verdict, or the row is already in the
-queue, since `queue add` on a row that is there would take its go back.
+does not say `after` or `twice`, the review is clean or has no verdict, or the row is
+already in the queue, since `queue add` on a row that is there would take its go back.
+
+A brief that says `twice` answers its first review in one fix round, and its second review
+(`ready.second_review`) is the one filed: each of its findings of severity `warning` or
+`error`, whatever its bucket, and its `info` ones are dropped and counted. Before that
+second review is written, it prints `FIRST`: the first review goes to the crew.
 """
 
 from __future__ import annotations
@@ -27,7 +32,12 @@ from jbus import mirror, queue, verbs, watch
 from jmerge import ready
 
 PRIORITY = 50
-NOT_AFTER = "no cleanup row: the brief does not say Review: after"
+NOT_AFTER = "no cleanup row: the brief does not say Review: after or twice"
+FIRST = "first review: a Review: twice brief's first review goes to its crewmate, as step 4 named"
+NO_WARNING = (
+    "no cleanup row: its second review has no warning or error finding, {info} info dropped"
+)
+FILED = ("error", "warning")
 UNREVIEWED = "no cleanup row: its last review has no verdict yet"
 CLEAN = "no cleanup row: its last review is clean"
 THERE = "no cleanup row: {slug} is already in the queue"
@@ -42,11 +52,29 @@ def slug_of(slug: str) -> str:
     return f"cleanup-{slug}"
 
 
+def filed(text: str) -> tuple[list[findings.Finding], int]:
+    """The findings the brief's cleanup row lists, and the count of those it drops: an
+    `after` brief's sent findings, and none dropped; a `twice` brief's second review's
+    findings of severity `warning` or `error`, and the count of its `info` ones."""
+    said = ready.said_of(text)
+    if said.mode == ready.AFTER:
+        return (findings.triage(text).sent() if said.verdict == "findings" else []), 0
+    heads = ready.second_review(text)
+    second = [
+        one
+        for one in said.triage.findings
+        if one.lead.head in heads and not one.superseded and one.bucket != findings.DISMISSED
+    ]
+    kept = [one for one in second if one.severity in FILED]
+    return kept, len(second) - len(kept)
+
+
 def brief(slug: str, text: str, merge: str) -> str:
     """The cleanup row's brief for the brief `text` of `slug`, or nothing where its last
     review asks for none. `merge` is the merge commit, or nothing while it is open."""
     said = ready.said_of(text)
-    if said.mode != ready.AFTER or said.verdict != "findings":
+    sent, dropped = filed(text)
+    if said.mode not in (ready.AFTER, ready.TWICE) or not sent:
         return ""
     url, _ = watch.named(mirror.last_result(text) or "")
     pull = (
@@ -54,13 +82,22 @@ def brief(slug: str, text: str, merge: str) -> str:
         if merge
         else OPEN.format(url=url, head=said.reviewed or "its head")
     )
-    sent = findings.triage(text).sent()
     listed = "\n".join(f"- {_shown(one)}" for one in sent)
     places = sorted(dict.fromkeys(one.path for one in sent if one.path))
-    return (
-        f"# {slug_of(slug)}: fix what the review of {slug} found after it merged\n"
-        f"Task: {slug} said `Review: after`, so it merged on its check and its review's "
-        f"findings come here. Pull request: {pull}.\n"
+    if said.mode == ready.TWICE:
+        head = (
+            f"# {slug_of(slug)}: fix what the second review of {slug} found\n"
+            f"Task: {slug} said `Review: twice`, so it merged once its second review was "
+            f"written, and that review's warning and error findings come here; its {dropped} "
+            f"info findings were dropped. Pull request: {pull}.\n"
+        )
+    else:
+        head = (
+            f"# {slug_of(slug)}: fix what the review of {slug} found after it merged\n"
+            f"Task: {slug} said `Review: after`, so it merged on its check and its review's "
+            f"findings come here. Pull request: {pull}.\n"
+        )
+    return head + (
         f"Done when:\n{listed}\n"
         "- Each finding above is fixed, or the Result says why it stands, citing a path:line.\n"
         "- The check command (`notes.md`) passes.\n"
@@ -78,7 +115,7 @@ def brief(slug: str, text: str, merge: str) -> str:
 def _shown(one: findings.Finding) -> str:
     place = f"{one.path}:{one.line}" if one.line is not None else one.path
     risk = f" (risk: {one.risk})" if one.risk else ""
-    return f"{one.id} {place}: {one.lead.what} ({one.bucket}){risk}"
+    return f"{one.id} {one.severity} {place}: {one.lead.what} ({one.bucket}){risk}"
 
 
 def _merge_commit(url: str) -> str:
@@ -111,8 +148,12 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
     slug = path.stem
     said = ready.said_of(text)
     why = ""
-    if said.mode != ready.AFTER:
+    if said.mode not in (ready.AFTER, ready.TWICE):
         why = NOT_AFTER
+    elif said.mode == ready.TWICE and not ready.second_review(text):
+        why = FIRST
+    elif said.mode == ready.TWICE and not filed(text)[0]:
+        why = NO_WARNING.format(info=filed(text)[1])
     elif said.verdict not in ("clean", "findings"):
         why = UNREVIEWED
     elif said.verdict == "clean":
@@ -132,7 +173,8 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
 VERBS = (
     verbs.Verb(
         "cleanup",
-        "print the cleanup row a Review: after review owes, or why none",
+        "print the cleanup row a Review: after review or a Review: twice second review owes, "
+        "or why none",
         _arguments,
         _run,
     ),
