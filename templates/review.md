@@ -1,5 +1,5 @@
 ## Review
-By: <the line Start printed: the provider, the model and the effort, or inherit>
+By: <the line Start printed: the provider, the model and the effort, or inherit, then #<n>, its number>
 Verdict: clean | findings
 Head: <the pull request's head commit, in full>   Unchanged by the review: yes | no
 Patch-id: <`git patch-id --stable` of the diff from the base to that head>

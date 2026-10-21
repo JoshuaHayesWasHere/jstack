@@ -15,12 +15,14 @@ pool of one.
 and every pull request gets a review from each.
 
 Each provider names its effort with its own option id, and takes only the levels T3 Code
-lists for it (`PROVIDERS`). A Claude selection always carries its effort, `medium` where the
-line names none. T3 Code launches a model with no effort option at that model's own default,
+lists for it (`PROVIDERS`), up to the ceiling the user's rule gives the role
+(`Provider.allowed`). A Claude selection always carries its effort, `medium` where the line
+names none. T3 Code launches a model with no effort option at that model's own default,
 which is `high` for some (Claude Sonnet 5.5, Claude Opus 5), and the user's rule is that no
-Claude thread runs above medium unless told: so the map may lower a Claude role to `low` and
-nothing raises one. The other providers launch at their own default where the line names no
-effort. `fast=` is Cursor's alone, whose default is on.
+Claude thread runs above medium unless told: so the map may lower a Claude role to `low`, and
+raises only `review`, to `high`, which the user told (2026-10-20). The other providers launch
+at their own default where the line names no effort. `fast=` is Cursor's alone, whose
+default is on.
 """
 
 from __future__ import annotations
@@ -39,17 +41,33 @@ _FAST = {"on": True, "off": False}
 
 @dataclass(frozen=True)
 class Provider:
-    """What T3 Code calls a provider's options, and the levels it lists for its effort."""
+    """What T3 Code calls a provider's options, and the levels it lists for its effort,
+    lowest first. `ceiling` is the user's rule, the highest level a role may name, and
+    `raised` the roles the user lifted above it: T3 Code listing a level never allows it."""
 
     name: str
     effort: str | None = None
     levels: tuple[str, ...] = ()
     default: str | None = None
     fast: str | None = None
+    ceiling: str | None = None
+    raised: tuple[tuple[str, str], ...] = ()
+
+    def allowed(self, role: str) -> tuple[str, ...]:
+        """The levels a line of `role` may name: the listed ones, up to the role's ceiling."""
+        top = dict(self.raised).get(role, self.ceiling)
+        return self.levels if top is None else self.levels[: self.levels.index(top) + 1]
 
 
 PROVIDERS = {
-    "claudeAgent": Provider("Claude", "effort", ("low", "medium"), default="medium"),
+    "claudeAgent": Provider(
+        "Claude",
+        "effort",
+        ("low", "medium", "high", "xhigh", "max"),
+        default="medium",
+        ceiling="medium",
+        raised=(("review", "high"),),
+    ),
     "codex": Provider(
         "Codex", "reasoningEffort", ("low", "medium", "high", "xhigh", "max", "ultra")
     ),
@@ -162,8 +180,8 @@ def _selection(role: str, words: tuple[str, ...]) -> Selection:
     effort = options.get("effort")
     if effort is not None and known.effort is None:
         raise Refused(f"refused {role}: a {known.name} line names no effort")
-    if effort is not None and effort not in known.levels:
-        raise Refused(f"refused {role}: effort={effort} is not {_names(known.levels)}")
+    if effort is not None and effort not in known.allowed(role):
+        raise Refused(f"refused {role}: effort={effort} is not {_names(known.allowed(role))}")
     fast = options.get("fast")
     if fast is not None and known.fast is None:
         fast_ones = [name for name, one in PROVIDERS.items() if one.fast]

@@ -111,7 +111,7 @@ def test_jbus_reads_the_slug_from_each_title_a_skill_launches_a_slugs_thread_wit
     written = "".join(call.written for call in CALLS)
     titles = set(re.findall(r'"title": "([a-z]+: <slug>[^"]*)"', written))
     read = {
-        (prefix, threads.slug_in(title.replace("<slug>", SLUG), prefix))
+        (prefix, threads.slug_in(title.replace("<slug>", SLUG).replace("<n>", "2"), prefix))
         for title in titles
         for prefix in threads.PREFIXES
     }
@@ -119,3 +119,4 @@ def test_jbus_reads_the_slug_from_each_title_a_skill_launches_a_slugs_thread_wit
         (prefix, None) for prefix in threads.PREFIXES
     }
     assert threads.slug_in(f"review: {SLUG}{threads.SECOND}", "review: ") == SLUG
+    assert threads.slug_in(f"review: {SLUG}, 2", "review: ") == SLUG
