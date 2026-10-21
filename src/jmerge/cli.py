@@ -1545,8 +1545,11 @@ def parser() -> argparse.ArgumentParser:
         prog="jmerge",
         description="Merge this repo's pull requests that are reviewed, fixed and green, pull "
         "the main checkout, and remove each one's worktree and branches. Prints one line per "
-        "open pull request. A pull request based on another "
-        "branch is never merged, and one whose brief has a Stack: line only with --land. "
+        "open pull request. A pull request based on a branch that is neither the default "
+        "branch nor one the integration file in the repo's state names is never merged, and "
+        "one whose brief has a Stack: line only with --land. One into an integration branch "
+        "is judged against that branch, and the one that lands it on the default branch "
+        "merges with a merge commit. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(src/jmerge/ci-paths.txt), or a caller of its files or something they depend on "

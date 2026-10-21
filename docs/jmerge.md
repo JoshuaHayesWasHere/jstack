@@ -6,7 +6,7 @@
 uv run --project <checkout> jmerge
 ```
 
-For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>`, then `git pull --ff-only` in the main checkout. It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head. It writes no plan: `jbus plan` counts an entry's status from its queue rows. It needs `gh` and `git`.
+For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (`--merge` for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout. It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head. It writes no plan: `jbus plan` counts an entry's status from its queue rows. It needs `gh` and `git`.
 
 It prints one line per open pull request, and appends the lines to `merge.log`. It logs a `wait` or `hold` line that repeats from run to run once.
 
@@ -30,7 +30,7 @@ Each item below is a reason a pull request waits.
 
 - **A draft waits.** A draft is never merged, with any flag: `wait <number> <url>: draft`.
 - **A brief names it.** A brief's Result has the pull request on its `Branch:` line. A brief that belongs to another home of the repo waits as `another home's`, unless `--all` is given.
-- **Its base is the default branch.** A pull request based on another branch is never merged, and one whose brief has a `Stack:` line only with `--land <stack>`.
+- **Its base is the default branch or an integration branch.** A pull request based on another branch is never merged (`its base is <base>, not <default>`), and one whose brief has a `Stack:` line only with `--land <stack>`. An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.** The brief has a `## Review` section with a verdict. After findings, the Result has a `Fixed:` line that names the head or says `none needed`. A `Second pass: needed since <head>` line waits for a review of a later head.
 - **Every blocking finding is answered.** On every path, not only after a second pass, each finding that blocks has an answer that counts. `jbriefs --findings` reads every `## Review` section into one list (`src/jbriefs/findings.py`, the one parser, which the crew skill and jbus read too): each finding gets an id, `F1`, `F2`, ..., in the order it stands, and two reviewers' findings of one head, one file within 5 lines (`NEAR`) and one principle are one id. Only an `(bucket: Act on)` finding blocks, and so do a finding written before the buckets and a finding tagged `(risk: <area>)`, whatever its bucket; a `Consider` one does not, and severity decides nothing. An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`. A decline counts only where its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`), and only where no other finding was declined for the same reason. A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, counts as declined only on such a gate, which the crew parks with the default "fix it". The waits: `its findings are not handled: F1, F3 have no answer by id`, `... the decline of F2 cites no path:line, command or gate`, `... the decline of F2 gives the reason of F1`, `... F1 on auth declined with no gate question`. A brief from before the ids answered with `Finding: fixed, ...` lines with no id, and those still go to its findings by count, in order: it waits with `its findings are not handled: <k> of <n> have no Finding line`, and a decline `because .` is no answer. jbus's `expedite` tells the crew each of these, with the ids.
 - A brief that says `Review: none` waits with `its brief says Review: none, so it needs the user's word`.
@@ -41,6 +41,7 @@ Each item below is a reason a pull request waits.
 - **The required check passed, and GitHub says it merges.** Green is the check named `check`, passed at the head, whatever the other checks say: `check has not passed`. A conflict is `it conflicts with its base`.
 - **Its queue row lets it merge.** `jmerge` reads the `queue.json` of the jbus project whose checkout this is (`src/jmerge/rows.py`), once a run, and looks up the row whose slug is the brief's. A row `jbus queue hold` took the go from waits as `its queue row is held: approve it again to let it merge`: hold stops a merge as it stops a launch, and `--accept` does not lift it. A row that names others in `merge_after` waits as `merges after <slug> (#<n>), not merged yet` for the first of them that is not `merged` or `done`; it is judged on the next run after the one in which that pull request merges. A queue that is there and cannot be read leaves every pull request waiting, `its queue cannot be read, so its holds and merge order are not known`. A repo with no jbus config, or that no project names, has no queue and no such wait. These come after the review and rebase gates, so a pull request shows what it is short of first, and before the fresh check, so one that must wait never takes its single place.
 - **Main is not red, or it is the fix of a red main.** jbus keeps main's red tip as `broken` in `main.json` beside the queue, the one record of it (`docs/jbus.md`). While main's tip there is not green and it names one, `jmerge` merges no pull request but the fix's, the one whose brief is `main-red-<sha12>`, and every other waits as `main is red at <sha12>, its fix merges first`. It is judged after the queue row's wait and before the fresh check, and it ends when jbus sees a green tip: a fix that merges in this run frees the others on the next, once the tip's check has passed. A repo with no jbus config, no project or no file has no such wait, and a file that cannot be read says nothing is known.
+  This hold reads main's state for a pull request into main only: one into an integration branch is held by that branch's own red ("Integration branches").
   jbus looks at every tip main went through since its last pass, so a tip that failed under a newer one whose check still runs is red, and a green tip after it ends the red, whether or not the message to the red pull requests' crews went through.
 - **Its migration is the next in line.** See "Migrations".
 - **Its green covers today's main.** See "Fresh against main".
@@ -49,6 +50,7 @@ Each item below is a reason a pull request waits.
 - **Its merge gate passes**, the last of these, so that a gate runs only for a pull request that is otherwise ready ("Merge gate").
 
 Before a merge, `jmerge` asks `git ls-remote` whether main is the commit the pull request was judged against, when the start of its check is known. Where main moved, `jmerge` judges the pull request again, at most twice, before it prints `main moved while it was judged`.
+For a pull request into an integration branch it asks the same of that branch, and the line names it: `<branch> moved while it was judged`.
 
 ## Migrations
 
@@ -105,6 +107,31 @@ jbus's `expedite` tells the crew of each of these holds (`gate`), as it does of 
 A run starts no more gates once its gates took 5 minutes in all (`Gate.BUDGET`), so that one more, stopped at 10, still ends inside the 17 minutes jbus gives `jmerge`: a pull request whose gate did not start waits with `its merge gate waits for the next run: this run's gates used their time`.
 A repo with no `merge-gate` file merges as it did before.
 The reviewer runs the same gate on the head it reviews (the pr-review skill, "The merge gate").
+
+## Integration branches
+
+A train of pull requests can merge into one branch of its own and land on the default branch once, when its work is done.
+A project names such branches in an `integration` file in its state directory, beside `fresh-check` and `merge-gate`: one branch name per line, with blank lines and the spaces around a name ignored.
+`jmerge` merges a pull request whose base is one of them as it merges one into the default branch.
+Every review, check, gate and hold applies, and the merge is a squash.
+What main stands for elsewhere on this page is that branch for such a pull request: its staleness, its fresh check, its rebase and its migration numbers are judged against it, and its merge gate gets the merge base with it.
+The `merged` line names the base after the title, `merged <number> <slug> <commit> "<title>", into <branch>, ...`, and jbus reads and sends it as any other merge.
+A merge into the default branch prints no such note.
+
+Main's red hold (`main.json`) is not read for such a pull request.
+It is held instead when the latest run of a check on that branch's tip ended and did not pass: `<branch> is red at <sha12>: its latest check failed` (`BASE_RED`, on the `check` step).
+`jmerge` asks GitHub for the check runs of the tip once a run (`gh api repos/{owner}/{repo}/commits/<branch>/check-runs`).
+A cancelled run, a run still going, a tip with no run and a GitHub that does not answer hold nothing, as on main, and the fix of a red main is not held.
+CI runs on the pull requests into the branch, so each is checked as one into main is, but `check.yml` runs on pushes to `main` only: until it runs on pushes to an integration branch, that branch's tip has no check run and this hold never fires.
+
+The landing is the pull request whose head is an integration branch and whose base is the default branch.
+It needs a brief whose Result names it, and it is judged as any other.
+It merges with a merge commit, `gh pr merge <number> --merge --match-head-commit <head>`, so the train's commits keep their history on main.
+Its branch is never removed: the `merged` line says `kept: <branch> is an integration branch`, and `--sweep` keeps it with the same reason.
+A repo set on GitHub to delete a head branch after its merge would still lose it there, and that setting is the repo's, not `jmerge`'s.
+
+`--sweep` counts a pull request merged into an integration branch as merged.
+A project with no `integration` file merges as it did before.
 
 ## After a rebase
 
