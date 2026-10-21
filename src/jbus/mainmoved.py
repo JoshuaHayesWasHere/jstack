@@ -12,7 +12,9 @@ a launch and for `jmerge`. Each tip main went through since the last pass is loo
 order (`landed`), so a tip that failed or passed under a newer one before a pass saw it
 counts, and a tip whose check has not ended is kept as `pending` and looked at again until
 a tip after it settles. A tip's check is main's own, read as `main_check`
-reads it. A conflict is not told here: only a push ends it, and
+reads it, and a failed check at main's tip, or at the red tip kept as `broken`, is asked
+again each pass: a rerun that passes on that same commit ends the red there. A conflict is
+not told here: only a push ends it, and
 `rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
 nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
 out of the pass's list of open pull requests.
@@ -72,12 +74,15 @@ def short_of(pull: dict) -> str:
     return RED if checks(pull) == "failed" else ""
 
 
-def main_check(run: Pass, sha: str) -> str:
+def main_check(run: Pass, sha: str, again: bool = False) -> str:
     """Whether the checks of a commit on main passed, as `watch._check` says it, through the
-    answers `checks.json` keeps: a final one is asked of GitHub once."""
+    answers `checks.json` keeps: a final one is asked of GitHub once. With `again`, a kept
+    `failed` is asked again: a rerun of the check on the same commit may have passed."""
     known: dict[str, str] = read_json(run.state / "checks.json", {})
+    if again and known.get(sha) == "failed":
+        del known[sha]
     answer = _check(run, known, sha)
-    write_json(run.state / "checks.json", {**read_json(run.state / "checks.json", {}), **known})
+    write_json(run.state / "checks.json", known)
     return answer
 
 
@@ -122,18 +127,21 @@ def tell(run: Pass, client: Client, world: World) -> None:
     path = run.state / mainjson.NAME
     was = mainjson.load(run.state) or {}
     last, kept, broken = was.get("main"), was.get("held", []), was.get("broken", "")
-    asked_before = main == last and was.get("check") in SETTLED
+    asked_before = main == last and was.get("check") == "green"
     if asked_before and not kept:
         return
     red, owed_at = broken, was.get("fixed", "")
     if owed_at or was.get("check") == "green":
         broken = ""
-    green, check, waiting = "", "", []
-    for tip in (
-        *(tip for tip in was.get("pending", []) if tip != main),
-        *landed(run, last or "", main),
+    green, check, waiting, stands = "", "", [], broken
+    for tip in dict.fromkeys(
+        (
+            *([stands] if stands else []),
+            *(tip for tip in was.get("pending", []) if tip != main),
+            *landed(run, last or "", main),
+        )
     ):
-        check = main_check(run, tip)
+        check = main_check(run, tip, again=tip in (main, stands))
         if check == "green":
             green, broken, waiting = tip, "", []
         elif check == "failed":

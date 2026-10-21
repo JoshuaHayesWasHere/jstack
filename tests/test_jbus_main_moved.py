@@ -353,7 +353,7 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
     row = f"main-red-{red[:12]}"
     green = f"retro {row}: main is green again at {red[:12]}, and its row is left as it is"
     assert [line for line in launched.lines("retro") if "green again" in line] == [green]
-    assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [None]
+    assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [""]
 
 
 def test_a_red_head_that_is_also_in_conflict_is_told_once_however_often_main_moves(launched):
