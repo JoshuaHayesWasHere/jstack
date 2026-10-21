@@ -28,9 +28,8 @@ process to make it.
 A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`;
 one of a guarded path asks for `rules`, the package with a list that guards five paths, and
 `proven_merged`, a pull request whose review proved the one safety fact at its head, from
-`test_jmerge_guarded`. Each imports its module when it is asked for: `test_home_merge` runs
-`uv cache dir` as it loads, and a run with no `uv` on PATH that asks for none of them still
-loads this file.
+`test_jmerge_guarded`. Both are plugins of the root `conftest.py` too, so every run loads them;
+`test_home_merge` asks `uv cache dir` only when a test needs the cache.
 """
 
 import os

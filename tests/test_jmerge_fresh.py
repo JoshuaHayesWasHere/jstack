@@ -287,7 +287,7 @@ SELECTED = {
     "src/demo/__init__.py": "",
     "src/demo/one.py": LINES,
     "src/demo/two.py": LINES,
-    "tests/conftest.py": "",
+    "conftest.py": "",
     "tests/test_one.py": "import demo.one\n",
     "tests/test_two.py": "import demo.two\n",
     "tests/test_whole.py": "",

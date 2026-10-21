@@ -75,11 +75,22 @@ def test_lint_a_skill_loads_only_when_typed(path):
     assert problems(path) == []
 
 
+def holds_this_test(root):
+    """Puts this file in `root/tests`, with `testing/` and a `pyproject.toml`: `REPO` is then
+    `root`, and the copy's tests read its tree and not this checkout's."""
+    (root / "tests").mkdir()
+    shutil.copy(__file__, root / "tests")
+    shutil.copytree(
+        REPO / "testing", root / "testing", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    if not (root / "pyproject.toml").exists():
+        (root / "pyproject.toml").write_text("")
+
+
 @pytest.mark.parametrize("mended", [False, True], ids=["broken", "mended"])
 def test_lint_fails_on_the_broken_fixture_and_passes_it_mended(tmp_path, mended):
     """The lint, run as CI runs it, over a skills folder that holds only the fixture."""
-    (tmp_path / "tests").mkdir()
-    shutil.copy(__file__, tmp_path / "tests")
+    holds_this_test(tmp_path)
     skill = tmp_path / "skills" / NO_KEY.parent.name / NO_KEY.name
     skill.parent.mkdir(parents=True)
     first, *rest = NO_KEY.read_text().splitlines(keepends=True)
@@ -170,8 +181,7 @@ def test_every_skill_entry_in_skills_json_is_named_for_its_folder():
 def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp_path, renamed):
     """The name checks, run as CI runs them, over a FAKE tree whose folders are renamed."""
     shutil.copytree(NAMED_TREE, tmp_path, dirs_exist_ok=True)
-    (tmp_path / "tests").mkdir()
-    shutil.copy(__file__, tmp_path / "tests")
+    holds_this_test(tmp_path)
     if renamed:
         (tmp_path / "skills/fake-skill").rename(tmp_path / "skills/fake-renamed")
         (tmp_path / ".cursor/skills/fake-verify").rename(tmp_path / ".cursor/skills/fake-moved")
