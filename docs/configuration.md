@@ -166,7 +166,7 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 | `~/.claude/settings.json` | `hooks.PostToolUse` | `hooks/home-gauge.sh` | Claude Code |
 | `~/.claude/settings.json` | `hooks.PreToolUse` | `hooks/home-gauge.sh` | Claude Code |
 | `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Codex |
-| `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `features/jleak/hooks/outbound-command.sh` | Claude Code |
+| `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `hooks/outbound-command.sh` | Claude Code |
 | `~/.claude/settings.json` | `statusLine` | `hooks/limits.sh` | Claude Code |
 
 It also links `.git/hooks/pre-push` of the main checkout to `features/jleak/hooks/pre-push.sh`.
