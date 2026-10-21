@@ -12,7 +12,7 @@ import jdrift
 from jdrift.cli import main
 from testing.paths import REPO as ROOT
 
-TOPS = ("principles", "playbooks", "skills")
+TOPS = ("principles", "playbooks", "skills", "features")
 
 SECTION = """# Third-party material
 
@@ -425,7 +425,7 @@ def test_shipped_map_has_every_file_whose_source_line_names_pstack_with_those_pa
 
 
 def credited(prose):
-    """The files under the three directories that the prose names: by path, by a directory
+    """The files under the directories of `TOPS` that the prose names: by path, by a directory
     of theirs, or by a playbook's bare file name."""
     for token in re.findall(r"`([^`\s<*]+)`", prose):
         path = ROOT / token

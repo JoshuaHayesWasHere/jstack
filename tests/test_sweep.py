@@ -13,7 +13,6 @@ from datetime import date
 import pytest
 
 import daemons
-import test_scout as scout
 from jbus import mirror
 from jmerge import cli
 from test_home_merge import NAME, git
@@ -659,7 +658,11 @@ def test_an_origin_that_cannot_be_read_is_a_job_not_done(scene):
 
 
 def settles(tmp_path, report):
-    """Run the block of the scout skill's End that says whether the scout settles itself."""
+    """Run the block of the scout skill's End that says whether the scout settles itself. The
+    scout's tests are imported here and not at the top: this module is a plugin every test
+    loads, and a feature's own `tests/` may sit in a tree with no scout."""
+    import test_scout as scout
+
     (block,) = [block for block in scout.given("End") if "settle" in block]
     state = tmp_path / "state" / "scouts"
     state.mkdir(parents=True)

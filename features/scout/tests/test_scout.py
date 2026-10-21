@@ -5,10 +5,10 @@ import textwrap
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "scout" / "SKILL.md"
-TEMPLATES = REPO / "templates"
+SKILL = REPO / "features" / "scout" / "SKILL.md"
 NAME = "a demo repo"
 SLUG = "find-out"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -36,7 +36,7 @@ class Scene:
         self.user = tmp_path / "user"
         skills = self.user / ".claude" / "skills"
         skills.mkdir(parents=True)
-        (skills / "scout").symlink_to(REPO / "skills" / "scout")
+        (skills / "scout").symlink_to(assembled() / "skills" / "scout")
         self.home_dir = self.user / ".local" / "state" / "home" / NAME
         (self.home_dir / "scouts").mkdir(parents=True)
         (self.home_dir / "scouts" / f"{SLUG}.md").write_text("# the request\n")
@@ -90,7 +90,11 @@ def scene(tmp_path):
 @pytest.mark.parametrize("checkout", ["main", "worktree"])
 def test_the_paths_are_the_repos_home_and_this_repos_templates(scene, checkout):
     printed = scene.run('printf "%s\\n" "$R" "$H" "$T"', getattr(scene, checkout))
-    assert printed.splitlines() == [NAME, str(scene.home_dir), str(TEMPLATES.resolve())]
+    assert printed.splitlines() == [
+        NAME,
+        str(scene.home_dir),
+        str((assembled() / "templates").resolve()),
+    ]
 
 
 def test_a_clean_worktree_ends_with_only_what_the_scout_wrote_into_it(scene):
