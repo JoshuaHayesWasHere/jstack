@@ -23,7 +23,7 @@ What decides whether there is a reviewer to launch is this, run with the block a
 B="$H/tasks/<slug>.md"
 mode=$(awk '/^Review:/ {print $(2); exit}' "$B")
 case $mode in
-none | after) ;;
+none | after | twice) ;;
 *) mode=review ;;
 esac
 if [ "$mode" = none ]; then
@@ -36,7 +36,7 @@ fi
 ```
 
 It prints the brief's mode, then what to do.
-The mode is the brief's `Review:` line, the first line that starts with it: `none`, `after`, or `review` for anything else.
+The mode is the brief's `Review:` line, the first line that starts with it: `none`, `after`, `twice`, or `review` for anything else.
 A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
 The same words inside the task's text or a result do not count.
 
@@ -45,6 +45,10 @@ The same words inside the task's text or a result do not count.
 - `after`: launch the reviewer as for `review`, and do not wait for it.
   The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, that waits for the user's go, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
   While a home merges, jbus wakes this thread when every check has passed, and on `passed` it sends the thread that hears of a pull request ("Telling the home") one line, once for a head: `<slug>: <pull request url> at <full head commit> is green, and its brief says Review: after`.
+- `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
+  Once the `Fixed:` line names the head you pushed, launch the second review of that head as a second pass is launched, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
+  Fix nothing for the second review: its reviewer files its `warning` and `error` findings as a cleanup row, `cleanup-<slug>`, drops its `info` ones, and sends you one line, which you add to the Result as `Second review: <k> warning or error findings filed as cleanup-<slug>, <m> info dropped`.
+  `jmerge` merges once the second review is written, whatever it found, and the `fixed and green` line below is sent once it is.
 - `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
 To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread: each line `jroles review` prints is one reviewer, told its number.

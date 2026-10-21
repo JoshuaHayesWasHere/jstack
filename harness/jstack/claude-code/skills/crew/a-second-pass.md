@@ -1,5 +1,7 @@
 ### A second pass
 
+A brief that says `Review: twice` runs none of this section: its second review is the one "The review" launches after its one fix round, and on a wake that finds it green, the `fixed and green` line is sent once that review is written.
+
 The reviewer reviews once and you fix once.
 Whether anybody reviews the fix depends on what it changed, whichever files the findings named.
 A fix that changes a file outside `tests/` gets one scoped review: a reviewer that reads the fix alone.
