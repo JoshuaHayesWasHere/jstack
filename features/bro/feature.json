@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "bro",
-  "description": "Restates the last message in plain words, with no jargon.",
-  "owns": [
-    "skills/bro/**"
-  ]
+  "description": "Restates the last message in plain words, with no jargon."
 }
