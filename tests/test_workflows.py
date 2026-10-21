@@ -1118,6 +1118,16 @@ def test_an_unquoted_value_with_a_colon_and_a_space_is_refused_and_a_quoted_or_b
     assert refused("on:\n  push: # note: x\n    tags: v*\n") == []
 
 
+def test_a_bad_line_after_a_block_scalar_is_still_refused():
+    steps = "jobs:\n  one:\n    steps:\n"
+    block = "      - run: |\n          echo a: b\n"
+    assert refused(f"{steps}{block}        name: Install: x\n") == [6]
+    assert refused(f"{steps}{block}      - name: Install: x\n") == [6]
+    assert refused(f"{steps}{block}        name: install\n") == []
+    keyed = "      - name: x\n        run: |\n          echo a: b\n"
+    assert refused(f"{steps}{keyed}        if: a: b\n") == [7]
+
+
 VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
 
 
