@@ -1,6 +1,8 @@
 # jmerge
 
-`jmerge` merges every open pull request of the repo it runs in that is reviewed, fixed and green. No model reads anything. The rules are in `features/jmerge/src/jmerge/ready.py`.
+`jmerge` merges every open pull request of the repo it runs in that is reviewed, fixed and green.
+No model reads anything.
+The rules are in `features/jmerge/src/jmerge/ready.py`.
 
 ```sh
 uv run --project <checkout> jmerge
@@ -52,7 +54,13 @@ Each item below is a reason a pull request waits.
 - A brief that says `Review: twice` waits for its first review, the answers to that review's findings by id and a `Fixed:` line that names a pushed head, then for a second review written at a head after the first review's (`its second review is not written at <head>`).
   The second review's findings hold nothing, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`), and no scoped review, ruling on a decline or range-diff review after a rebase is asked; a clean first review, or a `Fixed: none needed`, owes no second review.
 - **The required check passed, and GitHub says it merges.** Green is the check named `check`, passed at the head, whatever the other checks say: `check has not passed`. A conflict is `it conflicts with its base`.
-- **Its queue row lets it merge.** `jmerge` reads the `queue.json` of the jbus project whose checkout this is (`features/jmerge/src/jmerge/rows.py`), once a run, and looks up the row whose slug is the brief's. A row `jbus queue hold` took the go from waits as `its queue row is held: approve it again to let it merge`: hold stops a merge as it stops a launch, and `--accept` does not lift it. A row that names others in `merge_after` waits as `merges after <slug> (#<n>), not merged yet` for the first of them that is not `merged` or `done`; it is judged on the next run after the one in which that pull request merges. A queue that is there and cannot be read leaves every pull request waiting, `its queue cannot be read, so its holds and merge order are not known`. A repo with no jbus config, or that no project names, has no queue and no such wait. These come after the review and rebase gates, so a pull request shows what it is short of first, and before the fresh check, so one that must wait never takes its single place.
+- **Its queue row lets it merge.**
+  `jmerge` reads the `queue.json` of the jbus project whose checkout this is (`features/jmerge/src/jmerge/rows.py`), once a run, and looks up the row whose slug is the brief's.
+  A row `jbus queue hold` took the go from waits as `its queue row is held: approve it again to let it merge`: hold stops a merge as it stops a launch, and `--accept` does not lift it.
+  A row that names others in `merge_after` waits as `merges after <slug> (#<n>), not merged yet` for the first of them that is not `merged` or `done`; it is judged on the next run after the one in which that pull request merges.
+  A queue that is there and cannot be read leaves every pull request waiting, `its queue cannot be read, so its holds and merge order are not known`.
+  A repo with no jbus config, or that no project names, has no queue and no such wait.
+  These come after the review and rebase gates, so a pull request shows what it is short of first, and before the fresh check, so one that must wait never takes its single place.
 - **Main is not red, or it is the fix of a red main.** jbus keeps main's red tip as `broken` in `main.json` beside the queue, the one record of it (`docs/jbus.md`). While main's tip there is not green and it names one, `jmerge` merges no pull request but the fix's, the one whose brief is `main-red-<sha12>`, and every other waits as `main is red at <sha12>, its fix merges first`. It is judged after the queue row's wait and before the fresh check, and it ends when jbus sees a green tip: a fix that merges in this run frees the others on the next, once the tip's check has passed. A repo with no jbus config, no project or no file has no such wait, and a file that cannot be read says nothing is known.
   This hold reads main's state for a pull request into main only: one into an integration branch is held by that branch's own red ("Integration branches").
   jbus looks at every tip main went through since its last pass, so a tip that failed under a newer one whose check still runs is red, and a green tip after it ends the red, whether or not the message to the red pull requests' crews went through.
@@ -67,7 +75,11 @@ For a pull request into an integration branch it asks the same of that branch, a
 
 ## Migrations
 
-A numbered migration takes its number when the branch is cut and needs it when the branch lands, so two pull requests that were ready together take the same next number, and the one that merges second breaks main or needs a hand renumber. A repo that sets `migrations = "db/migrations"` in its project table in `~/.config/jbus/config.toml` ([Configuration](../../../docs/configuration.md#jbus)) has `jmerge` give the number at merge time. A pull request adds a migration when GitHub lists a file it adds directly in that directory. `0005_insulin.up.sql` and `0005_insulin.down.sql` are one migration, `0005_insulin`. A repo with no `migrations` key, and a pull request that adds none, is held for nothing here.
+A numbered migration takes its number when the branch is cut and needs it when the branch lands, so two pull requests that were ready together take the same next number, and the one that merges second breaks main or needs a hand renumber.
+A repo that sets `migrations = "db/migrations"` in its project table in `~/.config/jbus/config.toml` ([Configuration](../../../docs/configuration.md#jbus)) has `jmerge` give the number at merge time.
+A pull request adds a migration when GitHub lists a file it adds directly in that directory.
+`0005_insulin.up.sql` and `0005_insulin.down.sql` are one migration, `0005_insulin`.
+A repo with no `migrations` key, and a pull request that adds none, is held for nothing here.
 
 - **They merge in the repo's declared order.** The migration pull requests are judged in the order of `merge_after` in the queue (a row after the rows it names, also through a row that has no migration), and where no order is declared the older pull request first. `jmerge --check` shows them in that order, with one `ready` and the others waiting.
 - **One is let through in a run.** The first migration pull request that is short of nothing else is let through; a second one that is ready waits as `it adds a migration, and #<n>, which merges before it, is merging`, since the merge changes the numbers the others are judged by. It is judged again on the next run. A pull request that adds no migration is not held.
@@ -79,7 +91,10 @@ Each reason is a constant of `features/jmerge/src/jmerge/ready.py` (`MIGRATION_T
 
 ## Fresh against main
 
-The check's start is the earliest start of the runs named `check` at the head. After a `git fetch` in the main checkout, `jmerge` lists the paths the first-parent commits of the default branch changed since then. A pull request waits when one of those paths is its own, is a CI path in `features/jmerge/src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`), or is a caller of its files or something they depend on. That last is read from the files, at the tip for main's and at the head for its own: one imports the other, Python's way, by the file's dotted path or any tail of it (a `conftest.py` counts for every Python file under its directory), or names the other's path where that path has a `/` in it:
+The check's start is the earliest start of the runs named `check` at the head.
+After a `git fetch` in the main checkout, `jmerge` lists the paths the first-parent commits of the default branch changed since then.
+A pull request waits when one of those paths is its own, is a CI path in `features/jmerge/src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`), or is a caller of its files or something they depend on.
+That last is read from the files, at the tip for main's and at the head for its own: one imports the other, Python's way, by the file's dotted path or any tail of it (a `conftest.py` counts for every Python file under its directory), or names the other's path where that path has a `/` in it:
 
 ```
 wait <number> <url>: main changed <up to five paths, then "and <k> more"> after its check started at <HH:MM> <zone>; it needs a fresh check
@@ -87,7 +102,38 @@ wait <number> <url>: main changed <up to five paths, then "and <k> more"> after 
 
 `main` there is the name of the base branch. A main that moved only on other paths, none of them a caller or a dependency, leaves the check standing, and nothing is rebased for it.
 
-A repo opts in to a local check with a `fresh-check` file in its state directory: one line, the command, such as `make check`. `jmerge` merges the head over today's main with `git merge-tree`. It first asks GitHub for a green marker of that merge's tree (`features/jmerge/src/jmerge/green.py`, the lookup `scripts/green_tree.py` makes in CI): a `green-tree-<tree>` artifact of a run of the check, of this repo and not a fork's, that ended in success, or the desk's ref of the tree. A marker counts only for the exact tree it names. With one, the suite is not run again: the pass is kept in `fresh.json` with the tree and the marker, and the `ready` and `merged` lines say `fresh: skipped, tree <tree> passed in <run url or desk commit>, on <head12> over <main12>`, which `merge.log` keeps and jbus logs in `events.jsonl` as the `jmerge` event of the line. A marker of another tree, one a red run left, none, or a GitHub that could not say, and the check runs as before. Without a marker it starts the check, and goes on: the line says `a fresh check is queued`. The check runs outside the run that started it, in a transient user unit `jmerge-fresh-<repo>-<number>` (`systemd-run --user`; `journalctl --user -u` it), or, run outside any systemd unit where systemd cannot start one, as a process in a session of its own. Inside a unit, where such a process would end with it, the line is `a fresh check could not be run (<what systemd-run said>)`. It holds `<state>/fresh.lock` for as long as it runs, runs the command in a worktree at `<state>/fresh/<number>` with a 15-minute limit, removes the worktree, and keeps the result in `<state>/fresh.json`, where the next run reads it. It never touches the crewmate's branch or worktree. A pass is said on the `ready` and `merged` lines. A pass is also the one thing it pushes: the merge that passed goes to `refs/jstack/green-tree/<tree>` on the origin, named for that merge's tree, before the pass is said. The merge that lands has the same tree, so the job `full` of main's run of the check finds the marker, runs `uv sync --locked`, and skips `make check`. A pull request's own job, `check`, runs `make check-fast BASE=HEAD^1`, the lint and the tests its change reaches. Where that selection is 80% of the test files or more, or the change touches something every test rests on, it runs the whole suite, and a pass leaves the marker `green-tree-<tree>` for the tree it checked out, GitHub's merge of the head over main: a marker says the full suite passed a tree, so a fast run leaves none. Its job summary says `full suite: yes` or `no`, `tree <tree>`, and the same goes to `ci.jsonl` as the job's `full` and `tree` (`jbus ci --notice`). Where main did not move before the merge, main's run of `full` has that tree and skips the suite on it, so the pull request's tree is tested once. A marker that could not be pushed leaves the pass standing, and the note ends `, its tree is not marked (<why>)`. A fail is `wait <number> <url>: <command> fails on <head12> over today's main <main12>`. A command still running at the limit is stopped, and that says nothing of the tree, since the limit counts the wait for a test slot too: it is recorded as `timed out`, the line is `a fresh check is queued`, and the next run starts the check again. It is never a rebase. A head that does not merge there is `it conflicts with today's main`, and a command that could not start is `a fresh check could not be run (<why>)`. A pass is kept when main moves again, without a new check, where main's change since the main it passed over meets none of the pull request's tests: the repo's own `scripts/select_tests.py`, run in a worktree of the head merged over today's main, selects no test file in common for main's change and the pull request's paths, and neither selects `all`. A test file on the map's `Cross-cutting:` line is selected by every change, so in a repo that has one no pass is kept. The line then says `fresh: <command> passed on <head12> over <main12 it passed over>, kept over <today's main12>: main's change since meets none of its tests`. A repo with no such script, a pull request whose paths GitHub did not give in full, or a selection that cannot be made keeps none, and the check is queued again. A pull request held on something else, a line its rebase dropped or a hold that is the user's, starts no fresh check: it is judged fresh only once nothing else keeps it. One run of `jmerge` starts one check, and none while another holds the lock: the other pull requests wait with `a fresh check is queued`. `--check` starts none. A jmerge that jbus stops leaves the check running to its end. The three limits keep that order: the check's own 15 minutes (`Fresh.TIMEOUT`), the 17 minutes a jbus pass allows `jmerge` (`JMERGE_TIMEOUT` in `src/jbus/wake.py`), and the unit's `TimeoutStartSec=20min`, and `tests/test_jbus.py` fails if they are reordered.
+A repo opts in to a local check with a `fresh-check` file in its state directory: one line, the command, such as `make check`.
+`jmerge` merges the head over today's main with `git merge-tree`.
+It first asks GitHub for a green marker of that merge's tree (`features/jmerge/src/jmerge/green.py`, the lookup `scripts/green_tree.py` makes in CI): a `green-tree-<tree>` artifact of a run of the check, of this repo and not a fork's, that ended in success, or the desk's ref of the tree.
+A marker counts only for the exact tree it names.
+With one, the suite is not run again: the pass is kept in `fresh.json` with the tree and the marker, and the `ready` and `merged` lines say `fresh: skipped, tree <tree> passed in <run url or desk commit>, on <head12> over <main12>`, which `merge.log` keeps and jbus logs in `events.jsonl` as the `jmerge` event of the line.
+A marker of another tree, one a red run left, none, or a GitHub that could not say, and the check runs as before.
+Without a marker it starts the check, and goes on: the line says `a fresh check is queued`.
+The check runs outside the run that started it, in a transient user unit `jmerge-fresh-<repo>-<number>` (`systemd-run --user`; `journalctl --user -u` it), or, run outside any systemd unit where systemd cannot start one, as a process in a session of its own.
+Inside a unit, where such a process would end with it, the line is `a fresh check could not be run (<what systemd-run said>)`.
+It holds `<state>/fresh.lock` for as long as it runs, runs the command in a worktree at `<state>/fresh/<number>` with a 15-minute limit, removes the worktree, and keeps the result in `<state>/fresh.json`, where the next run reads it.
+It never touches the crewmate's branch or worktree.
+A pass is said on the `ready` and `merged` lines.
+A pass is also the one thing it pushes: the merge that passed goes to `refs/jstack/green-tree/<tree>` on the origin, named for that merge's tree, before the pass is said.
+The merge that lands has the same tree, so the job `full` of main's run of the check finds the marker, runs `uv sync --locked`, and skips `make check`.
+A pull request's own job, `check`, runs `make check-fast BASE=HEAD^1`, the lint and the tests its change reaches.
+Where that selection is 80% of the test files or more, or the change touches something every test rests on, it runs the whole suite, and a pass leaves the marker `green-tree-<tree>` for the tree it checked out, GitHub's merge of the head over main: a marker says the full suite passed a tree, so a fast run leaves none.
+Its job summary says `full suite: yes` or `no`, `tree <tree>`, and the same goes to `ci.jsonl` as the job's `full` and `tree` (`jbus ci --notice`).
+Where main did not move before the merge, main's run of `full` has that tree and skips the suite on it, so the pull request's tree is tested once.
+A marker that could not be pushed leaves the pass standing, and the note ends `, its tree is not marked (<why>)`.
+A fail is `wait <number> <url>: <command> fails on <head12> over today's main <main12>`.
+A command still running at the limit is stopped, and that says nothing of the tree, since the limit counts the wait for a test slot too: it is recorded as `timed out`, the line is `a fresh check is queued`, and the next run starts the check again.
+It is never a rebase.
+A head that does not merge there is `it conflicts with today's main`, and a command that could not start is `a fresh check could not be run (<why>)`.
+A pass is kept when main moves again, without a new check, where main's change since the main it passed over meets none of the pull request's tests: the repo's own `scripts/select_tests.py`, run in a worktree of the head merged over today's main, selects no test file in common for main's change and the pull request's paths, and neither selects `all`.
+A test file on the map's `Cross-cutting:` line is selected by every change, so in a repo that has one no pass is kept.
+The line then says `fresh: <command> passed on <head12> over <main12 it passed over>, kept over <today's main12>: main's change since meets none of its tests`.
+A repo with no such script, a pull request whose paths GitHub did not give in full, or a selection that cannot be made keeps none, and the check is queued again.
+A pull request held on something else, a line its rebase dropped or a hold that is the user's, starts no fresh check: it is judged fresh only once nothing else keeps it.
+One run of `jmerge` starts one check, and none while another holds the lock: the other pull requests wait with `a fresh check is queued`.
+`--check` starts none.
+A jmerge that jbus stops leaves the check running to its end.
+The three limits keep that order: the check's own 15 minutes (`Fresh.TIMEOUT`), the 17 minutes a jbus pass allows `jmerge` (`JMERGE_TIMEOUT` in `src/jbus/wake.py`), and the unit's `TimeoutStartSec=20min`, and `tests/test_jbus.py` fails if they are reordered.
 
 The check runs every test, and a change needs fewer: `python3 scripts/select_tests.py <base> <head>` prints the test files a diff needs, one per line, or `all`.
 It reads `git diff --name-only --no-renames <base> <head>`, where `<base>` is where the pull request left main or the parent of its merge commit, and the imports of the tree: a changed module selects the tests that import it, through any chain of modules, and a changed file that is no module selects the tests that spell its path.
@@ -161,7 +207,8 @@ A push that fixes a failed check after the review is read the same way. The crew
 
 ## Protected and guarded paths
 
-`jmerge` reads three lists from its own package directory, never from a pull request: `protected.txt`, `guarded.txt` and `features/jmerge/src/jmerge/ci-paths.txt`, the paths that decide whether a check still stands ([Fresh against main](#fresh-against-main)). Each holds patterns and nothing else.
+`jmerge` reads three lists from its own package directory, never from a pull request: `protected.txt`, `guarded.txt` and `features/jmerge/src/jmerge/ci-paths.txt`, the paths that decide whether a check still stands ([Fresh against main](#fresh-against-main)).
+Each holds patterns and nothing else.
 
 ### Patterns
 
@@ -171,19 +218,28 @@ One pattern per line. A line that starts with `#` is a comment, and the shipped 
 - Any other pattern is a file. With no `/` in it, it is a file name at any depth. With one, it is the whole path from the root of the repo: `src/jbus/merge.py`, `/Makefile`.
 - `*` matches any run of characters between two `/`, and never a `/` itself.
 
-`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part. It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: features/jmerge/docs/jmerge.md#patterns)`.
+`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part.
+It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: features/jmerge/docs/jmerge.md#patterns)`.
 
 ### The lists
 
-**Protected paths** are in `features/jmerge/src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the files `protected.txt` and `guarded.txt` themselves, and the directories `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records. A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`. So is one whose file list GitHub cut short.
+**Protected paths** are in `features/jmerge/src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the files `protected.txt` and `guarded.txt` themselves, and the directories `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
+A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`.
+So is one whose file list GitHub cut short.
 
-**Guarded paths** are in `features/jmerge/src/jmerge/guarded.txt`, which is empty: no path is guarded, and a ready pull request merges with no proven safety fact at its head. A pattern added to it guards that path again, and since the file is protected, the user merges that change. `jmerge` merges a pull request that changes a guarded path under a stricter gate, and prints a part that does not hold as `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
+**Guarded paths** are in `features/jmerge/src/jmerge/guarded.txt`, which is empty: no path is guarded, and a ready pull request merges with no proven safety fact at its head.
+A pattern added to it guards that path again, and since the file is protected, the user merges that change.
+`jmerge` merges a pull request that changes a guarded path under a stricter gate, and prints a part that does not hold as `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
 
 - **A check with a start time.** `check` passed at the head, and the time its earliest run started there is known: `its check has no start time`.
 - **A finished review of that head.** Every blocking finding has its answer, which the rule above holds on every path. The head is the one the review saw, the `Fixed:` commit, a head the review carried over to, or in a brief from before the head of a `Rebase: patch unchanged` line whose patch-ids match: `its head is not the one its review saw`.
 - **A rebase, and no local check.** Where main changed one of its paths, a CI path, or a caller or a dependency of its files since the check started, a guarded pull request gets no `fresh-check` run. Its line ends `it needs a rebase`.
 - **A proven safety fact.** The review proved the one fact the change is safe because of, at the commit it saw. That is the `Proof:` line of the `## Review` section: a command that ended `exit 0`. A proof carries over a rebase, or a `CI fix:` push, whose range-diff is clean. It does not carry over a fix pushed for the review's findings. Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, review step 5)`.
-- **Rules that are main's.** Before it judges a guarded pull request, `jmerge` fetches the checkout that holds its own package. It goes on only if the package there has no uncommitted change and matches the default branch of `origin`. It pulls a checkout that is behind, and guarded pull requests wait for the next run: `jmerge pulled main's rules; judged on the next run`. After a merge that changes `features/jmerge/src/jmerge/`, every later guarded pull request of that run waits: `jmerge's rules changed in this run`.
+- **Rules that are main's.**
+  Before it judges a guarded pull request, `jmerge` fetches the checkout that holds its own package.
+  It goes on only if the package there has no uncommitted change and matches the default branch of `origin`.
+  It pulls a checkout that is behind, and guarded pull requests wait for the next run: `jmerge pulled main's rules; judged on the next run`.
+  After a merge that changes `features/jmerge/src/jmerge/`, every later guarded pull request of that run waits: `jmerge's rules changed in this run`.
 
 ## Accept a held pull request
 
@@ -193,7 +249,8 @@ One pattern per line. A line that starts with `#` is a comment, and the shipped 
 jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"
 ```
 
-`<zone>` is your `timezone_label`, or the word your time zone prints, such as `CEST`. [Configuration](../../../docs/configuration.md#jstack) has both keys.
+`<zone>` is your `timezone_label`, or the word your time zone prints, such as `CEST`.
+[Configuration](../../../docs/configuration.md#jstack) has both keys.
 
 It lifts the hold at the head the hold was said at, which `jmerge` keeps in `holds.json` in the state directory. It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head. `--by` takes the `user` of `~/.config/jstack/config.toml` and nothing else, which is `user` where that file names none. It writes an `accepted` line with who and when to `merge.log`, and then judges the pull request as any other: the guarded gate and `merge-off` apply. `jmerge --accept <number> --check` says what it would do.
 
