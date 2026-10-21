@@ -217,7 +217,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
             HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),
         )
     )
-    patterns, pushed = jleak.path(machine.config_home()), GitHook("pre-push", "hooks/pre-push.sh")
+    patterns, pushed = (
+        jleak.path(machine.config_home()),
+        GitHook("pre-push", "features/jleak/hooks/pre-push.sh"),
+    )
     found += [
         Need(f"patterns {patterns}", Level.OPTIONAL, Patterns(patterns)),
         Need(

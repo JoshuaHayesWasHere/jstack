@@ -1052,7 +1052,7 @@ def test_the_push_hook_is_linked_in_a_main_checkout_that_the_home_holds(user):
 
     assert run("--check") == [f"missing {part}"]
     assert run() == [f"ok {part}"]
-    assert os.readlink(link) == str(checkout / "hooks" / "pre-push.sh")
+    assert os.readlink(link) == str(checkout / "features" / "jleak" / "hooks" / "pre-push.sh")
     assert os.access(link, os.X_OK)
     assert run("--check") == [f"ok {part}"]
     assert run("--uninstall") == [f"removed {link}"]

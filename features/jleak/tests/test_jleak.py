@@ -27,7 +27,7 @@ KEYS = {
 
 
 def run(*args, cwd=None, stdin=""):
-    env = os.environ | {"PYTHONPATH": str(REPO / "src")}
+    env = os.environ | {"PYTHONPATH": str(REPO / "features" / "jleak" / "src")}
     done = subprocess.run(
         [sys.executable, "-m", "jleak", *args],
         capture_output=True,

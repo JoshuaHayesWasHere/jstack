@@ -11,7 +11,8 @@ Paths:
 - `src/jgauge/`
 - `src/jmerge/`
 - `src/jpack/`
-- `src/jleak/`
+- `features/jleak/src/jleak/`
+- `features/jleak/hooks/`
 - `src/jroles/`
 - `features/jsettings/`
 - `hooks/`

@@ -71,7 +71,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [jbus view](./jbus-view.md), not driven yet.
 - [jdrift lists what changed upstream](../../../../features/jdrift/verify.md), not driven yet.
 - [jgauge meters a session](./jgauge-meter.md), not driven yet.
-- [jleak stops a leak](./jleak.md), not driven yet.
+- [jleak stops a leak](../../../../features/jleak/verify.md), not driven yet.
 - [jroles names a model](./jroles.md), not driven yet.
 - [Lessons from a thread](./lessons-skills.md), not driven yet.
 - [Playbooks and principles](./playbooks-and-principles.md), not driven yet.

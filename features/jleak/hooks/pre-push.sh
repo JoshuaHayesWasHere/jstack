@@ -1,7 +1,8 @@
 #!/bin/sh
 
-repo=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 1
-[ -d "$repo/src/jleak" ] || {
+here=$(readlink -f "$0") || exit 1
+repo=${here%/features/jleak/hooks/*}
+[ -d "$repo/features/jleak/src/jleak" ] || {
   echo "jleak: $repo is no checkout of jstack, so the push is refused" >&2
   exit 1
 }
