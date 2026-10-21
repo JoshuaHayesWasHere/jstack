@@ -6,7 +6,10 @@
 uv run --project <checkout> jmerge
 ```
 
-For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (`--merge` for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout. It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head. It writes no plan: `jbus plan` counts an entry's status from its queue rows. It needs `gh` and `git`.
+For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (`--merge` for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout.
+It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head.
+It writes no plan: `jbus plan` counts an entry's status from its queue rows.
+It needs `gh` and `git`.
 
 It prints one line per open pull request, and appends the lines to `merge.log`. It logs a `wait` or `hold` line that repeats from run to run once.
 
@@ -30,7 +33,9 @@ Each item below is a reason a pull request waits.
 
 - **A draft waits.** A draft is never merged, with any flag: `wait <number> <url>: draft`.
 - **A brief names it.** A brief's Result has the pull request on its `Branch:` line. A brief that belongs to another home of the repo waits as `another home's`, unless `--all` is given.
-- **Its base is the default branch or an integration branch.** A pull request based on another branch is never merged (`its base is <base>, not <default>`), and one whose brief has a `Stack:` line only with `--land <stack>`. An integration branch is one the project's `integration` file names ("Integration branches").
+- **Its base is the default branch or an integration branch.**
+  A pull request based on another branch is never merged (`its base is <base>, not <default>`), and one whose brief has a `Stack:` line only with `--land <stack>`.
+  An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.** The brief has a `## Review` section with a verdict. After findings, the Result has a `Fixed:` line that names the head or says `none needed`. A `Second pass: needed since <head>` line waits for a review of a later head.
 - **Every blocking finding is answered.** On every path, not only after a second pass, each finding that blocks has an answer that counts. `jbriefs --findings` reads every `## Review` section into one list (`src/jbriefs/findings.py`, the one parser, which the crew skill and jbus read too): each finding gets an id, `F1`, `F2`, ..., in the order it stands, and two reviewers' findings of one head, one file within 5 lines (`NEAR`) and one principle are one id. Only an `(bucket: Act on)` finding blocks, and so do a finding written before the buckets and a finding tagged `(risk: <area>)`, whatever its bucket; a `Consider` one does not, and severity decides nothing. An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`. A decline counts only where its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`), and only where no other finding was declined for the same reason. A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, counts as declined only on such a gate, which the crew parks with the default "fix it". The waits: `its findings are not handled: F1, F3 have no answer by id`, `... the decline of F2 cites no path:line, command or gate`, `... the decline of F2 gives the reason of F1`, `... F1 on auth declined with no gate question`. A brief from before the ids answered with `Finding: fixed, ...` lines with no id, and those still go to its findings by count, in order: it waits with `its findings are not handled: <k> of <n> have no Finding line`, and a decline `because .` is no answer. jbus's `expedite` tells the crew each of these, with the ids.
 - A brief that says `Review: none` waits with `its brief says Review: none, so it needs the user's word`.
