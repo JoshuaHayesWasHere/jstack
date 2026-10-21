@@ -548,7 +548,7 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
 
 
 def test_no_page_and_no_skill_names_one_persons_checkout():
-    read = [*PAGES, *HTML, *sorted((REPO / "skills").rglob("*.md"))]
+    read = [*PAGES, *sorted(DOCS.glob("*.html")), *sorted((REPO / "skills").rglob("*.md"))]
     assert len(read) > 30
     found = [
         f"{path.relative_to(REPO)}: {word}"
