@@ -1,0 +1,8 @@
+[Unit]
+Description=jbus: tell the Chef that the last pass did not finish
+Documentation=file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus alarm

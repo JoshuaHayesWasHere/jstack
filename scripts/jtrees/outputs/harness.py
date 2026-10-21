@@ -3,12 +3,14 @@
 
 The copy holds every skill as `skills/<name>/`, flat, every playbook as `playbooks/<name>.md`,
 every principle as `principles/<name>.md` (a stub that points at it, once a principle is a
-skill), the templates but the systemd units, each hook a feature declares as `hooks/<file>`,
-`plugin.json` twice and a README. `skills/` and `templates/` are siblings in it, as in the
-checkout, so a skill that finds its templates through its own link still finds them. src/,
-tests/, docs/ and the units stay in the checkout. Each Markdown file's relative links are
-rewritten for the copy (`links`). The folder is written whole: a file in it that no item makes is
-removed.
+skill), the templates with the systemd units, each hook a feature declares as `hooks/<file>`,
+`plugin.json` twice, a README, and `skills.json`, the checkout's list with each path the
+copy's own, which `jbriefs.skills` reads where no checkout is above it. `skills/` and
+`templates/` are siblings in it, as in the checkout, so a skill that finds its templates
+through its own link still finds them. src/, tests/ and docs/ stay in the checkout. The wheel
+takes the copy whole as the folder `PACKAGED`, beside the packages (the pyproject output), so
+a release is installed with no checkout. Each Markdown file's relative links are rewritten for
+the copy (`links`). The folder is written whole: a file in it that no item makes is removed.
 """
 
 from __future__ import annotations
@@ -20,12 +22,14 @@ from jtrees import links
 from jtrees.check import File
 from jtrees.crawl import PLUGIN, Invalid
 from jtrees.model import Tree
+from jtrees.outputs import catalog
 
 HARNESS = "claude-code"
 COPY = f"harness/jstack/{HARNESS}"
 PYTHONPATH = "harness/jstack/pythonpath"
+# The copy's folder in the wheel, beside the packages: `jbriefs.skills.PACKAGED` reads it.
+PACKAGED = "jstack_harness"
 DIRS = (COPY,)
-UNITS = (".service", ".timer")
 # What a skill's folder holds that is not the skill: a feature's other parts, and its
 # playbooks, which the copy puts in playbooks/.
 NOT_THE_SKILL = frozenset(
@@ -66,7 +70,7 @@ def _placed(tree: Tree) -> tuple[dict[str, str], dict[str, str]]:
             placed[item.path] = f"principles/{item.name}.md"
         elif item.kind == "playbook":
             placed[item.path] = f"playbooks/{item.name}.md"
-        elif not item.name.endswith(UNITS):
+        else:
             placed[item.path] = f"templates/{item.name}"
     for feature in tree.features:
         scripts = [one.script for one in feature.hooks] + [one for _, one in feature.git_hooks]
@@ -97,14 +101,15 @@ def _readme(tree: Tree, placed: dict[str, str]) -> str:
     return (
         f"{HEADER}# jstack for Claude Code\n\n"
         "This folder is jstack as an agent reads it, made from the checkout's `features/` by "
-        "`python3 scripts/generate-jstack-trees.py`. `install.sh` links each entry of "
+        "`python3 scripts/generate-jstack-trees.py`, and a release's wheel carries it whole. "
+        "`install.sh` in a checkout, or `jinstall` from a release, links each entry of "
         "`~/.claude/skills`, `~/.agents/skills` and `~/.codex/skills` to a folder of `skills/` "
-        "here, and each hook command to a script of `hooks/`. An edit to a skill in the "
-        "checkout reaches an agent once the generator has run.\n\n"
+        "here, each hook command to a script of `hooks/`, and each systemd unit to its file in "
+        "`templates/`. An edit to a skill in the checkout reaches an agent once the generator "
+        "has run.\n\n"
         f"It holds {len(skills)} skills, {counts['playbooks']} playbooks, "
         f"{counts['principles']} principles, {counts['templates']} templates and "
-        f"{counts['hooks']} hooks. The code, the tests, the docs and the systemd units stay in "
-        "the checkout.\n\n"
+        f"{counts['hooks']} hooks. The code, the tests and the docs stay in the checkout.\n\n"
         "| Skill | What it is for |\n|---|---|\n"
         f"{rows}"
     )
@@ -141,5 +146,7 @@ def render(tree: Tree) -> dict[str, File | bytes]:
         want[f"{COPY}/{stub}"] = _stub(name).encode()
     want[f"{COPY}/.claude-plugin/plugin.json"] = want[f"{COPY}/plugin.json"]
     want[f"{COPY}/README.md"] = _readme(tree, placed).encode()
+    items = [one | {"path": placed[str(one["path"])]} for one in catalog.entries(tree)]
+    want[f"{COPY}/{catalog.PATH}"] = catalog.text(items)
     want[PYTHONPATH] = _pythonpath(tree).encode()
     return want

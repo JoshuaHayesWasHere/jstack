@@ -118,6 +118,7 @@ Each command has one page.
 | `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [docs/jdrift.md](docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
+| `jinstall` |  | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
 | `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
 | `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |

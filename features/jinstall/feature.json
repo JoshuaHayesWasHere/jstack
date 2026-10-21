@@ -1,7 +1,13 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "jinstall",
-  "description": "Installs, checks and removes jstack on a machine, for install.sh.",
+  "description": "Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release.",
+  "packages": [
+    "src/jinstall"
+  ],
+  "commands": {
+    "jinstall": "jinstall.cli:main"
+  },
   "owns": [
     "tests/test_units.py",
     "src/jinstall/**",

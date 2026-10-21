@@ -54,6 +54,7 @@ def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
     assert ran.returncode == 1
     assert ran.stderr.splitlines() == [
         f"stale: {COPY}/README.md",
+        f"stale: {COPY}/skills.json",
         f"stale: {COPY}/skills/bro/SKILL.md",
         "stale: skills.json",
         f"run python3 {SCRIPT} and commit the result",
@@ -65,7 +66,8 @@ def test_a_run_writes_what_is_stale_and_a_second_run_writes_nothing(copy):
     skill = copy / "skills" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text().replace("description: ", "description: Now ", 1))
     assert generate(copy).stdout == (
-        f"wrote {COPY}/README.md\nwrote {COPY}/skills/bro/SKILL.md\nwrote skills.json\n"
+        f"wrote {COPY}/README.md\nwrote {COPY}/skills.json\n"
+        f"wrote {COPY}/skills/bro/SKILL.md\nwrote skills.json\n"
     )
     assert generate(copy).stdout.startswith("current: ")
     assert generate(copy, "--check").returncode == 0
@@ -124,6 +126,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         f"stale: {COPY}/README.md",
         f"stale: {COPY}/hooks/foo-start.sh",
         f"stale: {COPY}/playbooks/foo-run.md",
+        f"stale: {COPY}/skills.json",
         f"stale: {COPY}/skills/foo/SKILL.md",
         f"stale: {COPY}/templates/foo.md",
         "stale: harness/jstack/pythonpath",
@@ -144,6 +147,13 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "nameable": True,
     }
     assert items["template", "foo.md"]["path"] == "features/foo/templates/foo.md"
+    copied = {
+        (one["kind"], one["name"]): one["path"]
+        for one in json.loads((copy / COPY / "skills.json").read_text())["items"]
+    }
+    assert copied["skill", "foo"] == "skills/foo/SKILL.md"
+    assert copied["playbook", "foo-run"] == "playbooks/foo-run.md"
+    assert copied["template", "foo.md"] == "templates/foo.md"
     project = tomllib.loads((copy / "pyproject.toml").read_text())
     assert project["project"]["scripts"]["foo"] == "foo.cli:main"
     assert (
@@ -284,7 +294,7 @@ def test_a_principle_skill_does_not_make_the_skills_after_it_principles(copy):
     assert {("principle", "principle-alpha"), ("skill", "zeta")} <= kinds
 
 
-def test_the_copy_holds_each_skill_playbook_principle_template_and_hook_and_no_unit(copy):
+def test_the_copy_holds_each_skill_playbook_principle_template_unit_and_hook(copy):
     shutil.rmtree(copy / COPY)
     assert generate(copy).returncode == 0
     copied = copy / COPY
@@ -297,8 +307,9 @@ def test_the_copy_holds_each_skill_playbook_principle_template_and_hook_and_no_u
     templates = sorted(
         p.relative_to(copy / "templates").as_posix()
         for p in (copy / "templates").rglob("*")
-        if p.is_file() and p.suffix not in (".service", ".timer")
+        if p.is_file()
     )
+    assert "jbus.timer" in templates
     assert (
         sorted(
             p.relative_to(copied / "templates").as_posix()
@@ -307,6 +318,8 @@ def test_the_copy_holds_each_skill_playbook_principle_template_and_hook_and_no_u
         )
         == templates
     )
+    for unit in (copy / "templates").glob("*.service"):
+        assert filecmp.cmp(copied / "templates" / unit.name, unit, shallow=False)
     for hook in (copy / "hooks").iterdir():
         assert filecmp.cmp(copied / "hooks" / hook.name, hook, shallow=False)
         assert os.access(copied / "hooks" / hook.name, os.X_OK) == os.access(hook, os.X_OK)
@@ -315,6 +328,28 @@ def test_the_copy_holds_each_skill_playbook_principle_template_and_hook_and_no_u
     assert (copied / "README.md").is_file()
     assert (copy / "harness/jstack/pythonpath").read_text() == "src\n"
     assert generate(REPO, "--check").returncode == 0
+
+
+def test_the_copys_skills_json_lists_what_the_checkouts_does_each_path_a_file_of_the_copy():
+    root = json.loads((REPO / "skills.json").read_text())["items"]
+    copied = json.loads((REPO / COPY / "skills.json").read_text())["items"]
+    assert [(one["kind"], one["name"]) for one in copied] == [
+        (one["kind"], one["name"]) for one in root
+    ]
+    for one in copied:
+        assert (REPO / COPY / one["path"]).is_file(), one
+    pairs = {(one["kind"], one["name"]): one["path"] for one in copied}
+    assert pairs["skill", "crew"] == "skills/crew/SKILL.md"
+    assert pairs["playbook", "feature"] == "playbooks/feature.md"
+    assert pairs["template", "jbus.timer"] == "templates/jbus.timer"
+
+
+def test_the_wheel_takes_the_copy_whole_as_package_data_and_jinstall_as_a_command():
+    project = tomllib.loads((REPO / "pyproject.toml").read_text())
+    wheel = project["tool"]["hatch"]["build"]["targets"]["wheel"]
+    assert wheel["force-include"] == {COPY: "jstack_harness"}
+    assert "src/jinstall" in wheel["packages"]
+    assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
 
 
 def test_a_link_to_a_file_the_copy_leaves_out_points_at_github(copy):
