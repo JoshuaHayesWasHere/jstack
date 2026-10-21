@@ -565,7 +565,7 @@
     {
       "name": "setup-pstack",
       "kind": "skill",
-      "path": "skills/setup-pstack/SKILL.md",
+      "path": "features/jinstall/skills/setup-pstack/SKILL.md",
       "source": "josh",
       "description": "Set this machine up for jstack, or check it again - run the checkout's own `install.sh --setup`, which walks every need once, writes the configs that are not there and links the units, then the doctor, and report what was done, what was already there and the one command for each thing only the user can do. Use for /setup-pstack."
     },

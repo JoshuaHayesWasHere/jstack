@@ -33,11 +33,11 @@ Find your line in the tables. A word in angle brackets stands for a value on you
 
 ## The platform and the programs
 
-[The platform and the programs](troubleshooting/the-platform-and-the-programs.md) has its lines.
+[The platform and the programs](../features/jinstall/docs/troubleshooting/the-platform-and-the-programs.md) has its lines.
 
 ## The skill links
 
-Each skill link points into its harness's layout, which the install assembles from the checkout or the release ([The layouts](jinstall.md#the-layouts)).
+Each skill link points into its harness's layout, which the install assembles from the checkout or the release ([The layouts](../features/jinstall/docs/jinstall.md#the-layouts)).
 
 | Line | Meaning | Do this |
 |---|---|---|
@@ -99,11 +99,11 @@ A status line of your own gets no line. [Configuration](configuration.md#the-lim
 
 ## The configs and the limits file
 
-[The configs and the limits file](troubleshooting/the-configs-and-the-limits-file.md) has its lines.
+[The configs and the limits file](../features/jinstall/docs/troubleshooting/the-configs-and-the-limits-file.md) has its lines.
 
 ## Setup
 
-[Setup](troubleshooting/setup.md) has its lines.
+[Setup](../features/jinstall/docs/troubleshooting/setup.md) has its lines.
 
 ## The jbus units
 

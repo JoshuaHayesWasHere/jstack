@@ -157,7 +157,7 @@ Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `j
 The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
 
-`install.sh` assembles one layout for each harness under `~/.local/share/jstack/harness/` ([The layouts](jinstall.md#the-layouts)), and links every skill of a layout into its harness's root: `~/.claude/skills` for Claude Code, `~/.codex/skills` for Codex, and `~/.agents/skills` for Cursor.
+`install.sh` assembles one layout for each harness under `~/.local/share/jstack/harness/` ([The layouts](../features/jinstall/docs/jinstall.md#the-layouts)), and links every skill of a layout into its harness's root: `~/.claude/skills` for Claude Code, `~/.codex/skills` for Codex, and `~/.agents/skills` for Cursor.
 Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries

@@ -60,7 +60,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [jmerge says ready, wait or hold](./jmerge-decision.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
 - [jgauge room](./jgauge-room.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
 - [A red main files the brief for its fix](./main-red.md) covers the `retro` line for a failed check on main, the `main-red-<sha12>` brief and its unapproved row, filed once a commit.
-- [Installing jstack](./install-skills.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
+- [Installing jstack](../../../../features/jinstall/verify.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
 
 These have their `Paths:` and `Tests:` lines and no recipe yet:
 

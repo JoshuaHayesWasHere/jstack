@@ -1,6 +1,6 @@
 # Hooks
 
-`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](jinstall.md#the-layouts)).
+`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](../features/jinstall/docs/jinstall.md#the-layouts)).
 This page says what each script does and shows the entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
 [Configuration](configuration.md) lists the entries with every other file you write.

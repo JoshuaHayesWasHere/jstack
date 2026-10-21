@@ -5,7 +5,7 @@
 Paths:
 - `/install.sh`
 - `/skills.json`
-- `src/jinstall/`
+- `features/jinstall/src/jinstall/`
 - `src/jbus/*.py`
 - `src/jbriefs/`
 - `src/jgauge/`

@@ -19,7 +19,7 @@ if [ -n "$version" ]; then
 fi
 
 here=$(dirname "$0")
-[ -f "$0" ] && [ -f "$here/src/jinstall/__main__.py" ] || {
+[ -f "$0" ] && [ -f "$here/features/jinstall/src/jinstall/__main__.py" ] || {
   echo "missing hard a checkout of jstack around $0 -> curl -fsSL $github/releases/latest/download/install.sh | sh"
   exit 1
 }

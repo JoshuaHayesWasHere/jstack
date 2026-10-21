@@ -384,5 +384,5 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
     ]
     assert {path.split("/", 1)[0] for path in paths} <= set(shared)
     assert {"skills.json", "plugin.json", "docs"} <= set(shared)
-    assert "src/jinstall" in wheel["packages"]
+    assert "features/jinstall/src/jinstall" in wheel["packages"]
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
