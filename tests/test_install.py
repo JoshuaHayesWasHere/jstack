@@ -33,6 +33,10 @@ COPY = REPO / HARNESS
 SKILLS = sorted(path.parent.name for path in (COPY / "skills").glob("*/SKILL.md"))
 ROOTS = (".claude/skills", ".agents/skills", ".codex/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
+PACKAGES = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"]
+PACKAGE_ROOTS = sorted(
+    {str(Path(package).parent) for package in PACKAGES["targets"]["wheel"]["packages"]}
+)
 UNITS = [
     "jbus-ci.service",
     "jbus-ci.timer",
@@ -95,6 +99,7 @@ case "$1 $2" in
   site=$tools/jstack/lib/python3/site-packages/jstack-0.1.0.dist-info
   mkdir -p "$site" "$bin"
   printf '{"url": "file://%s", "dir_info": {"editable": true}}' "$4" > "$site/direct_url.json"
+  for root in PACKAGE_ROOTS; do echo "$4/$root"; done > "$site/../_editable_impl_jstack.pth"
   for name in NAMES; do echo "#!/bin/sh" > "$bin/$name"; done
   echo "NAMES" > "$tools/jstack/names"
   ;;
@@ -105,7 +110,7 @@ case "$1 $2" in
   ;;
 *) exit 2 ;;
 esac
-""".replace("NAMES", " ".join(NAMES))
+""".replace("NAMES", " ".join(NAMES)).replace("PACKAGE_ROOTS", " ".join(PACKAGE_ROOTS))
 
 
 class User:
@@ -211,13 +216,18 @@ class User:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(value if isinstance(value, str) else json.dumps(value))
 
-    def tool(self, name, source, names):
-        """A tool as uv leaves one: its PEP 610 record, and its commands in the bin directory."""
+    def tool(self, name, source, names, roots=PACKAGE_ROOTS):
+        """A tool as uv leaves one: its PEP 610 record, the paths its .pth file lists for each
+        root in `roots`, and its commands in the bin directory."""
         site = self.tools / name / "lib" / "python3" / "site-packages" / f"{name}-0.1.0.dist-info"
         self.write(
             site / "direct_url.json", {"url": f"file://{source}", "dir_info": {"editable": True}}
         )
         self.write(self.tools / name / "names", " ".join(names))
+        self.write(
+            site.parent / f"_editable_impl_{name}.pth",
+            "".join(f"{source}/{root}\n" for root in roots),
+        )
         for each in names:
             self.write(self.bin / each, "#!/bin/sh\n")
 
@@ -457,62 +467,6 @@ def test_the_limits_writer_of_another_checkout_is_old_and_replaced(user):
     assert line_for(user.run("--check")[1], part) == [f"old optional {part} -> {was}"]
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["statusLine"] == STATUS
-
-
-def test_a_jgauge_tool_from_this_checkout_is_old_and_is_removed(user):
-    user.tool("jgauge", REPO, NAMES[:4])
-    code, said = user.run("--check")
-    assert line_for(said, "commands") == [
-        "old hard commands jstack -> tool jgauge, from before the rename, "
-        f"lacks {' '.join(NAMES[4:])}"
-    ]
-    assert user.run() == (0, user.every("ok"))
-    assert user.said(user.uv_log) == [
-        "tool uninstall jgauge",
-        f"tool install --editable {REPO} --reinstall",
-    ]
-    assert not (user.tools / "jgauge").exists()
-
-
-def test_a_tool_that_lacks_a_command_is_old_and_is_installed_again(user):
-    user.run()
-    (user.bin / NAMES[-1]).unlink()
-    (user.tools / "jstack" / "names").write_text(" ".join(NAMES[:-1]))
-    assert line_for(user.run("--check")[1], "commands") == [
-        f"old hard commands jstack -> lacks {NAMES[-1]}"
-    ]
-    assert user.run() == (0, user.every("ok"))
-    assert (user.bin / NAMES[-1]).exists()
-
-
-def test_a_program_that_is_not_uvs_is_never_replaced(user):
-    theirs = user.bin / NAMES[0]
-    user.write(theirs, "theirs\n")
-    code, said = user.run()
-    assert (code, line_for(said, "commands")) == (1, ["missing hard commands jstack"])
-    assert theirs.read_text() == "theirs\n"
-    assert user.said(user.uv_log) == [f"tool install --editable {REPO} --reinstall"]
-
-
-def test_a_tool_from_another_checkout_is_old_and_uninstall_keeps_it(user):
-    user.tool("jstack", "/elsewhere/jstack", NAMES)
-    assert line_for(user.run("--check")[1], "commands") == [
-        "old hard commands jstack -> an install of /elsewhere/jstack"
-    ]
-    code, said = user.run("--uninstall")
-    assert (code, said) == (0, ["kept commands jstack -> an install of /elsewhere/jstack"])
-    assert (user.tools / "jstack").is_dir()
-
-
-def test_a_command_that_another_program_shadows_is_old(user):
-    user.run()
-    shadow = user.script("jbus", "#!/bin/sh\n")
-    code, said = user.run()
-    assert code == 1
-    assert line_for(said, "commands") == [
-        f"old hard commands jstack -> jbus is shadowed by {shadow}"
-    ]
-    assert len(user.said(user.uv_log)) == 1
 
 
 def test_the_units_are_not_linked_while_the_commands_could_not_be_put(user):

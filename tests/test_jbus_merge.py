@@ -401,3 +401,25 @@ def test_a_row_on_its_step_or_of_another_home_tells_its_home_nothing(kitchen):
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.OTHER_HOME}\n")
     kitchen.poll(NOW + timedelta(minutes=1))
     assert sends(kitchen) == []
+
+
+UNFOLLOWED = (
+    "the tool jstack was not reinstalled after its package list changed "
+    "(uv tool install --editable /code/jstack --reinstall: error: no network)"
+)
+
+
+def test_a_merge_whose_tool_was_not_reinstalled_is_an_alert(kitchen):
+    kitchen.set(
+        "jmerge.txt", f'merged 7 alpha abc1234 "a move", {UNFOLLOWED}, kept: y, revert: x\n'
+    )
+    kitchen.poll()
+    assert kitchen.lines("alert") == [f"alert: demo: {UNFOLLOWED}"]
+    assert loud(kitchen) == [f"alert: demo: {UNFOLLOWED}"]
+
+
+def test_a_merge_whose_tool_was_reinstalled_is_no_alert(kitchen):
+    done = "reinstalled the tool jstack from /code/jstack: its package list changed"
+    kitchen.set("jmerge.txt", f'merged 7 alpha abc1234 "a move", {done}, revert: x\n')
+    kitchen.poll()
+    assert kitchen.lines("alert") == []

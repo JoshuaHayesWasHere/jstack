@@ -16,6 +16,7 @@ Tests: none
 - `decision-review-after` is ready on green alone when the brief says `Review: after`, before and after its review lands.
 - `decision-review-twice` waits for the second review of a `Review: twice` brief, is ready once it is written whatever it found, and `jbus cleanup` files its `warning` finding as a queue row.
 - `decision-red` waits while the check named `check` has not passed.
+- `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `tests/test_home_merge.py` drives it).
 - `decision-claims` lists the briefs that still hold files.
 - `decision-check-merges-nothing` asks GitHub and merges nothing.
 
