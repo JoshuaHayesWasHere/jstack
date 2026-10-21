@@ -750,8 +750,8 @@ ORACLE = """
 import builtins, importlib, json, sys
 from pathlib import Path
 
-tests, src = sys.argv[1:3]
-sys.path[:0] = [tests, src]
+tests, *folders = sys.argv[1:]
+sys.path[:0] = [tests, *folders]
 seen, failed = set(), []
 real = builtins.__import__
 
@@ -780,7 +780,14 @@ print(json.dumps({"seen": sorted(seen), "failed": failed}))
 
 def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
     ran = subprocess.run(
-        [sys.executable, "-c", ORACLE, str(REPO / "tests"), str(REPO / "src")],
+        [
+            sys.executable,
+            "-c",
+            ORACLE,
+            str(REPO / "tests"),
+            *map(str, sorted(REPO.glob("features/*/tests"))),
+            *map(str, sources()),
+        ],
         cwd=REPO,
         capture_output=True,
         text=True,

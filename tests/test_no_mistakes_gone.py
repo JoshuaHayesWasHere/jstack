@@ -1,6 +1,6 @@
 """jstack calls no-mistakes nowhere, and its code does not name it.
 
-A pull request's review is pstack's (`skills/pr-review/SKILL.md`, "The review"), and no
+A pull request's review is pstack's (`features/pr-review/SKILL.md`, "The review"), and no
 reviewer runs a test step. So the text an agent reads holds none of the three names of the
 old path. The code, the project file and the tests hold the first name nowhere but in this
 file, which has to spell it to look for it: `jgauge run` and the sweep of a `no-mistakes`

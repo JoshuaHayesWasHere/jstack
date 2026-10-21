@@ -168,7 +168,7 @@ def test_a_plan_limit_that_is_not_known_launches_and_is_a_note_once_a_day(kitche
 
 def where_the_findings_go(kitchen, slug):
     """What step 4 of the pr-review skill's "After the run" prints for the brief on disk."""
-    skill = as_read(REPO / "skills/pr-review/SKILL.md")
+    skill = as_read(REPO / "features/pr-review/SKILL.md")
     (found,) = [text for text in skill.split("```") if "crewmate $thread" in text]
     script = textwrap.dedent(found.removeprefix("sh\n")).replace("<slug>", slug)
     script = script.replace("<clean, findings or not run>", "findings")

@@ -537,7 +537,7 @@
     {
       "name": "pr-review",
       "kind": "skill",
-      "path": "skills/pr-review/SKILL.md",
+      "path": "features/pr-review/SKILL.md",
       "source": "josh",
       "description": "Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), sends the findings to the thread that did the work, and records them in the brief. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished."
     },
@@ -827,7 +827,7 @@
     {
       "name": "pr-body.md",
       "kind": "template",
-      "path": "templates/pr-body.md",
+      "path": "features/pr-review/templates/pr-body.md",
       "source": "josh"
     },
     {
@@ -845,7 +845,7 @@
     {
       "name": "review.md",
       "kind": "template",
-      "path": "templates/review.md",
+      "path": "features/pr-review/templates/review.md",
       "source": "josh"
     },
     {

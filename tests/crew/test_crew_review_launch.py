@@ -9,6 +9,7 @@ import pytest
 
 from crew.helpers import BRIEF, SKILL, said, with_field
 from test_home_thread import as_read
+from testing.layouts import assembled
 
 
 def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
@@ -18,7 +19,7 @@ def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
 
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "crew").symlink_to(SKILL.parent)
+    (user / ".claude" / "skills" / "crew").symlink_to(assembled() / "skills" / "crew")
     elsewhere = tmp_path / "another-repo"
     elsewhere.mkdir()
     found = subprocess.run(

@@ -206,18 +206,29 @@ def resolve(rev: str) -> str:
     return git("rev-parse", "--verify", f"{rev}^{{commit}}").strip()
 
 
-def show(rev: str, path: str) -> str:
-    """A file as it is at a revision, never from the working tree. A principle is read under
-    the name it has there: `principles/<name>.md` before it took pstack's prefix, and
-    `principles/principle-<name>.md` after, so a case names it either way."""
+def spellings(path: str) -> tuple[str, ...]:
+    """The paths a file a case names has had: a principle as `principles/<name>.md` before it
+    took pstack's prefix and `principles/principle-<name>.md` after, and a skill's file as
+    `skills/<name>/<file>` before its move and `features/<name>/<file>` after, so a case names
+    it either way."""
     if path.startswith("principles/"):
         name = path.removeprefix("principles/").removeprefix("principle-")
-        for each in (f"principles/principle-{name}", f"principles/{name}"):
-            try:
-                return git("show", f"{rev}:{each}")
-            except SystemExit:
-                continue
-    return git("show", f"{rev}:{path}")
+        return (f"principles/principle-{name}", f"principles/{name}")
+    if path.startswith("skills/"):
+        return (path, "features/" + path.removeprefix("skills/"))
+    return (path,)
+
+
+def show(rev: str, path: str) -> str:
+    """A file as it is at a revision, never from the working tree, read under the path it has
+    there (`spellings`)."""
+    *before, last = spellings(path)
+    for each in before:
+        try:
+            return git("show", f"{rev}:{each}")
+        except SystemExit:
+            continue
+    return git("show", f"{rev}:{last}")
 
 
 def step5(skill: str) -> str:
