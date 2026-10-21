@@ -51,10 +51,6 @@
   .dead .dh { display: flex; flex-wrap: wrap; gap: 5px 20px; align-items: baseline; }
   .dead .dh b { font-size: 24px; }
   .dead .dh button { margin-left: auto; border: 1.5px solid var(--canvas); border-radius: 1249px; background: transparent; color: var(--canvas); padding: 0 12.5px; cursor: pointer; font-size: 15px; font-weight: 600; }
-  .st { display: none; font-size: 15px; font-weight: 800; border-radius: 5px; padding: 0 6px; line-height: 1.6; letter-spacing: 0.07em; text-transform: uppercase; }
-  .st.fz { color: var(--due); border: 1.5px dashed var(--due); }
-  .st.lv { color: var(--ink-2); border: 1.5px solid var(--line); }
-  body.stopped .st, .dead .st, .dw .st { display: inline-block; }
 
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; align-content: start; }
   .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ink-3); display: inline-block; flex: none; }
@@ -290,16 +286,10 @@
   .dw-h .crumbs { font-size: 15px; color: var(--ink-2); }
   .back { display: block; margin: 4px 0 2px; border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--ink); font-size: 15px; font-weight: 600; text-align: left; }
   .back:hover { text-decoration: underline; }
-  .hint { flex: none; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: help; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
-  .hint::before { content: "?"; width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 15px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-family: var(--sans); }
-  .hint:hover::before, .hint[aria-expanded="true"]::before { border-color: var(--ink); color: var(--ink); }
   .tip { position: fixed; z-index: 50; max-width: min(340px, calc(100vw - 20px)); background: var(--ink); color: var(--canvas); border-radius: 10px; padding: 9px 12px 10px; font-size: 15px; line-height: 1.4; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); }
   .tip b { display: block; font-size: 15px; margin-bottom: 2px; }
   .tip.peek { pointer-events: none; max-width: min(300px, calc(100vw - 20px)); font-size: 15px; }
   .sh, .mk, .bn, .hd, .sd, [data-gloss] { cursor: help; }
-  details.gk { font-size: 15px; margin-left: 10px; }
-  details.gk[open] { flex-basis: 100%; margin-left: 0; }
-  details.gk summary { cursor: pointer; color: var(--ink-2); width: max-content; max-width: 100%; }
   .gw { display: inline-flex; align-items: center; justify-content: center; width: 16px; }
   dl.gloss { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; }
   dl.gloss dt { font-weight: 700; display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--hair); }
@@ -308,31 +298,7 @@
   kbd { font-family: var(--mono); font-size: max(15px, 0.85em); border: 1px solid var(--hair); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--surface); }
   .theme.help::before { content: "?"; font-weight: 800; }
   @media (max-width: 640px) {
-    .hint { width: 44px; height: 44px; }
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
-  }
-  [data-st="hidden"] { display: none !important; }
-  [data-st="folded"] .fv-body { display: none !important; }
-  .fv-sum { display: none; color: var(--ink-2); font-size: 15px; min-width: 0; }
-  [data-st="folded"] .fv-sum { display: inline; }
-  .fv-c { display: inline-flex; gap: 2px; align-items: center; margin-left: auto; flex: none; }
-  .fv-b { position: relative; width: 24px; height: 22px; padding: 0; border: 1.5px solid transparent; border-radius: 7px; background: transparent; cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; flex: none; }
-  .fv-b:hover { border-color: var(--line); color: var(--ink); }
-  .fv-b::before { content: ""; width: 7px; height: 7px; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
-  .fv-b[aria-expanded="false"]::before { transform: translateX(-2px) rotate(-45deg); }
-  .fv-b.x::before, .fv-b.x::after { content: ""; position: absolute; width: 12px; height: 2px; border: 0; background: currentColor; transform: rotate(45deg); }
-  .fv-b.x::after { transform: rotate(-45deg); }
-  .fv-r { display: flex; align-items: center; gap: 4px 10px; min-width: 0; }
-  .kept { position: relative; font-size: 15px; }
-  .kept summary { list-style: none; cursor: pointer; font-weight: 600; color: var(--due); border: 1.5px solid var(--due); border-radius: 1249px; padding: 0 11px; white-space: nowrap; }
-  .kept summary::-webkit-details-marker { display: none; }
-  .kept-l { position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; display: grid; gap: 4px; min-width: 230px; max-width: calc(100vw - 20px); background: var(--surface); border: 1.5px solid var(--hair); border-radius: 10px; padding: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2); }
-  .kb { text-align: left; border: 1.5px solid var(--line); border-radius: 8px; background: var(--canvas); padding: 2px 10px; cursor: pointer; font-size: 15px; }
-  .kb:hover { border-color: var(--ink); }
-  .kb.all { font-weight: 700; }
-  @media (max-width: 640px) {
-    .fv-b { width: 44px; height: 44px; }
-    .kept summary, .kb { min-height: 44px; display: flex; align-items: center; }
   }
   @media (max-width: 640px) {
     .back, .pgs, .prl, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
@@ -350,7 +316,6 @@
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
   <span class="scratchw" id="scratch" hidden></span>
-  <details class="kept" id="kept" hidden><summary id="kept-s"></summary><div class="kept-l" id="kept-l"></div></details>
   <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
   <button type="button" class="theme" id="theme">Auto</button>
 </header>
@@ -486,7 +451,6 @@
     "term:noticed": ["Noticed, not counted", "A line a thread wrote under Noticed in its Result, Review or Report. Its home marks each one taken or dropped, so they wait on a home, not on you: the count of what waits on you leaves them out."],
     "term:threads": ["Threads", "Every thread the last pass saw for this project, by role, those out first. Out is a turn under way, or one that waits. Ended threads are dimmed, and each opens what it works on."],
     "term:line": ["The line", "Every open task, each on the one step it is on, in the shape of who holds it now. A step that holds no task is folded into one line of its name."],
-    "term:live": ["Live and frozen", "Live is read by the server each time the page asks. Frozen is what jbus wrote on its last pass, and stands as it left it while jbus is stopped."],
     "term:project": ["Project", "One repo jbus runs a queue for, with its own state. Every task, gate and outbox is one project's. A retired project is not shown."]
   };
   function shapes() { Object.keys(SHAPES).forEach(function (w) { GLOSS["who:" + w] = [SHAPES[w][0], "Drawn as " + SHAPES[w][1] + ". " + SHAPES[w][2], w]; }); }
@@ -501,7 +465,6 @@
     return [s.name, (at < 0 ? "Not a step of the line" : "Step " + (at + 1) + " of " + all.length) + (note ? ": " + note : "") + ". " + (s.who === "ok" ? "It is done." : s.who === "unknown" ? "Who holds it is not known." : s.who ? "Held by " + WHO[s.who] + "." : "Who holds it depends on the row: its shape says.")];
   }
   function gloss(key) { return key.indexOf("step:") === 0 ? stepGloss(key.slice(5)) : GLOSS[key] || null; }
-  function hint(key, label) { return '<button type="button" class="hint" data-tip="' + esc(key) + '" aria-expanded="false" aria-label="What ' + esc(label) + ' means"></button>'; }
   function tipHtml(g) { return '<b>' + (g[2] ? '<span class="w-' + esc(g[2]) + '"><i class="sh"></i></span> ' : "") + esc(g[0]) + '</b>' + esc(g[1]); }
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
   function asked(t) { var q = t.request; return !q ? "" : q.state === "researching" && !t.out ? "no Report" : q.state; }
@@ -522,8 +485,6 @@
     return project ? '<a class="' + cls + '" href="' + esc(href(project, threadAt(t))) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</a>'
       : '<button type="button" class="' + cls + '" data-open="' + esc(threadAt(t)) + '" title="' + esc(say) + '" aria-description="' + esc(say) + '">' + inner + '</button>';
   }
-  function fz() { return '<span class="st fz">frozen</span>'; }
-  function lv() { return gone ? fz() : '<span class="st lv">live</span>'; }
   function since(t) { var v = ms(t.since); return v == null ? null : NOW - v; }
 
   function behind(n) { return plural(n, "task waits", "tasks wait") + " behind it"; }
@@ -649,9 +610,7 @@
   }
   var drawnOnce = false;
   function render() {
-    var had = foldFocus();
     drawAll();
-    fold(); refocus(had);
   }
   function drawAll() {
     document.body.classList.toggle("gone", gone);
@@ -670,17 +629,29 @@
     renderDead();
     PANELS.you.draw();
     if (!PROJECT) renderStack(); else renderProject();
-    if (tipBtn && !tipBtn.isConnected) refind();
+    freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
 
   function top() { return LAYERS.length ? LAYERS[LAYERS.length - 1].target : ""; }
   function called(l) { return l.title || l.target.replace(/:/g, " "); }
+  var READS = "", FETCHED = null;
+  function mark(p, at) { READS = p && !p.free ? p.reads || "pass" : ""; FETCHED = at || (S && ms(S.at)) || lastAnswer; }
+  function freshLine() {
+    var read = FETCHED, end = S && S.jbus ? ms(S.jbus.last_end) : null;
+    if (!READS) return "";
+    return gone ? "Stale: the view server does not answer" + (lastAnswer ? ", last answer " + hm(lastAnswer, true) : "")
+      : !stopped ? "Updated " + hm(read, true)
+      : READS === "server" ? "Read " + hm(read, true) + " by the server itself, also while jbus is stopped"
+      : "As the last pass left it" + (end == null ? "" : " at " + hm(end, true)) + (READS === "mixed" ? ", the gates read " + hm(read, true) : "") + ": jbus has stopped";
+  }
+  function fresh() { var line = freshLine(); return '<p class="src fresh" id="dw-fresh"' + (line ? "" : " hidden") + '>' + esc(line) + '</p>'; }
+  function freshen() { var el = $("dw-fresh"), line = freshLine(); if (!el) return; el.hidden = !line; say(el, line); }
   function head(tag, title, mono) {
     var before = LAYERS.length > 1 ? LAYERS[LAYERS.length - 2] : null;
     return '<div class="dw-h"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="' + esc(href("")) + '">All</a> &rsaquo; ' + (PROJECT ? '<a href="' + esc(href(PROJECT)) + '">' + esc(PROJECT) + '</a> &rsaquo; ' : "") + '<a href="' + esc(href(PROJECT, top())) + '" aria-current="page">' + esc(title) + '</a></nav>' +
       (before ? '<button type="button" class="back" id="dw-back" aria-label="Back to ' + esc(called(before)) + '">&larr; ' + esc(called(before)) + '</button>' : "") +
-      '<span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2></div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>';
+      '<span class="tag">' + esc(tag) + '</span><h2 id="dw-title"' + (mono ? ' class="mono"' : "") + '>' + esc(title) + '</h2>' + fresh() + '</div><button type="button" class="btn" id="dw-close">Close<span class="esc"> (Esc)</span></button></div>';
   }
   function missing(kind, arg) {
     var what = !PANELS[kind] ? "No drawer called " + kind : "No " + kind + (arg ? " named " + arg.replace(/:/g, " ") : " to show");
@@ -691,13 +662,7 @@
   function taskBtn(slug) { return known(slug) ? openBtn("task:" + slug, slug) : '<code>' + esc(slug) + '</code>'; }
   function link(url, label) { return /^https:\/\/github\.com\//.test(url || "") ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>' : esc(label); }
   function ageChip(t, cls) { var v = ms(t); return v == null ? gap("no time kept") : '<span class="chip ' + (cls || "plain") + '">' + dur(NOW - v) + ', since ' + day(v) + '</span>'; }
-  function note(kind) {
-    if (gone) return '<p style="margin-top:12.5px">' + fz() + ' The view server does not answer. This is what it said at ' + hm(lastAnswer, true) + '.</p>';
-    if (!stopped) return "";
-    var end = ms(S.jbus.last_end);
-    return '<p style="margin-top:12.5px">' + (kind === "live" ? lv() + ' The server reads this itself on each request, so it is as it is now, also while jbus is stopped.' : kind === "mixed" ? fz() + ' The lists stand as the last pass left them. ' + lv() + ' The gates are read now, from the questions jbus holds and <code>gates.md</code>.' : fz() + ' jbus writes this. It stands as the last pass left it' + (end == null ? "" : ", at " + hm(end, true)) + '.') + '</p>';
-  }
-  function ghBox(slug) { return '<h3>GitHub says ' + lv() + '</h3><div class="ghbox" id="gh" data-slug="' + esc(slug) + '"><span class="src">' + (gone ? "The view server does not answer, so GitHub cannot be asked." : "Asking GitHub.") + '</span></div>'; }
+  function ghBox(slug) { return '<h3>GitHub says</h3><div class="ghbox" id="gh" data-slug="' + esc(slug) + '"><span class="src">' + (gone ? "The view server does not answer, so GitHub cannot be asked." : "Asking GitHub.") + '</span></div>'; }
   function ghFill(slug, g) {
     var box = $("gh"); if (!box || box.getAttribute("data-slug") !== slug) return;
     if (!g) { box.innerHTML = '<span class="src">The view server did not answer.</span>'; return; }
@@ -772,13 +737,13 @@
   }
   function dHelp() {
     var h = head("Help", "Every term on the page");
-    h += '<p class="src" style="margin-top:15px">Each <span class="hint" aria-hidden="true"></span> on the page opens one of these where it stands, by a tap, Enter or Space. Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
+    h += '<p class="src" style="margin-top:15px">Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
     h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
     h += '<h3>Who holds a task, or what a thread is: its shape</h3><div id="hshapes">' + shapeList() + '</div>';
     h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
-    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it; on a <span class="hint" aria-hidden="true"></span> it opens what that means, and again closes it</dd><dt><kbd>Esc</kbd></dt><dd>closes what a <span class="hint" aria-hidden="true"></span> opened, else goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
+    h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it</dd><dt><kbd>Esc</kbd></dt><dd>goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
     return h;
   }
   panels("help", true)({ title: "Every term on the page", free: true, drawer: function () { var h = dHelp(); setTimeout(notes); return h; } });
@@ -786,7 +751,7 @@
   function glossary() { if (top().split(":")[0] !== "help") go("help", drawer.open); }
   var drawer = $("drawer"), turn = 0, ours = 0;
   function show(p, html, focus) {
-    hideTip(); hidePeek();
+    hidePeek();
     drawer.classList.toggle("wide", !!p.wide);
     $("dw").innerHTML = html;
     if (!drawer.open) drawer.showModal();
@@ -801,7 +766,7 @@
     if (t && l) l.title = t.textContent;
   }
   function shutDrawer(first) {
-    hideTip(); hidePeek();
+    hidePeek();
     if (!drawer.open) return;
     ours += 1;
     drawer.close();
@@ -817,21 +782,28 @@
     return (sources || []).filter(function (s) { return s.state === "missing" || s.state === "unreadable"; }).map(function (s) { return '<p style="margin-top:12.5px">' + gap(s.state) + ' <code>' + esc(s.name) + '</code> could not be read.</p>'; }).join("");
   }
   function drawn(p, arg, data) {
-    try { return p.drawer(arg, data); } catch (e) { setTimeout(function () { throw e; }); return asking(p, "This panel could not be drawn."); }
+    try { return p.drawer(arg, data); } catch (e) { setTimeout(function () { throw e; }); mark(null); return asking(p, "This panel could not be drawn."); }
   }
   function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
-    if (!p || !p.drawer) { show({}, missing(kind, arg)); return; }
+    if (!p || !p.drawer) { mark(null); show({}, missing(kind, arg)); return; }
     if (p.first) {
-      show(p, drawn(p, arg) || missing(kind, arg), focus);
+      mark(p, null);
+      var h = drawn(p, arg);
+      if (!h) { mark(null); h = missing(kind, arg); }
+      show(p, h, focus);
       github();
       return;
     }
+    mark(null);
     show(p, asking(p, gone ? "The view server does not answer, so it cannot be asked." : "Asking the server."), focus);
     if (gone) return;
     ask("/panel/" + encodeURIComponent(kind) + ".json" + QUERY).then(function (a) {
       if (mine !== turn || !drawer.open) return;
-      $("dw").innerHTML = (drawn(p, arg, a.data) || missing(kind, arg)) + unread(a.sources);
+      mark(p, Date.now());
+      var h = drawn(p, arg, a.data);
+      if (!h) { mark(null); h = missing(kind, arg); }
+      $("dw").innerHTML = h + unread(a.sources);
       $("dw-close").focus();
       titled();
       github();
@@ -857,49 +829,13 @@
     history[how](st, "", address);
     route(st, address);
   }
-  var KEY_CLICK_MS = 1000;
-  function pressed(b) { return { at: Date.now(), on: b }; }
-  function clickOfPress(e, press, b) { return e.detail === 0 && press.on === b && Date.now() - press.at < KEY_CLICK_MS; }
-  var tipEl = null, tipBtn = null, peekEl = null, tipPress = pressed(null);
+  var peekEl = null;
   function place(el, at) {
     (drawer.open ? drawer : document.body).appendChild(el);
     var b = at.getBoundingClientRect(), w = el.offsetWidth, high = el.offsetHeight, vw = document.documentElement.clientWidth;
     var left = Math.max(10, Math.min(b.left + b.width / 2 - w / 2, vw - w - 10)), y = b.bottom + 8;
     if (y + high > window.innerHeight - 8) y = Math.max(8, b.top - high - 8);
     el.style.left = left + "px"; el.style.top = y + "px";
-  }
-  var tipAt = { part: "", row: null, at: 0 };
-  function scope(btn) {
-    var row = btn.closest("[data-key]"), part = row ? row.parentElement : null;
-    return { part: part && part.id, row: row && row.getAttribute("data-key") };
-  }
-  function within(where) {
-    if (!where.part) return document;
-    var part = $(where.part);
-    return part ? [].filter.call(part.children, function (c) { return c.getAttribute("data-key") === where.row; })[0] || null : null;
-  }
-  function refind() {
-    var key = tipBtn.getAttribute("data-tip"), old = tipBtn, box = within(tipAt), b = box && box.querySelectorAll('[data-tip="' + CSS.escape(key) + '"]')[tipAt.at];
-    if (!b) { hideTip(); return; }
-    tipBtn = b; b.setAttribute("aria-expanded", "true"); b.setAttribute("aria-describedby", "tip");
-    if (tipPress.on === old && document.activeElement === document.body) { b.focus(); tipPress.on = b; }
-    place(tipEl, b);
-  }
-  function hideTip() {
-    if (tipEl) { tipEl.remove(); tipEl = null; }
-    if (tipBtn) { tipBtn.setAttribute("aria-expanded", "false"); tipBtn.removeAttribute("aria-describedby"); tipBtn = null; }
-  }
-  function toggleTip(btn) {
-    var same = btn === tipBtn, g = gloss(btn.getAttribute("data-tip"));
-    hideTip(); hidePeek();
-    if (same || !g) return;
-    tipEl = document.createElement("div"); tipEl.className = "tip"; tipEl.id = "tip"; tipEl.setAttribute("role", "status");
-    place(tipEl, btn);
-    tipEl.innerHTML = tipHtml(g);
-    place(tipEl, btn);
-    btn.setAttribute("aria-expanded", "true"); btn.setAttribute("aria-describedby", "tip"); tipBtn = btn;
-    tipAt = scope(btn);
-    tipAt.at = Array.prototype.indexOf.call(within(tipAt).querySelectorAll('[data-tip="' + CSS.escape(btn.getAttribute("data-tip")) + '"]'), btn);
   }
   function hidePeek() { if (peekEl) { peekEl.remove(); peekEl = null; } }
   function holderOf(el) {
@@ -922,7 +858,7 @@
   function showPeek(el, at) {
     var g = gloss(peekKey(el));
     hidePeek();
-    if (!g || tipEl) return;
+    if (!g) return;
     peekEl = document.createElement("div"); peekEl.className = "tip peek"; peekEl.id = "peek"; peekEl.setAttribute("role", "tooltip");
     peekEl.innerHTML = tipHtml(g);
     place(peekEl, at || el);
@@ -935,21 +871,12 @@
   });
   document.addEventListener("focusout", hidePeek);
   document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
-  window.addEventListener("scroll", function () { hidePeek(); hideTip(); }, true);
-  window.addEventListener("resize", hideTip);
+  window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest("[data-tip]");
-    if (b) { e.stopImmediatePropagation(); if (!clickOfPress(e, tipPress, b)) toggleTip(b); return; }
-    if (tipEl && !e.target.closest(".tip")) hideTip();
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && (tipEl || peekEl)) {
-      var back = tipBtn; hideTip(); hidePeek(); if (back) back.focus();
-      e.preventDefault(); e.stopImmediatePropagation(); return;
-    }
-    var b = e.target.closest && e.target.closest("[data-tip]");
-    if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tipPress = pressed(b); toggleTip(b); return; }
+    if (e.key === "Escape" && peekEl) { hidePeek(); e.preventDefault(); e.stopImmediatePropagation(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
     var after = Date.now() - gAt < CHORD_MS; gAt = 0;
     if (e.key === "?") { e.preventDefault(); glossary(); }
@@ -962,61 +889,13 @@
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
     return ps.length ? ps[(ps.indexOf(PROJECT) + 1) % ps.length] : PROJECT;
   }
-  var FOLDKEY = "jbus-view-fold", FOLD = {}, foldPress = pressed(null);
-  function loadFold() {
-    try { var v = JSON.parse(localStorage.getItem(FOLDKEY) || "{}"); FOLD = v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { FOLD = {}; }
-  }
-  function saveFold() { try { if (Object.keys(FOLD).length) localStorage.setItem(FOLDKEY, JSON.stringify(FOLD)); else localStorage.removeItem(FOLDKEY); } catch (e) {} }
-  function stOf(key) { var v = FOLD[key]; return v === "folded" || v === "hidden" ? v : "open"; }
-  function fvId(key) { return "fv-" + key.replace(/[^A-Za-z0-9_-]/g, function (c) { return "_" + c.charCodeAt(0).toString(16); }); }
-  function views() { return [].filter.call(document.querySelectorAll("[data-fv]"), function (el) { return !el.closest("[hidden]"); }); }
-  function fold() {
-    document.querySelectorAll("[data-fv]").forEach(function (el) { var s = stOf(el.getAttribute("data-fv")); if (el.getAttribute("data-st") !== s) el.setAttribute("data-st", s); });
-    document.querySelectorAll("[data-fold]").forEach(function (b) {
-      var whole = stOf(b.getAttribute("data-fold")) !== "folded", t = whole ? "Fold to one line" : "Unfold it whole";
-      if (b.getAttribute("aria-expanded") !== String(whole)) b.setAttribute("aria-expanded", String(whole));
-      if (b.title !== t) b.title = t;
-    });
-    var vs = views(), hid = vs.filter(function (el) { return el.getAttribute("data-st") === "hidden"; }), n = vs.length - hid.length - vs.filter(function (el) { return el.getAttribute("data-st") === "open"; }).length;
-    $("kept").hidden = !hid.length && !n;
-    if ($("kept").hidden) $("kept").open = false;
-    say($("kept-s"), [hid.length ? hid.length + " hidden" : "", n ? n + " folded" : ""].filter(Boolean).join(", "));
-    put($("kept-l"), hid.map(function (el) { return '<button type="button" class="kb" data-show="' + esc(el.getAttribute("data-fv")) + '">Show ' + esc(el.getAttribute("data-fv-name")) + '</button>'; }).join("") + '<button type="button" class="kb all" data-showall="">Show all</button>');
-  }
-  function setFold(key, s) { if (s === "open") delete FOLD[key]; else FOLD[key] = s; saveFold(); fold(); }
-  function foldBtn(key, kind) { return document.querySelector("[data-" + kind + '="' + CSS.escape(key) + '"]'); }
-  function foldFocus() { var a = document.activeElement, k = a && a.closest && a.closest("[data-fold], [data-hide]"); return k ? [k.hasAttribute("data-fold") ? "fold" : "hide", k.getAttribute("data-fold") || k.getAttribute("data-hide")] : null; }
-  function refocus(had) { if (had && (!document.activeElement || document.activeElement === document.body)) { var b = foldBtn(had[1], had[0]); if (b) b.focus(); } }
-  function act(b) {
-    var key;
-    if (b.hasAttribute("data-fold")) { key = b.getAttribute("data-fold"); setFold(key, stOf(key) === "folded" ? "open" : "folded"); }
-    else if (b.hasAttribute("data-hide")) { setFold(b.getAttribute("data-hide"), "hidden"); $("kept-s").focus(); }
-    else if (b.hasAttribute("data-show")) {
-      key = b.getAttribute("data-show"); setFold(key, "open");
-      if (!views().some(function (el) { return el.getAttribute("data-st") === "hidden"; })) $("kept").open = false;
-      (foldBtn(key, "fold") || $("main")).focus();
-    } else { FOLD = {}; saveFold(); fold(); $("kept").open = false; $("main").focus(); }
-  }
-  var FOLDS = "[data-fold], [data-hide], [data-show], [data-showall]";
-  document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest(FOLDS);
-    if (!b) return;
-    e.stopImmediatePropagation();
-    if (!clickOfPress(e, foldPress, b)) act(b);
-  });
-  document.addEventListener("keydown", function (e) {
-    var b = e.target.closest && e.target.closest(FOLDS);
-    if (!b || (e.key !== "Enter" && e.key !== " ") || e.ctrlKey || e.metaKey || e.altKey) return;
-    e.preventDefault(); e.stopImmediatePropagation(); foldPress = pressed(b); act(b);
-  }, true);
-  window.addEventListener("storage", function (e) { if (e.key === FOLDKEY) { loadFold(); fold(); } });
   document.addEventListener("click", function (e) {
     if (!e.target.closest || !e.target.closest(".skip")) return;
     e.preventDefault(); $("main").focus();
   });
   document.addEventListener("click", function (e) {
     var row = e.target.closest("#rows .proj");
-    if (row && !e.target.closest("a") && !e.target.closest(FOLDS)) { location.hash = href(row.getAttribute("data-key")); return; }
+    if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
     var b = e.target.closest("[data-open]");
     if (b) { go(b.getAttribute("data-open"), drawer.open && drawer.contains(b), b.hasAttribute("aria-pressed")); return; }
     if (e.target.closest("#dw-back")) { up(); return; }
@@ -1100,7 +979,6 @@
   }
   window.addEventListener("hashchange", function () { route(); });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
-  loadFold();
   route();
   setInterval(poll, POLL_MS);
 })();

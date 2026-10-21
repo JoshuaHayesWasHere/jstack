@@ -21,7 +21,7 @@ function dFlow(pick) {
   }
   return head("The line", "The queue as a flow") +
     '<div class="now"><span class="tag">The longest chain</span><span class="big">' + (!last ? "No row is queued" : !last.wave ? "No queued row waits behind another" : (last.wave + 1) + " deep, behind " + esc(standsAt(at))) + '</span>' +
-    (last && last.wave ? '<span class="src">It ends at</span> <button type="button" class="linkish" data-pick="' + esc(last.slug) + '">' + esc(last.slug) + '</button>' : "") + '</div>' + note("frozen") +
+    (last && last.wave ? '<span class="src">It ends at</span> <button type="button" class="linkish" data-pick="' + esc(last.slug) + '">' + esc(last.slug) + '</button>' : "") + '</div>' +
     (p ? '<p style="margin:12.5px 0 0">' + taskBtn(p.slug) + ' waits on ' + plural(drawn, "row", "rows") + ' here' + (rest.length ? ' and on ' + esc(rest.map(standsAt).join(", ")) : "") + ', and ' + plural(p.blocks, "row waits", "rows wait") + ' on it.</p><div class="key"><span><i class="sw user"></i>it waits on</span><span><i class="sw crew"></i>waits on it</span></div>'
       : '<p class="src" style="margin:12.5px 0 0">Pick a row to mark what it waits on and what waits on it.</p>') +
     '<div class="flow">' + cols.map(function (c) { return '<div class="fc"><h3>' + c[0] + ' <span class="n zero" data-gloss="count:flow">' + c[1].length + '</span></h3>' + c[1].map(one).join("") + '</div>'; }).join("") + '</div>';

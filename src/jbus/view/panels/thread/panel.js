@@ -20,12 +20,12 @@ function dThread(arg) {
   if (!r) return null;
   if (slug === "-") slug = "";
   var title = slug || r.called;
-  if (!S.threads) return head("Thread", title, true) + '<div class="now e-op"><span class="tag">Not known</span><span class="big">The last pass left no list of the threads: a blind spot, not none.</span></div>' + note("frozen");
+  if (!S.threads) return head("Thread", title, true) + '<div class="now e-op"><span class="tag">Not known</span><span class="big">The last pass left no list of the threads: a blind spot, not none.</span></div>';
   var mine = S.threads.filter(function (t) { return t.role === role && t.slug === slug; });
   if (!mine.length) return null;
   var front = mine.filter(function (t) { return t.out; })[0] || mine[mine.length - 1];
   var h = head("Thread", title, true);
-  h += '<div class="now w-' + r.holder + '"><span class="tag"><span class="w-' + r.holder + '"><i class="sh"></i></span> ' + esc(r.called) + ' ' + fz() + '</span><span class="big">' + (front.out ? esc(front.live) : "ended") + ': ' + esc(LIVESAY[front.live]) + '</span><p style="margin:4px 0 0">' + esc(r.says) + '</p></div>' + note("frozen");
+  h += '<div class="now w-' + r.holder + '"><span class="tag"><span class="w-' + r.holder + '"><i class="sh"></i></span> ' + esc(r.called)+ '</span><span class="big">' + (front.out ? esc(front.live) : "ended") + ': ' + esc(LIVESAY[front.live]) + '</span><p style="margin:4px 0 0">' + esc(r.says) + '</p></div>';
   h += '<h3>What it works on</h3>' + works(front);
   h += '<h3>' + (mine.length > 1 ? mine.length + " threads" : "The thread") + ', as the last pass saw ' + (mine.length > 1 ? "them" : "it") + '</h3><ul class="clean rows">' + mine.map(about).join("") + '</ul>';
   return h + '<p style="margin-top:12.5px">' + openBtn("threads", "Every thread of " + PROJECT) + '</p>';

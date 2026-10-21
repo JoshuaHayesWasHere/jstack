@@ -218,7 +218,6 @@ def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_pan
     opened = clean(seen)
     tile = seen["needs"]["extra"][-1]
     assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
-    assert "term:noticed" in seen["tips"]
     assert not any("noticed" in one["what"] for one in seen["needs"]["now"] + seen["needs"]["soon"])
     assert "noticed" in opened
     drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
@@ -229,21 +228,6 @@ def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_pan
     seen = look(scene, tmp_path)
     assert seen["needs"]["extra"] == []
     assert seen["words"] <= WORDS, seen["words"]
-
-
-def test_the_queue_says_noticed_is_not_counted_and_why(scene, tmp_path):
-    lineup(scene, TODAY)
-    a_noticed(
-        scene, *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle")))
-    )
-    walk = ['tap:#nx [data-tip="term:noticed"]']
-    seen = look(scene, tmp_path, walk=walk, at=4500, budget=12000)
-    assert seen["errors"] == []
-    assert [t["text"] for t in seen["needs"]["extra"]] == ["2 noticed, not counted"]
-    assert seen["needs"]["head"] == "4 Needs you"
-    (tapped,) = seen["walked"]
-    assert tapped["tip"].startswith("Noticed, not counted")
-    assert "wait on a home, not on you" in tapped["tip"]
 
 
 def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_path):
