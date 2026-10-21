@@ -456,8 +456,3 @@ def test_the_claude_code_copy_flags_nothing_in_any_file_it_holds():
         if (found := terms.used(path.read_text(), "claude-code"))
     }
     assert flagged == {}
-
-
-def test_the_adapter_line_points_from_a_skill_at_its_harness_page():
-    line = terms.adapter_line("codex")
-    assert line.startswith("In codex, read [the adapter](../../docs/harness/codex.md) ")

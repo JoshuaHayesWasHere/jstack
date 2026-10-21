@@ -3,7 +3,8 @@
 A link is read from where its file sits in the repo. A target the copy holds becomes the link
 from the file's place in the copy to the target's; a repo file or folder the copy leaves out
 becomes its GitHub address; anything else dangles, and is a fault. A link in fenced or inline
-code is no link, and an address with a scheme, or an anchor alone, is left as it is.
+code is no link, though a link whose text is code is one, and an address with a scheme, or an
+anchor alone, is left as it is.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import re
 from pathlib import Path
 
 LINK = re.compile(r"(?P<head>!?\[[^\]\n]*\]\()(?P<href>[^)\s]+)(?P<tail>(?:\s+\"[^\"\n]*\")?\))")
+CODE = re.compile(r"(?<!`)(`+)(?!`)(?P<code>.*?)(?<!`)\1(?!`)")
 FENCE = re.compile(r"^\s*(```|~~~)")
 SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
@@ -45,28 +47,41 @@ def rewrite(
     the href it has."""
     dangling: list[str] = []
 
-    def one(match: re.Match[str]) -> str:
-        href = match["href"]
+    def one(head: str, href: str, tail: str) -> str:
+        link = f"{head}{href}{tail}"
         if href.startswith(("#", "<")) or SCHEME.match(href):
-            return match[0]
+            return link
         found = _target(href, at)
         if found is None:
             dangling.append(href)
-            return match[0]
+            return link
         target, anchor = found
         suffix = f"#{anchor}" if anchor else ""
         copied = placed.get(target) or _folder(target, placed)
         if copied is not None:
             if _target(href, copy_at) == (copied, anchor):
-                return match[0]
+                return link
             moved = posixpath.relpath(copied, posixpath.dirname(copy_at) or ".")
-            return f"{match['head']}{moved}{suffix}{match['tail']}"
+            return f"{head}{moved}{suffix}{tail}"
         if (root / target).is_file():
-            return f"{match['head']}{base}/blob/main/{target}{suffix}{match['tail']}"
+            return f"{head}{base}/blob/main/{target}{suffix}{tail}"
         if (root / target).is_dir():
-            return f"{match['head']}{base}/tree/main/{target}{suffix}{match['tail']}"
+            return f"{head}{base}/tree/main/{target}{suffix}{tail}"
         dangling.append(href)
-        return match[0]
+        return link
+
+    def links(line: str) -> str:
+        """`line` with each link outside a code span rewritten: the spans' text is masked,
+        so a link inside one is none, and a link around one still matches whole."""
+        masked = CODE.sub(lambda span: span[1] + "x" * len(span["code"]) + span[1], line)
+        out, last = [], 0
+        for match in LINK.finditer(masked):
+            head, href, tail = (
+                line[match.start(g) : match.end(g)] for g in ("head", "href", "tail")
+            )
+            out += [line[last : match.start()], one(head, href, tail)]
+            last = match.end()
+        return "".join(out) + line[last:]
 
     lines, fenced = [], None
     for line in text.splitlines(keepends=True):
@@ -78,7 +93,5 @@ def rewrite(
         if fenced:
             lines.append(line)
             continue
-        spans = line.split("`")
-        spans[::2] = [LINK.sub(one, span) for span in spans[::2]]
-        lines.append("`".join(spans))
+        lines.append(links(line))
     return "".join(lines), dangling
