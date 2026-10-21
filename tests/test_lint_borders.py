@@ -38,7 +38,8 @@ def write(root, path, text="x\n"):
 
 
 def feature(root, name, owns=()):
-    manifest = {"name": name, "description": f"The {name} feature."}
+    manifest = {"$schema": "../../schemas/feature.schema.json", "name": name}
+    manifest["description"] = f"The {name} feature."
     write(root, f"features/{name}/feature.json", json.dumps(manifest | {"owns": list(owns)}))
 
 
@@ -103,7 +104,7 @@ def test_a_new_root_file_warns_once_whether_or_not_a_feature_owns_it(repo):
     assert "no owner" in one and "root" in one
     feature(repo, "alpha", owns=["stray.md"])
     commit(repo)
-    (one,) = warnings(lint(repo, "--base", "HEAD^2"))
+    (one,) = warnings(lint(repo, "--base", "HEAD~2"))
     assert one.startswith("::warning file=stray.md::")
     assert "no owner" not in one
 
