@@ -22,7 +22,10 @@ Depth changes those three answers and nothing else. A plan that answers them by 
 
 `/sharpen` asks these three of a task or a draft brief, after a first question on what a top professional would do that is not asked, and rewrites the prompt to ask for the answers.
 
-It is not for mechanical work. A rename, a typo, a version bump, a moved file or a fix whose cause is already proven has nothing under it for an expert's instruments to find: do it by the direct path, per the [Laziness Protocol](../principle-laziness-protocol/SKILL.md). Nor is it for a task whose "Done when" already names its data, its instruments and its outside judge. There the three questions are answered, and asking them again only delays the work.
+It is not for mechanical work.
+A rename, a typo, a version bump, a moved file or a fix whose cause is already proven has nothing under it for an expert's instruments to find: do it by the direct path, per the [Laziness Protocol](../principle-laziness-protocol/SKILL.md).
+Nor is it for a task whose "Done when" already names its data, its instruments and its outside judge.
+There the three questions are answered, and asking them again only delays the work.
 
 It works with [Prove It Works](../principle-prove-it-works/SKILL.md), which checks the real artifact once the work is done; [Explain the Number](../principle-explain-the-number/SKILL.md), which asks what limits a measured number; [Build the Lever](../principle-build-the-lever/SKILL.md), which turns the outside judge into a script anyone can rerun; and [Attack the Premise](../principle-attack-the-premise/SKILL.md), which suspects the shared assumption when the deeper look contradicts it.
 

@@ -242,7 +242,8 @@ def test_every_principle_has_pstacks_name_and_its_old_name_still_resolves():
 
 def test_no_principle_lost_a_line_in_the_rename():
     """Each principle, reached by its old name through the resolver, is the file it was at
-    c228ac6, but for its frontmatter, and its links to the others, which name their new files."""
+    c228ac6, but for its frontmatter, its links to the others, which name their new files, and
+    a paragraph or list item a move put one sentence a line, which reads as the same one."""
     lines = (FIXTURES / "principles-before-rename.txt").read_text().splitlines()
     before = dict(line.split() for line in lines if not line.startswith("#"))
     assert len(before) == 25
@@ -251,6 +252,7 @@ def test_no_principle_lost_a_line_in_the_rename():
         assert found.relative == f"features/principles/skills/principle-{old}/SKILL.md"
         text = found.path.read_text().split("\n---\n\n", 1)[1]
         back = re.sub(r"\]\(\.\./principle-([a-z0-9-]+)/SKILL\.md", r"](\1.md", text)
+        back = re.sub(r'(?<=\S)\n(?:  )?(?=[A-Z\["])', " ", back)
         assert hashlib.sha256(back.encode()).hexdigest() == digest, old
 
 
