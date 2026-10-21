@@ -371,21 +371,36 @@ def test_a_pull_request_command_with_no_private_patterns_file_is_refused(pattern
     assert hook("git push --no-verify")[0] == 2
 
 
-def test_a_check_that_breaks_refuses_the_command(patterns, tmp_path):
-    broken = tmp_path / "checkout"
-    (broken / "hooks").mkdir(parents=True)
-    (broken / "src" / "jleak").mkdir(parents=True)
-    (broken / "hooks" / COMMAND.name).write_text(COMMAND.read_text())
-    (broken / "src" / "jleak" / "__init__.py").write_text("")
-    (broken / "src" / "jleak" / "__main__.py").write_text("raise SystemExit(1)\n")
-    given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
+def refused_from(root, hooks, given):
+    """The command hook, copied to `<root>/<hooks>`, fed `given`: its exit code and stderr."""
+    (root / hooks).mkdir(parents=True)
+    (root / hooks / COMMAND.name).write_text(COMMAND.read_text())
     done = subprocess.run(
-        ["sh", str(broken / "hooks" / COMMAND.name)],
+        ["sh", str(root / hooks / COMMAND.name)],
         input=json.dumps(given),
         capture_output=True,
         text=True,
     )
-    assert done.returncode == 2
+    return done.returncode, done.stderr
+
+
+def test_a_check_that_breaks_refuses_the_command(patterns, tmp_path):
+    broken = tmp_path / "checkout"
+    package = broken / "features" / "jleak" / "src" / "jleak"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "__main__.py").write_text("raise SystemExit(1)\n")
+    given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
+    code, said = refused_from(broken, "features/jleak/hooks", given)
+    assert code == 2
+    assert "no checkout and no release" not in said
+
+
+def test_a_hook_that_is_in_no_checkout_and_no_release_refuses_the_command(patterns, tmp_path):
+    given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
+    code, said = refused_from(tmp_path / "elsewhere", "hooks", given)
+    assert code == 2
+    assert "is no checkout and no release, so the command is refused" in said
 
 
 def test_what_the_hook_cannot_read_is_refused_only_when_it_may_be_a_command_it_checks(patterns):
