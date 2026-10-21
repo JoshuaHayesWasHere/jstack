@@ -31,6 +31,7 @@ import subprocess
 from jbus import alert
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT, Pass
+from jmerge import lines as lines_of
 from jmerge import ready
 from jmerge.lines import Line as Line
 from jmerge.lines import one as parse
@@ -146,6 +147,8 @@ def merge(run: Pass) -> Said:
         lines.append(text)
         slug = line.name if line.word == "merged" else ""
         run.find(slug or f"#{line.number}", "jmerge", text, key=f"{line.number} {text}")
+        if slug and (unfollowed := lines_of.unfollowed(text)):
+            alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if not ran.returncode or lines:

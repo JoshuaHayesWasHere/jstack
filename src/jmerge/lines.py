@@ -66,3 +66,27 @@ def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str]
 def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) -> str:
     """The line of a pull request that `--check` finds would merge, with what it notes."""
     return ", ".join([f"ready {number} {head} {branch} {slug}", *filter(None, notes)])
+
+
+NOT_REINSTALLED = "the tool {tool} was not reinstalled after its package list changed ({why})"
+UNFOLLOWED = re.compile(
+    re.escape(NOT_REINSTALLED).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?")
+    + "(?=, revert: )"
+)
+
+
+def reinstalled(tool: str, main: object) -> str:
+    """The note of a merge after which the tool was installed again from the main checkout."""
+    return f"reinstalled the tool {tool} from {main}: its package list changed"
+
+
+def not_reinstalled(tool: str, why: str) -> str:
+    """The note of a merge that moved a package of the tool, which could not be installed
+    again: every command of it may fail on an import until it is."""
+    return NOT_REINSTALLED.format(tool=tool, why=why)
+
+
+def unfollowed(text: str) -> str:
+    """The `not_reinstalled` note of a `merged` line, or nothing where it has none."""
+    found = UNFOLLOWED.search(text)
+    return found[0] if found else ""

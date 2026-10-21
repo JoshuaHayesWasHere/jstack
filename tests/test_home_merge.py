@@ -1440,7 +1440,7 @@ class Tooled:
         git(main, "push", "-q", "origin", "main")
         git(tree, "rebase", "-q", "origin/main")
         (tree / "pyproject.toml").write_text(LISTED.format(json.dumps(moved)))
-        git(tree, "commit", "-q", "-am", "the move")
+        git(tree, "commit", "-q", "--allow-empty", "-am", "the move")
         git(tree, "push", "-q", "-f", "origin", "alpha")
         merged.head = git(tree, "rev-parse", "HEAD")
         (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head)))
@@ -1485,7 +1485,7 @@ def test_a_reinstall_that_fails_is_said_on_the_merged_line(merged, tmp_path, mon
     said = merged.run()
     not_done = (
         "the tool demo-tool was not reinstalled after its package list changed "
-        f"(uv tool install --editable {main} --reinstall: error: no network)"
+        f"(uv tool install --editable {shlex.quote(str(main))} --reinstall: error: no network)"
     )
     assert said == [merged_line(merged.on_main()[0], not_done)]
     assert tooled.calls() == [f"tool install --editable {main} --reinstall"]
