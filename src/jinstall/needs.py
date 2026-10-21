@@ -235,9 +235,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     commands = _commands(machine)
     found.append(Need(f"commands {commands.tool}", Level.HARD, commands))
     found.append(Need(f"statusline {settings}", Level.OPTIONAL, StatusLine(settings)))
-    names = sorted(
-        path.name for kind in ("*.service", "*.timer") for path in templates(machine).glob(kind)
-    )
+    names = sorted(templates(machine))
     units = Units(
         machine.config_home() / "systemd" / "user",
         tuple(names),

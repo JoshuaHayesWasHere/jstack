@@ -673,17 +673,28 @@ class Commands:
         return Dropped(tuple(removed), tuple(kept))
 
 
-def templates(machine: Machine) -> Path:
-    """The folder of the units the install links: the source's, a checkout's or a release's."""
-    return machine.source / "templates"
+UNIT_FOLDERS = ("templates", "features/*/units")
+"""Where the source keeps the units the install links: its `templates/`, and the `units/` of
+each feature that has moved there."""
+
+
+def templates(machine: Machine) -> dict[str, Path]:
+    """Each unit the install links, by name: every *.service and *.timer of `UNIT_FOLDERS` in
+    the source, a checkout's or a release's."""
+    return {
+        path.name: path
+        for folder in UNIT_FOLDERS
+        for path in sorted(machine.source.glob(f"{folder}/*"))
+        if path.suffix in (".service", ".timer")
+    }
 
 
 @dataclass(frozen=True)
 class Units:
-    """The jbus units: a link from ~/.config/systemd/user/<name> to <templates>/<name> for each
-    of `names` (every *.service and *.timer there), and each of `timers` enabled. <templates>
-    is `templates(machine)`: the checkout's, where links went before the copy and where
-    systemd's own links under `timers.target.wants` still point, else the release's.
+    """The jbus units: a link from ~/.config/systemd/user/<name> to its template for each of
+    `names` (every unit `templates(machine)` finds), and each of `timers` enabled. The template
+    is the checkout's, where links went before the copy and where systemd's own links under
+    `timers.target.wants` still point, else the release's.
 
     due: when jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, ~/.local/bin/jbus is there (the units run it),
@@ -709,7 +720,7 @@ class Units:
     config: Path
 
     def _template(self, machine: Machine, name: str) -> Path:
-        return templates(machine) / name
+        return templates(machine)[name]
 
     def _ours(self, machine: Machine) -> list[str]:
         return [

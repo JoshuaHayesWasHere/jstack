@@ -13,7 +13,7 @@ Paths:
 - `src/jpack/`
 - `features/jleak/src/jleak/`
 - `features/jleak/hooks/`
-- `src/jroles/`
+- `features/jroles/src/jroles/`
 - `features/jsettings/`
 - `hooks/`
 - `templates/jbus.service`

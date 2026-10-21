@@ -13,7 +13,7 @@ reads the tree once and holds each page to it:
 - counts: "has 39 skills" and the like, in the README or a docs page, is the number of skills,
   commands, principles or playbooks the tree has. A skill counts things of its own: not read.
 - models: every `claude-<family>-N-N` id in the README or a docs page is in the `## Models` table
-  of `docs/jroles.md`.
+  of `features/jroles/docs/jroles.md`.
 - tables: a row of a README table names each command, and a page of the docs links each skill's
   `SKILL.md` and each playbook (the generated catalog of `docs/playbooks.md` does).
 
@@ -54,7 +54,7 @@ LINK = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
 SCHEME = re.compile(r"([a-z][a-z0-9+.-]*:|//)", re.I)
 HEADING = re.compile(r"#{1,6}\s+(.*?)\s*#*\s*$")
 MODEL = re.compile(r"\bclaude-[a-z]+-\d+(?:-\d+)*\b")
-JROLES = "docs/jroles.md"
+JROLES = "features/jroles/docs/jroles.md"
 NUMBERS = (
     "zero one two three four five six seven eight nine ten "
     "eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"

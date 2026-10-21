@@ -67,6 +67,12 @@ TIMERS = [
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
+def template(name):
+    """Where the source keeps the unit `name`: `templates/`, or the `units/` of its feature."""
+    (found,) = [*REPO.glob(f"templates/{name}"), *REPO.glob(f"features/*/units/{name}")]
+    return found
+
+
 def laid(home, harness="claude-code"):
     """Where the install assembles `harness`'s layout under `home`."""
     return home / LAYOUTS / harness
@@ -534,10 +540,10 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
     assert user.run("--check") == (1, user.every("missing", units))
     assert user.run() == (0, user.every("ok", units))
     for name in UNITS:
-        assert os.readlink(user.units / name) == str(REPO / "templates" / name)
+        assert os.readlink(user.units / name) == str(template(name))
     for timer in TIMERS:
         wanted = user.units / "timers.target.wants" / timer
-        assert os.readlink(wanted) == str(REPO / "templates" / timer)
+        assert os.readlink(wanted) == str(template(timer))
     ran = [line for line in user.said(user.systemctl_log) if "show" not in line]
     enabled = [f"--user enable --now {timer}" for timer in TIMERS]
     assert ran[: 1 + len(TIMERS)] == ["--user daemon-reload", *enabled]
@@ -568,7 +574,7 @@ def test_a_timer_that_is_not_enabled_is_old_and_a_run_enables_it(user):
 def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone(user):
     units = user.with_jbus()
     for name in UNITS:
-        user.write(user.units / name, (REPO / "templates" / name).read_text())
+        user.write(user.units / name, template(name).read_text())
     copies = f"old {units} -> {' '.join(UNITS)}: a copy of its template, not a link"
     assert line_for(user.run("--check")[1], "units") == [copies]
     assert user.run() == (0, user.every("ok", units))

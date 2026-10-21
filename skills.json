@@ -801,18 +801,6 @@
       "source": "josh"
     },
     {
-      "name": "jroles-mirror.service",
-      "kind": "template",
-      "path": "templates/jroles-mirror.service",
-      "source": "josh"
-    },
-    {
-      "name": "jroles-mirror.timer",
-      "kind": "template",
-      "path": "templates/jroles-mirror.timer",
-      "source": "josh"
-    },
-    {
       "name": "plan-entry.md",
       "kind": "template",
       "path": "templates/plan-entry.md",

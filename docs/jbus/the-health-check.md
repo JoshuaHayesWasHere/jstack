@@ -47,7 +47,7 @@ jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears
 While the relay's unit is not active or its heartbeat is stale, silence and errors are not judged: the unit and the heartbeat say it.
 Silence runs from the last body heard, which a restart keeps, so a relay that restarts often still goes silent.
 
-The instances are the built-in one and each instance a role's pool names ([jroles](../jroles.md)).
+The instances are the built-in one and each instance a role's pool names ([jroles](../../features/jroles/docs/jroles.md)).
 Their numbers are the ledger, which the threads' status lines and their usage-limit failures write.
 
 ## Incidents and pages
@@ -61,6 +61,6 @@ An incident whose check is not taken any more, a mount or an instance gone or a 
 
 ## The pause
 
-`capped <instance>` is the instance that launches skip ([jroles](../jroles.md#pools)).
+`capped <instance>` is the instance that launches skip ([jroles](../../features/jroles/docs/jroles.md#pools)).
 While it holds, a new launch goes to the next instance of the pool, and with every instance capped none starts and the page says until when.
 At the reset launches go back to it by themselves, and the recovered page says so in one line, `launches on <instance> resume`, also in the pass's journal.

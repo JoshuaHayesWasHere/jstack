@@ -108,7 +108,9 @@ def small(tmp_path):
             "features/principles/skills/principle-one/SKILL.md": "# One\n",
             "playbooks/p.md": "# P\n",
             "templates/t.md": "# T\n",
-            "docs/jroles.md": "# jroles\n\n## Models\n\n| Model |\n|---|\n| `claude-fake-5-5` |\n",
+            "features/jroles/docs/jroles.md": (
+                "# jroles\n\n## Models\n\n| Model |\n|---|\n| `claude-fake-5-5` |\n"
+            ),
             "README.md": README,
         },
     )
@@ -215,9 +217,10 @@ def test_a_model_the_jroles_table_does_not_list_is_found(small):
             ),
         },
     )
+    table = "the Models table of features/jroles/docs/jroles.md"
     assert ran(small) == [
-        "FAIL docs/a.md:3 the model claude-gone-4-7 is not in the Models table of docs/jroles.md",
-        "FAIL docs/a.md:5 the model claude-fake-5-6 is not in the Models table of docs/jroles.md",
+        f"FAIL docs/a.md:3 the model claude-gone-4-7 is not in {table}",
+        f"FAIL docs/a.md:5 the model claude-fake-5-6 is not in {table}",
     ]
 
 
