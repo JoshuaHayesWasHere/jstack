@@ -71,6 +71,7 @@ NO_HEAD = Reason("second", "its review names no head to compare its rebase with"
 BASE = Reason("hold", "its base is {base}, not {default}")
 IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
 IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
+REVIEW, NONE, AFTER = "review", "none", "after"
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
 NO_REVIEW = Reason("review", "it has no review yet")
 SKILLS_UNRUN = Reason(
@@ -341,7 +342,7 @@ def _worst(verdicts: list[str]) -> str:
 
 @dataclass
 class Said:
-    none: bool = False
+    mode: str = REVIEW
     written: bool = False
     verdict: str = ""
     ran: int = 0
@@ -379,7 +380,7 @@ def said_of(text: str) -> Said:
     for at, line in enumerate(text.splitlines()):
         if line.startswith("Review:") and not seen:
             seen = True
-            said.none = _second(line) == "none"
+            said.mode = _mode(line)
         if line.startswith("Fixed:"):
             said.fixed = _second(line)
         if line.startswith("Second pass:"):
@@ -400,6 +401,19 @@ def said_of(text: str) -> Said:
             said.pushed, said.saw = (named[1], named[2]) if named else ("", "")
     _round(said)
     return said
+
+
+def _mode(line: str) -> str:
+    """A brief's review mode, from its first `Review:` line: `none`, `after`, or `review` for
+    any other word, as briefs from before the reviewer stopped running tests say more."""
+    said = _second(line)
+    return said if said in (NONE, AFTER) else REVIEW
+
+
+def after(text: str) -> bool:
+    """Whether the brief says `Review: after`: it merges on its check, and its review's
+    findings go to a cleanup row (`jbus cleanup`), so no review holds it."""
+    return said_of(text).mode == AFTER
 
 
 def unanswered(said: Said) -> str:
@@ -449,8 +463,10 @@ def short_of(text: str, head: str) -> str:
     unrun = skills.missing(text)
     if unrun:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
-    if said.none:
+    if said.mode == NONE:
         return REVIEW_NONE
+    if said.mode == AFTER:
+        return ""
     if not said.written:
         return NO_REVIEW
     if verdict not in ("clean", "findings"):
@@ -499,6 +515,8 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
     """`hold` with why, where the scoped pass did not uphold the decline of a finding on one
     of `findings.RISKS`, review-triage's categories, or nothing twice. Only such a decline
     is the user's: one on none of them waits on the crew and its home (`unruled`)."""
+    if after(text):
+        return "", ""
     named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)
     if not named:
         return "", ""
@@ -682,6 +700,8 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
     silent = unexplained(lost, text, head)
     if silent:
         return "wait", DROPPED.format(lost=_lost(silent), head=head[:12])
+    if after(text):
+        return "", ""
     ruled = _rulings(text, head)
     kept, against = ruled or (set(), {})
     refused = [
@@ -699,6 +719,8 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
 
 def to_range_diff(rebase: Rebase | None, text: str, head: str) -> str | None:
     said = said_of(text)
+    if said.mode == AFTER:
+        return None
     fixed = bool(_COMMIT.fullmatch(said.fixed))
     if _ci_fix(said)[0] == head:
         return said.reviewed

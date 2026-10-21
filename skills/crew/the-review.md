@@ -23,7 +23,7 @@ What decides whether there is a reviewer to launch is this, run with the block a
 B="$H/tasks/<slug>.md"
 mode=$(awk '/^Review:/ {print $(2); exit}' "$B")
 case $mode in
-none) ;;
+none | after) ;;
 *) mode=review ;;
 esac
 if [ "$mode" = none ]; then
@@ -35,10 +35,16 @@ else
 fi
 ```
 
-It prints the brief's mode, then what to do. The mode is the brief's `Review:` line, the first line that starts with it: `none`, or `review` for anything else. A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do. The same words inside the task's text or a result do not count.
+It prints the brief's mode, then what to do.
+The mode is the brief's `Review:` line, the first line that starts with it: `none`, `after`, or `review` for anything else.
+A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
+The same words inside the task's text or a result do not count.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
+- `after`: launch the reviewer as for `review`, and do not wait for it.
+  The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, that waits for the user's go, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
+  While a home merges, jbus wakes this thread when every check has passed, and on `passed` it sends the thread that hears of a pull request ("Telling the home") one line, once for a head: `<slug>: <pull request url> at <full head commit> is green, and its brief says Review: after`.
 - `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
 To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread: each line `jroles review` prints is one reviewer, told its number.

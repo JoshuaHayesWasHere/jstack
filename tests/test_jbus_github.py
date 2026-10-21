@@ -222,6 +222,23 @@ def test_a_fixed_green_pull_request_is_told_once_while_a_home_merges(launched):
     assert keys(launched) == ["green|alpha|cccccccccccc"]
 
 
+@pytest.mark.parametrize("home", [True, False])
+def test_a_green_after_pull_request_is_told_once_while_a_home_merges_with_its_reviewer_out(
+    launched, home
+):
+    """A `Review: after` pull request merges on green, and its review never holds it: a home
+    that merges hears it is green from its crew, whose reviewer may still be at work."""
+    brief = launched.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: after\n"))
+    result(launched, "Reviewer: mcp:reviewer\n")
+    if home:
+        (launched.home / "home-thread").write_text("mcp:home\n")
+    launched.set("jmerge.txt", "")
+    launched.set("open.json", [pull(launched)])
+    passes(launched, 0, 3)
+    assert keys(launched) == (["green|alpha|cccccccccccc"] if home else [])
+
+
 def test_a_pending_pull_request_that_owes_a_line_on_green_is_told_nothing_yet(launched):
     brief = launched.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))

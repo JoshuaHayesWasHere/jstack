@@ -266,11 +266,14 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     brief's first `Review:` line says `none`, with no `Reviewer: none` line, which the crew
     writes with its message, and no `Unrun:`, `Stuck:` or `Stale base:` line at this head,
     whose gate or message already holds it. Or one that is fixed while a home merges, which
-    hears of it on green alone."""
+    hears of it on green alone. A brief that says `Review: after` merges on green whatever
+    its review says, so it is owed the line while a home merges, its reviewer out or not."""
+    mode = _MODE.search(brief)
+    if mode and mode[1] == "after":
+        return bool(merge.home_thread(run))
     launched = len(_LAUNCHED.findall(brief))
     if launched > len(_REVIEWED.findall(brief)):
         return False
-    mode = _MODE.search(brief)
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
     reviewer = launched or _OWED.search(brief) or _REVIEWED.search(brief) or gated
     unsaid = not reviewer and mode and mode[1] == "none"

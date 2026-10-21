@@ -109,6 +109,16 @@ def test_a_review_that_was_delivered_is_clean_or_is_of_no_open_pull_request_is_n
     assert [line for line in kitchen.lines("gate") if "findings" in line] == []
 
 
+def test_the_findings_of_an_after_brief_go_to_its_cleanup_row_and_never_to_the_crew(kitchen):
+    """A `Review: after` pull request merges on its check: its findings are no work for its
+    crew, and a relay would have the crew race the merge with a fix."""
+    kitchen.brief("alpha", "Review: after\nThread: mcp:crew\n" + review())
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll()
+    assert sends(kitchen) == [] and kitchen.lines("relayed") == []
+    assert [line for line in kitchen.lines("gate") if "findings" in line] == []
+
+
 def test_undelivered_findings_with_no_thread_line_are_a_gate_once_and_nothing_is_sent(kitchen):
     kitchen.brief("alpha", review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
