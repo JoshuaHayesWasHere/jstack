@@ -239,7 +239,7 @@ def test_a_new_skill_is_in_every_layout_on_the_next_install_and_an_edit_is_live(
     assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
 
 
-@pytest.mark.parametrize("broken", ["conflicted", "missing"])
+@pytest.mark.parametrize("broken", ["conflicted", "missing", "wrong shape"])
 @pytest.mark.parametrize("args", [("--check",), ()], ids=["check", "install"])
 def test_a_source_whose_catalog_cannot_be_read_is_named_on_its_lines_and_ends_in_no_traceback(
     user, tmp_path, broken, args
@@ -248,6 +248,8 @@ def test_a_source_whose_catalog_cannot_be_read_is_named_on_its_lines_and_ends_in
     catalog = checkout / "skills.json"
     if broken == "missing":
         catalog.unlink()
+    elif broken == "wrong shape":
+        catalog.write_text("[1]\n")
     else:
         catalog.write_text("<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> theirs\n")
     done = user.start(*args, checkout=checkout)
