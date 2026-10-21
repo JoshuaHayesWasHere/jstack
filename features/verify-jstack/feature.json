@@ -3,9 +3,6 @@
   "name": "verify-jstack",
   "description": "Drives jstack's commands in a throwaway sandbox, the way a user does.",
   "owns": [
-    ".claude/skills/verify-jstack/SKILL.md",
-    ".claude/skills/verify-jstack/scripts/**",
-    ".claude/skills/verify-jstack/features/verify-jstack-harness.md",
-    "tests/test_verify_jstack.py"
+    ".claude/skills/verify-jstack/SKILL.md"
   ]
 }

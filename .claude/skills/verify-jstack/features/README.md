@@ -4,7 +4,7 @@ This directory is the maintained source for verifying what a user of jstack can 
 
 ## Baseline preconditions
 
-- Launch a sandbox with `.cursor/skills/verify-jstack/scripts/launch.sh` and source the `env.sh` it names, in every shell.
+- Launch a sandbox with `features/verify-jstack/project-skill/scripts/launch.sh` and source the `env.sh` it names, in every shell.
 - Launch from a shell that is in no sandbox. `launch.sh` refuses to run inside one.
 - Run `"$VERIFY_JSTACK_SCRIPTS/doctor.sh"` and require `doctor: ok`. Anything else is `doctor: not ok`, and nothing is driven in that sandbox, whichever line was `bad`. A `bad  <feature>: seed lacks <x>` line also fails that feature's journey: report it failed with that reason, and add the reason to the feature's `Gotchas`. Never weaken the journey to make it pass. A feature whose own line is `ok   <feature>: seed has ...` has not failed: clean up, and drive it in a new sandbox. A new sandbox with a `seed lacks` line is a fault in `launch.sh` or in the feature's `Needs:` line: drive nothing until it is fixed.
 - Use a new sandbox for each feature file. They run side by side, and a pass in one leaves marks (the five-minute gap between wakes, the first pass) that change what the next recipe sees.
@@ -79,7 +79,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [A scout answers one question](./scout-skill.md), not driven yet.
 - [The skill library](./skill-library.md), not driven yet.
 - [The skills a user types](./understanding-skills.md), not driven yet.
-- [The verify-jstack harness](./verify-jstack-harness.md), not driven yet.
+- [The verify-jstack harness](../../../../features/verify-jstack/verify.md), not driven yet.
 - [Writing for a reader](./writing-skills.md), not driven yet.
 
 No recipe drives these yet: `jgauge session`, `jgauge run` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.
