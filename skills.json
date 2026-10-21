@@ -446,7 +446,7 @@
     {
       "name": "grilling",
       "kind": "skill",
-      "path": "skills/grilling/SKILL.md",
+      "path": "features/grilling/SKILL.md",
       "source": "josh",
       "description": "Grill the user relentlessly about a plan, decision, or idea, until nothing is left assumed. Use for /grilling, or when a home plans work whose shape is not settled."
     },
@@ -677,13 +677,13 @@
     {
       "name": "grill-page.html",
       "kind": "template",
-      "path": "templates/grill-page.html",
+      "path": "features/grilling/templates/grill-page.html",
       "source": "josh"
     },
     {
       "name": "grill-round.schema.json",
       "kind": "template",
-      "path": "templates/grill-round.schema.json",
+      "path": "features/grilling/templates/grill-round.schema.json",
       "source": "josh"
     },
     {

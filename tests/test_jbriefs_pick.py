@@ -84,7 +84,7 @@ def test_a_question_is_the_homes_and_its_tip_is_named(home):
     assert from_stdin == [
         "role home: /home (skills/home/SKILL.md)",
         "playbook none: (no row the home runs fits)",
-        'tip grilling: /grilling (skills/grilling/SKILL.md), its tip "grill me"',
+        'tip grilling: /grilling (features/grilling/SKILL.md), its tip "grill me"',
     ]
 
 
@@ -93,7 +93,7 @@ def test_each_name_the_brief_gives_is_printed_and_an_unknown_one_is_not_dropped(
     assert said[2:] == [
         "named pr-review: /pr-review (features/pr-review/SKILL.md)",
         "unknown no-such-skill: (no skills/no-such-skill/SKILL.md)",
-        "named grilling: /grilling (skills/grilling/SKILL.md)",
+        "named grilling: /grilling (features/grilling/SKILL.md)",
     ]
 
 

@@ -25,6 +25,7 @@ from test_home_thread import (
     paths,
 )
 from test_jbus_kitchen import Kitchen, complete
+from testing.layouts import assembled
 from testing.paths import REPO
 
 TEMPLATE = REPO / "templates" / "gates.md"
@@ -77,7 +78,7 @@ class Home:
         self.dir, self.main = self.kitchen.home, self.kitchen.checkout
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(REPO / "skills")
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         (self.user / ".local" / "state").mkdir(parents=True)
         (self.user / ".local" / "state" / "home").symlink_to(self.dir.parent)
         (self.dir / "home-id").write_text(f"{ROOT}\n")
