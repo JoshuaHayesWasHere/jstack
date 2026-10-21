@@ -6,6 +6,8 @@ import json
 import shlex
 import shutil
 
+import pytest
+
 from test_home_merge import brief, git, merged_line, review
 
 FAKE_UV = """\
@@ -86,3 +88,120 @@ def test_a_reinstall_that_fails_is_said_on_the_merged_line(merged, tmp_path, mon
     )
     assert said == [merged_line(merged.on_main()[0], not_done)]
     assert tooled.calls() == [f"tool install --editable {main} --reinstall"]
+
+
+INSTALL = """\
+#!/bin/sh
+echo "$*" >> "$STUB/install-calls"
+[ ! -f "$STUB/install-fails" ] || { cat "$STUB/install-fails"; exit 1; }
+"""
+CATALOG = '{{"items": [{{"name": "demo", "kind": "skill", "path": "{}/demo/SKILL.md"}}]}}\n'
+
+
+class Skilled:
+    """A merged pull request whose checkout is a jstack checkout the machine's install was
+    made from: the Claude Code layout's `source` links to it. Its main has the skill `demo` at
+    `skills/demo/`, and an `install.sh` that keeps each run and changes nothing. With `moved`,
+    the pull request's head moves the skill to `features/demo/`, and changes `skills.json` as
+    the generator would; each path of `touched` it writes a line to, a file it adds or one
+    it changes. Every head also changes `a.txt`, which is no skill's."""
+
+    def __init__(self, merged, moved=False, touched=()):
+        self.merged, self.stub = merged, merged.home.stub
+        main, tree = merged.home.main, merged.tree
+        (main / "install.sh").write_text(INSTALL)
+        (main / "skills.json").write_text(CATALOG.format("skills"))
+        (main / "skills" / "demo").mkdir(parents=True)
+        (main / "skills" / "demo" / "SKILL.md").write_text("# demo\n")
+        git(main, "add", "install.sh", "skills.json", "skills")
+        git(main, "commit", "-q", "-m", "a skill")
+        git(main, "push", "-q", "origin", "main")
+        git(tree, "rebase", "-q", "origin/main")
+        if moved:
+            (tree / "features").mkdir()
+            git(tree, "mv", "skills/demo", "features/demo")
+            (tree / "skills.json").write_text(CATALOG.format("features"))
+        for path in touched:
+            (tree / path).parent.mkdir(parents=True, exist_ok=True)
+            with (tree / path).open("a") as written:
+                written.write("more\n")
+            git(tree, "add", path)
+        git(tree, "commit", "-q", "--allow-empty", "-am", "the change")
+        git(tree, "push", "-q", "-f", "origin", "alpha")
+        merged.head = git(tree, "rev-parse", "HEAD")
+        (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head)))
+        merged.home.open_pull_request(merged.head)
+        layout = merged.home.user / ".local" / "share" / "jstack" / "harness" / "claude-code"
+        layout.mkdir(parents=True)
+        (layout / "source").symlink_to(main)
+
+    def calls(self):
+        path = self.stub / "install-calls"
+        return path.read_text().splitlines() if path.exists() else []
+
+
+INSTALLED = "ran the install again in {}: the merge changed what it assembles"
+
+
+def test_a_merge_that_moves_a_skill_runs_the_install_once(merged, monkeypatch):
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, moved=True)
+    said = merged.run()
+    commit, pulled = merged.on_main()
+    assert pulled == commit
+    assert said == [merged_line(commit, INSTALLED.format(merged.home.main))]
+    assert skilled.calls() == [""]
+
+
+@pytest.mark.parametrize(
+    "touched",
+    ["skills/demo/notes.md", "skills/demo/SKILL.md", "plugin.json"],
+    ids=["a file added to a skill", "a file the catalog lists", "plugin.json"],
+)
+def test_a_merge_that_changes_what_the_install_reads_runs_it_once(merged, monkeypatch, touched):
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, touched=[touched])
+    said = merged.run()
+    assert said == [merged_line(merged.on_main()[0], INSTALLED.format(merged.home.main))]
+    assert skilled.calls() == [""]
+
+
+@pytest.mark.parametrize(
+    "touched",
+    [(), ("src/demo/a.py",), ("skills/demo/tests/test_a.py",), ("skills/demo/.notes",)],
+    ids=["nothing else", "code outside every skill", "a skill's tests", "a hidden file"],
+)
+def test_a_merge_that_changes_no_skill_runs_nothing(merged, monkeypatch, touched):
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, touched=touched)
+    said = merged.run()
+    assert said == [merged_line(merged.on_main()[0])]
+    assert skilled.calls() == []
+
+
+def test_a_machine_installed_from_elsewhere_is_not_installed_from_this_checkout(
+    merged, tmp_path, monkeypatch
+):
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, moved=True)
+    source = merged.home.user / ".local" / "share" / "jstack" / "harness" / "claude-code"
+    (source / "source").unlink()
+    (source / "source").symlink_to(tmp_path)
+    said = merged.run()
+    assert said == [merged_line(merged.on_main()[0])]
+    assert skilled.calls() == []
+
+
+def test_an_install_that_fails_is_said_on_the_merged_line(merged, monkeypatch):
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, moved=True)
+    (skilled.stub / "install-fails").write_text(
+        "ok hard layout claude-code /x\nold hard layout codex /y -> stale: skills/demo/SKILL.md\n"
+    )
+    said = merged.run()
+    not_done = (
+        "the install was not run again after the merge changed what it assembles "
+        "(sh install.sh: old hard layout codex /y -> stale: skills/demo/SKILL.md)"
+    )
+    assert said == [merged_line(merged.on_main()[0], not_done)]
+    assert skilled.calls() == [""]
