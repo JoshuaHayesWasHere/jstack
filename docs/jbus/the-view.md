@@ -8,7 +8,9 @@
 | `JBUS_VIEW_NAMES` | The host names, with commas, that a request may use beside `localhost` and the two addresses. A request under any other `Host` gets 403. |
 | `JBUS_VIEW_ORIGINS` | The origins, with commas, the view is reached at through a proxy that passes the `Host` header on, such as `https://<host name>`. A request under the host of one, with the scheme's default port or none, is known, and a write under it is taken only from that exact origin. The view refuses, at its start, a value that is not `http://` or `https://`, a host and an optional port, with no path. |
 
-To show the page, the view reads no config of jbus and no secret. It takes `GET` requests and one write, `POST /answer`. Any other method gets 405.
+To show the page, the view reads no config of jbus and no secret.
+It takes `GET` requests and two writes, `POST /answer` and `POST /steer`.
+Any other method gets 405.
 
 ### The look
 
@@ -73,7 +75,23 @@ To close several gates at once, tick their rows, or tick every row with the one 
 
 The answer is recorded as `jbus answer` records it: by the user of your settings, at the server's clock, in `jbus view`. An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send. If T3 Code refuses it or does not answer, the question is closed all the same, the page says why the answer was not sent, and the next pass sends it. A question is answered once: a second answer is refused, and the page shows the first one.
 
-There is no sign-in. The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer for you. Whoever can reach the port can answer, as any shell on this machine can with `jbus answer`. Only a write that has an answer to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+There is no sign-in.
+The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
+Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`, and a client that is not a browser sets the `Origin` header as it likes.
+Only a write that has an answer or a message to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+
+### Steer a work item
+
+`/state.json` lists the work items of the project under `items`, each live one and the 20 that ended last: its id, slug, title, state, owner, risk, `last_event` and its last five lines.
+A steer of one goes to `POST /steer?project=<project>`, with the body `{item, action, words, seen_event, confirm}`.
+`action` is `message`, `hold` or `redirect`, `words` is the message or a redirect's new brief, and `seen_event` is the item's last line as the page showed it.
+The view decides nothing of it: it calls `jbus.steer`, as `jbus item steer` does, by the user of your settings, in the view.
+The steer's line records the words typed in the view as what it rests on, with the basis `view`, the server's clock, and `checked` false, since they were typed.
+A steer whose `seen_event` is not the item's last line is 409, and its sentence quotes the line that came after, so a second POST of the same steer is 409 and is not written.
+A hold with no `confirm` is 400, an item the project does not have is 404, and any other refusal of `jbus.steer` is 409.
+The answer is `{at, item, say, state, last_event}`, read from the record after the write.
+A message goes to the item's home in the same request, and where T3 Code does not take it, the line is recorded, `say` tells why it was not sent, and the next pass sends it.
+`/steer` has the checks `/answer` has: a foreign `Host` or `Origin` is 403, a body that is too long or not of that shape is 400, and a project the state directory lacks is 404.
 
 ### Add a panel
 
