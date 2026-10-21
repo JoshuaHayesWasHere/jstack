@@ -31,7 +31,7 @@ class Pushed:
 
     def says(self):
         ran = subprocess.run(
-            ["sh", "-c", block("Stay on the pull request", "checks()").replace("<slug>", "alpha")],
+            ["sh", "-c", block("Stay on the pull request", "--checks").replace("<slug>", "alpha")],
             capture_output=True,
             text=True,
             cwd=self.work,
@@ -40,6 +40,7 @@ class Pushed:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
+                "T": str(SKILL.parent.parent.parent / "templates"),
             },
             check=True,
         )

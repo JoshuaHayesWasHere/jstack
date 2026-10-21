@@ -23,6 +23,7 @@ ONE_WAY = [
     ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),
     ("gate", "jbus gate <slug>, the gate's lines on stdin", "grep -c '^## '"),
     ("home", 'uv run --project "$T/.." jbus home "$B"', "s/^Home:[[:space:]]*"),
+    ("checks", 'uv run --project "$T/.." jmerge --checks', "checks() {"),
 ]
 
 
@@ -67,16 +68,20 @@ def test_a_copy_put_back_into_a_skill_is_caught_and_named_with_its_command(
 
 
 @pytest.mark.parametrize(("feature", "command", "fragment"), ONE_WAY)
-def test_the_command_that_owns_a_feature_is_one_jbus_runs(feature, command, fragment):
+def test_the_command_that_owns_a_feature_is_one_jstack_runs(feature, command, fragment):
     words = command.split()
-    verb = words[words.index("jbus") + 1]
+    (program,) = [word for word in words if word in ("jbus", "jmerge")]
+    asked = words[words.index(program) + 1]
+    verb = [asked] if program == "jbus" else []
     ran = subprocess.run(
-        ["uv", "run", "--project", str(REPO), "jbus", verb, "--help"],
+        ["uv", "run", "--project", str(REPO), program, *verb, "--help"],
         capture_output=True,
         text=True,
     )
     assert ran.returncode == 0, ran.stderr
-    assert ran.stdout.startswith(f"usage: jbus {verb} ")
+    assert ran.stdout.startswith(f"usage: {' '.join([program, *verb])} ")
+    if program == "jmerge":
+        assert asked in ran.stdout.split()
 
 
 FENCED = re.compile(r"^([ \t]*)```sh\n(.*?)^\1```", re.M | re.S)

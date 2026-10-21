@@ -63,8 +63,9 @@ from urllib.parse import urlsplit
 from jbus import END_TURN, dispatch, merge, read_json, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
-from jbus.watch import LIVE, TITLE, World, checks, crew_threads
+from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
 from jmerge import ready
+from jmerge.checks import check_state, latest_of_each
 
 EVENTS = {
     "rebase": "quiet",
@@ -148,7 +149,6 @@ _REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
 _MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
 _FIXED = re.compile(r"^Fixed: \S", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
-_FAILING = ("SUCCESS", "NEUTRAL", "SKIPPED", "PENDING", "EXPECTED", "")
 
 
 @dataclass(frozen=True)
@@ -305,28 +305,17 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
     if checks(pull) != "failed":
         return "", 0
     names, attempt = [], 1
-    for check in pull.get("statusCheckRollup") or []:
-        state = check.get("state") or check.get("conclusion") or ""
-        if check.get("status", "COMPLETED") != "COMPLETED" or state in _FAILING:
+    never = frozenset(pull.get(NEVER) or ())
+    for check in latest_of_each(pull.get("statusCheckRollup") or []):
+        if check_state(check, never) != "failed":
             continue
-        job = _JOB.match(urlsplit(check.get("detailsUrl") or "").path)
-        given = _job(run, *job.groups()) if job else {}
-        if given.get("steps") == []:
-            continue
+        found = _JOB.match(urlsplit(check.get("detailsUrl") or "").path)
+        given = job(run, *found.groups()) if found else {}
         attempt = max(attempt, int(given.get("run_attempt") or 1))
         names.append(check.get("name") or check.get("context") or "a check")
     if not names:
         return "", 0
     return f"{', '.join(dict.fromkeys(names))} failed", attempt
-
-
-def _job(run: Pass, repo: str, job: str) -> dict:
-    asked = run.run("gh", "api", f"repos/{repo}/actions/jobs/{job}")
-    try:
-        given = json.loads(asked.stdout) if asked.returncode == 0 else {}
-    except ValueError:
-        given = {}
-    return given if isinstance(given, dict) else {}
 
 
 def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> None:

@@ -760,7 +760,9 @@ class Kitchen:
             "title": f"feat: {slug}",
             "headRefName": slug,
             "headRefOid": "c" * 40,
-            "statusCheckRollup": [{"status": "COMPLETED", "conclusion": state}],
+            "statusCheckRollup": [
+                {"status": "COMPLETED" if state else "IN_PROGRESS", "conclusion": state}
+            ],
         }
 
     def commit(self, sha, message="a change", ago=timedelta(minutes=10)):

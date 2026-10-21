@@ -23,7 +23,7 @@ import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
 from jbus import mainstate
-from jmerge import claims, green, proof, rangediff, ready, rows, sweep
+from jmerge import checks, claims, green, proof, rangediff, ready, rows, sweep
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -1348,6 +1348,28 @@ class Sweep:
         return 0
 
 
+def _job(repo: str, job: str) -> dict:
+    """A job as GitHub gives it, or {} where it gives none."""
+    given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
+    try:
+        found = json.loads(given.stdout) if not given.returncode else {}
+    except ValueError:
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
+def said_of_checks(pull: str) -> str:
+    pr = [pull] if pull else []
+    try:
+        asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", "headRefOid,statusCheckRollup")
+        view = json.loads(asked.stdout) if not asked.returncode else None
+        rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
+        never = checks.never_started(rollup, _job)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return "wait: could not ask GitHub"
+    return checks.SAID[checks.checks(rollup, never)].format(head=head)
+
+
 def parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(
         prog="jmerge",
@@ -1374,7 +1396,8 @@ def parser() -> argparse.ArgumentParser:
         "--claims it changes nothing: it prints one line per brief that still holds files, "
         "with its state, its home and its Where line. With --accept it lifts the hold of one "
         "pull request, at the head the hold was said at, when a review proved its one safety "
-        "fact at that head, and merges it as any other.",
+        "fact at that head, and merges it as any other. With --checks it changes nothing: it "
+        "prints the state of one pull request's checks in a line.",
     )
     top.add_argument(
         "--check",
@@ -1400,6 +1423,15 @@ def parser() -> argparse.ArgumentParser:
         help="print each file the brief's branch changes that its Where: line does not cover, "
         "as 'outside: <path>', or 'wider: <path>: <why>' where the last Result's Wider: line "
         "gives a reason; nothing is printed when all are inside; merge, remove and log nothing",
+    )
+    instead.add_argument(
+        "--checks",
+        metavar="PR",
+        nargs="?",
+        const="",
+        help="print the state of a pull request's checks in one line, each check by its latest "
+        "run: passed, failed, wait or unrun, then why; the pull request is a number, an address "
+        "or a branch, by default the current branch's; merge, remove and log nothing",
     )
     instead.add_argument(
         "--accept",
@@ -1430,6 +1462,9 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.checks is not None:
+        print(said_of_checks(args.checks))
+        return 0
     try:
         user = jsettings.load()
     except jsettings.Invalid as error:
