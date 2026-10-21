@@ -34,7 +34,7 @@ from jinstall.kinds import Found
 from jinstall.machine import Dropped, Machine, Refused
 
 CATALOG = "skills.json"
-UNREADABLE = (OSError, ValueError, KeyError)
+UNREADABLE = (OSError, ValueError, KeyError, TypeError)
 """What reading a source whose `skills.json` is missing, not JSON or not its shape raises."""
 PLUGIN = "plugin.json"
 SHOWN = 1
