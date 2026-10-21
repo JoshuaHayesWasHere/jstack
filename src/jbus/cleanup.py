@@ -69,11 +69,17 @@ def filed(text: str) -> tuple[list[findings.Finding], int]:
     return kept, len(second) - len(kept)
 
 
-def brief(slug: str, text: str, merge: str) -> str:
-    """The cleanup row's brief for the brief `text` of `slug`, or nothing where its last
-    review asks for none. `merge` is the merge commit, or nothing while it is open."""
-    said = ready.said_of(text)
-    sent, dropped = filed(text)
+def brief(
+    slug: str,
+    text: str,
+    merge: str,
+    said: ready.Said,
+    kept: tuple[list[findings.Finding], int],
+) -> str:
+    """The cleanup row's brief for the brief `text` of `slug`, or nothing where it files no
+    finding. `said` is `ready.said_of(text)` and `kept` is `filed(text)`, each read once by
+    the caller. `merge` is the merge commit, or nothing while it is open."""
+    sent, dropped = kept
     if said.mode not in (ready.AFTER, ready.TWICE) or not sent:
         return ""
     url, _ = watch.named(mirror.last_result(text) or "")
@@ -82,9 +88,10 @@ def brief(slug: str, text: str, merge: str) -> str:
         if merge
         else OPEN.format(url=url, head=said.reviewed or "its head")
     )
-    listed = "\n".join(f"- {_shown(one)}" for one in sent)
+    twice = said.mode == ready.TWICE
+    listed = "\n".join(f"- {_shown(one, twice)}" for one in sent)
     places = sorted(dict.fromkeys(one.path for one in sent if one.path))
-    if said.mode == ready.TWICE:
+    if twice:
         head = (
             f"# {slug_of(slug)}: fix what the second review of {slug} found\n"
             f"Task: {slug} said `Review: twice`, so it merged once its second review was "
@@ -112,10 +119,13 @@ def brief(slug: str, text: str, merge: str) -> str:
     )
 
 
-def _shown(one: findings.Finding) -> str:
+def _shown(one: findings.Finding, twice: bool) -> str:
+    """One finding's line: a `twice` row's carries the severity it was filed for, and an
+    `after` row's is as it always was."""
     place = f"{one.path}:{one.line}" if one.line is not None else one.path
+    severity = f"{one.severity} " if twice else ""
     risk = f" (risk: {one.risk})" if one.risk else ""
-    return f"{one.id} {one.severity} {place}: {one.lead.what} ({one.bucket}){risk}"
+    return f"{one.id} {severity}{place}: {one.lead.what} ({one.bucket}){risk}"
 
 
 def _merge_commit(url: str) -> str:
@@ -147,13 +157,16 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
         raise jbus.Refused(f"refused: no brief at {path} ({error.strerror})") from error
     slug = path.stem
     said = ready.said_of(text)
-    why = ""
     if said.mode not in (ready.AFTER, ready.TWICE):
-        why = NOT_AFTER
-    elif said.mode == ready.TWICE and not ready.second_review(text):
-        why = FIRST
-    elif said.mode == ready.TWICE and not filed(text)[0]:
-        why = NO_WARNING.format(info=filed(text)[1])
+        print(NOT_AFTER)
+        return 1
+    if said.mode == ready.TWICE and not ready.second_review(text):
+        print(FIRST)
+        return 1
+    kept = filed(text)
+    why = ""
+    if said.mode == ready.TWICE and not kept[0]:
+        why = NO_WARNING.format(info=kept[1])
     elif said.verdict not in ("clean", "findings"):
         why = UNREVIEWED
     elif said.verdict == "clean":
@@ -166,7 +179,7 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
         print(why)
         return 1
     url, _ = watch.named(mirror.last_result(text) or "")
-    print(brief(slug, text, _merge_commit(url)), end="")
+    print(brief(slug, text, _merge_commit(url), said, kept), end="")
     return 0
 
 
