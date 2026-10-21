@@ -19,7 +19,7 @@ Tests: none
 - `decision-red` waits while the check named `check` has not passed.
 - `decision-integration` holds a pull request into a branch the project does not name, is ready once its state's `integration` file names that branch, and waits while that branch's own latest check failed (the merge itself, a squash into the branch and a merge commit for its landing, is not reachable from a sandbox: `tests/test_jmerge_integration.py` drives it).
 - `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `tests/test_home_merge.py` drives it).
-- `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `tests/test_jmerge_follow.py` drives it; `install-skills.md` drives the install it runs).
+- `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `tests/test_jmerge_follow.py` drives it; [jinstall's page](../../../../features/jinstall/verify.md) drives the install it runs).
 - `decision-claims` lists the briefs that still hold files.
 - `decision-check-merges-nothing` asks GitHub and merges nothing.
 

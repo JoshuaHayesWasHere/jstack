@@ -1,8 +1,10 @@
 """The verify-jstack skill's scripts: `launch.sh` says `ready:` only when a drive can run,
 `doctor.sh` fails a feature whose seed the sandbox lacks, and `record.sh` heads the evidence
-with what a stand-in set up. Every test runs the scripts, under a temporary `TMPDIR`."""
+with what a stand-in set up. Every test runs the scripts, under a temporary `TMPDIR`, but the
+last, which follows each link of the pages to the file it names."""
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +22,7 @@ FEATURES = sorted(
     [path.stem for path in PAGES.glob("*.md") if path.stem != "README"]
     + [path.parent.name for path in REPO.glob("features/*/verify.md")]
 )
+LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 
 
 def launch(tmp, scripts=SCRIPTS, path=os.environ["PATH"]):
@@ -216,3 +219,16 @@ def test_record_heads_the_evidence_with_what_a_stand_in_set_up(sandbox):
         assert any(stand_in in line for line in unverified), stand_in
     assert kept.count("# Set up by a stand-in") == 1
     assert runs.count("hello\n") == 3
+
+
+def test_each_link_of_a_page_goes_to_a_file_that_is_there():
+    pages = [*PAGES.glob("*.md"), *REPO.glob("features/*/verify.md")]
+    gone = [
+        f"{page.relative_to(REPO)}: {target}"
+        for page in pages
+        for target in LINK.findall(page.read_text())
+        if "://" not in target and not (page.parent / target).exists()
+    ]
+
+    assert len(pages) > len(FEATURES) // 2
+    assert gone == []
