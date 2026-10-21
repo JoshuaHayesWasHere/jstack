@@ -72,8 +72,9 @@ class Scene:
 
     def __init__(self, tmp_path, repo=None):
         self.user = tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        (self.user / ".claude" / "skills" / "expert").symlink_to((repo or assembled()) / "skills" / "expert")
+        skills = self.user / ".claude" / "skills"
+        skills.mkdir(parents=True)
+        (skills / "expert").symlink_to((repo or assembled()) / "skills" / "expert")
         self.state = self.user / ".local" / "state" / "home"
         self.folder = self.state / f"_{NAME}"
         (self.folder / "notes").mkdir(parents=True)
