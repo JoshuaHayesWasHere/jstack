@@ -20,7 +20,7 @@ import jleak
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Units, rewrite
+from jinstall.kinds import Units, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
 from testing.paths import REPO
 
@@ -68,9 +68,8 @@ SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
 def template(name):
-    """Where the source keeps the unit `name`: `templates/`, or the `units/` of its feature."""
-    (found,) = [*REPO.glob(f"templates/{name}"), *REPO.glob(f"features/*/units/{name}")]
-    return found
+    """Where the source keeps the unit `name`."""
+    return unit_templates(REPO)[name]
 
 
 def laid(home, harness="claude-code"):
@@ -569,6 +568,29 @@ def test_a_timer_that_is_not_enabled_is_old_and_a_run_enables_it(user):
     code, said = user.run("--check")
     assert (code, line_for(said, "units")) == (1, [f"old {units} -> jbus.timer is not enabled"])
     assert user.run() == (0, user.every("ok", units))
+
+
+def test_units_linked_where_templates_kept_them_before_a_move_are_old_and_a_run_relinks_them(
+    user,
+):
+    units = user.with_jbus()
+    user.run()
+    was = {
+        name: REPO / "templates" / name for name in ("jroles-mirror.service", "jroles-mirror.timer")
+    }
+    for name, there in was.items():
+        (user.units / name).unlink()
+        (user.units / name).symlink_to(there)
+    wanted = user.units / "timers.target.wants" / "jroles-mirror.timer"
+    wanted.unlink()
+    wanted.symlink_to(was["jroles-mirror.timer"])
+
+    stale = f"old {units} -> jroles-mirror.service -> {was['jroles-mirror.service']}"
+    assert line_for(user.run("--check")[1], "units") == [stale]
+    assert user.run() == (0, user.every("ok", units))
+    for name in was:
+        assert os.readlink(user.units / name) == str(template(name))
+    assert os.readlink(wanted) == str(template("jroles-mirror.timer"))
 
 
 def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone(user):

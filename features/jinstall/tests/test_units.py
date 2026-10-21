@@ -10,14 +10,10 @@ import sys
 
 import pytest
 
+from jinstall.kinds import unit_templates
 from testing.paths import REPO
 
-PATHS = {
-    path.name: path
-    for folder in ("templates", "features/*/units")
-    for path in REPO.glob(f"{folder}/*")
-    if path.suffix in (".service", ".timer")
-}
+PATHS = unit_templates(REPO)
 UNITS = sorted(PATHS)
 DOCUMENTED = re.compile(r"file:%Y/\.\./docs/([a-z/-]+\.md)#([a-z0-9-]+)")
 
