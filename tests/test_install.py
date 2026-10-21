@@ -1109,7 +1109,7 @@ def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user,
         if (REPO / name).exists():
             (checkout / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPO / name, checkout / name, follow_symlinks=False)
-    skill = checkout / "skills" / "bro" / "SKILL.md"
+    skill = checkout / "features" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text() + "\nOne more line.\n")
     stale = f"stale: {HARNESS}/skills/bro/SKILL.md"
 

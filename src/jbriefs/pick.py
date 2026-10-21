@@ -60,6 +60,7 @@ class Row:
 class Skill:
     name: str
     phrases: tuple[str, ...]
+    path: str = ""
 
 
 @dataclass(frozen=True)
@@ -111,12 +112,13 @@ def rows(root: Path | None = None) -> list[Row]:
 
 def skills(root: Path | None = None) -> dict[str, Skill]:
     found = {}
-    for _, path in sorted(listed("skill", root).items()):
+    at = checkout() if root is None else root
+    for _, path in sorted(listed("skill", at).items()):
         fields = front(path.read_text())
         name = fields.get("name") or path.parent.name
         tip = fields.get("tip", "").split("|")
         phrases = tuple(p.strip() for p in tip[1:] if p.strip()) if tip[0].strip() else ()
-        found[name] = Skill(name, phrases)
+        found[name] = Skill(name, phrases, path.relative_to(at).as_posix())
     return found
 
 
@@ -260,19 +262,23 @@ def pick(job: Work, root: Path | None = None) -> list[Line]:
     """The lines `jbriefs pick` prints for a piece of work, each naming a file that is there,
     or `unknown`."""
     found = skills(root)
+
+    def where(name: str) -> str:
+        return found[name].path if name in found else f"skills/{name}/SKILL.md"
+
     role = job.role
-    lines = [Line("role", role.skill, f"{role.command(job.slug)} (skills/{role.skill}/SKILL.md)")]
+    lines = [Line("role", role.skill, f"{role.command(job.slug)} ({where(role.skill)})")]
     lines.append(playbook(job, root))
     tips = tipped(_tip_text(job), found)
     for name, phrase in tips:
-        lines.append(Line("tip", name, f'/{name} (skills/{name}/SKILL.md), its tip "{phrase}"'))
+        lines.append(Line("tip", name, f'/{name} ({where(name)}), its tip "{phrase}"'))
     given = {role.skill, *(name for name, _ in tips)}
     for name in named(_own_text(job)):
         if name in given:
             continue
         given.add(name)
         if name in found:
-            lines.append(Line("named", name, f"/{name} (skills/{name}/SKILL.md)"))
+            lines.append(Line("named", name, f"/{name} ({where(name)})"))
         else:
             lines.append(Line("unknown", name, f"(no skills/{name}/SKILL.md)"))
     return lines

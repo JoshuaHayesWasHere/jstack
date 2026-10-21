@@ -22,7 +22,7 @@ import pytest
 
 from jdrift.explained import BUILT, build
 from jdrift.explained import COMMENT as CARD
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 PAGE = REPO / "docs" / "jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
@@ -143,8 +143,9 @@ MADE_UP_PAGE = """<h2>Hand-written</h2>
 <p>The end.</p>
 """
 MADE_UP = {
-    "skills/how/SKILL.md": '---\nname: how\ncard: "Read | 2 | Says <how> & why. | When `x` is new. '
-    '| op: the operator; plain: a step of `one`"\n---\n\n# How\n\ncard: "not this"\n',
+    "features/how/SKILL.md": '---\nname: how\ncard: "Read | 2 | Says <how> & why. '
+    '| When `x` is new. | op: the operator; plain: a step of `one`"\n---\n\n# How\n\n'
+    'card: "not this"\n',
     "skills/scout/SKILL.md": '---\nname: scout\ncard: "Read | 1 | Finds out. | When asked. '
     '| model: a home | look: scout"\n---\n\n# Scout\n',
     "playbooks/one.md": "# One\n\n<!-- card: Build | 1 | One thing. -->\n\n1. Do it.\n",
@@ -155,7 +156,8 @@ MADE_UP = {
 
 @pytest.fixture
 def tree(tmp_path):
-    """A made-up tree of two skills, two playbooks and a principle, with a page of four tiles."""
+    """A made-up tree of two skills (one moved into its feature), two playbooks and a principle,
+    with a page of four tiles."""
     for name, text in {**MADE_UP, "docs/jstack-explained.html": MADE_UP_PAGE}.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text(text)
@@ -182,7 +184,7 @@ def carded(page, prefix):
 
 
 KINDS = {
-    "skill-": lambda: {path.parent.name for path in (REPO / "skills").glob("*/SKILL.md")},
+    "skill-": lambda: set(skills()),
     "playbook-": lambda: {path.stem for path in (REPO / "playbooks").glob("*.md")},
     "principle-": lambda: {path.stem for path in (REPO / "principles").glob("*.md")},
 }
@@ -243,7 +245,7 @@ def test_a_card_has_the_words_of_its_own_file(tree):
 def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to_the_page(
     tmp_path,
 ):
-    for folder in ("skills", "playbooks", "principles"):
+    for folder in ("skills", "features", "playbooks", "principles"):
         shutil.copytree(REPO / folder, tmp_path / folder)
     (tmp_path / "docs").mkdir()
     page = Path(shutil.copy(PAGE, tmp_path / "docs"))

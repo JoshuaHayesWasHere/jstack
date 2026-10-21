@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "teach",
-  "description": "Explains a body of work plainly until you understand it.",
-  "owns": [
-    "skills/teach/**"
-  ]
+  "description": "Explains a body of work plainly until you understand it."
 }

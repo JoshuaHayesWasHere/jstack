@@ -12,11 +12,12 @@ from datetime import date
 import pytest
 
 import test_home_thread
+from jbriefs.skills import listed
 from test_claims import PULLS, brief, result
 from test_home_merge import ME, OTHER, Home, block, paths
 from test_home_thread import NAME, Scene
 from test_scoped_home import ROOT, SCOPE, SCOPED, Homes
-from test_tool_calls import SKILLS, Call, errors
+from test_tool_calls import Call, errors
 
 NEW = "release"
 PREFIX = "rl-"
@@ -77,7 +78,7 @@ def test_the_launch_it_prints_is_a_call_the_tool_takes_and_starts_that_scope_s_h
         "message": f"/home {NEW}",
     }
     skill, _, typed = sent["message"].removeprefix("/").partition(" ")
-    assert (SKILLS / skill / "SKILL.md").is_file()
+    assert skill in listed("skill")
     assert homes.which_home(typed) == [f"scope {NEW}", f"title: {sent['title']}"]
 
 

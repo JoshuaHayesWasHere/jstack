@@ -5,12 +5,12 @@ file holds no trigger line of its own."""
 import pytest
 
 from test_home_thread import NAMED, named
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 CAP = 400
 ROLES = REPO / "skills"
 OVER = {ROLES / "handoff"}
-SKILLS = sorted(ROLES.glob("*/SKILL.md"))
+SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SIDES = sorted(side for skill in SKILLS for side in skill.parent.glob("*.md") if side != skill)
 
 
