@@ -1,12 +1,12 @@
 ---
 name: verify-main-red
-description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jbus.mainstate` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainstate, `jmerge.rows.red`, the pass order in `jbus.cli`, `watch._check`'s answers or the "Main is not red" rule in docs/jmerge.md, and on unit 6's move of `jbus.mainstate` to `jmerge.mainjson`.
+description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainjson, `jmerge.rows.red`, the pass order in `jbus.cli`, `watch._check`'s answers or the "Main is not red" rule in docs/jmerge.md, and on any move of the modules it names.
 ---
 
 # verify-main-red
 
 `main.json` in a jbus project's state is the one record of main's red tip.
-`mainmoved.tell` (`src/jbus/mainmoved.py:107-219`) is its only writer, once a pass; `mainstate.of` (`src/jbus/mainstate.py:44-56`) reads it; `jmerge.rows.red` (`src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
+`mainmoved.tell` (`src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
 A test runs the orders someone wrote down.
 This check runs every order of merges, check answers, T3 Code answers and passes within its bounds, through the real `tell` and the real `rows.red`, and checks two properties after every pass:
 
@@ -25,15 +25,15 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 Rerun it when the diff touches any of these:
 
 - `src/jbus/mainmoved.py` (`tell`, `main_check`, `SETTLED`, the `STEPS` slot);
-- `src/jbus/mainstate.py` (`of`, `read`, `GREEN`, `FIXED`, `FIX`);
+- `src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`);
 - `src/jmerge/rows.py` (`main`, `red`);
 - `src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `src/jbus/merge.py`;
 - `src/jbus/watch.py` `_check` (797-828), the answers a tip's check can have;
 - `write_json` in `src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `docs/jmerge.md`;
-- unit 6 of the plan, which moves `jbus.mainstate` to `jmerge.mainjson`: the model imports `mainstate` and stubs by module attribute, so the move changes its imports and its stubs, and the check is rerun on the moved code.
+- a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
 
-`scripts/select_tests.py` selects `tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainstate.py`, `rows.py`, `merge.py`, `cli.py` or `docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
+`scripts/select_tests.py` selects `tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainjson.py`, `rows.py`, `merge.py`, `cli.py` or `docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
 Run it by hand anyway when you change the contract on purpose: what it prints is the point.
 
 ## Run it
@@ -78,7 +78,7 @@ The line numbers below are of the code before the fix (`fa810ec`).
 
 - **F1 (S2).**
   After a red tip M1, a green M2 whose send T3 Code loses writes only `fixed` (`mainmoved.py:173`) and keeps `broken: M1`.
-  The next pass, at a tip M3 whose check is pending, writes `broken: M1` again (164-165, `check != "green"`) and drops `fixed`: `mainstate.of` reads `red=M1` with `green=M2`.
+  The next pass, at a tip M3 whose check is pending, writes `broken: M1` again (164-165, `check != "green"`) and drops `fixed`: `mainstate.of` (now `mainjson.of`) read `red=M1` with `green=M2`.
 - **F2 (S1).**
   A tip that fails and is followed by another before a pass looks at it is never kept as `broken`: `broken` comes from the newest tip's own check (97-99).
   With the newest pending, `rows.red` is empty and jmerge merges onto the red main.
@@ -98,15 +98,15 @@ S2 breaks in 3 of 1006 states (Options(one_at_a_time=True, lost_sends=True)), ag
   1. start: M0 is green, no main.json, one red pull request
   2. M1 lands: jmerge merges beta
   3. M1's check settles: failed
-  4. pass (no send): tell writes main.json {"broken": "M1", "check": "failed", "main": "M1"}; mainstate reads red=M1 green=-
+  4. pass (no send): tell writes main.json {"broken": "M1", "check": "failed", "main": "M1"}; mainjson reads red=M1 green=-
   5. M2 lands: another merge (the fix, or by hand)
   6. M2's check settles: green
-  7. pass (T3 Code loses the send): tell writes main.json {"broken": "M1", "check": "failed", "fixed": "M2", "main": "M1"}; mainstate reads red=- green=M2
+  7. pass (T3 Code loses the send): tell writes main.json {"broken": "M1", "check": "failed", "fixed": "M2", "main": "M1"}; mainjson reads red=- green=M2
   8. M3 lands: jmerge merges beta
-  9. pass (no send): tell writes main.json {"broken": "M1", "check": "pending", "green": "M2", "main": "M3"}; mainstate reads red=M1 green=M2
+  9. pass (no send): tell writes main.json {"broken": "M1", "check": "pending", "green": "M2", "main": "M3"}; mainjson reads red=M1 green=M2
 ```
 
-The record after a `pass` is what the real `tell` wrote; `red` and `green` are what the real `mainstate.read` gives.
+The record after a `pass` is what the real `tell` wrote; `red` and `green` are what the real `mainjson.read` gives.
 `pass (no send)` is a pass in which no message went, so T3 Code's answer did not matter.
 
 ## A real bug or a modeling error
@@ -117,8 +117,8 @@ Check every step against this table; a step no line backs is a modeling error, a
 | Step | Backed by |
 |---|---|
 | `pass (...)` | one `tell` under the pass lock, `src/jbus/cli.py:215-219`, in the `after-expedite` slot, `src/jbus/mainmoved.py:222-230` |
-| `Mn lands: jmerge merges beta` | `rows.red(mainstate.read(state), "beta")` was empty, `src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `src/jbus/cli.py:146` |
-| `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainstate.fix_of`), a merge by hand, `jmerge --accept` |
+| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `src/jbus/cli.py:146` |
+| `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainjson.fix_of`), a merge by hand, `jmerge --accept` |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `src/jbus/watch.py:797-828`; `pending` is a check not ended |
 | `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `src/jbus/mainmoved.py:185-195` |
 
@@ -132,11 +132,11 @@ When every step is backed, the trace is a real bug: report it with the trace, in
 
 - **A fix lands for a finding.**
   A finding the walk finds is a strict `xfail` until it is fixed, and its test fails as `XPASS(strict)` once the fix lands: remove that `xfail` mark, and run again to see it pass.
-- **`main.json` gets a new key, or `mainstate.of` reads it differently.**
+- **`main.json` gets a new key, or `mainjson.of` reads it differently.**
   The model writes and reads the real files and keys its states on the whole record, so nothing in it changes unless a new input reaches `tell`: model that input as a new event in `steps`, with its code line in the docstring.
 - **A new input reaches `tell`** (a held message, a second pull request, a conflict): add it to `State`, give it events in `steps`, add its kind to `test_the_walk_reaches_every_event_the_model_has`, and say it in the docstring's scope.
   Raise `TIPS` or `EVENTS` only with the run time measured again.
-- **A module moves** (unit 6, `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
+- **A module moves** (as unit 6 moved `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
   Different counts after a pure move mean the move changed behavior.
 - **The property changes.**
   Change `s1` or `s2` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `7 passed` (or the new count).

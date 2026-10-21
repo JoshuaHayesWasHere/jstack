@@ -11,7 +11,7 @@ from datetime import timedelta
 import jbus.queue
 import jbus.wake
 import test_jbus_main_moved
-from jbus import mainstate
+from jmerge import mainjson
 from jmerge import rows as jmerge_rows
 from test_jbus_kitchen import NOW, approved, complete, go, queued
 from test_jbus_main_moved import checks, move, pull, tip
@@ -19,7 +19,7 @@ from test_jbus_watch import main_of, main_red
 
 
 def kept(kitchen):
-    return mainstate.read(kitchen.state)
+    return mainjson.read(kitchen.state)
 
 
 def launched(kitchen):
@@ -59,7 +59,7 @@ def test_a_green_tip_is_the_last_green_main(kitchen):
     green = tip(kitchen)
     checks(kitchen, green, "success")
     kitchen.poll()
-    assert kept(kitchen) == mainstate.Main(green=green)
+    assert kept(kitchen) == mainjson.Main(green=green)
 
 
 def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
@@ -68,7 +68,7 @@ def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
     kitchen.poll()
     red = move(kitchen, "failure")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert kept(kitchen) == mainstate.Main(green=green, red=red)
+    assert kept(kitchen) == mainjson.Main(green=green, red=red)
 
 
 def test_a_red_main_with_no_merge_in_a_day_is_still_kept_as_red(kitchen):
@@ -76,7 +76,7 @@ def test_a_red_main_with_no_merge_in_a_day_is_still_kept_as_red(kitchen):
     red = tip(kitchen)
     checks(kitchen, red, "failure")
     kitchen.poll()
-    assert kept(kitchen) == mainstate.Main(red=red)
+    assert kept(kitchen) == mainjson.Main(red=red)
     assert main_red(kitchen) == []
 
 
@@ -85,7 +85,7 @@ def test_a_later_green_tip_clears_the_red_and_becomes_the_green(kitchen):
     kitchen.poll()
     green = move(kitchen, "success")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert kept(kitchen) == mainstate.Main(green=green)
+    assert kept(kitchen) == mainjson.Main(green=green)
 
 
 def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
@@ -96,7 +96,7 @@ def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
     kitchen.poll(NOW + timedelta(minutes=3))
     move(kitchen, "")
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert kept(kitchen) == mainstate.Main(green=green, red=red)
+    assert kept(kitchen) == mainjson.Main(green=green, red=red)
 
 
 def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitchen):
@@ -134,13 +134,13 @@ def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews)
     crews.poll()
     record = json.loads((crews.state / "main.json").read_text())
     assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
-    assert kept(crews) == mainstate.Main(green=green)
+    assert kept(crews) == mainjson.Main(green=green)
     assert jmerge_rows.main(crews.checkout).red == ""
 
 
 def test_a_record_from_before_broken_was_kept_names_its_failed_tip_as_red():
     record = {"main": "d" * 40, "check": "failed"}
-    assert mainstate.of(record) == mainstate.Main(red="d" * 40)
+    assert mainjson.of(record) == mainjson.Main(red="d" * 40)
 
 
 def test_a_launched_brief_names_the_last_green_main_on_a_green_main_line(kitchen):

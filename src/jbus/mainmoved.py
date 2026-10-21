@@ -7,7 +7,7 @@ sends the crew of each open pull request that is red one message when main goes 
 green: a main that moved while green was no reason for a branch to move. A red tip is kept
 as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
 when it landed, or a second red one, loses nothing, and the last tip whose check passed is
-kept as `green`: `main.json` is the one record of main's red tip, which `mainstate` reads for
+kept as `green`: `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for
 a launch and for `jmerge`. Each tip main went through since the last pass is looked at in
 order (`landed`), so a tip that failed or passed under a newer one before a pass saw it
 counts, and a tip whose check has not ended is kept as `pending` and looked at again until
@@ -22,7 +22,7 @@ The message names the green tip that ended the red, and its key,
 `sent.json`. The commit in `main.json` moves on only when no send is owed, so a
 pass that got no answer looks again, and the mark keeps what was told from being told twice.
 A pass that still owes a send writes only `fixed`, the green tip, so main reads as green for
-`mainstate` while the record keeps the commit to look at again, and the next pass takes the
+`jmerge.mainjson` while the record keeps the commit to look at again, and the next pass takes the
 red as ended there, whatever tip main is at by then.
 So does a pass in which GitHub had not yet said whether a red head the rebase message went to
 still conflicts.
@@ -42,17 +42,18 @@ message says what to do of its failed check, so `rebase.github` does not say it 
 
 from __future__ import annotations
 
-from jbus import dispatch, mainstate, read_json, rebase, verbs, write_json
+from jbus import dispatch, read_json, rebase, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import World, _api, _check, checks
+from jmerge import mainjson
+from jmerge.mainjson import SETTLED
 
 EVENTS = {"mainmoved": "quiet"}
 RED = "red: checks failed"
 NO_THREAD = "red pull request with no thread to tell"
 REFUSED = "T3 Code refused the main-moved message"
 MERGEABLE_UNKNOWN, MERGEABLE_CONFLICTING = "UNKNOWN", "CONFLICTING"
-SETTLED = ("green", "failed")
 WAITING = 10
 MESSAGE = (
     "jbus: main is green again at {main} while your pull request #{number} is {why}. If main "
@@ -118,13 +119,13 @@ def tell(run: Pass, client: Client, world: World) -> None:
     main = (asked.stdout.split() or [""])[0]
     if asked.returncode != 0 or not main:
         return
-    path = run.state / "main.json"
-    was = read_json(path, {})
+    path = run.state / mainjson.NAME
+    was = mainjson.load(run.state) or {}
     last, kept, broken = was.get("main"), was.get("held", []), was.get("broken", "")
     asked_before = main == last and was.get("check") in SETTLED
     if asked_before and not kept:
         return
-    red, owed_at = broken, was.get(mainstate.FIXED, "")
+    red, owed_at = broken, was.get("fixed", "")
     if owed_at or was.get("check") == "green":
         broken = ""
     green, check, waiting = "", "", []
@@ -201,22 +202,20 @@ def tell(run: Pass, client: Client, world: World) -> None:
         run.find(slug, "mainmoved", line, message, key=f"#{number} {fixed[:12]}")
         run.say(line)
     if not owed:
-        at = was.get("at") if main == last else run.now.isoformat()
-        record = {"main": main, "at": at, "check": check}
-        if broken:
-            record["broken"] = broken
-        elif held:
-            record["broken"], record[mainstate.FIXED] = red, fixed
-        if waiting:
-            record["pending"] = waiting[-WAITING:]
-        green = green or mainstate.of(was).green
-        if green:
-            record[mainstate.GREEN] = green
-        if held:
-            record["held"] = held
+        at = (was.get("at") if main == last else "") or run.now.isoformat()
+        record = mainjson.record(
+            main=main,
+            at=at,
+            check=check,
+            broken=broken or (red if held else ""),
+            fixed="" if broken or not held else fixed,
+            pending=waiting[-WAITING:],
+            green=green or mainjson.of(was).green,
+            held=held,
+        )
         write_json(path, record)
     else:
-        write_json(path, {**was, mainstate.FIXED: fixed})
+        write_json(path, mainjson.owed(was, fixed))
 
 
 STEPS = (

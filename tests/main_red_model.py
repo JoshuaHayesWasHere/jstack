@@ -6,7 +6,7 @@ The two properties, from the rule "Main is not red" in `docs/jmerge.md`, checked
 record after every pass:
 
 - **S1, no merge onto a known red main.** When the newest tip whose check has settled
-  (`mainmoved.SETTLED`: `green` or `failed`) failed, `rows.red` is not empty for a slug
+  (`mainjson.SETTLED`: `green` or `failed`) failed, `rows.red` is not empty for a slug
   that is not a fix.
   The harm when it breaks: jmerge merges pull requests onto a main whose check failed, so
   each one lands on a red base and the red spreads.
@@ -29,7 +29,7 @@ What one step is, in the code:
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`.
   It may fall between any two passes, and it sees a whole record, never a half-written
   one: `write_json` writes a temporary file and `os.replace`s it (`src/jbus/__init__.py:
-  434-444`). It is allowed only where `rows.red(mainstate.read(state), "beta")` is empty
+  434-444`). It is allowed only where `rows.red(mainjson.read(state), "beta")` is empty
   (`src/jmerge/rows.py:84-87`).
 - **lands, another merge**: a merge that does not ask `rows.red`: the fix `main-red-<sha12>`,
   a merge by hand, or `--accept`. Always allowed.
@@ -74,10 +74,10 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from jbus import dispatch, mainmoved, mainstate, read_json, rebase, write_json
+from jbus import dispatch, mainmoved, read_json, rebase, write_json
 from jbus.t3 import T3Error, T3Refused
 from jbus.watch import World
-from jmerge import rows
+from jmerge import mainjson, rows
 
 RULE = "docs/jmerge.md"
 TIPS = 4
@@ -98,7 +98,7 @@ def sha(tip: int) -> str:
 def name(text: str) -> str:
     """A record or a line with each tip's commit written as its name, `M<n>`."""
     for tip in range(TIPS):
-        text = text.replace(sha(tip), f"M{tip}").replace(sha(tip)[: mainstate.SHA], f"M{tip}")
+        text = text.replace(sha(tip), f"M{tip}").replace(sha(tip)[: mainjson.SHA], f"M{tip}")
     return text
 
 
@@ -217,7 +217,7 @@ class Files:
         self.state = root
 
     def put(self, state: State) -> None:
-        path = self.state / mainstate.NAME
+        path = self.state / mainjson.NAME
         if state.record:
             path.write_text(state.record)
         else:
@@ -225,9 +225,9 @@ class Files:
         (self.state / "sent.json").write_text(state.sent)
 
     def red(self, state: State) -> str:
-        """jmerge's read: `rows.red(mainstate.read(state), slug)` for a slug that is no fix."""
+        """jmerge's read: `rows.red(mainjson.read(state), slug)` for a slug that is no fix."""
         self.put(state)
-        return rows.red(mainstate.read(self.state), MERGED)
+        return rows.red(mainjson.read(self.state), MERGED)
 
     def tell(self, state: State, answer: str) -> tuple[State, bool]:
         """One pass: the real `tell` over the state's files. It also says whether a send went."""
@@ -237,7 +237,7 @@ class Files:
         client = FakeClient(answer)
         world = World(open={RED_PR: red_pull()} if state.pull else {})
         mainmoved.tell(run, client, world)  # type: ignore[arg-type]
-        path = self.state / mainstate.NAME
+        path = self.state / mainjson.NAME
         record = path.read_text() if path.exists() else ""
         sent = (self.state / "sent.json").read_text()
         looked = state.checks[-1] != "pending"
@@ -246,7 +246,7 @@ class Files:
 
 def s1(state: State, files: Files) -> bool:
     """S1 on a state a pass left."""
-    settled = [check for check in state.checks if check in mainmoved.SETTLED]
+    settled = [check for check in state.checks if check in mainjson.SETTLED]
     return not settled or settled[-1] != "failed" or files.red(state) != ""
 
 
@@ -254,7 +254,7 @@ def s2(state: State, files: Files) -> bool:
     """S2 on a state a pass left."""
     if not files.red(state):
         return True
-    red = mainstate.read(files.state).red
+    red = mainjson.read(files.state).red
     tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
     return "green" not in state.checks[tip + 1 :]
 
@@ -296,13 +296,13 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
     answers = (ANSWERS, LOSES, REFUSES) if options.lost_sends else (ANSWERS, REFUSES)
     for answer in answers:
         after, sent = files.tell(state, answer)
-        main = mainstate.read(files.state)
+        main = mainjson.read(files.state)
         written = {key: value for key, value in json.loads(after.record).items() if key != "at"}
         record = name(json.dumps(written, sort_keys=True))
         words = f"T3 Code {answer}" if sent else "no send"
         line = (
             f"pass ({words}): tell writes main.json {record}; "
-            f"mainstate reads red={name(main.red) or '-'} green={name(main.green) or '-'}"
+            f"mainjson reads red={name(main.red) or '-'} green={name(main.green) or '-'}"
         )
         yield Step(words, line, after, passed=True)
         if not sent:
