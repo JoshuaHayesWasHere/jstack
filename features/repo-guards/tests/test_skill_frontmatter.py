@@ -16,8 +16,8 @@ from testing.paths import REPO, skills
 
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SHIPPED = sorted([*SKILLS, *REPO.glob(".cursor/skills/*/SKILL.md")])
-NAMED_TREE = Path(__file__).parent / "fixtures" / "skills" / "named-tree"
-NO_KEY = Path(__file__).parent / "fixtures" / "skills" / "no-key" / "SKILL.md"
+NAMED_TREE = REPO / "tests" / "fixtures" / "skills" / "named-tree"
+NO_KEY = REPO / "tests" / "fixtures" / "skills" / "no-key" / "SKILL.md"
 KEY = "disable-model-invocation"
 
 

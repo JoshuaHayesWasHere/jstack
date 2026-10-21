@@ -182,7 +182,7 @@ The Python code is one `uv` project.
 
 `make check` is the one check command. It runs the lint and test commands above, in that order, and stops at the first that fails. CI runs `make check-fast` on a pull request, `make check` on main, and `make check-browser` runs the `browser` tests nightly and on a release.
 
-`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
+`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
 `verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
 

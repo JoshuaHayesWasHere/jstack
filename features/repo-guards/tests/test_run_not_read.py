@@ -32,7 +32,7 @@ import pytest
 
 from testing.paths import REPO
 
-TESTS = Path(__file__).parent
+TESTS = REPO / "tests"
 DOCS = ("skills", "playbooks", "principles", "templates")
 DOC_PATH = re.compile(rf"^(\.*/)*({'|'.join(DOCS)})(/|$)|/({'|'.join(DOCS)})/")
 FILE_NAME = re.compile(r"^[\w.*/-]*\.(md|py|sh|json|toml|txt|yml|yaml|html|css|js)$")
