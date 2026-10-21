@@ -1078,7 +1078,8 @@ def refused(text):
     """The lines whose value YAML refuses, by line number: an unquoted value that holds `: `
     or ends `:`, which YAML reads as a second mapping on one line. GitHub cannot use such a
     file, and reports a run named after its path with no jobs on every push, whatever its
-    triggers say. A block scalar's lines (after `|` or `>`) are the shell's, not YAML's."""
+    triggers say. A block scalar's lines (after `|` or `>`, indented past its key, not past a
+    list item's dash) are the shell's, not YAML's."""
     found, under = [], None
     for number, line in enumerate(text.splitlines(), 1):
         indent = len(line) - len(line.lstrip())
@@ -1088,7 +1089,8 @@ def refused(text):
         content = line.strip()
         if not content or content.startswith("#"):
             continue
-        content = content.removeprefix("- ")
+        item = content.removeprefix("- ").lstrip()
+        column, content = indent + len(content) - len(item), item
         if ": " not in content:
             continue
         value = content.partition(": ")[2].strip()
@@ -1096,7 +1098,7 @@ def refused(text):
             continue
         value = value.partition(" #")[0].strip()
         if value[0] in "|>":
-            under = indent
+            under = column
         elif ": " in value or value.endswith(":"):
             found.append(number)
     return found
@@ -1116,6 +1118,16 @@ def test_an_unquoted_value_with_a_colon_and_a_space_is_refused_and_a_quoted_or_b
     assert refused(f"jobs:\n  one:\n{step}        run: '{bad.strip()}'\n") == []
     assert refused("on:\n  push:\n    tags: v* # a: tag\n") == []
     assert refused("on:\n  push: # note: x\n    tags: v*\n") == []
+
+
+def test_a_bad_line_after_a_block_scalar_is_still_refused():
+    steps = "jobs:\n  one:\n    steps:\n"
+    block = "      - run: |\n          echo a: b\n"
+    assert refused(f"{steps}{block}        name: Install: x\n") == [6]
+    assert refused(f"{steps}{block}      - name: Install: x\n") == [6]
+    assert refused(f"{steps}{block}        name: install\n") == []
+    keyed = "      - name: x\n        run: |\n          echo a: b\n"
+    assert refused(f"{steps}{keyed}        if: a: b\n") == [7]
 
 
 VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
