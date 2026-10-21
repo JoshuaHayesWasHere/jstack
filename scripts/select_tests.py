@@ -83,9 +83,11 @@ class Unread(Exception):
 @cache
 def ready():
     """jmerge's reading of a list of paths, from this checkout's packages: each folder
-    `harness/jstack/pythonpath` lists, as `install.sh` puts them on the path."""
+    `harness/jstack/pythonpath` lists, as `install.sh` puts them on the path, or `src/` in a
+    checkout with no such list."""
+    listed = ROOT / "harness/jstack/pythonpath"
     try:
-        folders = (ROOT / "harness/jstack/pythonpath").read_text().split()
+        folders = listed.read_text().split() if listed.is_file() else ["src"]
         sys.path[:0] = [str(ROOT / folder) for folder in folders]
         from jmerge.ready import _protects, patterns_of
     except Exception as error:
