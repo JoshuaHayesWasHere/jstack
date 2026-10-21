@@ -29,6 +29,10 @@
     "tests/test_slot_waiters.py",
     "tests/test_transcript.py",
     "tests/test_room.py",
+    "tests/test_machine_sizes.py",
+    "tests/test_limits_doc.py",
+    "docs/limits.md",
+    "docs/design/limits.md",
     "tests/fixtures/claude/**",
     ".claude/skills/verify-jstack/features/jgauge-*.md"
   ]
