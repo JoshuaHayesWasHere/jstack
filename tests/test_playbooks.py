@@ -5,12 +5,12 @@ import pytest
 
 from jdrift.explained import COMMENT as CARD
 from testing.layouts import assembled
-from testing.paths import REPO
+from testing.paths import REPO, playbooks
 
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATE = "templates/playbook.md"
 EM_DASH = "\N{EM DASH}"
-FILES = sorted(PLAYBOOKS.glob("*.md"))
+FILES = sorted(playbooks().values())
 ROLES = {"a crewmate": "crew", "a scout": "scout", "the home": "home", "an expert": "expert"}
 MAX_WORDS = 900
 CREW_ENDS_IN = ("playbooks/opening-a-pr.md", "skills/crew/SKILL.md")
@@ -111,7 +111,7 @@ def problems(path, root):
 def uncited(root):
     """The principles at `root` that no playbook there names, so no thread is sent to read them."""
     cited = set()
-    for path in (root / "playbooks").glob("*.md"):
+    for path in playbooks(root).values():
         rows = path.read_text().splitlines()
         cited.update(named("\n".join(row for row in rows if not row.startswith("Source:"))))
     every = (f"principles/{path.name}" for path in (root / "principles").glob("*.md"))
@@ -147,7 +147,7 @@ def design_problems(text):
 
 
 def test_the_directory_holds_playbooks_and_nothing_else():
-    assert sorted(PLAYBOOKS.iterdir()) == FILES
+    assert sorted(PLAYBOOKS.iterdir()) == [path for path in FILES if path.parent == PLAYBOOKS]
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda path: path.stem)

@@ -81,7 +81,7 @@ fi
 
 On `no verify skill`, `no feature map` or `which one`, do what it says and stop.
 On `run:`, launch each request it wrote or kept as the home skill's "Sending a scout" launches a durable scout, from its step 2, with the slug the line names.
-Launch at most ten in a step, as `playbooks/swarm.md` has it: the next ten go out once the reports of the first are in.
+Launch at most ten in a step, as `features/arena-swarm/skills/swarm/playbooks/swarm.md` has it: the next ten go out once the reports of the first are in.
 Run again at the same commit, the block keeps every request of the run and writes only the ones missing.
 Once the default branch has moved, the same command starts a new audit, with a new run name.
 
