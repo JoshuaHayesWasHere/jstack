@@ -64,9 +64,9 @@ def test_a_jbus_that_passes_shows_no_banner_and_nothing_frozen(scene, tmp_path):
 
 
 def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, tmp_path):
-    seen = look(scene, tmp_path, at=20000, budget=24000, dark_after=1)
+    seen = look(scene, tmp_path, at=8000, budget=12000, dark_after=1)
     assert (seen["body"], seen["banner"]) == ("", "")
-    seen = look(scene, tmp_path, at=40000, budget=44000, dark_after=1, task="oat-milk")
+    seen = look(scene, tmp_path, at=12000, budget=16000, dark_after=1, task="oat-milk")
     clean(seen)
     assert set(seen["body"].split()) == {"stopped", "gone"}
     assert seen["banner"].startswith("the view server does not answer last answer ")
