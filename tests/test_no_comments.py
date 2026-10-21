@@ -25,6 +25,10 @@ SWEPT = (
     "src/**/*.sh",
     "src/**/*.js",
     "src/**/*.html",
+    "features/*/src/**/*.py",
+    "features/*/src/**/*.sh",
+    "features/*/src/**/*.js",
+    "features/*/src/**/*.html",
     "hooks/*.sh",
     "scripts/*.sh",
     "install.sh",
@@ -41,6 +45,7 @@ READ_BY_A_TOOL = ("# type:", "# pragma")
 LINKED = "https://"
 EMBEDDED = re.compile(r"<(script|style)\b[^>]*>(.*?)</\1>", re.S | re.I)
 WORD = re.compile(r"[\w$]+")
+PACKAGE = re.compile(r"(?:features/[^/]+/)?src/([^/]+)/")
 AFTER_A_WORD_A_REGEX = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete"}
 AFTER_A_MARK_A_REGEX = {"", *"([{,;:=!&|?+-*%<>~^"}
 
@@ -157,7 +162,7 @@ def plain_comments(path, root=REPO):
 
 def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     files = swept()
-    assert {name.split("/")[1] for name in files if name.startswith("src/")} == {
+    assert {at.group(1) for name in files if (at := PACKAGE.match(name))} == {
         "jsettings",
         "jbriefs",
         "jbus",

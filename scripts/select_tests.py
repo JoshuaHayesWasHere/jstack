@@ -5,15 +5,16 @@ line and sorted, the test files to run, or `all`. It reads the imports of the tr
 here, so the same two commits give the same lines. It needs only the standard library, so it
 runs before `uv sync`.
 
-A changed module, of `src/`, of the tests or of `testing/`, selects the test files that import
-it, directly or through any chain of modules: a test file that imports a module that imports it
-is selected too. The tests are in `tests/` and in each feature's own, `features/<name>/tests/`.
+A changed module, of `src/` or a feature's `features/<name>/src/`, of the tests or of `testing/`,
+selects the test files that import it, directly or through any chain of modules: a test file
+that imports a module that imports it is selected too. The tests are in `tests/` and in each
+feature's own, `features/<name>/tests/`.
 A test file may be in a folder of one, as `tests/view/test_view_bus.py`, and is taken to import
 the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
 selected itself. A module that calls `importlib.import_module` is taken to import every module
-under its directory. A test with a string that is the name of a package of `src/` is taken to
+under its directory. A test with a string that is the name of a package of a `src/` is taken to
 run it in a process of its own, and to import every module of it. A file in a package that is
-no module (a page, a pattern list) is read as a change to the modules of `src/` whose strings
+no module (a page, a pattern list) is read as a change to the modules of a `src/` whose strings
 name it, and with none to the modules beside it.
 
 A changed file that is no module (a doc, a skill, a hook) selects the test files that spell its
@@ -64,6 +65,7 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".claude/skills/verify-jstack/features"
 TESTS = re.compile(r"(features/[^/]+/)?tests/")
+SOURCE = re.compile(r"(features/[^/]+/)?src/")
 TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
 FIXTURES = re.compile(TESTS.pattern + "fixtures/")
 SHARED = "testing/"
@@ -80,9 +82,13 @@ class Unread(Exception):
 
 @cache
 def ready():
-    """jmerge's reading of a list of paths, from this checkout's `src/`."""
-    sys.path.insert(0, str(ROOT / "src"))
+    """jmerge's reading of a list of paths, from this checkout's packages: each folder
+    `harness/jstack/pythonpath` lists, as `install.sh` puts them on the path, or `src/` in a
+    checkout with no such list."""
+    listed = ROOT / "harness/jstack/pythonpath"
     try:
+        folders = listed.read_text().split() if listed.is_file() else ["src"]
+        sys.path[:0] = [str(ROOT / folder) for folder in folders]
         from jmerge.ready import _protects, patterns_of
     except Exception as error:
         raise Unread(f"{type(error).__name__}: {error}") from error
@@ -136,13 +142,20 @@ def of_tests(path):
 
 @cache
 def modules():
-    """Every module of `src/`, of each folder of tests and of `testing/`, by its dotted name:
+    """Every module of `src/` and of each feature's `src/`, of each folder of tests and of
+    `testing/`, by its dotted name:
     the file it is, from the root. Each folder of tests, `tests/` and each feature's own, is on
     pytest's path, so its modules are named from it: a module in a folder below it as
     `view.scene`, such a folder being a package, so its `conftest.py` is not taken for a root's.
     `testing/` is a package at the root, so its modules are `testing.<name>`. The fixtures'
     folders hold none."""
-    roots = [ROOT / "src", ROOT / "tests", *sorted(ROOT.glob("features/*/tests")), ROOT]
+    roots = [
+        ROOT / "src",
+        *sorted(ROOT.glob("features/*/src")),
+        ROOT / "tests",
+        *sorted(ROOT.glob("features/*/tests")),
+        ROOT,
+    ]
     found = {}
     for root in roots:
         files = (root / SHARED).rglob("*.py") if root == ROOT else root.rglob("*.py")
@@ -211,9 +224,13 @@ def sources():
 @cache
 def edges():
     """Each module, with the modules it imports. A test that spells the name of a package of
-    `src/` is taken to run it in a process of its own, so it imports every module of it."""
+    a `src/` is taken to run it in a process of its own, so it imports every module of it."""
     known = modules()
-    packages = {path.split("/")[1] for path in known.values() if path.startswith("src/")}
+    packages = {}
+    for path in known.values():
+        if at := SOURCE.match(path):
+            package = path[at.end() :].split("/")[0]
+            packages[package] = path[: at.end()] + package
     found = {}
     for name, (names, _, dynamic, _, paths) in sources().items():
         reached = set().union(*map(parents, names)) & known.keys()
@@ -222,7 +239,8 @@ def edges():
             reached |= {other for other, path in known.items() if path.startswith(below)}
         if of_tests(known[name]):
             run = tuple(
-                f"src/{one}/" for one in packages & {one[0] for one in paths if len(one) == 1}
+                f"{packages[one]}/"
+                for one in packages.keys() & {one[0] for one in paths if len(one) == 1}
             )
             reached |= {other for other, path in known.items() if path.startswith(run)}
         if TEST.fullmatch(known[name]):
@@ -332,14 +350,13 @@ def feature_tests(name):
 
 
 def users(path):
-    """The modules of `src/` that use a file that is no module: the ones whose strings name
+    """The modules of a `src/` that use a file that is no module: the ones whose strings name
     it, or with none the modules in its directory."""
     parts = called(path)
     named = {
         name
         for name, one in sources().items()
-        if modules()[name].startswith("src/")
-        and any(inside(parts, spelling) for spelling in one[4])
+        if SOURCE.match(modules()[name]) and any(inside(parts, spelling) for spelling in one[4])
     }
     here = Path(path).parent.as_posix() + "/"
     beside = {
@@ -476,7 +493,7 @@ def selection(changed):
                 return ["all"], {"forced-by": path}
             found["names"] |= named
         else:
-            if path.startswith("src/"):
+            if SOURCE.match(path):
                 found["imports"] |= test_files(importers(users(path)))
             found["names"] |= readers(path)
     for name, (owned, listed_tests) in features().items():

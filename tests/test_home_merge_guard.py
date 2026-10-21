@@ -14,7 +14,7 @@ from test_jbus_kitchen import Kitchen
 from testing.paths import REPO
 
 THREAD = "mcp:thread-one"
-SCANNED = ["skills", "src", ".cursor", "hooks", "install.sh"]
+SCANNED = ["skills", "src", "features", ".cursor", "hooks", "install.sh"]
 NAMED = r"[^\s|;&<>()]*home-thread"
 WRITES = [
     re.compile(rf">>?\s*{NAMED}"),

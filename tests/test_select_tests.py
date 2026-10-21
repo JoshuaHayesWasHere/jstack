@@ -18,6 +18,7 @@ import pytest
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
+PYTHONPATH = "harness/jstack/pythonpath"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
@@ -116,12 +117,17 @@ def write(repo, files):
 
 
 class Repo:
-    """A repo with the script, a copy of `src/`, a map and a few modules and tests."""
+    """A repo with the script, a copy of each folder of packages, a map and a few modules and
+    tests."""
 
     def __init__(self, root, features=None, files=None):
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
-        shutil.copytree(REPO / "src", root / "src", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy2(REPO / PYTHONPATH, self.put(PYTHONPATH))
+        for folder in (REPO / PYTHONPATH).read_text().split():
+            shutil.copytree(
+                REPO / folder, root / folder, ignore=shutil.ignore_patterns("__pycache__")
+            )
         features = features or {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
         write(root / select.MAP, features)
         write(root, FILES if files is None else files)
@@ -181,6 +187,31 @@ def test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_cha
         "tests/test_helped.py",
         "tests/test_tree.py",
     ]
+
+
+MOVED = {
+    "features/delta/src/delta/__init__.py": "",
+    "features/delta/src/delta/d.py": "from delta import util\n\nROWS = 'rows.txt'\n",
+    "features/delta/src/delta/util.py": "U = 1\n",
+    "features/delta/src/delta/rows.txt": "rows\n",
+    "features/delta/tests/test_delta.py": "from delta import d\n",
+    "tests/test_runs_delta.py": "import subprocess\n\nsubprocess.run(['python', '-m', 'delta'])\n",
+}
+
+
+@pytest.mark.parametrize(
+    "path", ["features/delta/src/delta/util.py", "features/delta/src/delta/rows.txt"]
+)
+def test_a_change_in_a_feature_src_selects_its_importers_and_the_tests_that_run_its_package(
+    tmp_path, path
+):
+    repo = Repo(tmp_path, files={**FILES, **MOVED})
+    head = repo.change([path])
+
+    selected = repo.selected(head)
+
+    assert {"features/delta/tests/test_delta.py", "tests/test_runs_delta.py"} <= set(selected)
+    assert "tests/test_alpha.py" not in selected
 
 
 def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_name(repo):

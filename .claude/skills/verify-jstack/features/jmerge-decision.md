@@ -4,7 +4,7 @@
 
 Paths:
 - `src/jmerge/`
-- `src/jsettings/`
+- `features/jsettings/`
 - `docs/jmerge.md`
 Tests: none
 
