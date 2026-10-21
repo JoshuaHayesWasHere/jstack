@@ -501,7 +501,7 @@ def test_a_bare_python_selects_what_the_venv_selects(repo, path):
 
 def test_with_no_way_to_read_a_pattern_it_selects_all(repo):
     head = repo.change(["src/alpha/a.py"])
-    shutil.rmtree(repo.root / "src" / "jmerge")
+    shutil.rmtree(repo.root / "features" / "jmerge" / "src" / "jmerge")
 
     ran = repo.run(repo.base, head)
 
@@ -512,7 +512,7 @@ def test_with_no_way_to_read_a_pattern_it_selects_all(repo):
 
 def test_a_matcher_whose_names_moved_selects_all(repo):
     head = repo.change(["src/alpha/a.py"])
-    ready = repo.root / "src" / "jmerge" / "ready.py"
+    ready = repo.root / "features" / "jmerge" / "src" / "jmerge" / "ready.py"
     ready.write_text(ready.read_text().replace("def _protects(", "def _covers("))
 
     ran = repo.run(repo.base, head)
@@ -632,7 +632,7 @@ def test_an_all_says_which_path_forced_it(repo, tmp_path):
 
 def test_an_unread_map_says_so_in_the_summary(repo, tmp_path):
     head = repo.change(["src/alpha/a.py"])
-    shutil.rmtree(repo.root / "src" / "jmerge")
+    shutil.rmtree(repo.root / "features" / "jmerge" / "src" / "jmerge")
 
     printed, lines = summary(repo, head, tmp_path)
 

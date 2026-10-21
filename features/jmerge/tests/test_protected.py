@@ -1,9 +1,9 @@
 """A pull request that changes a protected path is the user's to merge: `jmerge` prints it
-as `hold` and merges nothing. The patterns are the ones in `src/jmerge/protected.txt`, read
-as the command reads them, and the command itself is run against a fake `gh`. The patterns
-of a guarded list are read the same way, and hold nothing: `test_jmerge_guarded` has the
-gate they are merged under, and the list they are read from here, since the shipped
-`src/jmerge/guarded.txt` is empty."""
+as `hold` and merges nothing. The patterns are the ones in
+`features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the command
+itself is run against a fake `gh`. The patterns of a guarded list are read the same way, and
+hold nothing: `test_jmerge_guarded` has the gate they are merged under, and the list they
+are read from here, since the shipped `features/jmerge/src/jmerge/guarded.txt` is empty."""
 
 import re
 import shutil
@@ -17,7 +17,7 @@ from jmerge import ready
 from test_jmerge_guarded import GUARDED
 from testing.paths import REPO
 
-SOURCE = REPO / "src" / "jmerge"
+SOURCE = REPO / "features" / "jmerge" / "src" / "jmerge"
 PATTERNS = ready.patterns_of((SOURCE / "protected.txt").read_text())
 
 PATHS = [
@@ -31,8 +31,16 @@ PATHS = [
     ("*.pem", "server.pem", "docs/pem"),
     ("*.key", "deploy/id.key", "src/keys.py"),
     ("*.key", "id.key", "docs/monkey"),
-    ("/src/jmerge/protected.txt", "src/jmerge/protected.txt", "docs/src/jmerge/protected.txt"),
-    ("/src/jmerge/guarded.txt", "src/jmerge/guarded.txt", "src/jmerge/guarded.txt.md"),
+    (
+        "/features/jmerge/src/jmerge/protected.txt",
+        "features/jmerge/src/jmerge/protected.txt",
+        "docs/features/jmerge/src/jmerge/protected.txt",
+    ),
+    (
+        "/features/jmerge/src/jmerge/guarded.txt",
+        "features/jmerge/src/jmerge/guarded.txt",
+        "features/jmerge/src/jmerge/guarded.txt.md",
+    ),
     ("/policy/", "policy/tailnet.hujson", "docs/policy.md"),
     ("/policy/", "policy/acls/tailnet.hujson", "src/policy/x.py"),
     ("/dns/", "dns/records.tf", "docs/dns.md"),
@@ -44,8 +52,16 @@ GUARDED_PATHS = [
     ("acceptance/", "apps/web/acceptance/login.feature", "acceptance"),
     (".github/workflows/", ".github/workflows/check.yml", ".github/dependabot.yml"),
     (".github/workflows/", ".github/workflows/deep/x.yml", "docs/.github/workflows/check.yml"),
-    ("src/jmerge/", "src/jmerge/ready.py", "src/jmerger/ready.py"),
-    ("src/jmerge/", "src/jmerge/ci-paths.txt", "src/jmerge.py"),
+    (
+        "features/jmerge/src/jmerge/",
+        "features/jmerge/src/jmerge/ready.py",
+        "features/jmerge/src/jmerger/ready.py",
+    ),
+    (
+        "features/jmerge/src/jmerge/",
+        "features/jmerge/src/jmerge/ci-paths.txt",
+        "src/jmerge/ready.py",
+    ),
     ("src/jbus/", "src/jbus/dispatch.py", "src/jbusx.py"),
     ("skills/", "skills/home/SKILL.md", "skills.md"),
     ("skills/", "plugins/one/skills/x.md", "myskills/home/SKILL.md"),
@@ -71,8 +87,8 @@ def test_the_file_has_the_patterns_and_none_of_its_comments():
         ".env.*",
         "*.pem",
         "*.key",
-        "/src/jmerge/protected.txt",
-        "/src/jmerge/guarded.txt",
+        "/features/jmerge/src/jmerge/protected.txt",
+        "/features/jmerge/src/jmerge/guarded.txt",
         "/policy/",
         "/dns/",
     )
@@ -101,7 +117,15 @@ def test_each_guarded_pattern_names_its_path_and_holds_nothing(pattern, guarded,
     assert ready.guarded_path(pull_request(near), (pattern,)) == ""
     assert ready.guarded_path(pull_request(near), GUARDED) == ""
     assert ready.guarded_path(pull_request(near), GUARDED, (guarded,)) == guarded
-    held = guarded if guarded in ("src/jmerge/protected.txt", "src/jmerge/guarded.txt") else ""
+    held = (
+        guarded
+        if guarded
+        in (
+            "features/jmerge/src/jmerge/protected.txt",
+            "features/jmerge/src/jmerge/guarded.txt",
+        )
+        else ""
+    )
     assert ready.needs_the_user(pull_request(guarded), PATTERNS, user=jsettings.DEFAULTS) == (
         f"needs user, touches {held}" if held else ""
     )
@@ -142,7 +166,7 @@ def test_a_pattern_that_cannot_be_read_is_refused_and_not_ignored(pattern):
 
 def test_the_refusal_names_the_section_of_the_jmerge_page_that_has_the_grammar():
     page, anchor = ready.GRAMMAR.split("#")
-    headings = re.findall(r"^#+ (.+)$", (SOURCE.parents[1] / page).read_text(), re.M)
+    headings = re.findall(r"^#+ (.+)$", (REPO / page).read_text(), re.M)
     assert anchor in {heading.lower().replace(" ", "-") for heading in headings}
 
 
@@ -170,7 +194,7 @@ def test_jmerge_merges_nothing_while_a_list_has_a_pattern_it_cannot_read(
     assert merged.home.code != 0
     assert merged.home.stderr.strip().endswith(
         f"{name} has a pattern that cannot be read, so nothing is merged: src/**/keys"
-        " (the grammar: docs/jmerge.md#patterns)"
+        " (the grammar: features/jmerge/docs/jmerge.md#patterns)"
     )
     assert merged.untouched()
 
@@ -242,7 +266,12 @@ def write(merged, path):
 
 @pytest.mark.parametrize(
     "path",
-    ["secrets/prod.json", "src/jmerge/protected.txt", "policy/tailnet.hujson", "dns/records.tf"],
+    [
+        "secrets/prod.json",
+        "features/jmerge/src/jmerge/protected.txt",
+        "policy/tailnet.hujson",
+        "dns/records.tf",
+    ],
 )
 @pytest.mark.parametrize("flags", [(), ("--all",), ("--land", "demo"), ("--check",)])
 def test_jmerge_holds_a_pull_request_that_changes_a_protected_path(merged, path, flags):

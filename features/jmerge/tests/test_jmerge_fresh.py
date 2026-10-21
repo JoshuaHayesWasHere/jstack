@@ -23,7 +23,7 @@ from jmerge import cli, ready, sweep
 from test_jmerge_guarded import ET, GUARDED, LISTED
 from testing.paths import REPO
 
-SOURCE = REPO / "src"
+SOURCE = REPO / "features" / "jmerge" / "src"
 PROTECTED = ready.patterns_of((SOURCE / "jmerge" / "protected.txt").read_text())
 CI = ready.patterns_of((SOURCE / "jmerge" / "ci-paths.txt").read_text())
 BEFORE = "1999-06-01T12:00:00Z"

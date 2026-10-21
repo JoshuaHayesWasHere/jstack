@@ -171,7 +171,7 @@ One pattern per line. A line that starts with `#` is a comment, and the shipped 
 - Any other pattern is a file. With no `/` in it, it is a file name at any depth. With one, it is the whole path from the root of the repo: `src/jbus/merge.py`, `/Makefile`.
 - `*` matches any run of characters between two `/`, and never a `/` itself.
 
-`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part. It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: docs/jmerge.md#patterns)`.
+`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part. It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: features/jmerge/docs/jmerge.md#patterns)`.
 
 ### The lists
 
