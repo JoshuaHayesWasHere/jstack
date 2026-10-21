@@ -21,7 +21,7 @@ Verify skill: `.claude/skills/verify-*/`.
 5. Write the body as a one-minute briefing for a reviewer who has the diff, under about 40 lines.
    Copy `features/pr-review/templates/pr-body.md` and fill each `<...>`: it has the headings, their order and what goes under each.
    Drop a heading with nothing to say, but never Scope.
-   Write it as `skills/technical-writing/SKILL.md` says (every layer but the mode), then run `skills/unslop/SKILL.md` over it: read each in full when you reach this step.
+   Write it as `features/writing/skills/technical-writing/SKILL.md` says (every layer but the mode), then run `features/writing/skills/unslop/SKILL.md` over it: read each in full when you reach this step.
 6. When the brief asks for a pull request, push and open it ready, on the base that the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief: the default branch, or for a link of a stack the branch its `Stack:` line names. On `no base`, open none. Open it with this, which locks its conversation right after:
 
    ```sh

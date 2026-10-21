@@ -67,7 +67,7 @@ def run(tmp_path):
 
 
 def opening():
-    text = block("playbooks/opening-a-pr.md", "gh pr create")
+    text = block("features/writing/playbooks/opening-a-pr.md", "gh pr create")
     for word, value in (("that branch", "main"), ("the title", "feat: a"), ("the file", "b.md")):
         text = re.sub(f"<{word}[^>]*>", value, text)
     return text

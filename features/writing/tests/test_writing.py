@@ -5,9 +5,10 @@ import pytest
 from jbriefs.skills import listed
 from testing.paths import REPO
 
-SKILLS = [REPO / "skills" / name / "SKILL.md" for name in ("unslop", "technical-writing")]
+FEATURE = REPO / "features" / "writing"
+SKILLS = [FEATURE / "skills" / name / "SKILL.md" for name in ("unslop", "technical-writing")]
 TEMPLATE = REPO / "features" / "pr-review" / "templates" / "pr-body.md"
-PLAYBOOK = REPO / "playbooks" / "opening-a-pr.md"
+PLAYBOOK = FEATURE / "playbooks" / "opening-a-pr.md"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 EM_DASH = "\N{EM DASH}"
 HEADINGS = ["Why", "What changed", "Scope", "Tradeoffs", "Blast radius", "Verification"]
@@ -87,7 +88,7 @@ def test_the_playbook_step_names_a_template_that_builds_a_body_and_two_skills_th
 
 @pytest.mark.parametrize("path", SKILLS, ids=lambda path: path.parent.name)
 def test_lint_third_party_names_the_skill(path):
-    assert f"`skills/{path.parent.name}/SKILL.md`" in THIRD_PARTY.read_text()
+    assert f"`features/writing/skills/{path.parent.name}/SKILL.md`" in THIRD_PARTY.read_text()
 
 
 GOOD_SKILL = """\

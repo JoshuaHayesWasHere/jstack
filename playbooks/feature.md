@@ -22,7 +22,7 @@ Verify skill: `.claude/skills/verify-*/`.
 6. Build it in small units, each ending in a check that passes before the next starts (`principles/principle-sequence-verifiable-units.md`). Remove what the new shape makes dead before adding to it (`principles/principle-subtract-before-you-add.md`). Edits are surgical. Guards go at the system's edges (CLI, config, network, external APIs), and the code inside trusts its types and keeps its logic pure (`principles/principle-boundary-discipline.md`). An improvement to a shared primitive goes to every consumer inside the brief's **Where**, each one verified, with the old form deleted in the same change (`principles/principle-migrate-callers-then-delete-legacy-apis.md`). A consumer outside **Where** goes in the Result under "Noticed". Commit as you go.
 7. Verify on the surface the user will meet: the repo's verify skill where it has one, and its check command (`principles/principle-prove-it-works.md`). "Inconclusive", or a pass on another surface, is not a pass: say so.
 8. Stop when every "Done when" line holds. What else you saw goes under "Noticed", not into the diff.
-9. Run `playbooks/opening-a-pr.md`.
+9. Run `features/writing/playbooks/opening-a-pr.md`.
 
 Never done here, and who does it:
 

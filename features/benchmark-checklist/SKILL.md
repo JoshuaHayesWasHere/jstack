@@ -54,7 +54,8 @@ A command that starts several workers (a browser suite, a parallel build, a test
 - Lead with the verdict: faster, slower, no measurable difference, or inconclusive.
 - Give the number with its unit, the number of runs, the range and the limiter: "median 41 ms to 33 ms, 7 runs a side, 32 to 35 ms after, bound by JSON parsing on one core".
 - The verdict is inconclusive when you claim a difference and cannot name the limiter, when a side ran untuned, or when you could not check questions 4 and 7. Name the gap.
-- A pull request's body carries one primary number, under Verification (`playbooks/opening-a-pr.md`). The runs, the range and the evidence for the limiter go on the Result's `Proof:` line.
+- A pull request's body carries one primary number, under Verification (`features/writing/playbooks/opening-a-pr.md`).
+  The runs, the range and the evidence for the limiter go on the Result's `Proof:` line.
 
 ## Where it is used
 
