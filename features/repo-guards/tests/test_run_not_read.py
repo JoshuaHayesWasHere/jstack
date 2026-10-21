@@ -295,24 +295,26 @@ def git(*args, repo=REPO):
     ).stdout.strip()
 
 
-def base():
-    """The commit the branch is compared with, or None. A desk has `origin/main`. CI's checkout
-    of a pull request is its merge commit, alone: its first parent is the base, fetched here."""
+def base(repo=REPO):
+    """The commit the branch is compared with, or None: `make check-fast BASE=<ref>` names it,
+    as for a branch of an integration branch, and a desk with no `BASE` has `origin/main`. CI's
+    checkout of a pull request is its merge commit, alone: its first parent is the base, fetched
+    here."""
     try:
-        return git("merge-base", "HEAD", "origin/main")
+        return git("merge-base", "HEAD", os.environ.get("BASE") or "origin/main", repo=repo)
     except subprocess.CalledProcessError:
         pass
     if os.environ.get("GITHUB_ACTIONS") != "true":
         return None
     parents = [
         line.split()[1]
-        for line in git("cat-file", "-p", "HEAD").splitlines()
+        for line in git("cat-file", "-p", "HEAD", repo=repo).splitlines()
         if line.startswith("parent ")
     ]
     if len(parents) != 2:
         return None
     try:
-        git("fetch", "-q", "--no-tags", "--depth=1", "origin", parents[0])
+        git("fetch", "-q", "--no-tags", "--depth=1", "origin", parents[0], repo=repo)
     except subprocess.CalledProcessError:
         return None
     return parents[0]
