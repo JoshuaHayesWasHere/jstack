@@ -1,0 +1,13 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "scout",
+  "description": "The scout: answers a question with read-only tool calls before a task is briefed.",
+  "owns": [
+    "skills/scout/**",
+    "templates/scout-*.md",
+    "tests/test_scout*.py",
+    ".claude/skills/verify-jstack/features/scout-skill.md",
+    "playbooks/investigation.md",
+    "playbooks/trace-forensics.md"
+  ]
+}

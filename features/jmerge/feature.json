@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jmerge",
+  "description": "Merges every pull request that is reviewed, fixed and green.",
+  "packages": [
+    "src/jmerge"
+  ],
+  "commands": {
+    "jmerge": "jmerge.cli:main"
+  },
+  "docs": [
+    "docs/jmerge.md"
+  ],
+  "owns": [
+    "src/jmerge/**",
+    "docs/jmerge.md",
+    "tests/test_jmerge_*.py",
+    "tests/test_claims.py",
+    "tests/test_protected.py",
+    "tests/test_sweep.py",
+    ".claude/skills/verify-jstack/features/jmerge-decision.md"
+  ]
+}

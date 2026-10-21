@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "how",
+  "description": "Explains how a subsystem works before you change it.",
+  "owns": [
+    "skills/how/**"
+  ]
+}

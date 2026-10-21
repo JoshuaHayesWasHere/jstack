@@ -1,0 +1,12 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "grilling",
+  "description": "Questions a plan until nothing is left assumed, with a page for each round.",
+  "owns": [
+    "skills/grilling/**",
+    "templates/grill-*",
+    "tests/test_grill*.py",
+    "tests/fixtures/grill-page/**",
+    ".claude/skills/verify-jstack/features/grilling-skill.md"
+  ]
+}

@@ -159,7 +159,7 @@ def test_every_shipped_skill_is_named_for_its_folder(path):
 
 
 @pytest.mark.skipif(
-    not (REPO / "skills.json").is_file(), reason="no skills.json yet: the skills-json row adds it"
+    not (REPO / "skills.json").is_file(), reason="no skills.json yet: the generator writes it"
 )
 def test_every_skill_entry_in_skills_json_is_named_for_its_folder():
     assert misnamed_entries(REPO) == []

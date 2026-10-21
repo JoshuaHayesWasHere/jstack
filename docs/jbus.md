@@ -15,7 +15,7 @@ jbus makes no judgment call. What no rule covers is one line, `gate <slug>: <wha
 
 No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty. With a thread id in that file the home merges, and jbus prints `skipped <project>: the home <id> merges`.
 
-<!-- built: pages -->
+<!-- generated: pages by scripts/generate-jstack-trees.py from the headings of docs/jbus/; do not edit, rerun it -->
 - [A scratch home](jbus/a-scratch-home.md)
 - [A thread that left T3 Code's list](jbus/a-thread-that-left-t3-codes-list.md)
 - [Add a project](jbus/add-a-project.md)
@@ -38,4 +38,4 @@ No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty
 - [When jbus fails](jbus/when-jbus-fails.md)
 - [Work items](jbus/work-items.md)
 - [Your word to a home](jbus/your-word-to-a-home.md)
-<!-- built: end -->
+<!-- generated: end -->

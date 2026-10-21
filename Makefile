@@ -36,7 +36,7 @@ PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "no
 
 .PHONY: check
 check:
-	python3 scripts/skills_json.py --check
+	python3 scripts/generate-jstack-trees.py --check
 	uv run ruff check .
 	uv run ruff format --check .
 	$(PYTEST)
@@ -46,8 +46,8 @@ check:
 # `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
 # pull request is the tip of main; a desk takes origin/main. The full suite runs on main
 # after the merge. Before the tests, scripts/prose_lint.py holds each prose line the diff adds
-# to one sentence, and scripts/skills_json.py fails a skills.json that is stale against
-# skills/ and principles/ (`make check` runs that itself where the selection is `all`).
+# to one sentence, and scripts/generate-jstack-trees.py fails a generated file that is stale
+# against features/ (`make check` runs that itself where the selection is `all`).
 BASE ?= origin/main
 
 .PHONY: check-fast
@@ -55,7 +55,7 @@ check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
 	python3 scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
-	python3 scripts/skills_json.py --check || exit; \
+	python3 scripts/generate-jstack-trees.py --check || exit; \
 	set -x; \
 	uv run ruff check . && uv run ruff format --check . && $(PYTEST) $$tests
 
@@ -65,12 +65,12 @@ check-fast:
 check-browser:
 	uv run pytest -m browser
 
-# skills.json, the list of every skill and principle a brief's Skills: line may name, written
-# from skills/, principles/ and THIRD_PARTY.md's pstack map. Run it after any change to those,
-# and commit the file: the check fails on a stale one.
-.PHONY: skills-json
-skills-json:
-	python3 scripts/skills_json.py
+# skills.json, the generated regions of pyproject.toml and the docs indexes, written from
+# features/ and the files they own. Run it after any change to those, and commit what it
+# writes: the check fails on a stale one.
+.PHONY: trees
+trees:
+	python3 scripts/generate-jstack-trees.py
 
 # What changed upstream in pstack since the pin in THIRD_PARTY.md, for the files taken
 # from it. Not part of the check: it reads the network. `make pstack-drift ARGS=--diff`.

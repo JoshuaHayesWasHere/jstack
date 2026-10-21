@@ -71,10 +71,9 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-from jbriefs import findings
+from jbriefs import findings, skills
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
 from jbus.stall import PASSES, REVIEWING
@@ -103,7 +102,7 @@ NO_FIX_RANGE = (
     "the Result says a scoped review of the fix is owed, and jbus could not work out its two "
     "ranges."
 )
-RERUN = Path(__file__).parents[2] / "templates" / "rerun.md"
+RERUN = "rerun.md"
 ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
 AGAIN = "/pr-review run {slug} again"
 OVERRULED_HOME = (
@@ -496,7 +495,7 @@ def _tell(
         else:
             sentence, sent = NO_FIX_RANGE, ""
     if row.rerun:
-        sentence += " " + RERUN.read_text().strip()
+        sentence += " " + skills.where("template", RERUN).read_text().strip()
     if row.kind in ANSWERED:
         left = [one.id for one in findings.triage(_brief(run, slug)).blocking()]
         sentence += f" The findings with no answer that counts: {', '.join(left)}." if left else ""

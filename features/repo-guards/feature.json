@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "repo-guards",
+  "description": "The tests that hold the repo's skills, docs and code to its own rules.",
+  "owns": [
+    "tests/test_tool_calls.py",
+    "tests/test_playbook*.py",
+    "tests/test_docs_tree.py",
+    "tests/test_docs_true.py",
+    "tests/test_readme_current.py",
+    "tests/test_module_size.py",
+    "tests/test_test_size.py",
+    "tests/test_no_comments.py",
+    "tests/test_run_not_read.py",
+    "tests/test_one_way.py",
+    "tests/test_no_mistakes_gone.py",
+    "tests/test_skill_args.py",
+    "tests/test_skill_frontmatter.py",
+    "tests/test_skill_size.py",
+    "tests/test_templates.py",
+    ".claude/skills/verify-jstack/features/docs-pages.md"
+  ]
+}

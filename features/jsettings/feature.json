@@ -1,0 +1,12 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jsettings",
+  "description": "Reads the user's jstack settings for the other commands.",
+  "packages": [
+    "src/jsettings"
+  ],
+  "owns": [
+    "src/jsettings/**",
+    "tests/test_settings.py"
+  ]
+}
