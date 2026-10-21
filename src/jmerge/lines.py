@@ -69,8 +69,12 @@ def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) 
 
 
 NOT_REINSTALLED = "the tool {tool} was not reinstalled after its package list changed ({why})"
+NOT_INSTALLED = "the install was not run again after the merge changed what it assembles ({why})"
 UNFOLLOWED = re.compile(
-    re.escape(NOT_REINSTALLED).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?") + "(?=, )"
+    "|".join(
+        re.escape(note).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?") + "(?=, )"
+        for note in (NOT_REINSTALLED, NOT_INSTALLED)
+    )
 )
 
 
@@ -85,7 +89,18 @@ def not_reinstalled(tool: str, why: str) -> str:
     return NOT_REINSTALLED.format(tool=tool, why=why)
 
 
+def installed(main: object) -> str:
+    """The note of a merge after which the install ran again in the main checkout."""
+    return f"ran the install again in {main}: the merge changed what it assembles"
+
+
+def not_installed(why: str) -> str:
+    """The note of a merge that changed what the install assembles, after which the install
+    failed: a skill it moved or removed may be linked to a file that is gone until it runs."""
+    return NOT_INSTALLED.format(why=why)
+
+
 def unfollowed(text: str) -> str:
-    """The `not_reinstalled` note of a `merged` line, or nothing where it has none."""
-    found = UNFOLLOWED.search(text)
-    return found[0] if found else ""
+    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or nothing where
+    it has neither."""
+    return "; ".join(found[0] for found in UNFOLLOWED.finditer(text))

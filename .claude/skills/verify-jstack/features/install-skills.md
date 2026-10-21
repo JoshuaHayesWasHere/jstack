@@ -34,6 +34,7 @@ Tests: none
 - `install-from-a-wheel` does the same with `jinstall` from a wheel, in a HOME with no checkout, with every layout file a link into the installed wheel.
 - `install-idempotent` changes nothing on a second run.
 - `install-stale-tool` says `stale` of a tool whose editable paths lack a package root pyproject.toml lists, as one built before a package moved, and a run installs it again.
+- `install-follows-a-move` says `stale` of a layout whose skill a pulled merge moved, every link of that skill dangling, and a run in the main checkout, which `jmerge` makes after such a merge, leaves every link resolving.
 - `install-keeps-non-link` leaves something that is not a link in place, as `old ... -> not a link`.
 - `install-uninstall-leaves-nothing` leaves HOME as it was before the install, and a second `--uninstall` prints nothing.
 
@@ -75,6 +76,14 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 - **Install from it.** Run `record install-skills "$HOME/.local/bin/jinstall"`, then `record install-skills "$HOME/.local/bin/jinstall" --check`. Every line starts with `ok`, and there is no `generated files` line and no `pre-push` line.
 - **See every link resolve into the wheel.** Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`. It prints only `checked`, but for the same two written files.
 
+From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it. `jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `tests/test_jmerge_follow.py` drives the run it makes after one.
+
+- **Clone at the commit before #202, which moved pr-review into `features/`.** Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" && git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413~1 && git clone -q -b main "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" "$VERIFY_JSTACK_SANDBOX/jstack" && cd "$VERIFY_JSTACK_SANDBOX/jstack"`.
+- **Install from it.** Run `record install-skills sh install.sh`. Every layout line is `ok`, and `readlink -f "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.
+- **Merge the move.** Run `git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413`, then `record install-skills git pull -q --ff-only`.
+- **See it stale.** Run `record install-skills sh install.sh --check`. The three layout lines are `old hard layout <harness> <layout> -> stale: skills/pr-review/SKILL.md, and 7 more`, and `record install-skills sh -c 'find -L "$HOME"/.claude/skills/ -type l; echo checked'` lists each file of `pr-review` before `checked`.
+- **Run what `jmerge` runs after it.** Run `record install-skills sh install.sh`, then the `find` again. It prints only `checked`, and the layout lines of `--check` are `ok`.
+
 ## Gotchas
 
 - This recipe is safe only because `env.sh` sets HOME to the sandbox and puts the stand-in `systemctl` first on PATH. Run Doctor first. With the real HOME, a plain `install.sh` from a linked worktree is refused, and one from a main checkout installs for real.
@@ -84,4 +93,5 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 - A new skill is in no layout until `python3 scripts/generate-jstack-trees.py` lists it in `skills.json`: the first line, `generated files are current`, says so.
 - The `rm` in the recipe names the sandbox's HOME through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops there and removes nothing. Keep it that way: never write it with `$HOME`.
 - `install.sh` needs a Python 3.12 or `uv`, and says so when it has neither.
-- The links point at the checkout the script is run from. Run the one under `$VERIFY_JSTACK_REPO`, not a copy.
+- The links point at the checkout the script is run from. Run the one under `$VERIFY_JSTACK_REPO`, not a copy, but in the recipe of a move, whose clone is the checkout under test.
+- In the recipe of a move, the line for the commands is `old hard commands jstack -> jbriefs is shadowed by <this checkout>/.venv/bin/jbriefs`: `env.sh` puts this checkout's commands first on PATH. It is not the move's.

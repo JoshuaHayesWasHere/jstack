@@ -1107,8 +1107,8 @@ class Repo:
         self.numbers_on = None
         if pulled.returncode:
             notes.append(f"not pulled: {_said(pulled)}")
-        elif followed := follow.follow(_run, self.main, before):
-            notes.append(followed)
+        else:
+            notes += follow.follow(_run, self.main, before)
         kept = self.clear_up(one.branch, one.head)
         if kept:
             notes.append(f"kept: {kept}")
