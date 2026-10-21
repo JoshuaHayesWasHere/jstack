@@ -227,6 +227,37 @@ A command that exits with something other than 0 (the brief's `Where:` names no 
 
 A finding can be wider than the brief in a second way: it is about a changed line, and what it asks for is not in the brief's `Where`. That happens with the fifth question's things to look for (a restructuring, a file to split, a branch to move into a module of its own, a wrapper to remove, logic to move to its canonical layer), when the remedy would change a file outside `Where`. The `SCOPE` text asks the reading to say so in the finding. Such a finding is kept, sent and recorded like any other, with these words at the end of its line: `for Noticed, not this pull request`. It asks the crewmate for no fix: the crewmate writes it in the Result under "Noticed", where the home sees it as a possible plan entry. A finding whose remedy stays inside `Where` is an ordinary finding.
 
+### The merge gate
+
+A repo may name a merge gate: a `merge-gate` file in its state directory, beside `fresh-check`, whose one line is a command.
+`jmerge` runs it before every merge and holds the pull request on a non-zero exit (`docs/jmerge.md`, "Merge gate").
+The reviewer runs the same command on the head it reviews, so that the crewmate hears of a failing gate with the review and not only at the merge.
+Run this in this worktree, with the block at the top and the head kept at the start in place of the words in angle brackets:
+
+```sh
+kept='<the head kept at the start>'
+gate=$(sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$H/merge-gate" 2> /dev/null)
+if [ -z "$gate" ]; then
+    exit 0
+fi
+if ! view=$(gh pr view <url> --json baseRefName) || ! base=$(printf %s "$view" | jq -er .baseRefName) ||
+    ! git fetch -q origin "$base" || ! fork=$(git merge-base "origin/$base" "$kept"); then
+    echo "not run: where the pull request left its base could not be worked out" >&2
+    exit 1
+fi
+out=$(BASE=$fork HEAD=$kept timeout 600 sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
+code=$?
+if [ "$code" != 0 ]; then
+    first=$(printf '%s\n' "$out" | sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}')
+    echo "error - the merge gate fails at $(printf %s "$kept" | cut -c1-12): ${first:-exit $code} (principle: none) (bucket: Act on)"
+fi
+```
+
+It prints nothing for a repo with no gate, or for a gate that passes.
+On a gate that fails it prints one finding, an `error` at `-`, since what the change lacks is what the gate asks for, and it quotes the gate's first line: keep it as printed, with the rest.
+The gate's arguments are the ones `jmerge` gives it: where the pull request left its base, and the head.
+Exit code 1 means that base could not be worked out, and the line above it says so: say in the section that the gate was not run.
+
 ### In flight
 
 ```sh
