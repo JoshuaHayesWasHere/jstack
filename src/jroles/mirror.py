@@ -22,6 +22,13 @@ and a run with nothing to do writes nothing. These are infra #53's rules:
 - a link into `~/.claude` whose entry is gone is removed (`dangling`);
 - `.claude.json` takes the main file's keys as above (`json`).
 
+`skillUsage` is no key of the main file's: all the accounts are one user, so it is pooled. Each
+skill's entry in the pool has, field by field, the highest of every home's numbers, so the
+highest count and the latest time, and a run writes the pool into `~/.claude.json` and into
+each mirror. `--check` compares each home with the pool: a home behind it by use since the last
+sync (`PERIOD`, the timer's) is `pooling`, no drift, and one that lacks a skill whose last use
+is older than that, or whose skillUsage is not objects of numbers, fails.
+
 Each step is safe to repeat and to stop halfway: the merge is made before the move and again
 after it, so a run that stopped between the two leaves nothing unmerged, and every other step
 finds nothing to do once its entry is a link.
@@ -38,7 +45,7 @@ import re
 import shutil
 import sys
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,6 +79,9 @@ LOCK = ".jroles-mirror.lock"
 JSON = ".claude.json"
 _OURS = re.compile(r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\..*")
 DRIFT, BROKEN = 1, 2
+USAGE = "skillUsage"
+PERIOD = 5 * 60
+"""Seconds from one run of `templates/jroles-mirror.timer` to the next."""
 
 
 @dataclass(frozen=True)
@@ -98,21 +108,24 @@ class Main:
 class Step:
     """One entry of a mirror that is not as it should be. `kind` is `link`, `backup`,
     `move`, `dangling` or `json`; `name` is the entry's name in the mirror's home, and `keys`
-    are the shared keys of a `json` step whose values differ."""
+    are the shared keys of a `json` step whose values differ, and `usage` the skill use it pools
+    in."""
 
     kind: str
     name: str
     keys: tuple[str, ...] = ()
+    usage: dict | None = None
 
     def would(self, main: Main, mirror: Mirror) -> str:
         """What `--check` says of it."""
         at, there = mirror.home / self.name, main.home / self.name
+        keys = ", ".join(self.keys)
         return {
             "link": f"would link {at} -> {there}",
             "backup": f"would back up {at} and link it -> {there}",
             "move": f"would move {at} into {main.home} and link it",
             "dangling": f"would remove dangling {at}",
-            "json": f"would sync {', '.join(self.keys)} of {main.config} into {at}",
+            "json": f"would sync {keys} of {main.config} into {at}",
         }[self.kind]
 
 
@@ -159,8 +172,9 @@ def _linked(at: Path, there: Path) -> bool:
     return at.is_symlink() and os.readlink(at) == str(there)
 
 
-def plan(main: Main, mirror: Mirror) -> tuple[Step, ...]:
-    """What differs between the mirror and the main home, read and never changed."""
+def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, ...]:
+    """What differs between the mirror and the main home, read and never changed, with the
+    pooled skill `usage`, none to leave the mirror's as it is."""
     steps = []
     for name in _entries(main.home):
         at, there = mirror.home / name, main.home / name
@@ -177,9 +191,9 @@ def plan(main: Main, mirror: Mirror) -> tuple[Step, ...]:
                 steps.append(Step("dangling", name))
         elif not os.path.lexists(there):
             steps.append(Step("move", name))
-    found = shared(main, mirror)
+    found = shared(main, mirror, usage)
     if found is not None:
-        steps.append(Step("json", JSON, found[1]))
+        steps.append(Step("json", JSON, found[1], usage))
     return tuple(steps)
 
 
@@ -202,22 +216,88 @@ def _read(path: Path) -> dict | None:
     return found
 
 
-def shared(main: Main, mirror: Mirror) -> tuple[dict, tuple[str, ...]] | None:
-    """The mirror's `.claude.json` with the main file's shared keys, and the keys whose values
-    that changes, or None when it is so already, or when either file is not there: a home
-    with none has no login to keep."""
-    ours, theirs = _read(mirror.home / JSON), _read(main.config)
+def _number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def usage_of(path: Path, found: dict) -> dict:
+    """The skillUsage of `found`, the file at `path`, none when it has none. Refused, naming
+    the skill, when an entry is not an object of numbers: its fields could not be pooled."""
+    usage = found.get(USAGE, {})
+    if not isinstance(usage, dict):
+        raise Refused(f"jroles mirror: {path}: {USAGE} is not a JSON object")
+    for skill, entry in usage.items():
+        if not isinstance(entry, dict) or not all(map(_number, entry.values())):
+            raise Refused(f"jroles mirror: {path}: {USAGE} {skill} is malformed: {entry!r}")
+    return usage
+
+
+def pooled(*usages: dict) -> dict:
+    """Every skill of `usages`, each field the highest any of them has: the highest count and
+    the latest time, so use in one home is never lost to another."""
+    pool: dict[str, dict] = {}
+    for usage in usages:
+        for skill, entry in usage.items():
+            kept = pool.get(skill, {})
+            pool[skill] = {**kept, **{k: max(v, kept.get(k, v)) for k, v in entry.items()}}
+    return pool
+
+
+def pool_of(main: Main, homes: tuple[Path, ...]) -> dict:
+    """The skillUsage pool of `~/.claude.json` and each of `homes`' `.claude.json`."""
+    usages = []
+    for path in (main.config, *(home / JSON for home in homes)):
+        found = _read(path)
+        if found is not None:
+            usages.append(usage_of(path, found))
+    return pooled(*usages)
+
+
+def lags(path: Path, usage: dict, pool: dict, now: float) -> tuple[list[str], list[str]]:
+    """What `--check` says of the skillUsage `usage` of the file at `path` against the pool:
+    the failures, a skill it lacks that was last used more than `PERIOD` ago, which a sync
+    since should have brought, and the use it is behind by that the next sync brings."""
+    lost, behind = [], []
+    for skill, entry in pool.items():
+        if skill in usage:
+            if pooled({skill: usage[skill]}, {skill: entry})[skill] != usage[skill]:
+                behind.append(skill)
+            continue
+        last = entry.get("lastUsedAt")
+        (behind if _number(last) and last / 1000 > now - PERIOD else lost).append(skill)
+    return (
+        [f"would pool {USAGE} {', '.join(lost)} into {path}"] if lost else [],
+        [f"pooling   {USAGE} {', '.join(behind)} into {path}"] if behind else [],
+    )
+
+
+def shared(
+    main: Main, mirror: Mirror, usage: dict | None = None
+) -> tuple[dict, tuple[str, ...]] | None:
+    """The mirror's `.claude.json` with the main file's shared keys and its skillUsage pooled
+    with `usage`, and the shared keys whose values that changes, or None when it is so already,
+    or when either file is not there: a home with none has no login to keep."""
+    target = mirror.home / JSON
+    ours, theirs = _read(target), _read(main.config)
     if ours is None or theirs is None:
         return None
     account = {key: value for key, value in ours.items() if ACCOUNT_KEYS.match(key)}
     rest = {key: value for key, value in ours.items() if not ACCOUNT_KEYS.match(key)}
-    common = {key: value for key, value in theirs.items() if not ACCOUNT_KEYS.match(key)}
+    common = {
+        key: value for key, value in theirs.items() if not ACCOUNT_KEYS.match(key) and key != USAGE
+    }
     made = {**rest, **common, **account}
     made["projects"] = _deep(ours.get("projects") or {}, theirs.get("projects") or {})
+    if usage is not None and (usage or USAGE in ours):
+        made[USAGE] = pooled(usage_of(target, ours), usage)
     keys = tuple(
-        sorted(key for key, value in made.items() if key not in ours or ours[key] != value)
+        sorted(
+            key
+            for key, value in made.items()
+            if key != USAGE and (key not in ours or ours[key] != value)
+        )
     )
-    return (made, keys) if keys else None
+    return (made, keys) if made != ours else None
 
 
 def _files(directory: Path) -> Iterator[Path]:
@@ -274,40 +354,82 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
     if step.kind == "dangling":
         at.unlink()
         return [f"removed   dangling {at}"]
-    found = shared(main, mirror)
+    found = shared(main, mirror, step.usage)
     if found is None:
         return []
-    made, _ = found
+    made, keys = found
     target = mirror.home / JSON
+    _write(target, made, 0o600)
+    if keys:
+        return [f"synced    shared keys of {main.config} into {target}"]
+    return [f"pooled    {USAGE} into {target}"]
+
+
+def _write(target: Path, made: dict, mode: int) -> None:
+    """Write `made` to `target` at once, by a temporary file renamed over it."""
     temporary = target.with_name(f"{JSON}.mirror.{os.getpid()}")
     temporary.unlink(missing_ok=True)
     try:
-        with os.fdopen(os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w") as out:
+        with os.fdopen(os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, mode), "w") as out:
             out.write(json.dumps(made, indent=2, ensure_ascii=False) + "\n")
         os.replace(temporary, target)
     finally:
         temporary.unlink(missing_ok=True)
-    return [f"synced    shared keys of {main.config} into {target}"]
 
 
-def check(main: Main, mirror: Mirror) -> list[str]:
-    """What `--check` says of one mirror: a line for each entry that differs."""
+def review(
+    main: Main, mirror: Mirror, homes: tuple[Path, ...] = (), now: float | None = None
+) -> tuple[list[str], list[str]]:
+    """What `--check` says of one mirror, against the pool of `~/.claude.json`, the mirror and
+    `homes`: a line for each entry that differs, and the use it is behind that is no drift."""
     if not mirror.home.is_dir():
-        return [f"{mirror.instance}: {mirror.home} is missing"]
-    return [step.would(main, mirror) for step in plan(main, mirror)]
+        return [f"{mirror.instance}: {mirror.home} is missing"], []
+    usage = pool_of(main, (mirror.home, *homes))
+    said = [
+        step.would(main, mirror)
+        for step in plan(main, mirror, usage)
+        if step.kind != "json" or step.keys
+    ]
+    found = _read(mirror.home / JSON)
+    if found is None:
+        return said, []
+    target = mirror.home / JSON
+    lost, behind = lags(target, usage_of(target, found), usage, time.time() if now is None else now)
+    return said + lost, behind
 
 
-def run(main: Main, mirror: Mirror) -> list[str]:
-    """Make one mirror so, under its lock and the main home's, and say what changed: nothing
-    when nothing did. The main home's lock is what keeps two runs on two mirrors from moving
-    the same new name into `~/.claude` at once: each plan is read and applied with no other
-    run writing there."""
+def check(main: Main, mirror: Mirror, homes: tuple[Path, ...] = ()) -> list[str]:
+    """What `--check` finds wrong with one mirror: a line for each entry that differs."""
+    return review(main, mirror, homes)[0]
+
+
+def run(main: Main, mirror: Mirror, usage: dict | None = None) -> list[str]:
+    """Make one mirror so, under its lock and the main home's, with the skill `usage` pooled
+    in, and say what changed: nothing when nothing did. The main home's lock is what keeps two
+    runs on two mirrors from moving the same new name into `~/.claude` at once: each plan is
+    read and applied with no other run writing there."""
     if not mirror.home.is_dir():
         raise Refused(f"jroles mirror: {mirror.instance}: {mirror.home} is missing")
     with (mirror.home / LOCK).open("a") as own, (main.home / LOCK).open("a") as shared_lock:
         fcntl.flock(own, fcntl.LOCK_EX)
         fcntl.flock(shared_lock, fcntl.LOCK_EX)
-        return [line for step in plan(main, mirror) for line in apply(main, mirror, step)]
+        steps = plan(main, mirror, usage)
+        return [line for step in steps for line in apply(main, mirror, step)]
+
+
+def pool_main(main: Main, usage: dict) -> list[str]:
+    """Pool the skill `usage` into `~/.claude.json`, under the main home's lock, its every
+    other key as it is, and say so: nothing when it has it all already."""
+    with (main.home / LOCK).open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        found = _read(main.config)
+        if found is None:
+            return []
+        made = pooled(usage_of(main.config, found), usage)
+        if made == found.get(USAGE, {}):
+            return []
+        _write(main.config, {**found, USAGE: made}, main.config.stat().st_mode & 0o777)
+        return [f"pooled    {USAGE} into {main.config}"]
 
 
 def main(argv: list[str]) -> int:
@@ -322,7 +444,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     user = Path.home()
     try:
-        chosen = declared(user)
+        chosen = every = declared(user)
     except Refused as refused:
         print(refused, file=sys.stderr)
         return BROKEN
@@ -335,18 +457,73 @@ def main(argv: list[str]) -> int:
     if not home.home.is_dir():
         print(f"jroles mirror: {home.home} is missing", file=sys.stderr)
         return BROKEN
+    homes = tuple(one.home for one in every if one.home.is_dir())
+    told: set[str] = set()
+
+    def broken(error: Exception) -> int:
+        said = str(error) if isinstance(error, Refused) else f"jroles mirror: {error}"
+        if said not in told:
+            told.add(said)
+            print(said, file=sys.stderr)
+        return BROKEN
+
+    if args.check:
+        return _check(home, chosen, homes, main_too=not args.instance, broken=broken)
+    try:
+        usage: dict | None = pool_of(home, homes)
+    except (Refused, OSError) as error:
+        usage, code = None, broken(error)
     for one in chosen:
         try:
-            said = check(home, one) if args.check else run(home, one)
+            said = run(home, one, usage)
         except (Refused, OSError) as error:
-            said = error if isinstance(error, Refused) else f"jroles mirror: {error}"
-            print(said, file=sys.stderr)
-            code = BROKEN
+            code = broken(error)
             continue
         for line in said:
             print(line)
-        if args.check and said:
+    if usage is not None:
+        try:
+            for line in pool_main(home, usage):
+                print(line)
+        except (Refused, OSError) as error:
+            code = broken(error)
+    return code
+
+
+def _check(
+    main: Main,
+    chosen: tuple[Mirror, ...],
+    homes: tuple[Path, ...],
+    main_too: bool,
+    broken: Callable[[Exception], int],
+) -> int:
+    """`--check`: each chosen mirror against the pool of every home, and `~/.claude.json`
+    with them unless one instance was asked for. A line that is only `pooling` is no drift."""
+    code = 0
+    if main_too:
+        try:
+            found = _read(main.config) or {}
+            lost, behind = lags(
+                main.config,
+                usage_of(main.config, found),
+                pool_of(main, homes),
+                time.time(),
+            )
+        except (Refused, OSError) as error:
+            code, lost, behind = broken(error), [], []
+        for line in lost + behind:
+            print(line)
+        code = code or (DRIFT if lost else 0)
+    for one in chosen:
+        try:
+            said, behind = review(main, one, homes)
+        except (Refused, OSError) as error:
+            code = broken(error)
+            continue
+        for line in said + behind:
+            print(line)
+        if said:
             code = code or DRIFT
-        elif args.check:
-            print(f"ok        {one.home} mirrors {home.home}")
+        else:
+            print(f"ok        {one.home} mirrors {main.home}")
     return code

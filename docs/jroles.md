@@ -136,6 +136,8 @@ What is per login stays the mirror's own and is never linked: `.credentials.json
 `<home>/.claude.json` stays a file, since it holds the account.
 Its account keys are kept: `oauthAccount`, `userID`, `cachedUsageUtilization` and every other `cached*` key, every key ending in `Cache` or `CacheAt`, and the rest of `ACCOUNT_KEYS` in `src/jroles/mirror.py`.
 Every other key is copied from `~/.claude.json`, such as `mcpServers`, and `projects` is merged project by project, with `~/.claude.json` winning.
+`skillUsage` is pooled instead, since every account is one user: for each skill, each field of its entry takes the highest value any home has, so the highest use count and the latest last-used time.
+A run writes the pool into `~/.claude.json` and into every mirror, and use in one account is never lost to another.
 
 A run reads each mirror, then changes only what differs:
 
@@ -147,6 +149,7 @@ A run reads each mirror, then changes only what differs:
 | An entry only the mirror has | Moves it into `~/.claude` and links it back | `moved     <entry> -> <target>, linked` |
 | A link into `~/.claude` whose entry is gone | Removes it | `removed   dangling <entry>` |
 | Shared keys of `.claude.json` that differ | Writes the file again, mode 600 | `synced    shared keys of ~/.claude.json into <file>` |
+| Less skill use than the pool, in a mirror or in `~/.claude.json` | Writes the pool into the file | `pooled    skillUsage into <file>` |
 
 A run with nothing to do prints nothing and writes nothing.
 Each mirror is changed under its own lock, `<home>/.jroles-mirror.lock`, and under the main home's, `~/.claude/.jroles-mirror.lock`, so no two runs interleave, on one mirror or on two that would move the same new entry into `~/.claude`.
@@ -156,6 +159,10 @@ A mirror whose home is not there is said on stderr, and the run exits 2: the hom
 
 `jroles mirror --check` changes nothing, takes no lock, prints `would ...` for each entry that differs and exits 1 if there is one.
 Its line for `.claude.json` names the shared keys whose values differ, `would sync <keys> of ~/.claude.json into <home>/.claude.json`, so an account key that changed is no drift.
+It compares each home's `skillUsage` with the pool of every home, `~/.claude.json` included unless `--instance` is given.
+A home behind the pool only by use since the last sync prints `pooling   skillUsage <skills> into <file>` and is no drift.
+A home that lacks a skill whose last use is older than one run of the timer prints `would pool skillUsage <skills> into <file>` and exits 1.
+An entry of `skillUsage` that is not an object of numbers is said on stderr, `<file>: skillUsage <skill> is malformed`, and exits 2: a run then pools nothing until it is mended.
 A mirror with nothing to do prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.
 `templates/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
