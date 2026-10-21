@@ -189,6 +189,31 @@ def test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_cha
     ]
 
 
+MOVED = {
+    "features/delta/src/delta/__init__.py": "",
+    "features/delta/src/delta/d.py": "from delta import util\n\nROWS = 'rows.txt'\n",
+    "features/delta/src/delta/util.py": "U = 1\n",
+    "features/delta/src/delta/rows.txt": "rows\n",
+    "features/delta/tests/test_delta.py": "from delta import d\n",
+    "tests/test_runs_delta.py": "import subprocess\n\nsubprocess.run(['python', '-m', 'delta'])\n",
+}
+
+
+@pytest.mark.parametrize(
+    "path", ["features/delta/src/delta/util.py", "features/delta/src/delta/rows.txt"]
+)
+def test_a_change_in_a_feature_src_selects_its_importers_and_the_tests_that_run_its_package(
+    tmp_path, path
+):
+    repo = Repo(tmp_path, files={**FILES, **MOVED})
+    head = repo.change([path])
+
+    selected = repo.selected(head)
+
+    assert {"features/delta/tests/test_delta.py", "tests/test_runs_delta.py"} <= set(selected)
+    assert "tests/test_alpha.py" not in selected
+
+
 def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_name(repo):
     head = repo.change(["src/beta/plug.py"])
 
