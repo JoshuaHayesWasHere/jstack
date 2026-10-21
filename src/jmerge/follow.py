@@ -13,11 +13,12 @@ missed. Nothing runs for a list that did not change, or a tool installed from el
 Each harness's layout links every skill file to its place in the checkout, and a pull does not
 assemble it again. A merge that moves or removes a skill leaves its links dangling, as #202 did
 with pr-review, and one that adds a skill or a file to one, or edits a file the layout writes,
-leaves the layout short or stale. So after the pull, where the merge changed what the assembly
-reads (`skills.json`, `plugin.json`, a file the catalog lists, a file in a skill's folder) and a
-layout on this machine was assembled from this checkout, `sh install.sh` runs in it once.
-`install.sh --check` says `stale` of a layout this missed. Nothing runs for a merge that
-changed none of it, or a machine installed from elsewhere.
+leaves the layout short or stale. So after the pull, where a layout on this machine was
+assembled from this checkout and is not what the checkout now assembles (`layout.Layout.probe`,
+the answer `install.sh --check` gives), `sh install.sh` runs in it once. The layouts answer it,
+not the merge's paths: an edit a link makes live runs nothing, and a layout an install that
+failed left stale is installed again after the next merge. Nothing runs where every layout is
+as the checkout makes it, or for a machine installed from elsewhere.
 """
 
 from __future__ import annotations
@@ -25,11 +26,12 @@ from __future__ import annotations
 import shlex
 import subprocess
 import tomllib
-from collections.abc import Callable, Iterable
-from pathlib import Path, PurePosixPath
+from collections.abc import Callable
+from pathlib import Path
 
 from jinstall import layout
 from jinstall.harnesses import HARNESSES
+from jinstall.kinds import State
 from jinstall.machine import Machine
 from jmerge import lines
 
@@ -63,7 +65,7 @@ def follow(run: Run, main: Path, before: str) -> list[str]:
     """After the main checkout was pulled from `before` to its HEAD: the note of the tool,
     `lines.reinstalled` or `lines.not_reinstalled`, then the note of the install,
     `lines.installed` or `lines.not_installed`, each only where it was due."""
-    return [note for note in (_tool(run, main, before), _install(run, main, before)) if note]
+    return [note for note in (_tool(run, main, before), _install(run, main)) if note]
 
 
 def _tool(run: Run, main: Path, before: str) -> str:
@@ -84,46 +86,14 @@ def _tool(run: Run, main: Path, before: str) -> str:
     return lines.reinstalled(tool, main)
 
 
-def assembles(main: Path, changed: Iterable[str]) -> bool:
-    """Whether a change to the paths `changed` changes what the install assembles from the
-    checkout `main`: its catalog, its `plugin.json`, a file the catalog lists, or a file in the
-    folder of a skill, but for the parts of a feature that are not the skill."""
-    changed = set(changed)
-    if changed & {layout.CATALOG, layout.PLUGIN}:
-        return True
-    try:
-        items, hooks = layout.catalog(main), layout.hooks(main)
-    except layout.UNREADABLE:
-        return False
-    listed = {item["path"] for item in items} | {hook["path"] for hook in hooks}
-    folders = [
-        PurePosixPath(item["path"]).parent
-        for item in items
-        if item["kind"] in ("skill", "principle") and item["path"].endswith("/SKILL.md")
-    ]
-    for path in map(PurePosixPath, changed - listed):
-        for folder in folders:
-            if not path.is_relative_to(folder):
-                continue
-            parts = path.relative_to(folder).parts
-            if parts[0] not in layout.NOT_THE_SKILL and not any(
-                part.startswith(".") or part == "__pycache__" for part in parts
-            ):
-                return True
-    return bool(changed & listed)
-
-
-def _install(run: Run, main: Path, before: str) -> str:
+def _install(run: Run, main: Path) -> str:
     machine = Machine.here(main)
-    if not any(
-        (machine.layout(harness.name) / "source").resolve() == main.resolve()
+    ours = [
+        layout.Layout(harness)
         for harness in HARNESSES
-    ):
-        return ""
-    diff = run(main, "git", "diff", "--name-only", "--no-renames", "-z", before, "HEAD")
-    if diff.returncode:
-        return lines.not_installed(f"git diff {before} HEAD: {_said(diff)}")
-    if not assembles(main, filter(None, diff.stdout.split("\0"))):
+        if (machine.layout(harness.name) / "source").resolve() == main.resolve()
+    ]
+    if all(one.probe(machine).state is State.OK for one in ours):
         return ""
     ran = run(main, "sh", "install.sh")
     if ran.returncode:
