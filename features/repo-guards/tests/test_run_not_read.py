@@ -6,7 +6,8 @@ wording and execute nothign". A test that reads a file under `skills/`, `playboo
 behaviour and fails on a rewording. The lint reads every test module with `ast` and follows
 what a test calls: a helper of its own module, a test module it imports, a fixture it asks
 for. A test runs something when that reaches `subprocess` (the shared block runner does), a
-package of `src/`, or `jsonschema` (a JSON call of a skill checked against the tool's schema).
+package the wheel ships (`packages` in `pyproject.toml`), or `jsonschema` (a JSON call of a
+skill checked against the tool's schema).
 
 Such tests are common, so the lint fails only on a test function added or changed against the
 merge-base with `origin/main`. An exception is a comment on the test's own `def` line, with its
@@ -36,7 +37,8 @@ from testing.paths import REPO
 DOCS = ("skills", "playbooks", "principles", "templates")
 DOC_PATH = re.compile(rf"^(\.*/)*({'|'.join(DOCS)})(/|$)|/({'|'.join(DOCS)})/")
 FILE_NAME = re.compile(r"^[\w.*/-]*\.(md|py|sh|json|toml|txt|yml|yaml|html|css|js)$")
-SRC = frozenset(path.name.removesuffix(".py") for path in (REPO / "src").iterdir())
+WHEEL = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"]["targets"]
+SRC = frozenset(Path(package).name for package in WHEEL["wheel"]["packages"])
 RUNNERS = frozenset({"subprocess", "jsonschema"})
 READS = frozenset({"read_text", "read_bytes", "open", "read", "readlines"})
 SHELL = frozenset({"system", "popen", "spawnl", "spawnv", "spawnlp", "spawnvp", "execv", "execvp"})
