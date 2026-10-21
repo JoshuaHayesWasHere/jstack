@@ -8,6 +8,8 @@ their indentation, a scalar, and a list in brackets.
 
 Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
 `jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
+The two quick jobs of a pull request, its `check` and `borders`, run on infra's fast lane
+instead, `[self-hosted, jstack-fast]`, under the lane's 10 minute stop.
 The browser workflow names Google Chrome as its test browser on every runner, and the check
 names none: the tests that open a browser carry the marker `browser`, which `make check` leaves
 out and `make check-browser` runs, nightly at 03:00 ET, on a `v*` tag or a published release,
@@ -48,11 +50,14 @@ CHECK = WORKFLOWS / "check.yml"
 DRIFT = WORKFLOWS / "pstack-drift.yml"
 BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
+BORDERS = WORKFLOWS / "borders.yml"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
     " || vars.RUNS_ON || 'jstack-ephemeral' }}"
 )
+# infra's fast lane (infra's docs/runbooks/fast-lane.md): its own pool, which no full suite takes.
+FAST = "[self-hosted, jstack-fast]"
 
 
 def scalar(text):
@@ -163,11 +168,11 @@ def jobs(text):
     return found
 
 
-def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_none():
+def test_a_pull_requests_quick_jobs_run_on_the_fast_lane_and_every_other_on_the_repos_pick():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
-        "borders.yml": {"borders": PICK},
+        "borders.yml": {"borders": FAST},
         "browser.yml": {"browser": PICK},
-        "check.yml": {"check": PICK, "full": PICK},
+        "check.yml": {"check": FAST, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
         "release.yml": {"release": PICK},
     }
@@ -196,19 +201,23 @@ def test_the_runner_is_the_local_one_with_no_variable_and_a_label_or_a_list_of_t
         runs_on
         for found in map(jobs, map(Path.read_text, WORKFLOWS.glob("*.yml")))
         for runs_on in found.values()
+        if runs_on != FAST
     }:
         assert picked(runs_on, "") == "jstack-ephemeral"
         assert picked(runs_on, "jstack") == "jstack"
         assert picked(runs_on, '["one", "two"]') == ["one", "two"]
 
 
-def test_no_file_under_github_names_a_runner_of_its_own():
+def test_no_file_under_github_names_a_runner_of_its_own_but_the_fast_lanes_jobs():
     named = [
         path.name
         for path in sorted(WORKFLOWS.parent.rglob("*"))
         if path.is_file() and "self-hosted" in path.read_text()
     ]
-    assert named == []
+    assert named == ["borders.yml", "check.yml"]
+    for name in named:
+        lines = (WORKFLOWS / name).read_text().splitlines()
+        assert [line for line in lines if "self-hosted" in line] == [f"    runs-on: {FAST}"]
 
 
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
@@ -402,11 +411,12 @@ def cap(text, job):
     return None
 
 
-def test_each_job_is_cancelled_after_twenty_five_minutes_and_a_job_that_names_no_cap_has_none():
+def test_a_fast_lane_job_stops_before_the_lanes_ten_minutes_and_full_after_twenty_five():
     text = "jobs:\n  other:\n    steps:\n      - timeout-minutes: 1\n  check:\n"
     text += "    timeout-minutes: 25\n"
     assert (cap(text, "check"), cap(text, "other")) == ("25", None)
-    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("25", "25")
+    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("9", "25")
+    assert cap(BORDERS.read_text(), "borders") == "5"
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
@@ -430,7 +440,7 @@ def ran_on(job):
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
-    assert jobs(CHECK.read_text()) == {"check": PICK, "full": PICK}
+    assert jobs(CHECK.read_text()) == {"check": FAST, "full": PICK}
     assert (ran_on("check"), ran_on("full")) == (["pull_request"], ["push", "workflow_dispatch"])
 
 
