@@ -1,5 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "principles",
-  "description": "One short file per working principle, which a playbook step cites."
+  "description": "One skill per working principle, which a playbook step cites."
 }
