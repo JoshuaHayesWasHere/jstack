@@ -12,7 +12,7 @@ One file per T3 Code tool that a skill calls with JSON, in a block or as an obje
 | `t3_project_list.json` | `mcp__t3-code__t3_project_list` | the new-home skill (the project whose checkout is the repo) |
 | `t3_project_create.json` | `mcp__t3-code__t3_project_create` | the new-home skill (a repo with no project yet) |
 | `link_pull_request.json` | `mcp__t3-code__link_pull_request` | the crew skill (the crewmate links its pull request, written in the line) |
-| `schedule_task.json` | `mcp__t3-code__schedule_task` | the home skill (the hourly audit of a queue), the expert skill (its webhook) |
+| `schedule_task.json` | `mcp__t3-code__schedule_task` | the home skill (the hourly audit of a queue), the expert skill (its webhook), the make-bot-ui skill (the webhook of the thread its buttons wake) |
 | `delete_scheduled_task.json` | `mcp__t3-code__delete_scheduled_task` | the home skill (the audit, when its queue ends or its home hands off), the expert skill (a webhook it could not take over) |
 | `update_scheduled_task.json` | `mcp__t3-code__update_scheduled_task` | the home skill (a home takes over each task bound to the home before it), the handoff skill (a closed scope's home switches its tasks off), the expert skill (an expert takes over the webhook of the thread before it) |
 
