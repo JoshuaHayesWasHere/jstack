@@ -27,3 +27,17 @@ def skills(root: Path = REPO) -> dict[str, Path]:
     feature, as `scripts/jtrees/crawl.py` finds them."""
     found = (path.parent for spot in SPOTS for path in root.glob(spot))
     return dict(sorted((folder.name, folder) for folder in found))
+
+
+PLAYBOOK_SPOTS = (
+    "playbooks/*.md",
+    "features/*/playbooks/*.md",
+    "features/*/skills/*/playbooks/*.md",
+)
+
+
+def playbooks(root: Path = REPO) -> dict[str, Path]:
+    """Each playbook's file by its name, sorted: in `playbooks/`, or where a move puts it in its
+    feature, as `scripts/jtrees/crawl.py` finds them."""
+    found = (path for spot in PLAYBOOK_SPOTS for path in root.glob(spot))
+    return dict(sorted((path.stem, path) for path in found))

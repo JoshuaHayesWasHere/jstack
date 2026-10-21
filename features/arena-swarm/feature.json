@@ -5,11 +5,5 @@
   "nameable": [
     "arena",
     "swarm"
-  ],
-  "owns": [
-    "skills/arena/**",
-    "skills/swarm/**",
-    "playbooks/arena.md",
-    "playbooks/swarm.md"
   ]
 }

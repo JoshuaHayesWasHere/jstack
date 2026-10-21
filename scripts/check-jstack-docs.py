@@ -139,7 +139,7 @@ class Tree:
         return cls(
             root,
             frozenset(path.parent.name for path in skill_files(root)),
-            tuple(sorted(path.stem for path in (root / "playbooks").glob("*.md"))),
+            tuple(sorted(path.stem for path in playbook_files(root))),
             tuple(sorted(scripts)),
             len(list((root / "principles").glob("*.md"))),
             models_of(root / JROLES),
@@ -170,6 +170,12 @@ def models_of(page: Path) -> frozenset[str]:
 def skill_files(root: Path) -> list[Path]:
     """Each skill's `SKILL.md`, where it is now and where a move puts it."""
     spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
+    return sorted(path for spot in spots for path in root.glob(spot))
+
+
+def playbook_files(root: Path) -> list[Path]:
+    """Each playbook, where it is now and where a move puts it, under the skill that runs it."""
+    spots = ("playbooks/*.md", "features/*/playbooks/*.md", "features/*/skills/*/playbooks/*.md")
     return sorted(path for spot in spots for path in root.glob(spot))
 
 
@@ -287,7 +293,7 @@ def listing(tree: Tree, docs: list[Doc]) -> list[str]:
         for target in LINK.findall(line.prose)
         if not SCHEME.match(target)
     }
-    wanted = [f"playbooks/{name}.md" for name in tree.playbooks]
+    wanted = [path.relative_to(tree.root).as_posix() for path in playbook_files(tree.root)]
     wanted += [path.relative_to(tree.root).as_posix() for path in skill_files(tree.root)]
     return [
         f"no table row of the README names the command {name}"
