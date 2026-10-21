@@ -76,7 +76,8 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 - **Install from it.** Run `record install-skills "$HOME/.local/bin/jinstall"`, then `record install-skills "$HOME/.local/bin/jinstall" --check`. Every line starts with `ok`, and there is no `generated files` line and no `pre-push` line.
 - **See every link resolve into the wheel.** Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`. It prints only `checked`, but for the same two written files.
 
-From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it. `jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `tests/test_jmerge_follow.py` drives the run it makes after one.
+From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it.
+`jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `tests/test_jmerge_follow.py` drives the run it makes after one.
 
 - **Clone at the commit before #202, which moved pr-review into `features/`.** Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" && git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413~1 && git clone -q -b main "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" "$VERIFY_JSTACK_SANDBOX/jstack" && cd "$VERIFY_JSTACK_SANDBOX/jstack"`.
 - **Install from it.** Run `record install-skills sh install.sh`. Every layout line is `ok`, and `readlink -f "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.
@@ -94,4 +95,4 @@ From a clone of this checkout at the commit before a merge that moved a skill, i
 - The `rm` in the recipe names the sandbox's HOME through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops there and removes nothing. Keep it that way: never write it with `$HOME`.
 - `install.sh` needs a Python 3.12 or `uv`, and says so when it has neither.
 - The links point at the checkout the script is run from. Run the one under `$VERIFY_JSTACK_REPO`, not a copy, but in the recipe of a move, whose clone is the checkout under test.
-- In the recipe of a move, the line for the commands is `old hard commands jstack -> jbriefs is shadowed by <this checkout>/.venv/bin/jbriefs`: `env.sh` puts this checkout's commands first on PATH. It is not the move's.
+- In the recipe of a move, the line for the commands is `old hard commands jstack -> jbriefs is shadowed by <this checkout>/.venv/bin/jbriefs`: `env.sh` puts this checkout's commands first on PATH, and it is not the move's.
