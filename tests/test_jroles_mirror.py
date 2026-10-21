@@ -450,3 +450,16 @@ def test_pooling_into_claude_json_keeps_its_mode(home, capsys):
     mirror(capsys)
     assert "tdd" in usage_of(config)
     assert oct(config.stat().st_mode & 0o777) == "0o644"
+
+
+def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys):
+    """A run writes no `~/.claude.json` that is absent, so `--check` names nothing to pool
+    into one."""
+    (home / ".claude.json").unlink()
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(90)}})
+    code, _, err = mirror(capsys)
+    assert (code, err) == (0, "")
+    assert not (home / ".claude.json").exists()
+    code, said, err = mirror(capsys, "--check")
+    assert (code, err) == (0, "")
+    assert not any(str(home / ".claude.json") in line for line in said)
