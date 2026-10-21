@@ -18,14 +18,14 @@
 # it is counted from.
 #
 # The desk share is also the full test slots' count (`test_slots` in
-# features/jgauge/src/jgauge/sizes.py, whose DESK_SHARE is this quarter): every slot at once runs at most one desk worker for each
-# of the machine's processors: 4 slots on most machines of 8 cores or more, 5 on 10, 11 or
-# 15. A worker keeps 0.86 of a core busy (measured on yelena, 24 processors, 2026-10-20: 456
-# to 483 s of CPU for each 89 to 94 s run at 6 workers), so every slot at once asks for about
-# 21 of the 24. tests/test_check_command.py
-# holds the share and the count to each other. The runners are not in that count: they run in
-# a slice of their own, with its own CPU cap and a lower CPU weight, which the machine's own
-# config sets, and room's CPU pressure line holds launches when the two together run hot.
+# features/jgauge/src/jgauge/sizes.py, whose DESK_SHARE is this quarter): every slot at once
+# runs at most one desk worker for each of the machine's processors: 4 slots on most machines
+# of 8 cores or more, 5 on 10, 11 or 15. A worker keeps 0.86 of a core busy (measured on
+# yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU for each 89 to 94 s run at 6 workers),
+# so every slot at once asks for about 21 of the 24. tests/test_check_command.py holds the
+# share and the count to each other. The runners are not in that count: they run in a slice of
+# their own, with its own CPU cap and a lower CPU weight, which the machine's own config sets,
+# and room's CPU pressure line holds launches when the two together run hot.
 CGROUP ?= /sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
