@@ -28,7 +28,7 @@ Tests: none
 
 - `install-check-missing` reports every part as `missing` in a new HOME, writes nothing, and exits 1.
 - `install-puts` puts every part, prints `ok` for each, and exits 0.
-- `install-points-here` points each link, hook and unit into the checkout the script is in.
+- `install-points-here` points each skill link and hook command into the checkout's harness copy, `harness/jstack/claude-code/`, and each unit into the checkout's `templates/`.
 - `install-idempotent` changes nothing on a second run.
 - `install-keeps-non-link` leaves something that is not a link in place, as `old ... -> not a link`.
 - `install-uninstall-leaves-nothing` leaves HOME as it was before the install, and a second `--uninstall` prints nothing.
@@ -50,10 +50,10 @@ Preconditions:
 - `$HOME/.claude`, `$HOME/.agents`, `$HOME/.codex` and `$HOME/.config` do not exist. HOME is the sandbox's.
 
 - **List HOME before.** Run `(cd "$HOME" && find . | sort) > "$VERIFY_JSTACK_SANDBOX/before.txt"`.
-- **Check a new HOME.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `missing`, the last is `missing optional units <HOME>/.config/systemd/user`, and it exits 1. `$HOME/.claude` still does not exist.
+- **Check a new HOME.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Its first line is `ok hard harness/ is current`, every other starts with `missing`, the last is `missing optional units <HOME>/.config/systemd/user`, and it exits 1. `$HOME/.claude` still does not exist.
 - **Install.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`. Every line starts with `ok`, and it exits 0.
-- **See where a link points.** Run `record install-skills readlink "$HOME/.claude/skills/crew"`. It prints `<this checkout>/skills/crew`.
-- **See the hooks.** Run `record install-skills jq -r '.hooks[][].hooks[].command, (.statusLine.command // empty)' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json"`. Each command runs a script under `<this checkout>/hooks/`.
+- **See where a link points.** Run `record install-skills readlink "$HOME/.claude/skills/crew"`. It prints `<this checkout>/harness/jstack/claude-code/skills/crew`.
+- **See the hooks.** Run `record install-skills jq -r '.hooks[][].hooks[].command, (.statusLine.command // empty)' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json"`. Each command runs a script under `<this checkout>/harness/jstack/claude-code/hooks/`.
 - **See the commands.** Run `record install-skills ls "$HOME/.local/bin" "$UV_TOOL_DIR"`. The six commands, and the one tool `jstack`.
 - **See the units.** Run `record install-skills readlink "$HOME/.config/systemd/user/jbus.timer"`, then `record install-skills cat "$VERIFY_JSTACK_SANDBOX/systemctl.log"`. The link points at `<this checkout>/templates/jbus.timer`, and the log has `--user daemon-reload` and `--user enable --now jbus.timer`.
 - **Check again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
