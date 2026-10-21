@@ -31,23 +31,23 @@ Type `/make-bot-ui <name>` in the thread the buttons should wake, not in a home 
 `<name>` is a short slug for the UI, as `deploy-buttons`.
 The server is a crewmate's work: this thread makes the key and the webhook, writes the crewmate's brief, and handles the wakes.
 
-Run this first, with the UI's slug in place of the words in angle brackets:
+## 1. The key
+
+Run this, with the UI's slug in place of the words in angle brackets:
 
 ```sh
 S=$(realpath ~/.claude/skills/make-bot-ui 2> /dev/null)/scripts/bot_ui.py
 C=~/.config/bot-ui/'<name>'/config.json
-[ -f "$S" ] && echo "server: $S" || echo "no server: ~/.claude/skills/make-bot-ui is not a link into jstack"
+if ! [ -f "$S" ]; then
+    echo "no server: ~/.claude/skills/make-bot-ui is not a link into jstack"
+elif ! command -v wl-copy > /dev/null; then
+    echo "no clipboard: wl-copy is not installed, so stop here: the key never goes into chat"
+elif uv run --script "$S" key "$C" && uv run --script "$S" show-key "$C" | wl-copy; then
+    echo "the key is in $C at mode 600, and on the clipboard"
+fi
 ```
 
-Every command below runs with those two lines at the top.
-
-## 1. The key
-
-```sh
-uv run --script "$S" key "$C" && uv run --script "$S" show-key "$C" | clip
-```
-
-It writes `C` at mode 600 with a new random key and an empty URL, and puts the key on the clipboard.
+It writes `C` with a new random key and an empty URL, and puts the key on the clipboard.
 The key is never printed here: do not run `show-key` without the pipe.
 
 ## 2. The key, entered privately
@@ -85,7 +85,13 @@ If the result has no `webhookUrl`, T3 Connect remote access is off: tell the use
 ## 4. The URL
 
 ```sh
-uv run --script "$S" url "$C" '<the webhookUrl>'
+S=$(realpath ~/.claude/skills/make-bot-ui 2> /dev/null)/scripts/bot_ui.py
+C=~/.config/bot-ui/'<name>'/config.json
+if ! [ -f "$S" ]; then
+    echo "no server: ~/.claude/skills/make-bot-ui is not a link into jstack"
+elif uv run --script "$S" url "$C" '<the webhookUrl>'; then
+    echo "the URL is in $C"
+fi
 ```
 
 The URL is a secret too: anyone who has it can start a turn of this thread.
@@ -96,8 +102,12 @@ It stays in `C` and in this thread, and goes in no brief, page or log.
 Read the tailnet address and name, and change nothing on the tailnet: the node is already online.
 
 ```sh
-tailscale ip -4 | head -n 1
-tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")'
+if command -v tailscale > /dev/null; then
+    tailscale ip -4 | head -n 1
+    tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")'
+else
+    echo "no tailscale: the UI is served on 127.0.0.1 only"
+fi
 ```
 
 Write the brief to `$H/tasks/bot-ui-<name>.md`, where `$H` is `~/.local/state/home/<repo>` for the repo the page lives in, in the shape of the briefs beside it:

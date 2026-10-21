@@ -1,4 +1,6 @@
-"""The skills added after the first eleven: each is typed only, and its shell blocks are run."""
+"""The skills added after the first eleven: each is typed only, and its shell blocks are run.
+A JSON block that is no T3 Code tool call, which `test_tool_calls.py` checks, is a read-only
+subagent."""
 
 import json
 import os
@@ -11,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import as_read
+from test_tool_calls import CALLS
 
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
@@ -40,6 +43,11 @@ BUILT_IN = set(
     """.split()
 )
 NOT_IN_A_SUBAGENT_CALL = {"model", "effort", "isolation"}
+T3_CALLS = {
+    (call.where.split(":")[0], call.written.strip())
+    for call in CALLS
+    if call.tool not in (None, "Agent")
+}
 DAY = 24 * 60 * 60
 
 
@@ -201,6 +209,7 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
         pytest.param(name, body, id=f"{name}:{number}")
         for name in ADDED
         for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "json"), 1)
+        if (name, body.strip()) not in T3_CALLS
     ],
 )
 def test_a_subagent_an_added_skill_starts_is_read_only_on_this_sessions_model(name, body):
