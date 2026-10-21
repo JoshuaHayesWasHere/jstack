@@ -223,7 +223,7 @@ def test_a_home_with_no_session_that_started_with_it_is_not_known(place, scene, 
 
 def test_the_homes_limit_is_the_one_home_gauge_holds_it_to(place, scene, served, monkeypatch):
     monkeypatch.chdir(place)
-    script = usage.GAUGE.read_text()
+    script = usage.gauge().read_text()
     held = asked(served)["limit"]
     assert f"limit={held['limit']} ;;" in script
     assert f"ceiling={held['ceiling']} ;;" in script
