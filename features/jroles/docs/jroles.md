@@ -101,7 +101,10 @@ With both capped the thread is sent nothing: `jbus` says so once, as a `stall`, 
 
 For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_claude_prime with headroom`, or `jroles: crew on claudeAgent_claude_prime: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_claude_prime are both capped until ...`) and exits 75: the launch waits for the first reset.
 
-A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../../docs/configuration.md#provider-instances)), and one more id on the role line. Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance. With no inventory the line is taken as written. An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
+A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../../docs/configuration.md#provider-instances)), and one more id on the role line.
+Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance.
+With no inventory the line is taken as written.
+An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
 
 ## The ledger
 

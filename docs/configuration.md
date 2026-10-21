@@ -46,7 +46,10 @@ They do not fall back to the defaults.
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment. It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest. The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../features/jroles/docs/jroles.md#pools)).
+`~/.config/jstack/roles` names the model each role's thread is launched on.
+It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment.
+It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
+The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../features/jroles/docs/jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -56,7 +59,9 @@ They do not fall back to the defaults.
 | `home` | `inherit` | The model of the next home's thread. | `jroles`, for the `handoff` skill |
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
-`inherit` is the model of the thread that launches. [jroles](../features/jroles/docs/jroles.md) has the providers and an example. `install.sh --setup` writes the file once, where there is none, with every role `inherit`.
+`inherit` is the model of the thread that launches.
+[jroles](../features/jroles/docs/jroles.md) has the providers and an example.
+`install.sh --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
 
