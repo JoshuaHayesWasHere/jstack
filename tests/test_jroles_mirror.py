@@ -141,7 +141,8 @@ def test_the_first_run_links_backs_up_and_merges_and_the_second_prints_nothing(h
     assert not any(str(home / ".codex") in line for line in said)
 
     assert mirror(capsys) == (0, [], "")
-    assert mirror(capsys, "--check") == (0, [], "")
+    code, said, _ = mirror(capsys, "--check")
+    assert code == 0 and said == [f"ok        {at} mirrors {main}" for at in (prime, third)]
 
 
 def test_claude_json_keeps_each_mirrors_account_and_takes_mains_servers_and_projects(home, capsys):
@@ -178,7 +179,11 @@ def test_a_new_entry_of_claude_is_drift_until_the_next_run_links_it(home, capsys
     code, said, _ = mirror(capsys)
     assert code == 0 and len(said) == 4
     assert os.readlink(prime / "downloads") == str(main / "downloads")
-    assert mirror(capsys, "--check") == (0, [], "")
+    assert mirror(capsys, "--check") == (
+        0,
+        [f"ok        {at} mirrors {main}" for at in (prime, third)],
+        "",
+    )
 
 
 def test_check_changes_nothing_and_names_each_entry_that_differs(home, capsys):
@@ -191,7 +196,10 @@ def test_check_changes_nothing_and_names_each_entry_that_differs(home, capsys):
     assert f"would move {prime / 'agents'} into {main} and link it" in said
     assert f"would remove dangling {prime / 'gone'}" in said
     assert f"would link {prime / 'skills'} -> {main / 'skills'}" in said
-    assert f"would sync the shared keys of {home / '.claude.json'} into" in said[-1]
+    assert said[-1] == (
+        f"would sync mcpServers, projects, theme of {home / '.claude.json'}"
+        f" into {prime / '.claude.json'}"
+    )
     assert not any(".claude_third" in line for line in said)
 
 
@@ -288,3 +296,31 @@ def test_claude_codes_own_temp_beside_claude_json_is_left_where_it_is(home, caps
     mirror(capsys, "--instance", PRIME)
     assert temp.is_file() and not temp.is_symlink()
     assert not (home / ".claude" / temp.name).exists()
+
+
+def test_check_after_a_sync_is_ok_whatever_unshared_keys_of_claude_json_changed(home, capsys):
+    mirror(capsys)
+    config = home / ".claude.json"
+    changed = json.loads(config.read_text())
+    changed |= {"numStartups": 512, "cachedUsageUtilization": {"five_hour": 70}}
+    changed["oauthAccount"] = {"accountUuid": "main", "seen": "later"}
+    config.write_text(json.dumps(changed))
+    code, said, err = mirror(capsys, "--check")
+    assert (code, err) == (0, "")
+    assert said == [
+        f"ok        {home / at} mirrors {home / '.claude'}"
+        for at in (".claude_prime", ".claude_third")
+    ]
+
+
+def test_check_names_each_shared_key_of_claude_json_that_differs(home, capsys):
+    mirror(capsys)
+    config = home / ".claude.json"
+    changed = json.loads(config.read_text())
+    changed["theme"] = "light"
+    changed["projects"]["/repo"]["allowedTools"] = ["Bash", "Edit"]
+    config.write_text(json.dumps(changed))
+    code, said, _ = mirror(capsys, "--check", "--instance", PRIME)
+    prime = home / ".claude_prime" / ".claude.json"
+    assert code == 1
+    assert said == [f"would sync projects, theme of {config} into {prime}"]
