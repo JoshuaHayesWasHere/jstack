@@ -1,7 +1,8 @@
-# The briefs of an arena, written and queued: run with sh by step 2 of playbooks/arena.md,
-# which exports slug, entry, size, where, priority, scope, have, prompt, rubric, done_when
-# and proves, and H, the home's state directory. `have` names the runners
-# the judge and the graft read: `a b`, or after a dropout the one runner left.
+# The briefs of an arena, written and queued: run with sh by step 2 of the arena playbook,
+# features/arena-swarm/skills/arena/playbooks/arena.md, which exports slug, entry, size,
+# where, priority, scope, have, prompt, rubric, done_when and proves, and H, the home's state
+# directory. `have` names the runners the judge and the graft read: `a b`, or after a
+# dropout the one runner left.
 filled=yes
 for said in "$slug" "$entry" "$size" "$where" "$priority" "$have" "$prompt" "$rubric" "$done_when" "$proves"; do
     case $said in '' | '<'*'>' | '- <'*'>') filled= ;; esac
