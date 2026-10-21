@@ -355,14 +355,15 @@ def moved_from(since, repo):
 
 
 def changed_tests(since, repo=REPO):
-    """{module: test names} added or changed since the commit, the worktree's own edits in."""
+    """{module: test names} added or changed since the commit, the worktree's own edits in, but
+    this module's: its strings are the modules its tests hand the lint, not words they match."""
     roots = collected(repo)
     paths = git("diff", "--name-only", since, "--", *roots, repo=repo).splitlines()
     paths += git("ls-files", "--others", "--exclude-standard", "--", *roots, repo=repo).splitlines()
     changed = {}
     for path in sorted(set(paths)):
         module = module_of(path, roots)
-        if not module or not (repo / path).exists():
+        if not module or not (repo / path).exists() or repo / path == Path(__file__):
             continue
         try:
             before = dumped_tests(git("show", f"{since}:{path}", repo=repo))
@@ -496,6 +497,17 @@ def test_a_test_that_calls_a_command_of_src_on_the_words_passes():
 
     def test_the_verb_it_names_parses():
         assert verbs.parser().parse_args(["gate", stay().split()[0]])
+    """
+    assert flagged(test_words_only=WORDS_ONLY, test_calls=calls) == FIVE
+
+
+def test_a_test_that_calls_a_package_under_a_feature_on_the_words_passes():
+    calls = """
+    from jmerge.ready import patterns_of
+    from test_words_only import stay
+
+    def test_the_pattern_it_names_is_read():
+        assert "a pattern" in patterns_of(stay())
     """
     assert flagged(test_words_only=WORDS_ONLY, test_calls=calls) == FIVE
 
