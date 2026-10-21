@@ -4,7 +4,7 @@ A playbook is the numbered steps for one kind of task, and nothing in `playbooks
 
 A playbook is for one role, the one its `Run by:` line starts with: a crewmate, a scout or the home.
 The home runs a playbook of its own from a `Playbook:` line in the head of its `plan.md`.
-`features/skill-library/templates/playbook.md` is the shape every playbook has, and `tests/test_playbooks.py` holds each file to it, within 900 words.
+`features/skill-library/templates/playbook.md` is the shape every playbook has, and `features/repo-guards/tests/test_playbooks.py` holds each file to it, within 900 words.
 `features/skill-library/playbooks/authoring-a-playbook.md` is the playbook for writing one.
 
 Each file in `templates/` is the one copy of a shape, such as `brief.md`, `result.md`, `review.md` and `gates.md`. A skill reads a template at the step that names it, and finds the directory from its own symlink (`realpath ~/.claude/skills/<name>/../../templates`), so the symlinks must point into a checkout of this repo.

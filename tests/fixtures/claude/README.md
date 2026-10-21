@@ -4,7 +4,7 @@ What a skill starts a subagent with, as a Claude Code session gives it. CI has n
 
 | File | What it is | Read by |
 |---|---|---|
-| `Agent.json` | the `Agent` tool's input schema (its `parameters`) | `tests/test_tool_calls.py`, for every JSON block that is a call of `Agent` |
+| `Agent.json` | the `Agent` tool's input schema (its `parameters`) | `features/repo-guards/tests/test_tool_calls.py`, for every JSON block that is a call of `Agent` |
 | `agent-types.txt` | the agent types the tool offers, one a line, each with its tools | `features/lessons/tests/test_lessons.py`, for the type the reflect skill starts its reviewers as |
 
 Taken on 2026-10-10 from Claude Code 2.1.296 (`claude --version`), in a T3 Code thread.

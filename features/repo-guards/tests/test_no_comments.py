@@ -184,9 +184,11 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "hooks/limits.sh",
         "features/skill-library/hooks/skill-tips.sh",
     } <= set(files)
-    assert {"src/jgauge/room.sh", "testing/jstack_fixtures.py", "tests/test_no_comments.py"} <= set(
-        files
-    )
+    assert {
+        "src/jgauge/room.sh",
+        "testing/jstack_fixtures.py",
+        "features/repo-guards/tests/test_no_comments.py",
+    } <= set(files)
     assert "features/show-me-your-work/tests/test_show_me_your_work.py" in files
     assert "features/jleak/hooks/pre-push.sh" in files
     assert {

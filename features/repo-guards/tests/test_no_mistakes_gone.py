@@ -15,7 +15,7 @@ from testing.paths import REPO
 READ = ("skills", "templates", "playbooks", "docs", "README.md")
 GONE = ("no-mistakes", "review+test", "full run: reviewer")
 
-CODE = ("src", "tests", "pyproject.toml")
+CODE = ("src", "tests", "features/*/src/*", "features/*/tests/*", "pyproject.toml")
 
 
 def named(repo=REPO):
