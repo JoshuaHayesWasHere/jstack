@@ -4,7 +4,9 @@ A context pack is what a home needs to know about one repo that the code does no
 
 - **One copy.** The pack lives in the repo it describes, at `docs/context/`, and changes only by a pull request there. No pack text is copied into jstack, into a home's `notes.md` or into `standing.md`.
 - **Who writes it.** The subject repo's home, through a scout or a crewmate on a brief. Whoever writes a note, `jpack verify` checks it, with no model.
-- **What it holds.** `sources.md`, each source pinned to a commit or a date. `INDEX.md`, the light layer: one line per note, at most 40. `notes/`, one note a question, in the four parts of `features/expert/templates/expert-answer.md`, its question as its title.
+- **What it holds.** `sources.md`, each source pinned to a commit or a date.
+  `INDEX.md`, the light layer: one line per note, at most 40.
+  `notes/`, one note a question, in the four parts of `features/expert/templates/expert-answer.md`, its question as its title.
 - **A claim cites its line.** Each source of a note is written `` `path:line` at <sha> ``, with the words the note rests on in double quotes after it, as `` `src/app.py:12` at `3f9c2ab`: "retries three times" ``. A source that is no file of the repo (a doc, a link, a command run) names the date it was read.
 
 ## Checks
