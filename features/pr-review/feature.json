@@ -1,13 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "pr-review",
-  "description": "Has a finished pull request reviewed in a fresh thread.",
-  "owns": [
-    "skills/pr-review/**",
-    "templates/review.md",
-    "templates/pr-body.md",
-    "tests/test_pr_review_skill.py",
-    "tests/test_scoped_review.py",
-    ".claude/skills/verify-jstack/features/pr-review-skill.md"
-  ]
+  "description": "Has a finished pull request reviewed in a fresh thread."
 }

@@ -12,7 +12,10 @@ Source: pstack, `pstack/skills/interrogate/SKILL.md`
 
 Spawn two reviewers to adversarially review code changes, each with the same prompt and neither shown the other's answer. The deliverable is a synthesized verdict. Do NOT auto-apply changes.
 
-This is not a pull request's review. That one is launched by the crewmate that opened the pull request and run by a reviewer in a thread of its own, as `skills/crew/SKILL.md` "The review" and `skills/pr-review/SKILL.md` say. This skill launches no reviewer thread and writes no `## Review` section and no `Finding:` line in a brief. Run this first:
+This is not a pull request's review.
+That one is launched by the crewmate that opened the pull request and run by a reviewer in a thread of its own, as `skills/crew/SKILL.md` "The review" and `features/pr-review/SKILL.md` say.
+This skill launches no reviewer thread and writes no `## Review` section and no `Finding:` line in a brief.
+Run this first:
 
 ```sh
 if R=$(realpath ~/.claude/skills/interrogate/../.. 2> /dev/null) && [ -f "$R/skills/pr-review/SKILL.md" ]; then

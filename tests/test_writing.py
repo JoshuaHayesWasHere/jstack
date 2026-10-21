@@ -2,10 +2,11 @@ import re
 
 import pytest
 
+from jbriefs.skills import listed
 from testing.paths import REPO
 
 SKILLS = [REPO / "skills" / name / "SKILL.md" for name in ("unslop", "technical-writing")]
-TEMPLATE = REPO / "templates" / "pr-body.md"
+TEMPLATE = REPO / "features" / "pr-review" / "templates" / "pr-body.md"
 PLAYBOOK = REPO / "playbooks" / "opening-a-pr.md"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 EM_DASH = "\N{EM DASH}"
@@ -74,10 +75,12 @@ def test_a_body_may_drop_a_heading_with_nothing_to_say(name):
 
 
 def test_the_playbook_step_names_a_template_that_builds_a_body_and_two_skills_that_load():
-    step = re.search(r"^5\. .*$", PLAYBOOK.read_text(), re.M).group()
-    named = [REPO / name for name in re.findall(r"`((?:skills|templates)/[^`]+\.md)`", step)]
-    templates = [path for path in named if path.parent == TEMPLATE.parent]
+    step = re.search(r"^5\. .*?(?=^\d\. )", PLAYBOOK.read_text(), re.M | re.S).group()
+    named = [REPO / name for name in re.findall(r"`((?:features|skills)/[^`]+\.md)`", step)]
+    templates = [path for path in named if path in listed("template", REPO).values()]
     skills = [path for path in named if path not in templates]
+    assert templates == [TEMPLATE]
+    assert skills == [listed("skill", REPO)[path.parent.name] for path in skills]
     assert [body_problems(build(path.read_text())) for path in templates] == [[]]
     assert [skill_problems(path) for path in skills] == [[], []]
 

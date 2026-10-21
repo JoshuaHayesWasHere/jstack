@@ -7,9 +7,10 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import as_read, named
+from testing.layouts import assembled
 from testing.paths import REPO, skills
 
-TEMPLATES = REPO / "templates"
+TEMPLATES = assembled() / "templates"
 HOOK = REPO / "hooks" / "home-start.sh"
 NAMES = [
     "brief.md",
@@ -112,17 +113,18 @@ def setting(skill):
 def resolved(skill, tmp_path):
     """What the skill's `T=` line gives, and where each `$T/<path>.md` it names leads.
 
-    Run as the user has the skill: a symlink under ~/.claude/skills, used from another repo.
+    Run as the user has the skill: a symlink under ~/.claude/skills to its folder in the
+    layout the install assembles, used from another repo.
     """
     text = as_read(skills()[skill] / "SKILL.md")
     named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / skill).symlink_to(skills()[skill])
+    (user / ".claude" / "skills" / skill).symlink_to(TEMPLATES.parent / "skills" / skill)
     elsewhere = tmp_path / skill / "another-repo"
     elsewhere.mkdir()
     listed = "\n".join(
-        f'if [ -f "{path}" ]; then realpath "{path}"; else echo \'missing: {path}\'; fi'
+        f'if [ -f "{path}" ]; then realpath -s "{path}"; else echo \'missing: {path}\'; fi'
         for path in named
     )
     done = subprocess.run(

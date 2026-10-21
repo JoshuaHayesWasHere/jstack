@@ -6,7 +6,12 @@ import pytest
 
 from testing.paths import skills
 
-SKILLS = [path for folder in skills().values() for path in sorted(folder.glob("*.md"))]
+SKILLS = [
+    path
+    for folder in skills().values()
+    for path in sorted(folder.glob("*.md"))
+    if path.name != "verify.md"
+]
 
 TYPED = {
     "pr-review": ["run a-slug", "a-slug"],

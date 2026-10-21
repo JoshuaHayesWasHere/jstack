@@ -1,11 +1,11 @@
 # Writing for a reader
 
-`unslop` and `technical-writing` are how jstack writes for a reader, and `playbooks/opening-a-pr.md` with `templates/pr-body.md` is how a pull request is written.
+`unslop` and `technical-writing` are how jstack writes for a reader, and `playbooks/opening-a-pr.md` with `features/pr-review/templates/pr-body.md` is how a pull request is written.
 
 Paths:
 - `skills/unslop/`
 - `skills/technical-writing/`
-- `templates/pr-body.md`
+- `features/pr-review/templates/pr-body.md`
 - `playbooks/opening-a-pr.md`
 Tests: none
 

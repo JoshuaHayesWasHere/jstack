@@ -14,8 +14,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from test_home_thread import FENCED, REPO, TYPED, block, git, paths
+from test_home_thread import FENCED, TYPED, block, git, paths
 from test_tool_calls import CALLS, errors
+from testing.paths import REPO
 
 DESK = "mcp:the-desk-home"
 NEXT = "mcp:the-next-desk-home"

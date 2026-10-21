@@ -77,7 +77,8 @@ def test_every_case_is_whole_and_every_key_names_a_finding_of_its_case():
     for case in run.steps_cases():
         assert set(case) >= {"id", "file", "state", "expect", "must", "near"}
         named = Path(case["file"])
-        assert (REPO / named).is_file() or skills.resolve(named.stem).kind == "principle"
+        there = any((REPO / each).is_file() for each in run.spellings(case["file"]))
+        assert there or skills.resolve(named.stem).kind == "principle"
         for shape in [*case["must"], case["near"]]:
             re.compile(shape)
     files = {case["file"] for case in run.steps_cases()}
