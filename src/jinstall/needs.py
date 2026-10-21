@@ -13,13 +13,14 @@ from importlib import metadata
 from pathlib import Path
 
 import jleak
+from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
     Carried,
     Commands,
+    Generated,
     GhSignIn,
     GitHook,
     GoneLink,
-    Harness,
     HomeSkills,
     HookGroup,
     JbusConfig,
@@ -43,6 +44,7 @@ from jinstall.kinds import (
     declared,
     templates,
 )
+from jinstall.layout import Layout, skills
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
@@ -73,9 +75,9 @@ class Need:
 
 def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order printed. Nothing is probed here: the list is derived from the
-    copy's skills/*/SKILL.md, the units (`templates`), the commands (`_commands`), one listing
+    source's skills.json, the units (`templates`), the commands (`_commands`), one listing
     of each skills root for GoneLink, and the provider inventory, which names the instances
-    and the Claude homes to probe. A release has no checkout, and lists neither the harness
+    and the Claude homes to probe. A release has no checkout, and lists neither the generated
     line nor the git hook. An inventory that cannot be taken
     names none, and its own line says why.
 
@@ -101,13 +103,14 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
     Carried, in the order they are put. Uninstall walks them backwards. Every link and hook
-    command points into the copy, <checkout>/harness/jstack/claude-code or the release's, but
+    command points into a harness's layout, assembled from the checkout or the release, but
     the git hook:
-      hard      harness/ is current           Harness, the generator's --check, in a checkout
-      hard      ~/.claude/skills/<skill>      Link
-      hard      ~/.agents/skills/<skill>      Link, the root Cursor reads beside ~/.claude/skills
-      hard      ~/.codex/skills/<skill>       Link
-      hard      <root>/<name>                 GoneLink, for each dead link into this copy
+      hard      generated files are current   Generated, the generator's --check, in a checkout
+      hard      layout <harness> <folder>     Layout, for Claude Code, Codex and Cursor
+      hard      ~/.claude/skills/<skill>      Link into Claude Code's layout
+      hard      ~/.codex/skills/<skill>       Link into Codex's
+      hard      ~/.agents/skills/<skill>      Link into Cursor's, the root Cursor reads
+      hard      <root>/<name>                 GoneLink, for each dead link into a layout
       hard      hook ~/.claude/settings.json SessionStart      HookGroup("startup", home-start)
       hard      hook ~/.claude/settings.json UserPromptSubmit  HookGroup(None, skill-tips)
       hard      hook ~/.claude/settings.json PostToolUse       HookGroup(None, home-gauge)
@@ -120,9 +123,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  statusline ~/.claude/settings.json             StatusLine
       optional  units ~/.config/systemd/user  Units
     """
-    repo, home, copy = machine.checkout, machine.home, machine.copy
-    skills = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
-    roots = (home / ".claude" / "skills", home / ".agents" / "skills", home / ".codex" / "skills")
+    repo, home = machine.checkout, machine.home
+    named = skills(machine.source)
+    roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
     roles = config.with_name("roles")
@@ -161,7 +164,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for name, instance in providers.items()
     ]
     found += [
-        Need(f"skills {each}", Level.HARD, HomeSkills(each, roots[0], copy / "skills"))
+        Need(
+            f"skills {each}",
+            Level.HARD,
+            HomeSkills(each, roots[CLAUDE_CODE], machine.layout(CLAUDE_CODE.name) / "skills"),
+        )
         for each in claude_homes(providers, home)
     ]
     found += [
@@ -169,17 +176,25 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for each in mirrors(inventory, home)
     ]
     if repo is not None:
-        found.append(Need("harness/ is current", Level.HARD, Harness()))
+        found.append(Need("generated files are current", Level.HARD, Generated()))
     found += [
-        Need(str(root / skill), Level.HARD, Link(root / skill, copy / "skills" / skill))
-        for root in roots
-        for skill in skills
+        Need(f"layout {harness.name} {machine.layout(harness.name)}", Level.HARD, Layout(harness))
+        for harness in HARNESSES
+    ]
+    found += [
+        Need(
+            str(root / skill),
+            Level.HARD,
+            Link(root / skill, machine.layout(harness.name) / "skills" / skill),
+        )
+        for harness, root in roots.items()
+        for skill in named
     ]
     found += [
         Need(str(path), Level.HARD, GoneLink(path))
-        for root in roots
+        for root in roots.values()
         for path in _listed(root)
-        if dead(path, machine) and path.name not in skills
+        if dead(path, machine) and path.name not in named
     ]
     settings, codex = home / ".claude" / "settings.json", home / ".codex" / "hooks.json"
     found += [
@@ -189,9 +204,15 @@ def needs(machine: Machine) -> tuple[Need, ...]:
             (settings, "UserPromptSubmit", None, "hooks/skill-tips.sh"),
             (settings, "PostToolUse", None, "hooks/home-gauge.sh"),
             (settings, "PreToolUse", None, "hooks/home-gauge.sh"),
-            (codex, "SessionStart", "startup", "hooks/home-start.sh"),
         )
     ]
+    found.append(
+        Need(
+            f"hook {codex} SessionStart",
+            Level.HARD,
+            HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),
+        )
+    )
     patterns, pushed = jleak.path(machine.config_home()), GitHook("pre-push", "hooks/pre-push.sh")
     found += [
         Need(f"patterns {patterns}", Level.OPTIONAL, Patterns(patterns)),
@@ -221,13 +242,13 @@ def needs(machine: Machine) -> tuple[Need, ...]:
 
 
 def _commands(machine: Machine) -> Commands:
-    """The tool and its commands: a checkout's pyproject.toml; for a release, the copy's
+    """The tool and its commands: a checkout's pyproject.toml; for a release, its
     plugin.json, whose name and version are the package's, and the commands its installed
     package declares, none where it is not installed."""
     if machine.checkout is not None:
         project = tomllib.loads((machine.checkout / "pyproject.toml").read_text())["project"]
         return Commands(project["name"], tuple(project["scripts"]))
-    plugin = json.loads((machine.copy / "plugin.json").read_text())
+    plugin = json.loads((machine.source / "plugin.json").read_text())
     try:
         points = metadata.distribution(plugin["name"]).entry_points
     except metadata.PackageNotFoundError:

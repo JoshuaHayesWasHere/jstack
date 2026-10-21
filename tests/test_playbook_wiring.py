@@ -22,11 +22,12 @@ import crew.helpers as crew
 import test_home_merge as merge
 import test_playbooks as shape
 from test_home_thread import as_read
+from testing.layouts import assembled
 from testing.paths import REPO
 
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATES = REPO / "templates"
-COPY = REPO / "harness" / "jstack" / "claude-code"
+COPY = assembled()
 NAMES = sorted(path.stem for path in PLAYBOOKS.glob("*.md"))
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 SLUG = "alpha"
@@ -68,13 +69,15 @@ def opening(skill):
 def uv(where):
     """A `uv` in `where` that runs `uv run --project <repo> jbus ...` as `jbus` does, with
     `<repo>` as the repo whose `playbooks/` and `principles/` it opens: the first folder from
-    `<repo>` up that has a `pyproject.toml`, as uv finds the project, else `<repo>`."""
+    `<repo>` up that has a `pyproject.toml`, as uv finds the project, else `<repo>` where it
+    has a `skills.json`. A layout has neither: uv runs the `jbus` on PATH, this checkout's."""
     where.mkdir(parents=True, exist_ok=True)
     run = (
         "import sys; from pathlib import Path; from jbus import cli, playbook; "
         "at = Path(sys.argv[1]).resolve(); "
         'up = [d for d in (at, *at.parents) if (d / "pyproject.toml").is_file()]; '
-        "playbook.REPO = (up or [at])[0]; "
+        'up += [at] if (at / "skills.json").is_file() else []; '
+        "playbook.REPO = up[0] if up else playbook.REPO; "
         "sys.exit(cli.main(sys.argv[2:]))"
     )
     (where / "uv").write_text(
@@ -548,10 +551,10 @@ def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
     assert said[1:] == ["1. Do one thing.", "2. Then."]
 
 
-def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_copy(tmp_path):
-    """`T` is `<copy>/templates` once install.sh links a skill into the copy, so `$T/../<path>`
-    must name a file or folder the copy holds, not one it leaves in the checkout. Each one is
-    tried from a skill linked as install.sh links it."""
+def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_layout(tmp_path):
+    """`T` is `<layout>/templates` once install.sh links a skill into its harness's layout, so
+    `$T/../<path>` must name a file or folder the layout holds, not one it leaves in the
+    checkout. Each one is tried from a skill linked as install.sh links it."""
     reached = sorted(
         {
             found.rstrip("/.")

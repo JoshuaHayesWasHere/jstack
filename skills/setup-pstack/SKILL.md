@@ -23,7 +23,7 @@ C=
 for root in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
     S=$(realpath "$root/setup-pstack" 2> /dev/null) || continue
     S=${S%/skills/setup-pstack}
-    S=${S%/harness/jstack/claude-code}
+    S=$(realpath "$S/source" 2> /dev/null || echo "$S")
     if [ -f "$S/install.sh" ]; then
         C=$S
         break

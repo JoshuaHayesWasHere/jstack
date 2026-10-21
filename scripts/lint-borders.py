@@ -17,7 +17,7 @@ from jtrees.model import Tree
 
 # Where a new path may go: a feature, the harness copies, the schemas, the repo's scripts, the
 # shared test plumbing, and CI.
-LAYOUT = ("features/", "harness/", "schemas/", "scripts/", "testing/", ".github/")
+LAYOUT = ("features/", "schemas/", "scripts/", "testing/", ".github/")
 # The repo-root files that stay at the root.
 INFRA_ROOT = (
     ".gitignore",

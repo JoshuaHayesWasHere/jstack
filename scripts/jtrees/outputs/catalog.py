@@ -1,5 +1,6 @@
-"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`. The
-harness copy holds the same list with each path its own (`harness`).
+"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`, and
+every hook script with the harnesses that run it. The install reads it to assemble each
+harness's layout (`jinstall.layout`), in a checkout and from a release's wheel alike.
 
 A brief's `Skills:` line names a skill or a principle, or a playbook its feature lists as
 `nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). An
@@ -14,7 +15,7 @@ import importlib.util
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import ModuleType
 
 from jtrees.model import Item, Tree
@@ -28,7 +29,8 @@ COMMENT = (
     "`adapted` is built from pstack's item with other material, or from a pstack item of "
     "another name, which `pstack_name` gives; `josh` is jstack's own, with no pstack skill or "
     "principle behind it, though it may borrow a passage from a pstack reference file. "
-    "THIRD_PARTY.md says what each took and what changed."
+    "THIRD_PARTY.md says what each took and what changed. hooks: each hook script and the "
+    "harnesses that run it, which the install links into each harness's layout."
 )
 _UPSTREAM_SKILL = re.compile(r"pstack/skills/(?P<name>[^/]+)/SKILL\.md")
 
@@ -75,9 +77,26 @@ def entries(tree: Tree) -> list[dict[str, object]]:
     return [_entry(item, tuple(fed.get(item.path, ()))) for item in tree.items]
 
 
-def text(items: list[dict[str, object]]) -> bytes:
-    return (json.dumps({"$comment": COMMENT, "items": items}, indent=2) + "\n").encode()
+def hooks(tree: Tree) -> list[dict[str, object]]:
+    """Every script a feature declares as a hook of an agent, or as its status line, which is
+    Claude Code's, with the harnesses that run it. A git hook is the checkout's, not a
+    harness's, and is not listed."""
+    harnesses: dict[str, set[str]] = {}
+    for feature in tree.features:
+        for hook in feature.hooks:
+            harnesses.setdefault(hook.script, set()).update(hook.harnesses)
+        if feature.status_line:
+            harnesses.setdefault(feature.status_line, set()).add("claude-code")
+    return [
+        {"name": PurePosixPath(script).name, "path": script, "harnesses": sorted(names)}
+        for script, names in sorted(harnesses.items())
+    ]
+
+
+def text(items: list[dict[str, object]], hooks: list[dict[str, object]]) -> bytes:
+    listed = {"$comment": COMMENT, "items": items, "hooks": hooks}
+    return (json.dumps(listed, indent=2) + "\n").encode()
 
 
 def render(tree: Tree) -> dict[str, bytes]:
-    return {PATH: text(entries(tree))}
+    return {PATH: text(entries(tree), hooks(tree))}

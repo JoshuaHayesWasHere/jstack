@@ -54,7 +54,7 @@ if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/ski
     else
         printf '%s\n' "$said" | uv run --quiet --no-sync --project "$R" jbriefs pick -
     fi
-    C=${R%/harness/jstack/claude-code}
+    C=$(realpath "$R/source" 2> /dev/null) || C=$R
     if [ -f "$C/install.sh" ]; then
         echo "setup: sh $C/install.sh --setup"
     else

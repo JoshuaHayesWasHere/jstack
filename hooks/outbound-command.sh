@@ -5,13 +5,11 @@ case $input in
 *gh*pr* | *push*) ;;
 *) exit 0 ;;
 esac
-copy=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 2
-repo=${copy%/harness/jstack/claude-code}
-pythonpath=$repo/harness/jstack/pythonpath
-if [ ! -f "$pythonpath" ]; then
-  python=${copy%/share/jstack/claude-code}/bin/python
-  [ "$python" != "$copy/bin/python" ] && [ -x "$python" ] || {
-    echo "jleak: $copy is no checkout's copy and no release's, so the command is refused" >&2
+source=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 2
+if [ ! -d "$source/src/jleak" ]; then
+  python=${source%/share/jstack}/bin/python
+  [ "$python" != "$source/bin/python" ] && [ -x "$python" ] || {
+    echo "jleak: $source is no checkout and no release, so the command is refused" >&2
     exit 2
   }
   printf '%s' "$input" | PYTHONDONTWRITEBYTECODE=1 "$python" -I -m jleak --strict --command
@@ -19,7 +17,9 @@ if [ ! -f "$pythonpath" ]; then
   exit 0
 fi
 path=
-while IFS= read -r folder; do path=${path:+$path:}$repo/$folder; done < "$pythonpath"
+for folder in "$source"/src "$source"/features/*/src; do
+  [ -d "$folder" ] && path=${path:+$path:}$folder
+done
 for python in python3 python; do
   if "$python" -c 'import sys; sys.exit(sys.version_info < (3, 12))' 2>/dev/null; then
     printf '%s' "$input" |

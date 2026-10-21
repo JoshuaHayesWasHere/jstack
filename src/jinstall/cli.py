@@ -1,6 +1,7 @@
 """`jinstall [--check | --uninstall | --doctor | --setup]`: the verbs of `install.sh`, as the
 command a release installs. It acts for the checkout it runs from, where one is above it (an
-editable install), and else for the harness copy the release's wheel installed."""
+editable install), and else for the source tree the release's wheel installed, from which it
+assembles each harness's layout as `install.sh` does."""
 
 import argparse
 import sys
@@ -22,7 +23,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="jinstall",
         description="Install jstack on this machine, for the checkout above this command or "
-        "the copy its release installed. With no flag it puts each part.",
+        "the source its release installed. With no flag it puts each part.",
     )
     verbs = parser.add_mutually_exclusive_group()
     for verb, said in SAID.items():
@@ -30,7 +31,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     verb = parser.parse_args(argv).verb or Verb.INSTALL
     checkout, release = skills.checkout(), skills.packaged()
     if checkout is None and release is None:
-        print(f"jinstall: no checkout above it and no copy in {sys.prefix}", file=sys.stderr)
+        print(f"jinstall: no checkout above it and no source in {sys.prefix}", file=sys.stderr)
         return 1
     return act(Machine.here(checkout, release), verb)
 

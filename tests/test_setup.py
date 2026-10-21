@@ -66,7 +66,7 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f"needs you limits {user.limits} -> jgauge limits",
     ]
     parts = [*user.parts(), f"optional units {user.units}"]
-    assert said[16] == "already harness/ is current"
+    assert said[16] == "already generated files are current"
     assert said[17:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))

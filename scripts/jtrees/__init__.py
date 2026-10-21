@@ -20,9 +20,6 @@ RUN = "python3 scripts/generate-jstack-trees.py"
 SHOWN = 20
 
 
-DIRS = tuple(folder for output in OUTPUTS for folder in getattr(output, "DIRS", ()))
-
-
 def build(root: Path) -> dict[str, check.File]:
     """Every output of the tree at `root`, by its path."""
     tree = crawl(root)
@@ -38,8 +35,8 @@ def build(root: Path) -> dict[str, check.File]:
 def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     parser = argparse.ArgumentParser(
         prog="generate-jstack-trees.py",
-        description="Write skills.json, the generated regions of pyproject.toml, the docs "
-        "indexes and the harness copy from features/.",
+        description="Write skills.json, the generated regions of pyproject.toml and the docs "
+        "indexes from features/.",
     )
     parser.add_argument(
         "--check", action="store_true", help="write nothing, and exit 1 naming each stale file"
@@ -52,7 +49,7 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
             print(f"{invalid.prefix}{fault}", file=sys.stderr)
         return 2
     if args.check:
-        stale = check.diff(want, root, DIRS)
+        stale = check.diff(want, root)
         if not stale:
             return 0
         for path in stale[:SHOWN]:
@@ -61,9 +58,9 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
             print(f"and {len(stale) - SHOWN} more", file=sys.stderr)
         print(f"run {RUN} and commit the result", file=sys.stderr)
         return 1
-    written = check.write(want, root, DIRS)
+    written = check.write(want, root)
     for path in written:
-        print(f"wrote {path}" if path in want else f"removed {path}")
+        print(f"wrote {path}")
     if not written:
         print(f"current: {len(want)} files")
     return 0

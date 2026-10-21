@@ -1,7 +1,7 @@
 # jinstall
 
 `jinstall` installs, checks and removes jstack on a machine.
-A release installs it as a command, and it acts on the harness copy the release's wheel carries, with no checkout.
+A release installs it as a command, and it acts on the source the release's wheel carries, with no checkout.
 In a checkout, `sh install.sh` runs the same code, before any command is on `PATH`.
 
 ## Install
@@ -26,7 +26,7 @@ From a checkout, `sh install.sh --setup` does the same for the checkout, and ins
 
 | Verb | What it does |
 |---|---|
-| `jinstall` | Puts each part: the skill links, the hooks, the status line, the private patterns, the commands and the units. One line a part. |
+| `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. One line a part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
 | `jinstall --setup` | Walks every need once, in order: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
@@ -42,13 +42,26 @@ A second run writes nothing.
 | | A release | A checkout |
 |---|---|---|
 | Runs as | `jinstall [<verb>]` | `sh install.sh [<verb>]`, or `jinstall` of an editable install |
-| Links and hooks point into | `<tool venv>/share/jstack/claude-code` | `<checkout>/harness/jstack/claude-code` |
-| Units link to | the copy's `templates/` | `<checkout>/templates/` |
-| The commands are ok when | uv's tool `jstack` is the copy's version, not editable | uv's tool `jstack` is an editable install of the checkout |
-| Also checked | nothing more | the copy is current (`harness/ is current`), and the `pre-push` hook of a main checkout |
+| The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
+| Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
+| The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
+| Also checked | nothing more | the generated files are current (`generated files are current`), and the `pre-push` hook of a main checkout |
 
 A release's `--uninstall` keeps the tool it runs from: `uv tool uninstall jstack` removes it after.
-A new release replaces the copy in place, so the links stay where they are.
+A new release replaces its source in place, so the layouts' links stay where they are.
+
+## The layouts
+
+The repo keeps each skill once, in its feature, and the install splits it out for each harness.
+It assembles one layout for each harness at `~/.local/share/jstack/harness/<harness>/`, or under `$XDG_DATA_HOME`: `claude-code`, `codex` and `cursor`.
+`~/.claude/skills` links each skill into Claude Code's layout, `~/.codex/skills` into Codex's, and `~/.agents/skills` into Cursor's.
+A layout holds `skills/<name>/`, `playbooks/`, `principles/`, `templates/`, the hooks of its harness in `hooks/`, a `README.md`, and `source`, a link to the checkout or the release.
+`skills/` and `templates/` are siblings, so `realpath ~/.claude/skills/<name>/../../templates` finds the templates.
+Each file of a skill is a link to its file in the source, so an edit in a checkout is live with no install.
+A new skill appears on the next install, once `python3 scripts/generate-jstack-trees.py` has listed it in `skills.json`.
+A Markdown file with a link to a file the layout leaves out, such as a page of `docs/`, is written with that link pointed at GitHub, and the install's `--check` names it stale once its source changes.
+The `README.md` of each layout names, for each skill, the tools and paths it asks for that the harness leaves out: Codex and Cursor have none of Claude Code's own tools, its home folder or its settings file.
+`--check` prints one line for each layout, `ok` when it is as the install assembles it, and `old` with the first file that is stale.
 
 ## Releasing
 
