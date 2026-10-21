@@ -5,8 +5,9 @@ case $input in
 *gh*pr* | *push*) ;;
 *) exit 0 ;;
 esac
-source=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 2
-if [ ! -d "$source/src/jleak" ]; then
+here=$(readlink -f "$0") || exit 2
+source=${here%/features/jleak/hooks/*}
+if [ ! -d "$source/features/jleak/src/jleak" ]; then
   python=${source%/share/jstack}/bin/python
   [ "$python" != "$source/bin/python" ] && [ -x "$python" ] || {
     echo "jleak: $source is no checkout and no release, so the command is refused" >&2

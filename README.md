@@ -121,7 +121,7 @@ Each command has one page.
 | `jdrift` | [features/jdrift/docs/jdrift.md](features/jdrift/docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
 | `jinstall` | [docs/jinstall.md](docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
-| `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
+| `jleak` | [features/jleak/docs/jleak.md](features/jleak/docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
 | `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
 | `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
@@ -163,7 +163,7 @@ The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `templates/` | The one copy of each text the skills and the start hook fill in, and the systemd units of `jbus`. |
 | `playbooks/` | The numbered steps for one kind of task. |
 | `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
-| `hooks/` | `home-start.sh`, `limits.sh`, and the two hooks of `jleak`: `pre-push.sh` and `outbound-command.sh`. |
+| `hooks/` | `home-start.sh` and `limits.sh`. |
 | `src/` | The nine commands, one package each. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |

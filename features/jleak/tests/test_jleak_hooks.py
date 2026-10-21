@@ -1,8 +1,9 @@
 """The two hooks that call `jleak`: git's `pre-push`, and the hook on an agent's commands.
 
-The push tests make a repo with a bare remote, link `hooks/pre-push.sh` as its `pre-push` hook
-and run `git push`. The command tests feed `hooks/outbound-command.sh` what Claude Code gives
-a `PreToolUse` hook. The private patterns are made-up words in a file of the test's own.
+The push tests make a repo with a bare remote, link `features/jleak/hooks/pre-push.sh` as its
+`pre-push` hook and run `git push`. The command tests feed
+`features/jleak/hooks/outbound-command.sh` what Claude Code gives a `PreToolUse` hook. The
+private patterns are made-up words in a file of the test's own.
 """
 
 import json
@@ -13,8 +14,9 @@ import pytest
 import jleak
 from testing.paths import REPO
 
-PUSH = REPO / "hooks" / "pre-push.sh"
-COMMAND = REPO / "hooks" / "outbound-command.sh"
+HOOKS = REPO / "features" / "jleak" / "hooks"
+PUSH = HOOKS / "pre-push.sh"
+COMMAND = HOOKS / "outbound-command.sh"
 WORD = "zorblat"
 GIT = ("-c", "user.name=a", "-c", "user.email=a@example.test")
 

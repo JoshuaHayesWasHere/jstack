@@ -3,10 +3,9 @@
 `jleak` says whether a text names something the user's outbound patterns hold back, and its two hooks run it: git's `pre-push` on what is pushed, and the hook on an agent's commands on what a command would send out.
 
 Paths:
-- `src/jleak/`
-- `hooks/pre-push.sh`
-- `hooks/outbound-command.sh`
-- `docs/jleak.md`
+- `features/jleak/src/jleak/`
+- `features/jleak/hooks/`
+- `features/jleak/docs/`
 Tests: none
 
 ## Sub-features
