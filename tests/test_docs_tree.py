@@ -16,7 +16,7 @@ import pytest
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "check-jstack-docs.py"
-ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
+ROOTS = ("skills", "features", "templates", "playbooks", "principles", "hooks", "docs")
 
 
 def ran(root):
@@ -229,10 +229,14 @@ def test_a_skill_playbook_or_command_no_table_or_link_lists_is_found(small):
                 " [p](playbooks/p.md)", ""
             ),
             "skills/gamma/SKILL.md": "# Gamma\n",
+            "features/delta/SKILL.md": "# Delta\n",
+            "features/eta/skills/epsilon/SKILL.md": "# Epsilon\n",
         },
     )
     assert ran(small) == [
         "FAIL README.md:1 no table row of the README names the command fake-b",
         "FAIL README.md:1 no page of the docs links playbooks/p.md",
+        "FAIL README.md:1 no page of the docs links features/delta/SKILL.md",
+        "FAIL README.md:1 no page of the docs links features/eta/skills/epsilon/SKILL.md",
         "FAIL README.md:1 no page of the docs links skills/gamma/SKILL.md",
     ]

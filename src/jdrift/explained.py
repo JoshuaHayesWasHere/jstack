@@ -1,6 +1,6 @@
 """`python -m jdrift.explained [--check]`: the cards of `docs/jstack-explained.html`, from the tree.
 
-Run in this repo's root, it reads one card line from each `skills/*/SKILL.md`, `playbooks/*.md`
+Run in this repo's root, it reads one card line from each skill's `SKILL.md`, `playbooks/*.md`
 and `principles/*.md`, and writes the page's built parts from them: the text between each
 `<!-- built: <kind> <cards or links>, <tile> -->` and the `<!-- built: end -->` after it. The rest
 of the page is hand-written and is left as it is. A second run changes nothing.
@@ -113,7 +113,7 @@ def _principle(card: Card) -> str:
 
 @dataclass(frozen=True)
 class Kind:
-    files: str
+    files: tuple[str, ...]
     name: Callable[[Path], str]
     line: Callable[[str], str | None]
     form: str
@@ -144,7 +144,7 @@ def _comment(text: str) -> str | None:
 
 KINDS = {
     "skill": Kind(
-        "skills/*/SKILL.md",
+        ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md"),
         lambda p: p.parent.name,
         _key,
         'card: "<tile> | <place> | <what it does> | <when to reach for it> | <who>"',
@@ -153,7 +153,7 @@ KINDS = {
         _skill,
     ),
     "playbook": Kind(
-        "playbooks/*.md",
+        ("playbooks/*.md",),
         lambda p: p.stem,
         _comment,
         "<!-- card: <tile> | <place> | <what it is for> -->",
@@ -162,7 +162,7 @@ KINDS = {
         _playbook,
     ),
     "principle": Kind(
-        "principles/*.md",
+        ("principles/*.md",),
         lambda p: p.stem,
         _comment,
         "<!-- card: <tile> | <place> | <the rule> | <who leans on it> -->",
@@ -196,7 +196,9 @@ def _card(kind: str, path: Path, root: Path) -> Card:
 def cards(root: Path) -> list[Card]:
     """Every card the tree asks for, in the order its tile shows it."""
     found = [
-        _card(kind, path, root) for kind in KINDS for path in sorted(root.glob(KINDS[kind].files))
+        _card(kind, path, root)
+        for kind in KINDS
+        for path in sorted(path for files in KINDS[kind].files for path in root.glob(files))
     ]
     return sorted(found, key=lambda card: (card.place, card.name))
 

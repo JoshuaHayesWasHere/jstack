@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from test_understanding_skills import REPO, SKILLS, block, home, repo, run
+from test_understanding_skills import COPY, block, home, repo, run
 
 __all__ = ["home", "repo"]
 
@@ -14,10 +14,10 @@ FROM_ROOT = re.compile(r"`((?:playbooks|principles|skills)/[^`<>*\s]+\.md)`")
 
 
 def linked(home, name, to=None):
-    """A skill where a user has it: a link from `~/.claude/skills` into a repo."""
+    """A skill where a user has it: a link from `~/.claude/skills` into the harness copy."""
     link = home / ".claude" / "skills" / name
     link.parent.mkdir(parents=True, exist_ok=True)
-    link.symlink_to(to or SKILLS / name)
+    link.symlink_to(to or COPY / "skills" / name)
 
 
 def stand_in(tmp_path, home, text):
@@ -34,14 +34,14 @@ def stand_in(tmp_path, home, text):
 def test_a_linked_skill_prints_the_root_and_every_file_it_names_is_under_it(name, repo, home):
     linked(home, name)
     (root,) = run(block(name, "no root:"), repo, home)
-    assert root == str(REPO)
+    assert root == str(COPY)
     named = {
         path
-        for file in (SKILLS / name).rglob("*.md")
+        for file in (COPY / "skills" / name).rglob("*.md")
         for path in FROM_ROOT.findall(file.read_text())
     }
     assert named != set()
-    assert sorted(path for path in named if not (REPO / path).is_file()) == []
+    assert sorted(path for path in named if not (COPY / path).is_file()) == []
 
 
 @pytest.mark.parametrize("name", ROOTED)

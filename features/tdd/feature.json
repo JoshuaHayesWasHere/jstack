@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "tdd",
-  "description": "Fixes a bug test-first, with a regression test that fails before the fix.",
-  "owns": [
-    "skills/tdd/**"
-  ]
+  "description": "Fixes a bug test-first, with a regression test that fails before the fix."
 }

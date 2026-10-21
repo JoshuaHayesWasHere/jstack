@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "sharpen",
-  "description": "Rewrites a task's prompt to ask for the deeper version, and does not do the task.",
-  "owns": [
-    "skills/sharpen/**"
-  ]
+  "description": "Rewrites a task's prompt to ask for the deeper version, and does not do the task."
 }

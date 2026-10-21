@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import as_read, named
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 TEMPLATES = REPO / "templates"
 HOOK = REPO / "hooks" / "home-start.sh"
@@ -23,7 +23,7 @@ NAMES = [
     "scout-report.md",
     "scout-request.md",
 ]
-SKILLS = sorted(path.parent.name for path in REPO.glob("skills/*/SKILL.md"))
+SKILLS = list(skills())
 SHORTEST_WORDING = 20
 
 HOOK_PRINTED = "\n".join(
@@ -46,9 +46,9 @@ HOOK_PRINTED = "\n".join(
 def carriers():
     """Every file that could carry its own copy of a template: each skill, each file a skill
     says to read now, and each hook."""
-    skills = sorted(REPO.glob("skills/*/SKILL.md"))
-    beside = [found for skill in skills for found in named(skill)]
-    return skills + beside + sorted((REPO / "hooks").iterdir())
+    files = [folder / "SKILL.md" for folder in skills().values()]
+    beside = [found for skill in files for found in named(skill)]
+    return files + beside + sorted((REPO / "hooks").iterdir())
 
 
 def wording(name):
@@ -105,7 +105,7 @@ def test_lint_a_template_put_back_into_a_skill_or_the_hook_is_caught(name):
 
 def setting(skill):
     """The skill's own `T=` line. A skill that reads no template has none."""
-    text = (REPO / "skills" / skill / "SKILL.md").read_text()
+    text = (skills()[skill] / "SKILL.md").read_text()
     return "\n".join(line for line in text.splitlines() if line.startswith("T="))
 
 
@@ -114,11 +114,11 @@ def resolved(skill, tmp_path):
 
     Run as the user has the skill: a symlink under ~/.claude/skills, used from another repo.
     """
-    text = as_read(REPO / "skills" / skill / "SKILL.md")
+    text = as_read(skills()[skill] / "SKILL.md")
     named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / skill).symlink_to(REPO / "skills" / skill)
+    (user / ".claude" / "skills" / skill).symlink_to(skills()[skill])
     elsewhere = tmp_path / skill / "another-repo"
     elsewhere.mkdir()
     listed = "\n".join(

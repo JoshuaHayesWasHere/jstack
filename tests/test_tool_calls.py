@@ -5,10 +5,11 @@ import re
 import pytest
 from jsonschema import Draft202012Validator
 
+from jbriefs.skills import listed
 from test_home_thread import named
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
-SKILLS = REPO / "skills"
+SKILLS = skills()
 SCHEMAS = {
     path.stem: json.loads(path.read_text())
     for tools in ("t3", "claude")
@@ -94,7 +95,7 @@ def read(skill, text):
 def calls():
     """Every JSON call in every skill, in a block or in a line, and every fence not read."""
     found, unread = [], []
-    for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
+    for skill_md in (folder / "SKILL.md" for folder in SKILLS.values()):
         skill = skill_md.parent.name
         for path in [skill_md, *named(skill_md)]:
             at = skill if path == skill_md else f"{skill}:{path.name}"
@@ -199,8 +200,9 @@ def test_the_skills_have_calls_to_check():
 
 def test_no_skill_names_a_tool_the_way_only_claude_code_does():
     only_claude = [
-        f"{path.relative_to(SKILLS)}:{number}"
-        for path in sorted(SKILLS.rglob("*.md"))
+        f"{path.relative_to(folder.parent)}:{number}"
+        for folder in SKILLS.values()
+        for path in sorted(folder.rglob("*.md"))
         for number, line in enumerate(path.read_text().splitlines(), 1)
         if "mcp__t3-code__" in line
         or ("ToolSearch" in line and not re.search(r"\bif\b", line, re.I))
@@ -235,7 +237,7 @@ def test_a_misspelt_key_in_a_json_block_is_refused(call):
 def test_a_launch_starts_its_thread_with_a_skill_that_exists(call):
     typed = re.fullmatch(r"/([\w-]+)( .+)?", call.given["message"])
     assert typed, f"{call.where}: the message is not a skill and its arguments"
-    assert (SKILLS / typed[1] / "SKILL.md").is_file(), f"{call.where}: no skill {typed[1]!r}"
+    assert typed[1] in listed("skill"), f"{call.where}: no skill {typed[1]!r}"
 
 
 @pytest.mark.parametrize("call", TWINS, ids=where)

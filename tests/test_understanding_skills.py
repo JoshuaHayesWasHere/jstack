@@ -11,9 +11,10 @@ import pytest
 
 from test_home_thread import as_read
 from test_tool_calls import CALLS, errors
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
-SKILLS = REPO / "skills"
+SKILLS = skills()
+COPY = REPO / "harness" / "jstack" / "claude-code"
 EM_DASH = "\N{EM DASH}"
 BEFORE = {
     "correct",
@@ -29,7 +30,7 @@ BEFORE = {
     "technical-writing",
     "unslop",
 }
-ADDED = sorted(path.name for path in SKILLS.iterdir() if path.is_dir() and path.name not in BEFORE)
+ADDED = sorted(name for name in SKILLS if name not in BEFORE)
 BUILT_IN = set(
     """
     add-dir agents bashes bug clear code-review compact config context copy cost diff doctor
@@ -47,7 +48,7 @@ DAY = 24 * 60 * 60
 
 
 def test_each_skill_listed_as_here_before_the_understanding_skills_is_still_a_skill():
-    assert BEFORE <= {path.name for path in SKILLS.iterdir() if path.is_dir()}
+    assert BEFORE <= set(SKILLS)
 
 
 def front(text):
@@ -91,7 +92,7 @@ def blocks(text, language):
 def block(skill, marker):
     """The one `sh` block of the skill named `skill`, as an agent reads it, that has `marker`
     in it."""
-    (found,) = [b for b in blocks(as_read(SKILLS / skill / "SKILL.md"), "sh") if marker in b]
+    (found,) = [b for b in blocks(as_read(SKILLS[skill] / "SKILL.md"), "sh") if marker in b]
     return found
 
 
@@ -176,12 +177,12 @@ def test_skills_were_added():
 
 @pytest.mark.parametrize("name", ADDED)
 def test_an_added_skill_has_no_problem(name):
-    assert problems(SKILLS / name) == []
+    assert problems(SKILLS[name]) == []
 
 
 @pytest.mark.parametrize("name", ADDED)
 def test_every_file_an_added_skill_names_is_there(name):
-    skill = SKILLS / name / "SKILL.md"
+    skill = COPY / "skills" / name / "SKILL.md"
     missing = [path for path in named_files(skill) if not (skill.parent / path).is_file()]
     assert missing == []
 
@@ -191,7 +192,7 @@ def test_every_file_an_added_skill_names_is_there(name):
     [
         pytest.param(name, body, id=f"{name}:{number}")
         for name in ADDED
-        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "sh"), 1)
+        for number, body in enumerate(blocks((SKILLS[name] / "SKILL.md").read_text(), "sh"), 1)
     ],
 )
 def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo, home):
