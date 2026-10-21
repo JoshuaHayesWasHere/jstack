@@ -4,9 +4,10 @@ import re
 
 from test_home_thread import as_read
 from test_writing import skill_problems
+from testing.layouts import assembled
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "grilling" / "SKILL.md"
+SKILL = REPO / "features" / "grilling" / "SKILL.md"
 HOME = REPO / "skills" / "home" / "SKILL.md"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 QUESTION = re.compile(r"^❓ \*\*Q(\d+)\*\* - \*\*.+?\*\*: .+$", re.M)
@@ -49,7 +50,7 @@ def test_the_skill_loads_only_when_typed():
 
 def test_the_home_plans_by_a_skill_file_that_is_there():
     (named,) = re.findall(r"`\$T/\.\./(skills/[^`]+\.md)`", planning())
-    templates = REPO / "templates"
+    templates = assembled() / "templates"
     assert (templates / ".." / named).resolve() == SKILL
     assert skill_problems(templates / ".." / named) == []
 
@@ -70,4 +71,4 @@ def test_a_round_numbered_out_of_order_is_a_problem():
 
 
 def test_lint_third_party_names_the_skill():
-    assert "`skills/grilling/SKILL.md`" in THIRD_PARTY.read_text()
+    assert "`features/grilling/SKILL.md`" in THIRD_PARTY.read_text()

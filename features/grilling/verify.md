@@ -1,11 +1,10 @@
 # Grilling the user
 
-The grilling skill asks the user a round of questions on a Lavish page (`templates/grill-page.html`) and reads the answers back. Its page script is run in node.
+The grilling skill asks the user a round of questions on a Lavish page (`features/grilling/templates/grill-page.html`) and reads the answers back.
+Its page script is run in node.
 
 Paths:
-- `skills/grilling/`
-- `templates/grill-page.html`
-- `templates/grill-round.schema.json`
+- `features/grilling/`
 Tests: none
 
 ## Sub-features

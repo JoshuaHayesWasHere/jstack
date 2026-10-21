@@ -222,7 +222,7 @@ SOFTWARE.
 
 ## Matt Pocock's skills
 
-`skills/grilling/SKILL.md` is taken from the grilling skill of Matt Pocock's skills.
+`features/grilling/SKILL.md` is taken from the grilling skill of Matt Pocock's skills.
 
 - Source: https://github.com/mattpocock/skills
 - Commit: 49dd158
@@ -231,7 +231,7 @@ SOFTWARE.
 
 Files:
 
-- `skills/grilling/SKILL.md`
+- `features/grilling/SKILL.md`
 
 License of the source (MIT):
 
