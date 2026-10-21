@@ -13,6 +13,7 @@ Tests: none
 - `decision-no-review` waits on a green pull request whose brief has no review.
 - `decision-ready` is ready at the head a clean review names.
 - `decision-hold` holds a pull request that changes a protected path, for the user.
+- `decision-review-after` is ready on green alone when the brief says `Review: after`, before and after its review lands.
 - `decision-red` waits while the check named `check` has not passed.
 - `decision-claims` lists the briefs that still hold files.
 - `decision-check-merges-nothing` asks GitHub and merges nothing.
@@ -37,6 +38,7 @@ Preconditions:
 - **Write its brief.** Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n' > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`. The brief has a Result and no review.
 - **Ask, unreviewed.** Run `record jmerge-decision jmerge --check`. It prints `wait 7 https://example.test/pull/7: it has no review yet`.
 - **Add a clean review.** Run `printf '## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`. It prints `ready 7 <the head> beta beta`.
+- **Review after.** Run `printf '## Review\nVerdict: findings\nHead: %s\nFindings:\n- warning src/beta/a.py:1 a made up one (bucket: Act on)\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`. It prints `wait 7 https://example.test/pull/7: its findings are not handled: the Result has no Fixed line`. Then run `sed -i 's/^Pull request: open one when done$/&\nReview: after/' "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again. It prints `ready 7 <the head> beta beta`: an `after` brief's findings hold nothing.
 - **Touch a protected path.** Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta secrets/a.key`, then `record jmerge-decision jmerge --check`. It prints `hold 7 https://example.test/pull/7: needs user, touches secrets/a.key`.
 - **Fail the check.** Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py FAILURE`, then `record jmerge-decision jmerge --check`. It prints `wait 7 https://example.test/pull/7: check has not passed`.
 - **List the claims.** Run `record jmerge-decision jmerge --claims`. It prints `beta pull request 7 root Where: `src/beta/``.
