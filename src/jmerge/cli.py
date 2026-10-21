@@ -45,6 +45,7 @@ PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
 GUARDED = PACKAGE / "guarded.txt"
 CI_PATHS = PACKAGE / "ci-paths.txt"
+INTEGRATION = "integration"
 JUDGED_AGAIN_AT_MOST = 2
 TIMEOUT_SECONDS = 120
 
@@ -573,7 +574,10 @@ class Repo:
         self.through: int | None = None
         self.order: list[int] = []
         self.rebasing: set[int] = set()
-        self.numbers_on: set[int] | None = None
+        self.numbers_on: dict[str, set[int]] = {}
+        self.integration = ready.integration_of(_read(state / INTEGRATION))
+        self.trunk = ""
+        self.reds: dict[str, list[dict]] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.listed, self.was = home_rule.ids(state)
@@ -591,18 +595,18 @@ class Repo:
     def migrations(self) -> rows.Migrations | None:
         return rows.migrations(self.main)
 
-    def numbers(self, default: str) -> set[int] | None:
-        if self.numbers_on is None and self.migrations:
-            where = f"origin/{default}"
+    def numbers(self, base: str) -> set[int] | None:
+        if base not in self.numbers_on and self.migrations:
+            where = f"origin/{base}"
             listed = None
-            if not _run(self.main, "git", "fetch", "-q", "origin", default).returncode:
+            if not _run(self.main, "git", "fetch", "-q", "origin", base).returncode:
                 tree = f"{self.migrations.directory}/"
                 listed = _run(self.main, "git", "ls-tree", "-z", "--name-only", where, "--", tree)
             if listed is None or listed.returncode:
                 return None
             names = (Path(path).name for path in listed.stdout.split("\0") if path)
-            self.numbers_on = {int(d) for name in names if (d := ready.migration_number(name))}
-        return self.numbers_on
+            self.numbers_on[base] = {int(d) for n in names if (d := ready.migration_number(n))}
+        return self.numbers_on.get(base)
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
         settings = self.migrations
@@ -975,7 +979,8 @@ class Repo:
         text = _read(brief)
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
-        short = ready.held(one, default, ready.stack_of(text), self.land)
+        self.trunk = default
+        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration)
         short = short or ready.rebase_held(text, one.head) or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
         covered = ready.to_range_diff(rebase, text, one.head)
@@ -1019,8 +1024,8 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
             rows.short(self.queue, brief.stem)
-            or rows.red(self.main_state, brief.stem)
-            or self.short_on_migrations(one, default)
+            or self.red(one, default, brief.stem)
+            or self.short_on_migrations(one, one.base)
         )
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
@@ -1067,6 +1072,27 @@ class Repo:
             self.through = one.number
         judged = ready.Judged(path, tip, rules, fresh, gated.note if gated else "")
         return Judgement(brief.stem, "", "", note, judged)
+
+    def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
+        """Main's red hold for a pull request into main, and for one into an integration
+        branch that branch's own: its tip's latest checks, asked of GitHub once a run. A
+        branch GitHub gives no answer for is not known to be red, as a main jbus never judged."""
+        if one.base == default:
+            return rows.red(self.main_state, slug)
+        if one.base not in self.reds:
+            asked = subprocess.run(
+                ["gh", "api", f"repos/{{owner}}/{{repo}}/commits/{one.base}/check-runs"],
+                cwd=self.main,
+                capture_output=True,
+                text=True,
+                env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+            )
+            try:
+                runs = [] if asked.returncode else json.loads(asked.stdout)["check_runs"]
+            except (ValueError, KeyError, TypeError):
+                runs = []
+            self.reds[one.base] = runs if isinstance(runs, list) else []
+        return rows.base_red(one.base, self.reds[one.base], slug)
 
     def holds(self) -> dict[str, str]:
         try:
@@ -1181,20 +1207,22 @@ class Repo:
                 break
             if again == JUDGED_AGAIN_AT_MOST:
                 guarded = f"guarded (touches {judged.path}), " if judged.path else ""
-                return lines.waits("wait", number, one.url, f"{guarded}{ready.MAIN_MOVED}")
+                moved = ready.MAIN_MOVED.format(base=one.base)
+                return lines.waits("wait", number, one.url, f"{guarded}{moved}")
             again += 1
-            self.numbers_on = None
-            again_judged = self.waits(one, one.base)
+            self.numbers_on.clear()
+            again_judged = self.waits(one, self.trunk or one.base)
             if again_judged.judged is None:
                 return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
             rebase, judged = again_judged.note, again_judged.judged
+        landing = one.base == self.trunk and one.branch in self.integration
         ran = _run(
             self.main,
             "gh",
             "pr",
             "merge",
             number,
-            "--squash",
+            "--merge" if landing else "--squash",
             "--match-head-commit",
             one.head,
             *self.about,
@@ -1204,6 +1232,8 @@ class Repo:
         if judged.rules:
             self.unruly = ready.RULES_CHANGED
         notes = [rebase] if rebase else []
+        if self.trunk and one.base != self.trunk:
+            notes.insert(0, f"into {one.base}")
         asked = _run(
             self.main,
             "gh",
@@ -1222,12 +1252,16 @@ class Repo:
             notes.append("that commit is its head, GitHub did not give the merge commit")
         before = _run(self.main, "git", "rev-parse", "HEAD").stdout.strip()
         pulled = _run(self.main, "git", "pull", "--ff-only")
-        self.numbers_on = None
+        self.numbers_on.clear()
         if pulled.returncode:
             notes.append(f"not pulled: {_said(pulled)}")
         else:
             notes += follow.follow(_run, self.main, before)
-        kept = self.clear_up(one.branch, one.head)
+        kept = (
+            f"{one.branch} is an integration branch"
+            if one.branch in self.integration
+            else self.clear_up(one.branch, one.head)
+        )
         if kept:
             notes.append(f"kept: {kept}")
         if judged.path:
@@ -1360,7 +1394,8 @@ class Sweep:
             try:
                 said = json.loads(asked.stdout)
                 state = "" if asked.returncode else str(said["state"])
-                if state == "MERGED" and said["baseRefName"] == self.default:
+                into = (self.default, *self.repo.integration)
+                if state == "MERGED" and said["baseRefName"] in into:
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
                 state = ""
@@ -1456,6 +1491,8 @@ class Sweep:
                 why = f"{first.source} and {more[0].source} both name it"
             elif branch == self.default:
                 why = "it is the default branch"
+            elif branch in self.repo.integration:
+                why = "it is an integration branch"
             else:
                 why = sweep.kept(first, self.found(first, left))
             if why:
@@ -1508,8 +1545,11 @@ def parser() -> argparse.ArgumentParser:
         prog="jmerge",
         description="Merge this repo's pull requests that are reviewed, fixed and green, pull "
         "the main checkout, and remove each one's worktree and branches. Prints one line per "
-        "open pull request. A pull request based on another "
-        "branch is never merged, and one whose brief has a Stack: line only with --land. "
+        "open pull request. A pull request based on a branch that is neither the default "
+        "branch nor one the integration file in the repo's state names is never merged, and "
+        "one whose brief has a Stack: line only with --land. One into an integration branch "
+        "is judged against that branch, and the one that lands it on the default branch "
+        "merges with a merge commit. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(src/jmerge/ci-paths.txt), or a caller of its files or something they depend on "
