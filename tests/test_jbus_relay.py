@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 import daemons
+from testing.paths import REPO
 
 INBOUND = "inbound-key-for-the-relay"
 SOUS_CHEF_KEY = "sous-chef-key-nobody-sees"
@@ -699,7 +700,7 @@ def run_leaves(tmp_path, how: str, *more: str) -> subprocess.Popen:
     return daemons.start(
         [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-q", str(LEAVES), *more],
         env=env,
-        cwd=LEAVES.parent.parent,
+        cwd=REPO,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

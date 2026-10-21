@@ -4,13 +4,14 @@ import re
 
 import pytest
 
-from crew.helpers import BRIEF, SKILL, Failed, git, run
+from crew.helpers import BRIEF, Failed, git, run
+from testing.paths import REPO
 
 
 def in_the_template(line):
     """Whether a line a block printed is the template's line of that label, with each of the
     template's `<...>` filled in and its note of when the line is there left off."""
-    template = (SKILL.parent.parent.parent / "templates" / "result.md").read_text()
+    template = (REPO / "templates" / "result.md").read_text()
     (written,) = [text for text in template.splitlines() if text.split()[0] == line.split()[0]]
     shape, holes = written.split("   <")[0], 1
     while holes:

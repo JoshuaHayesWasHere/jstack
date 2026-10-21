@@ -12,12 +12,10 @@ import os
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
-
+from testing.paths import REPO
 
 ONE_WAY = [
     ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),

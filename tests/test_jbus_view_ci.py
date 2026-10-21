@@ -24,7 +24,7 @@ def later(stamp):
 
 def keep(scene):
     """The recording's ledger, moved in time to end at the scene's now."""
-    state = scene.state.parent.parent / "recorded"
+    state = scene.state.parents[1] / "recorded"
     collect.collect(Replay(), "o/jstack", state, RECORDED, 14)
     jobs = [
         {**one, **{k: later(one[k]) for k in TIMES if k in one}}

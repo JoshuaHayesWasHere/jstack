@@ -6,11 +6,11 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
+from testing.paths import REPO
+
 TEMPLATES = REPO / "templates"
 DOCS = REPO / "docs"
 UNITS = sorted(path.name for path in TEMPLATES.iterdir() if path.suffix in (".service", ".timer"))

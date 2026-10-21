@@ -22,8 +22,8 @@ import crew.helpers as crew
 import test_home_merge as merge
 import test_playbooks as shape
 from test_home_thread import as_read
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATES = REPO / "templates"
 COPY = REPO / "harness" / "jstack" / "claude-code"

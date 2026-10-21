@@ -7,13 +7,12 @@ import os
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
 from jbriefs import pick
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
 HOOK = REPO / "hooks" / "skill-tips.sh"
 

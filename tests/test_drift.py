@@ -5,14 +5,13 @@ parsed by the same code and held against the files it credits."""
 
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
 
 import jdrift
 from jdrift.cli import main
+from testing.paths import REPO as ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
 TOPS = ("principles", "playbooks", "skills")
 
 SECTION = """# Third-party material

@@ -11,8 +11,9 @@ from pathlib import Path
 
 from jmerge import rangediff, ready
 from test_home_thread import as_read
+from testing.paths import REPO
 
-SKILL = Path(__file__).parent.parent.parent / "skills" / "crew" / "SKILL.md"
+SKILL = REPO / "skills" / "crew" / "SKILL.md"
 
 
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)

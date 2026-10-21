@@ -15,11 +15,11 @@ is let through: it names a fact of the platform, with where it is written down.
 import io
 import re
 import tokenize
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
+from testing.paths import REPO
+
 SWEPT = (
     "src/**/*.py",
     "src/**/*.sh",

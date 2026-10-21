@@ -12,12 +12,11 @@ import subprocess
 import sys
 import textwrap
 import time
-from pathlib import Path
 
 from jmerge import ready
 from test_home_thread import as_read
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "hot_files.py"
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^```sh\n(.*?)^```", re.M | re.S)

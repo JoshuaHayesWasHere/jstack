@@ -7,14 +7,13 @@ checkout, over a made-up config and state, and `gh` gives the merge commit, or n
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from jbus import cleanup, queue
 from test_understanding_skills import blocks
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "pr-review" / "after-the-review.md"
 HEAD, MERGE = "a" * 40, "c" * 40
 PULL = "https://example.test/pull/7"

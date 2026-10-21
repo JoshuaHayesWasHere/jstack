@@ -8,11 +8,11 @@ import importlib.util
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPT = REPO / "scripts" / "prose_lint.py"
 OLD = REPO / "tests" / "fixtures" / "prose" / "old.md"
 SPEC = importlib.util.spec_from_file_location("prose_lint", SCRIPT)

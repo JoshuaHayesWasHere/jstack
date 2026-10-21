@@ -1,14 +1,13 @@
 import json
 import os
 import time
-from pathlib import Path
 
 import pytest
 
 from jbus import wake
 from jgauge import cli, sample
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 DAY = 86400
 HEADER = (
     "time\tcores\tload1\tload5\tload15"

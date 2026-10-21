@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 
 from test_room import IDLE, check, machine, ran
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "limits.sh"
 MV = shutil.which("mv")
 NOW = int(time.time())

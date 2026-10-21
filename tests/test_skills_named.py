@@ -15,8 +15,8 @@ import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 NAMED = "Skills: in-your-own-words, principle-model-the-domain, prove-it-works\n"

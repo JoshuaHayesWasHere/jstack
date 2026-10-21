@@ -16,13 +16,12 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import pytest
 
 from test_tool_calls import CALLS, errors
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "skills" / "make-bot-ui" / "scripts" / "bot_ui.py"
 SPEC = importlib.util.spec_from_file_location("bot_ui", SCRIPT)
 bot_ui = importlib.util.module_from_spec(SPEC)

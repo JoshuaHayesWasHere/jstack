@@ -9,13 +9,12 @@ The page's sentences are not compared with anything.
 import re
 import shlex
 from html.parser import HTMLParser
-from pathlib import Path
 
 import pytest
 
 from jmerge.cli import parser as jmerge_parser
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PAGE = REPO / "docs" / "flow.html"
 REPO_TOP_DIRS = ("skills", "templates", "playbooks", "principles", "hooks", "src", "tests", "docs")
 DRAWN = {"home", "crew", "scout", "pr-review", "handoff", "grilling"}

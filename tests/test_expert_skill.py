@@ -20,8 +20,8 @@ import test_understanding_skills as added
 from jbus import mirror
 from test_handoff_pin import T3
 from test_home_thread import as_read
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "expert" / "SKILL.md"
 TEMPLATE = REPO / "templates" / "expert-answer.md"
 TIERS = REPO / "skills" / "why" / "references" / "epistemics.md"

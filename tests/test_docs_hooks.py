@@ -8,13 +8,12 @@ script, and no other is.
 """
 
 import re
-from pathlib import Path
 
 from jinstall.kinds import GitHook, HookGroup, StatusLine
 from jinstall.machine import Machine
 from jinstall.needs import needs
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PAGE = REPO / "docs" / "configuration.md"
 ROW = re.compile(r"^\| `([^`]+)` \| `([^`]+)`(?:, matcher `([^`]+)`)? \| `([^`]+)` \| [^|]+ \|$")
 

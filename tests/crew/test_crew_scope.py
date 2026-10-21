@@ -4,8 +4,9 @@ import os
 import subprocess
 
 import test_room as room
-from crew.helpers import SKILL, PullRequest, block
+from crew.helpers import PullRequest, block
 from crew.test_crew_failed_check import in_the_template
+from testing.paths import REPO
 
 
 def test_the_files_outside_the_where_are_asked_of_jmerge_before_the_pull_request_opens(tmp_path):
@@ -22,7 +23,7 @@ def test_the_files_outside_the_where_are_asked_of_jmerge_before_the_pull_request
         **os.environ,
         "HOME": str(user),
         "PATH": f"{pr.stub}:{room.BIN}:{os.environ['PATH']}",
-        "T": str(SKILL.parent.parent.parent / "templates"),
+        "T": str(REPO / "templates"),
     }
 
     def asked():

@@ -12,7 +12,6 @@ no brief that has none. A row already approved is grandfathered and launches.
 import json
 import re
 from datetime import datetime
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -28,6 +27,7 @@ from test_home_thread import as_read
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
 from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
+from testing.paths import REPO
 
 HEAD = merge.PUSHED
 SECRET = "secrets/x.json"
@@ -304,7 +304,7 @@ def test_a_fact_is_proven_only_by_the_review_of_the_head(case):
 )
 def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code, found):
     """The reviewer writes the line by hand, from the form in `templates/review.md`."""
-    template = (Path(__file__).parent.parent / "templates" / "review.md").read_text()
+    template = (REPO / "templates" / "review.md").read_text()
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
     ran, unproven = form.split(" | ")
     filled = {
@@ -324,7 +324,7 @@ def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code
 
 def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused():
     """Step 5 of the review says how the form is filled, and gives one fact each way."""
-    root = Path(__file__).parent.parent
+    root = REPO
     template = (root / "templates" / "review.md").read_text()
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
     ran = form.split(" | ")[0]

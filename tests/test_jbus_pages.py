@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 from jbus import pages, wake
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 CAP = 300
 LONG = frozenset()
 

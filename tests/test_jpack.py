@@ -8,13 +8,12 @@ import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
 from jpack import cli
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 TEMPLATE = REPO / "templates" / "context"
 UPLOAD = "".join(
     {12: "RETRIES = 3\n", 30: "    for _ in range(RETRIES):\n", 31: "        time.sleep(1)\n"}.get(

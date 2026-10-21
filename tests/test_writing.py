@@ -1,9 +1,9 @@
 import re
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SKILLS = [REPO / "skills" / name / "SKILL.md" for name in ("unslop", "technical-writing")]
 TEMPLATE = REPO / "templates" / "pr-body.md"
 PLAYBOOK = REPO / "playbooks" / "opening-a-pr.md"

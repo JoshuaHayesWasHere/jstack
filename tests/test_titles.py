@@ -1,14 +1,13 @@
 import json
 import re
-from pathlib import Path
 
 import pytest
 
 from jbus import threads
 from test_home_thread import NAME, Scene, as_read
 from test_tool_calls import CALLS, FILLED, errors
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 SLUG = "fix-login"
 OTHER_ROLES = ["review", "scout"]

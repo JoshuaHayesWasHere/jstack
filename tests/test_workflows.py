@@ -41,13 +41,14 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 WORKFLOWS = REPO / ".github" / "workflows"
 CHECK = WORKFLOWS / "check.yml"
 DRIFT = WORKFLOWS / "pstack-drift.yml"
 BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
-GREEN_TREE = WORKFLOWS.parent.parent / "scripts" / "green_tree.py"
+GREEN_TREE = REPO / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
     " || vars.RUNS_ON || 'jstack-ephemeral' }}"

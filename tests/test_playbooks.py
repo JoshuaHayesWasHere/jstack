@@ -1,12 +1,11 @@
 import re
 import shutil
-from pathlib import Path
 
 import pytest
 
 from jdrift.explained import COMMENT as CARD
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATE = "templates/playbook.md"
 EM_DASH = "\N{EM DASH}"

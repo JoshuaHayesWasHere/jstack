@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SKILLS = sorted(REPO.glob("skills/*/SKILL.md"))
 TREES = ("skills", ".cursor/skills")
 SHIPPED = sorted(path for tree in TREES for path in REPO.glob(f"{tree}/*/SKILL.md"))

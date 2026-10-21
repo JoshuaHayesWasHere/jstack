@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPTS = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts"
 BUILT = Path(sys.executable).parent
 FEATURES = sorted(
