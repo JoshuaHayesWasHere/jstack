@@ -330,3 +330,29 @@ def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hook
     assert os.readlink(crew) == str(user.layout / "skills" / "crew")
     assert not retired.is_symlink() and not gone.is_symlink()
     assert json.loads(user.settings.read_text())["hooks"]["SessionStart"] == [user.START]
+
+
+def test_check_names_a_skill_link_whose_target_a_move_took_away_and_a_run_mends_it(user, tmp_path):
+    checkout = copied(tmp_path)
+
+    def said(*args):
+        done = user.start(*args, checkout=checkout)
+        out, _ = done.communicate()
+        return done.returncode, [line for line in out.splitlines() if "commands" not in line]
+
+    said()
+    skill = user.home / ".claude" / "skills" / "why" / "SKILL.md"
+    assert skill.is_file()
+    for one in sorted((checkout / "skills" / "why").iterdir()):
+        shutil.move(one, checkout / "features" / "why" / one.name)
+    (checkout / "skills" / "why").rmdir()
+    generate(checkout)
+    assert not skill.exists()
+    part = f"layout claude-code {laid(user.home)}"
+    code, lines = said("--check")
+    assert code == 1
+    [line] = line_for(lines, part)
+    assert line.startswith(f"old hard {part} -> stale: skills/why/")
+    _, lines = said()
+    assert [line for line in lines if not line.startswith("ok ")] == []
+    assert os.path.realpath(skill) == str(checkout / "features" / "why" / "SKILL.md")
