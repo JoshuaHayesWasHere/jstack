@@ -61,6 +61,17 @@ def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
     assert (copy / "skills.json").read_bytes() == before
 
 
+def test_a_hand_edit_inside_a_generated_region_makes_the_check_fail_naming_that_file(copy):
+    page = copy / "docs" / "playbooks.md"
+    page.write_text(page.read_text().replace("| `bro` |", "| `bro-edited` |", 1))
+    ran = generate(copy, "--check")
+    assert ran.returncode == 1
+    assert ran.stderr.splitlines() == [
+        "stale: docs/playbooks.md",
+        f"run python3 {SCRIPT} and commit the result",
+    ]
+
+
 def test_a_run_writes_what_is_stale_and_a_second_run_writes_nothing(copy):
     skill = copy / "skills" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text().replace("description: ", "description: Now ", 1))
