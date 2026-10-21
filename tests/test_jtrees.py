@@ -47,7 +47,7 @@ def test_the_committed_outputs_are_what_the_generator_writes():
 
 
 def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
-    skill = copy / "skills" / "bro" / "SKILL.md"
+    skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text().replace("description: ", "description: Now ", 1))
     before = (copy / "skills.json").read_bytes()
     ran = generate(copy, "--check")
@@ -74,7 +74,7 @@ def test_a_hand_edit_inside_a_generated_region_makes_the_check_fail_naming_that_
 
 
 def test_a_run_writes_what_is_stale_and_a_second_run_writes_nothing(copy):
-    skill = copy / "skills" / "bro" / "SKILL.md"
+    skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text().replace("description: ", "description: Now ", 1))
     assert generate(copy).stdout == (
         f"wrote {COPY}/README.md\nwrote {COPY}/skills.json\n"
@@ -221,7 +221,7 @@ def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
                         "$schema": "../../schemas/feature.schema.json",
                         "name": "bro",
                         "description": "x",
-                        "owns": ["skills/bro/**"],
+                        "owns": [],
                         "extra": 1,
                     }
                 )
@@ -251,6 +251,13 @@ def test_a_tree_that_breaks_a_rule_is_refused_with_its_fault_and_nothing_is_writ
     assert (copy / "skills.json").read_bytes() == before
 
 
+def owns(root, name, *rows):
+    """Give the feature `name` a manifest whose `owns` is `rows`."""
+    manifest = {"$schema": "../../schemas/feature.schema.json", "name": name}
+    manifest |= {"description": "x", "owns": list(rows)}
+    (root / "features" / name / "feature.json").write_text(json.dumps(manifest))
+
+
 def test_every_file_of_the_checkout_has_exactly_one_owner():
     unowned, twice = borders(crawl(REPO), tracked(REPO))
     assert (unowned, twice) == ([], {})
@@ -263,10 +270,7 @@ def test_an_owner_is_the_feature_folder_or_one_row_and_two_rows_are_both_seen(co
     assert tree.owners("src/jbriefs/cli.py") == ("jbriefs",)
     assert tree.owners("pyproject.toml") == ("INFRA",)
     assert tree.owners("nowhere/at/all.txt") == ()
-    manifest = copy / "features" / "bro" / "feature.json"
-    manifest.write_text(
-        manifest.read_text().replace('"skills/bro/**"', '"skills/bro/**", "src/jbus/cli.py"')
-    )
+    owns(copy, "bro", "src/jbus/cli.py")
     assert crawl(copy).owners("src/jbus/cli.py") == ("bro", "jbus")
 
 
@@ -282,16 +286,12 @@ def test_the_crawl_raises_every_fault_at_once(copy):
 
 
 def test_a_feature_row_that_claims_another_features_folder_is_a_second_owner(copy):
-    manifest = copy / "features" / "bro" / "feature.json"
-    manifest.write_text(
-        manifest.read_text().replace('"skills/bro/**"', '"skills/bro/**", "features/jbus/**"')
-    )
+    owns(copy, "bro", "features/jbus/**")
     assert crawl(copy).owners("features/jbus/feature.json") == ("bro", "jbus")
 
 
 def test_an_owns_row_with_a_double_star_inside_it_is_refused(copy):
-    manifest = copy / "features" / "bro" / "feature.json"
-    manifest.write_text(manifest.read_text().replace('"skills/bro/**"', '"skills/**/SKILL.md"'))
+    owns(copy, "bro", "skills/**/SKILL.md")
     ran = generate(copy, "--check")
     assert ran.returncode == 2
     assert "features/bro/feature.json: owns skills/**/SKILL.md: ** is only" in ran.stderr
@@ -310,7 +310,7 @@ def test_the_copy_holds_each_skill_playbook_principle_template_unit_and_hook(cop
     shutil.rmtree(copy / COPY)
     assert generate(copy).returncode == 0
     copied = copy / COPY
-    skills = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
+    skills = sorted(one.name for one in crawl(copy).items if one.kind == "skill")
     assert sorted(path.name for path in (copied / "skills").iterdir()) == skills
     for folder in ("playbooks", "principles"):
         assert sorted(p.name for p in (copied / folder).iterdir()) == sorted(
@@ -362,18 +362,18 @@ def test_the_wheel_takes_the_copy_whole_as_shared_data_and_jinstall_as_a_command
 
 
 def test_a_link_to_a_file_the_copy_leaves_out_points_at_github(copy):
-    skill = copy / "skills" / "bro" / "SKILL.md"
+    skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(
         skill.read_text()
         + "\nSee [the state](../../docs/state.md#homes), [jbus](../../src/jbus/) and"
-        " [crew](../crew/SKILL.md), but not `[code](../../nowhere.md)`.\n"
+        " [ketchup](../ketchup/SKILL.md), but not `[code](../../nowhere.md)`.\n"
     )
     assert generate(copy).returncode == 0
     text = (copy / COPY / "skills" / "bro" / "SKILL.md").read_text()
     github = "https://github.com/JoshuaHayesWasHere/jstack"
     assert f"[the state]({github}/blob/main/docs/state.md#homes)" in text
     assert f"[jbus]({github}/tree/main/src/jbus)" in text
-    assert "[crew](../crew/SKILL.md)" in text
+    assert "[ketchup](../ketchup/SKILL.md)" in text
     assert "`[code](../../nowhere.md)`" in text
 
 

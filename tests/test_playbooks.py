@@ -8,6 +8,7 @@ from testing.paths import REPO
 
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATE = "templates/playbook.md"
+COPY = "harness/jstack/claude-code"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(PLAYBOOKS.glob("*.md"))
 ROLES = {"a crewmate": "crew", "a scout": "scout", "the home": "home", "an expert": "expert"}
@@ -79,7 +80,9 @@ def problems(path, root):
     elif steps(text) != list(range(1, len(steps(text)) + 1)):
         found.append(f"numbers its steps {steps(text)}")
     names = named("\n".join(row for row in text.splitlines() if not row.startswith("Source:")))
-    found += [f"names {name}, which is not there" for name in names if not (root / name).is_file()]
+    # A named path is read from the copy an agent is linked to, where the repo has one.
+    read = root / COPY if (root / COPY).is_dir() else root
+    found += [f"names {name}, which is not there" for name in names if not (read / name).is_file()]
     if not any(name.startswith("principles/") for name in names):
         found.append("names no principle")
     if never not in parts[:-1] or not parts[parts.index(never) + 1].startswith("- "):

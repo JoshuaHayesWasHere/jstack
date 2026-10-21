@@ -138,7 +138,7 @@ class Tree:
         scripts = tomllib.loads((root / "pyproject.toml").read_text())["project"]["scripts"]
         return cls(
             root,
-            frozenset(path.parent.name for path in (root / "skills").glob("*/SKILL.md")),
+            frozenset(path.parent.name for path in skill_files(root)),
             tuple(sorted(path.stem for path in (root / "playbooks").glob("*.md"))),
             tuple(sorted(scripts)),
             len(list((root / "principles").glob("*.md"))),
@@ -167,13 +167,19 @@ def models_of(page: Path) -> frozenset[str]:
     return frozenset(found)
 
 
+def skill_files(root: Path) -> list[Path]:
+    """Each skill's `SKILL.md`, where it is now and where a move puts it."""
+    spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
+    return sorted(path for spot in spots for path in root.glob(spot))
+
+
 def docs_of(root: Path) -> list[Doc]:
     """The README, every page of the docs tree, and each skill's `SKILL.md`, in that order."""
     pages = [
         root / "README.md",
         *sorted((root / "docs").rglob("*.md")),
         *sorted(root.glob("features/*/docs/**/*.md")),
-        *sorted((root / "skills").glob("*/SKILL.md")),
+        *skill_files(root),
     ]
     return [Doc.read(root, page) for page in pages]
 
@@ -282,7 +288,7 @@ def listing(tree: Tree, docs: list[Doc]) -> list[str]:
         if not SCHEME.match(target)
     }
     wanted = [f"playbooks/{name}.md" for name in tree.playbooks]
-    wanted += [f"skills/{name}/SKILL.md" for name in sorted(tree.skills)]
+    wanted += [path.relative_to(tree.root).as_posix() for path in skill_files(tree.root)]
     return [
         f"no table row of the README names the command {name}"
         for name in tree.commands

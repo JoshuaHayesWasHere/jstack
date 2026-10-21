@@ -140,7 +140,7 @@ Each command has one page.
 
 ## Skills
 
-`skills/` holds 39 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`skills/` and `features/` hold 39 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
