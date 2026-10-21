@@ -735,3 +735,20 @@ def test_a_test_under_any_test_path_counts_and_one_moved_into_a_feature_is_not_a
     )
     (error,) = errors(tree(tmp_path), changed_tests(since, tmp_path))
     assert error.startswith("features/area/tests/test_new.py:4 test_new reads")
+
+
+def test_the_branch_is_compared_with_the_base_make_is_given(tmp_path, monkeypatch):
+    def commit(name):
+        (tmp_path / name).write_text(name)
+        git("add", ".", repo=tmp_path)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", name, repo=tmp_path)
+        return git("rev-parse", "HEAD", repo=tmp_path)
+
+    git("init", "-q", "-b", "main", repo=tmp_path)
+    commit("main")
+    git("checkout", "-q", "-b", "migration", repo=tmp_path)
+    fork = commit("migration")
+    git("checkout", "-q", "-b", "fix", repo=tmp_path)
+    commit("fix")
+    monkeypatch.setenv("BASE", "migration")
+    assert base(tmp_path) == fork
