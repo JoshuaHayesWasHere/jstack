@@ -10,7 +10,7 @@ card: "Settle the shape before code | 5 | Makes one artifact twice, apart, as tw
 
 Source: pstack, `pstack/skills/arena/SKILL.md`
 
-This is typed in the repo's home, and the home runs `playbooks/arena.md`, from the root of the repo this skill lives in.
+This is typed in the repo's home, and the home runs `features/arena-swarm/skills/arena/playbooks/arena.md`, from the root of the repo this skill lives in.
 Open it with the block of "A playbook of the home's own" in `skills/home/SKILL.md`, with `arena` in place of `<name>`, and work its steps.
 What follows `/arena` is the artifact to make, and with nothing after it, ask the user what to make.
 

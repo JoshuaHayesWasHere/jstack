@@ -23,12 +23,12 @@ import test_home_merge as merge
 import test_playbooks as shape
 from test_home_thread import as_read
 from testing.layouts import assembled
-from testing.paths import REPO
+from testing.paths import REPO, playbooks
 
-PLAYBOOKS = REPO / "playbooks"
 TEMPLATES = REPO / "templates"
 COPY = assembled()
-NAMES = sorted(path.stem for path in PLAYBOOKS.glob("*.md"))
+PLAYBOOK = playbooks()
+NAMES = sorted(PLAYBOOK)
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 SLUG = "alpha"
 READERS = {"crew": ("tasks", "brief.md"), "scout": ("scouts", "scout-request.md")}
@@ -179,10 +179,10 @@ def refused(skill, name, by):
 def test_a_named_playbook_is_opened_by_its_role_alone_from_the_repo_the_skill_lives_in(
     skill, name, tmp_path
 ):
-    by = role(PLAYBOOKS / f"{name}.md")
+    by = role(PLAYBOOK[name])
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
     if shape.ROLES[by] == skill:
-        assert Path(said[0]) == (PLAYBOOKS / f"{name}.md").resolve()
+        assert Path(said[0]) == PLAYBOOK[name].resolve()
         assert not any(line.startswith("not ") for line in said)
     else:
         assert said == refused(skill, name, by)
@@ -298,7 +298,7 @@ def test_each_value_a_template_offers_opens_a_playbook_or_is_none(skill, tmp_pat
     assert "none" in values
     for n, value in enumerate(values):
         said = opened(skill, written(skill, f"Playbook: {value}"), tmp_path / str(n))
-        assert said[:1] == ([] if value == "none" else [str((PLAYBOOKS / f"{value}.md").resolve())])
+        assert said[:1] == ([] if value == "none" else [str(PLAYBOOK[value].resolve())])
 
 
 def rows(templates):
@@ -325,16 +325,16 @@ def run_by(path):
 
 
 def test_the_homes_block_prints_a_row_for_every_playbook_and_a_last_one_for_none():
-    *said, last = rows(TEMPLATES)
-    assert sorted(said) == [(name, run_by(PLAYBOOKS / f"{name}.md")) for name in NAMES]
+    *said, last = rows(COPY / "templates")
+    assert sorted(said) == [(name, run_by(PLAYBOOK[name])) for name in NAMES]
     assert last[0] == "none"
 
 
 def test_a_playbook_added_to_the_directory_gets_a_row_with_no_other_edit(tmp_path):
     (tmp_path / "templates").mkdir()
-    shutil.copytree(PLAYBOOKS, tmp_path / "playbooks")
+    shutil.copytree(COPY / "playbooks", tmp_path / "playbooks")
     before = rows(tmp_path / "templates")
-    assert before == rows(TEMPLATES)
+    assert before == rows(COPY / "templates")
     (tmp_path / "playbooks" / "a-new-kind.md").write_text(
         "# A new kind\n\nRun by: a crewmate, for a kind of task nobody wrote down before.\n"
     )
@@ -501,7 +501,7 @@ def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
     """The skill's call as an agent runs it, by the real `uv`: the copy of the block it
     replaced put every cited principle on one `==>` line under zsh, which splits no word."""
     name = "authoring-a-skill" if skill == "crew" else "investigation"
-    playbook = (PLAYBOOKS / f"{name}.md").read_text()
+    playbook = PLAYBOOK[name].read_text()
     names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
     assert len(names) >= 2
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, shell=shell, real=True)
@@ -520,9 +520,9 @@ NUMBERED = re.compile(r"^\d+\. \S.*$", re.M)
 @pytest.mark.parametrize(
     ("skill", "name"),
     [
-        (READERS_OF[role(PLAYBOOKS / f"{name}.md")], name)
+        (READERS_OF[role(PLAYBOOK[name])], name)
         for name in NAMES
-        if role(PLAYBOOKS / f"{name}.md") in READERS_OF
+        if role(PLAYBOOK[name]) in READERS_OF
     ],
 )
 def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_checklist(
@@ -530,7 +530,7 @@ def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_ch
 ):
     """Each numbered step of the playbook is one line under the line that names them, as the
     playbook has it and numbered 1 to the last."""
-    steps = [step[0] for step in NUMBERED.finditer((PLAYBOOKS / f"{name}.md").read_text())]
+    steps = [step[0] for step in NUMBERED.finditer(PLAYBOOK[name].read_text())]
     assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
     at = said.index(

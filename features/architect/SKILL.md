@@ -64,7 +64,7 @@ Copy these steps into the todo list as this phase's entries.
    Then remove both worktrees, `git worktree remove --force <path>`.
 
 One writer sees both candidates, so b is apart from a only by the shape it gives up.
-Where the shape needs two writers that never see each other, ask for an arena instead, which runs as four threads of their own (`playbooks/arena.md`).
+Where the shape needs two writers that never see each other, ask for an arena instead, which runs as four threads of their own (`features/arena-swarm/skills/arena/playbooks/arena.md`).
 In a home, that is `/arena`, and a crewmate or a scout writes `/arena <the design-sketch task>` under "Noticed" and goes on with its two candidates.
 
 What comes out is one design package.

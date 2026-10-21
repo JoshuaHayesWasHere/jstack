@@ -1,7 +1,7 @@
 """`python -m jdrift.explained [--check]`: the cards of
 `features/jdrift/docs/jstack-explained.html`, from the tree.
 
-Run in this repo's root, it reads one card line from each skill's `SKILL.md`, `playbooks/*.md`
+Run in this repo's root, it reads one card line from each skill's `SKILL.md`, each playbook
 and `principles/*.md`, and writes the page's built parts from them: the text between each
 `<!-- built: <kind> <cards or links>, <tile> -->` and the `<!-- built: end -->` after it. The rest
 of the page is hand-written and is left as it is. A second run changes nothing.
@@ -154,7 +154,7 @@ KINDS = {
         _skill,
     ),
     "playbook": Kind(
-        ("playbooks/*.md",),
+        ("playbooks/*.md", "features/*/playbooks/*.md", "features/*/skills/*/playbooks/*.md"),
         lambda p: p.stem,
         _comment,
         "<!-- card: <tile> | <place> | <what it is for> -->",

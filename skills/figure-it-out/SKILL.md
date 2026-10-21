@@ -41,8 +41,8 @@ done
 if [ -n "$M" ]; then echo "home: $M"; else echo "not a home: no home-id under $H holds $ME"; fi
 by=$(sed -n 's/^Run by: //p' "$T/../playbooks/arena.md" 2> /dev/null | head -n 1)
 case ${by%%,*} in
-"the home") echo "arena: a one-way door is its own entry, run by the home's playbooks/arena.md" ;;
-*) echo "no arena: playbooks/arena.md is for ${by%%,*}, not the home, so a one-way door is planned with Stage: parked" ;;
+"the home") echo "arena: a one-way door is its own entry, run by the home's features/arena-swarm/skills/arena/playbooks/arena.md" ;;
+*) echo "no arena: features/arena-swarm/skills/arena/playbooks/arena.md is for ${by%%,*}, not the home, so a one-way door is planned with Stage: parked" ;;
 esac
 ```
 

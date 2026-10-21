@@ -10,7 +10,7 @@ card: "Understand what is there | 4 | Fans a task out to up to ten threads a ste
 
 Source: pstack, `pstack/skills/swarm/SKILL.md`
 
-This is typed in the repo's home, and the home runs `playbooks/swarm.md`, from the root of the repo this skill lives in.
+This is typed in the repo's home, and the home runs `features/arena-swarm/skills/swarm/playbooks/swarm.md`, from the root of the repo this skill lives in.
 Open it with the block of "A playbook of the home's own" in `skills/home/SKILL.md`, with `swarm` in place of `<name>`, and work its steps.
 What follows `/swarm` is the task to fan out, and with nothing after it, ask the user what to fan out.
 

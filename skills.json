@@ -4,7 +4,7 @@
     {
       "name": "arena",
       "kind": "playbook",
-      "path": "playbooks/arena.md",
+      "path": "features/arena-swarm/skills/arena/playbooks/arena.md",
       "source": "pstack",
       "nameable": true
     },
@@ -168,7 +168,7 @@
     {
       "name": "swarm",
       "kind": "playbook",
-      "path": "playbooks/swarm.md",
+      "path": "features/arena-swarm/skills/swarm/playbooks/swarm.md",
       "source": "pstack",
       "nameable": true
     },
@@ -369,7 +369,7 @@
     {
       "name": "arena",
       "kind": "skill",
-      "path": "skills/arena/SKILL.md",
+      "path": "features/arena-swarm/skills/arena/SKILL.md",
       "source": "pstack",
       "description": "Make one artifact twice, apart, as two runner crews, have a judge crew score both, and a graft crew pick a base and graft the other's best into it. Typed in a home. Use for /arena, 'arena this', or 'throw it in the arena'."
     },
@@ -586,7 +586,7 @@
     {
       "name": "swarm",
       "kind": "skill",
-      "path": "skills/swarm/SKILL.md",
+      "path": "features/arena-swarm/skills/swarm/SKILL.md",
       "source": "pstack",
       "description": "Fan a task out to up to ten scout and crew threads a step, drain them, and build one table from their Reports and Results. Typed in a home. Use for /swarm, 'swarm this', or parallel coverage, races, gauntlets and exploration."
     },

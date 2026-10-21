@@ -16,7 +16,7 @@ Each feature's own, as `features/*/feature.json` and the files under it give the
 | Feature | What it does | Skills and principles | Playbooks |
 |---|---|---|---|
 | `architect` | Sketches types, signatures and module structure before any code. | [architect](../features/architect/SKILL.md) |  |
-| `arena-swarm` | Runs one task as several threads that do not see each other, and judges or merges what they make. | [arena](../skills/arena/SKILL.md), [swarm](../skills/swarm/SKILL.md) | [arena](../playbooks/arena.md), [swarm](../playbooks/swarm.md) |
+| `arena-swarm` | Runs one task as several threads that do not see each other, and judges or merges what they make. | [arena](../features/arena-swarm/skills/arena/SKILL.md), [swarm](../features/arena-swarm/skills/swarm/SKILL.md) | [arena](../features/arena-swarm/skills/arena/playbooks/arena.md), [swarm](../features/arena-swarm/skills/swarm/playbooks/swarm.md) |
 | `automate-me` | Turns how you work into a -mode skill agents follow. | [automate-me](../features/automate-me/SKILL.md) |  |
 | `benchmark-checklist` | Vets a measured number before it is reported or acted on. | [benchmark-checklist](../features/benchmark-checklist/SKILL.md) |  |
 | `bro` | Restates the last message in plain words, with no jargon. | [bro](../features/bro/SKILL.md) |  |
