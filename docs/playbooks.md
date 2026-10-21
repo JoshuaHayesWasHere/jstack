@@ -42,5 +42,5 @@ Each feature's own, as `features/*/feature.json` and the files under it give the
 | `teach` | Explains a body of work plainly until you understand it. | [teach](../features/teach/SKILL.md) |  |
 | `typescript-best-practices` | Loads the TypeScript rules before a .ts or .tsx edit. | [typescript-best-practices](../features/typescript-best-practices/SKILL.md) |  |
 | `why` | Finds why the code is the way it is, with cited evidence. | [why](../skills/why/SKILL.md) |  |
-| `writing` | Holds every page and pull request to one writing standard. | [technical-writing](../skills/technical-writing/SKILL.md), [unslop](../skills/unslop/SKILL.md) | [opening-a-pr](../playbooks/opening-a-pr.md) |
+| `writing` | Holds every page and pull request to one writing standard. | [technical-writing](../features/writing/skills/technical-writing/SKILL.md), [unslop](../features/writing/skills/unslop/SKILL.md) | [opening-a-pr](../features/writing/playbooks/opening-a-pr.md) |
 <!-- generated: end -->

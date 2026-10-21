@@ -20,7 +20,7 @@ Verify skill: `.claude/skills/verify-*/`.
 4. Plan the fix and write it yourself, at the root cause and not where the symptom shows (`principles/principle-fix-root-causes.md`). Two fixes that failed the same way share a premise: question it before writing a third (`principles/principle-attack-the-premise.md`). Do not change a test to match a wrong implementation, and do not weaken an assertion unless the expected behaviour really changed. A fix that cannot be made inside the brief's **Where** is not made: stop and say so.
 5. Verify on the same surface as step 1 (`principles/principle-prove-it-works.md`). The original repro now passes, and so does the repo's check command. "Inconclusive", or a pass on another surface, is not a pass: say so. Unit tests show how a branch behaves, not that the bug is gone.
 6. Commit the failing repro before the fix, so the branch and the pull request read red, then green (`principles/principle-sequence-verifiable-units.md`). The default branch gets one commit: the home squash-merges. If the bug shows a wider class of failures, land this one and put the rest in the Result under "Noticed".
-7. Run `playbooks/opening-a-pr.md`.
+7. Run `features/writing/playbooks/opening-a-pr.md`.
 
 Never done here, and who does it:
 

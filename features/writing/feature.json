@@ -1,15 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "writing",
-  "description": "Holds every page and pull request to one writing standard.",
-  "owns": [
-    "skills/technical-writing/**",
-    "skills/unslop/**",
-    "playbooks/opening-a-pr.md",
-    "scripts/prose_lint.py",
-    "tests/test_prose_lint.py",
-    "tests/test_writing.py",
-    "tests/fixtures/prose/**",
-    ".claude/skills/verify-jstack/features/writing-skills.md"
-  ]
+  "description": "Holds every page and pull request to one writing standard."
 }

@@ -23,7 +23,7 @@ Verify skill: `.claude/skills/verify-*/`.
 5. Make one change, then measure it against the baseline with the same block, both sides in turn, and run the repo's check command. Keep it only when the gap is wider than the spread between runs and the check passes. Otherwise revert it in full, `git checkout -- <files>` and `git clean -f -- <the files it added>`, and take the next hypothesis (`principles/principle-sequence-verifiable-units.md`). Never two untested changes at once. A fix that crosses a module boundary gets its two or three shapes written down and one picked before code (`principles/principle-exhaust-the-design-space.md`). One commit per kept change.
 6. Take the final number on the committed fix against the baseline commit, in a second worktree of that commit, `git worktree add --detach <path> <baseline commit>`, removed after. Vet it with the seven questions. "Inconclusive", or a win on a surface other than the one in the claim, is not a pass: say so, and say which question it failed (`principles/principle-prove-it-works.md`).
 7. Put one primary number under Verification in the pull request's body: the verdict, median to median with the unit, the runs a side, the range, the limiter. The rows the block printed go on the Result's `Proof:` line.
-8. Run `playbooks/opening-a-pr.md`.
+8. Run `features/writing/playbooks/opening-a-pr.md`.
 
 Never done here, and who does it:
 

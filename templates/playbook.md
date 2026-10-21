@@ -11,7 +11,7 @@ A path such as `principles/<name>.md` or `skills/<crew, scout or home>/SKILL.md`
 **You own <what the reader owns>.** <what that asks of the reader, in a sentence or two>
 
 1. <an action that ends in something seen (`principles/<name>.md`, where one fits)>
-2. <four to nine steps in all; a crewmate's last one is: Run `playbooks/opening-a-pr.md`.>
+2. <four to nine steps in all; a crewmate's last one is: Run `features/writing/playbooks/opening-a-pr.md`.>
 
 Never done here, and who does it:
 
