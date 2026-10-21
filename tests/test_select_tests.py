@@ -288,6 +288,45 @@ def test_an_edit_to_a_feature_file_selects_that_features_tests_and_not_all(repo)
     ]
 
 
+@pytest.fixture
+def paged(tmp_path):
+    """The repo with alpha's page moved into its feature's folder, as `verify.md`."""
+    features = {"README.md": README, "beta.md": BETA}
+    return Repo(tmp_path, features, files={**FILES, "features/alpha/verify.md": ALPHA})
+
+
+def test_a_page_in_its_features_folder_selects_its_tests_for_a_path_it_owns(paged):
+    head = paged.change(["docs/alpha.md"])
+
+    assert paged.selected(head) == [
+        "tests/test_doc.py",
+        "tests/test_glob.py",
+        "tests/test_tree.py",
+    ]
+
+
+def test_an_edit_to_a_page_in_its_features_folder_selects_that_features_tests(paged):
+    head = paged.change(["features/alpha/verify.md"])
+
+    assert paged.selected(head) == [
+        "tests/test_alpha.py",
+        "tests/test_glob.py",
+        "tests/test_helped.py",
+        "tests/test_tree.py",
+    ]
+
+
+def test_a_feature_with_a_page_in_both_places_selects_all(tmp_path):
+    features = {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
+    repo = Repo(tmp_path, features, files={**FILES, "features/alpha/verify.md": ALPHA})
+    head = repo.change(["src/alpha/a.py"])
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert SUMMARY.fullmatch(lines[0])["forced"] == "unread"
+
+
 def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
     head = repo.change([f"{select.MAP}/README.md"])
 
@@ -505,7 +544,10 @@ def whole(tmp_path):
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
     shutil.copy2(REPO / "conftest.py", repo.put("conftest.py"))
-    for test in [*(REPO / "tests").rglob("*"), *(REPO / "testing").rglob("*.py")]:
+    for page in REPO.glob(f"features/*/{select.PAGE}"):
+        shutil.copy2(page, repo.put(page.relative_to(REPO).as_posix()))
+    tests = [*(REPO / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]
+    for test in [*tests, *(REPO / "testing").rglob("*.py")]:
         named = test.relative_to(REPO).as_posix()
         if test.is_file() and (select.FIXTURES.match(named) or test.suffix == ".py"):
             shutil.copy2(test, repo.put(named))
@@ -522,7 +564,7 @@ def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its
     assert "tests/view/test_view_server.py" in selected
     assert not [one for one in selected if one.startswith("tests/view/page/")]
     assert set(select.cross_cutting()) <= set(selected)
-    assert "tests/test_drift.py" not in selected
+    assert "features/jdrift/tests/test_drift.py" not in selected
 
 
 @pytest.mark.parametrize("panel", ["bus", "checks", "words", "you"])
@@ -661,14 +703,12 @@ def test_every_test_file_the_map_names_is_there():
 
 
 def test_every_feature_has_both_lines_and_patterns_jmerge_can_read():
-    for path in sorted((REPO / select.MAP).glob("*.md")):
-        if path.stem == "README":
-            continue
-        lines = path.read_text().splitlines()
+    for name, page in select.pages().items():
+        lines = (REPO / page).read_text().splitlines()
         for label in ("Paths:", "Tests:"):
-            assert any(line.startswith(label) for line in lines), f"{path.stem} has no {label}"
-        paths = select.features()[path.stem][0]
-        assert paths, f"{path.stem} has no Paths"
+            assert any(line.startswith(label) for line in lines), f"{name} has no {label}"
+        paths = select.features()[name][0]
+        assert paths, f"{name} has no Paths"
         assert select.ready().patterns_of("\n".join(paths)) == tuple(paths)
 
 

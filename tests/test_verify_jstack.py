@@ -16,7 +16,8 @@ from testing.paths import REPO
 SCRIPTS = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts"
 BUILT = Path(sys.executable).parent
 FEATURES = sorted(
-    path.stem for path in (SCRIPTS.parent / "features").glob("*.md") if path.stem != "README"
+    [path.stem for path in (SCRIPTS.parent / "features").glob("*.md") if path.stem != "README"]
+    + [path.parent.name for path in REPO.glob("features/*/verify.md")]
 )
 
 
@@ -114,7 +115,7 @@ def test_doctor_passes_every_feature_on_a_new_sandbox(sandbox):
     assert ran.returncode == 0, ran.stdout
     assert ran.stdout.splitlines()[-1] == "doctor: ok"
     seeded = [line.split()[1] for line in ran.stdout.splitlines() if ": seed has " in line]
-    assert seeded == [f"{name}:" for name in FEATURES]
+    assert sorted(seeded) == [f"{name}:" for name in FEATURES]
 
 
 def test_doctor_fails_the_feature_whose_seed_is_missing(sandbox):
