@@ -14,7 +14,7 @@ import pytest
 import jbus
 from jmerge import mainjson
 from test_jbus_kitchen import NOW
-from test_jbus_queue import add, gates
+from test_jbus_queue import add, gates, go
 
 HEAD = "c" * 40
 RED = "red: checks failed"
@@ -336,7 +336,8 @@ def test_a_main_whose_check_failed_after_it_landed_is_red_and_the_next_green_tel
 
 def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commit(launched):
     """A flake: main's check fails at its tip, and a rerun of that check passes while the tip
-    stays where it is. The fix row filed for it is said green again and is not launched."""
+    stays where it is. The fix row filed for it, not approved, is said green again and left as
+    it is: an approved one is the next test's."""
     red = tip(launched)
     launched.set("commits.json", [launched.commit(red)])
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
@@ -353,6 +354,30 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
     row = f"main-red-{red[:12]}"
     green = f"retro {row}: main is green again at {red[:12]}, and its row is left as it is"
     assert [line for line in launched.lines("retro") if "green again" in line] == [green]
+    assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [""]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="a fix row approved once main is green again still launches: watch._retro says it "
+    "green again and leaves it (src/jbus/watch.py:1090-1093), and dispatch launches it",
+)
+def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(launched):
+    """As main-red-b66eaae4c2ca was: its tip's check failed, a rerun passed, and the row was
+    approved after that. A main that is green needs no fix, so the row is not launched."""
+    red = tip(launched)
+    launched.set("commits.json", [launched.commit(red)])
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    row = f"main-red-{red[:12]}"
+    add(launched, row, priority=0, approve=False)
+    launched.poll()
+    checks(launched, red, "success")
+    for minutes in (3, 6):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert [line for line in launched.lines("retro") if "green again" in line] != []
+    assert go(launched, row)[0] == 0
+    for minutes in (9, 12):
+        launched.poll(NOW + timedelta(minutes=minutes))
     assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [""]
 
 
