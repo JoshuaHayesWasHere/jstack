@@ -41,6 +41,7 @@ from jbus.live import Facts, judge
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import ENDED, LIVE, STARTING, World, after_merge, unfinished, when
+from jmerge import ready
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -204,12 +205,13 @@ def relay(run: Pass, client: Client, world: World) -> None:
     """Send the crewmate the findings its reviewer could not, once per Review.
 
     Only for a pull request that is open: the findings of one that merged or closed ask
-    for nothing any more.
+    for nothing any more. Nor for a brief that says `Review: after`: it merges on its check,
+    and its findings go to a cleanup row (`jbus.cleanup`), not to its crew.
     """
     briefs = _briefs(run)
     client.recipients = frozenset(filter(None, map(dispatch.thread_of, briefs.values())))
     for slug in sorted(set(briefs) & set(world.open)):
-        review = mirror.undelivered(briefs[slug])
+        review = "" if ready.after(briefs[slug]) else mirror.undelivered(briefs[slug])
         digest = hashlib.sha256(review.encode()).hexdigest()[:16]
         key = f"relayed|{slug}|{digest}"
         if not review or _done(run, key):
