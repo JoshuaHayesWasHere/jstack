@@ -56,7 +56,6 @@ PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
     " || vars.RUNS_ON || 'jstack-ephemeral' }}"
 )
-# infra's fast lane (infra's docs/runbooks/fast-lane.md): its own pool, which no full suite takes.
 FAST = "[self-hosted, jstack-fast]"
 
 
