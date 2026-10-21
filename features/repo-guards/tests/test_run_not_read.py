@@ -684,3 +684,29 @@ def test_a_changed_test_in_a_folder_is_named_by_its_dotted_name_and_a_moved_one_
     )
     (tmp_path / "tests" / "area" / "helpers.py").write_text("def test_no():\n    assert 1\n")
     assert changed_tests(since, tmp_path) == {"area.test_deep": {"test_deep"}}
+
+
+def test_a_test_under_any_test_path_counts_and_one_moved_into_a_feature_is_not_added(
+    tmp_path,
+):
+    git("init", "-q", repo=tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.pytest.ini_options]\ntestpaths = ["tests", "features/area/tests"]\n'
+    )
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_old.py").write_text("def test_moved():\n    assert 1\n")
+    git("add", ".", repo=tmp_path)
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base", repo=tmp_path)
+    since = git("rev-parse", "HEAD", repo=tmp_path)
+    (tmp_path / "features" / "area" / "tests").mkdir(parents=True)
+    git("mv", "tests/test_old.py", "features/area/tests/test_old.py", repo=tmp_path)
+    (tmp_path / "features" / "area" / "tests" / "test_old.py").write_text(
+        "def test_moved():\n    assert 1\n\n\ndef test_added():\n    assert 1\n"
+    )
+    (tmp_path / "features" / "area" / "tests" / "test_new.py").write_text(
+        "def test_new():\n    assert 1\n"
+    )
+    assert changed_tests(since, tmp_path) == {
+        "test_old": {"test_added"},
+        "test_new": {"test_new"},
+    }
