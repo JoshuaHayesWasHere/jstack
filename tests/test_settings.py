@@ -344,3 +344,16 @@ def test_a_refused_word_asks_for_the_word_of_the_time_it_was_given(kitchen, jsta
         'refused: --at is "<YYYY-MM-DD HH:MM EST>"\n',
     )
     assert kitchen.main(*go, "--at", "2026-12-01 10:00 EST", "go")[0] == 0
+
+
+@pytest.mark.parametrize("given", ["0", "100.5", '"90"', "true", "-1"])
+def test_a_headroom_that_is_not_a_percent_is_refused(jstack_config, given):
+    jstack_config.write_text(f"headroom = {given}\n")
+    with pytest.raises(jsettings.Invalid, match="has a headroom that is not a percent"):
+        jsettings.load()
+
+
+def test_the_headroom_is_90_with_none_and_the_number_given_with_one(jstack_config):
+    assert jsettings.load().headroom == 90
+    jstack_config.write_text("headroom = 82.5\n")
+    assert jsettings.load().headroom == 82.5

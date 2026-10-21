@@ -66,8 +66,9 @@ def jbus_state() -> Path:
 
 def room_line(name: str) -> int:
     """One of room's lines, `<name>=` in room.sh, the one copy: `LOAD` is a percent of the
-    cores, `CPU` and `PRESSURE` a share of time, `MEMORY` GB, `CUSHION` and `SLOTS` percents."""
-    found = re.search(rf"^\s*{name}=(\d+)$", ROOM.read_text(), re.MULTILINE)
+    cores, `CPU` and `PRESSURE` a share of time, `MEMORY` GB, `CUSHION` and `SLOTS` percents.
+    `CUSHION` is the user's `headroom`, which `jgauge room` hands it: this is its default."""
+    found = re.search(rf"^\s*{name}=(?:\$\{{\w+:-)?(\d+)\}}?$", ROOM.read_text(), re.MULTILINE)
     if not found:
         raise SystemExit(f"jgauge: {ROOM} has no {name}= line to read room's line from")
     return int(found[1])

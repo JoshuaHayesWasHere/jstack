@@ -9,7 +9,7 @@
 | `needs you <program> -> yay -S <package>` | The program is missing or too old. On a machine with no `pacman` the command is the program's name. | Install it, then run `--setup` again. |
 | `needs you gh sign-in -> gh auth login` | `gh` is not signed in. | Run `gh auth login`. |
 | `needs you jbus sign-in <path> -> jbus t3 login` | `jbus` has its config and no sign-in. | Run `jbus t3 login`, as [Set up jbus](../jbus/set-up-jbus.md) says. |
-| `needs you limits <path> -> claude` | Only Claude Code's status line writes the limits file. | Start one Claude Code session. |
+| `needs you limits <path> -> jgauge limits` | The reader of each account has not run yet. | Run `jgauge limits`, or wait 2 min for `jgauge-limits.timer`. |
 | `needs you state repo <path> -> git -C <path> remote add origin <url>` | The state tree has no remote, or with `git init <path> && ` first, is not a git repo. | Run it with a private repository of your own as `<url>`. |
 | `needs you <name> -> <why>` | A file is there and its loader refuses it, or a part the install puts could not be put. Setup never writes over a file. | Find the doctor's line for `<name>` [above](../troubleshooting.md) and do what it says. |
 

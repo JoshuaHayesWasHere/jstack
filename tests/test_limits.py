@@ -66,7 +66,7 @@ def test_a_window_past_the_cushion_in_the_written_file_makes_room_wait(env):
     write(handed(five_hour=(100, int(time.time()) + 3600 + 59), seven_day=(41.2, WEEK)), env)
     said = ran(env, check())
     assert said.stdout == (
-        "wait: the five-hour limit is 100% used, at or over 100%, and resets in 1 h 0 min\n"
+        "wait: the five-hour limit is 100% used, at or over 90%, and resets in 1 h 0 min\n"
     )
 
 
@@ -282,3 +282,13 @@ def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env)
         "stub",
         "xdg",
     ]
+
+
+def test_a_reset_a_second_off_is_the_same_window_and_a_cap_on_it_stands(env):
+    """`jgauge limits` and jbus write the same window a second either side of the status line:
+    the script merges as `jroles.ledger.merge` does, and a lower share never replaces the cap."""
+    Path(env["LIMITS"]).write_text(f"five_hour 100 {SOON + 1}\n")
+    write(handed(five_hour=(63, SOON)), env)
+    assert kept(env) == f"five_hour 100 {SOON + 1}\n"
+    write(handed(five_hour=(12, LATER)), env)
+    assert kept(env) == f"five_hour 12 {LATER}\n"

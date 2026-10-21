@@ -46,8 +46,9 @@ NOT_KEPT = (
 )
 
 
-def room_limits() -> dict[str, int]:
-    """The limits `jgauge room` holds a launch to, read from its script."""
+def room_limits(user: jsettings.Settings) -> dict[str, float]:
+    """The limits `jgauge room` holds a launch to, read from its script, and the plan's from the
+    user's headroom, which `jgauge room` hands it."""
     script = ROOM.read_text()
     names = {
         "load": "LOAD",
@@ -55,11 +56,11 @@ def room_limits() -> dict[str, int]:
         "memory": "MEMORY",
         "pressure": "PRESSURE",
         "slots": "SLOTS",
-        "plan": "CUSHION",
     }
-    return {
+    found = {
         key: int(re.search(rf"^\s*{name}=(\d+)$", script, re.M)[1]) for key, name in names.items()
     }
+    return found | {"plan": user.headroom}
 
 
 def limits_path() -> Path:
@@ -110,7 +111,12 @@ def _room(sources: Sources, now: datetime) -> dict[str, Any]:
         tmp = {"total": slots.f_files, "used": slots.f_files - slots.f_ffree}
     except OSError:
         tmp = None
-    env = os.environ | {"PROC": str(sources.proc), "LIMITS": str(limits), "TMPFS": str(sources.tmp)}
+    env = os.environ | {
+        "PROC": str(sources.proc),
+        "LIMITS": str(limits),
+        "TMPFS": str(sources.tmp),
+        "HEADROOM": f"{sources.user.headroom:g}",
+    }
     try:
         asked = subprocess.run(
             ["sh", str(ROOM)], capture_output=True, text=True, timeout=5, env=env
@@ -133,7 +139,7 @@ def _room(sources: Sources, now: datetime) -> dict[str, Any]:
         "pressure": _number_in(sources.proc / "pressure" / "memory", r"^some .*avg60=([0-9.]+)"),
         "tmp": tmp,
         "plan": plan,
-        "limits": room_limits(),
+        "limits": room_limits(sources.user),
     }
 
 

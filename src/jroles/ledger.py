@@ -8,14 +8,21 @@ The ledger is one file for each instance, a line for each window, as `room.sh` r
 The window is `five_hour` or `seven_day`, the share is percent used, and the reset is a Unix
 time. The built-in instance, `claudeAgent`, keeps the file `LIMITS` names
 (`~/.local/state/claude/limits` where it names none), and every other instance the file beside
-it, `<LIMITS>.<instanceId>`. Two writers keep them: `hooks/limits.sh`, from what Claude Code
-hands a status line, for the instance its `CLAUDE_CONFIG_DIR` is the home of; and `jbus`, from
-a turn T3 Code ended on a usage limit, at 100 until the reset that failure names (`cap_of`).
-`room.sh` and `jroles` read them.
+it, `<LIMITS>.<instanceId>`. Three writers keep them: `jgauge limits`, ahead of time, every two
+minutes, from each Claude account's own usage (`jgauge.limits`); `hooks/limits.sh`, from what
+Claude Code hands a status line, for the instance its `CLAUDE_CONFIG_DIR` is the home of; and
+`jbus`, from a turn T3 Code ended on a usage limit, at 100 until the reset that failure names
+(`cap_of`). `room.sh` and `jroles` read them.
 
-`merge` is the one rule both writers keep: for an instance and a window, the later reset wins,
-and for the same reset the larger share. So the same failure or the same status line merged
-twice changes nothing, and a window that reset is replaced by the next one.
+`merge` is the one rule every writer keeps: for an instance and a window, two resets under
+`SAME` apart are one window, which keeps the larger share and the later reset; otherwise the
+later reset wins. A writer floors its reset to the second, and the usage endpoint's reset moves
+a second either way from call to call, so one window comes as 1792531799 from one writer and
+1792531800 from another: a lower share of it never replaces a cap. So the same failure or the
+same reading merged twice changes nothing, and a window that reset is replaced by the next one.
+
+An instance is full at `FULL`, a real cap, for a move off a running thread; a new launch counts
+it full earlier, at the user's `headroom` (`jsettings`), so it is passed by before the cap.
 """
 
 from __future__ import annotations
@@ -32,6 +39,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 WINDOWS = ("five_hour", "seven_day")
 FULL = 100.0
 BLIND = timedelta(hours=1)
+SAME = 300
 
 _ROW = re.compile(r"(five_hour|seven_day) (\d+(?:\.\d+)?) (\d+)")
 _ITEM = re.compile(r":(five_hour|seven_day):(\d+)$")
@@ -60,8 +68,8 @@ class Record:
     def line(self) -> str:
         return f"{self.window} {self.used:g} {self.resets}"
 
-    def full(self, now: datetime) -> bool:
-        return self.used >= FULL and self.resets > now.timestamp()
+    def full(self, now: datetime, at: float = FULL) -> bool:
+        return self.used >= at and self.resets > now.timestamp()
 
 
 Ledger = Mapping[tuple[str, str], Record]
@@ -96,8 +104,11 @@ def merge(ledger: Ledger, records: Iterable[Record]) -> dict[tuple[str, str], Re
     for record in records:
         key = (record.instance, record.window)
         kept = merged.get(key)
-        if kept is None or (record.resets, record.used) > (kept.resets, kept.used):
+        if kept is None or record.resets - kept.resets >= SAME:
             merged[key] = record
+        elif abs(record.resets - kept.resets) < SAME:
+            used = max(record.used, kept.used)
+            merged[key] = Record(*key, used, max(record.resets, kept.resets))
     return merged
 
 
@@ -132,12 +143,15 @@ def write(record: Record, base: Path | None = None) -> bool:
     return True
 
 
-def capped_until(ledger: Ledger, instance: str, now: datetime) -> datetime | None:
-    """When every full window of `instance` has reset, or None while it has headroom."""
+def capped_until(
+    ledger: Ledger, instance: str, now: datetime, full: float = FULL
+) -> datetime | None:
+    """When every window of `instance` used to `full` or more has reset, or None while it has
+    headroom."""
     resets = [
         record.resets
         for (named, _), record in ledger.items()
-        if named == instance and record.full(now)
+        if named == instance and record.full(now, full)
     ]
     return datetime.fromtimestamp(max(resets), UTC) if resets else None
 

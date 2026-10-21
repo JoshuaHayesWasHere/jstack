@@ -28,9 +28,12 @@ esac
 kept=$(cat "$LIMITS" 2>/dev/null)
 merged=$(printf '%s\n%s\n' "$kept" "$seen" | awk '
   NF == 3 && ($1 == "five_hour" || $1 == "seven_day") && $2 ~ /^[0-9]+(\.[0-9]+)?$/ && $3 ~ /^[0-9]+$/ {
-    if (!($1 in resets) || $3 + 0 > resets[$1] + 0 || ($3 + 0 == resets[$1] + 0 && $2 + 0 > used[$1] + 0)) {
+    if (!($1 in resets) || $3 - resets[$1] >= 300) {
       used[$1] = $2
       resets[$1] = $3
+    } else if ($3 - resets[$1] > -300) {
+      if ($2 + 0 > used[$1] + 0) used[$1] = $2
+      if ($3 + 0 > resets[$1] + 0) resets[$1] = $3
     }
   }
   END {
