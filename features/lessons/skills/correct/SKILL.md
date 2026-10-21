@@ -14,7 +14,8 @@ Assume every contributor is an agent that sees only the files it opened, copies 
 
 Who is reading decides how far this goes:
 
-- A **home** (the user typed `/correct` in it) finds the classes and picks the level for each, and stops there. It writes no code: each class becomes a proposed plan entry, put to the user, and a class the user takes is handed out as a brief that names `features/lessons/skills/correct/playbooks/correct.md`.
+- A **home** (the user typed `/correct` in it) finds the classes and picks the level for each, and stops there.
+  It writes no code: each class becomes a proposed plan entry, put to the user, and a class the user takes is handed out as a brief that names `features/lessons/skills/correct/playbooks/correct.md`.
 - A **crewmate** whose brief names this skill or that playbook does one correction, the class the brief names, start to finish. The playbook holds its steps.
 - An ordinary thread (no home for the repo) does both, on a branch.
 
