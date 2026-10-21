@@ -1,12 +1,13 @@
 """One sentence per line, for new prose: `prose_lint.py <base>`.
 
 It reads what a pull request adds or changes with `git diff --unified=0 --find-renames
-<base>...HEAD`, in the Markdown files of `docs/`, `skills/`, `playbooks/` and `templates/`,
-and fails on each added line that holds more than one sentence. It prints one fault a line,
-`<file>:<line>: ...: <the line>`, and exits 1. A line the diff does not add is never judged,
-so old prose stays as it is until a pull request touches it. A line the same diff removes
-somewhere, word for word, is moved and not added: a page moved, however much of it is
-rewritten, or a paragraph moved to another place or file, is judged only for what changed.
+<base>...HEAD`, in the Markdown files of `docs/`, `features/`, `skills/`, `playbooks/` and
+`templates/`, and fails on each added line that holds more than one sentence. It prints one
+fault a line, `<file>:<line>: ...: <the line>`, and exits 1. A line the diff does not add is
+never judged, so old prose stays as it is until a pull request touches it. A line the same
+diff removes somewhere, word for word, is moved and not added: a page moved, however much of
+it is rewritten, or a paragraph moved to another place or file, is judged only for what
+changed.
 
 A line is judged in its place in the file at HEAD, read whole, so it knows what the line is
 in. These are not prose and are never judged: a line in a code fence, in the front matter, in
@@ -30,7 +31,7 @@ import subprocess
 import sys
 from collections import Counter
 
-FOLDERS = ("docs/", "skills/", "playbooks/", "templates/")
+FOLDERS = ("docs/", "features/", "skills/", "playbooks/", "templates/")
 ABBREVIATIONS = {"e.g", "i.e", "etc", "vs", "cf", "approx", "incl", "no", "mr", "mrs", "ms", "dr"}
 CODE = re.compile(r"(`+).+?\1")
 LINK = re.compile(r"\]\([^)]*\)")
