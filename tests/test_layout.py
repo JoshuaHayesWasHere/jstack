@@ -13,6 +13,7 @@ import pytest
 
 from jinstall import layout, terms
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
+from test_install import User, laid, line_for
 from testing.layouts import place
 from testing.paths import REPO
 
@@ -184,3 +185,91 @@ def test_the_catalog_lists_each_hook_with_the_harnesses_that_run_it():
     assert "pre-push.sh" not in listed
     for one in listed.values():
         assert (REPO / one["path"]).is_file()
+
+
+@pytest.fixture
+def user(tmp_path):
+    return User(tmp_path)
+
+
+def copied(tmp_path):
+    """This checkout's files, tracked and not yet added, at a folder of the test's own."""
+    checkout = tmp_path / "checkout"
+    listed = subprocess.run(
+        ["git", "-C", REPO, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+        check=True,
+    )
+    for name in filter(None, listed.stdout.decode().split("\0")):
+        if (REPO / name).exists():
+            (checkout / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO / name, checkout / name, follow_symlinks=False)
+    return checkout
+
+
+def test_a_new_skill_is_in_every_layout_on_the_next_install_and_an_edit_is_live(user, tmp_path):
+    checkout = copied(tmp_path)
+    skill = checkout / "features" / "brand-new" / "SKILL.md"
+    skill.parent.mkdir()
+    bro = (checkout / "features" / "bro" / "SKILL.md").read_text()
+    skill.write_text(bro.replace("name: bro", "name: brand-new", 1))
+
+    def said(*args):
+        done = user.start(*args, checkout=checkout)
+        out, err = done.communicate()
+        return done.returncode, out.splitlines(), err
+
+    code, lines, err = said()
+    assert code == 1
+    assert lines[0].startswith("old hard generated files are current -> stale: ")
+    generate = checkout / "scripts" / "generate-jstack-trees.py"
+    assert f"run python3 {generate} and commit the result" in err
+    assert not (user.home / ".claude" / "skills" / "brand-new").exists()
+    subprocess.run([sys.executable, "-I", generate], check=True, capture_output=True)
+    code, lines, _ = said()
+    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
+    for harness in HARNESSES:
+        link = user.home / harness.root / "brand-new"
+        assert os.readlink(link) == str(laid(user.home, harness.name) / "skills" / "brand-new")
+        assert os.path.realpath(link / "SKILL.md") == str(skill)
+    skill.write_text(skill.read_text() + "\nOne more line.\n")
+    read = (user.home / ".claude" / "skills" / "brand-new" / "SKILL.md").read_text()
+    assert read.endswith("\nOne more line.\n")
+    code, lines, _ = said("--check")
+    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
+
+
+def test_check_names_what_is_stale_in_a_layout_and_a_run_mends_it(user):
+    user.run()
+    gone = user.layout / "skills" / "crew" / "SKILL.md"
+    gone.unlink()
+    (user.layout / "skills" / "crew" / "extra.md").write_text("not the install's\n")
+    part = f"layout claude-code {user.layout}"
+    code, said = user.run("--check")
+    stale = "stale: skills/crew/SKILL.md, and 1 more"
+    assert (code, line_for(said, part)) == (1, [f"old hard {part} -> {stale}"])
+    assert user.run() == (0, user.every("ok"))
+    assert os.readlink(gone) == str(REPO / "skills" / "crew" / "SKILL.md")
+    assert not (user.layout / "skills" / "crew" / "extra.md").exists()
+
+
+def test_each_layout_keeps_templates_and_playbooks_beside_its_skills(user):
+    user.run()
+    for harness in HARNESSES:
+        skill = user.home / harness.root / "crew"
+        root = os.path.realpath(skill / ".." / "..")
+        assert root == str(laid(user.home, harness.name))
+        assert os.path.realpath(f"{root}/templates/result.md") == str(
+            REPO / "templates" / "result.md"
+        )
+        assert os.path.isfile(f"{root}/playbooks/feature.md")
+        assert os.path.realpath(f"{root}/source") == str(REPO)
+
+
+def test_uninstall_takes_every_layout_away(user):
+    user.run()
+    code, said = user.run("--uninstall")
+    assert code == 0
+    for harness in HARNESSES:
+        assert f"removed layout {laid(user.home, harness.name)}" in said
+        assert not laid(user.home, harness.name).exists()

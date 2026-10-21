@@ -36,8 +36,6 @@ from jinstall.machine import Dropped, Machine
 CATALOG = "skills.json"
 PLUGIN = "plugin.json"
 SHOWN = 1
-# What a skill's folder holds that is not the skill: a feature's other parts, and its
-# playbooks, which the layout puts in playbooks/.
 NOT_THE_SKILL = frozenset(
     {"feature.json", "verify.md", "src", "tests", "docs", "evals", "templates", "hooks", "units"}
     | {"skills", "playbooks", "__pycache__"}
@@ -102,7 +100,8 @@ def skills(source: Path) -> list[str]:
 
 
 def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
-    """Every file of the skill folder `skill`, as source paths, but what `NOT_THE_SKILL` names."""
+    """Every file of the skill folder `skill`, as source paths, but what `NOT_THE_SKILL` names:
+    a feature's other parts, and its playbooks, which the layout puts in playbooks/."""
     for path in sorted((source / skill).rglob("*")):
         parts = path.relative_to(source / skill).parts
         if parts[0] in NOT_THE_SKILL or any(p.startswith(".") or p == "__pycache__" for p in parts):
@@ -228,8 +227,9 @@ class Layout:
     ok: every entry is there and nothing else; the detail counts the skills that name a term
       the harness leaves out. missing: no folder. old: `stale: <first path>, and <n> more`,
       or the first link that dangles, `<path> links to <href>, which is not in the tree`.
-    put: write each stale entry by a rename, and remove each stray. drop: remove each entry
-      that is still as the install made it, and keep anything else."""
+    put: write each stale entry by a rename, and remove each stray. A folder inside the layout
+      is not in the install's record (`Machine.make_dirs`): drop prunes it. drop: remove each
+      entry that is still as the install made it, and keep anything else."""
 
     harness: Harness
 
@@ -262,7 +262,6 @@ class Layout:
         for path in stale(assembled, at):
             target = at / path
             entry = assembled.entries.get(path)
-            # A folder inside the layout is not in the record: drop prunes it.
             target.parent.mkdir(parents=True, exist_ok=True)
             if entry is None or (isinstance(entry, Linked) and not target.is_symlink()):
                 if target.is_symlink() or target.exists():

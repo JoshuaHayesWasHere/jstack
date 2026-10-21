@@ -143,14 +143,14 @@ def points_at(path: Path, target: Path) -> bool:
     return path.is_symlink() and os.readlink(path) == str(target)
 
 
-# Where links went before the layouts, under the source: a checkout's committed copy, and the
-# copy a release's wheel carried.
 BEFORE = ("harness/jstack/claude-code", "claude-code", ".")
 
 
 def dead(path: Path, machine: Machine) -> bool:
     """Whether `path` is a link into a layout's `skills/`, or into the `skills/` of a place
-    links went before the layouts (`BEFORE`), at a skill that is not there."""
+    links went before the layouts, at a skill that is not there. Those places are `BEFORE`,
+    under the source: a checkout's committed copy, the copy a release's wheel carried, and the
+    checkout itself."""
     layouts = [machine.layout(harness.name) for harness in HARNESSES]
     folders = (*layouts, *(machine.source / before for before in BEFORE))
     return (
