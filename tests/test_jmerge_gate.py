@@ -7,6 +7,7 @@ whole output. A repo with no such file merges as before (`tests/test_jmerge_fres
 The command is run against a real origin and a fake `gh`, as `tests/test_jmerge_fresh.py`
 runs it."""
 
+import fcntl
 import json
 import os
 import sys
@@ -203,3 +204,14 @@ def test_a_gate_ends_before_jbus_stops_the_jmerge_that_runs_it():
     gate's limit are under what a pass gives `jmerge`: a gate over its limit is stopped by
     `jmerge` and held, not killed with it."""
     assert cli.Gate.BUDGET + cli.Gate.TIMEOUT < wake.JMERGE_TIMEOUT
+
+
+def test_a_gate_another_run_holds_is_waited_for_and_its_checkout_is_left_alone(kitchen):
+    head = kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
+    record = gate(kitchen)
+    with (kitchen.home.state / "gate.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        found = cli.Gate(kitchen.home.main, kitchen.home.state).of(6, head, "main")
+        assert (found.verb, found.why) == ("wait", ready.GATE_LOCKED)
+        assert not (record / "args").exists()
+    assert cli.Gate(kitchen.home.main, kitchen.home.state).of(6, head, "main").note == lines.GATE_OK

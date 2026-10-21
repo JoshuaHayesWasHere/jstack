@@ -175,6 +175,7 @@ GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped
 GATE_BUSY = Reason(
     "check", "its merge gate waits for the next run: this run's gates used their time"
 )
+GATE_LOCKED = Reason("check", "its merge gate waits for another run's gate to end")
 GATE_HELD = re.compile(
     "|".join(one.pattern for one in (GATE_FAILED, GATE_UNSTARTED, GATE_TIMED_OUT))
 )

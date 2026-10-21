@@ -87,7 +87,9 @@ A test the selection missed fails the `full` job on main after the merge.
 
 ## Merge gate
 
-A repo opts in to a merge gate with a `merge-gate` file in its state directory, beside `fresh-check`: one line, the command, such as `.claude/skills/verify-caveman/scripts/receipt-check`.
+A repo opts in to a merge gate with a `merge-gate` file in its state directory, beside `fresh-check`: one line, the command, such as `~/repos/caveman/.claude/skills/verify-caveman/scripts/receipt-check`.
+Name it by an absolute path in the main checkout: a path relative to the head runs the pull request's own copy of the script, which the pull request can change to pass.
+A gate runs holding `<state>/gate.lock`, and a run that finds another run's gate at work waits with `its merge gate waits for another run's gate to end`.
 `jmerge` runs it before every merge of that repo, once every other reason is clear, in a detached worktree of the head at `<state>/gate/<number>`, which it removes after.
 It is run as `sh -c '<command> "$@"' merge-gate <base> <head>`, so `<base>` and `<head>` are its last two arguments, and they are `BASE` and `HEAD` in its environment too.
 `<base>` is where the pull request left main, the merge base of the head and today's main, and `<head>` is the head it would merge.

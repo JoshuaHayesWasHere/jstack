@@ -429,7 +429,8 @@ class Gate:
     arguments and as `BASE` and `HEAD`. It is run on every judgement, and its answer is kept
     for that run only: a fix outside git is seen on the next. A run starts no gate once its
     gates took `BUDGET`, so that one more, stopped at `TIMEOUT`, still ends inside the time
-    jbus gives `jmerge`."""
+    jbus gives `jmerge`. A gate runs holding `<state>/gate.lock`, so a run that overlaps
+    another, a hand run beside jbus's, waits and never removes the checkout under it."""
 
     TIMEOUT = 10 * 60
     BUDGET = 5 * 60
@@ -454,15 +455,20 @@ class Gate:
         if key not in self.answers:
             if self.spent > self.budget:
                 return Gated("wait", ready.GATE_BUSY, "")
-            started = time.monotonic()
-            self.answers[key] = self._run(number, head, key[2])
-            self.spent += time.monotonic() - started
+            with (self.state / "gate.lock").open("w") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except OSError:
+                    return Gated("wait", ready.GATE_LOCKED, "")
+                started = time.monotonic()
+                self.answers[key] = self._run(number, head, key[2], lock.fileno())
+                self.spent += time.monotonic() - started
         return self.answers[key]
 
     def _unstarted(self, why: str) -> Gated:
         return Gated("hold", ready.GATE_UNSTARTED.format(why=why), "")
 
-    def _run(self, number: int, head: str, tip: str) -> Gated:
+    def _run(self, number: int, head: str, tip: str, lock: int) -> Gated:
         if _run(self.main, "git", "cat-file", "-e", f"{head}^{{commit}}").returncode:
             _run(self.main, "git", "fetch", "-q", "origin", f"refs/pull/{number}/head")
         fork = _run(self.main, "git", "merge-base", tip, head) if tip else None
@@ -488,6 +494,7 @@ class Gate:
                     stdin=subprocess.DEVNULL,
                     stdout=log,
                     stderr=subprocess.STDOUT,
+                    pass_fds=(lock,),
                     start_new_session=True,
                 )
                 try:
