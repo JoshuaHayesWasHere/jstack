@@ -188,6 +188,25 @@ def test_two_branches_name_their_runs_apart_and_a_kept_name_is_refused(tmp_path,
     assert run.main(["--base", "HEAD", "--variant", "HEAD", "--nam", "run-x"]) == 2
 
 
+def test_a_skill_is_read_before_and_after_its_move_into_a_features_skills_folder(
+    tmp_path, monkeypatch
+):
+    commit = ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm")
+    git(tmp_path, "init", "-q")
+    (tmp_path / "skills" / "demo").mkdir(parents=True)
+    (tmp_path / "skills" / "demo" / "SKILL.md").write_text("before the move\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, *commit, "one")
+    (tmp_path / "features" / "lib" / "skills").mkdir(parents=True)
+    git(tmp_path, "mv", "skills/demo", "features/lib/skills/demo")
+    (tmp_path / "features" / "lib" / "skills" / "demo" / "SKILL.md").write_text("after\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, *commit, "two")
+    monkeypatch.setattr(run, "REPO", tmp_path)
+    assert run.show("HEAD~1", "skills/demo/SKILL.md") == "before the move\n"
+    assert run.show("HEAD", "skills/demo/SKILL.md") == "after\n"
+
+
 def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
     for name in ("cases", "run-1"):
         shutil.copytree(EVAL / name, tmp_path / name)

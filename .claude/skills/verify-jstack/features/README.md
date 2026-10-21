@@ -77,7 +77,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [Playbooks and principles](./playbooks-and-principles.md), not driven yet.
 - [A pull request is reviewed](../../../../features/pr-review/verify.md), not driven yet.
 - [A scout answers one question](../../../../features/scout/verify.md), not driven yet.
-- [The skill library](./skill-library.md), not driven yet.
+- [The skill library](../../../../features/skill-library/verify.md), not driven yet.
 - [The skills a user types](./understanding-skills.md), not driven yet.
 - [The verify-jstack harness](../../../../features/verify-jstack/verify.md), not driven yet.
 - [Writing for a reader](../../../../features/writing/verify.md), not driven yet.
