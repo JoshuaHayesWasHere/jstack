@@ -118,7 +118,7 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
     elif said.verdict == "clean":
         why = CLEAN
     else:
-        state = config.state(verbs.here(config, args.project))
+        state = config.state(verbs.project(config, args.project))
         if any(row["slug"] == slug_of(slug) for row in queue.load(state)):
             why = THERE.format(slug=slug_of(slug))
     if why:
