@@ -47,6 +47,7 @@ from jbus.merge import parse
 from jbus.t3 import Client
 from jbus.wake import Changed, Depends, Pass, cut, notify
 from jbus.watch import World
+from jmerge.lines import READY
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
 EVENTS = {"waiting-on-user": "quiet", "stall": "user"}
 EVENT = "waiting-on-user"
 AGAIN = 60 * 60
-_READY = re.compile(r"^ready (\d+) \S+ .*?, (safe because .+ \(proven at [0-9a-f]+\))$")
 
 _GUARDED = re.compile(r"guarded \(touches \S+\), .+")
 _UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
@@ -85,7 +85,7 @@ def hand_merge(run: Pass, number: int, url: str, why: str) -> str:
     held = f"hand-merge #{number} {url}: {why}"
     ran = run.run("jmerge", "--accept", str(number), "--check")
     lines = [line.strip() for line in ran.stdout.splitlines()]
-    ready = next((m for m in map(_READY.match, lines) if m and int(m[1]) == number), None)
+    ready = next((m for m in map(READY.match, lines) if m and int(m[1]) == number), None)
     if ready:
         user = run.user
         accept = f'jmerge --accept {number} --by {user.user} --at "{user.form()}"'

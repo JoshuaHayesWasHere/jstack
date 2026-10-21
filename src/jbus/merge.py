@@ -4,8 +4,9 @@ It runs only when the project's home is off, which is a `home-thread` file that 
 or empty: a home that is on merges by itself, and two merges at once would race. The pass
 lock is held around the run, so two passes never run it together either.
 
-A line `jmerge` prints about a pull request is read by `parse`: `stall` and `watch` read
-the `Line` it gives, not the text. `rebase` still reads the text of a `wait` line by itself.
+A line `jmerge` prints about a pull request is read by `parse`, which is `jmerge.lines.one`:
+`stall` and `watch` read the `Line` it gives, not the text. `rebase` still reads the text of
+a `wait` line by itself.
 
 A `hold` is the user's, but for the one a crew can lift (`UNRULED`), which `expedite` asks
 its crew for first. No line is sent to them from here: `waiting` lists the holds that are
@@ -26,15 +27,15 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
-from dataclasses import dataclass
 
 from jbus import alert
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT, Pass
 from jmerge import ready
+from jmerge.lines import Line as Line
+from jmerge.lines import one as parse
 
 EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
-_LINE = re.compile(r"^(merged|wait|hold|refused) (\d+)\b(?: (\S+)(?: (.+))?)?")
 _NO_LIST = re.compile(
     r"jmerge: .*(protected|guarded|ci-paths)\.txt "
     r"(cannot be read|has a pattern that cannot be read)"
@@ -57,33 +58,6 @@ TOLD = (
     "nothing about it. A question only {user} can answer is a gate: take the default and pipe "
     "it to `jbus gate <the fix's slug>`."
 )
-
-
-@dataclass(frozen=True)
-class Line:
-    """A line `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
-
-    `word` is `merged`, `wait` or `hold`, or the `refused` of an accept. `name` is the word
-    after the number, the pull request's URL or the merged slug with no comma after it,
-    and `reason` is what follows its colon. A line with no name has neither, and one with
-    no colon has no reason.
-    """
-
-    word: str
-    number: int
-    name: str = ""
-    reason: str = ""
-
-
-def parse(text: str) -> Line | None:
-    """The `Line` a line of `jmerge` is, or nothing where it is not about a pull request."""
-    found = _LINE.match(text.strip())
-    if not found:
-        return None
-    word, number, name, rest = found.groups()
-    if rest and len(name) > 1 and name.endswith(":"):
-        return Line(word, int(number), name[:-1], rest)
-    return Line(word, int(number), (name or "").rstrip(","))
 
 
 ELSEWHERE = (

@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import mainstate
+from jmerge import mainjson
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, gates
 
@@ -369,11 +369,11 @@ def test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_
     fixed = move(launched)
     launched.t3.lose_send = True
     launched.poll()
-    assert mainstate.read(launched.state) == mainstate.Main(green=fixed)
+    assert mainjson.read(launched.state) == mainjson.Main(green=fixed)
     launched.t3.lose_send = False
     move(launched, "")
     launched.poll(NOW + timedelta(minutes=3))
-    assert mainstate.read(launched.state).red == "", f"main reads red at {red[:12]}"
+    assert mainjson.read(launched.state).red == "", f"main reads red at {red[:12]}"
     assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"] * 2
 
 
@@ -386,4 +386,4 @@ def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pend
     commits = [{**launched.commit(sha), "parents": [{"sha": parent}]} for sha, parent in parents]
     launched.set("commits.json", commits)
     launched.poll()
-    assert mainstate.read(launched.state).red == red
+    assert mainjson.read(launched.state).red == red

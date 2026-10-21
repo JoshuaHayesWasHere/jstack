@@ -33,7 +33,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
-from jbus import Refused, mainstate, merge, queue, read_json, verbs, work, write_json
+from jbus import Refused, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
@@ -41,6 +41,7 @@ from jbus.t3 import Client, T3Error
 from jbus.wake import Changed, Depends, Pass, Slot, cut
 from jgauge import slot, waiters
 from jmerge import checks as reading
+from jmerge import mainjson
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -876,7 +877,7 @@ def red_brief(
     ]
     return "\n".join(
         [
-            f"# {mainstate.FIX}{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
+            f"# {mainjson.FIX}{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
             f'Task: "main check failed at {sha[:12]}, {len(red)} merges since the last green" '
             f"(jbus, the retro of {slug})",
             "Done when:",
@@ -915,7 +916,7 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     the queue, so it is the next launch there once it is approved. It is filed while the
     queue has no row of it, so a pass that stopped before the row was added files it again.
     A queue that refuses it is a condition."""
-    name = f"{mainstate.FIX}{sha[:12]}"
+    name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
@@ -1072,7 +1073,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     unlaunched = [
         row["slug"]
         for row in rows
-        if mainstate.fix_of(row["slug"])
+        if mainjson.fix_of(row["slug"])
         and row.get("status") in ("queued", "gate")
         and not row.get("thread")
     ]

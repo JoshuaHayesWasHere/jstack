@@ -5,7 +5,7 @@ When main's check fails at a commit within a day of a merge, a pass says `retro 
 Paths:
 - `src/jbus/watch.py`
 - `src/jbus/mainmoved.py`
-- `src/jbus/mainstate.py`
+- `src/jmerge/mainjson.py`
 - `src/jmerge/rows.py`
 - `src/jbus/merge.py`
 - `docs/jmerge.md`

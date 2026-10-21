@@ -45,10 +45,11 @@ from typing import Any
 
 import jroles
 import jroles.mirror
-from jbus import mainstate, queue, read_json, write_json
+from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
+from jmerge import mainjson
 from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
@@ -123,7 +124,7 @@ GREEN_MAIN = "Green main:"
 
 def green_main(brief: str, green: str) -> str:
     """The brief with `Green main: <sha>` under its first line, the last commit of main whose
-    check passed (`mainstate`), for a crew to rebase onto where main is red, in place of any
+    check passed (`jmerge.mainjson`), for a crew to rebase onto where main is red, in place of any
     such line its head had. With no green main known the brief has none."""
     kept, head = [], True
     for line in brief.splitlines(keepends=True):
@@ -411,7 +412,7 @@ class Turns:
                 run.gate(slug, "the default branch is not known in the main checkout")
                 continue
             plain = queue.body(brief)
-            green = mainstate.read(run.state).green
+            green = mainjson.read(run.state).green
             text = green_main(plain, green)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
