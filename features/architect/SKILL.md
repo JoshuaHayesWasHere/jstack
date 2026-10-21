@@ -76,7 +76,9 @@ Default: proceed directly to implementation with the synthesized design. No huma
 
 Opt in to a checkpoint when the invoker explicitly asks: "/architect with checkpoint," "stop and show me before implementing," or similar. Then surface the synthesized design and pause for sign-off.
 
-The synthesis can ship as its own commit either way, the scaffold before the feature (`principles/principle-foundational-thinking.md`). Planned and scoped breakage during fill-in is fine (`principles/principle-outcome-oriented-execution.md`). For adversarial pressure on the design before implementing, run the `interrogate` skill (`skills/interrogate/SKILL.md`) on the synthesized sketch.
+The synthesis can ship as its own commit either way, the scaffold before the feature (`principles/principle-foundational-thinking.md`).
+Planned and scoped breakage during fill-in is fine (`principles/principle-outcome-oriented-execution.md`).
+For adversarial pressure on the design before implementing, run the `interrogate` skill (`features/skill-library/skills/interrogate/SKILL.md`) on the synthesized sketch.
 
 If the human pushes back on the shape (in a checkpoint or after the fact), treat that as Phase A evidence. Re-ground and re-run Phase B before writing more code.
 

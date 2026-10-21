@@ -2,11 +2,13 @@
 
 Each row of the table under "Hook entries" is read as a file, a key, a matcher and a script,
 and each `HookGroup` and `StatusLine` of `needs()` the same way: a hook in one and not the
-other fails. A git hook (`GitHook`) is no settings entry, so it is held to the lines under the
-table instead: each one `needs()` puts is named there by its `.git/hooks/<name>` link and its
-script, and no other is.
+other fails. A script is named by its path in the checkout, the one `skills.json` gives the
+layout's `hooks/<name>`. A git hook (`GitHook`) is no settings entry, so it is held to the
+lines under the table instead: each one `needs()` puts is named there by its
+`.git/hooks/<name>` link and its script, and no other is.
 """
 
+import json
 import re
 
 from jinstall.kinds import GitHook, HookGroup, StatusLine
@@ -38,6 +40,12 @@ def table():
     return found, under
 
 
+def source(script):
+    """The path in the checkout of a script the layout has at `hooks/<name>`."""
+    hooks = json.loads((REPO / "skills.json").read_text())["hooks"]
+    return {f"hooks/{one['name']}": one["path"] for one in hooks}.get(script, script)
+
+
 def installed():
     """Each settings entry `needs()` puts, as a row of the table has it, and the git hooks."""
     machine = Machine.here(REPO)
@@ -46,7 +54,7 @@ def installed():
         kind = need.kind
         if isinstance(kind, HookGroup):
             shown = f"~/{kind.file.relative_to(machine.home)}"
-            entries.append((shown, f"hooks.{kind.event}", kind.matcher, kind.script))
+            entries.append((shown, f"hooks.{kind.event}", kind.matcher, source(kind.script)))
         elif isinstance(kind, StatusLine):
             shown = f"~/{kind.file.relative_to(machine.home)}"
             entries.append((shown, "statusLine", None, kind.script))

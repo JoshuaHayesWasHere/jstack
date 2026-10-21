@@ -10,23 +10,5 @@
         "claude-code"
       ]
     }
-  ],
-  "owns": [
-    "skills/blast-radius/**",
-    "skills/create-formal-verification-skill/**",
-    "skills/create-verification-skill/**",
-    "skills/maintain-verification-skill/**",
-    "skills/make-bot-ui/**",
-    "skills/figure-it-out/**",
-    "skills/interrogate/**",
-    "skills/poteto-help/**",
-    "hooks/skill-tips.sh",
-    "templates/skill-artifacts.md",
-    "tests/test_skill_tips.py",
-    "tests/test_gate_skills.py",
-    "tests/test_make_bot_ui.py",
-    ".claude/skills/verify-jstack/features/skill-library.md",
-    "playbooks/authoring-*.md",
-    "templates/playbook.md"
   ]
 }

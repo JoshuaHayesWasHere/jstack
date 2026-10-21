@@ -162,7 +162,7 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 | File | Key | Runs | Read by |
 |---|---|---|---|
 | `~/.claude/settings.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.UserPromptSubmit` | `hooks/skill-tips.sh` | Claude Code |
+| `~/.claude/settings.json` | `hooks.UserPromptSubmit` | `features/skill-library/hooks/skill-tips.sh` | Claude Code |
 | `~/.claude/settings.json` | `hooks.PostToolUse` | `hooks/home-gauge.sh` | Claude Code |
 | `~/.claude/settings.json` | `hooks.PreToolUse` | `hooks/home-gauge.sh` | Claude Code |
 | `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Codex |

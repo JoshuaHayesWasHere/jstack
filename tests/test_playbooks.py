@@ -8,7 +8,8 @@ from testing.layouts import assembled
 from testing.paths import REPO, playbooks
 
 PLAYBOOKS = REPO / "playbooks"
-TEMPLATE = "templates/playbook.md"
+TEMPLATE = "features/skill-library/templates/playbook.md"
+IN_THE_LAYOUT = "templates/playbook.md"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(playbooks().values())
 ROLES = {"a crewmate": "crew", "a scout": "scout", "the home": "home", "an expert": "expert"}
@@ -72,7 +73,7 @@ def problems(path, root):
         if role:
             part = OPEN.sub(f"skills/{ROLES[role.group(1)]}/SKILL.md", part)
         if part not in parts and (role or not OPEN.search(part)):
-            found.append(f"does not carry standing paragraph {n} of {TEMPLATE}")
+            found.append(f"does not carry standing paragraph {n} of {IN_THE_LAYOUT}")
     first = next((n for n, part in enumerate(parts) if re.match(r"1\. ", part)), len(parts))
     if not any(part.startswith("**") and not part.startswith(hand) for part in parts[:first]):
         found.append("has no bold line before step 1 that says what its reader owns")
@@ -163,7 +164,7 @@ def test_every_principle_is_named_by_a_playbook():
 @pytest.fixture
 def root(tmp_path):
     """A repo with the real template, and the files the playbook built below names."""
-    (tmp_path / "templates").mkdir()
+    (tmp_path / TEMPLATE).parent.mkdir(parents=True)
     shutil.copy(REPO / TEMPLATE, tmp_path / TEMPLATE)
     for skill in ROLES.values():
         (tmp_path / "skills" / skill).mkdir(parents=True)

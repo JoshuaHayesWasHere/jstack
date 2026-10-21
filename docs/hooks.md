@@ -16,7 +16,7 @@ Each hook below is a feature's, as its `features/<name>/feature.json` declares i
 | the status line | [hooks/limits.sh](../hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [hooks/outbound-command.sh](../hooks/outbound-command.sh) | claude-code | `jleak` |
 | git `pre-push` | [hooks/pre-push.sh](../hooks/pre-push.sh) | git | `jleak` |
-| `UserPromptSubmit` | [hooks/skill-tips.sh](../hooks/skill-tips.sh) | claude-code | `skill-library` |
+| `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
 <!-- generated: end -->
 
 ## The start hook
@@ -56,7 +56,9 @@ A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
 
 ## The tips hook
 
-`hooks/skill-tips.sh` is a `UserPromptSubmit` hook. When a prompt matches a skill you have, it gives one line, such as `tip: /blast-radius finds what a small diff could break elsewhere`. It calls no model.
+`features/skill-library/hooks/skill-tips.sh` is a `UserPromptSubmit` hook.
+When a prompt matches a skill you have, it gives one line, such as `tip: /blast-radius finds what a small diff could break elsewhere`.
+It calls no model.
 
 A skill gets tips from one line in its frontmatter:
 

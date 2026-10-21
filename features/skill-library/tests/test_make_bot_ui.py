@@ -22,7 +22,7 @@ import pytest
 from test_tool_calls import CALLS, errors
 from testing.paths import REPO
 
-SCRIPT = REPO / "skills" / "make-bot-ui" / "scripts" / "bot_ui.py"
+SCRIPT = REPO / "features" / "skill-library" / "skills" / "make-bot-ui" / "scripts" / "bot_ui.py"
 SPEC = importlib.util.spec_from_file_location("bot_ui", SCRIPT)
 bot_ui = importlib.util.module_from_spec(SPEC)
 sys.dont_write_bytecode, written = True, sys.dont_write_bytecode
