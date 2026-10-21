@@ -2,8 +2,10 @@ name: check
 
 on:
   pull_request:
+  # The integration branch `migration` is checked on each push as main is, so a break there
+  # is seen before it lands, and jmerge's red hold for a pull request into it reads its tip.
   push:
-    branches: [main]
+    branches: [main, migration]
   # A manual run always runs the suite, whatever marker the tree has.
   workflow_dispatch:
 
