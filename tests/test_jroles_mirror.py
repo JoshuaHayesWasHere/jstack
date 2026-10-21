@@ -288,3 +288,31 @@ def test_claude_codes_own_temp_beside_claude_json_is_left_where_it_is(home, caps
     mirror(capsys, "--instance", PRIME)
     assert temp.is_file() and not temp.is_symlink()
     assert not (home / ".claude" / temp.name).exists()
+
+
+def test_check_after_a_sync_is_ok_whatever_unshared_keys_of_claude_json_changed(home, capsys):
+    mirror(capsys)
+    config = home / ".claude.json"
+    changed = json.loads(config.read_text())
+    changed |= {"numStartups": 512, "cachedUsageUtilization": {"five_hour": 70}}
+    changed["oauthAccount"] = {"accountUuid": "main", "seen": "later"}
+    config.write_text(json.dumps(changed))
+    code, said, err = mirror(capsys, "--check")
+    assert (code, err) == (0, "")
+    assert said == [
+        f"ok        {home / at} mirrors {home / '.claude'}"
+        for at in (".claude_prime", ".claude_third")
+    ]
+
+
+def test_check_names_each_shared_key_of_claude_json_that_differs(home, capsys):
+    mirror(capsys)
+    config = home / ".claude.json"
+    changed = json.loads(config.read_text())
+    changed["theme"] = "light"
+    changed["projects"]["/repo"]["allowedTools"] = ["Bash", "Edit"]
+    config.write_text(json.dumps(changed))
+    code, said, _ = mirror(capsys, "--check", "--instance", PRIME)
+    prime = home / ".claude_prime" / ".claude.json"
+    assert code == 1
+    assert said == [f"would sync projects, theme of {config} into {prime}"]
