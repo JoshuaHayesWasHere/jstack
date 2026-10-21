@@ -1,6 +1,29 @@
 #!/bin/sh
 
-repo=$(cd "$(dirname "$0")" && pwd -P) || exit 1
+version=
+github=https://github.com/JoshuaHayesWasHere/jstack
+
+if [ -n "$version" ]; then
+  release=${JSTACK_RELEASE_URL:-$github/releases/download/v$version}
+  command -v uv >/dev/null 2>&1 || {
+    curl -fsSL "${JSTACK_UV_INSTALLER:-https://astral.sh/uv/install.sh}" | sh || {
+      echo "missing hard uv -> https://docs.astral.sh/uv/getting-started/installation/"
+      exit 1
+    }
+    PATH=${XDG_BIN_HOME:-$HOME/.local/bin}:$PATH
+  }
+  uv tool install --reinstall "$release/jstack-$version-py3-none-any.whl" || exit 1
+  bin=$(uv tool dir --bin) || exit 1
+  [ "$#" -gt 0 ] || set -- --setup
+  exec "$bin/jinstall" "$@"
+fi
+
+here=$(dirname "$0")
+[ -f "$0" ] && [ -f "$here/src/jinstall/__main__.py" ] || {
+  echo "missing hard a checkout of jstack around $0 -> curl -fsSL $github/releases/latest/download/install.sh | sh"
+  exit 1
+}
+repo=$(cd "$here" && pwd -P) || exit 1
 
 python_312() {
   for python in python3 python; do

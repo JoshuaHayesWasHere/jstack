@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from jbriefs import skills
 from jbus.view.state import Read, Source, iso, when
 from jgauge import session, transcript
 
@@ -30,7 +31,7 @@ FIRST = False
 KEPT = "~/.claude/projects"
 PROJECTS = Path(KEPT).expanduser()
 WORKTREES = Path.home() / ".t3" / "worktrees"
-GAUGE = Path(__file__).resolve().parents[5] / "hooks" / "home-gauge.sh"
+GAUGE = Path("hooks") / "home-gauge.sh"
 JOINED = timedelta(minutes=10)
 EARLY = timedelta(minutes=1)
 SUMMED = (*session.SUMMED, "peak_context")
@@ -221,7 +222,10 @@ def limit(read: Read) -> dict[str, Any]:
     """The context a home is held to, read where `home-gauge.sh` reads it: the two lines of
     the home's `limit` file, and where one is not a number, the default of the hook."""
     try:
-        script = GAUGE.read_text()
+        gauge = skills.root() / GAUGE
+        script = gauge.read_text()
+    except LookupError:
+        gauge, script = GAUGE, ""
     except OSError:
         script = ""
     named = {
@@ -240,7 +244,7 @@ def limit(read: Read) -> dict[str, Any]:
     if said["limit"] is not None and said["ceiling"] is not None:
         said["ceiling"] = max(said["ceiling"], said["limit"])
     mine = given.get("limit", "").isdigit()
-    return said | {"from": _short(read.home / "limit") if mine else _short(GAUGE)}
+    return said | {"from": _short(read.home / "limit") if mine else _short(gauge)}
 
 
 def build(read: Read) -> dict[str, Any]:

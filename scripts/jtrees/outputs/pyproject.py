@@ -1,5 +1,5 @@
-"""The regions of `pyproject.toml` the manifests write: the commands, the wheel's packages, and
-the paths pytest and ruff read.
+"""The regions of `pyproject.toml` the manifests write: the commands, the wheel's packages, the
+harness copy the wheel takes whole beside them, and the paths pytest and ruff read.
 
 A region is the lines between `# generated: <part> ...` and the next `# end generated`; the
 rest of the file is hand-written and is left as it is. hatch reads static lists, so these
@@ -13,13 +13,14 @@ import re
 
 from jtrees.crawl import Invalid
 from jtrees.model import FEATURES, Tree
+from jtrees.outputs import harness
 
 PATH = "pyproject.toml"
 REGION = re.compile(
     r"(?P<begin>^# generated: (?P<part>[a-z]+)[^\n]*\n)(?P<body>.*?)(?P<end>^# end generated$)",
     re.S | re.M,
 )
-PARTS = ("scripts", "packages", "paths", "ruff")
+PARTS = ("scripts", "packages", "harness", "paths", "ruff")
 
 
 def _list(values: list[str]) -> str:
@@ -46,6 +47,8 @@ def _part(tree: Tree, part: str) -> str:
     if part == "packages":
         packages = sorted(package for feature in tree.features for package in feature.packages)
         return f"packages = {_list(packages)}\n"
+    if part == "harness":
+        return f"{json.dumps(harness.COPY)} = {json.dumps(harness.PACKAGED)}\n"
     if part == "paths":
         return f"testpaths = {_list(_tests(tree))}\npythonpath = {_list(_python(tree))}\n"
     return f"src = {_list(_python(tree) + _tests(tree))}\n"

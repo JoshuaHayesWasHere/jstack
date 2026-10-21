@@ -1,0 +1,11 @@
+[Unit]
+Description=jbus: a pass every minute
+Documentation=file:%Y/../docs/jbus/set-up-jbus.md#set-up-jbus file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

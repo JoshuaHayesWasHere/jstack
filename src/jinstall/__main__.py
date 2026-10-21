@@ -2,6 +2,8 @@
 
     python -m jinstall <checkout> [--check | --uninstall | --doctor | --setup]
 
+which `install.sh` runs in a checkout, and `jinstall [<verb>]` (`cli`), a release's command.
+
 Install and --check are one function with one branch, whether `put` is called between two
 probes, so they cannot print different lines for one machine and a second install is a check. The
 doctor probes the same kinds and prints through the same `say`, so it gives --check's answer
@@ -162,8 +164,8 @@ def parse(argv: Sequence[str]) -> tuple[Machine, Verb]:
     return Machine.here(Path(argv[0])), verbs[argv[1]] if argv[1:] else Verb.INSTALL
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    machine, verb = parse(list(sys.argv[1:] if argv is None else argv))
+def act(machine: Machine, verb: Verb) -> int:
+    """Run `verb` on `machine`, print its report, and return its exit code."""
     if verb is Verb.CHECK:
         report = install(machine, write=False)
     elif verb is Verb.DOCTOR:
@@ -179,6 +181,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if report.note:
         print(report.note, file=sys.stderr)
     return report.code
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return act(*parse(list(sys.argv[1:] if argv is None else argv)))
 
 
 if __name__ == "__main__":

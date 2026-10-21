@@ -27,7 +27,7 @@ Each feature's own, as `features/*/feature.json` and the files under it give the
 | `home` | The home: plans with the user, writes each brief and launches its thread. | [handoff](../skills/handoff/SKILL.md), [home](../skills/home/SKILL.md), [new-home](../skills/new-home/SKILL.md), [nohome](../skills/nohome/SKILL.md) | [autopilot-full](../playbooks/autopilot-full.md), [autopilot-stack](../playbooks/autopilot-stack.md), [multi-phase-plan](../playbooks/multi-phase-plan.md), [orchestrate](../playbooks/orchestrate.md), [session-pickup](../playbooks/session-pickup.md), [shipping](../playbooks/shipping.md) |
 | `how` | Explains how a subsystem works before you change it. | [how](../skills/how/SKILL.md) |  |
 | `in-your-own-words` | Plays back what you are after before any work starts. | [in-your-own-words](../skills/in-your-own-words/SKILL.md) |  |
-| `jinstall` | Installs, checks and removes jstack on a machine, for install.sh. | [setup-pstack](../skills/setup-pstack/SKILL.md) |  |
+| `jinstall` | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. | [setup-pstack](../skills/setup-pstack/SKILL.md) |  |
 | `ketchup` | Catches you up on this chat since your last message. | [ketchup](../skills/ketchup/SKILL.md) |  |
 | `lessons` | Turns a mistake agents keep making into a rule they cannot break. | [correct](../skills/correct/SKILL.md), [reflect](../skills/reflect/SKILL.md) | [correct](../playbooks/correct.md) |
 | `no-comments` | Hunts down every comment that has no reason to stay. | [no-comments](../skills/no-comments/SKILL.md) |  |

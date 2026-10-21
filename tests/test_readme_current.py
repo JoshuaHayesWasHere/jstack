@@ -323,7 +323,7 @@ def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
 
 def test_each_command_has_its_page_and_the_readme_links_it():
     said = README.read_text()
-    assert len(COMMANDS) == 8
+    assert len(COMMANDS) == 9
     for command in COMMANDS:
         assert page(f"{command}.md").startswith(f"# {command}\n")
         assert f"(docs/{command}.md)" in said
@@ -375,11 +375,15 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert steps == [str(n) for n in range(1, len(steps) + 1)]
     assert 0 < len(steps) <= 10
     typed = [line for block in blocks(said, "sh") for line in block]
-    assert typed[:2] == ["git clone <the URL of this repo> jstack", "cd jstack"]
+    github = "https://github.com/JoshuaHayesWasHere/jstack"
+    assert typed[:2] == [
+        f"curl -fsSL {github}/releases/latest/download/install.sh | sh",
+        f"uv tool install git+{github}@v<version>",
+    ]
     assert typed[2:] == [
-        "sh install.sh --setup",
-        "sh install.sh --check",
-        "sh install.sh --doctor",
+        "jinstall --setup",
+        "jinstall --check",
+        "jinstall --doctor",
         "jmerge",
     ]
     assert blocks(said, "text") == [["/home"]]
@@ -391,7 +395,7 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert re.search(r"\A---\n(?:.*\n)*?name: home\n", skill)
     user = Doctored(tmp_path)
     for line in typed[2:5]:
-        code, printed, err = user.run_with_stderr(*line.split()[2:])
+        code, printed, err = user.run_with_stderr(*line.split()[1:])
         assert (code, err) == (0, ""), line
         ends = ("ok ", "missing optional ")
         if "--setup" in line:
@@ -494,7 +498,7 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
 
 
 def test_the_entries_the_hooks_page_shows_are_the_ones_the_install_writes():
-    here = types.SimpleNamespace(checkout=Path("<checkout>"))
+    here = types.SimpleNamespace(copy=Path("<checkout>") / "harness" / "jstack" / "claude-code")
     shown = [json.loads("\n".join(block)) for block in blocks(page("hooks.md"), "json")]
     settings = Path("settings.json")
     start = HookGroup(settings, "SessionStart", "startup", "hooks/home-start.sh")

@@ -83,3 +83,39 @@ trees:
 .PHONY: pstack-drift
 pstack-drift:
 	uv run jdrift $(ARGS)
+
+# A release. Its version is pyproject.toml's, and plugin.json's, which the generator holds to
+# it. A bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, then
+# `make trees`. `make release`, on a clean main that is origin/main, tags `v<version>` and
+# pushes the tag, and .github/workflows/release.yml does the rest: `make release-tag`, the
+# check, `make dist`, an install of the wheel in a HOME of its own, and the GitHub release.
+VERSION = $(shell uv version --short)
+
+# Fails unless TAG is `v<version>` of both pyproject.toml and plugin.json.
+.PHONY: release-tag
+release-tag:
+	@plugin=$$(python3 -c 'import json; print(json.load(open("plugin.json"))["version"])') && \
+	if [ "$$TAG" != "v$(VERSION)" ] || [ "$$TAG" != "v$$plugin" ]; then \
+		echo "release-tag: the tag '$$TAG' is not v$(VERSION), pyproject.toml's, and v$$plugin, plugin.json's"; \
+		exit 1; \
+	fi
+
+# DIST, dist/ by default: the wheel, the sdist, and install.sh with the version written in, so
+# that piped to `sh` it installs that release's wheel.
+DIST ?= dist
+
+.PHONY: dist
+dist:
+	rm -rf '$(DIST)'
+	uv build --out-dir '$(DIST)'
+	sed 's/^version=$$/version=$(VERSION)/' install.sh > '$(DIST)/install.sh'
+	grep -qx 'version=$(VERSION)' '$(DIST)/install.sh'
+
+.PHONY: release
+release:
+	@[ "$$(git symbolic-ref -q --short HEAD)" = main ] || { echo "release: not on main"; exit 1; }
+	@[ -z "$$(git status --porcelain)" ] || { echo "release: the checkout is not clean"; exit 1; }
+	@git fetch -q origin main
+	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] || { echo "release: main is not origin/main"; exit 1; }
+	git tag -a 'v$(VERSION)' -m 'jstack $(VERSION)'
+	git push origin 'v$(VERSION)'
