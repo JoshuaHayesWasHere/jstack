@@ -6,9 +6,12 @@ The findings the walk found first (F1, a lost send; F2 and F3, a tip no pass saw
 worlds of the tests that walk every order or a lost send.
 The skill that reruns this is `.cursor/skills/verify-main-red/SKILL.md`."""
 
+import json
+from unittest import mock
+
 import pytest
 
-from main_red_model import Options, walk
+from main_red_model import PROPERTIES, Options, State, walk
 
 EVERY = Options()
 ONE_AT_A_TIME = Options(one_at_a_time=True)
@@ -54,3 +57,22 @@ def test_s2_a_green_tip_ends_the_red_whatever_lands_after_it():
 
 def test_s2_a_green_tip_ends_the_red_in_every_order():
     holds(EVERY, "S2")
+
+
+@pytest.mark.parametrize("pull", [False, True])
+def test_a_trace_starts_from_its_own_red_pull_request_whatever_order_the_key_has(pull):
+    """A trace's start line says whether the red pull request was open, read from the state
+    and not from where `State.key` puts it, so a key with its fields in another order still
+    gives each trace its own start."""
+
+    def reordered(self):
+        return json.dumps([self.checks, self.record, self.sent, self.looked, self.pull])
+
+    breaks = {"P": lambda state, files: state.pull != pull}
+    with (
+        mock.patch.object(State, "key", reordered),
+        mock.patch.dict(PROPERTIES, breaks, clear=True),
+    ):
+        found = walk.__wrapped__(BOTH)
+    one = "one" if pull else "no"
+    assert found.traces["P"][0] == f"start: M0 is green, no main.json, {one} red pull request"

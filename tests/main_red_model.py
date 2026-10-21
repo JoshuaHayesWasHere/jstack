@@ -341,11 +341,12 @@ def walk(options: Options) -> Found:
     found = Found(options)
     with tempfile.TemporaryDirectory() as root, stubbed():
         files = Files(Path(root))
-        parents: dict[str, tuple[str, str] | None] = {}
+        parents: dict[str, tuple[str | None, str]] = {}
         todo: deque[tuple[State, int]] = deque()
         for pull in (False, True):
             first = start(pull)
-            parents[first.key()] = None
+            line = f"start: M0 is green, no main.json, {'one' if pull else 'no'} red pull request"
+            parents[first.key()] = (None, line)
             todo.append((first, 0))
         while todo:
             state, depth = todo.popleft()
@@ -371,13 +372,13 @@ def walk(options: Options) -> Found:
     return found
 
 
-def trace(parents: dict[str, tuple[str, str] | None], key: str) -> list[str]:
+def trace(parents: dict[str, tuple[str | None, str]], key: str | None) -> list[str]:
+    """The lines from a start to the state `key`: each state keeps its parent and the line of
+    the step to it, and a start keeps no parent and its own start line."""
     lines = []
-    while (parent := parents[key]) is not None:
-        key, line = parent
+    while key is not None:
+        key, line = parents[key]
         lines.append(line)
-    pull = json.loads(key)[3]
-    lines.append(f"start: M0 is green, no main.json, {'one' if pull else 'no'} red pull request")
     return lines[::-1]
 
 
