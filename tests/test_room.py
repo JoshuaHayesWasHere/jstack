@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 import jsettings
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
 ROOM = REPO / "src" / "jgauge" / "room.sh"
 BIN = Path(sys.executable).parent

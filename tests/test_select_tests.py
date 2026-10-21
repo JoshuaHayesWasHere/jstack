@@ -12,11 +12,11 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
@@ -70,9 +70,19 @@ FILES = {
     "tests/fixtures/shapes/b.json": "{}\n",
     "tests/fixtures/orphan/x.json": "{}\n",
     "README.md": "#\n",
-    "tests/conftest.py": (
+    "conftest.py": 'pytest_plugins = ["testing.fixtures", "test_shared"]\n',
+    "testing/__init__.py": "",
+    "testing/fixtures.py": (
         "import pytest\n\nimport daemons\nfrom test_kit import Kit\n\n"
         "tidy = daemons.tidy\n\n\n@pytest.fixture\ndef kit():\n    return Kit()\n"
+    ),
+    "tests/test_shared.py": (
+        "import pytest\n\n\n@pytest.fixture\ndef shared():\n    pass\n\n\n"
+        "def test_shared():\n    pass\n"
+    ),
+    "tests/test_own_shared.py": (
+        "import pytest\n\n\n@pytest.fixture\ndef shared():\n    pass\n\n\n"
+        "def test_it(shared):\n    pass\n"
     ),
     "tests/daemons.py": "def tidy():\n    pass\n",
     "tests/test_kit.py": "class Kit:\n    pass\n",
@@ -253,14 +263,16 @@ def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
     assert repo.selected(head) == ["tests/test_tree.py"]
 
 
-@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock", "tests/conftest.py"])
+@pytest.mark.parametrize(
+    "path", ["pyproject.toml", "uv.lock", "conftest.py", "testing/fixtures.py"]
+)
 def test_a_path_every_test_rests_on_selects_all(repo, path):
     head = repo.change([path], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
 
 
-def test_a_test_module_that_conftest_loads_for_every_test_selects_all(repo):
+def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
     head = repo.change(["tests/daemons.py"], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
@@ -273,6 +285,36 @@ def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fi
         "tests/test_kit.py",
         "tests/test_tree.py",
         "tests/test_uses_kit.py",
+    ]
+
+
+FEATURE = {
+    "features/x/tests/test_feature.py": (
+        "from alpha import a\nfrom helper import HELP\n\n\ndef test_it(shared):\n    pass\n"
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["src/alpha/util.py", "tests/helper.py", "tests/test_shared.py", *FEATURE],
+)
+def test_a_test_in_a_features_own_folder_is_selected_like_one_of_tests(repo, path):
+    write(repo.root, FEATURE)
+    repo.base = repo.commit()
+
+    assert "features/x/tests/test_feature.py" in repo.selected(repo.change([path]))
+
+
+def test_a_test_module_named_as_a_plugin_selects_the_tests_that_ask_for_its_fixture(repo):
+    """A test that has a fixture of the same name of its own does not ask for the plugin's."""
+    write(repo.root, FEATURE)
+    repo.base = repo.commit()
+
+    assert repo.selected(repo.change(["tests/test_shared.py"])) == [
+        "features/x/tests/test_feature.py",
+        "tests/test_shared.py",
+        "tests/test_tree.py",
     ]
 
 
@@ -428,12 +470,13 @@ def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
 
 
 def whole(tmp_path):
-    """A repo with the map, the tests and the fixtures of this one."""
+    """A repo with the map, the tests, the plugins and the fixtures of this one."""
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
-    for test in (REPO / "tests").rglob("*"):
+    shutil.copy2(REPO / "conftest.py", repo.put("conftest.py"))
+    for test in [*(REPO / "tests").rglob("*"), *(REPO / "testing").rglob("*.py")]:
         named = test.relative_to(REPO).as_posix()
-        if test.is_file() and (named.startswith(select.FIXTURES) or test.suffix == ".py"):
+        if test.is_file() and (select.FIXTURES.match(named) or test.suffix == ".py"):
             shutil.copy2(test, repo.put(named))
     repo.base = repo.commit()
     return repo
@@ -619,14 +662,14 @@ def owns_module(owned, path):
 
 def test_every_test_file_is_run_by_a_change_to_something_or_is_cross_cutting():
     cross = set(select.cross_cutting())
-    every = {path for path in tracked() if not path.startswith(".")} - {"tests/conftest.py"}
+    every = {path for path in tracked() if not path.startswith(".")} - {"conftest.py"}
     run = set(cross)
     for path in sorted(every):
         tests, _ = select.selection([path])
         run |= set(tests) - {"all"}
     left = [
         test
-        for test in tracked("tests/")
+        for test in tracked("tests/", "features/")
         if select.TEST.fullmatch(test) and test not in run and not select.opens_browser(test)
     ]
     assert left == []
@@ -717,7 +760,7 @@ def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_te
 
 
 SMALL = {
-    "tests/conftest.py": "",
+    "conftest.py": "",
     "tests/test_tree.py": "def test_tree():\n    pass\n",
     **{f"tests/test_{name}.py": "def test_it():\n    pass\n" for name in "abcd"},
 }

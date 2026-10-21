@@ -15,15 +15,15 @@ import subprocess
 import sys
 import time
 from datetime import date
-from pathlib import Path
 
 import pytest
 
 import test_home_merge as merge
 from jmerge import cli, ready, sweep
 from test_jmerge_guarded import ET, GUARDED, LISTED
+from testing.paths import REPO
 
-SOURCE = Path(__file__).parent.parent / "src"
+SOURCE = REPO / "src"
 PROTECTED = ready.patterns_of((SOURCE / "jmerge" / "protected.txt").read_text())
 CI = ready.patterns_of((SOURCE / "jmerge" / "ci-paths.txt").read_text())
 BEFORE = "1999-06-01T12:00:00Z"
@@ -278,7 +278,7 @@ def test_a_main_that_moved_on_other_files_leaves_the_check_standing(kitchen):
     assert said.startswith("merged 7 two ")
 
 
-SELECTOR = Path(__file__).parent.parent / "scripts" / "select_tests.py"
+SELECTOR = REPO / "scripts" / "select_tests.py"
 SELECTED = {
     "pyproject.toml": "[project]\nname = 'demo'\n",
     "Makefile": "check:\n",
@@ -287,7 +287,7 @@ SELECTED = {
     "src/demo/__init__.py": "",
     "src/demo/one.py": LINES,
     "src/demo/two.py": LINES,
-    "tests/conftest.py": "",
+    "conftest.py": "",
     "tests/test_one.py": "import demo.one\n",
     "tests/test_two.py": "import demo.two\n",
     "tests/test_whole.py": "",

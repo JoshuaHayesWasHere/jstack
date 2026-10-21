@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 
 from jgauge import cli
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "home-gauge.sh"
 HANDOFF = REPO.resolve() / "skills" / "handoff" / "SKILL.md"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")

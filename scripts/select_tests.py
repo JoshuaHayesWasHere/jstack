@@ -5,10 +5,11 @@ line and sorted, the test files to run, or `all`. It reads the imports of the tr
 here, so the same two commits give the same lines. It needs only the standard library, so it
 runs before `uv sync`.
 
-A changed module, of `src/` or `tests/`, selects the test files that import it, directly or
-through any chain of modules: a test file that imports a module that imports it is selected
-too. A test file may be in a folder of `tests/`, as `tests/view/test_view_bus.py`, and is taken
-to import the `conftest.py` of each folder it is in below `tests/`. A changed test file is
+A changed module, of `src/`, of the tests or of `testing/`, selects the test files that import
+it, directly or through any chain of modules: a test file that imports a module that imports it
+is selected too. The tests are in `tests/` and in each feature's own, `features/<name>/tests/`.
+A test file may be in a folder of one, as `tests/view/test_view_bus.py`, and is taken to import
+the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
 selected itself. A module that calls `importlib.import_module` is taken to import every module
 under its directory. A test with a string that is the name of a package of `src/` is taken to
 run it in a process of its own, and to import every module of it. A file in a package that is
@@ -29,9 +30,12 @@ lists the test files that read the whole tree (`Cross-cutting:`), which every ch
 It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more: such
 a run costs about what the whole suite does, and run whole it leaves the tree's marker. And
 it prints `all` when a changed path is one every test rests on: `pyproject.toml`, `uv.lock`,
-`tests/conftest.py`, or a test module `tests/conftest.py` uses at its top level or in an
-autouse fixture. A test module only other fixtures use selects the tests that ask for those
-fixtures, directly or through fixtures that use them. A test file the change deleted is not
+the root `conftest.py`, a plugin it names in `pytest_plugins` from `testing/` (as
+`testing/jstack_fixtures.py`) and the modules that one uses at its top level, or a module any
+plugin uses in an autouse fixture. A test module named there is loaded for its fixtures. A
+module only other fixtures use
+selects the tests that ask for those fixtures, directly or through fixtures that use them, and
+a plugin's own module is one its fixtures use. A test file the change deleted is not
 printed. A test module that marks itself `browser` is never printed: it runs in the browser
 job.
 
@@ -59,9 +63,11 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".claude/skills/verify-jstack/features"
-TEST = re.compile(r"tests/(\w+/)*test_\w+\.py")
-EVERYTHING = ("pyproject.toml", "uv.lock", "tests/conftest.py")
-FIXTURES = "tests/fixtures/"
+TESTS = re.compile(r"(features/[^/]+/)?tests/")
+TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
+FIXTURES = re.compile(TESTS.pattern + "fixtures/")
+SHARED = "testing/"
+EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
@@ -123,25 +129,30 @@ def owns(patterns, path):
     return any(ready().protects(pattern, path) for pattern in patterns)
 
 
+def of_tests(path):
+    """Whether a path is the tests' own: under `tests/`, a feature's `tests/`, or `testing/`."""
+    return bool(TESTS.match(path)) or path.startswith(SHARED)
+
+
 @cache
 def modules():
-    """Every module of `src/` and `tests/`, by its dotted name: the file it is, from the root. A
-    module in a folder of `tests/` is named from `tests/`, as `view.scene`: such a folder is a
-    package, so its `conftest.py` is not taken for the one of `tests/`. The fixtures' folder
-    holds none."""
+    """Every module of `src/`, of each folder of tests and of `testing/`, by its dotted name:
+    the file it is, from the root. Each folder of tests, `tests/` and each feature's own, is on
+    pytest's path, so its modules are named from it: a module in a folder below it as
+    `view.scene`, such a folder being a package, so its `conftest.py` is not taken for a root's.
+    `testing/` is a package at the root, so its modules are `testing.<name>`. The fixtures'
+    folders hold none."""
+    roots = [ROOT / "src", ROOT / "tests", *sorted(ROOT.glob("features/*/tests")), ROOT]
     found = {}
-    for path in sorted((ROOT / "src").rglob("*.py")):
-        parts = list(path.relative_to(ROOT / "src").with_suffix("").parts)
-        if parts[-1] == "__init__":
-            parts.pop()
-        found[".".join(parts)] = path.relative_to(ROOT).as_posix()
-    for path in sorted((ROOT / "tests").rglob("*.py")):
-        named = path.relative_to(ROOT).as_posix()
-        parts = list(path.relative_to(ROOT / "tests").with_suffix("").parts)
-        if parts[-1] == "__init__":
-            parts.pop()
-        if not named.startswith(FIXTURES):
-            found[".".join(parts)] = named
+    for root in roots:
+        files = (root / SHARED).rglob("*.py") if root == ROOT else root.rglob("*.py")
+        for path in sorted(files):
+            named = path.relative_to(ROOT).as_posix()
+            parts = list(path.relative_to(root).with_suffix("").parts)
+            if parts[-1] == "__init__":
+                parts.pop()
+            if not FIXTURES.match(named):
+                found[".".join(parts)] = named
     return found
 
 
@@ -209,7 +220,7 @@ def edges():
         if dynamic:
             below = Path(known[name]).parent.as_posix() + "/"
             reached |= {other for other, path in known.items() if path.startswith(below)}
-        if known[name].startswith("tests/"):
+        if of_tests(known[name]):
             run = tuple(
                 f"src/{one}/" for one in packages & {one[0] for one in paths if len(one) == 1}
             )
@@ -252,7 +263,7 @@ def spells(name):
     found, todo, seen = set(), [name], set()
     while todo:
         one = todo.pop()
-        if one not in seen and modules()[one].startswith("tests/"):
+        if one not in seen and of_tests(modules()[one]):
             seen.add(one)
             todo += edges()[one]
             found |= sources()[one][4]
@@ -304,9 +315,10 @@ def readers(path):
 
 def fixture_readers(path):
     """The test files that name a fixture, or the nearest directory above it that one names."""
-    parts = path.removeprefix(FIXTURES).split("/")
+    folder = FIXTURES.match(path)[0]
+    parts = path.removeprefix(folder).split("/")
     for end in range(len(parts), 0, -1):
-        found = readers(FIXTURES + "/".join(parts[:end]))
+        found = readers(folder + "/".join(parts[:end]))
         if found:
             return found
     return set()
@@ -338,62 +350,94 @@ def users(path):
     return named or beside
 
 
-def modules_named(tree, below):
-    """The modules of `tests/` that a tree's imports name, by the name each is bound to."""
+def modules_named(tree):
+    """The tests' own modules that a tree's imports name, by the name each is bound to."""
     bound = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             bound |= {(a.asname or a.name).split(".")[0]: a.name for a in node.names}
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
             bound |= {a.asname or a.name: node.module for a in node.names}
+    return {local: name for local, name in bound.items() if of_tests(modules().get(name, ""))}
+
+
+def plugins():
+    """The modules the root `conftest.py` names in `pytest_plugins`, which every test loads."""
+    for node in ast.parse((ROOT / "conftest.py").read_text()).body:
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "pytest_plugins":
+            return [one.value for one in node.value.elts if modules().get(one.value)]
+    return []
+
+
+def used(node, bound):
+    """The modules of `bound`, a name to the module it is bound to, that a node uses."""
     return {
-        local: name for local, name in bound.items() if modules().get(name, "").startswith(below)
+        bound[one.id] for one in ast.walk(node) if isinstance(one, ast.Name) and one.id in bound
     }
 
 
 @cache
 def conftest():
-    """What `tests/conftest.py` makes of the test modules it imports: `(global, fixtures)`.
-    The first is the modules every test loads, the ones its top level or an autouse fixture
-    uses. The second is each other fixture, with the modules it uses and the fixtures it asks
-    for, so a change to a module reaches the tests that ask for a fixture that uses it."""
-    tree = ast.parse((ROOT / "tests" / "conftest.py").read_text())
-    bound = modules_named(tree, "tests/")
-
-    def used(node):
-        return {
-            bound[one.id] for one in ast.walk(node) if isinstance(one, ast.Name) and one.id in bound
-        }
-
+    """What the plugins of the root `conftest.py` make of the tests' modules: `(global,
+    fixtures)`. The first is the modules every test loads: each plugin of `testing/`, as
+    `testing.jstack_fixtures`, with the modules its top level uses, and each other plugin with
+    an autouse fixture, with the modules that fixture uses. Any other plugin, a test module the
+    tests of other features import, is loaded for its fixtures, and those alone reach a test
+    that does not import it. The second is each other fixture, with the modules it uses, a test
+    module's plugin among them, and the fixtures it asks for, so a change to a module reaches
+    the tests that ask for a fixture that uses it."""
     everyone, fixtures = set(), {}
-    for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            continue
-        decorators = [ast.unparse(one) for one in getattr(node, "decorator_list", ())]
-        if not any("fixture" in one for one in decorators) or "autouse=True" in "".join(decorators):
-            everyone |= used(node)
-        else:
-            asks = {arg.arg for arg in node.args.args}
-            fixtures[node.name] = (used(node), asks)
+    for plugin in plugins():
+        tree = ast.parse((ROOT / modules()[plugin]).read_text())
+        bound = modules_named(tree)
+        whole = modules()[plugin].startswith(SHARED)
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            decorators = "".join(ast.unparse(one) for one in getattr(node, "decorator_list", ()))
+            if "fixture" in decorators and "autouse=True" not in decorators:
+                asks = {arg.arg for arg in node.args.args}
+                fixtures[node.name] = (used(node, bound) | (set() if whole else {plugin}), asks)
+            elif whole or "autouse=True" in decorators:
+                everyone |= used(node, bound) | (set() if whole else {plugin})
     return everyone, fixtures
 
 
 @cache
 def shared():
-    """The files every test loads: `EVERYTHING`, and the test modules `tests/conftest.py` uses
-    at its top level or in an autouse fixture, and those they import."""
+    """The files every test loads: `EVERYTHING`, the plugins of `testing/`, and the modules
+    the plugins use at their top level or in an autouse fixture, and those they import."""
     found, todo = set(), list(conftest()[0])
     while todo:
         one = todo.pop()
-        if one not in found and modules()[one].startswith("tests/"):
+        if one not in found and of_tests(modules()[one]):
             found.add(one)
             todo += edges()[one]
-    return {modules()[one] for one in found} | set(EVERYTHING)
+    whole = {modules()[one] for one in plugins() if modules()[one].startswith(SHARED)}
+    return {modules()[one] for one in found} | whole | set(EVERYTHING)
+
+
+@cache
+def defined(name):
+    """The fixtures a module defines at its top level: a test that asks for one of them by name
+    gets its own, and not a plugin's."""
+    tree = ast.parse((ROOT / modules()[name]).read_text())
+    return {
+        node.name
+        for node in tree.body
+        if "fixture" in "".join(ast.unparse(one) for one in getattr(node, "decorator_list", ()))
+    }
+
+
+def own(name):
+    """The fixtures a test file has of its own: its module's and its folders' `conftest`'s."""
+    known = modules().keys()
+    return set().union(*map(defined, {name} | (conftests(name) & known)))
 
 
 def asking(module):
-    """The test files that ask for a fixture of `tests/conftest.py` that uses `module`, or
-    uses a module that imports it, or asks for one that does."""
+    """The test files that ask for a fixture of a plugin that uses `module`, or uses a module
+    that imports it, or asks for one that does, and have no fixture of that name of their own."""
     reaching = importers([module])
     fixtures = conftest()[1]
     hit = {name for name, (used, _) in fixtures.items() if used & reaching}
@@ -402,7 +446,7 @@ def asking(module):
     return {
         modules()[name]
         for name, (_, words, _, args, _) in sources().items()
-        if TEST.fullmatch(modules()[name]) and hit & (args | words)
+        if TEST.fullmatch(modules()[name]) and (hit - own(name)) & (args | words)
     }
 
 
@@ -425,9 +469,9 @@ def selection(changed):
     for path in changed:
         if path in by_path:
             found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
-            if path.startswith("tests/"):
+            if of_tests(path):
                 found["names"] |= readers(path)
-        elif path.startswith(FIXTURES):
+        elif FIXTURES.match(path):
             if not (named := fixture_readers(path)):
                 return ["all"], {"forced-by": path}
             found["names"] |= named

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import as_read, named
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 TEMPLATES = REPO / "templates"
 HOOK = REPO / "hooks" / "home-start.sh"
 NAMES = [
@@ -235,8 +235,8 @@ def a_copy_of_the_hook(tmp_path):
 def test_the_hook_prints_the_template_beside_it_whatever_that_says(tmp_path):
     user, home_dir, checkout = a_home(tmp_path, "demo")
     copy = a_copy_of_the_hook(tmp_path)
-    (copy.parent.parent / "templates").mkdir()
-    (copy.parent.parent / "templates" / "hook-message.md").write_text(
+    (copy.parents[1] / "templates").mkdir()
+    (copy.parents[1] / "templates" / "hook-message.md").write_text(
         "Other words for $repo.\nIts home is $home_dir, and $repo has no other.\n"
     )
     assert start_hook(user, checkout, hook=copy) == (
@@ -258,8 +258,8 @@ def test_the_hook_prints_a_line_marked_first_only_in_a_repo_with_no_home(
     if not has_a_home:
         (home_dir / "plan.md").unlink()
     copy = a_copy_of_the_hook(tmp_path)
-    (copy.parent.parent / "templates").mkdir()
-    (copy.parent.parent / "templates" / "hook-message.md").write_text(
+    (copy.parents[1] / "templates").mkdir()
+    (copy.parents[1] / "templates" / "hook-message.md").write_text(
         "$firstNo home yet for $repo.\nThe usual line for $repo.\n"
         "A line for both, $first included.\n$firstOnly the first.\n"
     )

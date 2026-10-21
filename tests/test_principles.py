@@ -1,11 +1,10 @@
 import re
-from pathlib import Path
 
 import pytest
 
 from jdrift.explained import COMMENT as CARD
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PRINCIPLES = REPO / "principles"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 PSTACK_COMMIT = "99743e9c151c8537cbbf1f98bb38f34ef3368453"

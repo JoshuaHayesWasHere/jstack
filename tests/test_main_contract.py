@@ -14,7 +14,6 @@
 
 import ast
 import string
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -23,8 +22,9 @@ from jbus import mainmoved, merge, write_json
 from jmerge import lines, mainjson, ready
 from main_red_model import Options, walk
 from test_gh_said import BAD_GATEWAY, real_jmerge_line
+from testing.paths import REPO
 
-SRC = Path(__file__).resolve().parents[1] / "src"
+SRC = REPO / "src"
 URL = "https://example.test/pull/7"
 HEAD = "c" * 40
 GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40

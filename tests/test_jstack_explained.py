@@ -22,8 +22,8 @@ import pytest
 
 from jdrift.explained import BUILT, build
 from jdrift.explained import COMMENT as CARD
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PAGE = REPO / "docs" / "jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
 LOCAL = {"flow.html"}

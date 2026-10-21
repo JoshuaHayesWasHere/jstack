@@ -7,14 +7,13 @@ import os
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
 from test_home_thread import as_read
 from test_jbus_kitchen import complete
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 HOOK = REPO / "hooks" / "home-start.sh"
 NAME = "demo"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)

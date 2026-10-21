@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 TEMPLATE = REPO / "templates" / "grill-page.html"
 SCHEMA = REPO / "templates" / "grill-round.schema.json"
 GRILLING = REPO / "skills" / "grilling" / "SKILL.md"

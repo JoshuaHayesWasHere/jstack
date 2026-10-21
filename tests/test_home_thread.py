@@ -6,11 +6,11 @@ import os
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 NAME = "a demo repo"
 SLUG = "fix-login"
 THREAD = "mcp:thread-one"

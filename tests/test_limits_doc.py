@@ -4,11 +4,10 @@ is a pointer and is not held: a change to any other line of the file would move 
 test that pinned it would fail every pull request that touched that file."""
 
 import re
-from pathlib import Path
 
 from jgauge import sample, sizes
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 DOC = REPO / "docs" / "limits.md"
 CELL = re.compile(r"`([^`]+)`")
 PLACE = re.compile(r"^((?:src|tests|templates)/[\w./-]+|Makefile):(\d+)$")

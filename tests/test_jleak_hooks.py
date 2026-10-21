@@ -7,13 +7,12 @@ a `PreToolUse` hook. The private patterns are made-up words in a file of the tes
 
 import json
 import subprocess
-from pathlib import Path
 
 import pytest
 
 import jleak
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PUSH = REPO / "hooks" / "pre-push.sh"
 COMMAND = REPO / "hooks" / "outbound-command.sh"
 WORD = "zorblat"

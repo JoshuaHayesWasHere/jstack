@@ -6,8 +6,9 @@ import pytest
 
 from jbriefs import cli, page, parse, skills
 from jbus import watch
+from testing.paths import REPO
 
-TEMPLATE = Path(__file__).parent.parent / "templates" / "brief.md"
+TEMPLATE = REPO / "templates" / "brief.md"
 FINDINGS = ("Read:", "Change:", "Rests on:", "Sources:", "Ruled out:")
 
 PLAN = """\
@@ -196,7 +197,7 @@ def test_the_last_result_decides_the_state_and_an_earlier_one_keeps_the_pull_req
     assert brief.pull_request.url == "https://github.com/someone/demo/pull/7"
 
 
-RESULT_TEMPLATE = Path(__file__).parent.parent / "templates" / "result.md"
+RESULT_TEMPLATE = REPO / "templates" / "result.md"
 
 
 def reported(line):

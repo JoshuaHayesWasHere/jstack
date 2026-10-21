@@ -6,14 +6,13 @@ import re
 import subprocess
 import textwrap
 import time
-from pathlib import Path
 
 import pytest
 
 from test_home_thread import as_read
 from test_tool_calls import CALLS, errors
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
 EM_DASH = "\N{EM DASH}"
 BEFORE = {

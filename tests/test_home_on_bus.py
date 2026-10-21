@@ -13,14 +13,13 @@ import subprocess
 import sys
 import tomllib
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 
 from test_jbus_kitchen import NOW
 from test_understanding_skills import block, git
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
     'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "first"\n'

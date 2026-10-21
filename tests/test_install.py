@@ -24,8 +24,7 @@ import jleak
 from jinstall.__main__ import install as run_install
 from jinstall.kinds import Units, rewrite
 from jinstall.machine import Machine, Moved, Ran
-
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
 
 INSTALL = REPO / "install.sh"
 SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"

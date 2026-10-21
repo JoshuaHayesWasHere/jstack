@@ -25,6 +25,7 @@ INFRA_ROOT = (
     "SECURITY.md",
     "Makefile",
     "pyproject.toml",
+    "conftest.py",
     "uv.lock",
     "plugin.json",
     "README.md",

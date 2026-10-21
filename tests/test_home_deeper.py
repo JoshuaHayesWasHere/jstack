@@ -7,13 +7,12 @@ fix, a docs change or a bug fix with a known cause it prints `skip`."""
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
 from test_home_thread import as_read
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 KINDS = ("research", "perf", "analysis", "outcome")

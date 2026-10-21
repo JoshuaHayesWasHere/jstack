@@ -16,7 +16,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from conftest import OLD_EVENT, OLD_LEVEL
 from jbus import alert, alive, mirror, questions, waiting, wake
 from test_jbus_kitchen import (
     ASK,
@@ -31,6 +30,7 @@ from test_jbus_kitchen import (
     settles,
 )
 from test_jbus_queue import add, go
+from testing.jstack_fixtures import OLD_EVENT, OLD_LEVEL
 
 GATE = ASK
 ASKED = "gate alpha: question 1: which one?"

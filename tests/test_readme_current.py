@@ -36,8 +36,8 @@ from jinstall.kinds import HomeSkills, HookGroup, Program, ProviderInstance, Sta
 from jinstall.machine import Machine
 from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 PAGES = (README, *sorted(DOCS.glob("**/*.md")))

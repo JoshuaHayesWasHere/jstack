@@ -6,14 +6,13 @@ skill and run, and jbus's pass is run over what it left."""
 import os
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
 
 from test_home_thread import OTHER, TYPED, WHICH, Scene, about_the_home_id, block, paths
 from test_jbus_kitchen import Kitchen
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 THREAD = "mcp:thread-one"
 SCANNED = ["skills", "src", ".cursor", "hooks", "install.sh"]
 NAMED = r"[^\s|;&<>()]*home-thread"

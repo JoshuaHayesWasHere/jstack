@@ -10,11 +10,11 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPT = REPO / "scripts" / "check-jstack-docs.py"
 ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
 

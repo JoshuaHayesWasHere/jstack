@@ -8,11 +8,11 @@ import re
 import shutil
 import subprocess
 import time
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 HOOK = REPO / "hooks" / "skill-tips.sh"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab"

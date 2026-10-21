@@ -21,7 +21,6 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import daemons
 import jsettings
@@ -29,9 +28,7 @@ from jbus import leftover, merge, noticed, questions, queue, view, word, work
 from jbus.view import state as built
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
-
-REPO = Path(__file__).parent.parent.parent
-
+from testing.paths import REPO
 
 NOW = datetime(2026, 10, 12, 20, 0, tzinfo=UTC)
 
@@ -792,13 +789,19 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 
 class Process:
     """The real server as a process of its own, `jbus view` over a copy of the packages it
-    runs, with the check every 0.2 s where the server has it every `view.CHECK` seconds."""
+    runs, with the check every 0.2 s where the server has it every `view.CHECK` seconds. It
+    copies each folder `harness/jstack/pythonpath` names, and `src` is the copy that holds
+    `jbus`."""
 
     def __init__(self, scene):
-        self.src, self.port = scene.root / "src", free_port()
-        shutil.copytree(REPO / "src", self.src, ignore=shutil.ignore_patterns("__pycache__"))
+        self.port = free_port()
+        folders = (REPO / "harness" / "jstack" / "pythonpath").read_text().split()
+        copies = [scene.root / folder for folder in folders]
+        for folder, copy in zip(folders, copies, strict=True):
+            shutil.copytree(REPO / folder, copy, ignore=shutil.ignore_patterns("__pycache__"))
+        self.src = next(copy for copy in copies if (copy / "jbus").is_dir())
         self.env = os.environ | {
-            "PYTHONPATH": str(self.src),
+            "PYTHONPATH": os.pathsep.join(map(str, copies)),
             "PYTHONDONTWRITEBYTECODE": "1",
             "HOME": str(scene.root),
             "JBUS_STATE_DIR": str(scene.state_dir),
