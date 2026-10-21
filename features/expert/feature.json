@@ -1,12 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "expert",
-  "description": "Makes a thread the expert of one subject, which answers from its context pack.",
-  "owns": [
-    "skills/expert/**",
-    "playbooks/expert-*.md",
-    "templates/expert-answer.md",
-    "tests/test_expert_skill.py",
-    ".claude/skills/verify-jstack/features/expert-skill.md"
-  ]
+  "description": "Makes a thread the expert of one subject, which answers from its context pack."
 }

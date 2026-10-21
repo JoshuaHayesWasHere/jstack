@@ -10,7 +10,7 @@ A pack has one copy, in the repo it is about, at `<repo>/docs/context/`, and it 
 |---|---|
 | `<repo>/docs/context/sources.md` | Each source, a repo or a doc, pinned to a commit or a date. |
 | `<repo>/docs/context/INDEX.md` | The light layer: one line per note, `` `<note>.md`: <what it answers> (checked at <rev>) ``, at most 40 lines that are not blank. |
-| `<repo>/docs/context/notes/<note>.md` | One question, as its title, answered in the four parts of `templates/expert-answer.md`: Answer, Sources, Confidence, Not checked. |
+| `<repo>/docs/context/notes/<note>.md` | One question, as its title, answered in the four parts of `features/expert/templates/expert-answer.md`: Answer, Sources, Confidence, Not checked. |
 
 A source in a note cites its line: `` `path:line` at <sha> ``, or `` `path:first-last` at <sha> ``, with the words the note rests on in double quotes after it. A source that is no file of the repo names the date it was read.
 

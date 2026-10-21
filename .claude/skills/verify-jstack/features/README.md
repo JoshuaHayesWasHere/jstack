@@ -63,7 +63,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [A crewmate does one task](./crew-skill.md), not driven yet.
 - [The pages under docs](./docs-pages.md), not driven yet.
 - [The evals](./evals.md), not driven yet.
-- [An expert answers asks](./expert-skill.md), not driven yet.
+- [An expert answers asks](../../../../features/expert/verify.md), not driven yet.
 - [Grilling the user](../../../../features/grilling/verify.md), not driven yet.
 - [A home and its handoff](./home-skills.md), not driven yet.
 - [jbriefs reads a brief](./jbriefs.md), not driven yet.
