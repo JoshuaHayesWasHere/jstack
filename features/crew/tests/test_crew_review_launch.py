@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from crew.helpers import BRIEF, SKILL, said, with_field
+from crew_helpers import BRIEF, SKILL, said, with_field
 from test_home_thread import as_read
 from testing.layouts import assembled
 

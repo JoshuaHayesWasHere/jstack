@@ -148,7 +148,10 @@ SAYS = {
         "the one line `/pr-review run alpha again` with `t3_thread_send`, and write `Woke: "
         "jbus, sent /pr-review run alpha again` in the Result, the line as sent. Launch no "
         "second one. "
-        + (REPO / "templates" / "rerun.md").read_text().strip().replace("{slug}", "alpha")
+        + (REPO / "features" / "crew" / "templates" / "rerun.md")
+        .read_text()
+        .strip()
+        .replace("{slug}", "alpha")
     ),
     "renumber": (
         'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '

@@ -124,15 +124,17 @@ def test_a_link_to_a_file_the_layout_leaves_out_points_at_github(copy):
 
 
 def test_a_link_that_dangles_is_a_fault_naming_the_file_and_a_link_in_code_is_none(copy):
-    playbook = copy / "playbooks" / "bug-fix.md"
+    playbook = copy / "features" / "crew" / "playbooks" / "bug-fix.md"
     playbook.write_text(
         playbook.read_text()
-        + "\nSee [`state`](../docs/state.md), [`gone`](../docs/gone.md) and `[code](../x.md)`.\n"
+        + "\nSee [`state`](../../../docs/state.md), [`gone`](../../../docs/gone.md)"
+        + " and `[code](../x.md)`.\n"
     )
     assert layout.assemble(copy, CLAUDE_CODE).faults == (
-        "playbooks/bug-fix.md links to ../docs/gone.md, which is not in the tree",
+        "features/crew/playbooks/bug-fix.md links to ../../../docs/gone.md,"
+        " which is not in the tree",
     )
-    playbook.write_text(playbook.read_text().replace(", [`gone`](../docs/gone.md)", ""))
+    playbook.write_text(playbook.read_text().replace(", [`gone`](../../../docs/gone.md)", ""))
     assembled = layout.assemble(copy, CLAUDE_CODE)
     assert assembled.faults == ()
     text = assembled.entries["playbooks/bug-fix.md"].content.decode()
@@ -275,7 +277,7 @@ def test_check_names_what_is_stale_in_a_layout_and_a_run_mends_it(user):
     stale = "stale: skills/crew/SKILL.md, and 1 more"
     assert (code, line_for(said, part)) == (1, [f"old hard {part} -> {stale}"])
     assert user.run() == (0, user.every("ok"))
-    assert os.readlink(gone) == str(REPO / "skills" / "crew" / "SKILL.md")
+    assert os.readlink(gone) == str(REPO / "features" / "crew" / "SKILL.md")
     assert not (user.layout / "skills" / "crew" / "extra.md").exists()
 
 
@@ -286,7 +288,7 @@ def test_each_layout_keeps_templates_and_playbooks_beside_its_skills(user):
         root = os.path.realpath(skill / ".." / "..")
         assert root == str(laid(user.home, harness.name))
         assert os.path.realpath(f"{root}/templates/result.md") == str(
-            REPO / "templates" / "result.md"
+            REPO / "features" / "crew" / "templates" / "result.md"
         )
         assert os.path.isfile(f"{root}/playbooks/feature.md")
         assert os.path.realpath(f"{root}/source") == str(REPO)

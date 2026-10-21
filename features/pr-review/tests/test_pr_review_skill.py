@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-import crew.helpers as crew
+import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
 import test_jbus_unlock as unlock
@@ -219,7 +219,7 @@ def test_the_review_line_is_read_only_where_it_starts_a_line(reviewer, brief, va
 ASKED = "<the message this thread was started with, whole>"
 SECTION = "\n## Review\nVerdict: findings\nHead: " + "a" * 40 + "\n"
 NO_SECTION = "Review: review\nReviewer: mcp:thread-9\nTask: a `## Review` said inside a line\n"
-RERUN = REPO / "templates" / "rerun.md"
+RERUN = REPO / "features" / "crew" / "templates" / "rerun.md"
 
 
 def started(reviewer, asked, brief=""):

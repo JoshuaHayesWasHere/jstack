@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import pytest
 
-from crew.helpers import BRIEF, said
+from crew_helpers import BRIEF, said
 from test_home_thread import as_read
 from test_jbus_kitchen import NOW, Kitchen
 from testing.paths import REPO

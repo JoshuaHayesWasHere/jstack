@@ -3,12 +3,12 @@
 The crew skill makes a thread a crewmate: it does the one task of a brief in its own worktree, writes the Result into the brief, opens the pull request and stays on it until it merges. Its blocks decide whom to tell, when to rebase and when a review is owed; the tests lift each block and run it.
 
 Paths:
-- `skills/crew/`
+- `features/crew/`
 - `features/jbriefs/templates/brief.md`
-- `templates/result.md`
-- `templates/rerun.md`
+- `features/crew/templates/result.md`
+- `features/crew/templates/rerun.md`
 - `templates/gates.md`
-- `playbooks/pause-safely.md`
+- `features/crew/playbooks/pause-safely.md`
 Tests: none
 
 ## Sub-features

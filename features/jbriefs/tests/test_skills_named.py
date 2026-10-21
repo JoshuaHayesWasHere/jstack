@@ -167,7 +167,7 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
     """The block the crew skill runs at its start, run as written, over a brief."""
     task = tmp_path / "alpha.md"
     task.write_text(brief("alpha", NAMED))
-    text = (REPO / "skills" / "crew" / "SKILL.md").read_text()
+    text = (REPO / "features" / "crew" / "SKILL.md").read_text()
     (code,) = [one for one in re.findall(r"```sh\n(.*?)```", text, re.S) if "--skills" in one]
     script = f"H={tmp_path}\nT={REPO / 'templates'}\n" + code.replace(
         '"$H/tasks/<slug>.md"', str(task)
@@ -331,7 +331,7 @@ def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonic
 def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_list():
     assert skills.root() == REPO.resolve()
     assert skills.where("template", "gates.md") == REPO.resolve() / "templates" / "gates.md"
-    assert skills.where("skill", "crew") == REPO.resolve() / "skills" / "crew" / "SKILL.md"
+    assert skills.where("skill", "crew") == REPO.resolve() / "features" / "crew" / "SKILL.md"
     assert skills.where("playbook", "feature").is_file()
     assert skills.where("principle", "principle-prove-it-works").is_file()
     with pytest.raises(LookupError, match="skills.json lists no playbook crew"):

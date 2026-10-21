@@ -9,7 +9,7 @@ pytest_plugins = [
     "test_jbus_kitchen",
     "test_home_merge",
     "test_home_thread",
-    "crew.helpers",
+    "crew_helpers",
     "test_sweep",
     "test_jmerge_guarded",
 ]

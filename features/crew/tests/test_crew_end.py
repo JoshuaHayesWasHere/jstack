@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 import test_tool_calls as tools
-from crew.helpers import BRIEF, block, git, said
+from crew_helpers import BRIEF, block, git, said
 
 DONE = "Status: done\nBranch: alpha   Pull request: none\nLeft: none\n"
 
@@ -101,7 +101,8 @@ RESUMED = "\n## Result, follow-up (2026-10-11, the word to resume)\n"
 
 
 def paused(pull="none", more=""):
-    """A brief whose crewmate paused, as `playbooks/pause-safely.md` step 4 writes its Result."""
+    """A brief whose crewmate paused, as `features/crew/playbooks/pause-safely.md` step 4 writes
+    its Result."""
     said = PAUSED.format(pull).replace("Status: paused", f"Status: paused{more}")
     return f'# alpha: a task\nTask: "do it"\n\n## Result\n{said}'
 

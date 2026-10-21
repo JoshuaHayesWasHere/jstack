@@ -197,7 +197,7 @@ def test_the_last_result_decides_the_state_and_an_earlier_one_keeps_the_pull_req
     assert brief.pull_request.url == "https://github.com/someone/demo/pull/7"
 
 
-RESULT_TEMPLATE = REPO / "templates" / "result.md"
+RESULT_TEMPLATE = REPO / "features" / "crew" / "templates" / "result.md"
 
 
 def reported(line):

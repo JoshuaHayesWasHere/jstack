@@ -732,10 +732,10 @@ def test_a_tool_that_is_no_editable_install_is_not_put_over_and_uninstall_keeps_
 def test_a_link_by_another_name_to_a_skill_the_checkout_has_is_not_this_installs(user):
     user.run()
     alias = user.home / ".claude/skills/alias"
-    alias.symlink_to(REPO / "skills" / "crew")
+    alias.symlink_to(REPO / "features" / "crew")
     assert user.run("--check") == (0, user.every("ok"))
     user.run("--uninstall")
-    assert os.readlink(alias) == str(REPO / "skills" / "crew")
+    assert os.readlink(alias) == str(REPO / "features" / "crew")
 
 
 def test_uninstall_keeps_a_container_it_made_while_something_else_is_in_it(user):

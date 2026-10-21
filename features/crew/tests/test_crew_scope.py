@@ -4,8 +4,8 @@ import os
 import subprocess
 
 import test_room as room
-from crew.helpers import PullRequest, block
-from crew.test_crew_failed_check import in_the_template
+from crew_helpers import PullRequest, block
+from test_crew_failed_check import in_the_template
 from testing.paths import REPO
 
 

@@ -379,7 +379,7 @@ def changed_tests(since, repo=REPO):
 
 
 def dotted(path):
-    """A module of a test path by the name it is imported by, as `crew.helpers` or `conftest`."""
+    """A module of a test path by the name it is imported by, as `view.scene` or `conftest`."""
     return ".".join(path.with_suffix("").parts).removesuffix(".__init__")
 
 

@@ -90,7 +90,7 @@ def test_the_16th_weekly_failure_moves_the_thread_once_to_prime_with_its_model(k
     assert WEEKLY in carry["message"] and f"now on {PRIME}" in carry["message"]
     brief = kitchen.home / "tasks" / "alpha.md"
     assert f"read `{brief}`" in carry["message"]
-    assert "skills/crew/SKILL.md" in carry["message"]
+    assert "features/crew/SKILL.md" in carry["message"]
     assert f"jbriefs --skills {brief}" in carry["message"]
     line = (
         f"failover alpha: seven_day limit until {WEEKLY_RESET.isoformat()}, carry-on on "

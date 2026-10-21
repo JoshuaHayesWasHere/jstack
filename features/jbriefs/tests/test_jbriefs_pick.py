@@ -64,8 +64,8 @@ def home(tmp_path):
 def test_a_brief_is_a_crewmates_with_its_playbook_line(home):
     said = jbriefs(str(home / "tasks" / "tidy-gauge.md"))
     assert said[:2] == [
-        "role crew: /crew tidy-gauge (skills/crew/SKILL.md)",
-        "playbook feature: playbooks/feature.md (its Playbook: line)",
+        "role crew: /crew tidy-gauge (features/crew/SKILL.md)",
+        "playbook feature: features/crew/playbooks/feature.md (its Playbook: line)",
     ]
 
 

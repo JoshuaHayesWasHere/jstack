@@ -169,7 +169,7 @@
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">4</span>Brief and launch</b><small>Launches when the machine has room. A file another brief names never stops a launch: <code>jmerge --claims</code> names the overlap, and the second to merge rebases. <code>t3_thread_launch</code>: a new thread in a new worktree, with the message <code>/crew &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>features/jbriefs/templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>plan.md</b><small>the entry says <code>with crewmate</code></small></div><i class="ar r"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>Reads the brief and <code>notes.md</code>, nothing else. Then the playbook the brief's <code>Playbook:</code> line names, such as <code>playbooks/bug-fix.md</code>.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>Reads the brief and <code>notes.md</code>, nothing else. Then the playbook the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -196,7 +196,7 @@
 
     <div class="row rev">
       <div class="cell h"></div>
-      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Result</code>, shaped as <code>templates/result.md</code></small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Result</code>, shaped as <code>features/crew/templates/result.md</code></small></div><i class="ar l"></i></div>
       <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>No message: the home hears of a pull request once, at step 11. No watch is armed, and the turn ends.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -292,10 +292,10 @@
       <tr><td><code>features/jbriefs/templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
       <tr><td><code>features/pr-review/templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
-      <tr><td><code>templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
+      <tr><td><code>features/crew/templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
       <tr><td><code>features/skill-library/templates/skill-artifacts.md</code></td><td>8</td><td>Crewmate, and a scout</td><td>The artifact each name on a <code>Skills:</code> line leaves under <code>Skills run:</code> in the Result or the Report</td></tr>
       <tr><td><code>features/pr-review/templates/review.md</code></td><td>9</td><td>Reviewer</td><td>The <code>## Review</code> section of the brief</td></tr>
-      <tr><td><code>templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>When a reviewer is sent <code>again</code>: the one line it is sent, and the line it accepts</td></tr>
+      <tr><td><code>features/crew/templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>When a reviewer is sent <code>again</code>: the one line it is sent, and the line it accepts</td></tr>
       <tr><td><code>features/expert/templates/expert-answer.md</code></td><td>any</td><td>Expert</td><td>An answer to an ask, in its four parts: it is no step of a task</td></tr>
       <tr><td><code>features/jpack/templates/context</code></td><td>4</td><td>A scout or a crewmate, on the subject repo's brief</td><td>A repo's context pack, copied into the repo it is about and read by its home at its start (<code>features/jpack/docs/context.md</code>)</td></tr>
       <tr><td><code>templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
@@ -386,7 +386,7 @@
     <tbody>
       <tr><td>Home</td><td><code>/home</code>, <code>/home &lt;scope&gt;</code></td><td><code>skills/home/SKILL.md</code></td></tr>
       <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>features/scout/SKILL.md</code></td></tr>
-      <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>skills/crew/SKILL.md</code></td></tr>
+      <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>features/crew/SKILL.md</code></td></tr>
       <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>features/pr-review/SKILL.md</code></td></tr>
       <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>skills/handoff/SKILL.md</code></td></tr>
       <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>features/grilling/SKILL.md</code></td></tr>

@@ -338,7 +338,9 @@ def test_third_party_has_to_cover_a_playbook_only_when_its_source_is_pstack(root
 
 
 def test_the_feature_playbook_has_its_design_step_before_code():
-    assert design_problems((PLAYBOOKS / "feature.md").read_text()) == []
+    assert (
+        design_problems((REPO / "features" / "crew" / "playbooks" / "feature.md").read_text()) == []
+    )
 
 
 DESIGN = (

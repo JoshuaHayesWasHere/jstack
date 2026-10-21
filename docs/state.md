@@ -28,7 +28,16 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `home-id` | The home's thread id. The home's start writes it. |
 | `log/` | Old handoffs, dated. |
 
-A thread messages its home only when the home has something to do. A crewmate tells it that its pull request is fixed and green, that it is green with no review to come, that its task ended with no pull request, or that its task is paused. A scout tells it that its report is written. Either sends a gate. A crewmate sends nothing when its pull request opens or when the findings are handled. A reviewer sends its findings to the crewmate's thread, and to the home only when the brief has no `Thread:` line. "Telling the home" in `skills/crew/SKILL.md` has every case. The message goes to the id in a `home-id`, read when it is sent: the root home's, or the one in `<scope>/` when the `Home:` line of the brief or request names that scope. No brief names a thread, so a home that starts rewrites none. Between a handoff and the next start there is no `home-id`, nothing is sent, and the report waits on disk.
+A thread messages its home only when the home has something to do.
+A crewmate tells it that its pull request is fixed and green, that it is green with no review to come, that its task ended with no pull request, or that its task is paused.
+A scout tells it that its report is written.
+Either sends a gate.
+A crewmate sends nothing when its pull request opens or when the findings are handled.
+A reviewer sends its findings to the crewmate's thread, and to the home only when the brief has no `Thread:` line.
+"Telling the home" in `features/crew/SKILL.md` has every case.
+The message goes to the id in a `home-id`, read when it is sent: the root home's, or the one in `<scope>/` when the `Home:` line of the brief or request names that scope.
+No brief names a thread, so a home that starts rewrites none.
+Between a handoff and the next start there is no `home-id`, nothing is sent, and the report waits on disk.
 
 ## Undo an edit to standing.md
 

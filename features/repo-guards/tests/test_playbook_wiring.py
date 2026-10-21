@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-import crew.helpers as crew
+import crew_helpers as crew
 import test_home_merge as merge
 import test_playbooks as shape
 from test_home_thread import as_read
