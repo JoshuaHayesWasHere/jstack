@@ -39,6 +39,8 @@ Three things come to you. Everything else that is reversible is done without ask
 | One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread waits in its own thread. These are the only things a thread asks first. |
 | A pull request with no review | Its brief says `Review: none` | It is never merged by itself. It waits for your word. |
 
+A brief that says `Review: after` merges once its check passes, and its review's findings come to you as a cleanup row, `cleanup-<slug>`, that waits for your go.
+
 A pull request that prints `wait` is not a failure and asks nothing of you. `jmerge` prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.
 
 ## Two pages to open in a browser

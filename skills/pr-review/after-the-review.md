@@ -96,6 +96,25 @@
 
    On `not yet`, append the section again and run the block again. Send nothing and settle nothing until it prints `written`.
 
+   On `written`, a brief whose first `Review:` line says `after` has merged, or will, on its check alone, so its findings go to a cleanup row and not to the crewmate.
+   Send nothing to anyone, write `Sent to: not sent, Review: after` in the section, and run this with the block at the top:
+
+   ```sh
+   B="$H/tasks/<slug>.md"
+   if awk '/^Review:/ {after = ($(2) == "after"); exit} END {exit !after}' "$B"; then
+       if text=$(uv run --project "$T/.." jbus cleanup "$B"); then
+           printf '%s\n' "$text" | uv run --project "$T/.." jbus queue add "cleanup-<slug>" --priority 50
+       else
+           echo "$text"
+       fi
+   else
+       echo "not after: the brief says Review: review or none, so send what step 4 named"
+   fi
+   ```
+
+   It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit, and it is not approved: it waits for the user's go.
+   On `no cleanup row`, the review was clean or the row is already queued, and nothing more is done.
+
    On `written`, send what step 4 named. On `crewmate`, send them to that thread with `t3_thread_send`: `threadId` is the id it printed, whole. That is so with a home and with none: the findings go to the `Thread:` line. On `home`, send them to the thread "Telling the home" finds. If that finds none, there is no home: do not send, say so, and write `Sent to: not sent, no home` in the section. jbus reads that line, and passes the findings on to the thread a `Thread:` line names by then, or parks them as a gate. A send that failed is written the same way: change the section's `Sent to:` line to `not sent, <why>`, and it is passed on the same way. One message: the pull request, the head reviewed, then each finding on its own line with its severity, its file and line, what is wrong, its principle tag and its bucket tag, and its risk tag where it has one. Then the `Proof:` line, one line for each overlap with work in flight, and the count dropped, as a number and nothing more. What the lead noted or dismissed is not in it. End with: "One review pass. Fix what you agree with, say why for the rest, and the pull request's checks decide." In a review whose Start 1 printed `go: a second pass`, the message begins "Second pass, and the last full one." in place of "One review pass." If there are no findings and no overlap, send one line saying the review is clean, and the `Proof:` line.
 6. Send nothing more, to a home or to anyone. The crewmate has the findings, jbus passes them on, or the pass was clean and asked for no message, and the section is on disk. A home hears of this pull request once, from the crewmate, when it is fixed and green, and only while it is the one that merges. While jbus merges, with a home or with none, nobody is sent that: `jmerge` reads the brief, run by jbus.
 7. Say the same in this thread in at most five lines. A reviewer does not review the fixes: the scoped pass of a fix is another reviewer's, launched by the crewmate when its fix changed a file outside `tests/`.
