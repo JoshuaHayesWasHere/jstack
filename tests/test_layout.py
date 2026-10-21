@@ -355,7 +355,7 @@ def test_check_names_a_skill_link_whose_target_a_move_took_away_and_a_run_mends_
     code, lines = said("--check")
     assert code == 1
     [line] = line_for(lines, part)
-    assert line.startswith(f"old hard {part} -> stale: features/why/")
+    assert line.startswith(f"old hard {part} -> stale: skills/why/")
     _, lines = said()
     assert [line for line in lines if not line.startswith("ok ")] == []
     assert os.path.realpath(skill) == str(moved / "SKILL.md")

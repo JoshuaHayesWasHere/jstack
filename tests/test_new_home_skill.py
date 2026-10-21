@@ -13,7 +13,7 @@ import tomllib
 
 import pytest
 
-from test_understanding_skills import block, blocks, git
+from skill_blocks import block, blocks, git
 from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"

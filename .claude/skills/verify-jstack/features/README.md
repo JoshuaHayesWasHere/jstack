@@ -83,7 +83,21 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [A pull request is reviewed](../../../../features/pr-review/verify.md), not driven yet.
 - [A scout answers one question](../../../../features/scout/verify.md), not driven yet.
 - [The skill library](../../../../features/skill-library/verify.md), not driven yet.
-- [The skills a user types](./understanding-skills.md), not driven yet.
+- [The architect skill](../../../../features/architect/verify.md), not driven yet.
+- [The automate-me skill](../../../../features/automate-me/verify.md), not driven yet.
+- [The benchmark-checklist skill](../../../../features/benchmark-checklist/verify.md), not driven yet.
+- [The bro skill](../../../../features/bro/verify.md), not driven yet.
+- [The how skill](../../../../features/how/verify.md), not driven yet.
+- [The in-your-own-words skill](../../../../features/in-your-own-words/verify.md), not driven yet.
+- [The ketchup skill](../../../../features/ketchup/verify.md), not driven yet.
+- [The no-comments skill](../../../../features/no-comments/verify.md), not driven yet.
+- [The recall skill](../../../../features/recall/verify.md), not driven yet.
+- [The sharpen skill](../../../../features/sharpen/verify.md), not driven yet.
+- [The show-me-your-work skill](../../../../features/show-me-your-work/verify.md), not driven yet.
+- [The tdd skill](../../../../features/tdd/verify.md), not driven yet.
+- [The teach skill](../../../../features/teach/verify.md), not driven yet.
+- [The typescript-best-practices skill](../../../../features/typescript-best-practices/verify.md), not driven yet.
+- [The why skill](../../../../features/why/verify.md), not driven yet.
 - [The verify-jstack harness](../../../../features/verify-jstack/verify.md), not driven yet.
 - [Writing for a reader](../../../../features/writing/verify.md), not driven yet.
 

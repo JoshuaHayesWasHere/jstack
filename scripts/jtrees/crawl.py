@@ -71,8 +71,6 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "tests/fixtures/README.md",
         ".claude/skills/verify-jstack/features/README.md",
         ".cursor/skills/verify-jstack",
-        "tests/test_understanding_skills*.py",
-        ".claude/skills/verify-jstack/features/understanding-skills.md",
     ),
 }
 
