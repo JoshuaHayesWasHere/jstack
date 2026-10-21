@@ -484,12 +484,12 @@ def test_a_claude_home_whose_skills_point_outside_the_checkout_is_old(user, tmp_
     ]
 
 
-def test_a_claude_home_whose_own_skill_links_reach_the_harness_copy_is_ok(user, tmp_path):
+def test_a_claude_home_whose_own_skill_links_reach_the_layout_is_ok(user, tmp_path):
     declared(user, {PRIME: prime()})
     skills = user.home / ".claude_prime" / "skills"
     skills.unlink()
     skills.mkdir()
-    (skills / "crew").symlink_to(REPO / "harness" / "jstack" / "claude-code" / "skills" / "crew")
+    (skills / "crew").symlink_to(user.home / ".local/share/jstack/harness/claude-code/skills/crew")
     (skills / ".system").mkdir()
     assert line_for(user.doctor()[1], "skills") == [
         f"ok hard skills {user.home / '.claude'}",

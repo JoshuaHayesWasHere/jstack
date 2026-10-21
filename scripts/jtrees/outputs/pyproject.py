@@ -1,5 +1,5 @@
 """The regions of `pyproject.toml` the manifests write: the commands, the wheel's packages, the
-harness copy the wheel takes whole beside them, and the paths pytest and ruff read.
+source tree the wheel carries beside them, and the paths pytest and ruff read.
 
 A region is the lines between `# generated: <part> ...` and the next `# end generated`; the
 rest of the file is hand-written and is left as it is. hatch reads static lists, so these
@@ -13,14 +13,21 @@ import re
 
 from jtrees.crawl import Invalid
 from jtrees.model import FEATURES, Tree
-from jtrees.outputs import harness
+from jtrees.outputs import catalog
 
 PATH = "pyproject.toml"
 REGION = re.compile(
     r"(?P<begin>^# generated: (?P<part>[a-z]+)[^\n]*\n)(?P<body>.*?)(?P<end>^# end generated$)",
     re.S | re.M,
 )
-PARTS = ("scripts", "packages", "harness", "paths", "ruff")
+PARTS = ("scripts", "packages", "source", "paths", "ruff")
+# Where the wheel puts the source tree, under the environment it is installed into (its shared
+# data, `<venv>/share/jstack`), a path with no Python version in it: `jbriefs.skills.PACKAGED`
+# reads it, and the install assembles each harness's layout from it.
+SHARE = "share/jstack"
+# The folders skills link into that hold no item: the layout points such a link at GitHub, and
+# the release must hold the target to tell it from a link that dangles.
+LINKED = ("docs",)
 
 
 def _list(values: list[str]) -> str:
@@ -42,6 +49,14 @@ def _tests(tree: Tree) -> list[str]:
     return found
 
 
+def _source(tree: Tree) -> list[str]:
+    """What the wheel carries for the install to assemble the layouts from: the catalog and
+    plugin.json, each top folder an item or a hook sits in, and the folders of `LINKED`."""
+    paths = [item.path for item in tree.items] + [str(one["path"]) for one in catalog.hooks(tree)]
+    folders = {path.split("/", 1)[0] for path in paths} | set(LINKED)
+    return [catalog.PATH, "plugin.json", *sorted(folders)]
+
+
 def _part(tree: Tree, part: str) -> str:
     if part == "scripts":
         listed = sorted(command for feature in tree.features for command in feature.commands)
@@ -49,8 +64,10 @@ def _part(tree: Tree, part: str) -> str:
     if part == "packages":
         packages = sorted(package for feature in tree.features for package in feature.packages)
         return f"packages = {_list(packages)}\n"
-    if part == "harness":
-        return f"{json.dumps(harness.COPY)} = {json.dumps(harness.PACKAGED)}\n"
+    if part == "source":
+        return "".join(
+            f"{json.dumps(one)} = {json.dumps(f'{SHARE}/{one}')}\n" for one in _source(tree)
+        )
     if part == "paths":
         tests = _tests(tree)
         return f"testpaths = {_list(tests)}\npythonpath = {_list(_python(tree) + tests)}\n"

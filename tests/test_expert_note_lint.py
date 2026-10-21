@@ -8,6 +8,7 @@ import sys
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO
 
 LINT = REPO / "src" / "jpack" / "lint-notes.sh"
@@ -282,7 +283,7 @@ def test_the_study_playbook_runs_the_lint_on_the_whole_folder(tmp_path, notes, s
         f'#!/bin/sh\nPYTHONPATH={REPO / "src"} exec {sys.executable} -m jpack "$@"\n'
     )
     (bin / "jpack").chmod(0o755)
-    copy = REPO / "harness" / "jstack" / "claude-code"
+    copy = assembled()
     done = subprocess.run(
         ["sh", "-c", block],
         env={"PATH": f"{bin}:/usr/bin:/bin", "E": str(expert), "T": str(copy / "templates")},

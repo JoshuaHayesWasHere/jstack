@@ -4,10 +4,11 @@ import subprocess
 
 import pytest
 
-from testing.paths import REPO, skills
+from testing.layouts import assembled
+from testing.paths import skills
 
 SKILLS = skills()
-INSTALLED = REPO / "harness" / "jstack" / "claude-code" / "skills"
+INSTALLED = assembled() / "skills"
 LOG = SKILLS["show-me-your-work"] / "scripts" / "log.sh"
 RUNS = SKILLS["benchmark-checklist"] / "scripts" / "runs.sh"
 COLUMNS = ["ts", "phase", "decision", "why", "evidence", "result"]

@@ -11,10 +11,11 @@ import textwrap
 import pytest
 
 from jbriefs import pick
+from testing.layouts import assembled
 from testing.paths import REPO
 
 SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
-HOOK = REPO / "harness" / "jstack" / "claude-code" / "hooks" / "skill-tips.sh"
+HOOK = assembled() / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
 # tidy-gauge: the gauge prints its slots in order

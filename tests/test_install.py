@@ -1,7 +1,7 @@
-"""`install.sh`: what it puts for Claude, Codex and Grok, what `--check` says of each part and
-what `--uninstall` takes away. Every test runs the script, under a temporary `HOME` and with
-stand-ins for `uv` and `systemctl`, but for the three that ask the machine a question no
-argument of the script reaches."""
+"""`install.sh`: the layout it assembles for Claude Code, Codex and Cursor, what it puts for
+each, what `--check` says of each part and what `--uninstall` takes away. Every test runs the
+script, under a temporary `HOME` and with stand-ins for `uv` and `systemctl`, but for the three
+that ask the machine a question no argument of the script reaches."""
 
 import fcntl
 import functools
@@ -21,17 +21,20 @@ import pytest
 
 import daemons
 import jleak
+from jinstall import layout
 from jinstall.__main__ import install as run_install
+from jinstall.harnesses import HARNESSES
 from jinstall.kinds import Units, rewrite
 from jinstall.machine import Machine, Moved, Ran
 from testing.paths import REPO
 
 INSTALL = REPO / "install.sh"
 SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"
-HARNESS = Path("harness") / "jstack" / "claude-code"
-COPY = REPO / HARNESS
-SKILLS = sorted(path.parent.name for path in (COPY / "skills").glob("*/SKILL.md"))
-ROOTS = (".claude/skills", ".agents/skills", ".codex/skills")
+SKILLS = layout.skills(REPO)
+ROOTS = tuple(harness.root for harness in HARNESSES)
+LAYOUTS = Path(".local") / "share" / "jstack" / "harness"
+# How many skills name what each harness leaves out: its layout's line says so when ok.
+FLAGGED = {harness.name: len(layout.assemble(REPO, harness).flagged) for harness in HARNESSES}
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 PACKAGES = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"]
 PACKAGE_ROOTS = sorted(
@@ -69,22 +72,37 @@ TIMERS = [
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
-def command(script, checkout=REPO):
-    return f"sh '{checkout / HARNESS / 'hooks' / script}' 2>/dev/null || true"
+def laid(home, harness="claude-code"):
+    """Where the install assembles `harness`'s layout under `home`."""
+    return home / LAYOUTS / harness
 
 
-def group(script, matcher="startup", checkout=REPO, refuses=False):
-    run = f"sh '{checkout / HARNESS / 'hooks' / script}'" if refuses else command(script, checkout)
-    hooks = [{"type": "command", "command": run, "timeout": 30 if refuses else 5}]
+def group(script, home, matcher="startup", refuses=False, harness="claude-code"):
+    run = f"sh '{laid(home, harness) / 'hooks' / script}'"
+    command = run if refuses else f"{run} 2>/dev/null || true"
+    hooks = [{"type": "command", "command": command, "timeout": 30 if refuses else 5}]
     return ({"matcher": matcher} if matcher else {}) | {"hooks": hooks}
 
 
-START = group("home-start.sh")
-TIPS = group("skill-tips.sh", matcher=None)
-GAUGE = group("home-gauge.sh", matcher=None)
-OUTBOUND = group("outbound-command.sh", matcher="Bash", refuses=True)
-STATUS = {"type": "command", "command": f"sh '{COPY / 'hooks' / 'limits.sh'}'"}
-CURRENT = "ok hard harness/ is current"
+def layouts(home):
+    """The part of each harness's layout under `home`, by what its line says when it is ok."""
+    return {
+        f"hard layout {harness.name} {laid(home, harness.name)}": (
+            f" -> README.md: {FLAGGED[harness.name]} name what it leaves out"
+            if FLAGGED[harness.name]
+            else ""
+        )
+        for harness in HARNESSES
+    }
+
+
+def lines_of(state, parts, home):
+    """Each part's line in `state`, with what a layout's ok line adds after it."""
+    added = layouts(home) if state == "ok" else {}
+    return [f"{state} {part}{added.get(part, '')}" for part in parts]
+
+
+GENERATED = "ok hard generated files are current"
 UV = """#!/bin/sh
 echo "$*" >> "$UV_LOG"
 tools=$UV_TOOL_DIR
@@ -128,6 +146,14 @@ class User:
         self.bin = self.home / ".local" / "bin"
         self.units = self.home / ".config" / "systemd" / "user"
         self.patterns = self.home / ".config" / "jstack" / "outbound.toml"
+        self.layout = laid(self.home)
+        self.START = group("home-start.sh", self.home)
+        self.CODEX_START = group("home-start.sh", self.home, harness="codex")
+        self.TIPS = group("skill-tips.sh", self.home, matcher=None)
+        self.GAUGE = group("home-gauge.sh", self.home, matcher=None)
+        self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
+        limits = self.layout / "hooks" / "limits.sh"
+        self.STATUS = {"type": "command", "command": f"sh '{limits}'"}
         self.home.mkdir()
         self.stub.mkdir()
         self.script("uv", UV)
@@ -179,8 +205,17 @@ class User:
     def links(self):
         return [self.home / root / name for root in ROOTS for name in SKILLS]
 
+    def linked(self):
+        """Each skill link, by where it points: its skill in the layout of its root's harness."""
+        return {
+            self.home / harness.root / name: laid(self.home, harness.name) / "skills" / name
+            for harness in HARNESSES
+            for name in SKILLS
+        }
+
     def parts(self):
         return [
+            *layouts(self.home),
             *(f"hard {link}" for link in self.links()),
             f"hard hook {self.settings} SessionStart",
             f"hard hook {self.settings} UserPromptSubmit",
@@ -194,8 +229,9 @@ class User:
         ]
 
     def every(self, state, *more):
-        """Each part's line in `state`, under the copy's, which is current in this checkout."""
-        return [CURRENT, *(f"{state} {part}" for part in (*self.parts(), *more))]
+        """Each layout's line and each part's in `state`, under the generated files', which
+        are current in this checkout."""
+        return [GENERATED, *lines_of(state, [*self.parts(), *more], self.home)]
 
     def listing(self):
         return sorted(str(path.relative_to(self.home)) for path in self.home.rglob("*"))
@@ -248,18 +284,18 @@ def line_for(said, part):
 def test_it_puts_every_part_and_says_ok_for_each(user):
     assert len(SKILLS) > 9
     assert user.run() == (0, user.every("ok"))
-    for link in user.links():
-        assert os.readlink(link) == str(COPY / "skills" / link.name)
+    for link, skill in user.linked().items():
+        assert os.readlink(link) == str(skill)
     assert json.loads(user.settings.read_text()) == {
         "hooks": {
-            "SessionStart": [START],
-            "UserPromptSubmit": [TIPS],
-            "PostToolUse": [GAUGE],
-            "PreToolUse": [GAUGE, OUTBOUND],
+            "SessionStart": [user.START],
+            "UserPromptSubmit": [user.TIPS],
+            "PostToolUse": [user.GAUGE],
+            "PreToolUse": [user.GAUGE, user.OUTBOUND],
         },
-        "statusLine": STATUS,
+        "statusLine": user.STATUS,
     }
-    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [START]}}
+    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [user.CODEX_START]}}
     assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
     assert user.said(user.uv_log) == [f"tool install --editable {REPO} --reinstall"]
     assert user.said(user.systemctl_log) == []
@@ -272,7 +308,7 @@ def test_every_skill_is_linked_into_codexs_home_beside_what_codex_keeps_there(us
     linked = sorted((user.home / ".codex" / "skills").iterdir())
     assert linked == [system, *(user.home / ".codex" / "skills" / name for name in SKILLS)]
     assert os.readlink(user.home / ".codex" / "skills" / "pr-review") == str(
-        COPY / "skills" / "pr-review"
+        laid(user.home, "codex") / "skills" / "pr-review"
     )
 
 
@@ -356,7 +392,7 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
     assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.codex.read_text()) == {
-        "hooks": {"SessionStart": [other, START], "Stop": stop}
+        "hooks": {"SessionStart": [other, user.CODEX_START], "Stop": stop}
     }
     before = user.codex.read_text()
     user.run()
@@ -374,7 +410,7 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     assert line_for(user.run("--check")[1], part) == [f"old hard {part} -> {was}"]
     assert user.run()[0] == 0
     assert json.loads(user.codex.read_text()) == {
-        "hooks": {"SessionStart": [{"matcher": "startup", "hooks": [beside]}, START]}
+        "hooks": {"SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START]}
     }
 
 
@@ -393,10 +429,10 @@ def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touc
     assert user.run()[0] == 0
     assert json.loads(user.settings.read_text()) == written | {
         "hooks": {
-            "UserPromptSubmit": [TIPS],
-            "SessionStart": [START],
-            "PostToolUse": [GAUGE],
-            "PreToolUse": [GAUGE, OUTBOUND],
+            "UserPromptSubmit": [user.TIPS],
+            "SessionStart": [user.START],
+            "PostToolUse": [user.GAUGE],
+            "PreToolUse": [user.GAUGE, user.OUTBOUND],
         }
     }
     assert user.run("--uninstall")[0] == 0
@@ -433,7 +469,7 @@ def test_an_empty_hooks_file_is_missing_the_entry_and_gets_it(user, written):
     user.write(user.codex, written)
     assert user.run("--check") == (1, user.every("missing"))
     assert user.run() == (0, user.every("ok"))
-    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [START]}}
+    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [user.CODEX_START]}}
 
 
 def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_path):
@@ -447,12 +483,12 @@ def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_pat
     assert json.loads(kept.read_text()) == {
         "hooks": {
             "Stop": stop,
-            "SessionStart": [START],
-            "UserPromptSubmit": [TIPS],
-            "PostToolUse": [GAUGE],
-            "PreToolUse": [GAUGE, OUTBOUND],
+            "SessionStart": [user.START],
+            "UserPromptSubmit": [user.TIPS],
+            "PostToolUse": [user.GAUGE],
+            "PreToolUse": [user.GAUGE, user.OUTBOUND],
         },
-        "statusLine": STATUS,
+        "statusLine": user.STATUS,
     }
     assert sorted(path.name for path in kept.parent.iterdir()) == ["settings.json"]
     assert user.run("--uninstall")[0] == 0
@@ -466,7 +502,7 @@ def test_the_limits_writer_of_another_checkout_is_old_and_replaced(user):
     part = f"statusline {user.settings}"
     assert line_for(user.run("--check")[1], part) == [f"old optional {part} -> {was}"]
     assert user.run() == (0, user.every("ok"))
-    assert json.loads(user.settings.read_text())["statusLine"] == STATUS
+    assert json.loads(user.settings.read_text())["statusLine"] == user.STATUS
 
 
 def test_the_units_are_not_linked_while_the_commands_could_not_be_put(user):
@@ -581,6 +617,10 @@ def test_the_record_holds_the_containers_the_install_created_and_nothing_else(us
             ".config/systemd/user/timers.target.wants",
             ".local",
             ".local/bin",
+            ".local/share",
+            ".local/share/jstack",
+            ".local/share/jstack/harness",
+            *(f".local/share/jstack/harness/{harness.name}" for harness in HARNESSES),
             ".local/state",
         ]
     )
@@ -845,9 +885,13 @@ def worktree(tmp_path):
     commit = ["-c", "user.name=a", "-c", "user.email=a@example.test", "commit", "-q"]
     subprocess.run(["git", "-C", main, *commit, "--allow-empty", "-m", "start"], check=True)
     subprocess.run(["git", "-C", main, "worktree", "add", "-q", linked], check=True)
+    item = {"name": "crew", "kind": "skill", "path": "skills/crew/SKILL.md"}
+    plugin = {"repository": "https://example.test/jstack"}
     for checkout in (main, linked):
-        (checkout / HARNESS / "skills" / "crew").mkdir(parents=True)
-        (checkout / HARNESS / "skills" / "crew" / "SKILL.md").write_text("crew\n")
+        (checkout / "skills" / "crew").mkdir(parents=True)
+        (checkout / "skills" / "crew" / "SKILL.md").write_text("crew\n")
+        (checkout / "skills.json").write_text(json.dumps({"items": [item]}))
+        (checkout / "plugin.json").write_text(json.dumps(plugin))
         (checkout / "pyproject.toml").write_text('[project]\nname = "jstack"\nscripts = {}\n')
     return main, linked
 
@@ -866,10 +910,14 @@ def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_r
     )
     assert list(home.iterdir()) == []
     checked = run_install(machine(linked, home, account=home), write=False)
-    assert checked.lines[1] == f"missing hard {home}/.claude/skills/crew"
+    crew = f"{home}/.claude/skills/crew"
+    assert line_for(checked.lines, crew) == [f"missing hard {crew}"]
     in_a_sandbox = run_install(machine(linked, home, account=tmp_path / "account"), write=True)
-    assert in_a_sandbox.lines[1] == f"ok hard {home}/.claude/skills/crew"
-    assert os.readlink(home / ".claude/skills/crew") == str(linked / HARNESS / "skills" / "crew")
+    assert line_for(in_a_sandbox.lines, crew) == [f"ok hard {crew}"]
+    assert os.readlink(crew) == str(laid(home) / "skills" / "crew")
+    assert os.readlink(laid(home) / "skills" / "crew" / "SKILL.md") == str(
+        linked / "skills" / "crew" / "SKILL.md"
+    )
 
 
 def test_a_plain_install_from_the_main_checkout_under_the_accounts_own_home_runs(tmp_path):
@@ -879,7 +927,8 @@ def test_a_plain_install_from_the_main_checkout_under_the_accounts_own_home_runs
 
     done = run_install(machine(main, home, account=home), write=True)
 
-    assert done.lines[1] == f"ok hard {home}/.claude/skills/crew"
+    crew = f"{home}/.claude/skills/crew"
+    assert line_for(done.lines, crew) == [f"ok hard {crew}"]
 
 
 def test_the_private_patterns_are_made_once_and_never_written_again(user):
@@ -919,7 +968,7 @@ def test_uninstall_keeps_private_patterns_the_user_added_to(user):
 def test_the_command_hook_the_install_writes_refuses_through_its_exit_code(user):
     user.run()
     _, written = json.loads(user.settings.read_text())["hooks"]["PreToolUse"]
-    assert written == OUTBOUND
+    assert written == user.OUTBOUND
     asked = {"tool_name": "Bash", "tool_input": {"command": "git push --no-verify"}, "cwd": "/"}
     done = subprocess.run(
         written["hooks"][0]["command"],
@@ -936,7 +985,7 @@ def test_the_command_hook_the_install_writes_refuses_through_its_exit_code(user)
 def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(user, tmp_path):
     user.run()
     written, _ = json.loads(user.settings.read_text())["hooks"]["PreToolUse"]
-    assert written == GAUGE
+    assert written == user.GAUGE
     main, transcript = tmp_path / "demo", tmp_path / "session-1.jsonl"
     subprocess.run(["git", "init", "-q", main], check=True)
     usage = {"input_tokens": 350000}
@@ -964,7 +1013,7 @@ def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(u
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": "context: 350000 tokens, over this home's ceiling of 350000."
-        f" Only the handoff runs now: read {COPY.resolve() / 'skills' / 'handoff' / 'SKILL.md'}"
+        f" Only the handoff runs now: read {user.layout / 'skills' / 'handoff' / 'SKILL.md'}"
         " and do its steps.",
     }
 
@@ -972,23 +1021,27 @@ def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(u
 def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(user):
     user.run()
     written = json.loads(user.settings.read_text())
-    written["hooks"]["PreToolUse"] = [OUTBOUND]
+    written["hooks"]["PreToolUse"] = [user.OUTBOUND]
     user.settings.write_text(json.dumps(written))
     part = f"hook {user.settings} PreToolUse"
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (1, [f"missing hard {part}", f"ok hard {part}"])
     assert user.run() == (0, user.every("ok"))
-    assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [OUTBOUND, GAUGE]
+    assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
+        user.OUTBOUND,
+        user.GAUGE,
+    ]
     assert user.run("--check") == (0, user.every("ok"))
 
 
 def checkout_under(user):
-    """A main checkout inside the user's HOME, with this one's installer, hooks and source."""
+    """A main checkout inside the user's HOME, with this one's installer, hooks, code and the
+    source of its layouts."""
     checkout = user.home / "repos" / "jstack"
     checkout.mkdir(parents=True)
-    for name in ("install.sh", "pyproject.toml"):
+    for name in ("install.sh", "pyproject.toml", "skills.json", "plugin.json"):
         shutil.copy(REPO / name, checkout / name)
-    for name in ("src", "features", "hooks", "templates", "harness"):
+    for name in ("src", "features", "hooks", "templates", "skills", "playbooks", "principles"):
         shutil.copytree(REPO / name, checkout / name, ignore=shutil.ignore_patterns("__pycache__"))
     subprocess.run(["git", "init", "-q", checkout], check=True)
     return checkout, f"hard hook {checkout / '.git' / 'hooks' / 'pre-push'} pre-push"
@@ -1052,7 +1105,8 @@ def test_a_repo_that_points_git_at_other_hooks_is_told_so(tmp_path):
     assert not (main / ".git" / "hooks" / "pre-push").is_symlink()
 
 
-def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user, tmp_path):
+def copied(tmp_path):
+    """This checkout's files, tracked and not yet added, at a folder of the test's own."""
     checkout = tmp_path / "checkout"
     listed = subprocess.run(
         ["git", "-C", REPO, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
@@ -1063,22 +1117,76 @@ def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user,
         if (REPO / name).exists():
             (checkout / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPO / name, checkout / name, follow_symlinks=False)
-    skill = checkout / "features" / "bro" / "SKILL.md"
-    skill.write_text(skill.read_text() + "\nOne more line.\n")
-    stale = f"stale: {HARNESS}/skills/bro/SKILL.md"
+    return checkout
 
-    def first(*args):
+
+def test_a_new_skill_is_in_every_layout_on_the_next_install_and_an_edit_is_live(user, tmp_path):
+    checkout = copied(tmp_path)
+    skill = checkout / "features" / "brand-new" / "SKILL.md"
+    skill.parent.mkdir()
+    bro = (checkout / "features" / "bro" / "SKILL.md").read_text()
+    skill.write_text(bro.replace("name: bro", "name: brand-new", 1))
+
+    def said(*args):
         done = user.start(*args, checkout=checkout)
         out, err = done.communicate()
-        return done.returncode, out.splitlines()[0], err
+        return done.returncode, out.splitlines(), err
 
-    assert first("--check")[:2] == (1, f"old hard harness/ is current -> {stale}")
-    code, line, err = first()
-    assert (code, line) == (1, f"old hard harness/ is current -> {stale}")
+    code, lines, err = said()
+    assert code == 1
+    assert lines[0].startswith("old hard generated files are current -> stale: ")
     generate = checkout / "scripts" / "generate-jstack-trees.py"
     assert f"run python3 {generate} and commit the result" in err
+    assert not (user.home / ".claude" / "skills" / "brand-new").exists()
     subprocess.run([sys.executable, "-I", generate], check=True, capture_output=True)
-    assert first("--check")[1] == CURRENT
+    code, lines, _ = said()
+    # The tool on PATH is this checkout's, not the copy's: its line is not this test's.
+    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
+    for harness in HARNESSES:
+        link = user.home / harness.root / "brand-new"
+        assert os.readlink(link) == str(laid(user.home, harness.name) / "skills" / "brand-new")
+        assert os.path.realpath(link / "SKILL.md") == str(skill)
+    skill.write_text(skill.read_text() + "\nOne more line.\n")
+    read = (user.home / ".claude" / "skills" / "brand-new" / "SKILL.md").read_text()
+    assert read.endswith("\nOne more line.\n")
+    code, lines, _ = said("--check")
+    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
+
+
+def test_check_names_what_is_stale_in_a_layout_and_a_run_mends_it(user):
+    user.run()
+    gone = user.layout / "skills" / "crew" / "SKILL.md"
+    gone.unlink()
+    (user.layout / "skills" / "crew" / "extra.md").write_text("not the install's\n")
+    part = f"layout claude-code {user.layout}"
+    code, said = user.run("--check")
+    stale = "stale: skills/crew/SKILL.md, and 1 more"
+    assert (code, line_for(said, part)) == (1, [f"old hard {part} -> {stale}"])
+    assert user.run() == (0, user.every("ok"))
+    assert os.readlink(gone) == str(REPO / "skills" / "crew" / "SKILL.md")
+    assert not (user.layout / "skills" / "crew" / "extra.md").exists()
+
+
+def test_each_layout_keeps_templates_and_playbooks_beside_its_skills(user):
+    user.run()
+    for harness in HARNESSES:
+        skill = user.home / harness.root / "crew"
+        root = os.path.realpath(skill / ".." / "..")
+        assert root == str(laid(user.home, harness.name))
+        assert os.path.realpath(f"{root}/templates/result.md") == str(
+            REPO / "templates" / "result.md"
+        )
+        assert Path(root, "playbooks", "feature.md").is_file()
+        assert os.path.realpath(f"{root}/source") == str(REPO)
+
+
+def test_uninstall_takes_every_layout_away(user):
+    user.run()
+    code, said = user.run("--uninstall")
+    assert code == 0
+    for harness in HARNESSES:
+        assert f"removed layout {laid(user.home, harness.name)}" in said
+        assert not laid(user.home, harness.name).exists()
 
 
 PACKAGES = ("jbriefs", "jbus", "jdrift", "jgauge", "jinstall", "jleak", "jmerge", "jpack")
@@ -1105,7 +1213,7 @@ def wheel(tmp_path_factory):
 class Release:
     """A release: the wheel `uv build` makes from this checkout, as `uv tool install <wheel>`
     leaves it in a tool directory of its own under the test's temporary directory, so no
-    checkout of jstack is on any parent path of the tool, its copy or the HOME it runs under."""
+    checkout of jstack is on any parent path of the tool, its source or the HOME it runs under."""
 
     def __init__(self, root, wheel):
         self.root, self.tools, self.bin = root, root / "tools", root / "bin"
@@ -1115,8 +1223,8 @@ class Release:
             ["uv", "tool", "install", str(wheel)], env=self.uv_env, capture_output=True, text=True
         )
         assert done.returncode == 0, done.stderr
-        self.copy = self.tools / "jstack" / "share" / "jstack" / "claude-code"
-        assert no_checkout_above(self.copy)
+        self.source = self.tools / "jstack" / "share" / "jstack"
+        assert no_checkout_above(self.source)
 
     def run(self, home, *args, **env):
         home.mkdir(exist_ok=True)
@@ -1135,7 +1243,9 @@ def released(wheel, tmp_path_factory):
     return Release(tmp_path_factory.mktemp("release"), wheel)
 
 
-def test_the_wheel_carries_every_package_the_copy_whole_and_the_jinstall_command(wheel):
+def test_the_wheel_carries_every_package_the_source_of_each_layout_and_the_jinstall_command(
+    wheel,
+):
     with zipfile.ZipFile(wheel) as built:
         names = set(built.namelist())
         (points,) = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
@@ -1143,28 +1253,23 @@ def test_the_wheel_carries_every_package_the_copy_whole_and_the_jinstall_command
     for package in PACKAGES:
         assert f"{package}/__init__.py" in names, package
     data = next(name.split("/")[0] for name in names if ".data/" in name)
-    shared = f"{data}/data/share/jstack/claude-code"
-    copied = {
-        f"{shared}/{path.relative_to(COPY).as_posix()}"
-        for path in COPY.rglob("*")
-        if path.is_file()
+    shared = f"{data}/data/share/jstack"
+    sources = {
+        entry.source.relative_to(REPO).as_posix()
+        for harness in HARNESSES
+        for entry in layout.assemble(REPO, harness).entries.values()
+        if isinstance(entry, layout.Linked) and entry.source != REPO
     }
-    assert copied <= names, sorted(copied - names)[:5]
-    for part in (
-        "skills/crew/SKILL.md",
-        "playbooks/feature.md",
-        "principles/principle-prove-it-works.md",
-        "templates/jbus.timer",
-        "templates/result.md",
-        "hooks/outbound-command.sh",
-        "plugin.json",
-        "skills.json",
-    ):
-        assert f"{shared}/{part}" in names, part
+    carried = {f"{shared}/{path}" for path in (*sources, "skills.json", "plugin.json")}
+    assert carried <= names, sorted(carried - names)[:5]
+    assert f"{shared}/docs/context.md" in names
+    inner = [name for name in names if name.startswith(f"{shared}/")]
+    assert not [name for name in inner if re.search(r"/(src|tests|evals|__pycache__)/", name)]
+    assert not [name for name in names if "harness/" in name or "claude-code/" in name]
     assert "jinstall = jinstall.cli:main" in scripts.splitlines()
 
 
-def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from_the_copy(
+def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from_its_source(
     released, tmp_path
 ):
     home = tmp_path / "home"
@@ -1172,17 +1277,19 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
     asked.write_text("Playbook: investigation\nSkills: tdd\n")
     opened = released.run(home, "jbus", "playbook", "scout", str(asked))
     assert opened.returncode == 0, opened.stderr
-    assert opened.stdout.splitlines()[0] == str(released.copy / "playbooks" / "investigation.md")
+    assert opened.stdout.splitlines()[0] == str(released.source / "playbooks" / "investigation.md")
     loaded = released.run(home, "jbriefs", "--skills", str(asked))
     assert loaded.returncode == 0, loaded.stderr
     assert loaded.stdout.splitlines()[0].startswith("loaded: tdd")
-    assert "==> skills/tdd/SKILL.md <==" in loaded.stdout
+    assert "==> features/tdd/SKILL.md <==" in loaded.stdout
 
 
-def release_parts(home, copy):
+def release_parts(home, source):
+    """The line of each part a release puts, after its state: each layout's, then the rest."""
     settings = home / ".claude" / "settings.json"
-    names = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
+    names = layout.skills(source)
     return [
+        *layouts(home),
         *(f"hard {home / root / name}" for root in ROOTS for name in names),
         f"hard hook {settings} SessionStart",
         f"hard hook {settings} UserPromptSubmit",
@@ -1204,7 +1311,7 @@ def stand_ins(tmp_path):
     return {"PATH": f"{stub}:{os.environ['PATH']}", "FAKE_SYSTEMCTL_LOG": str(tmp_path / "log")}
 
 
-def test_a_release_links_every_skill_hook_and_status_line_into_its_copy_and_checks_ok(
+def test_a_release_links_every_skill_hook_and_status_line_into_its_layouts_and_checks_ok(
     released, tmp_path
 ):
     home = tmp_path / "home"
@@ -1212,13 +1319,16 @@ def test_a_release_links_every_skill_hook_and_status_line_into_its_copy_and_chec
     env["PATH"] = f"{released.bin}:{env['PATH']}"
     put = released.run(home, "jinstall", **env)
     assert (put.returncode, put.stderr) == (0, "")
-    assert put.stdout.splitlines() == [f"ok {part}" for part in release_parts(home, released.copy)]
+    assert put.stdout.splitlines() == lines_of("ok", release_parts(home, released.source), home)
     checked = released.run(home, "jinstall", "--check", **env)
     assert (checked.returncode, checked.stdout) == (0, put.stdout)
-    links = [path for root in ROOTS for path in (home / root).iterdir()]
-    assert len(links) == 3 * len(list((released.copy / "skills").iterdir()))
-    for link in links:
-        assert os.readlink(link) == str(released.copy / "skills" / link.name)
+    names = layout.skills(released.source)
+    for harness in HARNESSES:
+        links = sorted((home / harness.root).iterdir())
+        assert [link.name for link in links] == names
+        for link in links:
+            assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
+            assert os.path.realpath(link / "SKILL.md").startswith(f"{released.source}/")
     settings = json.loads((home / ".claude" / "settings.json").read_text())
     commands = [
         hook["command"]
@@ -1226,12 +1336,12 @@ def test_a_release_links_every_skill_hook_and_status_line_into_its_copy_and_chec
         for group in groups
         for hook in group["hooks"]
     ]
-    assert all(f"sh '{released.copy}/hooks/" in command for command in commands), commands
-    assert settings["statusLine"]["command"] == f"sh '{released.copy / 'hooks' / 'limits.sh'}'"
+    assert all(f"sh '{laid(home)}/hooks/" in command for command in commands), commands
+    assert settings["statusLine"]["command"] == f"sh '{laid(home) / 'hooks' / 'limits.sh'}'"
     assert not line_for(put.stdout.splitlines(), "pre-push")
 
 
-def test_a_release_with_jbus_set_up_links_its_units_into_the_copy(released, tmp_path):
+def test_a_release_with_jbus_set_up_links_its_units_into_its_source(released, tmp_path):
     home = tmp_path / "home"
     env = stand_ins(tmp_path)
     env["PATH"] = f"{released.bin}:{env['PATH']}"
@@ -1242,14 +1352,14 @@ def test_a_release_with_jbus_set_up_links_its_units_into_the_copy(released, tmp_
     put = released.run(home, "jinstall", **env)
     assert put.stdout.splitlines()[-1] == f"ok optional units {home / '.config/systemd/user'}"
     unit = home / ".config" / "systemd" / "user" / "jbus.timer"
-    assert os.readlink(unit) == str(released.copy / "templates" / "jbus.timer")
+    assert os.readlink(unit) == str(released.source / "templates" / "jbus.timer")
 
 
-def test_a_release_whose_version_is_not_its_copys_is_told_so_and_not_put_over(released, tmp_path):
+def test_a_release_whose_version_is_not_its_plugins_is_told_so_and_not_put_over(released, tmp_path):
     home = tmp_path / "home"
     env = stand_ins(tmp_path)
     env["PATH"] = f"{released.bin}:{env['PATH']}"
-    plugin = json.loads((released.copy / "plugin.json").read_text())
+    plugin = json.loads((released.source / "plugin.json").read_text())
     metadata = next(released.tools.glob("jstack/lib/python*/site-packages/jstack-*.dist-info"))
     said = (metadata / "METADATA").read_text()
     (metadata / "METADATA").write_text(said.replace(f"Version: {plugin['version']}", "Version: 9"))
@@ -1259,7 +1369,7 @@ def test_a_release_whose_version_is_not_its_copys_is_told_so_and_not_put_over(re
         (metadata / "METADATA").write_text(said)
     assert checked.returncode == 1
     assert line_for(checked.stdout.splitlines(), "commands") == [
-        f"old hard commands jstack -> tool jstack is 9, and its copy is {plugin['version']}"
+        f"old hard commands jstack -> tool jstack is 9, and its plugin is {plugin['version']}"
     ]
 
 
@@ -1288,7 +1398,7 @@ def test_a_releases_outbound_hook_checks_a_push_on_the_tools_own_python_with_no_
     narrow.mkdir()
     for program in ("dirname", "readlink", "cat"):
         (narrow / program).symlink_to(shutil.which(program))
-    hook = released.copy / "hooks" / "outbound-command.sh"
+    hook = laid(home) / "hooks" / "outbound-command.sh"
 
     def told(command):
         said = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
@@ -1369,7 +1479,7 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     setup = subprocess.run(["sh"], input=fetched, env=env, cwd=home, capture_output=True, text=True)
     assert os.path.islink(home / ".local" / "bin" / "uv"), setup.stdout + setup.stderr
     said = setup.stdout.splitlines()
-    copy = tools / "jstack" / "share" / "jstack" / "claude-code"
+    source = tools / "jstack" / "share" / "jstack"
     assert f"done {home / '.claude' / 'skills' / 'crew'}" in said, setup.stdout + setup.stderr
     assert "already commands jstack" in said
     checked = subprocess.run(
@@ -1377,14 +1487,15 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     )
     assert checked.returncode == 0, checked.stdout
     units = f"optional units {home / '.config' / 'systemd' / 'user'}"
-    parts = [*release_parts(home, copy), units]
-    assert checked.stdout.splitlines() == [f"ok {part}" for part in parts]
+    parts = [*release_parts(home, source), units]
+    assert checked.stdout.splitlines() == lines_of("ok", parts, home)
     assert os.readlink(home / ".config/systemd/user/jbus.timer") == str(
-        copy / "templates/jbus.timer"
+        source / "templates/jbus.timer"
     )
-    for root_ in ROOTS:
-        for link in (home / root_).iterdir():
-            assert os.readlink(link) == str(copy / "skills" / link.name)
+    for harness in HARNESSES:
+        for link in (home / harness.root).iterdir():
+            assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
+            assert os.path.realpath(link / "SKILL.md").startswith(f"{source}/")
 
 
 def test_install_sh_run_from_no_checkout_and_no_release_says_how_to_get_one(tmp_path):

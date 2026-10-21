@@ -1,6 +1,5 @@
-"""One module per output, each `render(tree) -> {path: bytes or File}`, and its own folders,
-`DIRS`, where it has them."""
+"""One module per output, each `render(tree) -> {path: bytes or File}`."""
 
-from jtrees.outputs import catalog, docs, harness, pyproject
+from jtrees.outputs import catalog, docs, pyproject
 
-OUTPUTS = (catalog, docs, pyproject, harness)
+OUTPUTS = (catalog, docs, pyproject)

@@ -11,10 +11,11 @@ import pytest
 
 from test_home_thread import as_read
 from test_tool_calls import CALLS, errors
-from testing.paths import REPO, skills
+from testing.layouts import assembled
+from testing.paths import skills
 
 SKILLS = skills()
-COPY = REPO / "harness" / "jstack" / "claude-code"
+COPY = assembled()
 EM_DASH = "\N{EM DASH}"
 BEFORE = {
     "correct",

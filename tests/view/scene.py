@@ -28,7 +28,7 @@ from jbus import leftover, merge, noticed, questions, queue, view, word, work
 from jbus.view import state as built
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
-from testing.paths import REPO
+from testing.paths import REPO, sources
 
 NOW = datetime(2026, 10, 12, 20, 0, tzinfo=UTC)
 
@@ -790,12 +790,12 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 class Process:
     """The real server as a process of its own, `jbus view` over a copy of the packages it
     runs, with the check every 0.2 s where the server has it every `view.CHECK` seconds. It
-    copies each folder `harness/jstack/pythonpath` names, and `src` is the copy that holds
-    `jbus`."""
+    copies each folder the packages sit in (`testing.paths.sources`), and `src` is the copy that
+    holds `jbus`."""
 
     def __init__(self, scene):
         self.port = free_port()
-        folders = (REPO / "harness" / "jstack" / "pythonpath").read_text().split()
+        folders = [folder.relative_to(REPO) for folder in sources()]
         copies = [scene.root / folder for folder in folders]
         for folder, copy in zip(folders, copies, strict=True):
             shutil.copytree(REPO / folder, copy, ignore=shutil.ignore_patterns("__pycache__"))
