@@ -20,7 +20,7 @@ import jleak
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Units, rewrite
+from jinstall.kinds import Units, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
 from testing.paths import REPO
 
@@ -68,9 +68,8 @@ SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
 def template(name):
-    """Where the source keeps the unit `name`: `templates/`, or the `units/` of its feature."""
-    (found,) = [*REPO.glob(f"templates/{name}"), *REPO.glob(f"features/*/units/{name}")]
-    return found
+    """Where the source keeps the unit `name`."""
+    return unit_templates(REPO)[name]
 
 
 def laid(home, harness="claude-code"):
