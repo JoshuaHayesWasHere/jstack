@@ -25,7 +25,7 @@ from jinstall.machine import Machine, Moved, Ran
 from testing.paths import REPO
 
 INSTALL = REPO / "install.sh"
-SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"
+SYSTEMCTL = REPO / "features" / "verify-jstack" / "project-skill" / "scripts" / "fake-systemctl"
 SKILLS = layout.skills(REPO)
 ROOTS = tuple(harness.root for harness in HARNESSES)
 LAYOUTS = Path(".local") / "share" / "jstack" / "harness"

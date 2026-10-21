@@ -13,10 +13,11 @@ import pytest
 
 from testing.paths import REPO
 
-SCRIPTS = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts"
+SCRIPTS = REPO / "features" / "verify-jstack" / "project-skill" / "scripts"
+PAGES = REPO / ".claude" / "skills" / "verify-jstack" / "features"
 BUILT = Path(sys.executable).parent
 FEATURES = sorted(
-    [path.stem for path in (SCRIPTS.parent / "features").glob("*.md") if path.stem != "README"]
+    [path.stem for path in PAGES.glob("*.md") if path.stem != "README"]
     + [path.parent.name for path in REPO.glob("features/*/verify.md")]
 )
 
@@ -55,7 +56,7 @@ def sandbox(tmp_path):
 def checkout_with(tmp_path, tool, body):
     """A checkout with this one's scripts and build, but for one command, which is `body`."""
     checkout = tmp_path / "checkout"
-    scripts = checkout / ".cursor" / "skills" / "verify-jstack" / "scripts"
+    scripts = checkout / "features" / "verify-jstack" / "project-skill" / "scripts"
     shutil.copytree(SCRIPTS, scripts)
     subprocess.run(["git", "init", "-q", checkout], check=True)
     for name in ("python", "jbus", "jmerge", "jgauge", "jbriefs"):

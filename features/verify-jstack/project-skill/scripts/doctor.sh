@@ -64,8 +64,10 @@ seed() {
   *) return 64 ;;
   esac
 }
-# A feature's page is in this skill's features/, or once it has moved, its folder's verify.md.
-for feature in "$(dirname "$0")"/../features/*.md "$VERIFY_JSTACK_REPO"/features/*/verify.md; do
+# A feature's page is in .claude/skills/verify-jstack/features/ (or a features/ beside this
+# script's folder), or once it has moved, its folder's verify.md.
+for feature in "$(dirname "$0")"/../features/*.md \
+  "$VERIFY_JSTACK_REPO"/.claude/skills/verify-jstack/features/*.md "$VERIFY_JSTACK_REPO"/features/*/verify.md; do
   if [ ! -f "$feature" ]; then continue; fi
   case $feature in
   */verify.md) name=$(basename "$(dirname "$feature")") ;;
