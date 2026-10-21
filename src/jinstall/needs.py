@@ -44,7 +44,7 @@ from jinstall.kinds import (
     declared,
     templates,
 )
-from jinstall.layout import Layout, skills
+from jinstall.layout import UNREADABLE, Layout, skills
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
@@ -124,7 +124,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  units ~/.config/systemd/user  Units
     """
     repo, home = machine.checkout, machine.home
-    named = skills(machine.source)
+    try:
+        named = skills(machine.source)
+    except UNREADABLE:
+        named = []  # Each layout's line says why the source cannot be read.
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
