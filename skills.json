@@ -48,8 +48,8 @@
     {
       "name": "correct",
       "kind": "playbook",
-      "path": "playbooks/correct.md",
-      "source": "pstack"
+      "path": "features/lessons/skills/correct/playbooks/correct.md",
+      "source": "josh"
     },
     {
       "name": "eval",
@@ -404,8 +404,8 @@
     {
       "name": "correct",
       "kind": "skill",
-      "path": "skills/correct/SKILL.md",
-      "source": "pstack",
+      "path": "features/lessons/skills/correct/SKILL.md",
+      "source": "josh",
       "description": "Find the mistakes agents keep repeating in a repo and make each one impossible - structure first, then types, then a test, and a written rule last - and prove each check fails on a real past mistake. Runs only when the user types /correct or $correct, or a brief names it."
     },
     {
@@ -551,8 +551,8 @@
     {
       "name": "reflect",
       "kind": "skill",
-      "path": "skills/reflect/SKILL.md",
-      "source": "pstack",
+      "path": "features/lessons/skills/reflect/SKILL.md",
+      "source": "josh",
       "description": "Read one thread's transcript with three review subagents and a synthesiser, and end in proposed edits and proposed plan entries for the home to put to the user. It starts four subagents and edits nothing. Runs only when the user types /reflect or $reflect, or a brief names it."
     },
     {
