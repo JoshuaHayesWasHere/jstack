@@ -71,7 +71,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [An expert answers asks](../../../../features/expert/verify.md), not driven yet.
 - [Grilling the user](../../../../features/grilling/verify.md), not driven yet.
 - [A home and its handoff](./home-skills.md), not driven yet.
-- [jbriefs reads a brief](./jbriefs.md), not driven yet.
+- [jbriefs reads a brief](../../../../features/jbriefs/verify.md), not driven yet.
 - [A jbus pass](./jbus-pass.md), not driven yet.
 - [jbus view](./jbus-view.md), not driven yet.
 - [jdrift lists what changed upstream](../../../../features/jdrift/verify.md), not driven yet.

@@ -5,7 +5,7 @@ reads the tree once and holds each page to it:
 
 - slash commands: `/<name>`, in prose or as the first word of a code span or of a line of a
   fenced block, or "the `<name>` skill", is a skill under `skills/` or in `EXTERNAL`.
-- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/brief.md`)
+- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/result.md`)
   exists. One with a placeholder, a glob, or a `/` before it is somewhere else and not read.
 - links and anchors: a relative Markdown link outside code points at a file that exists and, with
   a `#anchor` into a Markdown file, at a heading of it as GitHub slugs it (fences skipped, `-N`

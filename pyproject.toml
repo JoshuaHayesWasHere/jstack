@@ -39,7 +39,7 @@ build-backend = "hatchling.build"
 exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/**/evals/"]
 # generated: packages by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 packages = [
-    "src/jbriefs",
+    "features/jbriefs/src/jbriefs",
     "src/jbus",
     "features/jdrift/src/jdrift",
     "src/jgauge",
@@ -78,6 +78,7 @@ testpaths = [
     "features/automate-me/tests",
     "features/expert/tests",
     "features/grilling/tests",
+    "features/jbriefs/tests",
     "features/jdrift/tests",
     "features/jinstall/tests",
     "features/jleak/tests",
@@ -100,6 +101,7 @@ testpaths = [
     "features/writing/tests",
 ]
 pythonpath = [
+    "features/jbriefs/src",
     "features/jdrift/src",
     "features/jinstall/src",
     "features/jleak/src",
@@ -112,6 +114,7 @@ pythonpath = [
     "features/automate-me/tests",
     "features/expert/tests",
     "features/grilling/tests",
+    "features/jbriefs/tests",
     "features/jdrift/tests",
     "features/jinstall/tests",
     "features/jleak/tests",
@@ -160,6 +163,7 @@ target-version = "py312"
 line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 src = [
+    "features/jbriefs/src",
     "features/jdrift/src",
     "features/jinstall/src",
     "features/jleak/src",
@@ -172,6 +176,7 @@ src = [
     "features/automate-me/tests",
     "features/expert/tests",
     "features/grilling/tests",
+    "features/jbriefs/tests",
     "features/jdrift/tests",
     "features/jinstall/tests",
     "features/jleak/tests",

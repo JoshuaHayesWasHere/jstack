@@ -21,7 +21,10 @@
 
    A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
 
-   Its `Skills:` line names what the crewmate runs besides the playbook, or says `none`, and a brief with no line names nothing. Write each name in its canonical form, pstack's, so it reads the same in Grok Bot and in T3: a skill as its directory, `architect`, and a principle as its file without `.md`, `principle-model-the-domain`. `docs/jbriefs.md` "Skills a brief names" says which aliases resolve. The crewmate loads each file in full at its start, and its Result owes one artifact for each, the one `templates/skill-artifacts.md` names: `jmerge` merges no pull request whose Result leaves one out.
+   Its `Skills:` line names what the crewmate runs besides the playbook, or says `none`, and a brief with no line names nothing.
+   Write each name in its canonical form, pstack's, so it reads the same in Grok Bot and in T3: a skill as its directory, `architect`, and a principle as its file without `.md`, `principle-model-the-domain`.
+   `features/jbriefs/docs/jbriefs.md` "Skills a brief names" says which aliases resolve.
+   The crewmate loads each file in full at its start, and its Result owes one artifact for each, the one `templates/skill-artifacts.md` names: `jmerge` merges no pull request whose Result leaves one out.
 
    Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`. Run this with the block at the top. It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`:
 

@@ -4,7 +4,7 @@ The crew skill makes a thread a crewmate: it does the one task of a brief in its
 
 Paths:
 - `skills/crew/`
-- `templates/brief.md`
+- `features/jbriefs/templates/brief.md`
 - `templates/result.md`
 - `templates/rerun.md`
 - `templates/gates.md`

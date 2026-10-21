@@ -335,7 +335,7 @@ def test_an_owner_is_the_feature_folder_or_one_row_and_two_rows_are_both_seen(co
     tree = crawl(copy)
     assert tree.owners("features/jbus/feature.json") == ("jbus",)
     assert tree.owners("src/jbus/cli.py") == ("jbus",)
-    assert tree.owners("src/jbriefs/cli.py") == ("jbriefs",)
+    assert tree.owners("features/jbriefs/src/jbriefs/cli.py") == ("jbriefs",)
     assert tree.owners("pyproject.toml") == ("INFRA",)
     assert tree.owners("nowhere/at/all.txt") == ()
     owns(copy, "bro", "src/jbus/cli.py")

@@ -29,7 +29,7 @@ jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
 
 `add` checks the brief when a row is first queued, so a brief that could not launch is never put to you for a go.
-The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `templates/brief.md` has them: a line still `<...>`, quoted or as a list item, or a `Pull request:` or `Review:` line still offering its choices (`review | none`), is not filled in.
+The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in and not the template's own text, as `features/jbriefs/templates/brief.md` has them: a line still `<...>`, quoted or as a list item, or a `Pull request:` or `Review:` line still offering its choices (`review | none`), is not filled in.
 Its `Proves it:` line must name something outside the agent, its `Size:` line a t-shirt size, its `Where:` line at least one path under the repo (in backticks, or a word with a `/`, a glob or an extension; prose and a flag are not paths), its `Playbook:` line a crewmate's file of `playbooks/` or `none`, and its `Design:` line a file or `none, <why>`.
 A brief short of any of these is refused with one line for each fault, and nothing is queued:
 
@@ -98,9 +98,15 @@ The sha leaves out the `Home:`, `Thread:` and `Green main:` lines of the brief's
 
 ### What an approval is bound to
 
-A go is bound to the goal, the scope and the done-when of the brief, and to nothing else: a typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps it, and a change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size` asks you again. `approve` records the brief's meaning fingerprint (`src/jbriefs/meaning.py`), and a later brief keeps the go when its fingerprint is the same. It is deterministic and asks no model.
+A go is bound to the goal, the scope and the done-when of the brief, and to nothing else: a typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps it, and a change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size` asks you again.
+`approve` records the brief's meaning fingerprint (`features/jbriefs/src/jbriefs/meaning.py`), and a later brief keeps the go when its fingerprint is the same.
+It is deterministic and asks no model.
 
-The fingerprint reads six fields (`MEANING` in `src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`. It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Stack`, `Read`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief. These say how the work is done or who runs it, not what it is for. A field starts at a line `<Label>: ` of the head, and runs to the next one. Each field is normalised in these steps:
+The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Stack`, `Read`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+These say how the work is done or who runs it, not what it is for.
+A field starts at a line `<Label>: ` of the head, and runs to the next one.
+Each field is normalised in these steps:
 
 1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
 2. Kept exact, as written: every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit, which is a path, a file name or a number.

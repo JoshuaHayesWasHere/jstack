@@ -635,7 +635,7 @@
     {
       "name": "brief.md",
       "kind": "template",
-      "path": "templates/brief.md",
+      "path": "features/jbriefs/templates/brief.md",
       "source": "josh"
     },
     {

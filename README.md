@@ -116,7 +116,7 @@ Each command has one page.
 <!-- generated: commands by scripts/generate-jstack-trees.py, do not edit -->
 | Command | Page | What it does |
 |---|---|---|
-| `jbriefs` | [docs/jbriefs.md](docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
+| `jbriefs` | [features/jbriefs/docs/jbriefs.md](features/jbriefs/docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
 | `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [features/jdrift/docs/jdrift.md](features/jdrift/docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
