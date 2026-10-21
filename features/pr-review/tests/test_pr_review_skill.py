@@ -17,6 +17,7 @@ import jsettings
 import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
+from jbriefs import findings
 from jmerge import ready
 from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
@@ -1362,6 +1363,71 @@ def test_a_diff_inside_the_where_prints_nothing(reviewer):
 def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
     branch_of_the_task(reviewer, "wherever it takes", "README.md")
     assert reviewer("### Wider than the brief") == ([], 1)
+
+
+def gated(reviewer, gate=None):
+    """A pull request whose branch left main one commit back, a repo state with the merge
+    gate `gate` (none where it is None), and the reviewer's run of "The merge gate" at the
+    head. What the block printed, its exit code, the merge base and the head."""
+    work = reviewer.work
+    origin = reviewer.state / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", origin], check=True)
+    for args in (
+        ["checkout", "-q", "-b", "main"],
+        ["commit", "-q", "--allow-empty", "-m", "main"],
+        ["remote", "add", "origin", str(origin)],
+        ["push", "-q", "origin", "main"],
+        ["checkout", "-q", "-b", "a-task"],
+        ["commit", "-q", "--allow-empty", "-m", "the task"],
+    ):
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=work, check=True
+        )
+    fork, head = (
+        subprocess.run(
+            ["git", "rev-parse", ref], cwd=work, capture_output=True, text=True
+        ).stdout.strip()
+        for ref in ("main", "HEAD")
+    )
+    (reviewer.stub / "view.json").write_text(
+        json.dumps({"baseRefName": "main", "headRefOid": head})
+    )
+    if gate is not None:
+        (reviewer.state / "merge-gate").write_text(f"\n  {gate}  \n")
+    printed, code = reviewer("### The merge gate", fill={"<the head kept at the start>": head})
+    return printed, code, fork, head
+
+
+def test_a_failing_merge_gate_is_one_error_finding_on_what_the_change_lacks(reviewer, tmp_path):
+    called = tmp_path / "called"
+    script = tmp_path / "receipt-check"
+    script.write_text(
+        '#!/bin/sh\necho "$@" "$BASE" "$HEAD" > "$CALLED"\n'
+        "echo 'no passing receipt covers jmerge'\necho 'replay it' >&2\nexit 1\n"
+    )
+    script.chmod(0o755)
+    printed, code, fork, head = gated(reviewer, f"CALLED={called} {script}")
+    assert code == 0
+    assert printed == [
+        f"error - the merge gate fails at {head[:12]}: no passing receipt covers jmerge "
+        "(principle: none) (bucket: Act on)"
+    ]
+    assert called.read_text().split() == [fork, head, fork, head]
+    review = f"## Review\nVerdict: findings\nHead: {head}\nFindings:\n- {printed[0]}\n"
+    (finding,) = findings.triage(BRIEF + "\n" + review).blocking()
+    assert (finding.lead.severity, finding.lead.place) == ("error", "-")
+
+
+@pytest.mark.parametrize("gate", [None, "true"])
+def test_no_merge_gate_or_one_that_passes_prints_nothing(reviewer, gate):
+    assert gated(reviewer, gate)[:2] == ([], 0)
+
+
+def test_a_merge_gate_that_cannot_start_is_a_finding_too(reviewer, tmp_path):
+    (printed,), code, _, head = gated(reviewer, str(tmp_path / "missing"))
+    assert code == 0
+    assert printed.startswith(f"error - the merge gate fails at {head[:12]}: merge-gate: ")
+    assert printed.endswith("(principle: none) (bucket: Act on)")
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):

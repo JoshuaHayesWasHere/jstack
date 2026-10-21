@@ -12,9 +12,10 @@ It prints one line per open pull request, and appends the lines to `merge.log`. 
 
 | The line | Means |
 |---|---|
-| `merged <number> <slug> <commit> "<title>", ..., revert: gh pr revert <url>` | Merged. The notes between say what was kept, that a review carried over (`review carried over: range-diff ... clean`), that a local check stood in (`fresh: <command> passed on <head12> over <main12>`) or was skipped on a green marker of the same merge tree (`fresh: skipped, tree <tree> passed in <run url>, on <head12> over <main12>`), or the guarded path it changes (`guarded: <path>`). The last note is the command that opens a pull request reverting the merge. |
+| `merged <number> <slug> <commit> "<title>", ..., revert: gh pr revert <url>` | Merged. The notes between say what was kept, that a review carried over (`review carried over: range-diff ... clean`), that a local check stood in (`fresh: <command> passed on <head12> over <main12>`) or was skipped on a green marker of the same merge tree (`fresh: skipped, tree <tree> passed in <run url>, on <head12> over <main12>`), the guarded path it changes (`guarded: <path>`), or that the repo's merge gate passed (`gate: ok`). The last note is the command that opens a pull request reverting the merge. |
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
 | `hold <number> <url>: needs <user>, <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. |
+| `hold <number> <url>: its merge gate failed: <its first line>` | Not merged: the repo's merge gate did not pass at the head. A gate that passes lifts it, and `--accept` does not. See "Merge gate". |
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
@@ -45,6 +46,7 @@ Each item below is a reason a pull request waits.
 - **Its green covers today's main.** See "Fresh against main".
 - **Its rebase kept every line.** See "After a rebase".
 - **The repo's merge is on.** With `~/.local/state/home/<repo>/merge-off` there, `jmerge` merges nothing. A pull request that would have merged waits with `auto-merge is off for this repo`. `/nohome merge` makes the file and `/nohome merge on` removes it.
+- **Its merge gate passes**, the last of these, so that a gate runs only for a pull request that is otherwise ready ("Merge gate").
 
 Before a merge, `jmerge` asks `git ls-remote` whether main is the commit the pull request was judged against, when the start of its check is known. Where main moved, `jmerge` judges the pull request again, at most twice, before it prints `main moved while it was judged`.
 
@@ -82,6 +84,27 @@ When `$GITHUB_STEP_SUMMARY` is set it adds one line to it, `check-fast selection
 A test module that marks itself `browser` is never printed: `make check-browser` runs it nightly and on a release.
 A test the selection missed fails the `full` job on main after the merge.
 `tests/test_select_tests.py` fails when a path is owned by no feature, or a test file is selected by no change.
+
+## Merge gate
+
+A repo opts in to a merge gate with a `merge-gate` file in its state directory, beside `fresh-check`: one line, the command, such as `~/repos/caveman/.claude/skills/verify-caveman/scripts/receipt-check`.
+Name it by an absolute path in the main checkout: a path relative to the head runs the pull request's own copy of the script, which the pull request can change to pass.
+A gate runs holding `<state>/gate.lock`, and a run that finds another run's gate at work waits with `its merge gate waits for another run's gate to end`.
+`jmerge` runs it before every merge of that repo, once every other reason is clear, in a detached worktree of the head at `<state>/gate/<number>`, which it removes after.
+It is run as `sh -c '<command> "$@"' merge-gate <base> <head>`, so `<base>` and `<head>` are its last two arguments, and they are `BASE` and `HEAD` in its environment too.
+`<base>` is where the pull request left main, the merge base of the head and today's main, and `<head>` is the head it would merge.
+No green-tree marker skips it, and no answer is kept from one run to the next: it is run again on every run, so a new head, a moved main or a fix outside git is always seen.
+`--check` runs it too, and prints its output under the line, each line after `  | `.
+On exit 0 the merge goes on and the `merged` or `ready` line ends its notes with `gate: ok`.
+On any other exit nothing is merged, and the line is `hold <number> <url>: its merge gate failed: <the first line it printed>`, or `exit <code>` where it printed nothing.
+`merge.log` keeps the whole output under the hold line, each line after `  | `, which no reader of the log takes for a line of its own.
+A gate that cannot start, a command not found or not executable (the shell's exit 126 or 127) or a head that cannot be checked out, holds with `its merge gate could not start: <why>`.
+One that runs over 10 minutes (`Gate.TIMEOUT`) is stopped with its process group and holds with `its merge gate ran over 10 minutes and was stopped`.
+jbus's `expedite` tells the crew of each of these holds (`gate`), as it does of the others a crew can lift, and the hold is the user's only once the crew does not act.
+`--accept` refuses a gate's hold, and `holds.json` does not keep it: a gate that passes is the one thing that lifts it.
+A run starts no more gates once its gates took 5 minutes in all (`Gate.BUDGET`), so that one more, stopped at 10, still ends inside the 17 minutes jbus gives `jmerge`: a pull request whose gate did not start waits with `its merge gate waits for the next run: this run's gates used their time`.
+A repo with no `merge-gate` file merges as it did before.
+The reviewer runs the same gate on the head it reviews (the pr-review skill, "The merge gate").
 
 ## After a rebase
 
@@ -138,7 +161,7 @@ It lifts the hold at the head the hold was said at, which `jmerge` keeps in `hol
 
 | Argument | What it does |
 |---|---|
-| `--check` | Prints `ready` lines in place of merging. It merges nothing, logs nothing and runs no `fresh-check` command. |
+| `--check` | Prints `ready` lines in place of merging. It merges nothing, logs nothing and runs no `fresh-check` command. It does run the merge gate, and prints its hold. |
 | `--accept <number>` | Lifts the hold of one pull request and merges it, with `--by` and `--at`. |
 | `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each `refs/jstack/green-tree/<tree>` marker on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. A worktree is kept while a process works in it, and also where `/proc` cannot be read to tell. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. |

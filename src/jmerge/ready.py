@@ -169,6 +169,16 @@ MIGRATION_REBASING = Reason(
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
 MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
+GATE_FAILED = Reason("hold", "its merge gate failed: {first}")
+GATE_UNSTARTED = Reason("hold", "its merge gate could not start: {why}")
+GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped")
+GATE_BUSY = Reason(
+    "check", "its merge gate waits for the next run: this run's gates used their time"
+)
+GATE_LOCKED = Reason("check", "its merge gate waits for another run's gate to end")
+GATE_HELD = re.compile(
+    "|".join(one.pattern for one in (GATE_FAILED, GATE_UNSTARTED, GATE_TIMED_OUT))
+)
 
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -881,6 +891,7 @@ class Judged:
     tip: str = ""
     rules: bool = False
     fresh: str = ""
+    gate: str = ""
 
 
 def guarded_path(one: PullRequest, patterns: tuple[str, ...], left: tuple[str, ...] = ()) -> str:
@@ -1016,3 +1027,13 @@ def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
 
 def fresh_command(text: str) -> str:
     return "".join(text.strip().splitlines()[:1]).strip()
+
+
+def gate_held(why: str) -> bool:
+    """Whether a reason is the merge gate's hold, which only a gate that passes lifts."""
+    return bool(GATE_HELD.fullmatch(why))
+
+
+def first_line(output: str, code: int) -> str:
+    """The gate's first line of output, or its exit code where it printed none."""
+    return next((line.strip() for line in output.splitlines() if line.strip()), f"exit {code}")

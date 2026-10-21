@@ -38,6 +38,9 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward its
   cap of two after fixed and green, then renumber the migration and those after it, consecutively.
+- `gate`, a `hold` that says `its merge gate failed`, `could not start` or `ran over`: run the
+  repo's merge gate at the head, fix what it names or make what it asks for, and push where a
+  file changed; a gate that passes is the only thing that lifts it.
 
 A thread is read by the status T3 Code lists it with. A crew whose thread is at work
 (`watch.LIVE`: starting, `running` or `waiting`) is left alone, since the line may be what
@@ -53,9 +56,9 @@ the reason and the crew's thread. So the user hears once, and only of a crew tha
 act. Work that lasts is no reason to say nothing for good: the `REVIEWING`th pass after the
 message is that stall too, and says so where somebody is at work in that pass.
 
-A `hold` is the user's, but for `unruled`. `tell` answers with the pull requests whose hold
-it has in hand, and a pass shows those to the user as a `wait`: a hold that is not in hand
-is an item of their list (`waiting`), and the list gaining it is what tells them. Such a
+A `hold` is the user's, but for `unruled` and `gate`. `tell` answers with the pull requests
+whose hold it has in hand, and a pass shows those to the user as a `wait`: a hold that is
+not in hand is an item of their list (`waiting`), and the list gaining it is what tells them. Such a
 hold always has somebody. One `tell` cannot take on (no crew jbus launched, no `Rebase:`
 line to take the ranges from) is the user's at once. So is one whose crew could not be told
 by its `LAPSE`th pass: a thread that stays at work, a message that will not go. And so is
@@ -306,6 +309,18 @@ TABLE = (
         "migration of yours after it to the numbers that follow, one each and in their order: "
         "the files, and every other line that names an old number. Run the check command, and "
         "push with the block's push.",
+    ),
+    Short(
+        "gate",
+        "hold",
+        ready.GATE_HELD,
+        "The repo's merge gate did not pass at your pull request's head: `jmerge` ran the "
+        "command in the `merge-gate` file of the repo's state, and `merge.log` there keeps its "
+        "whole output under the hold line. Run the same command in your worktree, with the merge "
+        "base and the head as its last two arguments, the way the pr-review skill's \"The merge "
+        'gate" block runs it. Fix what it names or make what it asks for, run the check command, '
+        "and push where a file changed. `jmerge` runs the gate again on its next run, and only a "
+        "gate that passes lifts the hold: `--accept` does not.",
     ),
 )
 

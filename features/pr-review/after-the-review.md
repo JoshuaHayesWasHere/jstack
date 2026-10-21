@@ -26,7 +26,7 @@
 
    It prints the section's `Head:` and `Patch-id:` lines whole. `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted. On `no`, say that first, in the message and in the section. The crewmate's thread may push or rebase in this worktree while the review is out, and a `no` is how that shows. The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and its second-pass check compares from that head. The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells. It always prints a `Head:` line, since the head reviewed is known whatever GitHub answers: the crew skill and `jmerge` read it. On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
-3. Add what the reviewer finds itself: "Wider than the brief" and "In flight".
+3. Add what the reviewer finds itself: "Wider than the brief", "The merge gate" and "In flight".
 4. See where the findings go, in one call with the block at the top, with this pass's verdict in place of the words in angle brackets:
 
    ```sh
