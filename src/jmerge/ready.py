@@ -58,7 +58,7 @@ DRAFT = Reason("", "draft")
 RULES = "src/jmerge/"
 GRAMMAR = "docs/jmerge.md#patterns"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
-MAIN_MOVED = Reason("check", "main moved while it was judged")
+MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
 KEPT = "every line kept"
 PASSED = "passed"
@@ -169,6 +169,7 @@ MIGRATION_REBASING = Reason(
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
 MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
+BASE_RED = Reason("check", "{base} is red at {sha}: its latest check failed")
 GATE_FAILED = Reason("hold", "its merge gate failed: {first}")
 GATE_UNSTARTED = Reason("hold", "its merge gate could not start: {why}")
 GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped")
@@ -292,8 +293,19 @@ def stack_of(text: str) -> str | None:
     return None
 
 
-def held(one: PullRequest, default: str, stack: str | None, land: str | None) -> str:
-    if one.base != default:
+def integration_of(text: str) -> tuple[str, ...]:
+    """The integration branches a project's `integration` file names, one a line."""
+    return tuple(dict.fromkeys(line.strip() for line in text.splitlines() if line.strip()))
+
+
+def held(
+    one: PullRequest,
+    default: str,
+    stack: str | None,
+    land: str | None,
+    integration: tuple[str, ...] = (),
+) -> str:
+    if one.base != default and one.base not in integration:
         return BASE.format(base=one.base, default=default)
     if stack is None or (stack and stack == land):
         return ""
