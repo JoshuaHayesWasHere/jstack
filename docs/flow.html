@@ -146,8 +146,8 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">2</span>Plan with you</b><small>One entry per pull request, each with a "Done when" list. A shape that is not settled is grilled in rounds first: <code>skills/grilling/SKILL.md</code>.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>templates/grill-page.html</code></small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">2</span>Plan with you</b><small>One entry per pull request, each with a "Done when" list. A shape that is not settled is grilled in rounds first: <code>features/grilling/SKILL.md</code>.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>features/grilling/templates/grill-page.html</code></small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -285,8 +285,8 @@
     <tbody>
       <tr><td><code>templates/hook-message.md</code></td><td>1</td><td><code>hooks/home-start.sh</code></td><td>The <code>[home]</code> lines a new thread in a main checkout starts with</td></tr>
       <tr><td><code>templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
-      <tr><td><code>templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. Two or more open gates are shown the same way.</td></tr>
-      <tr><td><code>templates/grill-round.schema.json</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>Every key of a round, the block a thread writes into the grill page, and what each holds.</td></tr>
+      <tr><td><code>features/grilling/templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. Two or more open gates are shown the same way.</td></tr>
+      <tr><td><code>features/grilling/templates/grill-round.schema.json</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>Every key of a round, the block a thread writes into the grill page, and what each holds.</td></tr>
       <tr><td><code>templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
@@ -389,7 +389,7 @@
       <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>skills/crew/SKILL.md</code></td></tr>
       <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>features/pr-review/SKILL.md</code></td></tr>
       <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>skills/handoff/SKILL.md</code></td></tr>
-      <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>skills/grilling/SKILL.md</code></td></tr>
+      <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>features/grilling/SKILL.md</code></td></tr>
     </tbody>
   </table>
 </section>

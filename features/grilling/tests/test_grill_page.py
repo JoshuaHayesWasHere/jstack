@@ -11,11 +11,13 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
+from testing.layouts import assembled
 from testing.paths import REPO
 
-TEMPLATE = REPO / "templates" / "grill-page.html"
-SCHEMA = REPO / "templates" / "grill-round.schema.json"
-GRILLING = REPO / "skills" / "grilling" / "SKILL.md"
+FEATURE = REPO / "features" / "grilling"
+TEMPLATE = FEATURE / "templates" / "grill-page.html"
+SCHEMA = FEATURE / "templates" / "grill-round.schema.json"
+GRILLING = FEATURE / "SKILL.md"
 
 HARNESS = Path(__file__).parent / "fixtures" / "grill-page" / "harness.js"
 
@@ -331,7 +333,7 @@ def a_path_of(tmp_path, *commands):
 def test_with_no_lavish_axi_step_one_says_there_is_no_page_and_makes_no_file(tmp_path):
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "grilling").symlink_to(REPO / "skills" / "grilling")
+    (user / ".claude" / "skills" / "grilling").symlink_to(assembled() / "skills" / "grilling")
     checkout = tmp_path / "code" / "alpha"
     checkout.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(checkout)], check=True)
@@ -357,7 +359,7 @@ def test_with_no_lavish_axi_step_one_says_there_is_no_page_and_makes_no_file(tmp
 def test_the_skills_blocks_make_the_page_from_the_template_and_hold_one_session(tmp_path):
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "grilling").symlink_to(REPO / "skills" / "grilling")
+    (user / ".claude" / "skills" / "grilling").symlink_to(assembled() / "skills" / "grilling")
     checkout = tmp_path / "code" / "alpha"
     checkout.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(checkout)], check=True)
@@ -471,7 +473,7 @@ def test_a_round_of_the_wrong_shape_says_so_and_does_not_stop_the_script():
 def test_the_skills_block_names_the_last_send_by_the_user_on_the_page(tmp_path, sessions, said):
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "grilling").symlink_to(REPO / "skills" / "grilling")
+    (user / ".claude" / "skills" / "grilling").symlink_to(assembled() / "skills" / "grilling")
     checkout = tmp_path / "code" / "alpha"
     checkout.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(checkout)], check=True)

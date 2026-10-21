@@ -39,6 +39,7 @@ SWEPT = (
     "templates/*.service",
     "templates/*.timer",
     "templates/*.html",
+    "features/*/templates/*.html",
     "src/jmerge/*.txt",
 )
 READ_BY_A_TOOL = ("# type:", "# pragma")
@@ -184,7 +185,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     assert {
         "templates/jbus.service",
         "templates/jbus.timer",
-        "templates/grill-page.html",
+        "features/grilling/templates/grill-page.html",
         "src/jmerge/protected.txt",
         "src/jmerge/guarded.txt",
         "src/jmerge/ci-paths.txt",
