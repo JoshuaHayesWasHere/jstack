@@ -4,7 +4,6 @@ to a crewmate", lifted from it and run here: for those kinds it prints its own c
 questions of `/sharpen`, each with the line of the brief its answer goes on, and for a mechanical
 fix, a docs change or a bug fix with a known cause it prints `skip`."""
 
-import os
 import re
 import subprocess
 import sys
@@ -43,7 +42,7 @@ def test_every_playbook_the_step_names_is_one_jbus_finds():
     assert {"investigation", "perf-issue"} <= set(names)
     for name in names:
         opened = subprocess.run(
-            [sys.executable, "-m", "jbus", "playbook", "home", "--name", name, os.devnull],
+            [sys.executable, "-m", "jbus", "playbook", "home", "--name", name],
             capture_output=True,
             text=True,
             check=False,
