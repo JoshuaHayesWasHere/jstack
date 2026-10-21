@@ -29,9 +29,11 @@ Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and 
 workflow names the same one: with no version setup-uv fetches the latest release on each job."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from datetime import UTC, datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -39,10 +41,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-WORKFLOWS = Path(__file__).parent.parent / ".github" / "workflows"
+REPO = Path(__file__).parent.parent
+WORKFLOWS = REPO / ".github" / "workflows"
 CHECK = WORKFLOWS / "check.yml"
 DRIFT = WORKFLOWS / "pstack-drift.yml"
 BROWSER = WORKFLOWS / "browser.yml"
+RELEASE = WORKFLOWS / "release.yml"
 GREEN_TREE = WORKFLOWS.parent.parent / "scripts" / "green_tree.py"
 PICK = (
     "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
@@ -163,6 +167,7 @@ def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_non
         "browser.yml": {"browser": PICK},
         "check.yml": {"check": PICK, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
+        "release.yml": {"release": PICK},
     }
 
 
@@ -207,7 +212,8 @@ def test_no_file_under_github_names_a_runner_of_its_own():
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
     for path in sorted(WORKFLOWS.glob("*.yml")):
         more = {"actions": "read"} if path == CHECK else {}
-        assert block("permissions", path) == {"contents": "read"} | more, path.name
+        contents = "write" if path == RELEASE else "read"
+        assert block("permissions", path) == {"contents": contents} | more, path.name
         assert "pull_request_target" not in path.read_text(), path.name
 
 
@@ -1022,6 +1028,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
         "browser.yml": 1,
         "check.yml": 2,
         "pstack-drift.yml": 1,
+        "release.yml": 1,
     }
     (version,) = {version for versions in found.values() for version in versions}
     assert version is not None and version.count(".") == 2, version
@@ -1039,3 +1046,89 @@ def test_a_setup_uv_step_with_no_version_or_a_workflow_with_no_pin_reads_as_the_
     assert uv_versions(path) == [None]
     path.write_text("env:\n  UV_VERSION: '0.1.2'\n" + path.read_text())
     assert uv_versions(path) == ["0.1.2"]
+
+
+def test_a_release_runs_on_a_pushed_version_tag_and_on_nothing_else():
+    assert triggers(RELEASE.read_text()) == {"push": {"tags": ["v*"]}}
+
+
+def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_then_publishes():
+    found, _ = steps(RELEASE.read_text(), "release")
+    named = [step.get("name") for step in found if step.get("name")]
+    assert named == [
+        "make release-tag",
+        "make check",
+        "make dist",
+        "jinstall --check",
+        "gh release create",
+    ]
+    by = {step["name"]: step for step in found if step.get("name")}
+    assert by["make release-tag"]["run"] == 'make release-tag TAG="$TAG"'
+    assert by["make release-tag"]["env"] == {"TAG": "${{ github.ref_name }}"}
+    text = RELEASE.read_text()
+    smoke = text[text.index("name: jinstall --check") : text.index("name: gh release create")]
+    assert "uv tool install dist/*.whl" in smoke
+    assert smoke.rstrip().splitlines()[-2].endswith('/jinstall" --check')
+    assert by["gh release create"]["run"].startswith('gh release create "$TAG" dist/* --verify-tag')
+
+
+VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+
+
+def released(tmp_path, plugin=VERSION):
+    """A repo of the Makefile, pyproject.toml and a plugin.json, on main, pushed to a bare
+    origin, for `make release` and `make release-tag` to run in."""
+    origin, repo = tmp_path / "origin.git", tmp_path / "repo"
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"]
+    subprocess.run([*git, "init", "-q", "--bare", origin], check=True)
+    subprocess.run([*git, "init", "-q", repo], check=True)
+    shutil.copy(REPO / "Makefile", repo)
+    shutil.copy(REPO / "pyproject.toml", repo)
+    (repo / "plugin.json").write_text(json.dumps({"version": plugin}))
+    for args in (["add", "."], ["commit", "-qm", "one"], ["remote", "add", "origin", origin]):
+        subprocess.run([*git, "-C", repo, *args], check=True)
+    subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
+    return repo, origin, git
+
+
+def make(repo, *args):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env |= {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t"}
+    env |= {"GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+    return subprocess.run(
+        ["make", "-s", "-C", repo, *args], env=env, capture_output=True, text=True
+    )
+
+
+def test_the_tag_must_be_the_version_of_pyproject_and_of_plugin_json(tmp_path):
+    repo, _, _ = released(tmp_path / "same")
+    assert make(repo, "release-tag", f"TAG=v{VERSION}").returncode == 0
+    assert make(repo, "release-tag", "TAG=v9.9.9").returncode != 0
+    skewed, _, _ = released(tmp_path / "skewed", plugin="9.9.9")
+    refused = make(skewed, "release-tag", f"TAG=v{VERSION}")
+    assert refused.returncode != 0
+    assert "v9.9.9, plugin.json's" in refused.stdout
+
+
+def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_else(tmp_path):
+    repo, origin, git = released(tmp_path)
+
+    def tags():
+        listed = subprocess.run(
+            ["git", "ls-remote", "--tags", origin], capture_output=True, text=True, check=True
+        )
+        return [line.split("refs/tags/")[1] for line in listed.stdout.splitlines()]
+
+    subprocess.run([*git, "-C", repo, "checkout", "-qb", "side"], check=True)
+    assert "release: not on main" in make(repo, "release").stdout
+    subprocess.run([*git, "-C", repo, "checkout", "-q", "main"], check=True)
+    (repo / "loose").write_text("")
+    assert "release: the checkout is not clean" in make(repo, "release").stdout
+    (repo / "loose").unlink()
+    subprocess.run([*git, "-C", repo, "commit", "-q", "--allow-empty", "-m", "two"], check=True)
+    assert "release: main is not origin/main" in make(repo, "release").stdout
+    assert tags() == []
+    subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
+    done = make(repo, "release")
+    assert done.returncode == 0, done.stderr
+    assert tags() == [f"v{VERSION}", f"v{VERSION}^{{}}"]
