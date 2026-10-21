@@ -84,7 +84,11 @@ def test_jmerge_merges_an_after_pull_request_once_its_check_passed(tmp_path):
     assert said == f"ready 7 {head} alpha alpha"
     assert kitchen.calls() == []
     (said,) = kitchen.run()
-    assert said.startswith(f"merged 7 alpha {head} ")
+    assert said.startswith(f"merged 7 alpha {kitchen.tip()} ")
+    assert [call.split()[:5] for call in kitchen.calls()] == [
+        ["pr", "merge", "7", "--squash", "--match-head-commit"]
+    ]
+    assert head in kitchen.calls()[0]
 
 
 def test_a_review_that_lands_while_it_is_open_leaves_its_reasons_as_they_were(tmp_path):
