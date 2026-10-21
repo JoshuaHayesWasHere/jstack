@@ -87,10 +87,12 @@ def hooks(tree: Tree) -> list[dict[str, object]]:
             harnesses.setdefault(hook.script, set()).update(hook.harnesses)
         if feature.status_line:
             harnesses.setdefault(feature.status_line, set()).add("claude-code")
-    return [
+    listed = [
         {"name": PurePosixPath(script).name, "path": script, "harnesses": sorted(names)}
-        for script, names in sorted(harnesses.items())
+        for script, names in harnesses.items()
     ]
+    # By name, which a move leaves as it is: a hook's lines change in place.
+    return sorted(listed, key=lambda one: (one["name"], one["path"]))
 
 
 def text(items: list[dict[str, object]], hooks: list[dict[str, object]]) -> bytes:
