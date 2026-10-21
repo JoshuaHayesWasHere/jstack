@@ -40,6 +40,7 @@ from jbus.mirror import last_result, sections
 from jbus.t3 import Client, T3Error
 from jbus.wake import Changed, Depends, Pass, Slot, cut
 from jgauge import slot, waiters
+from jmerge import checks as reading
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -61,6 +62,9 @@ BROWSER_GRACE = timedelta(hours=1)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
+NEVER = "neverStarted"
+"""The key of an open pull request's failed checks whose job ran no step, as the pass found
+them: `checks` reads them as `jmerge --checks` does."""
 MERGED = "number,url,title,headRefName,mergeCommit,mergedAt"
 GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
@@ -242,6 +246,10 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
             for pull in sorted(
                 pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
             ):
+                if state == "open":
+                    rollup = pull.get("statusCheckRollup") or []
+                    never = reading.never_started(rollup, lambda *at: job(run, *at))
+                    pull[NEVER] = sorted(never)
                 into[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
         for slug in sorted(named - set(world.open) - set(world.merged)):
             if slug not in kept:
@@ -261,20 +269,22 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
 
 
 def checks(pull: dict[str, Any]) -> str:
-    """A pull request's checks in one word. `jmerge` is what decides a merge, not this."""
-    each = []
-    for check in pull.get("statusCheckRollup") or []:
-        state = check.get("state") or check.get("conclusion") or ""
-        if check.get("status", "COMPLETED") != "COMPLETED" or state in ("PENDING", "EXPECTED", ""):
-            each.append("pending")
-        elif state in ("SUCCESS", "NEUTRAL", "SKIPPED"):
-            each.append("passed")
-        else:
-            each.append("failed")
-    for word in ("failed", "pending", "passed"):
-        if word in each:
-            return word
-    return "none"
+    """A pull request's checks in one word, `jmerge --checks`'s reading (`jmerge.checks`),
+    with the failed checks whose job ran no step that the pass found (`NEVER`). One that never
+    started beside checks that passed is `failed`, the first word `jmerge --checks` prints
+    for it. `jmerge` is what decides a merge, not this."""
+    word = reading.checks(pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ()))
+    return "failed" if word == "unstarted" else word
+
+
+def job(run: Pass, repo: str, number: str) -> dict:
+    """A job of a workflow run as GitHub gives it, or {} where it gives none."""
+    asked = run.run("gh", "api", f"repos/{repo}/actions/jobs/{number}")
+    try:
+        given = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        given = {}
+    return given if isinstance(given, dict) else {}
 
 
 def brief_of(run: Pass, slug: str) -> str:

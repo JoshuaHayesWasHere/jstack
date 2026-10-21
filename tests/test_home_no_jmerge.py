@@ -19,7 +19,7 @@ from test_home_thread import as_read, named
 
 SKILLS = Path(__file__).parent.parent / "skills"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
-RUNS = re.compile(r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:claims|scope)\b)", re.M)
+RUNS = re.compile(r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:checks|claims|scope)\b)", re.M)
 FILLED = re.compile(r"'<[^'<>\n]+>'")
 NAME = "demo"
 ME = "mcp:this-home"
