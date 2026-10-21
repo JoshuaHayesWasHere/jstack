@@ -46,7 +46,7 @@ packages = [
     "src/jinstall",
     "features/jleak/src/jleak",
     "src/jmerge",
-    "src/jpack",
+    "features/jpack/src/jpack",
     "features/jroles/src/jroles",
     "features/jsettings/src/jsettings",
 ]
@@ -80,6 +80,7 @@ testpaths = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
     "features/ketchup/tests",
@@ -99,6 +100,7 @@ testpaths = [
 pythonpath = [
     "features/jdrift/src",
     "features/jleak/src",
+    "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
     "src",
@@ -109,6 +111,7 @@ pythonpath = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
     "features/ketchup/tests",
@@ -154,6 +157,7 @@ line-length = 100
 src = [
     "features/jdrift/src",
     "features/jleak/src",
+    "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
     "src",
@@ -164,6 +168,7 @@ src = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
     "features/ketchup/tests",

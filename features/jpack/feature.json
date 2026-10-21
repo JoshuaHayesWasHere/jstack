@@ -10,17 +10,5 @@
   },
   "docs": [
     "docs/jpack.md"
-  ],
-  "owns": [
-    "templates/context/INDEX.md",
-    "src/jpack/**",
-    "docs/jpack.md",
-    "docs/context.md",
-    "templates/context/README.md",
-    "templates/context/sources.md",
-    "templates/context/notes/**",
-    "tests/test_jpack.py",
-    "tests/test_expert_note_lint.py",
-    ".claude/skills/verify-jstack/features/context-packs.md"
   ]
 }

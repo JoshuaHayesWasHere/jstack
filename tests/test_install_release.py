@@ -95,7 +95,7 @@ def test_the_wheel_carries_every_package_the_source_of_each_layout_and_the_jinst
     }
     carried = {f"{shared}/{path}" for path in (*sources, "skills.json", "plugin.json")}
     assert carried <= names, sorted(carried - names)[:5]
-    assert f"{shared}/docs/context.md" in names
+    assert f"{shared}/features/jpack/docs/context.md" in names
     inner = [name for name in names if name.startswith(f"{shared}/")]
     assert not [name for name in inner if re.search(r"/(src|tests|evals|__pycache__)/", name)]
     assert not [name for name in names if "harness/" in name or "claude-code/" in name]

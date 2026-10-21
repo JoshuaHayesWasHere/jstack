@@ -1,4 +1,4 @@
-"""The note lint: `src/jpack/lint-notes.sh` is run here on a made-up expert's
+"""The note lint: `features/jpack/src/jpack/lint-notes.sh` is run here on a made-up expert's
 folder in a temporary directory, by itself and by the block the `expert-study` playbook gives.
 """
 
@@ -11,7 +11,7 @@ import pytest
 from testing.layouts import assembled
 from testing.paths import REPO
 
-LINT = REPO / "src" / "jpack" / "lint-notes.sh"
+LINT = REPO / "features" / "jpack" / "src" / "jpack" / "lint-notes.sh"
 PLAYBOOK = REPO / "features" / "expert" / "playbooks" / "expert-study.md"
 
 CLEAN = """\

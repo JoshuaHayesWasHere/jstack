@@ -29,7 +29,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
     counted = "\n".join(path.read_text() for path in sorted((REPO / "src/jgauge").rglob("*.py")))
     counted += "\n" + (REPO / "src/jbriefs/parse.py").read_text()
     counted += "\n" + "\n".join(
-        path.read_text() for path in sorted((REPO / "src/jpack").glob("*.py"))
+        path.read_text() for path in sorted((REPO / "features/jpack/src/jpack").glob("*.py"))
     )
     imports = re.findall(r"^\s*(?:from|import)\s+([\w.]+)", source + counted, re.M)
     roots = {name.split(".")[0] for name in imports}

@@ -641,25 +641,25 @@
     {
       "name": "context/INDEX.md",
       "kind": "template",
-      "path": "templates/context/INDEX.md",
+      "path": "features/jpack/templates/context/INDEX.md",
       "source": "josh"
     },
     {
       "name": "context/README.md",
       "kind": "template",
-      "path": "templates/context/README.md",
+      "path": "features/jpack/templates/context/README.md",
       "source": "josh"
     },
     {
       "name": "context/notes/retries.md",
       "kind": "template",
-      "path": "templates/context/notes/retries.md",
+      "path": "features/jpack/templates/context/notes/retries.md",
       "source": "josh"
     },
     {
       "name": "context/sources.md",
       "kind": "template",
-      "path": "templates/context/sources.md",
+      "path": "features/jpack/templates/context/sources.md",
       "source": "josh"
     },
     {

@@ -1,6 +1,8 @@
 # Context packs
 
-A context pack is what a home needs to know about one repo that the code does not say at a glance: its background, its history, how it works. It is a folder that a home reads at its start, never a thread that answers. The skeleton is `templates/context/`.
+A context pack is what a home needs to know about one repo that the code does not say at a glance: its background, its history, how it works.
+It is a folder that a home reads at its start, never a thread that answers.
+The skeleton is `features/jpack/templates/context/`.
 
 ## Where a pack lives
 
@@ -16,7 +18,8 @@ A source in a note cites its line: `` `path:line` at <sha> ``, or `` `path:first
 
 ## Who writes it
 
-The subject repo's home, through a scout or a crewmate on a brief that starts from `templates/context/`. jstack writes no repo's pack, and jbus edits none.
+The subject repo's home, through a scout or a crewmate on a brief that starts from `features/jpack/templates/context/`.
+jstack writes no repo's pack, and jbus edits none.
 
 ## How a home reads it
 
@@ -34,7 +37,9 @@ A pack line that a layer above it contradicts is reported, not acted on, and its
 
 `jpack` checks a pack with no model. Run it from the subject repo's checkout, or name the checkout with `--repo`. Each verb prints one line per fault and exits 1, prints nothing and exits 0 for a pack in order, and exits 2 for a folder or a repo it cannot read.
 
-- `jpack lint <repo>/docs/context`: every note has a line in `INDEX.md`, lists at least one source, and each source names a revision. The index is at most 40 lines that are not blank. It is the same lint an expert's folder uses, one shell copy at `src/jpack/lint-notes.sh`.
+- `jpack lint <repo>/docs/context`: every note has a line in `INDEX.md`, lists at least one source, and each source names a revision.
+  The index is at most 40 lines that are not blank.
+  It is the same lint an expert's folder uses, one shell copy at `features/jpack/src/jpack/lint-notes.sh`.
 - `jpack verify <repo>/docs/context`: for each citation, the commit is in the repo, the path is in the commit, the file has the cited lines, and the quoted words are on them, with white space read as one space. A citation that quotes no words is a fault. A source that names a commit and cites no `path:line` at it is a fault too, since nothing could check it. It is the outside check on whatever scout or crewmate wrote the notes. A shallow checkout says so where a cited commit is not in it.
 
 ## How it is pruned

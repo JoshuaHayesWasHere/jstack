@@ -10,7 +10,7 @@ Paths:
 - `src/jbriefs/`
 - `src/jgauge/`
 - `src/jmerge/`
-- `src/jpack/`
+- `features/jpack/src/jpack/`
 - `features/jleak/src/jleak/`
 - `features/jleak/hooks/`
 - `features/jroles/src/jroles/`

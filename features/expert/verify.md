@@ -1,6 +1,6 @@
 # An expert answers asks
 
-The expert skill makes a thread the always-on expert of one subject: it answers asks from its sources and its notes, with the `expert-*` playbooks, and lints its notes with `src/jpack/lint-notes.sh`.
+The expert skill makes a thread the always-on expert of one subject: it answers asks from its sources and its notes, with the `expert-*` playbooks, and lints its notes with `features/jpack/src/jpack/lint-notes.sh`.
 
 Paths:
 - `features/expert/`

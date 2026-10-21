@@ -2,8 +2,8 @@
 
 A context pack is a folder in the repo it is about, `docs/context/`: `sources.md`, an
 `INDEX.md` of one line per note, and `notes/`, one note a question, in the four parts of
-`features/expert/templates/expert-answer.md`. `docs/context.md` says who writes one and how it
-is read.
+`features/expert/templates/expert-answer.md`. `features/jpack/docs/context.md` says who writes
+one and how it is read.
 
 A note's sources are the list items (`- ` or `* `) under its `Sources` heading, each with the
 lines that carry it on, up to the next blank line, item or heading, as the lint
