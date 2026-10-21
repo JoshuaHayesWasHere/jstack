@@ -334,6 +334,28 @@ def test_a_main_whose_check_failed_after_it_landed_is_red_and_the_next_green_tel
     assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"]
 
 
+def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commit(launched):
+    """A flake: main's check fails at its tip, and a rerun of that check passes while the tip
+    stays where it is. The fix row filed for it is said green again and is not launched."""
+    red = tip(launched)
+    launched.set("commits.json", [launched.commit(red)])
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    add(launched, f"main-red-{red[:12]}", priority=0, approve=False)
+    launched.poll()
+    assert mainjson.read(launched.state).red == red
+    checks(launched, red, "success")
+    for minutes in (3, 6):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert mainjson.read(launched.state) == mainjson.Main(green=red)
+    record = jbus.read_json(launched.state / "main.json", {})
+    assert (record["check"], record["green"], "broken" in record) == ("green", red, False)
+    assert keys(launched) == [f"mainmoved|alpha|#7|{red[:12]}"]
+    row = f"main-red-{red[:12]}"
+    green = f"retro {row}: main is green again at {red[:12]}, and its row is left as it is"
+    assert [line for line in launched.lines("retro") if "green again" in line] == [green]
+    assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [None]
+
+
 def test_a_red_head_that_is_also_in_conflict_is_told_once_however_often_main_moves(launched):
     both = pull(launched, "alpha", 7, "FAILURE", mergeable="CONFLICTING")
     launched.set("open.json", [both])

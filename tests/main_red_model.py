@@ -10,8 +10,8 @@ record after every pass:
   that is not a fix.
   The harm when it breaks: jmerge merges pull requests onto a main whose check failed, so
   each one lands on a red base and the red spreads.
-- **S2, no stuck red.** When `rows.red` names a tip, no tip that landed after it has a
-  `green` check.
+- **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that
+  landed after it has a `green` check.
   The harm when it breaks: jmerge holds every pull request as "main is red" after main
   was fixed, and the queue stops until somebody looks.
 
@@ -39,6 +39,8 @@ What one step is, in the code:
   `again` (`src/jbus/mainmoved.py:74-80`), so the last two reach `tell` through
   `checks.json`, where watch's retro writes them (`_check(..., again=True)`). A tip whose
   check never ends is a tip no `settles` event reaches: it stays `pending`.
+- **rerun passes**: the newest tip's check failed, and a rerun of it on the same tip, with
+  no new commit, passes: that tip's check is `green` from then on.
 - T3 Code's answer to a send is a choice of the pass: it answers, it loses the send
   (`T3Error`, `src/jbus/mainmoved.py:192-195`) or it refuses it (`T3Refused`, 187-191).
 
@@ -202,7 +204,7 @@ def stubbed() -> Iterator[None]:
     """The four stubs, and nothing else: GitHub's answer, the launch record, the brief's
     thread, and a crew whose turn has ended."""
     with (
-        mock.patch.object(mainmoved, "main_check", lambda run, at: run.checks[at]),
+        mock.patch.object(mainmoved, "main_check", lambda run, at, again=False: run.checks[at]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
         mock.patch.object(dispatch, "thread_of", lambda brief: THREAD),
         mock.patch.object(rebase, "held", lambda *args: False),
@@ -256,7 +258,7 @@ def s2(state: State, files: Files) -> bool:
         return True
     red = mainjson.read(files.state).red
     tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
-    return "green" not in state.checks[tip + 1 :]
+    return "green" not in state.checks[tip:]
 
 
 PROPERTIES = {"S1": s1, "S2": s2}
@@ -293,6 +295,9 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
             looked = state.looked and tip != landed - 1
             after = State(checks, state.record, state.sent, state.pull, looked)
             yield Step(f"settles {answer}", f"M{tip}'s check settles: {answer}", after)
+    if state.checks[-1] == "failed":
+        after = State((*state.checks[:-1], "green"), state.record, state.sent, state.pull, False)
+        yield Step("rerun passes", f"M{landed - 1}'s check is rerun and passes", after)
     answers = (ANSWERS, LOSES, REFUSES) if options.lost_sends else (ANSWERS, REFUSES)
     for answer in answers:
         after, sent = files.tell(state, answer)
