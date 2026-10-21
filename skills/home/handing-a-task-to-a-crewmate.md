@@ -13,6 +13,7 @@
    | Write | When |
    |---|---|
    | `Review: review` | always, unless the one below holds or the user says otherwise |
+   | `Review: after` | the user's standing rule is speed first: it merges once its check passes, and its review's findings become a cleanup row that waits for the user's go |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 
    A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
