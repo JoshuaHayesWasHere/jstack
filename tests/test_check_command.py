@@ -126,6 +126,13 @@ def pytest_of(*args):
     return shlex.split(line)[shlex.split(line).index("pytest") + 1 :]
 
 
+def test_every_comment_line_of_the_makefile_fits_the_repos_line_length():
+    length = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["ruff"]["line-length"]
+    lines = (REPO / "Makefile").read_text().splitlines()
+    long = [n for n, line in enumerate(lines, 1) if line.startswith("#") and len(line) > length]
+    assert long == []
+
+
 def test_make_check_runs_the_tests_on_a_number_of_workers_set_in_one_place():
     assert pytest_of("check", "CORES=24") == ["-n", "6", *SCHEDULE, *LEAVES_OUT]
     assert pytest_of("check", "TEST_WORKERS=2") == ["-n", "2", *SCHEDULE, *LEAVES_OUT]
