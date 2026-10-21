@@ -26,10 +26,10 @@ def holds(options, prop):
 
 
 def test_the_walk_reaches_every_event_the_model_has():
-    """A check that never reached a lost send, a held merge or a refused check proves
-    nothing about them."""
+    """A check that never reached a lost send, a held merge, a refused check or a rerun
+    that passes proves nothing about them."""
     found = walk(EVERY)
-    kinds = {"jmerge merges", "jmerge holds", "another merge", "no send"}
+    kinds = {"jmerge merges", "jmerge holds", "another merge", "no send", "rerun passes"}
     kinds |= {f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused")}
     kinds |= {f"T3 Code {answer}" for answer in ("answers", "loses the send", "refuses the send")}
     assert found.events == kinds

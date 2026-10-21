@@ -10,8 +10,8 @@ record after every pass:
   that is not a fix.
   The harm when it breaks: jmerge merges pull requests onto a main whose check failed, so
   each one lands on a red base and the red spreads.
-- **S2, no stuck red.** When `rows.red` names a tip, no tip that landed after it has a
-  `green` check.
+- **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that
+  landed after it has a `green` check.
   The harm when it breaks: jmerge holds every pull request as "main is red" after main
   was fixed, and the queue stops until somebody looks.
 
@@ -23,7 +23,7 @@ What one step is, in the code:
 - **pass**: one run of `tell`, under the pass lock (`src/jbus/cli.py:215-219`), so no two
   passes overlap and a pass is one indivisible step. In a pass, jmerge reads `main.json`
   before `tell` writes it (`src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs later in
-  the `after-expedite` slot, `src/jbus/mainmoved.py:222-230`): a merge in a pass is the
+  the `after-expedite` slot, `src/jbus/mainmoved.py:229-237`): a merge in a pass is the
   event `lands, jmerge merges` followed by the event `pass`, and reads the record the last
   pass wrote, as a merge between passes does.
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`.
@@ -36,11 +36,13 @@ What one step is, in the code:
 - **settles**: a pending tip's check ends, as `watch._check` answers
   (`src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that was
   cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
-  `again` (`src/jbus/mainmoved.py:74-80`), so the last two reach `tell` through
+  `again` (`src/jbus/mainmoved.py:77-86`), so the last two reach `tell` through
   `checks.json`, where watch's retro writes them (`_check(..., again=True)`). A tip whose
   check never ends is a tip no `settles` event reaches: it stays `pending`.
+- **rerun passes**: the newest tip's check failed, and a rerun of it on the same tip, with
+  no new commit, passes: that tip's check is `green` from then on.
 - T3 Code's answer to a send is a choice of the pass: it answers, it loses the send
-  (`T3Error`, `src/jbus/mainmoved.py:192-195`) or it refuses it (`T3Refused`, 187-191).
+  (`T3Error`, `src/jbus/mainmoved.py:201-204`) or it refuses it (`T3Refused`, 196-200).
 
 What is stubbed, and only this: `mainmoved.main_check` returns the tip's check from the
 model (it would ask GitHub), GitHub's list of main's commits is the model's tips, each the
@@ -202,7 +204,7 @@ def stubbed() -> Iterator[None]:
     """The four stubs, and nothing else: GitHub's answer, the launch record, the brief's
     thread, and a crew whose turn has ended."""
     with (
-        mock.patch.object(mainmoved, "main_check", lambda run, at: run.checks[at]),
+        mock.patch.object(mainmoved, "main_check", lambda run, at, again=False: run.checks[at]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
         mock.patch.object(dispatch, "thread_of", lambda brief: THREAD),
         mock.patch.object(rebase, "held", lambda *args: False),
@@ -256,7 +258,7 @@ def s2(state: State, files: Files) -> bool:
         return True
     red = mainjson.read(files.state).red
     tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
-    return "green" not in state.checks[tip + 1 :]
+    return "green" not in state.checks[tip:]
 
 
 PROPERTIES = {"S1": s1, "S2": s2}
@@ -293,6 +295,9 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
             looked = state.looked and tip != landed - 1
             after = State(checks, state.record, state.sent, state.pull, looked)
             yield Step(f"settles {answer}", f"M{tip}'s check settles: {answer}", after)
+    if state.checks[-1] == "failed":
+        after = State((*state.checks[:-1], "green"), state.record, state.sent, state.pull, False)
+        yield Step("rerun passes", f"M{landed - 1}'s check is rerun and passes", after)
     answers = (ANSWERS, LOSES, REFUSES) if options.lost_sends else (ANSWERS, REFUSES)
     for answer in answers:
         after, sent = files.tell(state, answer)
