@@ -9,7 +9,7 @@ from jbus import cleanup, queue
 from test_jbus_kitchen import Kitchen
 
 HEAD, MERGE = "a" * 40, "c" * 40
-PULL = "https://github.com/someone/demo/pull/7"
+PULL = "https://example.test/pull/7"
 FOUND = (
     "- warning src/a.py:12 the loop reads the list twice (bucket: Act on)\n"
     "- info src/b.py:3 a name says less than it could (bucket: Consider)\n"
