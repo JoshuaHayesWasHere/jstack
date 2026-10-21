@@ -11,7 +11,12 @@ CAP = 400
 ROLES = REPO / "skills"
 OVER = {ROLES / "handoff"}
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
-SIDES = sorted(side for skill in SKILLS for side in skill.parent.glob("*.md") if side != skill)
+SIDES = sorted(
+    side
+    for skill in SKILLS
+    for side in skill.parent.glob("*.md")
+    if side != skill and side.name != "verify.md"
+)
 
 
 def ids(path):

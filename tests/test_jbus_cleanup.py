@@ -1,6 +1,6 @@
 """A `Review: after` brief's review hands its findings to one cleanup row. The pr-review
 skill's block is run as the reviewer runs it, parsed out of
-`skills/pr-review/after-the-review.md`: `jbus cleanup <brief>`, piped into
+`features/pr-review/after-the-review.md`: `jbus cleanup <brief>`, piped into
 `jbus queue add cleanup-<slug>`. `uv run --project ... jbus` is the real command from this
 checkout, over a made-up config and state, and `gh` gives the merge commit, or nothing."""
 
@@ -14,7 +14,7 @@ from jbus import cleanup, queue
 from test_understanding_skills import blocks
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "pr-review" / "after-the-review.md"
+SKILL = REPO / "features" / "pr-review" / "after-the-review.md"
 HEAD, MERGE = "a" * 40, "c" * 40
 PULL = "https://example.test/pull/7"
 FOUND = (

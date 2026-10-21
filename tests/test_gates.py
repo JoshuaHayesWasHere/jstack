@@ -18,7 +18,6 @@ from test_home_thread import (
     CONTEXT,
     FILLED,
     PROPOSED,
-    REPO,
     a_gate_in,
     block,
     finds_this_home,
@@ -26,6 +25,7 @@ from test_home_thread import (
     paths,
 )
 from test_jbus_kitchen import Kitchen, complete
+from testing.paths import REPO
 
 TEMPLATE = REPO / "templates" / "gates.md"
 ROOT = "mcp:the-root-home"

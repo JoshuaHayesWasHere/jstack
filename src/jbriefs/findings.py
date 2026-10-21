@@ -2,7 +2,7 @@
 
 Every `## Review` section of a brief, one from each reviewer the role map lists and one
 for each later pass, holds a list of findings under `Findings:` and the ones its lead
-dismissed under `Dismissed:`. A finding line is the one `templates/review.md` gives,
+dismissed under `Dismissed:`. A finding line is the one pr-review's `templates/review.md` gives,
 
     - <severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)
 

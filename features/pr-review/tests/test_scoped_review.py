@@ -16,6 +16,7 @@ import test_pr_review_skill as reviews
 from jbus import rebase
 from test_home_merge import FENCED, git, review
 from test_home_thread import as_read
+from testing.layouts import assembled
 
 SKILL = reviews.SKILL
 
@@ -69,7 +70,7 @@ def test_a_brief_with_a_review_is_launched_for_a_scoped_pass_and_refused_for_a_f
             "PATH": f"{launcher.stub}:{os.environ['PATH']}",
             "STUB": str(launcher.stub),
             "H": str(launcher.state),
-            "T": str(reviews.REPO / "templates"),
+            "T": str(assembled() / "templates"),
         }
         ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, env=env)
         return ran.stdout.splitlines()

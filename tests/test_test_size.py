@@ -15,16 +15,18 @@ from pathlib import Path
 from testing.paths import REPO
 
 CAP = 1500
-ALLOWED = {"tests/test_pr_review_skill.py"}
+ALLOWED = {"features/pr-review/tests/test_pr_review_skill.py"}
 
 
 def files(root):
-    """Each Python file of `tests/` under `root`, but the fixtures, with its count of lines."""
+    """Each Python file of `tests/` under `root`, and of each feature's `tests/`, but the
+    fixtures, with its count of lines."""
     found = {}
-    for path in sorted((root / "tests").rglob("*.py")):
-        named = path.relative_to(root).as_posix()
-        if not named.startswith("tests/fixtures/"):
-            found[named] = len(path.read_text().splitlines())
+    for folder in [root / "tests", *sorted(root.glob("features/*/tests"))]:
+        for path in sorted(folder.rglob("*.py")):
+            named = path.relative_to(root).as_posix()
+            if "fixtures" not in path.relative_to(folder).parts[:1]:
+                found[named] = len(path.read_text().splitlines())
     return found
 
 

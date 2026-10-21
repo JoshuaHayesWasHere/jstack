@@ -22,9 +22,11 @@ from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 from test_room import BIN, IDLE, machine, says, uv
+from testing.layouts import assembled
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "pr-review" / "SKILL.md"
+SKILL = REPO / "features" / "pr-review" / "SKILL.md"
+REVIEW = REPO / "features" / "pr-review" / "templates" / "review.md"
 INTERROGATE = REPO / "skills" / "interrogate"
 BLAST_RADIUS = REPO / "skills" / "blast-radius" / "SKILL.md"
 
@@ -141,7 +143,7 @@ def reviewer(tmp_path):
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
         "STUB": str(stub),
         "H": str(tmp_path),
-        "T": str(REPO / "templates"),
+        "T": str(assembled() / "templates"),
         "PROC": str(tmp_path / "proc"),
         "TMPFS": str(stub / "tmp"),
         "TMPDIR": str(tmp_path / "tmp"),
@@ -573,7 +575,7 @@ def test_the_two_questions_are_the_ones_the_interrogate_skill_reads_out_of_this_
     (reads,) = [body for kind, body in FENCED.findall(text) if kind == "sh" and "asked=" in body]
     home = reviewer.state / "user"
     (home / ".claude" / "skills").mkdir(parents=True)
-    (home / ".claude" / "skills" / "interrogate").symlink_to(INTERROGATE)
+    (home / ".claude" / "skills" / "interrogate").symlink_to(assembled() / "skills" / "interrogate")
     read = subprocess.run(
         ["sh", "-c", reads], env={**os.environ, "HOME": str(home)}, capture_output=True, text=True
     )
@@ -615,11 +617,11 @@ OFTEN = {"--wait 540": "--wait 15 --every 0.1"}
 
 def room_calls(tmp_path, **readings):
     """What the home's launch check and the review's run block each say on that machine."""
-    env = {**machine(tmp_path, **{**IDLE, **readings}), "T": str(REPO / "templates")}
+    env = {**machine(tmp_path, **{**IDLE, **readings}), "T": str(assembled() / "templates")}
     uv(tmp_path / "stub")
     said = []
     for skill, more in (("home", ""), ("pr-review", '\nprintf "%s\\n" "$said"')):
-        text = as_read(REPO / "skills" / skill / "SKILL.md")
+        text = as_read(assembled() / "skills" / skill / "SKILL.md")
         (call,) = [line for line in text.splitlines() if "jgauge room" in line and "`" not in line]
         assert call.count('uv run --project "$T/.." jgauge room') == 1
         said.append(says(env, call.replace("--wait 540", "--wait 0") + more))
@@ -1125,7 +1127,7 @@ def test_the_head_and_the_patch_reviewed_are_two_lines_of_the_section(tmp_path):
     said, code = pr.checked(head)
     assert code == 0
     assert said == [f"Head: {head}   Unchanged by the review: yes", f"Patch-id: {patch}"]
-    template = (REPO / "templates" / "review.md").read_text().splitlines()
+    template = REVIEW.read_text().splitlines()
     for line in said:
         label = re.split(r": |   ", line)
         assert any(row.startswith(f"{label[0]}: ") for row in template)
@@ -1252,7 +1254,7 @@ def test_a_finding_outside_the_diff_is_dropped_and_counted(reviewer, findings, d
 
 def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(reviewer):
     """The section's dismissed lines sit under `Dropped:`, where the crew skill stops counting."""
-    template = (REPO / "templates" / "review.md").read_text()
+    template = REVIEW.read_text()
     labels = [line.split(":")[0] for line in template.splitlines()]
     after = labels[labels.index("Dropped") :]
     assert after[:3] == ["Dropped", "Noted", "Dismissed"]
@@ -1268,7 +1270,7 @@ def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(rev
     counts = crew.block("The review", "--left").replace("<slug>", "a-task")
     ran = subprocess.run(
         ["sh", "-c", counts],
-        env={**os.environ, "H": str(reviewer.state), "T": str(REPO / "templates")},
+        env={**os.environ, "H": str(reviewer.state), "T": str(assembled() / "templates")},
         capture_output=True,
         text=True,
         check=True,
@@ -1295,7 +1297,7 @@ def test_a_gh_that_fails_is_not_read_as_nothing_found(reviewer, heading, call):
 def test_the_count_dropped_is_a_line_of_the_review_section(reviewer):
     reviewer.gh()
     (count,) = reviewer.output("### Outside the diff")
-    template = (REPO / "templates" / "review.md").read_text()
+    template = REVIEW.read_text()
     labels = [line.split(":")[0] for line in template.splitlines()]
     assert count == "Dropped: 0"
     assert count.split(":")[0] in labels
@@ -1688,7 +1690,7 @@ class Launcher:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
-                "T": str(REPO / "templates"),
+                "T": str(assembled() / "templates"),
             },
             check=True,
         )
@@ -2008,7 +2010,7 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
         "Dismissed": "none",
         "Sent to": "mcp:crew",
     }
-    template = (REPO / "templates" / "review.md").read_text().splitlines()
+    template = REVIEW.read_text().splitlines()
     assert template[1].startswith("By: ")
     assert template[5].startswith("Reviewers: 1, ")
     lines = []

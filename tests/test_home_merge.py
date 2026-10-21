@@ -16,7 +16,7 @@ import pytest
 
 import repo_template
 from test_home_thread import as_read
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -193,8 +193,9 @@ class Home:
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
-        (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(REPO / "skills")
+        (self.user / ".claude" / "skills").mkdir(parents=True)
+        for name, folder in skills().items():
+            (self.user / ".claude" / "skills" / name).symlink_to(folder)
         self.tasks = self.user / ".local" / "state" / "home" / NAME / "tasks"
         self.tasks.mkdir(parents=True)
         self.state = self.tasks.parent
