@@ -141,7 +141,16 @@ The machine is shared with the homes of other repos, so check it before every la
 uv run --project "$T/.." jgauge room || echo "wait: jgauge room did not run"
 ```
 
-It prints `go`, or `wait: ` and the first reading that has no room. There are four readings: the one-minute load against the core count, the available memory, the memory pressure, which is the share of the last minute that something on the machine stood waiting for memory, and the plan's limits, which is the share of the account's five-hour and weekly limit already used. A reading of the machine it cannot take is a `wait` too. The limits are the one reading that never stops a launch unread: they come from the file on the `LIMITS` line, which the user's status line script writes, and for a window that file does not give, `room` prints `go` and under it a `note: ` line saying that limit is not known. A window past its reset counts as empty, and a `wait` on a limit says when the window resets. The check is one file, `features/jgauge/src/jgauge/room.sh` in the repo this skill lives in, and `jgauge room` runs it: the pr-review skill's run block and `jbus` ask the same file, and no skill holds a copy. The four thresholds are the first four lines of its `room`: change one there. `PROC` points the readings at another directory and `LIMITS` at another file, for a test. Run it with the block at the top, which sets `T`: `uv run --project` needs nothing on `PATH` but `uv`. A check that did not run is a `wait` as well.
+It prints `go`, or `wait: ` and the first reading that has no room.
+There are four readings: the one-minute load against the core count, the available memory, the memory pressure, which is the share of the last minute that something on the machine stood waiting for memory, and the plan's limits, which is the share of the account's five-hour and weekly limit already used.
+A reading of the machine it cannot take is a `wait` too.
+The limits are the one reading that never stops a launch unread: they come from the file on the `LIMITS` line, which the user's status line script writes, and for a window that file does not give, `room` prints `go` and under it a `note: ` line saying that limit is not known.
+A window past its reset counts as empty, and a `wait` on a limit says when the window resets.
+The check is one file, `features/jgauge/src/jgauge/room.sh` in the repo this skill lives in, and `jgauge room` runs it: the pr-review skill's run block and `jbus` ask the same file, and no skill holds a copy.
+The four thresholds are the first four lines of its `room`: change one there.
+`PROC` points the readings at another directory and `LIMITS` at another file, for a test.
+Run it with the block at the top, which sets `T`: `uv run --project` needs nothing on `PATH` but `uv`.
+A check that did not run is a `wait` as well.
 
 Launch on `go`. On `wait`, do not launch: tell the user the task is written and waiting, and why, and launch it when they next ask or the check says `go`. That holds whatever the user asks for in one message: every launch gets its own check, and the ones with no room wait their turn.
 
