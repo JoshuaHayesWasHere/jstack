@@ -35,7 +35,10 @@ else
 fi
 ```
 
-It prints the brief's mode, then what to do. The mode is the brief's `Review:` line, the first line that starts with it: `none`, `after`, or `review` for anything else. A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do. The same words inside the task's text or a result do not count.
+It prints the brief's mode, then what to do.
+The mode is the brief's `Review:` line, the first line that starts with it: `none`, `after`, or `review` for anything else.
+A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
+The same words inside the task's text or a result do not count.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
