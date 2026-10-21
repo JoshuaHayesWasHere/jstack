@@ -108,6 +108,7 @@ def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(r
     stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
     assert "src/a.py:12" in stored and "src/b.py:3" in stored
     assert "src/c.py" not in stored
+    assert "- F1 src/a.py:12: the loop reads the list twice (Act on)\n" in stored
     assert f"{PULL}, merged as {MERGE}" in stored
     assert reviewer.run().strip() == cleanup.THERE.format(slug="cleanup-alpha")
     assert len(reviewer.rows()) == 1
@@ -173,6 +174,7 @@ def test_the_second_review_of_a_twice_brief_files_its_warnings_and_errors_as_one
     assert "src/a.py:40" in stored and "src/d.py:7" in stored
     assert "src/b.py" not in stored and "src/c.py" not in stored
     assert "src/a.py:12" not in stored, "the first review's findings were the crew's to fix"
+    assert "- F4 error src/a.py:40: the retry never stops (Act on)\n" in stored
     assert "2 info findings" in stored
     assert f"{PULL}, not merged when the review of {FIX} was written" in stored
 

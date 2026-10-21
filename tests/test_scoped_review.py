@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import textwrap
+from itertools import takewhile
 
 import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
@@ -52,8 +53,10 @@ def test_the_message_jbus_sends_is_the_one_the_section_takes():
 
 
 def test_a_brief_with_a_review_is_launched_for_a_scoped_pass_and_refused_for_a_first(tmp_path):
-    (rule,) = [line for line in as_read(SKILL).splitlines() if "is refused: say so" in line]
-    (scoped_pass,) = [part for part in rule.split(". ") if part.startswith("A scoped pass")]
+    lines = as_read(SKILL).splitlines()
+    (start,) = [n for n, line in enumerate(lines) if "is refused: say so" in line]
+    item = [lines[start]] + list(takewhile(lambda line: line.startswith("   "), lines[start + 1 :]))
+    (scoped_pass,) = [line.strip() for line in item if line.strip().startswith("A scoped pass")]
     (first_line,) = re.findall(r"`(PASS=\w+)`", scoped_pass)
     launcher = reviews.Launcher(tmp_path)
     launcher.brief.write_text(reviews.BRIEF + reviews.DONE + "\n## Review\nVerdict: clean\n")
