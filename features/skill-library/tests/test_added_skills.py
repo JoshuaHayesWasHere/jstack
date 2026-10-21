@@ -116,8 +116,12 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
 
 
 def says_something(body, repo, home, tmp_path):
-    """Whether a block runs with nothing on stderr and prints a line."""
-    return run(body, repo, home) != []
+    """Whether a block runs with nothing on stderr and prints a line, with a stand-in first on
+    PATH for each host command a block reads, so what this machine's own prints is never what
+    the test reads."""
+    stand_ins = tmp_path / "stand-ins"
+    a_tool(stand_ins, "tailscale", STAND_IN_TAILSCALE)
+    return run(body, repo, home, before=f"PATH='{stand_ins}':\"$PATH\"\n") != []
 
 
 def a_tool(directory, name, text):
@@ -127,6 +131,13 @@ def a_tool(directory, name, text):
     tool.chmod(0o755)
 
 
+STAND_IN_TAILSCALE = """\
+#!/bin/sh
+case "$1" in
+ip) echo 192.0.2.1 ;;
+status) echo '{"Self": {"DNSName": "desk.tailnet.example."}}' ;;
+esac
+"""
 WARNS = """\
 #!/bin/sh
 echo 'Warning: client version "1.104.2" != tailscaled server version "1.104.1"' >&2
