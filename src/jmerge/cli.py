@@ -22,7 +22,19 @@ from typing import NamedTuple
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
-from jmerge import checks, claims, green, lines, mainjson, proof, rangediff, ready, rows, sweep
+from jmerge import (
+    checks,
+    claims,
+    follow,
+    green,
+    lines,
+    mainjson,
+    proof,
+    rangediff,
+    ready,
+    rows,
+    sweep,
+)
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -1090,10 +1102,13 @@ class Repo:
         if asked.returncode or not commit:
             commit = one.head
             notes.append("that commit is its head, GitHub did not give the merge commit")
+        before = _run(self.main, "git", "rev-parse", "HEAD").stdout.strip()
         pulled = _run(self.main, "git", "pull", "--ff-only")
         self.numbers_on = None
         if pulled.returncode:
             notes.append(f"not pulled: {_said(pulled)}")
+        elif followed := follow.follow(_run, self.main, before):
+            notes.append(followed)
         kept = self.clear_up(one.branch, one.head)
         if kept:
             notes.append(f"kept: {kept}")
