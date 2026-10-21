@@ -97,10 +97,12 @@ class Main:
 @dataclass(frozen=True)
 class Step:
     """One entry of a mirror that is not as it should be. `kind` is `link`, `backup`,
-    `move`, `dangling` or `json`; `name` is the entry's name in the mirror's home."""
+    `move`, `dangling` or `json`; `name` is the entry's name in the mirror's home, and `keys`
+    are the shared keys of a `json` step whose values differ."""
 
     kind: str
     name: str
+    keys: tuple[str, ...] = ()
 
     def would(self, main: Main, mirror: Mirror) -> str:
         """What `--check` says of it."""
@@ -110,7 +112,7 @@ class Step:
             "backup": f"would back up {at} and link it -> {there}",
             "move": f"would move {at} into {main.home} and link it",
             "dangling": f"would remove dangling {at}",
-            "json": f"would sync the shared keys of {main.config} into {mirror.home / JSON}",
+            "json": f"would sync {', '.join(self.keys)} of {main.config} into {at}",
         }[self.kind]
 
 
@@ -175,8 +177,11 @@ def plan(main: Main, mirror: Mirror) -> tuple[Step, ...]:
                 steps.append(Step("dangling", name))
         elif not os.path.lexists(there):
             steps.append(Step("move", name))
-    if shared(main, mirror) is not None:
-        steps.append(Step("json", JSON))
+    made = shared(main, mirror)
+    if made is not None:
+        ours = _read(mirror.home / JSON) or {}
+        keys = sorted(key for key, value in made.items() if key not in ours or ours[key] != value)
+        steps.append(Step("json", JSON, tuple(keys)))
     return tuple(steps)
 
 
@@ -339,4 +344,6 @@ def main(argv: list[str]) -> int:
             print(line)
         if args.check and said:
             code = code or DRIFT
+        elif args.check:
+            print(f"ok        {one.home} mirrors {home.home}")
     return code
