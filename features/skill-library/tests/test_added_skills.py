@@ -2,11 +2,12 @@
 each subagent it starts is a read-only Explore agent its tool takes. The tests of what one
 skill's blocks print are in its own feature's folder."""
 
+import os
 import re
 
 import pytest
 
-from skill_blocks import COPY, SKILLS, blocks, home, repo, run
+from skill_blocks import COPY, SKILLS, block, blocks, home, repo, run
 from test_tool_calls import CALLS, errors
 
 __all__ = ["home", "repo"]
@@ -110,8 +111,49 @@ def test_every_file_an_added_skill_names_is_there(name):
         for number, body in enumerate(blocks((SKILLS[name] / "SKILL.md").read_text(), "sh"), 1)
     ],
 )
-def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo, home):
-    assert run(body, repo, home) != []
+def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo, home, tmp_path):
+    assert says_something(body, repo, home, tmp_path)
+
+
+def says_something(body, repo, home, tmp_path):
+    """Whether a block runs with nothing on stderr and prints a line."""
+    return run(body, repo, home) != []
+
+
+def a_tool(directory, name, text):
+    tool = directory / name
+    tool.parent.mkdir(parents=True, exist_ok=True)
+    tool.write_text(text)
+    tool.chmod(0o755)
+
+
+WARNS = """\
+#!/bin/sh
+echo 'Warning: client version "1.104.2" != tailscaled server version "1.104.1"' >&2
+case "$1" in
+ip) echo 198.51.100.7 ;;
+status) echo '{"Self": {"DNSName": "host.tailnet.example."}}' ;;
+esac
+"""
+TAILSCALE = "tailscale ip -4"
+
+
+def test_the_tailscale_block_says_something_whatever_the_hosts_tailscale_prints_on_stderr(
+    repo, home, tmp_path, monkeypatch
+):
+    host = tmp_path / "host"
+    a_tool(host, "tailscale", WARNS)
+    monkeypatch.setenv("PATH", f"{host}{os.pathsep}{os.environ['PATH']}")
+    body = block("make-bot-ui", TAILSCALE)
+    with pytest.raises(AssertionError):
+        run(body, repo, home)
+    assert says_something(body, repo, home, tmp_path)
+
+
+def test_a_broken_tailscale_block_does_not_say_something(repo, home, tmp_path):
+    body = block("make-bot-ui", TAILSCALE).replace("rtrimstr(", "rtrimstr((")
+    with pytest.raises(AssertionError):
+        says_something(body, repo, home, tmp_path)
 
 
 @pytest.mark.parametrize("call", SUBAGENT_CALLS, ids=lambda call: call.where)
