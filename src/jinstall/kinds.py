@@ -133,17 +133,54 @@ def get(machine: Machine, package: str, command: str) -> str:
     return f"yay -S {package}" if machine.which("pacman") else command
 
 
+# The copy of the skills, templates and hooks an agent is linked to, which
+# scripts/generate-jstack-trees.py writes in the checkout (scripts/jtrees/outputs/harness.py).
+HARNESS = Path("harness") / "jstack" / "claude-code"
+GENERATE = "scripts/generate-jstack-trees.py"
+
+
 def points_at(path: Path, target: Path) -> bool:
     return path.is_symlink() and os.readlink(path) == str(target)
 
 
 def dead(path: Path, checkout: Path) -> bool:
-    """Whether `path` is a link into the checkout's `skills/` at a skill that is not there."""
+    """Whether `path` is a link into the copy's `skills/`, or the checkout's own where links
+    went before the copy, at a skill that is not there."""
     return (
         path.is_symlink()
-        and os.readlink(path).startswith(f"{checkout / 'skills'}{os.sep}")
+        and os.readlink(path).startswith(
+            tuple(f"{folder / 'skills'}{os.sep}" for folder in (checkout / HARNESS, checkout))
+        )
         and not (path / "SKILL.md").is_file()
     )
+
+
+@dataclass(frozen=True)
+class Harness:
+    """The copy in the checkout, `harness/jstack/claude-code/`, as the generator writes it
+    from the checkout's features: the skills and hooks every other part points at.
+    ok: the generator's --check passes. old: what it named first, or why it could not run.
+    put writes nothing in the checkout: an install leaves its files as git has them, and
+    the user runs the generator. drop removes nothing."""
+
+    def probe(self, machine: Machine) -> Found:
+        ran = machine.run([sys.executable, "-I", str(machine.checkout / GENERATE), "--check"])
+        if ran.code == 0:
+            return Found.ok()
+        said = ran.out.splitlines()
+        return Found.old(said[0] if said else f"the generator exited {ran.code}")
+
+    def due(self, machine: Machine) -> bool:
+        return True
+
+    def ask(self, machine: Machine) -> str:
+        return f"python3 {machine.checkout / GENERATE}"
+
+    def put(self, machine: Machine) -> None:
+        raise Refused(f"the copy is not current: run {self.ask(machine)} and commit the result")
+
+    def drop(self, machine: Machine) -> Dropped:
+        return Dropped()
 
 
 @dataclass(frozen=True)
@@ -233,7 +270,7 @@ def rewrite(machine: Machine, file: Path, change: Callable[[dict], bool]) -> boo
 class HookGroup:
     """One group in `.hooks[event]` of ~/.claude/settings.json or ~/.codex/hooks.json:
         {"matcher": <matcher>, "hooks": [{"type": "command",
-          "command": "sh '<checkout>/<script>' 2>/dev/null || true", "timeout": 5}]}
+          "command": "sh '<checkout>/<harness>/<script>' 2>/dev/null || true", "timeout": 5}]}
     with no `matcher` key when `matcher` is None. With `refuses` the command is
     "sh '<checkout>/<script>'" and nothing after it: the hook's exit code and what it writes
     to stderr are how it refuses a tool call, so neither is thrown away, and its timeout is
@@ -253,7 +290,7 @@ class HookGroup:
     refuses: bool = False
 
     def _command(self, machine: Machine) -> str:
-        run = f"sh {quoted(machine.checkout / self.script)}"
+        run = f"sh {quoted(machine.checkout / HARNESS / self.script)}"
         return run if self.refuses else f"{run} 2>/dev/null || true"
 
     def _group(self, machine: Machine) -> dict:
@@ -430,7 +467,7 @@ class Patterns:
 @dataclass(frozen=True)
 class StatusLine:
     """`statusLine` of ~/.claude/settings.json as
-    {"type": "command", "command": "sh '<checkout>/hooks/limits.sh'"}.
+    {"type": "command", "command": "sh '<checkout>/<harness>/hooks/limits.sh'"}.
     due: only when the key is absent or its command names `/hooks/limits.sh`. A status line
       of the user's own is not due and gets no line.
     old: limits.sh of another checkout. drop: delete the key only when it is exactly ours."""
@@ -439,7 +476,8 @@ class StatusLine:
     script: str = "hooks/limits.sh"
 
     def _ours(self, machine: Machine) -> dict:
-        return {"type": "command", "command": f"sh {quoted(machine.checkout / self.script)}"}
+        script = machine.checkout / HARNESS / self.script
+        return {"type": "command", "command": f"sh {quoted(script)}"}
 
     def _there(self, machine: Machine) -> tuple[bool, object]:
         """Whether the file can be read as an object, and its `statusLine`, None when absent."""
@@ -1038,7 +1076,7 @@ def _short(path: Path | None, machine: Machine) -> str:
 class HomeSkills:
     """A Claude home's `skills`, which must be the central jstack skills: the same directory
     as `central` (~/.claude/skills), or entries each of which resolves into `skills`, the
-    checkout's. Hidden entries are the agent's own and are not counted. missing: no skills
+    copy's. Hidden entries are the agent's own and are not counted. missing: no skills
     there. old: where a linked `skills` points, else the first entry that points elsewhere."""
 
     home: Path

@@ -25,7 +25,9 @@ REPO = Path(__file__).parent.parent
 
 INSTALL = REPO / "install.sh"
 SYSTEMCTL = REPO / ".cursor" / "skills" / "verify-jstack" / "scripts" / "fake-systemctl"
-SKILLS = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
+HARNESS = Path("harness") / "jstack" / "claude-code"
+COPY = REPO / HARNESS
+SKILLS = sorted(path.parent.name for path in (COPY / "skills").glob("*/SKILL.md"))
 ROOTS = (".claude/skills", ".agents/skills", ".codex/skills")
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 UNITS = [
@@ -61,11 +63,11 @@ SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
 def command(script, checkout=REPO):
-    return f"sh '{checkout / 'hooks' / script}' 2>/dev/null || true"
+    return f"sh '{checkout / HARNESS / 'hooks' / script}' 2>/dev/null || true"
 
 
 def group(script, matcher="startup", checkout=REPO, refuses=False):
-    run = f"sh '{checkout / 'hooks' / script}'" if refuses else command(script, checkout)
+    run = f"sh '{checkout / HARNESS / 'hooks' / script}'" if refuses else command(script, checkout)
     hooks = [{"type": "command", "command": run, "timeout": 30 if refuses else 5}]
     return ({"matcher": matcher} if matcher else {}) | {"hooks": hooks}
 
@@ -74,7 +76,8 @@ START = group("home-start.sh")
 TIPS = group("skill-tips.sh", matcher=None)
 GAUGE = group("home-gauge.sh", matcher=None)
 OUTBOUND = group("outbound-command.sh", matcher="Bash", refuses=True)
-STATUS = {"type": "command", "command": f"sh '{REPO / 'hooks' / 'limits.sh'}'"}
+STATUS = {"type": "command", "command": f"sh '{COPY / 'hooks' / 'limits.sh'}'"}
+CURRENT = "ok hard harness/ is current"
 UV = """#!/bin/sh
 echo "$*" >> "$UV_LOG"
 tools=$UV_TOOL_DIR
@@ -183,7 +186,8 @@ class User:
         ]
 
     def every(self, state, *more):
-        return [f"{state} {part}" for part in (*self.parts(), *more)]
+        """Each part's line in `state`, under the copy's, which is current in this checkout."""
+        return [CURRENT, *(f"{state} {part}" for part in (*self.parts(), *more))]
 
     def listing(self):
         return sorted(str(path.relative_to(self.home)) for path in self.home.rglob("*"))
@@ -232,7 +236,7 @@ def test_it_puts_every_part_and_says_ok_for_each(user):
     assert len(SKILLS) > 9
     assert user.run() == (0, user.every("ok"))
     for link in user.links():
-        assert os.readlink(link) == str(REPO / "skills" / link.name)
+        assert os.readlink(link) == str(COPY / "skills" / link.name)
     assert json.loads(user.settings.read_text()) == {
         "hooks": {
             "SessionStart": [START],
@@ -255,7 +259,7 @@ def test_every_skill_is_linked_into_codexs_home_beside_what_codex_keeps_there(us
     linked = sorted((user.home / ".codex" / "skills").iterdir())
     assert linked == [system, *(user.home / ".codex" / "skills" / name for name in SKILLS)]
     assert os.readlink(user.home / ".codex" / "skills" / "pr-review") == str(
-        REPO / "skills" / "pr-review"
+        COPY / "skills" / "pr-review"
     )
 
 
@@ -882,8 +886,8 @@ def worktree(tmp_path):
     subprocess.run(["git", "-C", main, *commit, "--allow-empty", "-m", "start"], check=True)
     subprocess.run(["git", "-C", main, "worktree", "add", "-q", linked], check=True)
     for checkout in (main, linked):
-        (checkout / "skills" / "crew").mkdir(parents=True)
-        (checkout / "skills" / "crew" / "SKILL.md").write_text("crew\n")
+        (checkout / HARNESS / "skills" / "crew").mkdir(parents=True)
+        (checkout / HARNESS / "skills" / "crew" / "SKILL.md").write_text("crew\n")
         (checkout / "pyproject.toml").write_text('[project]\nname = "jstack"\nscripts = {}\n')
     return main, linked
 
@@ -902,10 +906,10 @@ def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_r
     )
     assert list(home.iterdir()) == []
     checked = run_install(machine(linked, home, account=home), write=False)
-    assert checked.lines[0] == f"missing hard {home}/.claude/skills/crew"
+    assert checked.lines[1] == f"missing hard {home}/.claude/skills/crew"
     in_a_sandbox = run_install(machine(linked, home, account=tmp_path / "account"), write=True)
-    assert in_a_sandbox.lines[0] == f"ok hard {home}/.claude/skills/crew"
-    assert os.readlink(home / ".claude/skills/crew") == str(linked / "skills" / "crew")
+    assert in_a_sandbox.lines[1] == f"ok hard {home}/.claude/skills/crew"
+    assert os.readlink(home / ".claude/skills/crew") == str(linked / HARNESS / "skills" / "crew")
 
 
 def test_a_plain_install_from_the_main_checkout_under_the_accounts_own_home_runs(tmp_path):
@@ -915,7 +919,7 @@ def test_a_plain_install_from_the_main_checkout_under_the_accounts_own_home_runs
 
     done = run_install(machine(main, home, account=home), write=True)
 
-    assert done.lines[0] == f"ok hard {home}/.claude/skills/crew"
+    assert done.lines[1] == f"ok hard {home}/.claude/skills/crew"
 
 
 def test_the_private_patterns_are_made_once_and_never_written_again(user):
@@ -1000,7 +1004,7 @@ def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(u
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": "context: 350000 tokens, over this home's ceiling of 350000."
-        f" Only the handoff runs now: read {REPO.resolve() / 'skills' / 'handoff' / 'SKILL.md'}"
+        f" Only the handoff runs now: read {COPY.resolve() / 'skills' / 'handoff' / 'SKILL.md'}"
         " and do its steps.",
     }
 
@@ -1024,9 +1028,8 @@ def checkout_under(user):
     checkout.mkdir(parents=True)
     for name in ("install.sh", "pyproject.toml"):
         shutil.copy(REPO / name, checkout / name)
-    for name in ("src", "hooks", "templates"):
+    for name in ("src", "hooks", "templates", "harness"):
         shutil.copytree(REPO / name, checkout / name, ignore=shutil.ignore_patterns("__pycache__"))
-    (checkout / "skills").mkdir()
     subprocess.run(["git", "init", "-q", checkout], check=True)
     return checkout, f"hard hook {checkout / '.git' / 'hooks' / 'pre-push'} pre-push"
 
@@ -1087,3 +1090,32 @@ def test_a_repo_that_points_git_at_other_hooks_is_told_so(tmp_path):
         " -> core.hooksPath is set, so git runs no hook of .git/hooks"
     ]
     assert not (main / ".git" / "hooks" / "pre-push").is_symlink()
+
+
+def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user, tmp_path):
+    checkout = tmp_path / "checkout"
+    listed = subprocess.run(
+        ["git", "-C", REPO, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+        check=True,
+    )
+    for name in filter(None, listed.stdout.decode().split("\0")):
+        if (REPO / name).exists():
+            (checkout / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO / name, checkout / name, follow_symlinks=False)
+    skill = checkout / "skills" / "bro" / "SKILL.md"
+    skill.write_text(skill.read_text() + "\nOne more line.\n")
+    stale = f"stale: {HARNESS}/skills/bro/SKILL.md"
+
+    def first(*args):
+        done = user.start(*args, checkout=checkout)
+        out, err = done.communicate()
+        return done.returncode, out.splitlines()[0], err
+
+    assert first("--check")[:2] == (1, f"old hard harness/ is current -> {stale}")
+    code, line, err = first()
+    assert (code, line) == (1, f"old hard harness/ is current -> {stale}")
+    generate = checkout / "scripts" / "generate-jstack-trees.py"
+    assert f"run python3 {generate} and commit the result" in err
+    subprocess.run([sys.executable, "-I", generate], check=True, capture_output=True)
+    assert first("--check")[1] == CURRENT
