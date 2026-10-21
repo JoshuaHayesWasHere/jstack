@@ -16,7 +16,7 @@ import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
-from testing.paths import REPO
+from testing.paths import REPO, sources
 from testing.paths import skills as skill_folders
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -339,7 +339,7 @@ def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_lis
 
 
 def source_modules():
-    return set((REPO / "src").rglob("*.py")) | set(REPO.glob("features/*/src/**/*.py"))
+    return {path for root in sources() for path in root.rglob("*.py")}
 
 
 def test_the_source_modules_are_every_module_the_wheel_ships():
