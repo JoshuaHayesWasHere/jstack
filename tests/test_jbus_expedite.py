@@ -31,6 +31,7 @@ NO_FINDING = "its findings are not handled: 1 of 2 have no Finding line"
 NO_SECOND = "its fix changed more than the findings named: the second pass is not written"
 NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written"
 NO_REVIEW = "it has no review yet"
+NO_TWICE = "its second review is not written at bbbbbbbbbbbb"
 RENUMBER = ready.MIGRATION_TAKEN.format(
     name="0005_insulin", number="0005", default="main", free="0006"
 )
@@ -124,6 +125,13 @@ SAYS = {
         "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
         "nothing until its `## Review` is written."
     ),
+    "twice": (
+        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
+        'the way the crew skill\'s "The review" says, with the message `/pr-review run alpha '
+        "again`, and add `Second reviewer: <threadId>` to the Result, in place of a `Second "
+        "reviewer:` line whose thread wrote no `## Review`. Fix nothing it finds: its findings "
+        "go to a cleanup row."
+    ),
     "fix": (
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
         '"The review" launches a reviewer, with the message `/pr-review run alpha scoped {old} '
@@ -167,6 +175,8 @@ def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
     handled = f"Finding: fixed, a made up one\n{second}Fixed: {head}\n"
     assert ready.short_of(result + handled + first + last, head) == NO_FINDING
     assert ready.short_of(result + "Reviewer: mcp:9\n", head) == NO_REVIEW
+    twice = "Review: twice\n" + result + f"Finding F1: fixed, a made up one\nFixed: {fix}\n"
+    assert ready.short_of(twice + first, fix) == NO_TWICE
     assert ready.short_of(result + "Reviewer: none, no launch tool in this session\n", head) == (
         NO_REVIEW
     )
@@ -198,6 +208,7 @@ def said_to(short, kind, reason, sentence):
         ("unpushed", NOT_PUSHED),
         ("unended", NO_FINDING),
         ("second", NO_SECOND),
+        ("twice", NO_TWICE),
         ("renumber", RENUMBER),
     ],
 )
@@ -208,7 +219,7 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
     said = short.passes(1)
     assert sends(kitchen) == [said_to(short, kind, reason, SAYS[kind])]
     line = f"expedite alpha: told the crew what #7 is short of ({kind}, {short.head[:12]})"
-    if kind == "second":
+    if kind in ("second", "twice"):
         line += ", sent `/pr-review run alpha again`"
     assert line in said
     (event,) = kitchen.events("expedite")

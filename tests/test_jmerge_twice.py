@@ -56,7 +56,7 @@ def test_a_second_review_with_a_warning_lets_it_merge_and_its_findings_need_no_a
     assert ready.to_range_diff(None, text, FIX) is None
     assert ready.under_fix(None, text, FIX) == ""
     review_mode = text.replace("Review: twice", "Review: review")
-    assert ready.short_of(review_mode, FIX) == ready.UNANSWERED.format(ids="F2")
+    assert ready.short_of(review_mode, FIX) == ready.NOT_PUSHED
 
 
 def test_the_first_reviews_findings_left_unanswered_hold_it():
@@ -71,9 +71,9 @@ def test_it_waits_for_the_fix_round_and_then_for_the_second_review():
     assert ready.short_of(brief() + review(HEAD), HEAD) == ready.NO_FIXED
     assert ready.short_of(brief(result=answered(HEAD)) + review(HEAD), HEAD) == ready.NOT_PUSHED
     waiting = brief(result=answered()) + review(HEAD)
-    assert ready.short_of(waiting, FIX) == ready.SECOND_UNREVIEWED.format(head=FIX[:12])
+    assert ready.short_of(waiting, FIX) == ready.TWICE_UNWRITTEN.format(head=FIX[:12])
     not_run = twice(review(FIX, (), verdict="not run"))
-    assert ready.short_of(not_run, FIX) == ready.SECOND_UNREVIEWED.format(head=FIX[:12])
+    assert ready.short_of(not_run, FIX) == ready.TWICE_UNWRITTEN.format(head=FIX[:12])
 
 
 def test_a_clean_first_review_or_a_round_that_pushed_nothing_owes_no_second_review():
@@ -81,6 +81,14 @@ def test_a_clean_first_review_or_a_round_that_pushed_nothing_owes_no_second_revi
     declined = "Finding F1: not fixed, the loop, because a.py:3 reads it once\n"
     nothing = brief(result=declined + "Fixed: none needed, declined\n") + review(HEAD)
     assert ready.short_of(nothing, HEAD) == ""
+
+
+def test_a_first_section_that_did_not_run_is_not_the_first_review():
+    """A reviewer that wrote `Verdict: not run` and ran again at a later head: the run is
+    the first review, and the fix it asks for still owes a second one."""
+    again = brief(result=answered()) + review("c" * 40, (), verdict="not run") + review(HEAD)
+    assert ready.short_of(again, FIX) == ready.TWICE_UNWRITTEN.format(head=FIX[:12])
+    assert ready.short_of(again + review(FIX, ()), FIX) == ""
 
 
 def test_a_twice_brief_asks_no_scoped_review_and_no_ruling_on_a_decline():
@@ -119,7 +127,7 @@ def test_jmerge_finds_it_ready_with_a_warning_in_its_second_review(tmp_path):
     kitchen = Kitchen(tmp_path, {"a.txt": LINES})
     head = kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
     written(kitchen, "alpha", head, "")
-    reason = ready.SECOND_UNREVIEWED.format(head=head[:12])
+    reason = ready.TWICE_UNWRITTEN.format(head=head[:12])
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {reason}"]
     written(kitchen, "alpha", head, review(head, (WARNING, INFO)))
     (said,) = kitchen.run("--check")
