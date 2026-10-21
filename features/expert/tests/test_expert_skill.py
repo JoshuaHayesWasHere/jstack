@@ -20,10 +20,11 @@ import test_understanding_skills as added
 from jbus import mirror
 from test_handoff_pin import T3
 from test_home_thread import as_read
+from testing.layouts import assembled
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "expert" / "SKILL.md"
-TEMPLATE = REPO / "templates" / "expert-answer.md"
+SKILL = REPO / "features" / "expert" / "SKILL.md"
+TEMPLATE = REPO / "features" / "expert" / "templates" / "expert-answer.md"
 TIERS = REPO / "skills" / "why" / "references" / "epistemics.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "sage"
@@ -69,10 +70,11 @@ class Scene:
     """A user's home directory with the skill linked as `install.sh` links it, a made-up
     expert's folder, and a directory that is in no repo to run from."""
 
-    def __init__(self, tmp_path, repo=REPO):
+    def __init__(self, tmp_path, repo=None):
         self.user = tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        (self.user / ".claude" / "skills" / "expert").symlink_to(repo / "skills" / "expert")
+        skills = self.user / ".claude" / "skills"
+        skills.mkdir(parents=True)
+        (skills / "expert").symlink_to((repo or assembled()) / "skills" / "expert")
         self.state = self.user / ".local" / "state" / "home"
         self.folder = self.state / f"_{NAME}"
         (self.folder / "notes").mkdir(parents=True)
@@ -510,7 +512,7 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
     scene.starts()
     launch = json.loads(scene.run("roll", threadId=THREAD)[0].removeprefix("launch: "))
     skill, name = re.fullmatch(r"/([\w-]+) (\S+)", launch["message"]).groups()
-    assert (REPO / "skills" / skill / "SKILL.md") == SKILL
+    assert (REPO / "features" / skill / "SKILL.md") == SKILL
     assert scene.run("read", name)[0] == f"expert {NAME}"
     assert scene.starts(OTHER) == "take"
     assert (scene.folder / "home-id").read_text() == f"{OTHER}\n"

@@ -60,31 +60,31 @@
     {
       "name": "expert-answer",
       "kind": "playbook",
-      "path": "playbooks/expert-answer.md",
+      "path": "features/expert/playbooks/expert-answer.md",
       "source": "josh"
     },
     {
       "name": "expert-check",
       "kind": "playbook",
-      "path": "playbooks/expert-check.md",
+      "path": "features/expert/playbooks/expert-check.md",
       "source": "josh"
     },
     {
       "name": "expert-refresh",
       "kind": "playbook",
-      "path": "playbooks/expert-refresh.md",
+      "path": "features/expert/playbooks/expert-refresh.md",
       "source": "josh"
     },
     {
       "name": "expert-research",
       "kind": "playbook",
-      "path": "playbooks/expert-research.md",
+      "path": "features/expert/playbooks/expert-research.md",
       "source": "josh"
     },
     {
       "name": "expert-study",
       "kind": "playbook",
-      "path": "playbooks/expert-study.md",
+      "path": "features/expert/playbooks/expert-study.md",
       "source": "josh"
     },
     {
@@ -432,7 +432,7 @@
     {
       "name": "expert",
       "kind": "skill",
-      "path": "skills/expert/SKILL.md",
+      "path": "features/expert/SKILL.md",
       "source": "josh",
       "description": "Make this thread an expert - the always-on subject matter expert whose folder is named, which researches and answers asks about its one subject from its sources and its notes, and never writes code. Use when the user or another thread starts a thread with /expert <name> or $expert <name>."
     },
@@ -665,7 +665,7 @@
     {
       "name": "expert-answer.md",
       "kind": "template",
-      "path": "templates/expert-answer.md",
+      "path": "features/expert/templates/expert-answer.md",
       "source": "josh"
     },
     {
