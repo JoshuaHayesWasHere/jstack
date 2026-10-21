@@ -120,6 +120,7 @@ ROLES = (
 RUNS = 20
 SECOND = ", second pass"
 SCOPED = ", scoped"
+_SEAT = re.compile(r", [0-9]+$")
 REVIEW = "## Review"
 CARRY_ON = (
     "jbus: this thread ended ({status}) before writing its Result. Carry on with your brief "
@@ -340,7 +341,8 @@ def _listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any
 def slug_in(title: str, prefix: str) -> str | None:
     if not title.startswith(prefix):
         return None
-    return title.removeprefix(prefix).removesuffix(SECOND).removesuffix(SCOPED).strip()
+    slug = title.removeprefix(prefix).removesuffix(SECOND).removesuffix(SCOPED).strip()
+    return _SEAT.sub("", slug)
 
 
 def shown() -> list[dict[str, str]]:

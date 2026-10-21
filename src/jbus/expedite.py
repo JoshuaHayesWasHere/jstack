@@ -249,8 +249,9 @@ TABLE = (
         "No thread titled `review: {slug}` is at work, and the brief has no `## Review`. Run "
         'the block of the crew skill\'s "The checks" and then the blocks of "The review", and '
         "do what they print. Where they say `launch a reviewer`, launch it and add `Reviewer: "
-        "<threadId>` to the Result. Where they say `launch no reviewer` because the Result has "
-        "a `Reviewer:` line, that reviewer ended its turn and wrote nothing: send its thread "
+        "<threadId> #<n>` to the Result, `<n>` its number. Where they say `launch no reviewer` "
+        "because the Result has a `Reviewer:` line, that reviewer ended its turn and wrote "
+        "nothing: send its thread "
         f"the one line `{AGAIN}` with `t3_thread_send`, and write `Woke: jbus, sent {AGAIN}` "
         "in the Result, the line as sent. Launch no second one.",
         reviewed=True,

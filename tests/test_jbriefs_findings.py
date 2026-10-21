@@ -244,3 +244,19 @@ def test_a_risk_tag_on_a_line_its_reviewer_wrote_again_holds_nothing():
     brief += "Finding F1: not fixed, y, because consider: left for a follow-up\n"
     (one,) = findings.triage(brief).findings
     assert (one.risk, one.severity, one.blocks, one.refused) == ("", "warning", False, "")
+
+
+def test_a_numbered_round_says_how_many_sections_count_for_no_reviewer(tmp_path):
+    """Review 1 of #166: a reviewer on the old skill text writes no number, and the wait line
+    says its section is not counted instead of only `0 of 2`."""
+    head = "a" * 40
+    brief = "## Result\nReviewer: mcp:a #1\nReviewer: mcp:b #2\n"
+    brief += f"\n## Review\nBy: claudeAgent claude-sonnet-5-5 high\nVerdict: clean\nHead: {head}\n"
+    assert run(tmp_path, brief, "--left") == (
+        "wait: 0 of 2 reviewers have written their section; 1 with no #<n> on its By: line "
+        "counts for no reviewer\n"
+    )
+    brief += (
+        f"\n## Review\nBy: claudeAgent claude-sonnet-5-5 high #1\nVerdict: clean\nHead: {head}\n"
+    )
+    assert run(tmp_path, brief, "--left").startswith("wait: 1 of 2 reviewers have written")

@@ -87,22 +87,29 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
 
 1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. Then work out who this reviewer is, and then whether this message may start a review.
 
-   Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on. Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first). Run this with the block at the top, with what it printed, whole, and the message this thread was started with in place of the words in angle brackets. Keep what it prints, the `By:` line:
+   Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on, and its number, `#<n>`.
+   Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first).
+   Run this with the block at the top, with what it printed, whole, and the message this thread was started with in place of the words in angle brackets.
+   Keep what it prints, the `By:` line:
 
    ```sh
    asked='<the message this thread was started with, whole>'
    config='<what t3_thread_configuration printed, or nothing where this session has no such tool>'
    case $config in "<"*) config= ;; esac
+   n=$(printf '%s\n' "$asked" | awk 'NR == 1 {print ($(4) ~ /^[0-9]+$/ ? $(4) : 1)}')
    by=$(printf '%s' "$config" | jq -r '.modelSelection | [(.provider // .instanceId), .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
    if [ -z "$by" ]; then
-       n=$(printf '%s\n' "$asked" | awk '$(4) ~ /^[0-9]+$/ {print $(4); exit} {print 1}')
        by=$(uv run --project "$T/.." jroles review 2> /dev/null | sed -n "${n}p" |
            jq -r '[.provider, .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
    fi
-   echo "By: ${by:-inherit}"
+   echo "By: ${by:-inherit} #$n"
    ```
 
-   Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value, so two reviewers of one pull request have two `By:` lines: `By: codex gpt-6-sol xhigh` and `By: cursor grok-4.7 xhigh`. Only a session with no `t3_thread_configuration` falls back on the line of the role map's review list the message's number names, as `jroles review` prints it now, and on `By: inherit` where it prints none. Then decide whether this message may start a review, with this, with the same message and that `By:` line in place of the words in angle brackets:
+   Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value.
+   The number is the message's, the line of the role map's review list this reviewer was launched for, and 1 for a message with none: a scoped pass and a second pass are the first line's.
+   So the two reviewers of one pull request have two `By:` lines, also on one model: `By: claudeAgent claude-sonnet-5-5 high #1` and `By: claudeAgent claude-sonnet-5-5 high #2`, and `jmerge` counts them by the number.
+   Only a session with no `t3_thread_configuration` falls back on the line of the role map's review list the message's number names, as `jroles review` prints it now, and on `By: inherit` where it prints none.
+   Then decide whether this message may start a review, with this, with the same message and that `By:` line in place of the words in angle brackets:
 
    ```sh
    B="$H/tasks/<slug>.md"
@@ -130,7 +137,12 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    esac
    ```
 
-   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none. A message that ends in a number is one reviewer of several, launched on that line of the role map's review list: it writes its own section beside the others', at the same head, and it is refused only where a section with its own `By:` line is there. On `stop`, say what it printed, the line it would accept included, and end: no review, no section. On `go`, go on. `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works. The message of a first launch is the plain `/pr-review run <slug>`.
+   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none.
+   A message that ends in a number is one reviewer of several, launched on that line of the role map's review list: it writes its own section beside the others', at the same head, and it is refused only where a section with its own `By:` line is there.
+   On `stop`, say what it printed, the line it would accept included, and end: no review, no section.
+   On `go`, go on.
+   `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works.
+   The message of a first launch is `/pr-review run <slug> <n>`, numbered also where the map lists one reviewer; the plain `/pr-review run <slug>` is reviewer 1's.
    - Read the brief's `Review:` line as above. If it is `none`, say that its brief asks for no review, and stop: no review, no message to the crewmate, no section.
 2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
 3. Check the ground, and stop with the reason if any line fails:
