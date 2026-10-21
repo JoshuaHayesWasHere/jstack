@@ -86,9 +86,10 @@ pstack-drift:
 
 # A release. Its version is pyproject.toml's, and plugin.json's, which the generator holds to
 # it. A bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, then
-# `make trees`. `make release`, on a clean main that is origin/main, tags `v<version>` and
-# pushes the tag, and .github/workflows/release.yml does the rest: `make release-tag`, the
-# check, `make dist`, an install of the wheel in a HOME of its own, and the GitHub release.
+# `make trees`. `make release`, on a clean main that is origin/main, runs `make release-tag`,
+# tags `v<version>` and pushes the tag, dropping it again where the push fails, and
+# .github/workflows/release.yml does the rest: `make release-tag`, the check, `make dist`, an
+# install of the wheel in a HOME of its own, and the GitHub release.
 VERSION = $(shell uv version --short)
 
 # Fails unless TAG is `v<version>` of both pyproject.toml and plugin.json.
@@ -117,5 +118,6 @@ release:
 	@[ -z "$$(git status --porcelain)" ] || { echo "release: the checkout is not clean"; exit 1; }
 	@git fetch -q origin main
 	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] || { echo "release: main is not origin/main"; exit 1; }
+	@$(MAKE) -s release-tag TAG='v$(VERSION)'
 	git tag -a 'v$(VERSION)' -m 'jstack $(VERSION)'
-	git push origin 'v$(VERSION)'
+	git push origin 'v$(VERSION)' || { git tag -d 'v$(VERSION)'; exit 1; }

@@ -1444,3 +1444,57 @@ def test_install_sh_run_from_no_checkout_and_no_release_says_how_to_get_one(tmp_
         assert ran.returncode == 1
         assert ran.stdout.startswith("missing hard a checkout of jstack around ")
         assert "releases/latest/download/install.sh | sh" in ran.stdout
+
+
+def releasing(tmp_path, plugin=None):
+    """A clean main that is origin/main, with this checkout's Makefile, pyproject.toml and
+    plugin.json, the last at `plugin` where given, and a bare origin."""
+    origin, work = tmp_path / "origin.git", tmp_path / "work"
+    git = ["git", "-C", str(work)]
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
+    for name in ("Makefile", "pyproject.toml", "plugin.json"):
+        shutil.copy(REPO / name, work / name)
+    if plugin is not None:
+        made = json.loads((work / "plugin.json").read_text()) | {"version": plugin}
+        (work / "plugin.json").write_text(json.dumps(made))
+    for step in (
+        ["config", "user.name", "jstack"],
+        ["config", "user.email", "jstack@example.invalid"],
+        ["add", "-A"],
+        ["commit", "-qm", "main"],
+        ["remote", "add", "origin", str(origin)],
+        ["push", "-q", "origin", "main"],
+    ):
+        subprocess.run([*git, *step], check=True)
+    return origin, work
+
+
+def tags(where):
+    found = subprocess.run(["git", "-C", str(where), "tag", "-l"], capture_output=True, text=True)
+    return found.stdout.split()
+
+
+def release(work):
+    return subprocess.run(["make", "-s", "release"], cwd=work, capture_output=True, text=True)
+
+
+def test_make_release_tags_nothing_when_plugin_json_has_another_version(tmp_path):
+    origin, work = releasing(tmp_path, plugin="9.9.9")
+    made = release(work)
+    assert made.returncode != 0
+    assert "plugin.json's" in made.stdout
+    assert (tags(work), tags(origin)) == ([], [])
+
+
+def test_a_push_that_fails_leaves_no_tag_and_a_second_make_release_pushes_it(tmp_path):
+    origin, work = releasing(tmp_path)
+    hook = origin / "hooks" / "pre-receive"
+    hook.write_text("#!/bin/sh\nexit 1\n")
+    hook.chmod(0o755)
+    assert release(work).returncode != 0
+    assert (tags(work), tags(origin)) == ([], [])
+    hook.unlink()
+    assert release(work).returncode == 0
+    version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+    assert tags(work) == tags(origin) == [f"v{version}"]
