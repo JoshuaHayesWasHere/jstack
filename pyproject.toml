@@ -38,7 +38,18 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/**/evals/"]
 # generated: packages by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-packages = ["features/jdrift/src/jdrift", "features/jleak/src/jleak", "features/jsettings/src/jsettings", "src/jbriefs", "src/jbus", "src/jgauge", "src/jinstall", "src/jmerge", "src/jpack", "src/jroles"]
+packages = [
+    "src/jbriefs",
+    "src/jbus",
+    "features/jdrift/src/jdrift",
+    "src/jgauge",
+    "src/jinstall",
+    "features/jleak/src/jleak",
+    "src/jmerge",
+    "src/jpack",
+    "src/jroles",
+    "features/jsettings/src/jsettings",
+]
 # end generated
 
 # The source tree, as the wheel's shared data: installed at <venv>/share/jstack, so a release runs
@@ -62,8 +73,36 @@ packages = ["features/jdrift/src/jdrift", "features/jleak/src/jleak", "features/
 # `make check` runs it with `-n`, on the workers the Makefile counts.
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-testpaths = ["tests", "features/grilling/tests", "features/jdrift/tests", "features/jleak/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/skill-library/tests", "features/verify-jstack/tests", "features/writing/tests"]
-pythonpath = ["features/jdrift/src", "features/jleak/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jleak/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/skill-library/tests", "features/verify-jstack/tests", "features/writing/tests"]
+testpaths = [
+    "tests",
+    "features/grilling/tests",
+    "features/jdrift/tests",
+    "features/jleak/tests",
+    "features/jsettings/tests",
+    "features/pr-review/tests",
+    "features/scout/tests",
+    "features/show-me-your-work/tests",
+    "features/skill-library/tests",
+    "features/verify-jstack/tests",
+    "features/writing/tests",
+]
+pythonpath = [
+    "features/jdrift/src",
+    "features/jleak/src",
+    "features/jsettings/src",
+    "src",
+    "tests",
+    "features/grilling/tests",
+    "features/jdrift/tests",
+    "features/jleak/tests",
+    "features/jsettings/tests",
+    "features/pr-review/tests",
+    "features/scout/tests",
+    "features/show-me-your-work/tests",
+    "features/skill-library/tests",
+    "features/verify-jstack/tests",
+    "features/writing/tests",
+]
 # end generated
 # A run writes about 170,000 files under the temporary directory, and by default pytest
 # keeps the last three runs. `/tmp` holds a million files and is shared by every runner and
@@ -90,7 +129,23 @@ markers = [
 target-version = "py312"
 line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-src = ["features/jdrift/src", "features/jleak/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jleak/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/skill-library/tests", "features/verify-jstack/tests", "features/writing/tests"]
+src = [
+    "features/jdrift/src",
+    "features/jleak/src",
+    "features/jsettings/src",
+    "src",
+    "tests",
+    "features/grilling/tests",
+    "features/jdrift/tests",
+    "features/jleak/tests",
+    "features/jsettings/tests",
+    "features/pr-review/tests",
+    "features/scout/tests",
+    "features/show-me-your-work/tests",
+    "features/skill-library/tests",
+    "features/verify-jstack/tests",
+    "features/writing/tests",
+]
 # end generated
 
 [tool.ruff.lint]

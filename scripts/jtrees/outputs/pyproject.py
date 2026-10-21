@@ -30,8 +30,10 @@ SHARE = "share/jstack"
 LINKED = ("docs",)
 
 
-def _list(values: list[str]) -> str:
-    return json.dumps(values)
+def _list(key: str, values: list[str]) -> str:
+    """One entry a line, each with its trailing comma, so two changes to different entries
+    change different lines and merge."""
+    return f"{key} = [\n" + "".join(f"    {json.dumps(one)},\n" for one in values) + "]\n"
 
 
 def _python(tree: Tree) -> list[str]:
@@ -62,16 +64,20 @@ def _part(tree: Tree, part: str) -> str:
         listed = sorted(command for feature in tree.features for command in feature.commands)
         return "".join(f'{name} = "{target}"\n' for name, target in listed)
     if part == "packages":
-        packages = sorted(package for feature in tree.features for package in feature.packages)
-        return f"packages = {_list(packages)}\n"
+        # By the package's name, which a move leaves as it is: its line changes in place.
+        packages = sorted(
+            (package for feature in tree.features for package in feature.packages),
+            key=lambda package: (package.rsplit("/", 1)[-1], package),
+        )
+        return _list("packages", packages)
     if part == "source":
         return "".join(
             f"{json.dumps(one)} = {json.dumps(f'{SHARE}/{one}')}\n" for one in _source(tree)
         )
     if part == "paths":
         tests = _tests(tree)
-        return f"testpaths = {_list(tests)}\npythonpath = {_list(_python(tree) + tests)}\n"
-    return f"src = {_list(_python(tree) + _tests(tree))}\n"
+        return _list("testpaths", tests) + _list("pythonpath", _python(tree) + tests)
+    return _list("src", _python(tree) + _tests(tree))
 
 
 def render(tree: Tree) -> dict[str, bytes]:
