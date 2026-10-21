@@ -189,11 +189,12 @@ def _paragraph(text: str) -> str:
 
 def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
     found: dict[tuple[str, str], Item] = {}
-    for kind, glob, naming in SPOTS:
+    for spot, glob, naming in SPOTS:
         for path in sorted(root.glob(glob)):
             if not path.is_file() or "__pycache__" in path.parts:
                 continue
             relative = path.relative_to(root).as_posix()
+            kind: Kind = spot
             if naming == "folder":
                 name = path.parent.name
             elif naming == "stem":

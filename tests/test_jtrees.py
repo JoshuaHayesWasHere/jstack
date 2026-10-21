@@ -257,3 +257,12 @@ def test_an_owns_row_with_a_double_star_inside_it_is_refused(copy):
     ran = generate(copy, "--check")
     assert ran.returncode == 2
     assert "features/bro/feature.json: owns skills/**/SKILL.md: ** is only" in ran.stderr
+
+
+def test_a_principle_skill_does_not_make_the_skills_after_it_principles(copy):
+    for name in ("principle-alpha", "zeta"):
+        skill = copy / "features" / "bro" / "skills" / name / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text(f"---\nname: {name}\ndescription: Do {name}.\n---\n\n# {name}\n")
+    kinds = {(one.kind, one.name) for one in crawl(copy).items}
+    assert {("principle", "principle-alpha"), ("skill", "zeta")} <= kinds
