@@ -177,11 +177,9 @@ def plan(main: Main, mirror: Mirror) -> tuple[Step, ...]:
                 steps.append(Step("dangling", name))
         elif not os.path.lexists(there):
             steps.append(Step("move", name))
-    made = shared(main, mirror)
-    if made is not None:
-        ours = _read(mirror.home / JSON) or {}
-        keys = sorted(key for key, value in made.items() if key not in ours or ours[key] != value)
-        steps.append(Step("json", JSON, tuple(keys)))
+    found = shared(main, mirror)
+    if found is not None:
+        steps.append(Step("json", JSON, found[1]))
     return tuple(steps)
 
 
@@ -204,9 +202,10 @@ def _read(path: Path) -> dict | None:
     return found
 
 
-def shared(main: Main, mirror: Mirror) -> dict | None:
-    """The mirror's `.claude.json` with the main file's shared keys, or None when it is so
-    already, or when either file is not there: a home with none has no login to keep."""
+def shared(main: Main, mirror: Mirror) -> tuple[dict, tuple[str, ...]] | None:
+    """The mirror's `.claude.json` with the main file's shared keys, and the keys whose values
+    that changes, or None when it is so already, or when either file is not there: a home
+    with none has no login to keep."""
     ours, theirs = _read(mirror.home / JSON), _read(main.config)
     if ours is None or theirs is None:
         return None
@@ -215,7 +214,10 @@ def shared(main: Main, mirror: Mirror) -> dict | None:
     common = {key: value for key, value in theirs.items() if not ACCOUNT_KEYS.match(key)}
     made = {**rest, **common, **account}
     made["projects"] = _deep(ours.get("projects") or {}, theirs.get("projects") or {})
-    return None if made == ours else made
+    keys = tuple(
+        sorted(key for key, value in made.items() if key not in ours or ours[key] != value)
+    )
+    return (made, keys) if keys else None
 
 
 def _files(directory: Path) -> Iterator[Path]:
@@ -272,9 +274,10 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
     if step.kind == "dangling":
         at.unlink()
         return [f"removed   dangling {at}"]
-    made = shared(main, mirror)
-    if made is None:
+    found = shared(main, mirror)
+    if found is None:
         return []
+    made, _ = found
     target = mirror.home / JSON
     temporary = target.with_name(f"{JSON}.mirror.{os.getpid()}")
     temporary.unlink(missing_ok=True)

@@ -179,7 +179,11 @@ def test_a_new_entry_of_claude_is_drift_until_the_next_run_links_it(home, capsys
     code, said, _ = mirror(capsys)
     assert code == 0 and len(said) == 4
     assert os.readlink(prime / "downloads") == str(main / "downloads")
-    assert mirror(capsys, "--check")[0] == 0
+    assert mirror(capsys, "--check") == (
+        0,
+        [f"ok        {at} mirrors {main}" for at in (prime, third)],
+        "",
+    )
 
 
 def test_check_changes_nothing_and_names_each_entry_that_differs(home, capsys):
