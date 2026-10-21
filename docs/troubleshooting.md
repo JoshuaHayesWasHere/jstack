@@ -69,7 +69,7 @@ The doctor reads the provider inventory and T3 Code's settings, and writes neith
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the eight commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
+| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the nine commands are not on `PATH`. | Run `sh install.sh` in a checkout, or the release's `install.sh` (README, Quickstart). If the line stays, read the `install.sh: commands jstack:` line on stderr. |
 | `old hard commands jstack -> lacks <names>` | The tool was installed before those commands were added. | Run `sh install.sh`. |
 | `old hard commands jstack -> tool jgauge, from before the rename` | The tool is installed under its old name, `jgauge`. | Run `sh install.sh`. It removes the old tool. |
 | `old hard commands jstack -> tool jgauge, from before the rename, lacks <names>` | The old tool is installed, from before those commands were added. | Run `sh install.sh`. |

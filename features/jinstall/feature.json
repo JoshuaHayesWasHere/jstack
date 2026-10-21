@@ -8,6 +8,9 @@
   "commands": {
     "jinstall": "jinstall.cli:main"
   },
+  "docs": [
+    "docs/jinstall.md"
+  ],
   "owns": [
     "tests/test_units.py",
     "src/jinstall/**",
@@ -20,6 +23,7 @@
     "tests/test_setup.py",
     "tests/test_docs_hooks.py",
     "skills/setup-pstack/**",
-    ".claude/skills/verify-jstack/features/install-skills.md"
+    ".claude/skills/verify-jstack/features/install-skills.md",
+    "docs/jinstall.md"
   ]
 }
