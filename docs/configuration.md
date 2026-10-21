@@ -140,15 +140,17 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` unlisted when it is declared with no other home. |
 | `missing hard provider <id> -> T3 does not list it` | infra's side has not put the instance into T3's settings yet. |
 | `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
-| `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into the checkout's `skills/`. The home is `config.homePath`, or `~/.claude` for none. |
+| `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into the harness copy's `skills/`, `harness/jstack/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` for none. |
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
+| `ok hard harness/ is current` | `harness/jstack/claude-code/`, the copy every skill link and hook command points into, is what `python3 scripts/generate-jstack-trees.py` writes from the checkout. |
+| `old hard harness/ is current -> stale: <path>` | A skill, playbook, template or hook was edited after the copy was made: run the generator and commit what it writes. The install does not run it. |
 
 Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](jroles.md#mirrors)).
 The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
 
-`install.sh` links every skill into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`. Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
+`install.sh` links every skill of the copy, `harness/jstack/claude-code/skills/`, into three roots: `~/.claude/skills` for Claude, `~/.codex/skills` for Codex, and `~/.agents/skills`. Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
 
@@ -218,7 +220,7 @@ Save this as your status line script, with the path of your checkout, and print 
 ```sh
 #!/bin/sh
 input=$(cat)
-printf '%s' "$input" | sh '<checkout>/hooks/limits.sh'
+printf '%s' "$input" | sh '<checkout>/harness/jstack/claude-code/hooks/limits.sh'
 printf '%s' "$input" | jq -r '.model.display_name'
 ```
 

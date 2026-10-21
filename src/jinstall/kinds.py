@@ -133,8 +133,6 @@ def get(machine: Machine, package: str, command: str) -> str:
     return f"yay -S {package}" if machine.which("pacman") else command
 
 
-# The copy of the skills, templates and hooks an agent is linked to, which
-# scripts/generate-jstack-trees.py writes in the checkout (scripts/jtrees/outputs/harness.py).
 HARNESS = Path("harness") / "jstack" / "claude-code"
 GENERATE = "scripts/generate-jstack-trees.py"
 

@@ -67,6 +67,7 @@ OPTIONAL = {
     "`lavish-axi`": ("lavish-axi",),
 }
 NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory", "state repo")
+OF_THE_CHECKOUT = ("harness/ is current",)
 NAMED = (
     "ci-paths.txt",
     "fresh-check",
@@ -364,6 +365,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     given = {need: "hard" for names in HARD.values() for need in names}
     given |= {need: "optional" for names in OPTIONAL.values() for need in names}
     given |= {need: "optional" for need in NO_REQUIREMENT}
+    given |= {need: "hard" for need in OF_THE_CHECKOUT}
     assert given == {name: need.level.value for name, need in found.items()}
 
 

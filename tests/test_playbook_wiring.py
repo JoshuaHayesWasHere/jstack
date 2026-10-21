@@ -548,13 +548,33 @@ def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
     assert said[1:] == ["1. Do one thing.", "2. Then."]
 
 
-def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_copy():
+def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_copy(tmp_path):
     """`T` is `<copy>/templates` once install.sh links a skill into the copy, so `$T/../<path>`
-    must name a file or folder the copy holds, not one it leaves in the checkout."""
-    reached = {
-        found.rstrip("/.")
-        for path in COPY.rglob("*.md")
-        for found in re.findall(r"\$T/\.\./([A-Za-z0-9_./-]+)", path.read_text())
-    }
+    must name a file or folder the copy holds, not one it leaves in the checkout. Each one is
+    tried from a skill linked as install.sh links it."""
+    reached = sorted(
+        {
+            found.rstrip("/.")
+            for path in COPY.rglob("*.md")
+            for found in re.findall(r"\$T/\.\./([A-Za-z0-9_./-]+)", path.read_text())
+        }
+    )
     assert "skills/crew/do-the-task.md" in reached
-    assert sorted(one for one in reached if not (COPY / one).exists()) == []
+    user = tmp_path / "user"
+    (user / ".claude" / "skills").mkdir(parents=True)
+    (user / ".claude" / "skills" / "crew").symlink_to(COPY / "skills" / "crew")
+    tried = subprocess.run(
+        [
+            "sh",
+            "-c",
+            "T=$(realpath ~/.claude/skills/crew/../../templates)\n"
+            'for p; do [ -e "$T/../$p" ] || echo "$p"; done',
+            "sh",
+            *reached,
+        ],
+        env={**os.environ, "HOME": str(user)},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert tried.stdout.splitlines() == []
