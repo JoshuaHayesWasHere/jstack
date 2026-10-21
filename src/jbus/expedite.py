@@ -31,10 +31,10 @@ the key `<kind>|<slug>|<head 12>`. `TABLE` is the whole of it, a reason to its s
   launch the scoped pass over the rebase, and push nothing meanwhile;
 - `unreviewed`, `it has no review yet`: launch the reviewer it is owed, or send the one that
   ended its turn with no `## Review` back to it, with `/pr-review run <slug> again`, the line
-  `templates/rerun.md` says is accepted whether or not the brief has a section. It is not
-  said of a pull request the crew skill leaves with no reviewer, which somebody was told of
-  already: a brief that names no reviewer launched, and whose `Reviewer:` line says `none` or
-  that has an `Unrun:`, `Stuck:` or `Stale base:` line for the head;
+  `features/crew/templates/rerun.md` says is accepted whether or not the brief has a section.
+  It is not said of a pull request the crew skill leaves with no reviewer, which somebody was
+  told of already: a brief that names no reviewer launched, and whose `Reviewer:` line says
+  `none` or that has an `Unrun:`, `Stuck:` or `Stale base:` line for the head;
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward its
   cap of two after fixed and green, then renumber the migration and those after it, consecutively.
@@ -128,8 +128,8 @@ class Short:
     is not said while a reviewer is at work. `unless` reads the brief, for a head, and
     says where the crew cannot fix it after all. `sends` is the line the sentence has the
     crew send a reviewer, which the event repeats as it went. `rerun` adds the statement of
-    `templates/rerun.md`, the one copy of when a re-run needs `again`, which the reviewer's
-    Start 1 prints when it refuses a message."""
+    `features/crew/templates/rerun.md`, the one copy of when a re-run needs `again`, which the
+    reviewer's Start 1 prints when it refuses a message."""
 
     kind: str
     word: str

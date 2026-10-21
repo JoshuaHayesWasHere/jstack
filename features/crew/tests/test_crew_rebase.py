@@ -10,7 +10,7 @@ import pytest
 
 import jsettings
 import test_home_merge as merge
-from crew.helpers import (
+from crew_helpers import (
     BRIEF,
     GH,
     SKILL,

@@ -5,8 +5,10 @@ reads the tree once and holds each page to it:
 
 - slash commands: `/<name>`, in prose or as the first word of a code span or of a line of a
   fenced block, or "the `<name>` skill", is a skill under `skills/` or in `EXTERNAL`.
-- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/result.md`)
+- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`)
   exists. One with a placeholder, a glob, or a `/` before it is somewhere else and not read.
+  A skill is read from its layout, so it may also name a playbook or a skill's file where the
+  layout puts it (`playbooks/<p>.md`, `skills/<n>/<file>`), once a move took it out of there.
 - links and anchors: a relative Markdown link outside code points at a file that exists and, with
   a `#anchor` into a Markdown file, at a heading of it as GitHub slugs it (fences skipped, `-N`
   for repeats).
@@ -152,6 +154,24 @@ class Tree:
         name = path.removeprefix("principles/").removesuffix(".md")
         return path == f"principles/{name}.md" and name in self.principles
 
+    def laid(self, path: str) -> bool:
+        """Whether `path` is where each layout puts a playbook, `playbooks/<name>.md`, or a file
+        of a skill, `skills/<name>/<file>`, which a move into its feature takes out of the
+        source tree."""
+        kind, _, rest = path.partition("/")
+        if kind == "playbooks":
+            return "/" not in rest and rest.removesuffix(".md") in self.playbooks
+        name, _, file = rest.partition("/")
+        return (
+            kind == "skills"
+            and name in self.skills
+            and any(
+                (at.parent / file).is_file()
+                for at in skill_files(self.root)
+                if at.parent.name == name
+            )
+        )
+
     def count(self, noun: str) -> int:
         return {
             "skills": len(self.skills),
@@ -260,7 +280,8 @@ def paths(tree: Tree, doc: Doc) -> Found:
     for line in doc.lines:
         for path in TREE_PATH.findall(re.sub(r"\]\([^)]*\)", "]", line.text)):
             path = path.rstrip(".,:;")
-            if not (tree.root / path).exists() and not tree.principle(path):
+            there = (tree.root / path).exists() or tree.principle(path)
+            if not there and not (doc.is_skill and tree.laid(path)):
                 why = f"{path} is named and the tree has no such path"
                 found.append((line.number, why))
     return found

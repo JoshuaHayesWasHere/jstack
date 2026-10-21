@@ -1,7 +1,7 @@
 """No Python file of `tests/` is over `CAP` lines but the ones on `ALLOWED`, and a file on the
 list that is back under the cap fails until it leaves the list, so the list only shrinks. A
 test file that grows past the cap is split by feature into a folder of `tests/`, as
-`tests/view/` and `tests/crew/` are.
+`tests/view/` and `features/crew/tests/` are.
 
 With no `__init__.py` in `tests/`, pytest imports each test file there by its file name alone,
 so two test files of one name fail the run with "import file mismatch": no two have one name.

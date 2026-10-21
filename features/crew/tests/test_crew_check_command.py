@@ -8,7 +8,7 @@ import subprocess
 import time
 
 import test_room as room
-from crew.helpers import FENCED, block, held_open, sections
+from crew_helpers import FENCED, block, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
 from testing.paths import REPO

@@ -209,7 +209,7 @@ def test_the_skills_between_them_read_every_template_but_the_hooks_and_the_playb
 def test_the_crew_check_before_a_launch_finds_a_review_written_from_the_template(
     reviewed, says, tmp_path
 ):
-    crew = as_read(REPO / "skills" / "crew" / "SKILL.md")
+    crew = as_read(REPO / "features" / "crew" / "SKILL.md")
     (check,) = [text for text in crew.split("```") if 'echo "$mode: launch a reviewer"' in text]
     brief = "# alpha: a task\nDone when:\n- it works\n\n## Result\nStatus: done\n"
     if reviewed:

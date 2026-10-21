@@ -13,7 +13,7 @@ from jmerge import rangediff, ready
 from test_home_thread import as_read
 from testing.paths import REPO
 
-SKILL = REPO / "skills" / "crew" / "SKILL.md"
+SKILL = REPO / "features" / "crew" / "SKILL.md"
 
 
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -59,7 +59,7 @@ def said(tmp_path, heading, about, brief, notes=None, cwd=None):
         ["sh", "-c", block(heading, about).replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
-        env={**os.environ, "H": str(tmp_path), "T": str(SKILL.parents[2] / "templates")},
+        env={**os.environ, "H": str(tmp_path), "T": str(REPO / "templates")},
         cwd=cwd,
         check=True,
     )
@@ -129,7 +129,7 @@ class Fix:
         """What the block prints for a Result's lines and the reviews written after it."""
         brief = BRIEF + result + (self.review if reviews is None else reviews)
         (self.state / "tasks" / "alpha.md").write_text(brief)
-        told = {"H": str(self.state), "T": str(SKILL.parents[2] / "templates")}
+        told = {"H": str(self.state), "T": str(REPO / "templates")}
         ran = subprocess.run(
             [shell, "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
             capture_output=True,

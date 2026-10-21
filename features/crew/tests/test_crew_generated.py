@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from crew.helpers import GH, STOPPED, PullRequest, asked, git, stays
+from crew_helpers import GH, STOPPED, PullRequest, asked, git, stays
 
 PROJECT = """\
 [project]

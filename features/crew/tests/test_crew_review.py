@@ -11,7 +11,7 @@ import pytest
 import test_home_merge as merge
 import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
-from crew.helpers import (
+from crew_helpers import (
     BRIEF,
     GUARDED,
     HAD,
@@ -25,6 +25,7 @@ from crew.helpers import (
     with_field,
 )
 from test_home_thread import as_read
+from testing.paths import REPO
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 
@@ -329,7 +330,7 @@ def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_chec
         env={
             **os.environ,
             "H": str(fix.state),
-            "T": str(SKILL.parents[2] / "templates"),
+            "T": str(REPO / "templates"),
             "PATH": path,
         },
         check=True,

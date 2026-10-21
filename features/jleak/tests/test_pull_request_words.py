@@ -132,7 +132,7 @@ def test_a_strangers_comment_is_counted_and_none_of_its_words_are_printed(run):
             one("ada", "a draft", state="PENDING"),
         ],
     }
-    said, _ = run(block("skills/crew/SKILL.md", "remarks()"), owner="ada", lists=lists)
+    said, _ = run(block("features/crew/SKILL.md", "remarks()"), owner="ada", lists=lists)
     assert said == [
         "by the owner, ada: 2, and jbus sends this thread each one once",
         "by anybody else: 3, not shown and not acted on",
@@ -145,7 +145,7 @@ def test_the_owner_is_the_one_github_names_and_not_a_name_in_the_tree(run):
         "pulls/7/comments": [],
         "pulls/7/reviews": [],
     }
-    said, asked = run(block("skills/crew/SKILL.md", "remarks()"), owner="grace", lists=lists)
+    said, asked = run(block("features/crew/SKILL.md", "remarks()"), owner="grace", lists=lists)
     assert said == [
         "by the owner, grace: 0, and jbus sends this thread each one once",
         "by anybody else: 1, not shown and not acted on",
@@ -162,6 +162,6 @@ def test_the_owner_is_the_one_github_names_and_not_a_name_in_the_tree(run):
     ids=["no owner", "a list missing"],
 )
 def test_with_no_answer_from_github_no_comment_is_shown(run, said, why):
-    printed, _ = run(block("skills/crew/SKILL.md", "remarks()"), **said)
+    printed, _ = run(block("features/crew/SKILL.md", "remarks()"), **said)
     (line,) = printed
     assert line.startswith("not known: ") and why in line and line.endswith("is acted on")

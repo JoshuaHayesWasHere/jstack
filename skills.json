@@ -23,7 +23,7 @@
     {
       "name": "autonomous-run",
       "kind": "playbook",
-      "path": "playbooks/autonomous-run.md",
+      "path": "features/crew/playbooks/autonomous-run.md",
       "source": "josh"
     },
     {
@@ -41,7 +41,7 @@
     {
       "name": "bug-fix",
       "kind": "playbook",
-      "path": "playbooks/bug-fix.md",
+      "path": "features/crew/playbooks/bug-fix.md",
       "source": "adapted",
       "pstack_name": "tdd"
     },
@@ -90,13 +90,13 @@
     {
       "name": "feature",
       "kind": "playbook",
-      "path": "playbooks/feature.md",
+      "path": "features/crew/playbooks/feature.md",
       "source": "josh"
     },
     {
       "name": "hillclimb",
       "kind": "playbook",
-      "path": "playbooks/hillclimb.md",
+      "path": "features/crew/playbooks/hillclimb.md",
       "source": "josh"
     },
     {
@@ -126,31 +126,31 @@
     {
       "name": "pause-safely",
       "kind": "playbook",
-      "path": "playbooks/pause-safely.md",
+      "path": "features/crew/playbooks/pause-safely.md",
       "source": "josh"
     },
     {
       "name": "perf-issue",
       "kind": "playbook",
-      "path": "playbooks/perf-issue.md",
+      "path": "features/crew/playbooks/perf-issue.md",
       "source": "josh"
     },
     {
       "name": "prototype",
       "kind": "playbook",
-      "path": "playbooks/prototype.md",
+      "path": "features/crew/playbooks/prototype.md",
       "source": "josh"
     },
     {
       "name": "refactoring",
       "kind": "playbook",
-      "path": "playbooks/refactoring.md",
+      "path": "features/crew/playbooks/refactoring.md",
       "source": "josh"
     },
     {
       "name": "runtime-forensics",
       "kind": "playbook",
-      "path": "playbooks/runtime-forensics.md",
+      "path": "features/crew/playbooks/runtime-forensics.md",
       "source": "josh"
     },
     {
@@ -181,7 +181,7 @@
     {
       "name": "visual-parity",
       "kind": "playbook",
-      "path": "playbooks/visual-parity.md",
+      "path": "features/crew/playbooks/visual-parity.md",
       "source": "josh"
     },
     {
@@ -425,7 +425,7 @@
     {
       "name": "crew",
       "kind": "skill",
-      "path": "skills/crew/SKILL.md",
+      "path": "features/crew/SKILL.md",
       "source": "josh",
       "description": "Make this thread a crewmate - do the one task a home wrote a brief for, in this thread's own worktree, write the result back to the brief, and stay on the pull request it opened. Use when the user or a home starts a thread with /crew <slug> or $crew <slug>."
     },
@@ -797,13 +797,13 @@
     {
       "name": "rerun.md",
       "kind": "template",
-      "path": "templates/rerun.md",
+      "path": "features/crew/templates/rerun.md",
       "source": "josh"
     },
     {
       "name": "result.md",
       "kind": "template",
-      "path": "templates/result.md",
+      "path": "features/crew/templates/result.md",
       "source": "josh"
     },
     {

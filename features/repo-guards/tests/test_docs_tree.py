@@ -187,6 +187,32 @@ def test_a_path_that_is_gone_is_found_and_one_somewhere_else_is_not_read(small):
     ]
 
 
+def test_a_skill_names_a_moved_playbook_or_skill_file_where_the_layout_puts_it(small):
+    make(
+        small,
+        {
+            "features/crew/SKILL.md": "# Crew\n",
+            "features/crew/side.md": "# Side\n",
+            "features/crew/playbooks/moved.md": "# Moved\n",
+            "skills/beta/SKILL.md": (
+                "# Beta\n\n`playbooks/moved.md` `skills/crew/side.md` `skills/crew/SKILL.md`\n"
+                "`playbooks/gone.md` `skills/crew/none.md` `skills/gone/SKILL.md`\n"
+            ),
+            "docs/a.md": (
+                "`playbooks/moved.md` `skills/crew/side.md`\n"
+                "[moved](../features/crew/playbooks/moved.md) [crew](../features/crew/SKILL.md)\n"
+            ),
+        },
+    )
+    assert ran(small) == [
+        "FAIL docs/a.md:1 playbooks/moved.md is named and the tree has no such path",
+        "FAIL docs/a.md:1 skills/crew/side.md is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 playbooks/gone.md is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 skills/crew/none.md is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 skills/gone/SKILL.md is named and the tree has no such path",
+    ]
+
+
 def test_a_count_the_tree_disagrees_with_is_found_in_the_docs_and_not_in_a_skill(small):
     make(
         small,

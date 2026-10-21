@@ -256,7 +256,7 @@ def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to
         shutil.copytree(REPO / folder, tmp_path / folder)
     (tmp_path / "docs").mkdir()
     page = Path(shutil.copy(PAGE, tmp_path / "docs"))
-    feature = (tmp_path / "playbooks" / "feature.md").read_text()
+    feature = (tmp_path / "features" / "crew" / "playbooks" / "feature.md").read_text()
     tile = CARD.search(feature).group(1).split(" | ")[0]
     card = f"<!-- card: {tile} | 99 | A thing that is `made up`. -->"
     (tmp_path / "playbooks" / "made-up.md").write_text(CARD.sub(card, feature))

@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 import test_home_merge as merge
-from crew.helpers import BRIEF, Link, PullRequest, block, covers, git, with_field
+from crew_helpers import BRIEF, Link, PullRequest, block, covers, git, with_field
 from jmerge import ready
 
 

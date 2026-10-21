@@ -65,7 +65,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 These have their `Paths:` and `Tests:` lines and no recipe yet:
 
 - [The check CI runs](./ci-check.md), not driven yet.
-- [A crewmate does one task](./crew-skill.md), not driven yet.
+- [A crewmate does one task](../../../../features/crew/verify.md), not driven yet.
 - [The pages under docs](../../../../features/repo-guards/verify.md), not driven yet.
 - [The evals](./evals.md), not driven yet.
 - [An expert answers asks](../../../../features/expert/verify.md), not driven yet.

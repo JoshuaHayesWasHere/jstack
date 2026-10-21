@@ -16,13 +16,13 @@
 
 | Given | Role line |
 |---|---|
-| a file under `tasks/` (a brief) | `role crew: /crew <slug> (skills/crew/SKILL.md)` |
+| a file under `tasks/` (a brief) | `role crew: /crew <slug> (features/crew/SKILL.md)` |
 | a file under `scouts/` (a scout's request) | `role scout: /scout <slug> (features/scout/SKILL.md)` |
 | `-`, text on stdin, or any other file | `role home: /home (skills/home/SKILL.md)` |
 
 The lines after the role line:
 
-- `playbook <name>: <its path> (<why>)`, the path as `skills.json` lists it, such as `playbooks/feature.md` or `features/scout/playbooks/investigation.md`.
+- `playbook <name>: <its path> (<why>)`, the path as `skills.json` lists it, such as `features/crew/playbooks/feature.md` or `features/scout/playbooks/investigation.md`.
   The name comes from the file's `Playbook:` line.
   A file with no such line gets a `Run by:` row of its role's runner: first a row whose `in a brief with` lines the file has, then a row whose backticked path covers every path on the file's `Where:` and `Change:` lines (tests aside), then the role's default, which is `feature` for a crewmate, `investigation` for a scout and `none` for the home.
 - `tip <skill>: ...`: at most three skills whose `tip:` phrases the words say, by the rule of `features/skill-library/hooks/skill-tips.sh`, the most literal words first.

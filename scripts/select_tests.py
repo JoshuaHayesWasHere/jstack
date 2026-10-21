@@ -20,7 +20,7 @@ name it, and with none to the modules beside it.
 A changed file that is no module (a doc, a skill, a hook) selects the test files that spell its
 path, in the file or in a test module it imports: the parts of a path in a string or a `/`
 chain, from its file name up the directories until no other tracked file ends alike, as `crew`
-and `SKILL.md` for `skills/crew/SKILL.md`. A fixture selects the tests that spell it or the
+and `SKILL.md` for `features/crew/SKILL.md`. A fixture selects the tests that spell it or the
 nearest directory above it, and `all` where none does. The map of verify-jstack's features,
 with each `features/<name>/verify.md`, adds to this: a feature file names the paths a feature
 owns (`Paths:`, in jmerge's pattern syntax) and the tests that read them in a way no string

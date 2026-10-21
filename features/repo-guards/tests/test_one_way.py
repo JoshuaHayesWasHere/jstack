@@ -15,7 +15,7 @@ import textwrap
 
 import pytest
 
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 ONE_WAY = [
     ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),
@@ -100,7 +100,7 @@ FILLS = {
 
 def blocks(placeholder):
     """Each shell block of a skill that holds `placeholder`, by the file and line it starts at."""
-    for path in sorted((REPO / "skills").glob("*/*.md")):
+    for path in sorted(path for folder in skills().values() for path in folder.glob("*.md")):
         text = path.read_text()
         for found in FENCED.finditer(text):
             if placeholder in found[2]:
