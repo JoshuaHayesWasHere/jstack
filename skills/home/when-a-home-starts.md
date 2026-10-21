@@ -233,7 +233,7 @@ C=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 if [ -n "$P" ]; then
     echo "on the bus: $R is jbus project $P"
 elif ! command -v jbus > /dev/null; then
-    echo "not on the bus: jbus is not installed here, so nothing is added: sh install.sh in $T/.."
+    echo "not on the bus: jbus is not installed here, so nothing is added: sh install.sh in $(realpath "$T/../source" 2> /dev/null || realpath "$T/..")"
 else
     echo "not on the bus: $R has no project in jbus's config: add it with the block of step 3 of $T/../skills/new-home/SKILL.md, checkout $C"
 fi

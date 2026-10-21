@@ -1,6 +1,9 @@
 # Hooks
 
-`install.sh` writes five hook entries and one status line, each with the path of its own checkout. This page says what each script does and shows the entry as the install writes it, with `<checkout>` for that path. [Configuration](configuration.md) lists the entries with every other file you write.
+`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](jinstall.md#the-layouts)).
+This page says what each script does and shows the entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
+The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
+[Configuration](configuration.md) lists the entries with every other file you write.
 
 Each hook below is a feature's, as its `features/<name>/feature.json` declares it.
 
@@ -39,7 +42,7 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-start.sh' 2>/dev/null || true",
+            "command": "sh '<layout>/hooks/home-start.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -75,7 +78,7 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/skill-tips.sh' 2>/dev/null || true",
+            "command": "sh '<layout>/hooks/skill-tips.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -92,13 +95,13 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
 At the limit, and after every tool call from then on, the agent gets one line:
 
 ```
-context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <checkout>/harness/jstack/claude-code/skills/handoff/SKILL.md and do its steps. Start nothing new.
+context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <layout>/skills/handoff/SKILL.md and do its steps. Start nothing new.
 ```
 
 That line stops nothing: the tool call has run, and the next one runs too. At the ceiling the hook denies a tool call before it runs, and the agent gets this line as the reason:
 
 ```
-context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <checkout>/harness/jstack/claude-code/skills/handoff/SKILL.md and do its steps.
+context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <layout>/skills/handoff/SKILL.md and do its steps.
 ```
 
 A home over its ceiling still makes the calls the `handoff` skill makes, and no other:
@@ -138,7 +141,7 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-gauge.sh' 2>/dev/null || true",
+            "command": "sh '<layout>/hooks/home-gauge.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -149,7 +152,7 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-gauge.sh' 2>/dev/null || true",
+            "command": "sh '<layout>/hooks/home-gauge.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -175,7 +178,7 @@ The script prints nothing and exits 0 on any input, so the status line it leaves
 {
   "statusLine": {
     "type": "command",
-    "command": "sh '<checkout>/harness/jstack/claude-code/hooks/limits.sh'"
+    "command": "sh '<layout>/hooks/limits.sh'"
   }
 }
 ```

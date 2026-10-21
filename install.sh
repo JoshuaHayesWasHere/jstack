@@ -40,13 +40,10 @@ python_312() {
   return 1
 }
 
-pythonpath=$repo/harness/jstack/pythonpath
-[ -f "$pythonpath" ] || {
-  echo "missing hard $pythonpath -> run python3 scripts/generate-jstack-trees.py"
-  exit 1
-}
 path=
-while IFS= read -r folder; do path=${path:+$path:}$repo/$folder; done < "$pythonpath"
+for folder in "$repo"/src "$repo"/features/*/src; do
+  [ -d "$folder" ] && path=${path:+$path:}$folder
+done
 python=$(python_312) || {
   echo "$python"
   exit 1

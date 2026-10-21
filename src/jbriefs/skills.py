@@ -23,9 +23,8 @@ not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
 
 `skills.json` also lists every playbook and template, and `where(kind, name)` is the one way
 the runtime finds any of these files: no module reads a path of the checkout from its own
-place in it. A release has no checkout: its wheel carries the harness copy beside the
-packages' environment, with a `skills.json` of the copy's own paths, and `root()` is that
-copy.
+place in it. A release has no checkout: its wheel carries the source tree beside the
+packages' environment, `skills.json` with it, and `root()` is that tree.
 
 `templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
 one item, `- <name>: <the artifact>`, its further lines indented.
@@ -43,7 +42,7 @@ from typing import Any
 
 CATALOG = "skills.json"
 MARKER = "pyproject.toml"
-PACKAGED = "share/jstack/claude-code"
+PACKAGED = "share/jstack"
 NAMEABLE = ("skill", "principle")
 ALIAS = "principle-"
 DEFAULT = "default"
@@ -101,10 +100,10 @@ def checkout() -> Path | None:
 
 
 def packaged() -> Path | None:
-    """The harness copy a release's wheel installs under the environment this runs in,
-    `PACKAGED` (its shared data, which scripts/jtrees/outputs/harness.py writes into
-    pyproject.toml), whose `skills.json` gives each path from the copy itself. None where it
-    is not there."""
+    """The source tree a release's wheel installs under the environment this runs in,
+    `PACKAGED` (its shared data, which scripts/jtrees/outputs/pyproject.py writes into
+    pyproject.toml), whose `skills.json` gives each path from the tree itself, as in a
+    checkout. None where it is not there."""
     copy = Path(sys.prefix) / PACKAGED
     return copy if (copy / CATALOG).is_file() else None
 
@@ -112,7 +111,7 @@ def packaged() -> Path | None:
 @cache
 def root() -> Path:
     """Where every path of `skills.json` is read from: the checkout this package runs from,
-    else the copy a release carries beside it."""
+    else the source tree a release carries beside it."""
     found = checkout() or packaged()
     if found is None:
         here, copy = Path(__file__).resolve(), Path(sys.prefix) / PACKAGED

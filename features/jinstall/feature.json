@@ -20,6 +20,8 @@
     "docs/troubleshooting/the-platform-and-the-programs.md",
     "tests/test_install.py",
     "tests/test_install_commands.py",
+    "tests/test_layout.py",
+    "tests/test_install_release.py",
     "tests/test_doctor.py",
     "tests/test_setup.py",
     "tests/test_docs_hooks.py",

@@ -11,10 +11,11 @@ import time
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO, skills
 
 HOOK = REPO / "hooks" / "skill-tips.sh"
-INSTALLED = REPO / "harness" / "jstack" / "claude-code" / "hooks" / "skill-tips.sh"
+INSTALLED = assembled() / "hooks" / "skill-tips.sh"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab"
 
@@ -311,8 +312,8 @@ def test_each_trigger_of_the_repos_skills_gets_that_skills_tip(tmp_path, name, p
         assert scene.tip(prompt, session=f"s{count}", hook=INSTALLED) == f"tip: /{name} {purpose}"
 
 
-def wired(checkout):
-    """The hook's command, from the settings the hooks page gives, for one checkout."""
+def wired(layout):
+    """The hook's command, from the settings the hooks page gives, for one layout."""
     text = (REPO / "docs" / "hooks.md").read_text()
     (found,) = [
         json.loads(block)
@@ -323,18 +324,19 @@ def wired(checkout):
     assert list(found["hooks"]) == ["UserPromptSubmit"]
     (hook,) = group["hooks"]
     assert hook["type"] == "command" and 0 < hook["timeout"] <= 5
-    assert hook["command"].count("<checkout>") == 1
-    return hook["command"].replace("<checkout>", str(checkout))
+    assert hook["command"].count("<layout>") == 1
+    return hook["command"].replace("<layout>", str(layout))
 
 
 def test_the_command_the_readme_wires_runs_the_hook_and_does_nothing_without_it(scene):
     stdin = json.dumps({"session_id": SESSION, "cwd": str(scene.main), "prompt": "blast radius"})
     env = {key: value for key, value in os.environ.items() if key not in T3}
     env["HOME"] = str(scene.user)
+    laid = scene.user / ".local" / "share" / "jstack" / "harness" / "claude-code"
 
     def run():
         done = subprocess.run(
-            ["sh", "-c", wired(scene.user / "repos" / "jstack")],
+            ["sh", "-c", wired(laid)],
             input=stdin,
             capture_output=True,
             text=True,
@@ -344,7 +346,6 @@ def test_the_command_the_readme_wires_runs_the_hook_and_does_nothing_without_it(
         return done.stdout
 
     assert run() == ""
-    copy = scene.user / "repos" / "jstack" / "harness" / "jstack" / "claude-code"
-    copy.parent.mkdir(parents=True)
-    copy.symlink_to(scene.root)
+    laid.parent.mkdir(parents=True)
+    laid.symlink_to(scene.root)
     assert json.loads(run()) == {"systemMessage": BLAST_TIP}

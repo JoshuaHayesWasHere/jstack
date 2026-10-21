@@ -4,11 +4,11 @@ import shutil
 import pytest
 
 from jdrift.explained import COMMENT as CARD
+from testing.layouts import assembled
 from testing.paths import REPO
 
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATE = "templates/playbook.md"
-COPY = "harness/jstack/claude-code"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(PLAYBOOKS.glob("*.md"))
 ROLES = {"a crewmate": "crew", "a scout": "scout", "the home": "home", "an expert": "expert"}
@@ -80,7 +80,7 @@ def problems(path, root):
     elif steps(text) != list(range(1, len(steps(text)) + 1)):
         found.append(f"numbers its steps {steps(text)}")
     names = named("\n".join(row for row in text.splitlines() if not row.startswith("Source:")))
-    read = root / COPY if (root / COPY).is_dir() else root
+    read = assembled() if root == REPO else root
     found += [f"names {name}, which is not there" for name in names if not (read / name).is_file()]
     if not any(name.startswith("principles/") for name in names):
         found.append("names no principle")

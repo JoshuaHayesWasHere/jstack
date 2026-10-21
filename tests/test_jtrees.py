@@ -2,10 +2,8 @@
 that a stale output fails the check by name. Each test runs the script, or `jtrees`, over a
 copy of this checkout."""
 
-import filecmp
 import importlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -13,14 +11,15 @@ import tomllib
 
 import pytest
 
+from jbriefs import skills
+from jinstall import layout
+from jinstall.harnesses import CLAUDE_CODE
 from testing.paths import REPO
 
 SCRIPT = "scripts/generate-jstack-trees.py"
-COPY = "harness/jstack/claude-code"
 sys.path.insert(0, str(REPO / "scripts"))
 
 jtrees = importlib.import_module("jtrees.crawl")
-terms = importlib.import_module("jtrees.terms")
 Invalid, borders, crawl, tracked = jtrees.Invalid, jtrees.borders, jtrees.crawl, jtrees.tracked
 
 
@@ -53,9 +52,6 @@ def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
     ran = generate(copy, "--check")
     assert ran.returncode == 1
     assert ran.stderr.splitlines() == [
-        f"stale: {COPY}/README.md",
-        f"stale: {COPY}/skills.json",
-        f"stale: {COPY}/skills/bro/SKILL.md",
         "stale: skills.json",
         f"run python3 {SCRIPT} and commit the result",
     ]
@@ -76,10 +72,7 @@ def test_a_hand_edit_inside_a_generated_region_makes_the_check_fail_naming_that_
 def test_a_run_writes_what_is_stale_and_a_second_run_writes_nothing(copy):
     skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(skill.read_text().replace("description: ", "description: Now ", 1))
-    assert generate(copy).stdout == (
-        f"wrote {COPY}/README.md\nwrote {COPY}/skills.json\n"
-        f"wrote {COPY}/skills/bro/SKILL.md\nwrote skills.json\n"
-    )
+    assert generate(copy).stdout == "wrote skills.json\n"
     assert generate(copy).stdout.startswith("current: ")
     assert generate(copy, "--check").returncode == 0
     (bro,) = [
@@ -134,13 +127,6 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "stale: docs/hooks.md",
         "stale: docs/playbooks.md",
         "stale: features/foo/docs/foo.md",
-        f"stale: {COPY}/README.md",
-        f"stale: {COPY}/hooks/foo-start.sh",
-        f"stale: {COPY}/playbooks/foo-run.md",
-        f"stale: {COPY}/skills.json",
-        f"stale: {COPY}/skills/foo/SKILL.md",
-        f"stale: {COPY}/templates/foo.md",
-        "stale: harness/jstack/pythonpath",
         "stale: pyproject.toml",
         "stale: skills.json",
     }
@@ -158,13 +144,19 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "nameable": True,
     }
     assert items["template", "foo.md"]["path"] == "features/foo/templates/foo.md"
-    copied = {
-        (one["kind"], one["name"]): one["path"]
-        for one in json.loads((copy / COPY / "skills.json").read_text())["items"]
-    }
-    assert copied["skill", "foo"] == "skills/foo/SKILL.md"
-    assert copied["playbook", "foo-run"] == "playbooks/foo-run.md"
-    assert copied["template", "foo.md"] == "templates/foo.md"
+    hooks = json.loads((copy / "skills.json").read_text())["hooks"]
+    assert {
+        "name": "foo-start.sh",
+        "path": "features/foo/hooks/foo-start.sh",
+        "harnesses": ["claude-code"],
+    } in hooks
+    laid = layout.assemble(copy, CLAUDE_CODE).entries
+    assert sorted(path for path in laid if "foo" in path) == [
+        "hooks/foo-start.sh",
+        "playbooks/foo-run.md",
+        "skills/foo/SKILL.md",
+        "templates/foo.md",
+    ]
     project = tomllib.loads((copy / "pyproject.toml").read_text())
     assert project["project"]["scripts"]["foo"] == "foo.cli:main"
     assert (
@@ -189,10 +181,6 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     assert (
         "- [A topic](foo/a-topic.md)\n"
         in (copy / "features" / "foo" / "docs" / "foo.md").read_text()
-    )
-    assert sorted(p.name for p in (copy / COPY / "skills" / "foo").iterdir()) == ["SKILL.md"]
-    assert {"features/foo/src", "src"} <= set(
-        (copy / "harness/jstack/pythonpath").read_text().splitlines()
     )
     assert generate(copy, "--check").returncode == 0
 
@@ -308,154 +296,15 @@ def test_a_principle_skill_does_not_make_the_skills_after_it_principles(copy):
     assert {("principle", "principle-alpha"), ("skill", "zeta")} <= kinds
 
 
-def test_the_copy_holds_each_skill_playbook_principle_template_unit_and_hook(copy):
-    shutil.rmtree(copy / COPY)
-    assert generate(copy).returncode == 0
-    copied = copy / COPY
-    skills = sorted(one.name for one in crawl(copy).items if one.kind == "skill")
-    assert sorted(path.name for path in (copied / "skills").iterdir()) == skills
-    for folder in ("playbooks", "principles"):
-        assert sorted(p.name for p in (copied / folder).iterdir()) == sorted(
-            p.name for p in (copy / folder).glob("*.md")
-        )
-    templates = sorted(
-        p.relative_to(copy / "templates").as_posix()
-        for p in (copy / "templates").rglob("*")
-        if p.is_file()
-    )
-    assert "jbus.timer" in templates
-    assert (
-        sorted(
-            p.relative_to(copied / "templates").as_posix()
-            for p in (copied / "templates").rglob("*")
-            if p.is_file()
-        )
-        == templates
-    )
-    for unit in (copy / "templates").glob("*.service"):
-        assert filecmp.cmp(copied / "templates" / unit.name, unit, shallow=False)
-    for hook in (copy / "hooks").iterdir():
-        assert filecmp.cmp(copied / "hooks" / hook.name, hook, shallow=False)
-        assert os.access(copied / "hooks" / hook.name, os.X_OK) == os.access(hook, os.X_OK)
-    for plugin in ("plugin.json", ".claude-plugin/plugin.json"):
-        assert filecmp.cmp(copied / plugin, copy / "plugin.json", shallow=False)
-    assert (copied / "README.md").is_file()
-    moved = [one.relative_to(copy).as_posix() for one in copy.glob("features/*/src")]
-    assert (copy / "harness/jstack/pythonpath").read_text().splitlines() == sorted([*moved, "src"])
-    root = json.loads((copy / "skills.json").read_text())["items"]
-    listed = json.loads((copied / "skills.json").read_text())["items"]
-    assert [(one["kind"], one["name"]) for one in listed] == [
-        (one["kind"], one["name"]) for one in root
-    ]
-    for one in listed:
-        assert (copied / one["path"]).is_file(), one
-    pairs = {(one["kind"], one["name"]): one["path"] for one in listed}
-    assert pairs["skill", "crew"] == "skills/crew/SKILL.md"
-    assert pairs["playbook", "feature"] == "playbooks/feature.md"
-    assert pairs["template", "jbus.timer"] == "templates/jbus.timer"
-    assert generate(REPO, "--check").returncode == 0
-
-
-def test_the_wheel_takes_the_copy_whole_as_shared_data_and_jinstall_as_a_command():
+def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command():
     project = tomllib.loads((REPO / "pyproject.toml").read_text())
     wheel = project["tool"]["hatch"]["build"]["targets"]["wheel"]
-    assert wheel["shared-data"] == {COPY: "share/jstack/claude-code"}
+    shared = wheel["shared-data"]
+    assert {path: f"{skills.PACKAGED}/{path}" for path in shared} == shared
+    paths = [one["path"] for one in layout.catalog(REPO)] + [
+        one["path"] for one in layout.hooks(REPO)
+    ]
+    assert {path.split("/", 1)[0] for path in paths} <= set(shared)
+    assert {"skills.json", "plugin.json", "docs"} <= set(shared)
     assert "src/jinstall" in wheel["packages"]
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
-
-
-def test_a_link_to_a_file_the_copy_leaves_out_points_at_github(copy):
-    skill = copy / "features" / "bro" / "SKILL.md"
-    skill.write_text(
-        skill.read_text()
-        + "\nSee [the state](../../docs/state.md#homes), [jbus](../../src/jbus/) and"
-        " [ketchup](../ketchup/SKILL.md), but not `[code](../../nowhere.md)`.\n"
-    )
-    assert generate(copy).returncode == 0
-    text = (copy / COPY / "skills" / "bro" / "SKILL.md").read_text()
-    github = "https://github.com/JoshuaHayesWasHere/jstack"
-    assert f"[the state]({github}/blob/main/docs/state.md#homes)" in text
-    assert f"[jbus]({github}/tree/main/src/jbus)" in text
-    assert "[ketchup](../ketchup/SKILL.md)" in text
-    assert "`[code](../../nowhere.md)`" in text
-
-
-def test_a_link_that_still_dangles_fails_naming_the_file_and_writes_nothing(copy):
-    playbook = copy / "playbooks" / "bug-fix.md"
-    playbook.write_text(playbook.read_text() + "\nSee [gone](../docs/gone.md).\n")
-    before = (copy / COPY / "playbooks" / "bug-fix.md").read_bytes()
-    ran = generate(copy)
-    assert ran.returncode == 2
-    assert ran.stderr.splitlines() == [
-        f"FAIL {COPY}/playbooks/bug-fix.md links to ../docs/gone.md, which is not in the tree"
-    ]
-    assert (copy / COPY / "playbooks" / "bug-fix.md").read_bytes() == before
-
-
-def test_a_link_whose_text_is_code_is_rewritten_or_dangles_like_any_other(copy):
-    playbook = copy / "playbooks" / "bug-fix.md"
-    playbook.write_text(
-        playbook.read_text()
-        + "\nSee [`state`](../docs/state.md), [`gone`](../docs/gone.md) and `[code](../x.md)`.\n"
-    )
-    ran = generate(copy)
-    assert ran.returncode == 2
-    assert ran.stderr.splitlines() == [
-        f"FAIL {COPY}/playbooks/bug-fix.md links to ../docs/gone.md, which is not in the tree"
-    ]
-    playbook.write_text(playbook.read_text().replace(", [`gone`](../docs/gone.md)", ""))
-    assert generate(copy).returncode == 0
-    text = (copy / COPY / "playbooks" / "bug-fix.md").read_text()
-    github = "https://github.com/JoshuaHayesWasHere/jstack"
-    assert f"See [`state`]({github}/blob/main/docs/state.md) and `[code](../x.md)`." in text
-
-
-def test_a_file_in_the_copy_that_no_item_makes_is_stale_and_removed(copy):
-    stray = copy / COPY / "skills" / "retired" / "SKILL.md"
-    stray.parent.mkdir()
-    stray.write_text("---\nname: retired\n---\n")
-    ran = generate(copy, "--check")
-    assert ran.stderr.splitlines()[0] == f"stale: {COPY}/skills/retired/SKILL.md"
-    assert generate(copy).stdout == f"removed {COPY}/skills/retired/SKILL.md\n"
-    assert not stray.parent.exists()
-    assert generate(copy, "--check").returncode == 0
-
-
-def test_a_hook_that_loses_its_executable_bit_is_stale(copy):
-    (copy / COPY / "hooks" / "pre-push.sh").chmod(0o644)
-    ran = generate(copy, "--check")
-    assert ran.stderr.splitlines()[0] == f"stale: {COPY}/hooks/pre-push.sh"
-    generate(copy)
-    assert os.access(copy / COPY / "hooks" / "pre-push.sh", os.X_OK)
-
-
-def test_a_principle_skill_is_copied_as_a_skill_with_a_stub_where_principles_are_read(copy):
-    skill = copy / "features" / "principles" / "skills" / "principle-alpha" / "SKILL.md"
-    skill.parent.mkdir(parents=True)
-    skill.write_text("---\nname: principle-alpha\ndescription: Do alpha.\n---\n\n# Alpha\n")
-    assert generate(copy).returncode == 0
-    copied = copy / COPY / "skills" / "principle-alpha" / "SKILL.md"
-    assert copied.read_bytes() == skill.read_bytes()
-    stub = (copy / COPY / "principles" / "principle-alpha.md").read_text()
-    assert "[principle-alpha](../skills/principle-alpha/SKILL.md)" in stub
-
-
-TEXT = (
-    "Call `t3_thread_send`, or `delegate_task` with `run_in_background`; wait with Monitor; ask "
-    "with AskUserQuestion after ToolSearch; edit ~/.claude/settings.json."
-)
-
-
-def test_a_copy_for_another_harness_flags_each_claude_code_term_the_text_uses():
-    assert terms.used(TEXT, "codex") == set(terms.TERMS["claude-code"])
-    assert terms.used("Read the brief and open a pull request.", "codex") == set()
-
-
-def test_the_claude_code_copy_flags_nothing_in_any_file_it_holds():
-    assert terms.used(TEXT, "claude-code") == set()
-    flagged = {
-        path.relative_to(REPO / COPY).as_posix(): found
-        for path in (REPO / COPY).rglob("*.md")
-        if (found := terms.used(path.read_text(), "claude-code"))
-    }
-    assert flagged == {}

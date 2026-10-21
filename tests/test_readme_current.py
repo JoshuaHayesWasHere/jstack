@@ -67,7 +67,8 @@ OPTIONAL = {
     "`lavish-axi`": ("lavish-axi",),
 }
 NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory", "state repo")
-OF_THE_CHECKOUT = ("harness/ is current",)
+OF_THE_CHECKOUT = ("generated files are current",)
+LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
 NAMED = (
     "ci-paths.txt",
     "fresh-check",
@@ -365,7 +366,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     given = {need: "hard" for names in HARD.values() for need in names}
     given |= {need: "optional" for names in OPTIONAL.values() for need in names}
     given |= {need: "optional" for need in NO_REQUIREMENT}
-    given |= {need: "hard" for need in OF_THE_CHECKOUT}
+    given |= {need: "hard" for need in (*OF_THE_CHECKOUT, *LAYOUTS)}
     assert given == {name: need.level.value for name, need in found.items()}
 
 
@@ -498,7 +499,7 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
 
 
 def test_the_entries_the_hooks_page_shows_are_the_ones_the_install_writes():
-    here = types.SimpleNamespace(copy=Path("<checkout>") / "harness" / "jstack" / "claude-code")
+    here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
     shown = [json.loads("\n".join(block)) for block in blocks(page("hooks.md"), "json")]
     settings = Path("settings.json")
     start = HookGroup(settings, "SessionStart", "startup", "hooks/home-start.sh")

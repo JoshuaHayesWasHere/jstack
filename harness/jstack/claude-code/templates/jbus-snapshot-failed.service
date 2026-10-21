@@ -1,8 +1,0 @@
-[Unit]
-Description=jbus snapshot: tell the Chef that the last snapshot did not finish
-Documentation=file:%Y/../docs/jbus/back-up-the-homes-state.md#back-up-the-homes-state file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
-
-[Service]
-Type=oneshot
-Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/.local/bin/jbus snapshot --alarm

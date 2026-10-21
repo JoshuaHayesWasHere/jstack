@@ -41,7 +41,6 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "schemas/**",
         "scripts/generate-jstack-trees.py",
         "scripts/jtrees/**",
-        "harness/**",
         "scripts/green_tree.py",
         "scripts/fresh-host.sh",
         "scripts/select_tests.py",

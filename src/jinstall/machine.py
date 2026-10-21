@@ -1,7 +1,8 @@
 """The machine a verb acts on, and every effect the install has on it.
 
 A kind writes only through Machine, which is what lets this file hold four rules:
-- A directory or JSON file the install creates is in the record before it exists.
+- A directory or JSON file the install creates is in the record before it exists, but for a
+  folder inside a harness's layout, which the layout's own drop removes.
 - A JSON file is written where it points, by a rename, and not over a change it saw before
   the rename. One install or uninstall runs at a time for a HOME: `alone` holds a lock on it.
 - systemctl is run only when the user manager reads this HOME.
@@ -69,15 +70,12 @@ class Refused(Exception):
     """An effect the machine did not carry out, with the reason as it is printed."""
 
 
-HARNESS = Path("harness") / "jstack" / "claude-code"
-
-
 @dataclass(frozen=True)
 class Machine:
     """`account` is the home directory the account has by its passwd entry: with `home` it
     tells the user's real HOME from a sandbox's or a test's. `checkout` is the git checkout
-    jstack is installed from, None for a release, whose copy is `release`: the harness copy
-    its wheel installed (`jbriefs.skills.packaged`)."""
+    jstack is installed from, None for a release, whose source is `release`: the tree its
+    wheel installed (`jbriefs.skills.packaged`)."""
 
     checkout: Path | None
     home: Path
@@ -87,12 +85,11 @@ class Machine:
     release: Path | None = None
 
     @property
-    def copy(self) -> Path:
-        """The harness copy every link, hook command and status line points into: the
-        checkout's, else the release's."""
-        copy = self.checkout / HARNESS if self.checkout is not None else self.release
-        assert copy is not None, "a machine has a checkout or a release"
-        return copy
+    def source(self) -> Path:
+        """The tree each harness's layout is assembled from: the checkout, else the release's."""
+        source = self.checkout if self.checkout is not None else self.release
+        assert source is not None, "a machine has a checkout or a release"
+        return source
 
     @classmethod
     def here(cls, checkout: Path | None, release: Path | None = None) -> "Machine":
@@ -134,9 +131,17 @@ class Machine:
         named = self.env.get("UV_TOOL_BIN_DIR") or self.env.get("XDG_BIN_HOME")
         return Path(named) if named else self.home / ".local" / "bin"
 
+    def data_home(self) -> Path:
+        """${XDG_DATA_HOME:-~/.local/share}."""
+        return Path(self.env.get("XDG_DATA_HOME") or self.home / ".local" / "share")
+
+    def layout(self, harness: str) -> Path:
+        """Where the install assembles `harness`'s layout (`jinstall.layout`):
+        ${XDG_DATA_HOME:-~/.local/share}/jstack/harness/<harness>."""
+        return self.data_home() / "jstack" / "harness" / harness
+
     def _tools(self) -> Path:
-        data = self.env.get("XDG_DATA_HOME") or self.home / ".local" / "share"
-        return Path(self.env.get("UV_TOOL_DIR") or Path(data) / "uv" / "tools")
+        return Path(self.env.get("UV_TOOL_DIR") or self.data_home() / "uv" / "tools")
 
     def has_tool(self, tool: str) -> bool:
         """Whether uv has a tool of this name, however it was installed."""
