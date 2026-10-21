@@ -1,3 +1,9 @@
+---
+name: principle-depth-over-breadth
+description: "Apply when scoping research, perf, analysis or outcome work: before a brief goes out, and before you plan how to do one. Go one level under the task, to the data, the instruments and the judge a field-leading expert would use, instead of adding a second task beside it."
+disable-model-invocation: true
+---
+
 # Depth over Breadth
 
 Apply when scoping research, perf, analysis or outcome work: before a brief goes out, and before you plan how to do one. Go one level under the task, to the data, the instruments and the judge a field-leading expert would use, instead of adding a second task beside it.
@@ -16,8 +22,8 @@ Depth changes those three answers and nothing else. A plan that answers them by 
 
 `/sharpen` asks these three of a task or a draft brief, after a first question on what a top professional would do that is not asked, and rewrites the prompt to ask for the answers.
 
-It is not for mechanical work. A rename, a typo, a version bump, a moved file or a fix whose cause is already proven has nothing under it for an expert's instruments to find: do it by the direct path, per the [Laziness Protocol](principle-laziness-protocol.md). Nor is it for a task whose "Done when" already names its data, its instruments and its outside judge. There the three questions are answered, and asking them again only delays the work.
+It is not for mechanical work. A rename, a typo, a version bump, a moved file or a fix whose cause is already proven has nothing under it for an expert's instruments to find: do it by the direct path, per the [Laziness Protocol](../principle-laziness-protocol/SKILL.md). Nor is it for a task whose "Done when" already names its data, its instruments and its outside judge. There the three questions are answered, and asking them again only delays the work.
 
-It works with [Prove It Works](principle-prove-it-works.md), which checks the real artifact once the work is done; [Explain the Number](principle-explain-the-number.md), which asks what limits a measured number; [Build the Lever](principle-build-the-lever.md), which turns the outside judge into a script anyone can rerun; and [Attack the Premise](principle-attack-the-premise.md), which suspects the shared assumption when the deeper look contradicts it.
+It works with [Prove It Works](../principle-prove-it-works/SKILL.md), which checks the real artifact once the work is done; [Explain the Number](../principle-explain-the-number/SKILL.md), which asks what limits a measured number; [Build the Lever](../principle-build-the-lever/SKILL.md), which turns the outside judge into a script anyone can rerun; and [Attack the Premise](../principle-attack-the-premise/SKILL.md), which suspects the shared assumption when the deeper look contradicts it.
 
 <!-- card: Prove it | 6 | In research, perf, analysis and outcome work, go deeper, not wider: raw data over summaries, the expert's instruments over their words, an outside judge over self-assessment. | `sharpen` -->

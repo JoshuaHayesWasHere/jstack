@@ -16,7 +16,7 @@ import pytest
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "check-jstack-docs.py"
-ROOTS = ("skills", "features", "templates", "playbooks", "principles", "hooks", "docs")
+ROOTS = ("skills", "features", "templates", "playbooks", "hooks", "docs")
 
 
 def ran(root):
@@ -105,7 +105,7 @@ def small(tmp_path):
             "pyproject.toml": '[project.scripts]\nfake-a = "x:y"\nfake-b = "x:y"\n',
             "skills/alpha/SKILL.md": "# Alpha\n",
             "skills/beta/SKILL.md": "# Beta\n",
-            "principles/one.md": "# One\n",
+            "features/principles/skills/principle-one/SKILL.md": "# One\n",
             "playbooks/p.md": "# P\n",
             "templates/t.md": "# T\n",
             "docs/jroles.md": "# jroles\n\n## Models\n\n| Model |\n|---|\n| `claude-fake-5-5` |\n",

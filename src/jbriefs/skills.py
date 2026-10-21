@@ -9,7 +9,7 @@ skill with no artifact (`jmerge.ready.short_of`).
 The names are listed in `skills.json` at the repo root, which
 `scripts/generate-jstack-trees.py` writes from `features/` and the files they own, and nothing
 else edits: `make check` fails when it is stale. A name is a skill or a principle, and its
-canonical form is the skill's directory or the principle's file name: `architect`,
+canonical form is the skill's or the principle's directory name: `architect`,
 `principle-model-the-domain`. The file is also what any reader outside this repo (another
 provider, another machine) takes the set from.
 
@@ -68,7 +68,7 @@ class Named:
 
     @property
     def name(self) -> str:
-        """The canonical name: the skill's directory, or the principle's or playbook's file
+        """The canonical name: the skill's or the principle's directory, or the playbook's file
         without `.md`."""
         if self.path is None:
             return self.said
@@ -79,7 +79,7 @@ class Named:
         if self.path is None:
             return "unknown"
         if self.path.name == "SKILL.md":
-            return "skill"
+            return "principle" if self.name.startswith(ALIAS) else "skill"
         return self.path.parent.name.removesuffix("s")
 
     @property

@@ -12,7 +12,7 @@ import jdrift
 from jdrift.cli import main
 from testing.paths import REPO as ROOT
 
-TOPS = ("principles", "playbooks", "skills", "features")
+TOPS = ("playbooks", "skills", "features")
 
 SECTION = """# Third-party material
 
@@ -449,10 +449,11 @@ def test_shipped_map_has_every_file_the_prose_credits():
 def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is_jstacks():
     _, pinned = section()
     mapped = set(local_sources(pinned))
-    principles = {f"principles/{path.name}" for path in (ROOT / "principles").glob("*.md")}
+    found = ROOT.glob("features/principles/skills/*/SKILL.md")
+    principles = {path.relative_to(ROOT).as_posix() for path in found}
     assert principles - mapped == set(pinned.own) & principles
     assert set(pinned.own) <= {
         file.relative_to(ROOT).as_posix() for top in TOPS for file in (ROOT / top).rglob("*")
     }
-    assert "principles/principle-depth-over-breadth.md" in pinned.own
+    assert "features/principles/skills/principle-depth-over-breadth/SKILL.md" in pinned.own
     assert len(principles) == 25

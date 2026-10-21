@@ -4,7 +4,7 @@ A playbook is the steps of one kind of work, and a principle is a rule a step ci
 
 Paths:
 - `playbooks/`
-- `principles/`
+- `features/principles/`
 - `features/skill-library/templates/playbook.md`
 - `docs/playbooks.md`
 Tests: none

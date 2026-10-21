@@ -221,7 +221,7 @@ def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
     """A case names `principles/type-system-discipline.md`, its name before pstack's prefix,
     and a revision after the rename gives the renamed file for it, as for its own name."""
     path = "principles/type-system-discipline.md"
-    renamed = "HEAD:principles/principle-type-system-discipline.md"
+    renamed = "HEAD:features/principles/skills/principle-type-system-discipline/SKILL.md"
     now = subprocess.run(
         ["git", "-C", str(REPO), "show", renamed], capture_output=True, text=True, check=True
     ).stdout

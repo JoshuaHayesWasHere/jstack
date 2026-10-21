@@ -82,7 +82,6 @@ SPOTS: tuple[tuple[Kind, str, str], ...] = (
     ("skill", "skills/*/SKILL.md", "folder"),
     ("skill", f"{FEATURES}/*/SKILL.md", "folder"),
     ("skill", f"{FEATURES}/*/skills/*/SKILL.md", "folder"),
-    ("principle", "principles/principle-*.md", "stem"),
     ("playbook", "playbooks/*.md", "stem"),
     ("playbook", f"{FEATURES}/*/playbooks/*.md", "stem"),
     ("playbook", f"{FEATURES}/*/skills/*/playbooks/*.md", "stem"),
@@ -176,21 +175,6 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
     )
 
 
-def _paragraph(text: str) -> str:
-    """A principle's description: the paragraph under its `# ` title."""
-    lines = text.splitlines()
-    start = next((at for at, line in enumerate(lines) if line.startswith("# ")), None)
-    if start is None:
-        return ""
-    paragraph: list[str] = []
-    for line in lines[start + 1 :]:
-        if line.strip():
-            paragraph.append(line.strip())
-        elif paragraph:
-            break
-    return " ".join(paragraph)
-
-
 def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
     found: dict[tuple[str, str], Item] = {}
     for spot, glob, naming in SPOTS:
@@ -221,8 +205,6 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
                 description = str(front.get("description", ""))
                 if name.startswith(PRINCIPLE):
                     kind = "principle"
-            elif kind == "principle":
-                description = _paragraph(text)
             owners = [one for one in tree.owners(relative) if one not in REPO_OWNERS]
             if len(owners) != 1:
                 faults.append(f"{relative}: is a {kind} with {len(owners)} feature owners {owners}")

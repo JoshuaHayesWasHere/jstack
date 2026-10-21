@@ -177,8 +177,9 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
         "loaded: in-your-own-words principle-model-the-domain principle-prove-it-works, "
         "the names on the Skills: line, each in full below"
     )
-    model = (REPO / "principles" / "principle-model-the-domain.md").read_text()
-    assert "==> principles/principle-model-the-domain.md <==\n" + model.rstrip() in said
+    model = REPO / "features" / "principles" / "skills" / "principle-model-the-domain" / "SKILL.md"
+    shown = f"==> {model.relative_to(REPO)} <==\n" + model.read_text().rstrip()
+    assert shown in said
     table = skills.artifacts()
     assert said.endswith(f"- principle-prove-it-works: {table['principle-prove-it-works']}\n")
 
@@ -229,26 +230,27 @@ def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_tak
 
 
 def test_every_principle_has_pstacks_name_and_its_old_name_still_resolves():
-    files = sorted((REPO / "principles").glob("*.md"))
+    files = sorted((REPO / "features" / "principles" / "skills").glob("*/SKILL.md"))
     assert len(files) == 25
     for path in files:
-        assert path.stem.startswith("principle-")
-        old = path.stem.removeprefix("principle-")
+        name = path.parent.name
+        assert name.startswith("principle-")
+        old = name.removeprefix("principle-")
         assert skills.resolve(old).path == path
-        assert skills.resolve(old).name == path.stem == skills.resolve(path.stem).name
+        assert skills.resolve(old).name == name == skills.resolve(name).name
 
 
 def test_no_principle_lost_a_line_in_the_rename():
     """Each principle, reached by its old name through the resolver, is the file it was at
-    c228ac6, but for its links to the others, which name their new files."""
+    c228ac6, but for its frontmatter, and its links to the others, which name their new files."""
     lines = (FIXTURES / "principles-before-rename.txt").read_text().splitlines()
     before = dict(line.split() for line in lines if not line.startswith("#"))
     assert len(before) == 25
     for old, digest in before.items():
         found = skills.resolve(old)
-        assert found.relative == f"principles/principle-{old}.md"
-        text = found.path.read_text()
-        back = re.sub(r"\]\(principle-([a-z0-9-]+\.md)", r"](\1", text)
+        assert found.relative == f"features/principles/skills/principle-{old}/SKILL.md"
+        text = found.path.read_text().split("\n---\n\n", 1)[1]
+        back = re.sub(r"\]\(\.\./principle-([a-z0-9-]+)/SKILL\.md", r"](\1.md", text)
         assert hashlib.sha256(back.encode()).hexdigest() == digest, old
 
 
@@ -297,7 +299,6 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
 def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_principle():
     listed = json.loads((REPO / skills.CATALOG).read_text())["items"]
     on_disk = set(skill_folders())
-    on_disk |= {path.stem for path in (REPO / "principles").glob("*.md")}
     named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
     assert named == on_disk
     assert {item["source"] for item in listed} <= {"pstack", "adapted", "josh"}
