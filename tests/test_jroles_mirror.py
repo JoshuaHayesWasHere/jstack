@@ -411,3 +411,42 @@ def test_a_malformed_skill_usage_entry_fails_naming_the_skill_and_pools_nothing(
     assert code == 2 and f"{prime}: skillUsage tdd is malformed" in err
     assert usage_of(prime)["tdd"]["usageCount"] == "many"
     assert "crew" not in (usage_of(home / ".claude_third" / ".claude.json") or {})
+
+
+def test_a_malformed_entry_hides_no_other_drift_from_the_check(home, capsys):
+    mirror(capsys)
+    prime, third = home / ".claude_prime" / ".claude.json", home / ".claude_third"
+    used(prime, {"tdd": {"usageCount": "many"}})
+    (third / "CLAUDE.md").unlink()
+    code, said, err = mirror(capsys, "--check")
+    assert code == 2 and err.count("skillUsage tdd is malformed") == 1
+    assert f"would link {third / 'CLAUDE.md'} -> {home / '.claude' / 'CLAUDE.md'}" in said
+
+
+def test_claude_json_missing_a_skill_for_longer_than_a_sync_period_fails(home, capsys):
+    mirror(capsys)
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(9)}})
+    code, said, _ = mirror(capsys, "--check")
+    assert code == 1
+    assert f"would pool skillUsage tdd into {home / '.claude.json'}" in said
+
+
+def test_the_doctors_check_pools_every_declared_home(home, capsys):
+    """`check` is what the doctor asks: it reads the same pool `--check` does."""
+    from jroles import mirror as module
+
+    mirror(capsys)
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(30)}})
+    third = module.Mirror(THIRD, home / ".claude_third")
+    assert module.check(module.Main.of(home), third) == [
+        f"would pool skillUsage tdd into {home / '.claude_third' / '.claude.json'}"
+    ]
+
+
+def test_pooling_into_claude_json_keeps_its_mode(home, capsys):
+    config = home / ".claude.json"
+    config.chmod(0o644)
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms()}})
+    mirror(capsys)
+    assert "tdd" in usage_of(config)
+    assert oct(config.stat().st_mode & 0o777) == "0o644"

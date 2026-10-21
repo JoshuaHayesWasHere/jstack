@@ -161,7 +161,7 @@ A mirror whose home is not there is said on stderr, and the run exits 2: the hom
 Its line for `.claude.json` names the shared keys whose values differ, `would sync <keys> of ~/.claude.json into <home>/.claude.json`, so an account key that changed is no drift.
 It compares each home's `skillUsage` with the pool of every home, `~/.claude.json` included unless `--instance` is given.
 A home behind the pool only by use since the last sync prints `pooling   skillUsage <skills> into <file>` and is no drift.
-A home that lacks a skill whose last use is older than one run of the timer prints `would pool skillUsage <skills> into <file>` and exits 1.
+A home that lacks a skill whose last use is older than the timer's longest gap, 7 minutes with its accuracy and the run, prints `would pool skillUsage <skills> into <file>` and exits 1.
 An entry of `skillUsage` that is not an object of numbers is said on stderr, `<file>: skillUsage <skill> is malformed`, and exits 2: a run then pools nothing until it is mended.
 A mirror with nothing to do prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.

@@ -26,8 +26,8 @@ and a run with nothing to do writes nothing. These are infra #53's rules:
 skill's entry in the pool has, field by field, the highest of every home's numbers, so the
 highest count and the latest time, and a run writes the pool into `~/.claude.json` and into
 each mirror. `--check` compares each home with the pool: a home behind it by use since the last
-sync (`PERIOD`, the timer's) is `pooling`, no drift, and one that lacks a skill whose last use
-is older than that, or whose skillUsage is not objects of numbers, fails.
+sync (`PERIOD`, the timer's longest gap) is `pooling`, no drift, and one that lacks a skill
+whose last use is older than that, or whose skillUsage is not objects of numbers, fails.
 
 Each step is safe to repeat and to stop halfway: the merge is made before the move and again
 after it, so a run that stopped between the two leaves nothing unmerged, and every other step
@@ -45,7 +45,7 @@ import re
 import shutil
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -80,8 +80,9 @@ JSON = ".claude.json"
 _OURS = re.compile(r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\..*")
 DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
-PERIOD = 5 * 60
-"""Seconds from one run of `templates/jroles-mirror.timer` to the next."""
+PERIOD = (5 + 1 + 1) * 60
+"""The longest a use waits to be pooled, in seconds: the 5 minutes of `OnUnitActiveSec` in
+`templates/jroles-mirror.timer`, its default `AccuracySec` of 1 minute, and 1 for the run."""
 
 
 @dataclass(frozen=True)
@@ -378,29 +379,35 @@ def _write(target: Path, made: dict, mode: int) -> None:
 
 
 def review(
-    main: Main, mirror: Mirror, homes: tuple[Path, ...] = (), now: float | None = None
+    main: Main, mirror: Mirror, usage: dict | None, now: float
 ) -> tuple[list[str], list[str]]:
-    """What `--check` says of one mirror, against the pool of `~/.claude.json`, the mirror and
-    `homes`: a line for each entry that differs, and the use it is behind that is no drift."""
+    """What `--check` says of one mirror against the skill `usage` pool, none to leave its
+    skillUsage out: a line for each entry that differs, and the use it is behind that is no
+    drift."""
     if not mirror.home.is_dir():
         return [f"{mirror.instance}: {mirror.home} is missing"], []
-    usage = pool_of(main, (mirror.home, *homes))
     said = [
         step.would(main, mirror)
         for step in plan(main, mirror, usage)
         if step.kind != "json" or step.keys
     ]
-    found = _read(mirror.home / JSON)
-    if found is None:
-        return said, []
     target = mirror.home / JSON
-    lost, behind = lags(target, usage_of(target, found), usage, time.time() if now is None else now)
+    found = _read(target)
+    if usage is None or found is None:
+        return said, []
+    lost, behind = lags(target, usage_of(target, found), usage, now)
     return said + lost, behind
 
 
-def check(main: Main, mirror: Mirror, homes: tuple[Path, ...] = ()) -> list[str]:
-    """What `--check` finds wrong with one mirror: a line for each entry that differs."""
-    return review(main, mirror, homes)[0]
+def check(main: Main, mirror: Mirror) -> list[str]:
+    """What `--check` finds wrong with one mirror: a line for each entry that differs, against
+    the pool of every home providers.json declares, as `jroles mirror --check` reads it."""
+    try:
+        homes = [one.home for one in declared(main.config.parent) if one.home.is_dir()]
+    except Refused:
+        homes = []
+    usage = pool_of(main, tuple(dict.fromkeys([*homes, mirror.home])))
+    return review(main, mirror, usage, time.time())[0]
 
 
 def run(main: Main, mirror: Mirror, usage: dict | None = None) -> list[str]:
@@ -457,27 +464,17 @@ def main(argv: list[str]) -> int:
     if not home.home.is_dir():
         print(f"jroles mirror: {home.home} is missing", file=sys.stderr)
         return BROKEN
-    homes = tuple(one.home for one in every if one.home.is_dir())
-    told: set[str] = set()
-
-    def broken(error: Exception) -> int:
-        said = str(error) if isinstance(error, Refused) else f"jroles mirror: {error}"
-        if said not in told:
-            told.add(said)
-            print(said, file=sys.stderr)
-        return BROKEN
-
-    if args.check:
-        return _check(home, chosen, homes, main_too=not args.instance, broken=broken)
     try:
-        usage: dict | None = pool_of(home, homes)
+        usage: dict | None = pool_of(home, tuple(one.home for one in every if one.home.is_dir()))
     except (Refused, OSError) as error:
-        usage, code = None, broken(error)
+        usage, code = None, _broken(error)
+    if args.check:
+        return max(code, _check(home, chosen, usage, main_too=not args.instance))
     for one in chosen:
         try:
             said = run(home, one, usage)
         except (Refused, OSError) as error:
-            code = broken(error)
+            code = _broken(error)
             continue
         for line in said:
             print(line)
@@ -486,39 +483,34 @@ def main(argv: list[str]) -> int:
             for line in pool_main(home, usage):
                 print(line)
         except (Refused, OSError) as error:
-            code = broken(error)
+            code = _broken(error)
     return code
 
 
-def _check(
-    main: Main,
-    chosen: tuple[Mirror, ...],
-    homes: tuple[Path, ...],
-    main_too: bool,
-    broken: Callable[[Exception], int],
-) -> int:
-    """`--check`: each chosen mirror against the pool of every home, and `~/.claude.json`
-    with them unless one instance was asked for. A line that is only `pooling` is no drift."""
-    code = 0
-    if main_too:
+def _broken(error: Exception) -> int:
+    print(error if isinstance(error, Refused) else f"jroles mirror: {error}", file=sys.stderr)
+    return BROKEN
+
+
+def _check(main: Main, chosen: tuple[Mirror, ...], usage: dict | None, main_too: bool) -> int:
+    """`--check`: each chosen mirror against the pool, and `~/.claude.json` with them unless
+    one instance was asked for. A line that is only `pooling` is no drift, and with no pool, a
+    home's skillUsage being malformed, the rest is still read."""
+    code, now = 0, time.time()
+    if main_too and usage is not None:
         try:
             found = _read(main.config) or {}
-            lost, behind = lags(
-                main.config,
-                usage_of(main.config, found),
-                pool_of(main, homes),
-                time.time(),
-            )
+            lost, behind = lags(main.config, usage_of(main.config, found), usage, now)
         except (Refused, OSError) as error:
-            code, lost, behind = broken(error), [], []
+            code, lost, behind = _broken(error), [], []
         for line in lost + behind:
             print(line)
         code = code or (DRIFT if lost else 0)
     for one in chosen:
         try:
-            said, behind = review(main, one, homes)
+            said, behind = review(main, one, usage, now)
         except (Refused, OSError) as error:
-            code = broken(error)
+            code = _broken(error)
             continue
         for line in said + behind:
             print(line)
