@@ -82,7 +82,8 @@ DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
 PERIOD = (5 + 1 + 1) * 60
 """The longest a use waits to be pooled, in seconds: the 5 minutes of `OnUnitActiveSec` in
-`templates/jroles-mirror.timer`, its default `AccuracySec` of 1 minute, and 1 for the run."""
+`features/jroles/units/jroles-mirror.timer`, its default `AccuracySec` of 1 minute, and 1 for
+the run."""
 
 
 @dataclass(frozen=True)

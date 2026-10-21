@@ -86,8 +86,8 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
-| A window is full | `src/jroles/ledger.py:32` | `FULL = 100.0` | #111 | An instance is out only while a window is full | The provider's, not the machine's | Kept |
-| How old a ledger row may be | `src/jroles/ledger.py:33` | `BLIND = timedelta(hours=1)` | #111 | A stale row does not hold a launch | The provider's | Kept |
+| A window is full | `features/jroles/src/jroles/ledger.py:32` | `FULL = 100.0` | #111 | An instance is out only while a window is full | The provider's, not the machine's | Kept |
+| How old a ledger row may be | `features/jroles/src/jroles/ledger.py:33` | `BLIND = timedelta(hours=1)` | #111 | A stale row does not hold a launch | The provider's | Kept |
 
 ## Timers, waits and locks
 

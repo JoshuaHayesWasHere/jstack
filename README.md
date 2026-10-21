@@ -124,7 +124,7 @@ Each command has one page.
 | `jleak` | [features/jleak/docs/jleak.md](features/jleak/docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
 | `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
-| `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
+| `jroles` | [features/jroles/docs/jroles.md](features/jroles/docs/jroles.md) | Picks the model for a role from the role map. |
 <!-- generated: end -->
 
 `jinstall` and `install.sh` put the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.

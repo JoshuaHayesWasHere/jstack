@@ -47,7 +47,7 @@ packages = [
     "features/jleak/src/jleak",
     "src/jmerge",
     "src/jpack",
-    "src/jroles",
+    "features/jroles/src/jroles",
     "features/jsettings/src/jsettings",
 ]
 # end generated
@@ -78,6 +78,7 @@ testpaths = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
     "features/lessons/tests",
     "features/pr-review/tests",
@@ -91,6 +92,7 @@ testpaths = [
 pythonpath = [
     "features/jdrift/src",
     "features/jleak/src",
+    "features/jroles/src",
     "features/jsettings/src",
     "src",
     "tests",
@@ -98,6 +100,7 @@ pythonpath = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
     "features/lessons/tests",
     "features/pr-review/tests",
@@ -137,6 +140,7 @@ line-length = 100
 src = [
     "features/jdrift/src",
     "features/jleak/src",
+    "features/jroles/src",
     "features/jsettings/src",
     "src",
     "tests",
@@ -144,6 +148,7 @@ src = [
     "features/grilling/tests",
     "features/jdrift/tests",
     "features/jleak/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
     "features/lessons/tests",
     "features/pr-review/tests",

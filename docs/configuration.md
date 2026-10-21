@@ -37,7 +37,7 @@ headroom = 90
 | `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take, whose own message `--message` asks for, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `install.sh --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
-| `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
+| `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](../features/jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 
 Each value but `headroom` is one word with no space and no comma.
 A file with any other key, or with a `timezone` that is not an IANA name, is refused.
@@ -46,7 +46,10 @@ They do not fall back to the defaults.
 
 ## Roles
 
-`~/.config/jstack/roles` names the model each role's thread is launched on. It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment. It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest. The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](jroles.md#pools)).
+`~/.config/jstack/roles` names the model each role's thread is launched on.
+It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment.
+It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
+The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../features/jroles/docs/jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -56,7 +59,9 @@ They do not fall back to the defaults.
 | `home` | `inherit` | The model of the next home's thread. | `jroles`, for the `handoff` skill |
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
-`inherit` is the model of the thread that launches. [jroles](jroles.md) has the providers and an example. `install.sh --setup` writes the file once, where there is none, with every role `inherit`.
+`inherit` is the model of the thread that launches.
+[jroles](../features/jroles/docs/jroles.md) has the providers and an example.
+`install.sh --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
 
@@ -148,7 +153,7 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `ok hard layout <harness> <folder>` | The layout of Claude Code, Codex or Cursor is as the install assembles it from the checkout. For Codex and Cursor it says how many skills name a tool or path that harness leaves out, which the layout's `README.md` lists. |
 | `old hard layout <harness> <folder> -> stale: <path>` | A file of the layout is missing, differs, or was not made by the install, or a skill was added since: run `install.sh`. |
 
-Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](jroles.md#mirrors)).
+Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](../features/jroles/docs/jroles.md#mirrors)).
 The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
 
@@ -198,14 +203,14 @@ The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), whe
 
 ## The limits file
 
-The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
+The limits files are the ledger ([jroles](../features/jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
 `jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](jgauge.md)).
 `hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 An account the inventory does not declare writes nothing.
 `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
 All three merge by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
-`jgauge room` reads the file of each instance of the role's pool ([jroles](jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
+`jgauge room` reads the file of each instance of the role's pool ([jroles](../features/jroles/docs/jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
 `LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
 | Row | Meaning |

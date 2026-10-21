@@ -86,7 +86,7 @@ crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_claude_prime effort=me
 
 A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`.
 So every launch goes to `claudeAgent` until it nears a usage limit, then to `claudeAgent_claude_prime`, and back to `claudeAgent` once its window has reset.
-Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)).
+Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](../../../docs/jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)).
 One instance is a pool of one.
 A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
 
@@ -101,17 +101,20 @@ With both capped the thread is sent nothing: `jbus` says so once, as a `stall`, 
 
 For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_claude_prime with headroom`, or `jroles: crew on claudeAgent_claude_prime: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_claude_prime are both capped until ...`) and exits 75: the launch waits for the first reset.
 
-A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](configuration.md#provider-instances)), and one more id on the role line. Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance. With no inventory the line is taken as written. An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
+A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../../docs/configuration.md#provider-instances)), and one more id on the role line.
+Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance.
+With no inventory the line is taken as written.
+An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
 
 ## The ledger
 
 A usage limit, the five-hour or the weekly one, caps an instance until its window resets.
-The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](configuration.md#the-limits-file)).
-For a new launch an instance has headroom while none of its windows is at the user's `headroom` or over with its reset ahead, 90% by default ([configuration](configuration.md#jstack)).
+The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](../../../docs/configuration.md#the-limits-file)).
+For a new launch an instance has headroom while none of its windows is at the user's `headroom` or over with its reset ahead, 90% by default ([configuration](../../../docs/configuration.md#jstack)).
 A thread already running moves off its instance only at a real cap, 100% (`jbus`, "A usage limit").
-Three writers keep the ledger, by one rule (`src/jroles/ledger.py`): two resets under 5 minutes apart are one window, which keeps the larger share, and otherwise the later reset wins.
+Three writers keep the ledger, by one rule (`features/jroles/src/jroles/ledger.py`): two resets under 5 minutes apart are one window, which keeps the larger share, and otherwise the later reset wins.
 A writer floors its reset to the second, and the usage endpoint's moves a second either way between calls, so a lower share of a window never replaces a cap on it.
-`jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](jgauge.md)).
+`jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](../../../docs/jgauge.md)).
 The other two write only when something happens: the status line (`hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, at 100% from a turn T3 Code ended on a usage limit.
 A source that fails writes nothing, so the last line stands and a capped account is never read as free.
 `jgauge limits --check` and `install.sh --check` name a file 15 minutes old or more.
@@ -125,7 +128,7 @@ A role with no pool reads the file `LIMITS` names, as before, and `jgauge room -
 
 ## Mirrors
 
-A second Claude account runs as an instance of its own, in a home of its own: the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`, such as `~/.claude_prime` for `claudeAgent_claude_prime` ([configuration](configuration.md#provider-instances)).
+A second Claude account runs as an instance of its own, in a home of its own: the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`, such as `~/.claude_prime` for `claudeAgent_claude_prime` ([configuration](../../../docs/configuration.md#provider-instances)).
 A thread on it should know what a thread on `~/.claude` knows, and differ only in its login.
 `jroles mirror` keeps each such home a mirror of `~/.claude`: every Claude instance of `providers.json` whose home is not `~/.claude` is one, and nothing else in jstack names the homes.
 The instance ids and the homes are infra's, in `providers.json`; the code that mirrors them is jstack's.
@@ -134,7 +137,7 @@ What is shared is every entry of `~/.claude`, as a symlink in the mirror: `proje
 What is per login stays the mirror's own and is never linked: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.
 
 `<home>/.claude.json` stays a file, since it holds the account.
-Its account keys are kept: `oauthAccount`, `userID`, `cachedUsageUtilization` and every other `cached*` key, every key ending in `Cache` or `CacheAt`, and the rest of `ACCOUNT_KEYS` in `src/jroles/mirror.py`.
+Its account keys are kept: `oauthAccount`, `userID`, `cachedUsageUtilization` and every other `cached*` key, every key ending in `Cache` or `CacheAt`, and the rest of `ACCOUNT_KEYS` in `features/jroles/src/jroles/mirror.py`.
 Every other key is copied from `~/.claude.json`, such as `mcpServers`, and `projects` is merged project by project, with `~/.claude.json` winning.
 `skillUsage` is pooled instead, since every account is one user: for each skill, each field of its entry takes the highest value any home has, so the highest use count and the latest last-used time.
 A run writes the pool into `~/.claude.json` and into every mirror, and use in one account is never lost to another.
@@ -165,7 +168,7 @@ A home that lacks a skill whose last use is older than the timer's longest gap, 
 An entry of `skillUsage` that is not an object of numbers is said on stderr, `<file>: skillUsage <skill> is malformed`, and exits 2: a run then pools nothing until it is mended.
 A mirror with nothing to do prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.
-`templates/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
+`features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
 `install.sh --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while it differs.
 
 Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.

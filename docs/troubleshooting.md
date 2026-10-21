@@ -139,9 +139,9 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 
 ## A launch waits on a usage limit
 
-`jroles <role>` and `jbus` launch on the first instance of the role's pool with headroom in the ledger ([jroles](jroles.md#pools)).
-`jgauge room` holds a launch on the plan only while every instance of that pool is full ([jroles](jroles.md#the-ledger)).
-A thread already out moves only when its turn fails on a usage limit, and then to the first instance of its pool with headroom ([jroles](jroles.md#pools)).
+`jroles <role>` and `jbus` launch on the first instance of the role's pool with headroom in the ledger ([jroles](../features/jroles/docs/jroles.md#pools)).
+`jgauge room` holds a launch on the plan only while every instance of that pool is full ([jroles](../features/jroles/docs/jroles.md#the-ledger)).
+A thread already out moves only when its turn fails on a usage limit, and then to the first instance of its pool with headroom ([jroles](../features/jroles/docs/jroles.md#pools)).
 To see what a cap would do to one thread, replay a recorded one: `jbus failover --replay <items.json> --thread <id> --dry-run` prints the move and writes nothing, and without `--dry-run` it makes the move.
 
 | Line | Meaning | Do this |

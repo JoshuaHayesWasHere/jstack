@@ -39,6 +39,8 @@ SWEPT = (
     "conftest.py",
     "templates/*.service",
     "templates/*.timer",
+    "features/*/units/*.service",
+    "features/*/units/*.timer",
     "templates/*.html",
     "features/*/templates/*.html",
     "src/jmerge/*.txt",
@@ -190,6 +192,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     assert {
         "templates/jbus.service",
         "templates/jbus.timer",
+        "features/jroles/units/jroles-mirror.timer",
         "features/grilling/templates/grill-page.html",
         "src/jmerge/protected.txt",
         "src/jmerge/guarded.txt",

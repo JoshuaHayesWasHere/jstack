@@ -1,5 +1,6 @@
-"""The systemd units of `templates/`: systemd takes each one's documentation, a section of
-docs/ that is there, and an exit status a unit names is the one its program exits with."""
+"""The systemd units of `templates/` and of each feature's `units/`: systemd takes each one's
+documentation, a section of the docs beside it that is there, and an exit status a unit names
+is the one its program exits with."""
 
 import configparser
 import re
@@ -11,21 +12,27 @@ import pytest
 
 from testing.paths import REPO
 
-TEMPLATES = REPO / "templates"
-DOCS = REPO / "docs"
-UNITS = sorted(path.name for path in TEMPLATES.iterdir() if path.suffix in (".service", ".timer"))
+PATHS = {
+    path.name: path
+    for folder in ("templates", "features/*/units")
+    for path in REPO.glob(f"{folder}/*")
+    if path.suffix in (".service", ".timer")
+}
+UNITS = sorted(PATHS)
 DOCUMENTED = re.compile(r"file:%Y/\.\./docs/([a-z/-]+\.md)#([a-z0-9-]+)")
 
 
 def unit(name):
     read = configparser.ConfigParser(interpolation=None, strict=False)
     read.optionxform = str
-    read.read(TEMPLATES / name)
+    read.read(PATHS[name])
     return read
 
 
-def anchors(page):
-    headings = re.findall(r"^#+ (.+)$", (DOCS / page).read_text(), re.M)
+def anchors(name, page):
+    """The sections of `page` in the docs `%Y/../docs/` names: beside the folder of `name`."""
+    docs = PATHS[name].parent.parent / "docs"
+    headings = re.findall(r"^#+ (.+)$", (docs / page).read_text(), re.M)
     return {re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings}
 
 
@@ -58,7 +65,7 @@ def test_each_unit_names_the_section_of_the_docs_that_says_what_it_does(name, tm
     for uri in documentation.split():
         found = DOCUMENTED.fullmatch(uri)
         assert found, f"{name}: {uri} is not file:%Y/../docs/<page>.md#<section>"
-        assert found[2] in anchors(found[1]), f"{name}: docs/{found[1]} has no section #{found[2]}"
+        assert found[2] in anchors(name, found[1]), f"{name}: {found[1]} has no section #{found[2]}"
     if not shutil.which("systemd-analyze"):
         pytest.skip("no systemd-analyze on PATH")
     probe = tmp_path / name.replace(".timer", ".service")

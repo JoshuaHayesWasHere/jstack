@@ -10,7 +10,7 @@ Paths:
 - `src/jgauge/`
 - `src/jmerge/`
 - `src/jpack/`
-- `src/jroles/`
+- `features/jroles/src/jroles/`
 - `features/jsettings/`
 - `docs/jbus.md`
 - `docs/chef.md`
