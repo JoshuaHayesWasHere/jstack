@@ -10,11 +10,11 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPT = "scripts/generate-jstack-trees.py"
 COPY = "harness/jstack/claude-code"
 sys.path.insert(0, str(REPO / "scripts"))
@@ -172,6 +172,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     )
     assert "features/foo/src" in project["tool"]["pytest"]["ini_options"]["pythonpath"]
     assert "features/foo/tests" in project["tool"]["pytest"]["ini_options"]["testpaths"]
+    assert "features/foo/tests" in project["tool"]["pytest"]["ini_options"]["pythonpath"]
     assert "features/foo/tests" in project["tool"]["ruff"]["src"]
     readme = (copy / "README.md").read_text()
     assert "| `foo` | [features/foo/docs/foo.md](features/foo/docs/foo.md) | Does foo. |" in readme

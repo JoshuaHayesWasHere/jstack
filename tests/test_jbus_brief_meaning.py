@@ -3,7 +3,6 @@ to its wording. Run as `tests/test_jbus_queue.py` runs: the real command and the
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -11,6 +10,7 @@ from jbriefs import meaning, parse
 from jbus import queue
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import gates, go, rows
+from testing.paths import REPO
 
 APPROVED = """\
 # alpha: a brief whose go is kept
@@ -214,7 +214,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
 
 
 def test_queue_add_refuses_the_template_as_it_stands_with_a_fault_for_each_field(kitchen):
-    template = (Path(__file__).parents[1] / "templates" / "brief.md").read_text()
+    template = (REPO / "templates" / "brief.md").read_text()
     code, said = add(kitchen, template)
     assert code == 1
     faults = said.splitlines()[1:]
@@ -316,7 +316,7 @@ def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest
 
 
 def test_the_two_lists_hold_every_field_the_template_names_once():
-    template = (Path(__file__).parents[1] / "templates" / "brief.md").read_text()
+    template = (REPO / "templates" / "brief.md").read_text()
     labels = [label for label, _ in parse.fields(template) if label not in ("", parse.REST)]
     assert labels
     assert not set(meaning.MEANING) & set(meaning.NOT_MEANING)

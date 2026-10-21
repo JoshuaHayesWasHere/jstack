@@ -8,9 +8,10 @@ from datetime import timedelta
 
 import pytest
 
-from crew.helpers import BRIEF, SKILL, said
+from crew.helpers import BRIEF, said
 from test_home_thread import as_read
 from test_jbus_kitchen import NOW, Kitchen
+from testing.paths import REPO
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
 def where_the_findings_go(home):
     """What step 4 of the pr-review skill's "After the review" prints, then whom its
     "Telling the home" finds, for the brief `alpha` in a home's state directory."""
-    skill = as_read(SKILL.parent.parent / "pr-review" / "SKILL.md")
+    skill = as_read(REPO / "skills" / "pr-review" / "SKILL.md")
     printed = []
     for heading, about in (
         ("### After the review", "crewmate $thread"),

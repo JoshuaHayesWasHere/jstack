@@ -1,11 +1,11 @@
 import os
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SKILLS = REPO / "skills"
 LOG = SKILLS / "show-me-your-work" / "scripts" / "log.sh"
 RUNS = SKILLS / "benchmark-checklist" / "scripts" / "runs.sh"

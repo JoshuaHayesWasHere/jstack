@@ -11,11 +11,11 @@ import jbus
 from jbus import threads
 from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
 from test_jbus_queue import add, gates
+from testing.paths import REPO as ROOT
 
 THREAD = "mcp:thread-1"
 
 
-ROOT = Path(__file__).parents[1]
 SKILLS = {"crew: alpha": "crew", "review: alpha, scoped": "pr-review", "scout: alpha": "scout"}
 
 

@@ -12,7 +12,6 @@ the package that is a git checkout of its own, as the installed one is. The copy
 import shutil
 import sys
 from datetime import UTC, date, datetime
-from pathlib import Path
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
@@ -22,8 +21,9 @@ import jsettings
 import test_home_merge as merge
 from jbus import merge as jbus_merge
 from jmerge import cli, rangediff, ready
+from testing.paths import REPO
 
-SOURCE = Path(__file__).parent.parent / "src" / "jmerge"
+SOURCE = REPO / "src" / "jmerge"
 LISTED = "acceptance/\n.github/workflows/\nsrc/jmerge/\nsrc/jbus/\nskills/\n"
 GUARDED = ready.patterns_of(LISTED)
 CI = ready.patterns_of((SOURCE / "ci-paths.txt").read_text())

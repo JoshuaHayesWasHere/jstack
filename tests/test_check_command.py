@@ -42,8 +42,8 @@ from pathlib import Path
 import pytest
 
 from jgauge import sizes
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]

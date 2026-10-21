@@ -22,8 +22,8 @@ from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 from test_room import BIN, IDLE, machine, says, uv
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "pr-review" / "SKILL.md"
 INTERROGATE = REPO / "skills" / "interrogate"
 BLAST_RADIUS = REPO / "skills" / "blast-radius" / "SKILL.md"

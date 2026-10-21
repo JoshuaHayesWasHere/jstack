@@ -12,7 +12,8 @@ would find in its place.
 
 from pathlib import Path
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 CAP = 1500
 ALLOWED = {"tests/test_pr_review_skill.py"}
 

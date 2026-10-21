@@ -2,13 +2,11 @@
 file beside it that one trigger line in the SKILL.md says to read now. One level deep: a side
 file holds no trigger line of its own."""
 
-from pathlib import Path
-
 import pytest
 
 from test_home_thread import NAMED, named
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 CAP = 400
 ROLES = REPO / "skills"
 OVER = {ROLES / "handoff"}

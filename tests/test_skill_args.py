@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SKILLS = sorted((REPO / "skills").glob("*/*.md"))
 
 TYPED = {

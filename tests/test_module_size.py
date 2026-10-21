@@ -7,7 +7,9 @@ that is cut under the cap leaves the list, so the list only shrinks, and none is
 
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[1] / "src"
+from testing.paths import REPO
+
+SRC = REPO / "src"
 CAP = 800
 OVER = {
     "jbus/questions.py": 860,

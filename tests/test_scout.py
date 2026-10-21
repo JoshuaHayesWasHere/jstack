@@ -2,11 +2,11 @@ import os
 import re
 import subprocess
 import textwrap
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SKILL = REPO / "skills" / "scout" / "SKILL.md"
 TEMPLATES = REPO / "templates"
 NAME = "a demo repo"

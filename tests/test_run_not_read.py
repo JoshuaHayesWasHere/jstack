@@ -30,8 +30,9 @@ from pathlib import Path
 
 import pytest
 
+from testing.paths import REPO
+
 TESTS = Path(__file__).parent
-REPO = TESTS.parent
 DOCS = ("skills", "playbooks", "principles", "templates")
 DOC_PATH = re.compile(rf"^(\.*/)*({'|'.join(DOCS)})(/|$)|/({'|'.join(DOCS)})/")
 FILE_NAME = re.compile(r"^[\w.*/-]*\.(md|py|sh|json|toml|txt|yml|yaml|html|css|js)$")
@@ -383,7 +384,7 @@ def test_no_test_added_or_changed_on_this_branch_reads_words_and_runs_nothing():
 WORDS_ONLY = """
 from pathlib import Path
 
-SKILL = Path(__file__).parent.parent / "skills" / "crew" / "SKILL.md"
+SKILL = REPO / "skills" / "crew" / "SKILL.md"
 
 
 def sections():
@@ -549,7 +550,7 @@ def test_a_lint_parametrized_over_file_names_has_no_words_of_its_own():
 def test_a_lint_over_every_doc_with_no_words_of_its_own_passes():
     lint = """
     from pathlib import Path
-    REPO = Path(__file__).parent.parent
+    REPO = REPO
 
     def test_lint_every_skill_names_itself():
         skills = sorted(REPO.glob("skills/*/SKILL.md"))

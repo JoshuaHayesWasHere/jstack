@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 
@@ -20,8 +19,8 @@ from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 from test_pr_review_skill import ASKED, block
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
 REVIEW = "\n## Review\nVerdict: findings\nHead: {saw}\nFindings:\n- minor a.py:1 a made up one\n"

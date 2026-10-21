@@ -8,7 +8,6 @@ gate they are merged under, and the list they are read from here, since the ship
 import re
 import shutil
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -16,8 +15,9 @@ import jsettings
 import test_home_merge as merge
 from jmerge import ready
 from test_jmerge_guarded import GUARDED
+from testing.paths import REPO
 
-SOURCE = Path(__file__).parent.parent / "src" / "jmerge"
+SOURCE = REPO / "src" / "jmerge"
 PATTERNS = ready.patterns_of((SOURCE / "protected.txt").read_text())
 
 PATHS = [

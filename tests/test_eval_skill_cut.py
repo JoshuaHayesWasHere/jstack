@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 
 from jbriefs import skills
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 EVAL = REPO / "evals" / "skill-cut"
 
 

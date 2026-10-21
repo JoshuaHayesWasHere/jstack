@@ -11,14 +11,14 @@ import shutil
 import subprocess
 import textwrap
 from datetime import date, datetime
-from pathlib import Path
 
 import pytest
 
 import repo_template
 from test_home_thread import as_read
+from testing.paths import REPO
 
-SKILL = Path(__file__).parent.parent / "skills" / "home" / "SKILL.md"
+SKILL = REPO / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "a demo repo"
 URL = "https://example.test/pull/7"
@@ -74,7 +74,7 @@ LIST = (
 ME = "mcp:this-home"
 OTHER = "mcp:another-home"
 
-NOHOME = SKILL.parent.parent / "nohome" / "SKILL.md"
+NOHOME = REPO / "skills" / "nohome" / "SKILL.md"
 
 GH = """\
 #!/bin/sh
@@ -194,7 +194,7 @@ class Home:
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(SKILL.parent.parent)
+        (self.user / ".claude" / "skills").symlink_to(REPO / "skills")
         self.tasks = self.user / ".local" / "state" / "home" / NAME / "tasks"
         self.tasks.mkdir(parents=True)
         self.state = self.tasks.parent

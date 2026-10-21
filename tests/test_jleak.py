@@ -13,8 +13,8 @@ from pathlib import Path
 import pytest
 
 import jleak
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 WORD = "zorblat"
 PRIVATE = f"[patterns]\ncodename = '{WORD}'\nburrow = '/burrow/quill(?![\\w-])'\n"
 KEYS = {

@@ -11,6 +11,7 @@ import test_tool_calls as tools
 from crew.helpers import BRIEF, ROLLUPS, SKILL, block, git, said, sections, stub_gh
 from jmerge import ready
 from test_home_thread import as_read
+from testing.paths import REPO
 
 
 class Pushed:
@@ -40,7 +41,7 @@ class Pushed:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
-                "T": str(SKILL.parent.parent.parent / "templates"),
+                "T": str(REPO / "templates"),
             },
             check=True,
         )
@@ -70,7 +71,7 @@ def test_checks_that_did_not_run_are_not_green_whatever_the_result_says_stood_in
 
 
 def test_the_result_has_a_line_for_checks_that_did_not_run_and_none_that_stands_in(tmp_path):
-    template = (SKILL.parent.parent.parent / "templates" / "result.md").read_text()
+    template = (REPO / "templates" / "result.md").read_text()
     starts = [line.split("<")[0] for line in template.splitlines()]
     assert "Unrun: at " in starts
     assert not [start for start in starts if start.startswith("CI:")]

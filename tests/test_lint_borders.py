@@ -8,11 +8,11 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 SCRIPT = REPO / "scripts" / "lint-borders.py"
 GIT = {
     "GIT_AUTHOR_NAME": "t",

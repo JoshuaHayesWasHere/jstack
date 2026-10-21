@@ -63,6 +63,7 @@ import pytest
 
 from jbus import questions
 from test_jbus_kitchen import GATE as PIPED
+from testing.paths import REPO
 from view.scene import (
     GATE,
     REPORTED,
@@ -102,7 +103,7 @@ STOPPED = (124, 137)
 BROWSES = 5
 
 
-FONTS = Path(__file__).parent.parent.parent / "fixtures" / "jbus-view" / "fonts.conf"
+FONTS = REPO / "tests" / "fixtures" / "jbus-view" / "fonts.conf"
 
 
 DESK, PHONE = (1440, 900), (390, 844)
@@ -182,7 +183,7 @@ FORTY = TODAY | {"blocked": 8, "running": 8, "gate": 2, "result": 2, "review": 3
 FORTY |= {"second": 2, "check": 2, "rebase": 2, "hold": 1}
 
 
-PROBE = (Path(__file__).parent.parent.parent / "fixtures" / "jbus-view" / "probe.js").read_text()
+PROBE = (REPO / "tests" / "fixtures" / "jbus-view" / "probe.js").read_text()
 
 
 def slugs():

@@ -5,11 +5,11 @@ folder in a temporary directory, by itself and by the block the `expert-study` p
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 LINT = REPO / "src" / "jpack" / "lint-notes.sh"
 PLAYBOOK = REPO / "playbooks" / "expert-study.md"
 

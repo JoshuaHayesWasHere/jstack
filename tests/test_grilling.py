@@ -1,12 +1,11 @@
 """The grilling skill: the home's pointer to it resolves, and its round format is a round."""
 
 import re
-from pathlib import Path
 
 from test_home_thread import as_read
 from test_writing import skill_problems
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 SKILL = REPO / "skills" / "grilling" / "SKILL.md"
 HOME = REPO / "skills" / "home" / "SKILL.md"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"

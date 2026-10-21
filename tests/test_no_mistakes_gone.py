@@ -10,7 +10,8 @@ remote are removed.
 import subprocess
 from pathlib import Path
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 READ = ("skills", "templates", "playbooks", "docs", "README.md")
 GONE = ("no-mistakes", "review+test", "full run: reviewer")
 

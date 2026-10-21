@@ -7,7 +7,6 @@ import json
 import os
 import subprocess
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -15,8 +14,6 @@ import pytest
 from jgauge import slot, waiters
 from test_machine_sizes import fake_proc
 from test_room import BIN
-
-REPO = Path(__file__).parent.parent
 
 THREAD = "mcp:thread-9"
 NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)

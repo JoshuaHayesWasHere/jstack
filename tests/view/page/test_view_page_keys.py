@@ -1,9 +1,8 @@
 """The glossary, the keys and axe over every view."""
 
-from pathlib import Path
-
 import pytest
 
+from testing.paths import REPO
 from view.page.browser import (
     BROWSES,
     DESK,
@@ -55,7 +54,7 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
     assert seen["stack"]["shown"], "the glossary is over every project"
 
 
-AXE = Path(__file__).parent.parent.parent / "fixtures" / "jbus-view"
+AXE = REPO / "tests" / "fixtures" / "jbus-view"
 
 
 AXE = (AXE / "axe.min.js").read_text() + "\n" + (AXE / "axe-run.js").read_text()

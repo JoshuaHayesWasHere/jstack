@@ -10,13 +10,12 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 
 import pytest
 
 from test_understanding_skills import block, blocks, git
+from testing.paths import REPO
 
-REPO = Path(__file__).parent.parent
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
     'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "first"\n'

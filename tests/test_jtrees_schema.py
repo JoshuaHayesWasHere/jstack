@@ -5,12 +5,12 @@
 import importlib
 import json
 import sys
-from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 sys.path.insert(0, str(REPO / "scripts"))
 
 schema = importlib.import_module("jtrees.schema")

@@ -28,11 +28,11 @@ import re
 import shlex
 import tomllib
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).parent.parent
+from testing.paths import REPO
+
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 PAGES = (README, *sorted(DOCS.glob("**/*.md")))
