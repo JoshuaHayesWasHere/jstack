@@ -327,21 +327,18 @@ def test_the_copy_holds_each_skill_playbook_principle_template_unit_and_hook(cop
         assert filecmp.cmp(copied / plugin, copy / "plugin.json", shallow=False)
     assert (copied / "README.md").is_file()
     assert (copy / "harness/jstack/pythonpath").read_text() == "src\n"
-    assert generate(REPO, "--check").returncode == 0
-
-
-def test_the_copys_skills_json_lists_what_the_checkouts_does_each_path_a_file_of_the_copy():
-    root = json.loads((REPO / "skills.json").read_text())["items"]
-    copied = json.loads((REPO / COPY / "skills.json").read_text())["items"]
-    assert [(one["kind"], one["name"]) for one in copied] == [
+    root = json.loads((copy / "skills.json").read_text())["items"]
+    listed = json.loads((copied / "skills.json").read_text())["items"]
+    assert [(one["kind"], one["name"]) for one in listed] == [
         (one["kind"], one["name"]) for one in root
     ]
-    for one in copied:
-        assert (REPO / COPY / one["path"]).is_file(), one
-    pairs = {(one["kind"], one["name"]): one["path"] for one in copied}
+    for one in listed:
+        assert (copied / one["path"]).is_file(), one
+    pairs = {(one["kind"], one["name"]): one["path"] for one in listed}
     assert pairs["skill", "crew"] == "skills/crew/SKILL.md"
     assert pairs["playbook", "feature"] == "playbooks/feature.md"
     assert pairs["template", "jbus.timer"] == "templates/jbus.timer"
+    assert generate(REPO, "--check").returncode == 0
 
 
 def test_the_wheel_takes_the_copy_whole_as_shared_data_and_jinstall_as_a_command():

@@ -1128,10 +1128,6 @@ def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user,
     assert first("--check")[1] == CURRENT
 
 
-# A release: the wheel `uv build` makes from this checkout, installed by uv into a tool
-# directory of its own under the test's temporary directory, so no checkout of jstack is on
-# any parent path of the tool, its copy or the HOME it runs under.
-
 PACKAGES = ("jbriefs", "jbus", "jdrift", "jgauge", "jinstall", "jleak", "jmerge", "jpack")
 PACKAGES += ("jroles", "jsettings")
 
@@ -1154,7 +1150,9 @@ def wheel(tmp_path_factory):
 
 
 class Release:
-    """The wheel as `uv tool install <wheel>` leaves it, and a HOME to run its commands under."""
+    """A release: the wheel `uv build` makes from this checkout, as `uv tool install <wheel>`
+    leaves it in a tool directory of its own under the test's temporary directory, so no
+    checkout of jstack is on any parent path of the tool, its copy or the HOME it runs under."""
 
     def __init__(self, root, wheel):
         self.root, self.tools, self.bin = root, root / "tools", root / "bin"

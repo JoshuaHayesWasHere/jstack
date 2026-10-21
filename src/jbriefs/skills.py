@@ -43,8 +43,6 @@ from typing import Any
 
 CATALOG = "skills.json"
 MARKER = "pyproject.toml"
-# Where a release's wheel puts the harness copy, under the environment it is installed into
-# (scripts/jtrees/outputs/harness.py writes it into pyproject.toml).
 PACKAGED = "share/jstack/claude-code"
 NAMEABLE = ("skill", "principle")
 ALIAS = "principle-"
@@ -104,8 +102,9 @@ def checkout() -> Path | None:
 
 def packaged() -> Path | None:
     """The harness copy a release's wheel installs under the environment this runs in,
-    `PACKAGED`, whose `skills.json` gives each path from the copy itself. None where it is
-    not there."""
+    `PACKAGED` (its shared data, which scripts/jtrees/outputs/harness.py writes into
+    pyproject.toml), whose `skills.json` gives each path from the copy itself. None where it
+    is not there."""
     copy = Path(sys.prefix) / PACKAGED
     return copy if (copy / CATALOG).is_file() else None
 
