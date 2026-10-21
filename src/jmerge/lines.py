@@ -70,8 +70,7 @@ def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) 
 
 NOT_REINSTALLED = "the tool {tool} was not reinstalled after its package list changed ({why})"
 UNFOLLOWED = re.compile(
-    re.escape(NOT_REINSTALLED).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?")
-    + "(?=, revert: )"
+    re.escape(NOT_REINSTALLED).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?") + "(?=, )"
 )
 
 

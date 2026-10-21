@@ -410,7 +410,9 @@ UNFOLLOWED = (
 
 
 def test_a_merge_whose_tool_was_not_reinstalled_is_an_alert(kitchen):
-    kitchen.set("jmerge.txt", f'merged 7 alpha abc1234 "a move", {UNFOLLOWED}, revert: x\n')
+    kitchen.set(
+        "jmerge.txt", f'merged 7 alpha abc1234 "a move", {UNFOLLOWED}, kept: y, revert: x\n'
+    )
     kitchen.poll()
     assert kitchen.lines("alert") == [f"alert: demo: {UNFOLLOWED}"]
     assert loud(kitchen) == [f"alert: demo: {UNFOLLOWED}"]
