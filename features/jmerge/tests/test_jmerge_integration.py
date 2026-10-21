@@ -6,7 +6,7 @@ branch is kept. With no such file a pull request into another branch is held, as
 (`tests/test_home_merge.py`).
 
 The command is run against a real origin and a fake `gh` whose merge goes into the pull
-request's own base, as `tests/test_jmerge_fresh.py` runs it."""
+request's own base, as `features/jmerge/tests/test_jmerge_fresh.py` runs it."""
 
 import json
 

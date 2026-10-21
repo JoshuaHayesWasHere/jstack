@@ -114,9 +114,9 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 | A wake's quiet gap | `src/jbus/wake.py:78` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
 | A pass's command | `src/jbus/wake.py:80` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
 | jmerge in a pass | `src/jbus/wake.py:81` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over jmerge's own 15 min | Kept |
-| jmerge's own run | `src/jmerge/cli.py:220` | `    TIMEOUT = 15 * 60` | Before this repo's history | jmerge ends under the pass's limit | Design choice | Kept |
-| jmerge's judge | `src/jmerge/cli.py:80` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
-| Judged again | `src/jmerge/cli.py:79` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
+| jmerge's own run | `features/jmerge/src/jmerge/cli.py:220` | `    TIMEOUT = 15 * 60` | Before this repo's history | jmerge ends under the pass's limit | Design choice | Kept |
+| jmerge's judge | `features/jmerge/src/jmerge/cli.py:80` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
+| Judged again | `features/jmerge/src/jmerge/cli.py:79` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
 | Rows that share files | `src/jbus/dispatch.py:50` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
@@ -125,7 +125,7 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 | Passes before an expedite | `src/jbus/expedite.py:81` | `AFTER = 3` | Before this repo's history | A crew is told what to do | Design choice | Kept |
 | A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:44` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
 | A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:45` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
-| GitHub's file list | `src/jmerge/ready.py:150` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2 | No merge with files nobody saw: GitHub lists at most 100 | GitHub's limit, not the machine's | Kept |
+| GitHub's file list | `features/jmerge/src/jmerge/ready.py:150` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2 | No merge with files nobody saw: GitHub lists at most 100 | GitHub's limit, not the machine's | Kept |
 | The heavy-suite lock | `~/.local/state/locks/heavy-suite.lock` | One at a time | Before this repo's history | A heavy suite runs alone on the machine | Design choice | Kept |
 | The browser lock | `~/.local/state/locks/browser.lock` | One at a time | Before this repo's history | One browser test at a time | Design choice | Kept |
 

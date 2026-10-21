@@ -54,8 +54,9 @@ OFF_STEP = (ready.OTHER_HOME, ready.DRAFT)
 TOLD = (
     "jbus: the view cannot place {slug}. jmerge said of its pull request #{number} `{said}`, "
     "and `merge.rules` in src/jbus/merge.py has no rule for it, so it shows in the Unknown "
-    "lane. Brief the fix and queue it: the reason as a named `Reason` in src/jmerge/ready.py, "
-    "which names the step it puts it on. {user} is not asked: send {user} "
+    "lane. Brief the fix and queue it: the reason as a named `Reason` in "
+    "features/jmerge/src/jmerge/ready.py, which names the step it puts it on. {user} is not "
+    "asked: send {user} "
     "nothing about it. A question only {user} can answer is a gate: take the default and pipe "
     "it to `jbus gate <the fix's slug>`."
 )

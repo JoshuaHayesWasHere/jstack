@@ -355,7 +355,7 @@
       <tr><td><code>jmerge --checks [&lt;pr&gt;]</code></td><td>On each wake about a pull request's checks, and before a review is launched</td><td>Its checks in one line: <code>passed</code>, <code>failed</code>, <code>wait</code> or <code>unrun</code></td><td>Nothing</td></tr>
     </tbody>
   </table>
-  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code> has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>src/jmerge/sweep.py</code>.</p></details>
+  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code> has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
 </section>
 
 <section>

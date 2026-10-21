@@ -1,10 +1,10 @@
 """`jmerge` judges a pull request's green against what main changed since its check started:
-its own files and CI's (`tests/test_jmerge_fresh.py`), and since pstack #613 a caller of its
-files or something they depend on, in files it does not change. Such a pull request waits
-for a fresh check, which runs the repo's command on the head merged over today's main and
-merges on a pass.
+its own files and CI's (`features/jmerge/tests/test_jmerge_fresh.py`), and since pstack #613
+a caller of its files or something they depend on, in files it does not change. Such a pull
+request waits for a fresh check, which runs the repo's command on the head merged over
+today's main and merges on a pass.
 
-The command is run against a real origin, as in `tests/test_jmerge_fresh.py`."""
+The command is run against a real origin, as in `features/jmerge/tests/test_jmerge_fresh.py`."""
 
 import pytest
 

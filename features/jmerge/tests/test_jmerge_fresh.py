@@ -2,7 +2,7 @@
 check started before main changed one of its files, or a file CI reads, waits for a fresh
 check: the repo's own command on the head merged over today's main, where the repo asks for
 it, and otherwise a rebase. A rebase that dropped a line waits on its crew to say why
-(`tests/test_jmerge_drops.py`), and a branch that moved after its merge is kept.
+(`features/jmerge/tests/test_jmerge_drops.py`), and a branch that moved after its merge is kept.
 
 The command is run against a real origin with several crewmates' worktrees, and a fake `gh`
 whose merge is a squash of the head over the origin's main."""

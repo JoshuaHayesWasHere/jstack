@@ -3,7 +3,7 @@ review of the head the fix pushed. It merges once the first review's findings ar
 its `Fixed:` line is pushed and the second review is written: what that review finds goes to
 a cleanup row (`jbus cleanup`) and never holds the merge. Driven through `ready.short_of`,
 the reader the merge goes by, and through `jmerge` itself against a real origin and a fake
-`gh` (`tests/test_jmerge_fresh.py`)."""
+`gh` (`features/jmerge/tests/test_jmerge_fresh.py`)."""
 
 import jsettings
 from jmerge import ready

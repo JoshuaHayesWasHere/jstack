@@ -2,8 +2,8 @@
 answers, T3 Code answers and jbus passes within the bounds below, walked breadth first, with
 the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.rows.red` as jmerge's read.
 
-The two properties, from the rule "Main is not red" in `docs/jmerge.md`, checked on the
-record after every pass:
+The two properties, from the rule "Main is not red" in `features/jmerge/docs/jmerge.md`, checked
+on the record after every pass:
 
 - **S1, no merge onto a known red main.** When the newest tip whose check has settled
   (`mainjson.SETTLED`: `green` or `failed`) failed, `rows.red` is not empty for a slug
@@ -30,7 +30,7 @@ What one step is, in the code:
   It may fall between any two passes, and it sees a whole record, never a half-written
   one: `write_json` writes a temporary file and `os.replace`s it (`src/jbus/__init__.py:
   434-444`). It is allowed only where `rows.red(mainjson.read(state), "beta")` is empty
-  (`src/jmerge/rows.py:84-87`).
+  (`features/jmerge/src/jmerge/rows.py:84-87`).
 - **lands, another merge**: a merge that does not ask `rows.red`: the fix `main-red-<sha12>`,
   a merge by hand, or `--accept`. Always allowed.
 - **settles**: a pending tip's check ends, as `watch._check` answers
@@ -81,7 +81,7 @@ from jbus.t3 import T3Error, T3Refused
 from jbus.watch import World
 from jmerge import mainjson, rows
 
-RULE = "docs/jmerge.md"
+RULE = "features/jmerge/docs/jmerge.md"
 TIPS = 4
 EVENTS = 10
 MERGED = "beta"

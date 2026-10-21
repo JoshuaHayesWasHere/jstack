@@ -2,9 +2,9 @@
 one scoped review. The verdict is `git range-diff`'s, read in real repos: a branch reviewed
 at one head, a default branch that moved, and the branch rebased onto it.
 
-`jmerge` is then run as `tests/test_jmerge_guarded.py` runs it, against `test_home_merge`'s
-fake `gh` and real origin, for a pull request that changes a guarded path and one that
-does not: the rule is the same for both."""
+`jmerge` is then run as `features/jmerge/tests/test_jmerge_guarded.py` runs it, against
+`test_home_merge`'s fake `gh` and real origin, for a pull request that changes a guarded path
+and one that does not: the rule is the same for both."""
 
 import subprocess
 from datetime import date

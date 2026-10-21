@@ -9,7 +9,7 @@ Paths:
 - `src/jbus/*.py`
 - `features/jbriefs/src/jbriefs/`
 - `features/jgauge/src/jgauge/`
-- `src/jmerge/`
+- `features/jmerge/src/jmerge/`
 - `features/jpack/src/jpack/`
 - `features/jleak/src/jleak/`
 - `features/jleak/hooks/`
@@ -78,7 +78,7 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 - **See every link resolve into the wheel.** Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`. It prints only `checked`, but for the same two written files.
 
 From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it.
-`jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `tests/test_jmerge_follow.py` drives the run it makes after one.
+`jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `features/jmerge/tests/test_jmerge_follow.py` drives the run it makes after one.
 
 - **Clone at the commit before #202, which moved pr-review into `features/`.** Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" && git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413~1 && git clone -q -b main "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" "$VERIFY_JSTACK_SANDBOX/jstack" && cd "$VERIFY_JSTACK_SANDBOX/jstack"`.
 - **Install from it.** Run `record install-skills sh install.sh`. Every layout line is `ok`, and `readlink -f "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.

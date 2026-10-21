@@ -29,7 +29,7 @@ Three things come to you. Everything else that is reversible is done without ask
 
 - **An approval.** You give a yes to that exact brief.
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
-- **A held pull request.** `jmerge` printed `hold`. You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](configuration.md#jstack). Add `--check` to see what it would do. It is refused without the review's proven safety fact. [jmerge](jmerge.md) has the rest.
+- **A held pull request.** `jmerge` printed `hold`. You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](configuration.md#jstack). Add `--check` to see what it would do. It is refused without the review's proven safety fact. [jmerge](../features/jmerge/docs/jmerge.md) has the rest.
 
 | Asked for | When | If you are away |
 |---|---|---|

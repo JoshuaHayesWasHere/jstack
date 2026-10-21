@@ -215,7 +215,7 @@ The work is not lost. The brief, the branch and the worktree are on disk, and th
 | Line | Meaning | Do this |
 |---|---|---|
 | `select_tests.py: git diff failed: fatal: ambiguous argument '<rev>': unknown revision or path not in the working tree.` | `<rev>` is no commit of this checkout. No lint and no test ran. | Run `git fetch origin`, or name the commit: `make check-fast BASE=$(git merge-base origin/main HEAD)`. |
-| `select_tests.py: nothing can be read (<error>), so all` | The script could not load jmerge's reading of a pattern from `src/`, or a module does not parse, so it runs the whole suite. | Read the error: an import that `src/jmerge` added needs no package beyond the standard library and `src/`, and a module must parse. |
+| `select_tests.py: nothing can be read (<error>), so all` | The script could not load jmerge's reading of a pattern from `src/`, or a module does not parse, so it runs the whole suite. | Read the error: an import that `features/jmerge/src/jmerge` added needs no package beyond the standard library and `src/`, and a module must parse. |
 
 The selection of each run is in its job summary, on one line: `check-fast selection=<all|some> files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n> forced-by=<path or ->`. The four counts are the files each cause selected on its own, so they overlap, and `forced-by` names the path that made it `all`.
 
