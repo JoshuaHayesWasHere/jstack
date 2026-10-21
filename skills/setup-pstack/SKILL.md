@@ -22,8 +22,10 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 C=
 for root in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
     S=$(realpath "$root/setup-pstack" 2> /dev/null) || continue
-    if [ -f "${S%/skills/setup-pstack}/install.sh" ]; then
-        C=${S%/skills/setup-pstack}
+    S=${S%/skills/setup-pstack}
+    S=${S%/harness/jstack/claude-code}
+    if [ -f "$S/install.sh" ]; then
+        C=$S
         break
     fi
 done

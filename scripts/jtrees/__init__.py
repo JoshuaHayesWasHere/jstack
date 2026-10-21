@@ -20,23 +20,26 @@ RUN = "python3 scripts/generate-jstack-trees.py"
 SHOWN = 20
 
 
-def build(root: Path) -> dict[str, bytes]:
+DIRS = tuple(folder for output in OUTPUTS for folder in getattr(output, "DIRS", ()))
+
+
+def build(root: Path) -> dict[str, check.File]:
     """Every output of the tree at `root`, by its path."""
     tree = crawl(root)
-    want: dict[str, bytes] = {}
+    want: dict[str, check.File] = {}
     for output in OUTPUTS:
         for path, content in output.render(tree).items():
             if path in want:
                 raise Invalid([f"{path}: two outputs write it"])
-            want[path] = content
+            want[path] = content if isinstance(content, check.File) else check.File(content)
     return want
 
 
 def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     parser = argparse.ArgumentParser(
         prog="generate-jstack-trees.py",
-        description="Write skills.json, the generated regions of pyproject.toml and the docs "
-        "indexes from features/.",
+        description="Write skills.json, the generated regions of pyproject.toml, the docs "
+        "indexes and the harness copy from features/.",
     )
     parser.add_argument(
         "--check", action="store_true", help="write nothing, and exit 1 naming each stale file"
@@ -46,10 +49,10 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
         want = build(root)
     except Invalid as invalid:
         for fault in invalid.faults:
-            print(f"invalid: {fault}", file=sys.stderr)
+            print(f"{invalid.prefix}{fault}", file=sys.stderr)
         return 2
     if args.check:
-        stale = check.diff(want, root)
+        stale = check.diff(want, root, DIRS)
         if not stale:
             return 0
         for path in stale[:SHOWN]:
@@ -58,9 +61,9 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
             print(f"and {len(stale) - SHOWN} more", file=sys.stderr)
         print(f"run {RUN} and commit the result", file=sys.stderr)
         return 1
-    written = check.write(want, root)
+    written = check.write(want, root, DIRS)
     for path in written:
-        print(f"wrote {path}")
+        print(f"wrote {path}" if path in want else f"removed {path}")
     if not written:
         print(f"current: {len(want)} files")
     return 0

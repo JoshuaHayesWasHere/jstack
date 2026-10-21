@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grill</title>
+<style>
+  :root { color-scheme: dark; --background:#0a0a0a; --foreground:#f5f5f5; --card:#111111; --muted-foreground:#8f8f8f; --border:#262626; --input:#1e1e1e; --primary:#346bf1; --primary-foreground:#ffffff; --warning:#fe9a00; --soft:#161616;
+    --font-sans:-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; --font-mono:"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; --radius:0.625rem; }
+  @media (prefers-color-scheme: light) {
+    :root { color-scheme: light; --background:#fcfcfc; --foreground:#27272a; --card:#ffffff; --muted-foreground:#71717b; --border:#e4e4e7; --input:#d4d4d8; --primary:#1b4ed8; --warning:#b45309; --soft:#f4f4f5; }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--background); color: var(--foreground); }
+  body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+  main { max-width: 880px; margin: 0 auto; padding: 24px 16px 140px; }
+  h1 { font-size: 1.9rem; line-height: 1.15; margin: 6px 0 10px; }
+  h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  h3 { font-size: 1rem; margin: 0 0 6px; }
+  section { margin-top: 36px; }
+  section[hidden] { display: none; }
+  p { margin: 0 0 10px; }
+  .lead { color: var(--muted-foreground); max-width: 70ch; }
+  .eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); }
+  code { font-family: var(--font-mono); font-size: 0.86em; background: var(--soft); padding: 0.08em 0.35em; border-radius: 0.3em; }
+  .tbl-wrap { overflow-x: auto; margin-top: 12px; }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border); }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); }
+  td.how { color: var(--muted-foreground); }
+  .cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  form.q { min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin: 0; }
+  form.q .id { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted-foreground); }
+  form.q .body { color: var(--muted-foreground); font-size: 0.9rem; }
+  form.q .gate { font-size: 0.88rem; border-left: 2px solid var(--warning); padding-left: 10px; margin: 0 0 6px; }
+  form.q .gate b { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--warning); margin-right: 6px; }
+  .opts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+  label.opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; cursor: pointer; }
+  label.opt input { margin: 5px 0 0; accent-color: var(--primary); }
+  label.opt .lab { font-weight: 600; }
+  label.opt .why { grid-column: 2; font-size: 0.85rem; color: var(--muted-foreground); }
+  label.opt.rec { border-color: var(--primary); }
+  label.opt:has(input:checked) { background: var(--soft); outline: 2px solid var(--primary); outline-offset: -1px; }
+  .mark { font-size: 0.68rem; font-weight: 400; margin-left: 8px; padding: 1px 7px; border: 1px solid var(--primary); color: var(--primary); border-radius: 999px; white-space: nowrap; }
+  textarea.note { display: block; width: 100%; min-height: 2.6rem; margin-top: 10px; padding: 7px 9px; font: inherit; font-size: 0.9rem; color: inherit; background: var(--background); border: 1px solid var(--input); border-radius: 8px; resize: vertical; }
+  .sendbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--border); padding: 10px 16px; }
+  .sendbar .in { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .sendbar .in > * { min-width: 0; }
+  #count { flex: 1 1 240px; font-size: 0.88rem; color: var(--muted-foreground); }
+  #send { font: inherit; font-weight: 700; color: var(--primary-foreground); background: var(--primary); border: 0; border-radius: 8px; padding: 9px 18px; cursor: pointer; }
+  #state { font-size: 0.85rem; }
+  #copy { flex: 1 1 100%; max-height: 40vh; overflow: auto; margin: 0; font: 0.8rem/1.4 var(--font-mono); white-space: pre-wrap; background: var(--background); border: 1px solid var(--input); border-radius: 8px; padding: 8px; user-select: all; }
+  #copy[hidden] { display: none; }
+  #problems { border: 1px solid var(--warning); border-radius: var(--radius); padding: 12px 16px; }
+  #problems[hidden] { display: none; }
+  #problems h2 { color: var(--warning); }
+  #problems ul { margin: 6px 0 0; padding-left: 1.1rem; }
+  @media (max-width: 760px) { h1 { font-size: 1.5rem; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="eyebrow" id="eyebrow"></p>
+  <h1 id="title"></h1>
+  <p class="lead" id="lead"></p>
+</header>
+
+<section id="problems" hidden>
+  <h2>This page was written wrong</h2>
+  <p class="lead">Nothing can be sent from it. Tell the thread that gave you this page what it says here.</p>
+  <ul id="problem-list"></ul>
+</section>
+
+<section id="settled-sec">
+  <h2>Settled so far</h2>
+  <p class="lead">Your answers from the earlier rounds. To change one, say so in a note below.</p>
+  <div class="tbl-wrap"><table><thead><tr><th>Round</th><th>Question</th><th>Your answer</th><th>Note</th></tr></thead><tbody id="settled"></tbody></table></div>
+</section>
+
+<section>
+  <h2 id="round-title"></h2>
+  <p class="lead">Each question is worded so that yes takes the recommended answer, which is already picked. Change a pick or add a note where you disagree.</p>
+  <div class="cards" id="questions"></div>
+</section>
+
+</main>
+
+<div class="sendbar"><div class="in">
+  <span id="count"></span>
+  <span id="state" role="status"></span>
+  <button id="send" type="button">Send to Claude</button>
+  <pre id="copy" hidden></pre>
+</div></div>
+
+<script type="application/json" id="round-data">
+{
+  "slug": "example",
+  "round": 1,
+  "title": "What the grill is about",
+  "lead": "",
+  "settled": [],
+  "questions": [
+    {
+      "id": "first-question",
+      "title": "A question, worded so that yes takes the recommended answer",
+      "body": "What the answer decides, and what hangs off it.",
+      "options": [
+        { "id": "yes", "label": "Yes: the recommended answer", "why": "Why it is recommended.", "recommended": true },
+        { "id": "other", "label": "The other answer", "why": "What it costs." }
+      ]
+    }
+  ]
+}
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var LAVISH_RESTORES_PICKS_WITHIN_MS = 400;
+  var cards = [];
+  var sent = false;
+
+  function byId(id) { return document.getElementById(id); }
+  function twice(ids) { return ids.filter(function (id, i) { return ids.indexOf(id) !== i; }); }
+  function problemsOf(text) {
+    var round;
+    try { round = JSON.parse(text); } catch (err) { return { found: ['The round is not valid JSON: ' + err.message] }; }
+    function thing(value) { return !!value && typeof value === 'object'; }
+    function named(value) { return thing(value) && value.id !== undefined && value.id !== null && value.id !== ''; }
+    if (!thing(round)) return { found: ['The round is not an object.'] };
+    var found = [];
+    if (!round.slug) found.push('The round has no slug.');
+    if (!round.round) found.push('The round has no number.');
+    var settled = round.settled === undefined ? [] : round.settled;
+    if (!Array.isArray(settled) || !settled.every(thing)) found.push('The settled answers are not a list of objects.');
+    var questions = Array.isArray(round.questions) ? round.questions : [];
+    if (!questions.length) found.push('The round has no questions.');
+    if (!questions.every(named)) found.push('A question is not an object with an id.');
+    questions = questions.filter(named);
+    twice(questions.map(function (q) { return String(q.id); })).forEach(function (id) { found.push('Two questions have the id ' + id + '.'); });
+    questions.forEach(function (q) {
+      var options = Array.isArray(q.options) ? q.options : [];
+      if (!options.every(named)) found.push('Question ' + q.id + ' has an option that is not an object with an id.');
+      options = options.filter(named);
+      var recommended = options.filter(function (o) { return o.recommended; }).length;
+      if (recommended !== 1) found.push('Question ' + q.id + ' has ' + recommended + ' recommended options, not one.');
+      twice(options.map(function (o) { return String(o.id); })).forEach(function (id) { found.push('Question ' + q.id + ' has two options with the id ' + id + '.'); });
+    });
+    return { round: round, found: found };
+  }
+  var read = problemsOf(byId('round-data').textContent);
+  if (read.found.length) {
+    read.found.forEach(function (text) {
+      var li = document.createElement('li');
+      li.textContent = text;
+      byId('problem-list').appendChild(li);
+    });
+    byId('problems').hidden = false;
+    byId('settled-sec').hidden = true;
+    byId('send').disabled = true;
+    return;
+  }
+  var data = read.round;
+  function appendTextWithCode(parent, text) {
+    String(text).split('`').forEach(function (part, i) {
+      if (!part) return;
+      if (i % 2) { var c = document.createElement('code'); c.textContent = part; parent.appendChild(c); }
+      else parent.appendChild(document.createTextNode(part));
+    });
+    return parent;
+  }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) appendTextWithCode(n, text);
+    return n;
+  }
+  function plain(text) { return String(text).replace(/`/g, ''); }
+  function gateLine(name, text) {
+    var p = el('p', 'gate');
+    p.appendChild(el('b', '', name));
+    return appendTextWithCode(p, text);
+  }
+
+  function card(q) {
+    var form = el('form', 'q');
+    form.setAttribute('data-lavish-question', data.round + ':' + q.id);
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+    form.appendChild(el('div', 'id', q.id));
+    form.appendChild(el('h3', '', q.title));
+    String(q.body || '').split(/\n\s*\n/).forEach(function (para) {
+      if (para.trim()) form.appendChild(el('p', 'body', para));
+    });
+    if (q.built_on) form.appendChild(gateLine('Built on', q.built_on));
+    if (q.undo) form.appendChild(gateLine('Undo', q.undo));
+    var opts = el('div', 'opts');
+    var inputs = q.options.map(function (o) {
+      var label = el('label', 'opt' + (o.recommended ? ' rec' : ''));
+      var input = document.createElement('input');
+      input.type = 'radio'; input.name = 'pick'; input.value = o.id; input.checked = !!o.recommended;
+      label.appendChild(input);
+      var lab = el('span', 'lab', o.label);
+      if (o.recommended) lab.appendChild(el('span', 'mark', 'recommended'));
+      label.appendChild(lab);
+      if (o.why) label.appendChild(el('span', 'why', o.why));
+      opts.appendChild(label);
+      return input;
+    });
+    form.appendChild(opts);
+    var note = document.createElement('textarea');
+    note.className = 'note'; note.name = 'note'; note.placeholder = 'A note, in your words (optional)';
+    note.setAttribute('aria-label', 'Note for ' + q.id);
+    form.appendChild(note);
+    cards.push({ q: q, inputs: inputs, note: note });
+    return form;
+  }
+
+  function answers() {
+    return cards.map(function (c) {
+      var picked = c.inputs.filter(function (input) { return input.checked; })[0];
+      var option = c.q.options.filter(function (o) { return picked && String(o.id) === picked.value; })[0];
+      return {
+        id: c.q.id,
+        option: option ? option.id : '',
+        label: option ? plain(option.label) : '',
+        left_as_recommended: !!(option && option.recommended),
+        note: c.note.value.trim()
+      };
+    });
+  }
+  function asText(list) {
+    return ['Answers to round ' + data.round + ' of ' + data.slug + ':'].concat(list.map(function (a) {
+      var line = '- ' + a.id + ': ';
+      if (!a.option) line += 'no option picked';
+      else line += a.option + ' (' + a.label + '), ' + (a.left_as_recommended ? 'left as recommended' : 'changed from the recommended');
+      return line + (a.note ? '. Note: ' + a.note.replace(/\s+/g, ' ') : '');
+    })).join('\n');
+  }
+  function context(list) { return { slug: data.slug, round: data.round, answers: list }; }
+  function count() {
+    var list = answers();
+    var left = list.filter(function (a) { return a.left_as_recommended; }).length;
+    byId('count').textContent = left + ' of ' + list.length + ' left as recommended';
+  }
+  function state(text) { byId('state').textContent = text; }
+
+  document.title = plain(data.title) + ': round ' + data.round;
+  appendTextWithCode(byId('eyebrow'), '`' + data.slug + '` · round ' + data.round);
+  appendTextWithCode(byId('title'), data.title);
+  appendTextWithCode(byId('lead'), data.lead || '');
+  byId('round-title').textContent = 'Round ' + data.round;
+  (data.settled || []).forEach(function (a) {
+    var tr = el('tr');
+    tr.appendChild(el('td', '', a.round));
+    tr.appendChild(el('td', '', a.title));
+    tr.appendChild(el('td', '', a.answer));
+    tr.appendChild(el('td', 'how', (a.left_as_recommended ? 'left as recommended' : 'changed') + (a.note ? '. ' + a.note : '')));
+    byId('settled').appendChild(tr);
+  });
+  if (!(data.settled || []).length) byId('settled-sec').hidden = true;
+  data.questions.forEach(function (q) { byId('questions').appendChild(card(q)); });
+
+  document.addEventListener('input', function () { count(); if (sent) state('changed since it was sent: send again'); });
+  document.addEventListener('change', count);
+
+  byId('send').addEventListener('click', function () {
+    var list = answers();
+    var text = asText(list);
+    var api = window.lavish;
+    if (api && api.queuePrompt && api.sendQueuedPrompts) {
+      api.queuePrompt(text, { tag: 'round', text: 'Round ' + data.round + ': ' + list.length + ' answers', queueKey: data.slug + '-round-' + data.round, data: context(list) });
+      api.sendQueuedPrompts();
+      sent = true;
+      state('sent');
+    } else {
+      var box = byId('copy');
+      box.textContent = text + '\n\nContext data:\n' + JSON.stringify(context(list), null, 2);
+      box.hidden = false;
+      state('not sent: this page is not open through Lavish. Copy the text into the thread.');
+    }
+  });
+
+  count();
+  window.addEventListener('load', function () { setTimeout(count, LAVISH_RESTORES_PICKS_WITHIN_MS); });
+})();
+</script>
+</body>
+</html>
