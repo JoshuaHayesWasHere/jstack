@@ -6,7 +6,7 @@
 uv run --project <checkout> jmerge
 ```
 
-For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (`--merge` for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout.
+For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (a merge commit for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout.
 It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head.
 It writes no plan: `jbus plan` counts an entry's status from its queue rows.
 It needs `gh` and `git`.
