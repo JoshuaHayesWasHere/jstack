@@ -384,7 +384,7 @@ def review(
 ) -> tuple[list[str], list[str]]:
     """What `--check` says of one mirror against the skill `usage` pool, none to leave its
     skillUsage out: a line for each entry that differs, and the use it is behind that is no
-    drift."""
+    drift. With either `.claude.json` missing, `shared` pools nothing, so none is read."""
     if not mirror.home.is_dir():
         return [f"{mirror.instance}: {mirror.home} is missing"], []
     said = [
@@ -394,7 +394,7 @@ def review(
     ]
     target = mirror.home / JSON
     found = _read(target)
-    if usage is None or found is None:
+    if usage is None or found is None or _read(main.config) is None:
         return said, []
     lost, behind = lags(target, usage_of(target, found), usage, now)
     return said + lost, behind
@@ -500,8 +500,12 @@ def _check(main: Main, chosen: tuple[Mirror, ...], usage: dict | None, main_too:
     code, now = 0, time.time()
     if main_too and usage is not None:
         try:
-            found = _read(main.config) or {}
-            lost, behind = lags(main.config, usage_of(main.config, found), usage, now)
+            found = _read(main.config)
+            lost, behind = (
+                ([], [])
+                if found is None
+                else lags(main.config, usage_of(main.config, found), usage, now)
+            )
         except (Refused, OSError) as error:
             code, lost, behind = _broken(error), [], []
         for line in lost + behind:
