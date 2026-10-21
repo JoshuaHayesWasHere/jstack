@@ -29,6 +29,7 @@ SWEPT = (
     "scripts/*.sh",
     "install.sh",
     "tests/**/*.py",
+    "features/*/tests/**/*.py",
     "testing/*.py",
     "conftest.py",
     "templates/*.service",
@@ -174,6 +175,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     assert {"src/jgauge/room.sh", "testing/jstack_fixtures.py", "tests/test_no_comments.py"} <= set(
         files
     )
+    assert "features/show-me-your-work/tests/test_show_me_your_work.py" in files
     assert {
         "templates/jbus.service",
         "templates/jbus.timer",

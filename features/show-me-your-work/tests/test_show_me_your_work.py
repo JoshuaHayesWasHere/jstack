@@ -4,11 +4,12 @@ import subprocess
 
 import pytest
 
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
-SKILLS = REPO / "skills"
-LOG = SKILLS / "show-me-your-work" / "scripts" / "log.sh"
-RUNS = SKILLS / "benchmark-checklist" / "scripts" / "runs.sh"
+SKILLS = skills()
+INSTALLED = REPO / "harness" / "jstack" / "claude-code" / "skills"
+LOG = SKILLS["show-me-your-work"] / "scripts" / "log.sh"
+RUNS = SKILLS["benchmark-checklist"] / "scripts" / "runs.sh"
 COLUMNS = ["ts", "phase", "decision", "why", "evidence", "result"]
 CELLS = ["harness", "froze the harness", "one command gives the number", "commit 3a9f1c2", "open"]
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
@@ -70,14 +71,14 @@ def test_any_other_number_of_cells_is_refused_and_writes_nothing(tmp_path, cells
 
 def block(skill, tmp_path, cells, before=""):
     """Run the one `sh` block of a skill with its placeholders filled, as a crewmate has it:
-    the crew skill is a symlink under ~/.claude/skills, this skill has no link of its own,
-    and the work is in another repo. Gives what it printed, and that repo."""
+    the crew skill is a symlink under ~/.claude/skills into the harness copy, this skill has
+    no link of its own, and the work is in another repo. Gives what it printed, and that repo."""
     (body,) = re.findall(
-        r"^```sh\n(.*?)^```$", (SKILLS / skill / "SKILL.md").read_text(), re.M | re.S
+        r"^```sh\n(.*?)^```$", (SKILLS[skill] / "SKILL.md").read_text(), re.M | re.S
     )
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "crew").symlink_to(SKILLS / "crew")
+    (user / ".claude" / "skills" / "crew").symlink_to(INSTALLED / "crew")
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", str(work)], check=True)

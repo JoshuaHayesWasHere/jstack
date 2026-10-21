@@ -362,7 +362,7 @@
     {
       "name": "architect",
       "kind": "skill",
-      "path": "skills/architect/SKILL.md",
+      "path": "features/architect/SKILL.md",
       "source": "pstack",
       "description": "Sketch types, signatures, and module structure before code, then stay in the loop while implementation fills in. Use for /architect, 'architect this', 'design this', or non-trivial work where jumping to code would lock in the wrong shape."
     },
@@ -383,7 +383,7 @@
     {
       "name": "benchmark-checklist",
       "kind": "skill",
-      "path": "skills/benchmark-checklist/SKILL.md",
+      "path": "features/benchmark-checklist/SKILL.md",
       "source": "pstack",
       "description": "Vet a measured number (its limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened) before it is reported or acted on. Use for /benchmark-checklist, or when a playbook step names this skill."
     },
@@ -467,7 +467,7 @@
     {
       "name": "how",
       "kind": "skill",
-      "path": "skills/how/SKILL.md",
+      "path": "features/how/SKILL.md",
       "source": "pstack",
       "description": "Use for /how, \"how does X work\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models. Use why for motivation."
     },
@@ -579,7 +579,7 @@
     {
       "name": "show-me-your-work",
       "kind": "skill",
-      "path": "skills/show-me-your-work/SKILL.md",
+      "path": "features/show-me-your-work/SKILL.md",
       "source": "pstack",
       "description": "Keep a decision log for long or unattended work, one TSV row per decision (what, why, evidence, result), so the user can review it after stepping away. Use for /show-me-your-work, or when a playbook step names this skill."
     },
@@ -614,7 +614,7 @@
     {
       "name": "typescript-best-practices",
       "kind": "skill",
-      "path": "skills/typescript-best-practices/SKILL.md",
+      "path": "features/typescript-best-practices/SKILL.md",
       "source": "pstack",
       "description": "TypeScript best practices. Use for /typescript-best-practices, typed before reading or editing .ts or .tsx files."
     },

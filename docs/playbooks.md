@@ -15,17 +15,17 @@ Each feature's own, as `features/*/feature.json` and the files under it give the
 <!-- generated: catalog by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
 | Feature | What it does | Skills and principles | Playbooks |
 |---|---|---|---|
-| `architect` | Sketches types, signatures and module structure before any code. | [architect](../skills/architect/SKILL.md) |  |
+| `architect` | Sketches types, signatures and module structure before any code. | [architect](../features/architect/SKILL.md) |  |
 | `arena-swarm` | Runs one task as several threads that do not see each other, and judges or merges what they make. | [arena](../skills/arena/SKILL.md), [swarm](../skills/swarm/SKILL.md) | [arena](../playbooks/arena.md), [swarm](../playbooks/swarm.md) |
 | `automate-me` | Turns how you work into a -mode skill agents follow. | [automate-me](../features/automate-me/SKILL.md) |  |
-| `benchmark-checklist` | Vets a measured number before it is reported or acted on. | [benchmark-checklist](../skills/benchmark-checklist/SKILL.md) |  |
+| `benchmark-checklist` | Vets a measured number before it is reported or acted on. | [benchmark-checklist](../features/benchmark-checklist/SKILL.md) |  |
 | `bro` | Restates the last message in plain words, with no jargon. | [bro](../features/bro/SKILL.md) |  |
 | `crew` | The crewmate: does the one task of a brief in its own worktree and opens its pull request. | [crew](../skills/crew/SKILL.md) | [autonomous-run](../playbooks/autonomous-run.md), [bug-fix](../playbooks/bug-fix.md), [feature](../playbooks/feature.md), [hillclimb](../playbooks/hillclimb.md), [pause-safely](../playbooks/pause-safely.md), [perf-issue](../playbooks/perf-issue.md), [prototype](../playbooks/prototype.md), [refactoring](../playbooks/refactoring.md), [runtime-forensics](../playbooks/runtime-forensics.md), [visual-parity](../playbooks/visual-parity.md) |
 | `evals` | Measures a skill's effect against a baseline, with runs a grader scores. |  | [eval](../playbooks/eval.md) |
 | `expert` | Makes a thread the expert of one subject, which answers from its context pack. | [expert](../skills/expert/SKILL.md) | [expert-answer](../playbooks/expert-answer.md), [expert-check](../playbooks/expert-check.md), [expert-refresh](../playbooks/expert-refresh.md), [expert-research](../playbooks/expert-research.md), [expert-study](../playbooks/expert-study.md) |
 | `grilling` | Questions a plan until nothing is left assumed, with a page for each round. | [grilling](../skills/grilling/SKILL.md) |  |
 | `home` | The home: plans with the user, writes each brief and launches its thread. | [handoff](../skills/handoff/SKILL.md), [home](../skills/home/SKILL.md), [new-home](../skills/new-home/SKILL.md), [nohome](../skills/nohome/SKILL.md) | [autopilot-full](../playbooks/autopilot-full.md), [autopilot-stack](../playbooks/autopilot-stack.md), [multi-phase-plan](../playbooks/multi-phase-plan.md), [orchestrate](../playbooks/orchestrate.md), [session-pickup](../playbooks/session-pickup.md), [shipping](../playbooks/shipping.md) |
-| `how` | Explains how a subsystem works before you change it. | [how](../skills/how/SKILL.md) |  |
+| `how` | Explains how a subsystem works before you change it. | [how](../features/how/SKILL.md) |  |
 | `in-your-own-words` | Plays back what you are after before any work starts. | [in-your-own-words](../features/in-your-own-words/SKILL.md) |  |
 | `jinstall` | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. | [setup-pstack](../skills/setup-pstack/SKILL.md) |  |
 | `ketchup` | Catches you up on this chat since your last message. | [ketchup](../features/ketchup/SKILL.md) |  |
@@ -36,11 +36,11 @@ Each feature's own, as `features/*/feature.json` and the files under it give the
 | `recall` | Rebuilds where you left off from your chat history and the home's record. | [recall](../features/recall/SKILL.md) |  |
 | `scout` | The scout: answers a question with read-only tool calls before a task is briefed. | [scout](../skills/scout/SKILL.md) | [investigation](../playbooks/investigation.md), [trace-forensics](../playbooks/trace-forensics.md) |
 | `sharpen` | Rewrites a task's prompt to ask for the deeper version, and does not do the task. | [sharpen](../features/sharpen/SKILL.md) |  |
-| `show-me-your-work` | Keeps a decision log you can review after stepping away. | [show-me-your-work](../skills/show-me-your-work/SKILL.md) |  |
+| `show-me-your-work` | Keeps a decision log you can review after stepping away. | [show-me-your-work](../features/show-me-your-work/SKILL.md) |  |
 | `skill-library` | The skills any thread may load by name, and the tips hook that suggests them. | [blast-radius](../skills/blast-radius/SKILL.md), [create-formal-verification-skill](../skills/create-formal-verification-skill/SKILL.md), [create-verification-skill](../skills/create-verification-skill/SKILL.md), [figure-it-out](../skills/figure-it-out/SKILL.md), [interrogate](../skills/interrogate/SKILL.md), [maintain-verification-skill](../skills/maintain-verification-skill/SKILL.md), [make-bot-ui](../skills/make-bot-ui/SKILL.md), [poteto-help](../skills/poteto-help/SKILL.md) | [authoring-a-playbook](../playbooks/authoring-a-playbook.md), [authoring-a-skill](../playbooks/authoring-a-skill.md) |
 | `tdd` | Fixes a bug test-first, with a regression test that fails before the fix. | [tdd](../features/tdd/SKILL.md) |  |
 | `teach` | Explains a body of work plainly until you understand it. | [teach](../features/teach/SKILL.md) |  |
-| `typescript-best-practices` | Loads the TypeScript rules before a .ts or .tsx edit. | [typescript-best-practices](../skills/typescript-best-practices/SKILL.md) |  |
+| `typescript-best-practices` | Loads the TypeScript rules before a .ts or .tsx edit. | [typescript-best-practices](../features/typescript-best-practices/SKILL.md) |  |
 | `why` | Finds why the code is the way it is, with cited evidence. | [why](../skills/why/SKILL.md) |  |
 | `writing` | Holds every page and pull request to one writing standard. | [technical-writing](../skills/technical-writing/SKILL.md), [unslop](../skills/unslop/SKILL.md) | [opening-a-pr](../playbooks/opening-a-pr.md) |
 <!-- generated: end -->
