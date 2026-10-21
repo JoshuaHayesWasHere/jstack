@@ -15,6 +15,7 @@
     "src/jmerge/**",
     "docs/jmerge.md",
     "tests/test_jmerge_*.py",
+    "tests/test_main_contract.py",
     "tests/test_claims.py",
     "tests/test_protected.py",
     "tests/test_sweep.py",

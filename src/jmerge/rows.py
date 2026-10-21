@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import jbus
-from jbus import mainstate, queue
-from jmerge import ready
+from jbus import queue
+from jmerge import mainjson, ready
 
 NO_PULL = "no pull request yet"
 
@@ -76,15 +76,15 @@ def read(checkout: Path) -> list[queue.Row] | None:
         return None
 
 
-def main(checkout: Path) -> mainstate.Main:
+def main(checkout: Path) -> mainjson.Main:
     state = _state(checkout)
-    return mainstate.read(state) if isinstance(state, Path) else mainstate.Main()
+    return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()
 
 
-def red(main: mainstate.Main, slug: str) -> str:
-    if not main.red or mainstate.fix_of(slug):
+def red(main: mainjson.Main, slug: str) -> str:
+    if not main.red or mainjson.fix_of(slug):
         return ""
-    return ready.MAIN_RED.format(sha=main.red[: mainstate.SHA])
+    return ready.MAIN_RED.format(sha=main.red[: mainjson.SHA])
 
 
 def short(rows: list[queue.Row] | None, slug: str) -> str:

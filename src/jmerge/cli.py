@@ -22,8 +22,7 @@ from typing import NamedTuple
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
-from jbus import mainstate
-from jmerge import checks, claims, green, proof, rangediff, ready, rows, sweep
+from jmerge import checks, claims, green, lines, mainjson, proof, rangediff, ready, rows, sweep
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -466,7 +465,7 @@ class Repo:
         return rows.read(self.main)
 
     @functools.cached_property
-    def main_state(self) -> mainstate.Main:
+    def main_state(self) -> mainjson.Main:
         return rows.main(self.main)
 
     @functools.cached_property
@@ -986,12 +985,12 @@ class Repo:
         self.accepted = (one.number, one.head)
         found = self.waits(one, default)
         if found.judged is None:
-            say(f"{found.verb} {about}: {found.why}")
+            say(lines.waits(found.verb, one.number, one.url, found.why))
             return 1
         why = " and ".join(self.lifts) or first.why
         if check:
-            ready_line = f"ready {one.number} {one.head} {one.branch} {found.slug}"
-            say(f"{ready_line}, accepted: {why}, {safe}")
+            notes = [f"accepted: {why}", safe]
+            say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
             return 0
         say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
         said = self.merge(one, found.slug, found.note, found.judged)
@@ -1052,7 +1051,7 @@ class Repo:
                 break
             if again == JUDGED_AGAIN_AT_MOST:
                 guarded = f"guarded (touches {judged.path}), " if judged.path else ""
-                return f"wait {number} {one.url}: {guarded}{ready.MAIN_MOVED}"
+                return lines.waits("wait", number, one.url, f"{guarded}{ready.MAIN_MOVED}")
             again += 1
             self.numbers_on = None
             again_judged = self.waits(one, one.base)
@@ -1071,7 +1070,7 @@ class Repo:
             *self.about,
         )
         if ran.returncode:
-            return f"wait {number} {one.url}: {ready.MERGE_FAILED}: {_said(ran)}"
+            return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {_said(ran)}")
         if judged.rules:
             self.unruly = ready.RULES_CHANGED
         notes = [rebase] if rebase else []
@@ -1102,8 +1101,7 @@ class Repo:
             notes.append(f"guarded: {judged.path}")
         if judged.fresh:
             notes.append(judged.fresh)
-        notes.append(f"revert: gh pr revert {shlex.quote(one.url)}")
-        return ", ".join([f'merged {number} {slug} {commit} "{one.title}"', *notes])
+        return lines.merged(number, slug, commit, one.title, notes, one.url)
 
 
 PROC = Path("/proc")
@@ -1514,7 +1512,8 @@ def main(argv: list[str] | None = None) -> int:
     def say(line: str) -> None:
         print(line, flush=True)
         if not args.check and state.is_dir():
-            waits = re.match(r"(?:wait|hold) (\d+) ", line)
+            said = lines.one(line)
+            waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             if waits:
                 try:
                     last = json.loads((state / "merge.log.last").read_text(encoding="utf-8"))
@@ -1522,9 +1521,9 @@ def main(argv: list[str] | None = None) -> int:
                     last = {}
                 if not isinstance(last, dict):
                     last = {}
-                if last.get(waits[1]) == line:
+                if last.get(waits) == line:
                     return
-                last[waits[1]] = line
+                last[waits] = line
             with (state / "merge.log").open("a", encoding="utf-8") as log:
                 log.write(f"{now:%Y-%m-%d %H:%M} {line}\n")
             if waits:
@@ -1557,11 +1556,11 @@ def main(argv: list[str] | None = None) -> int:
         if found.verb == "hold" and not args.check:
             repo.hold(one)
         if found.judged is None:
-            say(f"{found.verb} {one.number} {one.url}: {found.why}")
+            say(lines.waits(found.verb, one.number, one.url, found.why))
         elif args.check:
-            ready_line = f"ready {one.number} {one.head} {one.branch} {found.slug}"
             guarded = f"guarded: {found.judged.path}" if found.judged.path else ""
-            say(", ".join(filter(None, [ready_line, found.note, guarded, found.judged.fresh])))
+            notes = [found.note, guarded, found.judged.fresh]
+            say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
     return 0

@@ -27,6 +27,7 @@ from jbus.view.state import (
     text,
     when,
 )
+from jmerge import mainjson
 
 FIRST = True
 QUIET = 150
@@ -197,7 +198,7 @@ SOURCES = (
     Source(TIMER, "server", _timer, 10, machine=True),
     Source("status.json", "jbus", _status, 20, machine=True),
     PASS_FILE,
-    kept("main.json", lambda read: read.table("main.json"), 80),
+    kept(mainjson.NAME, lambda read: read.table(mainjson.NAME), 80),
 )
 
 
@@ -211,10 +212,10 @@ def blind(read: Read) -> list[Spot]:
 
 
 def build(read: Read) -> dict[str, Any]:
-    main = read.table("main.json")
-    sha = text(main.get("main") if main else "", 40)
+    main = mainjson.typed(read.table(mainjson.NAME)) or {}
+    sha = text(main.get("main", ""), 40)
     said = {key: value for key, value in read.once(pulse).items() if key != "answered"}
     return {
         "jbus": said | {"code": _code(read.code)},
-        "main": {"sha": sha if _SHA.fullmatch(sha) else "", "at": when((main or {}).get("at"))},
+        "main": {"sha": sha if _SHA.fullmatch(sha) else "", "at": when(main.get("at"))},
     }
