@@ -12,7 +12,7 @@ Paths:
 - `src/jpack/`
 - `src/jleak/`
 - `src/jroles/`
-- `src/jsettings/`
+- `features/jsettings/`
 - `hooks/`
 - `templates/jbus.service`
 - `templates/jbus.timer`

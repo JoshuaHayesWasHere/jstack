@@ -11,7 +11,7 @@ Paths:
 - `src/jmerge/`
 - `src/jpack/`
 - `src/jroles/`
-- `src/jsettings/`
+- `features/jsettings/`
 - `docs/jbus.md`
 - `docs/chef.md`
 - `docs/configuration.md`

@@ -22,9 +22,8 @@ from jbus import mainmoved, merge, write_json
 from jmerge import lines, mainjson, ready
 from main_red_model import Options, walk
 from test_gh_said import BAD_GATEWAY, real_jmerge_line
-from testing.paths import REPO
+from testing.paths import sources
 
-SRC = REPO / "src"
 URL = "https://example.test/pull/7"
 HEAD = "c" * 40
 GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40
@@ -160,8 +159,9 @@ OWNERS = {"mainjson": "jmerge/mainjson.py", "lines": "jmerge/lines.py"}
 
 
 def _sources():
-    for path in sorted(SRC.rglob("*.py")):
-        yield path.relative_to(SRC).as_posix(), ast.parse(path.read_text())
+    for root in sources():
+        for path in sorted(root.rglob("*.py")):
+            yield path.relative_to(root).as_posix(), ast.parse(path.read_text())
 
 
 def _keys(tree):

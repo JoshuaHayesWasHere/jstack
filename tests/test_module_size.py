@@ -1,5 +1,6 @@
-"""No module under src/ grows past `CAP` lines: a long module is a hot file, which every
-change appends to and every rebase fights over. A feature goes in a module of its own.
+"""No module under src/, or a feature's src/, grows past `CAP` lines: a long module is a hot
+file, which every change appends to and every rebase fights over. A feature goes in a module of
+its own.
 
 `OVER` is the modules that were over the cap when it was set, with their length then. One
 that is cut under the cap leaves the list, so the list only shrinks, and none is added.
@@ -7,9 +8,8 @@ that is cut under the cap leaves the list, so the list only shrinks, and none is
 
 from pathlib import Path
 
-from testing.paths import REPO
+from testing.paths import sources
 
-SRC = REPO / "src"
 CAP = 800
 OVER = {
     "jbus/questions.py": 860,
@@ -22,10 +22,12 @@ OVER = {
 }
 
 
-def lengths(root: Path = SRC) -> dict[str, int]:
-    """The length in lines of each module under `root`, by its path from there."""
+def lengths(*roots: Path) -> dict[str, int]:
+    """The length in lines of each module under `roots`, by its path from its root: every
+    folder of packages when none is given."""
     return {
         path.relative_to(root).as_posix(): len(path.read_text().splitlines())
+        for root in roots or sources()
         for path in sorted(root.rglob("*.py"))
     }
 

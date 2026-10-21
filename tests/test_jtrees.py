@@ -191,7 +191,9 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         in (copy / "features" / "foo" / "docs" / "foo.md").read_text()
     )
     assert sorted(p.name for p in (copy / COPY / "skills" / "foo").iterdir()) == ["SKILL.md"]
-    assert (copy / "harness/jstack/pythonpath").read_text() == "features/foo/src\nsrc\n"
+    assert {"features/foo/src", "src"} <= set(
+        (copy / "harness/jstack/pythonpath").read_text().splitlines()
+    )
     assert generate(copy, "--check").returncode == 0
 
 
@@ -338,7 +340,8 @@ def test_the_copy_holds_each_skill_playbook_principle_template_unit_and_hook(cop
     for plugin in ("plugin.json", ".claude-plugin/plugin.json"):
         assert filecmp.cmp(copied / plugin, copy / "plugin.json", shallow=False)
     assert (copied / "README.md").is_file()
-    assert (copy / "harness/jstack/pythonpath").read_text() == "src\n"
+    moved = [one.relative_to(copy).as_posix() for one in copy.glob("features/*/src")]
+    assert (copy / "harness/jstack/pythonpath").read_text().splitlines() == sorted([*moved, "src"])
     root = json.loads((copy / "skills.json").read_text())["items"]
     listed = json.loads((copied / "skills.json").read_text())["items"]
     assert [(one["kind"], one["name"]) for one in listed] == [
