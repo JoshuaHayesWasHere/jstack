@@ -134,7 +134,7 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
 | A docs page | `tests/test_jbus_pages.py:16` | `CAP = 300` | #120 | A page stays short | Design choice | Kept |
-| A SKILL.md | `tests/test_skill_size.py:12` | `CAP = 400` | #122 | A skill keeps a spine | Design choice | Kept |
-| A test file | `tests/test_test_size.py:16` | `CAP = 1500` | #128 | A test file stays short | Design choice | Kept |
-| A module | `tests/test_module_size.py:11` | `CAP = 800` | #127 | A module stays short | Design choice | Kept |
+| A SKILL.md | `features/repo-guards/tests/test_skill_size.py:12` | `CAP = 400` | #122 | A skill keeps a spine | Design choice | Kept |
+| A test file | `features/repo-guards/tests/test_test_size.py:16` | `CAP = 1500` | #128 | A test file stays short | Design choice | Kept |
+| A module | `features/repo-guards/tests/test_module_size.py:11` | `CAP = 800` | #127 | A module stays short | Design choice | Kept |
 | `jbus/cli.py` | `tests/test_jbus_cli_size.py:16` | `LINES = 300` | #126 | The entry point stays thin | Design choice | Kept |

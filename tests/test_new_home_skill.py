@@ -2,7 +2,7 @@
 
 Each block is taken out of `skills/new-home/SKILL.md`, its placeholders filled as the skill
 says, and run by `sh` with `jbus` on PATH as the real command over a made-up config. The
-steps that are tool calls are held to their tools' schemas by `tests/test_tool_calls.py`.
+steps that are tool calls are held to their tools' schemas by `features/repo-guards/tests/test_tool_calls.py`.
 """
 
 import os

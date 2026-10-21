@@ -66,7 +66,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 
 - [The check CI runs](./ci-check.md), not driven yet.
 - [A crewmate does one task](./crew-skill.md), not driven yet.
-- [The pages under docs](./docs-pages.md), not driven yet.
+- [The pages under docs](../../../../features/repo-guards/verify.md), not driven yet.
 - [The evals](./evals.md), not driven yet.
 - [An expert answers asks](../../../../features/expert/verify.md), not driven yet.
 - [Grilling the user](../../../../features/grilling/verify.md), not driven yet.
@@ -110,17 +110,17 @@ A test file that reads the whole tree, and not the paths of one feature (it glob
 Cross-cutting:
 - `tests/test_check_command.py`
 - `tests/test_daemons.py`
-- `tests/test_docs_true.py`
-- `tests/test_docs_tree.py`
+- `features/repo-guards/tests/test_docs_true.py`
+- `features/repo-guards/tests/test_docs_tree.py`
 - `tests/test_home_merge_guard.py`
 - `features/jdrift/tests/test_jstack_explained.py`
-- `tests/test_no_comments.py`
-- `tests/test_no_mistakes_gone.py`
-- `tests/test_playbook_wiring.py`
-- `tests/test_readme_current.py`
-- `tests/test_run_not_read.py`
+- `features/repo-guards/tests/test_no_comments.py`
+- `features/repo-guards/tests/test_no_mistakes_gone.py`
+- `features/repo-guards/tests/test_playbook_wiring.py`
+- `features/repo-guards/tests/test_readme_current.py`
+- `features/repo-guards/tests/test_run_not_read.py`
 - `tests/test_select_tests.py`
-- `tests/test_skill_frontmatter.py`
-- `tests/test_test_size.py`
-- `tests/test_tool_calls.py`
+- `features/repo-guards/tests/test_skill_frontmatter.py`
+- `features/repo-guards/tests/test_test_size.py`
+- `features/repo-guards/tests/test_tool_calls.py`
 - `tests/test_workflows.py`
