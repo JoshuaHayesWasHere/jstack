@@ -3,9 +3,9 @@
 The scout skill makes a thread a scout: it researches the one question of a request with read-only calls, writes the report, and serves a page when one is asked for. The tests lift each block and run it.
 
 Paths:
-- `skills/scout/`
-- `templates/scout-request.md`
-- `templates/scout-report.md`
+- `features/scout/`
+- `features/scout/templates/scout-request.md`
+- `features/scout/templates/scout-report.md`
 Tests: none
 
 ## Sub-features
