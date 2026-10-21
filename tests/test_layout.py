@@ -273,3 +273,36 @@ def test_uninstall_takes_every_layout_away(user):
     for harness in HARNESSES:
         assert f"removed layout {laid(user.home, harness.name)}" in said
         assert not laid(user.home, harness.name).exists()
+
+
+def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hooks(user):
+    copy = REPO / "harness" / "jstack" / "claude-code"
+    old = {
+        user.home / ".claude" / "skills" / "crew": copy / "skills" / "crew",
+        user.home / ".claude" / "skills" / "retired": copy / "skills" / "retired",
+        user.home / ".codex" / "skills" / "gone": laid(user.home, "codex") / "skills" / "gone",
+    }
+    for link, target in old.items():
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(target)
+    hook = f"sh '{copy / 'hooks' / 'home-start.sh'}' 2>/dev/null || true"
+    started = {"matcher": "startup", "hooks": [{"type": "command", "command": hook, "timeout": 5}]}
+    user.write(user.settings, {"hooks": {"SessionStart": [started]}})
+    code, said = user.run("--check")
+    assert code == 1
+    crew, retired, gone = old
+    assert line_for(said, crew) == [f"old hard {crew} -> {copy / 'skills' / 'crew'}"]
+    gone_from = f"{copy / 'skills' / 'retired'}, a skill this checkout no longer has"
+    assert line_for(said, retired) == [f"old hard {retired} -> {gone_from}"]
+    assert line_for(said, gone)[0].startswith(f"old hard {gone} -> ")
+    assert line_for(said, f"hook {user.settings} SessionStart") == [
+        f"old hard hook {user.settings} SessionStart -> {hook}"
+    ]
+    code, said = user.run()
+    assert (code, [line for line in said if not line.startswith("ok ")]) == (0, [])
+    for dead in (retired, gone):
+        assert line_for(said, dead) == [f"ok hard {dead} -> unlinked"]
+    assert user.run("--check") == (0, user.every("ok"))
+    assert os.readlink(crew) == str(user.layout / "skills" / "crew")
+    assert not retired.is_symlink() and not gone.is_symlink()
+    assert json.loads(user.settings.read_text())["hooks"]["SessionStart"] == [user.START]
