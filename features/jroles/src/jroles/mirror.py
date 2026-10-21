@@ -134,7 +134,7 @@ class Step:
 def mirrors(text: str, user: Path) -> tuple[Mirror, ...]:
     """Each `claudeAgent` instance of providers.json `text` whose home is not `~/.claude`.
     A home is `config.homePath`, `~` for `user`, with no slash at the end, as
-    `hooks/limits.sh` reads it. Refused when the file is not T3's shape."""
+    `features/jgauge/hooks/limits.sh` reads it. Refused when the file is not T3's shape."""
     pool.declared(text)
     main = os.path.realpath(user / ".claude")
     found = []

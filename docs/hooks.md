@@ -13,7 +13,7 @@ Each hook below is a feature's, as its `features/<name>/feature.json` declares i
 | `SessionStart`, matcher `startup` | [hooks/home-start.sh](../hooks/home-start.sh) | claude-code, codex | `home` |
 | `PreToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
 | `PostToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
-| the status line | [hooks/limits.sh](../hooks/limits.sh) | claude-code | `jgauge` |
+| the status line | [features/jgauge/hooks/limits.sh](../features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](../features/jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
 | git `pre-push` | [features/jleak/hooks/pre-push.sh](../features/jleak/hooks/pre-push.sh) | git | `jleak` |
 | `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
@@ -166,7 +166,7 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
 
 ## The limits writer
 
-`hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../features/jroles/docs/jroles.md#the-ledger)).
+`features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../features/jroles/docs/jroles.md#the-ledger)).
 Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
 The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 `claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`.

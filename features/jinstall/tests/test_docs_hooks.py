@@ -57,7 +57,7 @@ def installed():
             entries.append((shown, f"hooks.{kind.event}", kind.matcher, source(kind.script)))
         elif isinstance(kind, StatusLine):
             shown = f"~/{kind.file.relative_to(machine.home)}"
-            entries.append((shown, "statusLine", None, kind.script))
+            entries.append((shown, "statusLine", None, source(kind.script)))
         elif isinstance(kind, GitHook):
             git.append(kind)
     return entries, git

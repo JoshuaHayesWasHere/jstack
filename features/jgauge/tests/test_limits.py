@@ -1,5 +1,6 @@
-"""`hooks/limits.sh`: the file it writes from what Claude Code hands a status line, read back by
-`room`, and every input it leaves the file alone on. Every test runs the script."""
+"""`features/jgauge/hooks/limits.sh`: the file it writes from what Claude Code hands a status
+line, read back by `room`, and every input it leaves the file alone on.
+Every test runs the script."""
 
 import json
 import os
@@ -14,7 +15,7 @@ import pytest
 from test_room import IDLE, check, machine, ran
 from testing.paths import REPO
 
-HOOK = REPO / "hooks" / "limits.sh"
+HOOK = REPO / "features" / "jgauge" / "hooks" / "limits.sh"
 MV = shutil.which("mv")
 NOW = int(time.time())
 SOON, LATER, WEEK = NOW + 3600, NOW + 5 * 3600, NOW + 90 * 3600

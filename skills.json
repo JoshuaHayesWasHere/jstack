@@ -777,30 +777,6 @@
       "source": "josh"
     },
     {
-      "name": "jgauge-limits.service",
-      "kind": "template",
-      "path": "templates/jgauge-limits.service",
-      "source": "josh"
-    },
-    {
-      "name": "jgauge-limits.timer",
-      "kind": "template",
-      "path": "templates/jgauge-limits.timer",
-      "source": "josh"
-    },
-    {
-      "name": "jgauge-sample.service",
-      "kind": "template",
-      "path": "templates/jgauge-sample.service",
-      "source": "josh"
-    },
-    {
-      "name": "jgauge-sample.timer",
-      "kind": "template",
-      "path": "templates/jgauge-sample.timer",
-      "source": "josh"
-    },
-    {
       "name": "plan-entry.md",
       "kind": "template",
       "path": "templates/plan-entry.md",
@@ -873,7 +849,7 @@
     },
     {
       "name": "limits.sh",
-      "path": "hooks/limits.sh",
+      "path": "features/jgauge/hooks/limits.sh",
       "harnesses": [
         "claude-code"
       ]

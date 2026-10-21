@@ -1,5 +1,5 @@
 """A thread that finds every slot taken registers as a waiter in the file the slot queue owns,
-and says so in one line, instead of waiting in the call. Run as `tests/test_slot.py` runs: the
+and says so in one line, instead of waiting in the call. Run as `test_slot.py` runs: the
 real `jgauge test-slot`, against lock files in a home of its own."""
 
 import fcntl

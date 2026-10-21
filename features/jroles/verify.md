@@ -6,7 +6,7 @@ Paths:
 - `features/jroles/src/jroles/`
 - `features/jroles/docs/`
 - `features/jroles/units/`
-- `hooks/limits.sh`
+- `features/jgauge/hooks/limits.sh`
 Tests: none
 
 ## Sub-features

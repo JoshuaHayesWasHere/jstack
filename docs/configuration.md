@@ -12,7 +12,7 @@ jstack runs with none of these files. Each one changes a default or switches on 
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
 | `~/.config/jstack/providers.json` | The provider instances this machine runs | infra's install, as a link |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
-| `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `hooks/limits.sh`, `jbus` |
+| `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `features/jgauge/hooks/limits.sh`, `jbus` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
 | `origin` of the git repo `~/.local/state/home` | Where `jbus snapshot` pushes the homes' state | You |
 
@@ -172,12 +172,14 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 | `~/.claude/settings.json` | `hooks.PreToolUse` | `hooks/home-gauge.sh` | Claude Code |
 | `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Codex |
 | `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `features/jleak/hooks/outbound-command.sh` | Claude Code |
-| `~/.claude/settings.json` | `statusLine` | `hooks/limits.sh` | Claude Code |
+| `~/.claude/settings.json` | `statusLine` | `features/jgauge/hooks/limits.sh` | Claude Code |
 
 It also links `.git/hooks/pre-push` of the main checkout to `features/jleak/hooks/pre-push.sh`.
 That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](../features/jleak/docs/jleak.md)).
 
-The install leaves every other key of those files as it was. It writes `statusLine` when the key is absent, and replaces one that runs `hooks/limits.sh` of another checkout. It leaves a status line of your own as it is.
+The install leaves every other key of those files as it was.
+It writes `statusLine` when the key is absent, and replaces one that runs jgauge's `limits.sh` from another checkout.
+It leaves a status line of your own as it is.
 
 To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/off`.
 
@@ -199,14 +201,14 @@ test_slots = 3
 
 A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.
 The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), where it was before.
-[Limits](limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
+[Limits](../features/jgauge/docs/limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
 
 ## The limits file
 
 The limits files are the ledger ([jroles](../features/jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
-`jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](jgauge.md)).
-`hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+`jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../features/jgauge/docs/jgauge.md)).
+`features/jgauge/hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 An account the inventory does not declare writes nothing.
 `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
 All three merge by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
@@ -229,11 +231,11 @@ Save this as your status line script, with the path of your checkout, and print 
 ```sh
 #!/bin/sh
 input=$(cat)
-printf '%s' "$input" | sh '<checkout>/hooks/limits.sh'
+printf '%s' "$input" | sh '<checkout>/features/jgauge/hooks/limits.sh'
 printf '%s' "$input" | jq -r '.model.display_name'
 ```
 
-`hooks/limits.sh` prints nothing and exits 0 on any input, so it adds nothing to your line.
+`features/jgauge/hooks/limits.sh` prints nothing and exits 0 on any input, so it adds nothing to your line.
 
 ## The state tree's remote
 
@@ -262,7 +264,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 |---|---|---|
 | `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `jgauge`, `install.sh` |
 | `XDG_CACHE_HOME` | `~/.cache` | `jbriefs`, `jdrift` |
-| `LIMITS` | `~/.local/state/claude/limits` | `hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
+| `LIMITS` | `~/.local/state/claude/limits` | `features/jgauge/hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
 | `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `jgauge sizes`, `install.sh` |
 | `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus`, `jgauge sample --report` |
 | `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus`, `install.sh --doctor` |

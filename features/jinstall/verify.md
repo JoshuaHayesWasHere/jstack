@@ -8,7 +8,7 @@ Paths:
 - `features/jinstall/src/jinstall/`
 - `src/jbus/*.py`
 - `features/jbriefs/src/jbriefs/`
-- `src/jgauge/`
+- `features/jgauge/src/jgauge/`
 - `src/jmerge/`
 - `features/jpack/src/jpack/`
 - `features/jleak/src/jleak/`

@@ -1,15 +1,15 @@
-"""The two probe sessions behind docs/meter-findings.md, against the hand recounts.
+"""The two probe sessions behind features/jgauge/docs/meter-findings.md, against the hand
+recounts.
 
 The fixtures are trimmed copies of the real transcripts (tests/fixtures/README.md).
 The expected numbers are a recount made by hand from the untrimmed files: every
 one is a count read from a file, none is computed here.
 """
 
-from pathlib import Path
-
 from jgauge import session
+from testing.paths import REPO
 
-FIXTURES = Path(__file__).parent / "fixtures" / "projects" / "-tmp-pipeline-check"
+FIXTURES = REPO / "tests" / "fixtures" / "projects" / "-tmp-pipeline-check"
 SMOKE = "a59133d5-44b2-40ea-bca3-6eef6f94ba6f"
 NESTED = "4aa8337b-ff06-40a6-b509-eb8dbc273077"
 SMOKE_SCOUT = "aa8a78fae39e2eb67"

@@ -21,8 +21,9 @@ home, the derivation. `TEST_SLOTS` is an override for one run: set in a shell pr
 count `jbus.service` does not see, and `jgauge sizes` says so.
 
 Room's six lines stay in room.sh, ratios and floors that mean the same on any machine, and the
-Makefile keeps its worker share, since CI has no jstack venv. `docs/limits.md` lists every
-limit, with what it protects and the measurement it rests on. Nothing here writes a file.
+Makefile keeps its worker share, since CI has no jstack venv. `features/jgauge/docs/limits.md`
+lists every limit, with what it protects and the measurement it rests on. Nothing here writes
+a file.
 """
 
 from __future__ import annotations

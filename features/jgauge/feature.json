@@ -8,6 +8,12 @@
   "commands": {
     "jgauge": "jgauge.cli:main"
   },
+  "units": [
+    "units/jgauge-limits.service",
+    "units/jgauge-limits.timer",
+    "units/jgauge-sample.service",
+    "units/jgauge-sample.timer"
+  ],
   "docs": [
     "docs/jgauge.md"
   ],
@@ -15,26 +21,6 @@
     "script": "hooks/limits.sh"
   },
   "owns": [
-    "src/jgauge/**",
-    "docs/jgauge.md",
-    "docs/meter-findings.md",
-    "docs/troubleshooting/jgauge-room-prints-wait.md",
-    "hooks/limits.sh",
-    "templates/jgauge-*",
-    "tests/test_jgauge_sample.py",
-    "tests/test_jgauge_limits.py",
-    "tests/test_limits.py",
-    "tests/test_probes.py",
-    "tests/test_session.py",
-    "tests/test_slot.py",
-    "tests/test_slot_waiters.py",
-    "tests/test_transcript.py",
-    "tests/test_room.py",
-    "tests/test_machine_sizes.py",
-    "tests/test_limits_doc.py",
-    "docs/limits.md",
-    "docs/design/limits.md",
-    "tests/fixtures/claude/**",
-    ".claude/skills/verify-jstack/features/jgauge-*.md"
+    "tests/fixtures/claude/**"
   ]
 }

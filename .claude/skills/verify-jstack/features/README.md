@@ -34,7 +34,7 @@ This directory is the maintained source for verifying what a user of jstack can 
 
 Each feature file starts with an H1 title and one paragraph on what the user sees. Under that paragraph come two lists, before the first H2 section, each a label line with one `- ` line under it for each entry, up to a blank line or the next label:
 
-- `Paths:` the repo paths the feature owns, each in backticks on a line of its own, in the pattern syntax of `src/jmerge/ci-paths.txt` (`src/jgauge/` a directory, `hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part). A feature owns its own code and the code that code imports, so a change to either runs its tests. A path may be owned by more than one feature.
+- `Paths:` the repo paths the feature owns, each in backticks on a line of its own, in the pattern syntax of `src/jmerge/ci-paths.txt` (`features/jgauge/` a directory, `features/jgauge/hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part). A feature owns its own code and the code that code imports, so a change to either runs its tests. A path may be owned by more than one feature.
 - `Tests:` the test files that read the feature in a way no import and no string shows, each in backticks on a line of its own, `tests/test_<name>.py`, or `Tests: none` on one line. The tests that import a module the feature owns are not listed: `scripts/select_tests.py` follows the imports.
 
 `scripts/select_tests.py <base> <head>` reads the two lists of every file, and the `Cross-cutting:` list below, to name the tests a diff needs.
@@ -58,7 +58,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [A queue row, from add to launch](./queue-row.md) covers `jbus queue add`, `approve`, `hold`, and the pass that launches the crew thread.
 - [A gate wakes the Chef](./gate-wake.md) covers `jbus gate`, `jbus done`, the outbox, the POST to the webhook and `jbus status`.
 - [jmerge says ready, wait or hold](./jmerge-decision.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
-- [jgauge room](./jgauge-room.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
+- [jgauge room](../../../../features/jgauge/verify.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
 - [A red main files the brief for its fix](./main-red.md) covers the `retro` line for a failed check on main, the `main-red-<sha12>` brief and its unapproved row, filed once a commit.
 - [Installing jstack](../../../../features/jinstall/verify.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
 
@@ -75,7 +75,6 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [A jbus pass](./jbus-pass.md), not driven yet.
 - [jbus view](./jbus-view.md), not driven yet.
 - [jdrift lists what changed upstream](../../../../features/jdrift/verify.md), not driven yet.
-- [jgauge meters a session](./jgauge-meter.md), not driven yet.
 - [jleak stops a leak](../../../../features/jleak/verify.md), not driven yet.
 - [jroles names a model](../../../../features/jroles/verify.md), not driven yet.
 - [Lessons from a thread](../../../../features/lessons/verify.md), not driven yet.

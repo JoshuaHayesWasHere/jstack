@@ -1,8 +1,8 @@
 # What `jgauge` reads from a transcript
 
-`jgauge` counts tokens from the transcripts Claude Code writes. Claude Code does not document their shape, and it can change between versions. This page records what two probe sessions showed, and why the counting rule in `src/jgauge/transcript.py` is what it is.
+`jgauge` counts tokens from the transcripts Claude Code writes. Claude Code does not document their shape, and it can change between versions. This page records what two probe sessions showed, and why the counting rule in `features/jgauge/src/jgauge/transcript.py` is what it is.
 
-The two sessions were recorded on 2026-10-09 with Claude Code 2.1.296. Trimmed copies are in `tests/fixtures/projects/-tmp-pipeline-check/`, and `tests/fixtures/README.md` says what was kept. `tests/test_probes.py` holds `jgauge session` to a recount made by hand from the untrimmed files.
+The two sessions were recorded on 2026-10-09 with Claude Code 2.1.296. Trimmed copies are in `tests/fixtures/projects/-tmp-pipeline-check/`, and `tests/fixtures/README.md` says what was kept. `features/jgauge/tests/test_probes.py` holds `jgauge session` to a recount made by hand from the untrimmed files.
 
 | Session | What ran |
 |---|---|
