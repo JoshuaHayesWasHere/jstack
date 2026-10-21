@@ -12,11 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
-SKILLS = sorted(REPO.glob("skills/*/SKILL.md"))
-TREES = ("skills", ".cursor/skills")
-SHIPPED = sorted(path for tree in TREES for path in REPO.glob(f"{tree}/*/SKILL.md"))
+SKILLS = [folder / "SKILL.md" for folder in skills().values()]
+SHIPPED = sorted([*SKILLS, *REPO.glob(".cursor/skills/*/SKILL.md")])
 NAMED_TREE = Path(__file__).parent / "fixtures" / "skills" / "named-tree"
 NO_KEY = Path(__file__).parent / "fixtures" / "skills" / "no-key" / "SKILL.md"
 KEY = "disable-model-invocation"

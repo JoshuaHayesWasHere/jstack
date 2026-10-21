@@ -16,6 +16,7 @@ from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
 from testing.paths import REPO
+from testing.paths import skills as skill_folders
 
 FIXTURES = Path(__file__).parent / "fixtures"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
@@ -291,7 +292,7 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
 
 def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_principle():
     listed = json.loads((REPO / skills.CATALOG).read_text())["items"]
-    on_disk = {path.parent.name for path in (REPO / "skills").glob("*/SKILL.md")}
+    on_disk = set(skill_folders())
     on_disk |= {path.stem for path in (REPO / "principles").glob("*.md")}
     named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
     assert named == on_disk
@@ -309,7 +310,7 @@ def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonic
 ):
     """The list is skills.json, not the directories: a skill whose file is there but which the
     file leaves out is refused, and pstack's name for an item resolves to jstack's."""
-    item = {"name": "sharpen", "kind": "skill", "path": "skills/sharpen/SKILL.md"}
+    item = {"name": "sharpen", "kind": "skill", "path": "features/sharpen/SKILL.md"}
     alias = item | {"pstack_name": "deeper"}
     monkeypatch.setattr(skills, "_listed", lambda: ({"sharpen": alias}, {"deeper": alias}))
     assert skills.resolve("architect").path is None

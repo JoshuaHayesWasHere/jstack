@@ -4,18 +4,18 @@ The skills a user types to think with an agent: `architect`, `automate-me`, `ben
 
 Paths:
 - `skills/architect/`
-- `skills/automate-me/`
+- `features/automate-me/`
 - `skills/benchmark-checklist/`
-- `skills/bro/`
+- `features/bro/`
 - `skills/how/`
-- `skills/in-your-own-words/`
-- `skills/ketchup/`
-- `skills/no-comments/`
-- `skills/recall/`
-- `skills/sharpen/`
+- `features/in-your-own-words/`
+- `features/ketchup/`
+- `features/no-comments/`
+- `features/recall/`
+- `features/sharpen/`
 - `skills/show-me-your-work/`
-- `skills/tdd/`
-- `skills/teach/`
+- `features/tdd/`
+- `features/teach/`
 - `skills/typescript-best-practices/`
 - `skills/why/`
 Tests: none

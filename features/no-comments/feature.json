@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "no-comments",
-  "description": "Hunts down every comment that has no reason to stay.",
-  "owns": [
-    "skills/no-comments/**"
-  ]
+  "description": "Hunts down every comment that has no reason to stay."
 }

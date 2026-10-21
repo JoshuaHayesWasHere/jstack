@@ -376,7 +376,7 @@
     {
       "name": "automate-me",
       "kind": "skill",
-      "path": "skills/automate-me/SKILL.md",
+      "path": "features/automate-me/SKILL.md",
       "source": "pstack",
       "description": "Use for /automate-me, \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill by the authoring-a-skill playbook and unslop, optionally pulling fresh evidence from recent transcripts."
     },
@@ -397,7 +397,7 @@
     {
       "name": "bro",
       "kind": "skill",
-      "path": "skills/bro/SKILL.md",
+      "path": "features/bro/SKILL.md",
       "source": "pstack",
       "description": "Restate the last message in plain human language, with no jargon. Use for /bro."
     },
@@ -474,7 +474,7 @@
     {
       "name": "in-your-own-words",
       "kind": "skill",
-      "path": "skills/in-your-own-words/SKILL.md",
+      "path": "features/in-your-own-words/SKILL.md",
       "source": "pstack",
       "description": "Restate in your own words what you think the user's goals are and what problem they're trying to solve. Use for /in-your-own-words."
     },
@@ -488,7 +488,7 @@
     {
       "name": "ketchup",
       "kind": "skill",
-      "path": "skills/ketchup/SKILL.md",
+      "path": "features/ketchup/SKILL.md",
       "source": "pstack",
       "description": "Catch the user up on what changed in this chat since their last message, in plain words and small visuals. List every item waiting on them with what they need to decide it from the reply alone. Use for /ketchup."
     },
@@ -516,7 +516,7 @@
     {
       "name": "no-comments",
       "kind": "skill",
-      "path": "skills/no-comments/SKILL.md",
+      "path": "features/no-comments/SKILL.md",
       "source": "adapted",
       "description": "Use for /no-comments: a comment hunter reads the scope and condemns every comment that has no exception, then this thread deletes what it accepts, fixes the code a comment was excusing, and offers encodings for claimed constraints."
     },
@@ -544,7 +544,7 @@
     {
       "name": "recall",
       "kind": "skill",
-      "path": "skills/recall/SKILL.md",
+      "path": "features/recall/SKILL.md",
       "source": "pstack",
       "description": "Reconstruct your recent working context from your own chat history, the home's record, live state, and the shared record (user reports, prior fixes, incidents), then hand back a tight current-state brief. Use for /recall, 'recall my work on X', 'catch me up', 'what have I been working on', 'where did I leave off', before starting or resuming work."
     },
@@ -572,7 +572,7 @@
     {
       "name": "sharpen",
       "kind": "skill",
-      "path": "skills/sharpen/SKILL.md",
+      "path": "features/sharpen/SKILL.md",
       "source": "pstack",
       "description": "Make a task deeper, not bigger, then rewrite the prompt. Use for /sharpen."
     },
@@ -593,14 +593,14 @@
     {
       "name": "tdd",
       "kind": "skill",
-      "path": "skills/tdd/SKILL.md",
+      "path": "features/tdd/SKILL.md",
       "source": "pstack",
       "description": "Use for /tdd: fix a bug test-first, with a focused regression test that fails before the fix and passes after it. For a bug with a clear, cheap test path. Skip when the test path is unclear, expensive or integration-heavy."
     },
     {
       "name": "teach",
       "kind": "skill",
-      "path": "skills/teach/SKILL.md",
+      "path": "features/teach/SKILL.md",
       "source": "pstack",
       "description": "Explain a body of work plainly so a person actually understands it. Runs the `how` and `why` skills and weaves what they find into one clear explanation. Use for /teach, 'teach me this', 'help me really understand X', 'explain this change or subsystem to me'."
     },
