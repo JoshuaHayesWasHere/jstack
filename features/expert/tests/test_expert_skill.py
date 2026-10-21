@@ -14,9 +14,9 @@ from subprocess import run
 import pytest
 from jsonschema import Draft202012Validator
 
+import test_added_skills as added
 import test_playbook_wiring as wiring
 import test_tool_calls as calls
-import test_understanding_skills as added
 from jbus import mirror
 from test_handoff_pin import T3
 from test_home_thread import as_read
@@ -25,7 +25,7 @@ from testing.paths import REPO
 
 SKILL = REPO / "features" / "expert" / "SKILL.md"
 TEMPLATE = REPO / "features" / "expert" / "templates" / "expert-answer.md"
-TIERS = REPO / "skills" / "why" / "references" / "epistemics.md"
+TIERS = REPO / "features" / "why" / "references" / "epistemics.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "sage"
 THREAD = "mcp:thread-one"

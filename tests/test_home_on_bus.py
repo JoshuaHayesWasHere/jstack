@@ -16,8 +16,8 @@ from datetime import timedelta
 
 import pytest
 
+from skill_blocks import block, git
 from test_jbus_kitchen import NOW
-from test_understanding_skills import block, git
 from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"

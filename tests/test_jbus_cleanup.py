@@ -11,7 +11,7 @@ import sys
 import pytest
 
 from jbus import cleanup, queue
-from test_understanding_skills import blocks
+from skill_blocks import blocks
 from testing.paths import REPO
 
 SKILL = REPO / "features" / "pr-review" / "after-the-review.md"
