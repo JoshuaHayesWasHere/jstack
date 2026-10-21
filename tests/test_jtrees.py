@@ -4,6 +4,7 @@ copy of this checkout."""
 
 import importlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -386,3 +387,25 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
     assert {"skills.json", "plugin.json", "docs"} <= set(shared)
     assert "features/jinstall/src/jinstall" in wheel["packages"]
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
+
+
+def test_every_path_the_readmes_table_of_the_repo_names_is_in_the_repo():
+    """The rows below "| Path | Holds |" are written by hand, so no run of the generator moves
+    them: each path in the Path column is in the checkout, and each name a row gives in backticks
+    is too, from the root or from the row's own folder. A name with `~`, `<`, `{` or a space is a
+    pattern, and one with no `/` and no `.` is a command."""
+    lines = (REPO / "README.md").read_text().splitlines()
+    rows = []
+    for line in lines[lines.index("| Path | Holds |") + 2 :]:
+        if not line.startswith("|"):
+            break
+        path, holds = (cell.strip() for cell in line.strip("|").split("|", 1))
+        rows.append((path.strip("`"), re.findall(r"`([^`]+)`", holds)))
+    assert rows
+    for path, named in rows:
+        assert (REPO / path).exists(), path
+        folder = REPO / path if path.endswith("/") else REPO
+        for name in named:
+            if re.search(r"[~<{\s]", name) or not re.search(r"[./]", name):
+                continue
+            assert (REPO / name).exists() or (folder / name).exists(), f"{path}: {name}"
