@@ -13,3 +13,4 @@ pytest_plugins = [
     "test_sweep",
     "test_jmerge_guarded",
 ]
+# measure: a change here makes check-fast select all (ci-fast-jobs, throwaway)
