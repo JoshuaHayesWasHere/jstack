@@ -500,6 +500,13 @@
       "description": "Keep a repo's verify skill, `.claude/skills/verify-<app>/`, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
     },
     {
+      "name": "make-bot-ui",
+      "kind": "skill",
+      "path": "skills/make-bot-ui/SKILL.md",
+      "source": "pstack",
+      "description": "Build a page whose buttons wake this T3 Code thread through a schedule_task webhook, served on the tailnet by a local server that keeps the webhook's URL and key off the browser. Use for /make-bot-ui, 'make a bot UI', 'buttons that wake this thread'."
+    },
+    {
       "name": "new-home",
       "kind": "skill",
       "path": "skills/new-home/SKILL.md",

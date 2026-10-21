@@ -1,6 +1,6 @@
-"""The skills added after the first eleven: each is typed only, and its shell blocks are run."""
+"""The skills added after the first eleven: each is typed only, its shell blocks are run, and
+each subagent it starts is a read-only Explore agent its tool takes."""
 
-import json
 import os
 import re
 import subprocess
@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import as_read
+from test_tool_calls import CALLS, errors
 
 REPO = Path(__file__).parent.parent
 SKILLS = REPO / "skills"
@@ -40,6 +41,9 @@ BUILT_IN = set(
     """.split()
 )
 NOT_IN_A_SUBAGENT_CALL = {"model", "effort", "isolation"}
+SUBAGENT_CALLS = [
+    call for call in CALLS if call.tool == "Agent" and call.where.split(":")[0] in ADDED
+]
 DAY = 24 * 60 * 60
 
 
@@ -195,18 +199,12 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
     assert run(body, repo, home) != []
 
 
-@pytest.mark.parametrize(
-    ("name", "body"),
-    [
-        pytest.param(name, body, id=f"{name}:{number}")
-        for name in ADDED
-        for number, body in enumerate(blocks((SKILLS / name / "SKILL.md").read_text(), "json"), 1)
-    ],
-)
-def test_a_subagent_an_added_skill_starts_is_read_only_on_this_sessions_model(name, body):
-    call = json.loads(body)
-    assert call.get("subagent_type") == "Explore", "a JSON block here is an Agent call"
-    assert NOT_IN_A_SUBAGENT_CALL & set(call) == set()
+@pytest.mark.parametrize("call", SUBAGENT_CALLS, ids=lambda call: call.where)
+def test_a_subagent_an_added_skill_starts_is_read_only_on_this_sessions_model(call):
+    given = call.given
+    assert errors(call, given) == []
+    assert given.get("subagent_type") == "Explore"
+    assert NOT_IN_A_SUBAGENT_CALL & set(given) == set()
 
 
 def test_recall_lists_the_transcripts_of_this_directory_in_the_window_newest_first(repo, home):

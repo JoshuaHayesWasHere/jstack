@@ -44,6 +44,9 @@ FILLED = {
     "<the message>": "From the cook: the oven is off.",
     "<the next home's id>": "mcp:the-next-home",
     "<the home-id file>": "/home/someone/.local/state/home/demo/home-id",
+    "<name>": "deploy-buttons",
+    "<the actions>": "deploy, rollback",
+    "<the secretRef from step 2>": "secret-ref:5e6f7a8b-0000-4000-8000-000000000000",
 }
 
 
