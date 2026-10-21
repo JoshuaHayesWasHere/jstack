@@ -43,7 +43,8 @@ What one step is, in the code:
   (`T3Error`, `src/jbus/mainmoved.py:150-153`) or it refuses it (`T3Refused`, 145-149).
 
 What is stubbed, and only this: `mainmoved.main_check` returns the tip's check from the
-model (it would ask GitHub), `dispatch.launched` says `alpha` was launched, `dispatch.thread_of`
+model (it would ask GitHub), GitHub's list of main's commits is the model's tips, each the
+first parent of the next, `dispatch.launched` says `alpha` was launched, `dispatch.thread_of`
 gives its thread, and `rebase.held` holds back no message (the crew's turn has ended).
 `Pass`, `Client` and `World` are fakes with only what `tell` reads; `sent.json` and
 `main.json` are real files in a temporary state directory, written by the real code.
@@ -160,6 +161,12 @@ class FakePass:
     def run(self, *command: str) -> Asked:
         if command[:2] == ("git", "symbolic-ref"):
             return Asked("origin/main\n")
+        if command[:2] == ("gh", "api"):
+            landed = range(len(self.checks))
+            commits = [
+                {"sha": sha(n), "parents": [{"sha": sha(n - 1)}] if n else []} for n in landed
+            ]
+            return Asked(json.dumps(commits[::-1]))
         return Asked(f"{self.tip}\trefs/heads/main\n")
 
     def gate(self, slug: str, what: str, text: str = "", *, key: str = "") -> None:
