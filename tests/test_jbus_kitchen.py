@@ -971,6 +971,29 @@ def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
     )
 
 
+def test_building_the_template_starts_no_background_maintenance(tmp_path, monkeypatch):
+    """git's auto maintenance runs detached after a commit or a push, and wrote and removed
+    `objects/maintenance.lock` while the build copied the checkout: main's run 39629845242.
+    """
+    trace = tmp_path / "trace"
+    monkeypatch.setenv("GIT_TRACE2", str(trace))
+    repo_template.built(tmp_path / "template")
+    started = [line for line in trace.read_text().splitlines() if " start " in line]
+    assert started
+    assert not [line for line in started if "maintenance run" in line or " gc --auto" in line]
+
+
+def test_a_lock_file_left_in_the_template_is_not_copied(tmp_path):
+    """A lock file in the template, one a git process holds or one it left, stays behind."""
+    template = repo_template.built(tmp_path / "template")
+    for repo in (template.checkout / ".git", template.origin):
+        (repo / "objects" / "maintenance.lock").write_text("")
+    checkout, origin = tmp_path / "checkout", tmp_path / "origin.git"
+    repo_template.copied(template, checkout, origin)
+    assert said(checkout, "rev-parse", "main") == template.main
+    assert not list(checkout.rglob("*.lock")) + list(origin.rglob("*.lock"))
+
+
 def queued(kitchen, slug, text=None):
     """A row of the queue, approved, as the Chef adds one."""
     text = text or complete(slug)
