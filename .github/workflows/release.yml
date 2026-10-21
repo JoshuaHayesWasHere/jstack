@@ -58,4 +58,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-        run: gh release create "$TAG" dist/* --verify-tag --title "jstack $TAG" --notes "Install: curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | sh"
+        # Quoted whole: unquoted, the `: ` in the notes is a YAML error, and GitHub fails the
+        # file on every push (tests/test_workflows.py).
+        run: 'gh release create "$TAG" dist/* --verify-tag --title "jstack $TAG" --notes "Install: curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | sh"'

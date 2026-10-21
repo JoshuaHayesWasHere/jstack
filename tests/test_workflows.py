@@ -1074,6 +1074,50 @@ def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_th
     assert by["gh release create"]["run"].startswith('gh release create "$TAG" dist/* --verify-tag')
 
 
+def refused(text):
+    """The lines whose value YAML refuses, by line number: an unquoted value that holds `: `
+    or ends `:`, which YAML reads as a second mapping on one line. GitHub cannot use such a
+    file, and reports a run named after its path with no jobs on every push, whatever its
+    triggers say. A block scalar's lines (after `|` or `>`) are the shell's, not YAML's."""
+    found, under = [], None
+    for number, line in enumerate(text.splitlines(), 1):
+        indent = len(line) - len(line.lstrip())
+        if under is not None and (not line.strip() or indent > under):
+            continue
+        under = None
+        content = line.strip()
+        if not content or content.startswith("#"):
+            continue
+        content = content.removeprefix("- ")
+        if ": " not in content:
+            continue
+        value = content.partition(": ")[2].strip()
+        if not value or value[0] in "#'\"[{&*!":
+            continue
+        value = value.partition(" #")[0].strip()
+        if value[0] in "|>":
+            under = indent
+        elif ": " in value or value.endswith(":"):
+            found.append(number)
+    return found
+
+
+def test_every_workflow_is_a_file_yaml_reads():
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        assert refused(path.read_text()) == [], path.name
+
+
+def test_an_unquoted_value_with_a_colon_and_a_space_is_refused_and_a_quoted_or_block_one_is_not():
+    step = "    steps:\n      - name: notes\n"
+    bad = 'run: gh release create --notes "Install: curl"\n'
+    assert refused(f"jobs:\n  one:\n{step}        {bad}") == [5]
+    assert refused(f"jobs:\n  one:\n{step}        - run: echo a:\n") == [5]
+    assert refused(f"jobs:\n  one:\n{step}        run: >-\n          {bad}") == []
+    assert refused(f"jobs:\n  one:\n{step}        run: '{bad.strip()}'\n") == []
+    assert refused("on:\n  push:\n    tags: v* # a: tag\n") == []
+    assert refused("on:\n  push: # note: x\n    tags: v*\n") == []
+
+
 VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
 
 
