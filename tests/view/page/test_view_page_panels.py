@@ -1,5 +1,6 @@
 """The panels on the page: each opened from the first screen or a drawer, and a folder added."""
 
+import json
 import re
 from pathlib import Path
 
@@ -48,6 +49,8 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         "/panel/steps.json?project=",
         "/stack.json",
         "/state.json",
+        "/steer",
+        "/steer?project=",
         "/task/",
     ]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
@@ -59,8 +62,12 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
 
 
 def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp_path):
-    """The scene has a question jbus holds, which is what opens the drawer of a gate."""
+    """The scene has a question jbus holds, which is what opens the drawer of a gate, and a
+    work item linked to a task, whose drawer opens the item's."""
     gated(scene)
+    made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
+    made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "jam-jar"}
+    (scene.state / "items.jsonl").write_text(json.dumps(made) + "\n")
     a_noticed(scene, ("alpha", "new", 5, {}))
     scene.passed(20, threads=[out("home: demo")])
     seen = look(scene, tmp_path)

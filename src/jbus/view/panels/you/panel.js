@@ -1,11 +1,13 @@
 var NEEDS_FOR = 10;
 var ACCEPTING = {}, SAID = [];
+var LOST_APPROVAL = "The view server did not answer, so it is not known whether the approval was written. Read the list again before you approve.";
 function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
-function inlineAccept(w) { return w.answerable && w.verb === "Accept default"; }
+function inlineAccept(w) { return (w.answerable && w.verb === "Accept default") || (!!w.item && !!PROJECT); }
 function needMeta(w, soon) {
   var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
+  if (w.item) bits.push('<a class="ilk" href="' + esc(needLink(w)) + '">' + esc(w.item) + '</a>');
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (soon && due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
   if (w.risk !== "reversible") bits.push(esc(w.risk));
@@ -14,8 +16,8 @@ function needMeta(w, soon) {
 }
 function needAct(w) {
   var id = needId(w), now = ACCEPTING[id];
-  if (now) return '<span class="acc">' + (now.sent ? "Closing it&hellip;" : 'Accepting the default in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
-  if (inlineAccept(w)) return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Accepts the default of question ' + esc(needNumber(w)) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">' + esc(w.verb) + '</button>';
+  if (now) return '<span class="acc">' + (now.sent ? (w.item ? "Approving it&hellip;" : "Closing it&hellip;") : (w.item ? "Approving " + esc(w.item) : "Accepting the default") + ' in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
+  if (inlineAccept(w)) return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="' + (w.item ? "Approves " + esc(w.item) : "Accepts the default of question " + esc(needNumber(w))) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">' + esc(w.verb) + '</button>';
   if (PROJECT) return '<button type="button" class="btn" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
   return '<a class="btn" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
 }
@@ -88,11 +90,18 @@ function sendAccept(id) {
   var now = ACCEPTING[id], w = now.w;
   now.sent = true; renderNeeds();
   function over(say, bad) { delete ACCEPTING[id]; SAID = [{ say: say, bad: bad }]; renderNeeds(); }
+  if (w.item) {
+    ask("/steer?project=" + encodeURIComponent(w.project), { item: w.item, action: "approve", words: "", seen_event: w.seen, confirm: false }).then(function (r) {
+      over(r && r.say ? r.say : r && r.error ? "The server refused the approval: " + r.error + "." : LOST_APPROVAL, !r || r.http !== 200);
+      poll(true);
+    }, function () { over(LOST_APPROVAL, true); });
+    return;
+  }
   ask("/answer?project=" + encodeURIComponent(w.project), { numbers: [Number(needNumber(w))] }).then(function (r) {
     if (!r || !r.closed) { over(r && r.error ? "The server refused the write: " + r.error + "." : UNKNOWN_END, true); return; }
     var one = r.closed[0] || r.refused[0];
     over(one ? one.say : UNKNOWN_END, !one || !r.closed.length || !(one.sent || one.keeps));
-    poll();
+    poll(true);
   }, function () { over(UNKNOWN_END, true); });
 }
 document.addEventListener("click", function (e) {
@@ -123,7 +132,7 @@ function sendBatch() {
 }
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. Nothing else on the page writes, and nothing here approves.</p>';
+  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;
