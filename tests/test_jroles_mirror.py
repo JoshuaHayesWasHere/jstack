@@ -4,6 +4,7 @@ mirror homes, one that a second account has used for a while and one that is new
 
 import json
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -324,3 +325,89 @@ def test_check_names_each_shared_key_of_claude_json_that_differs(home, capsys):
     prime = home / ".claude_prime" / ".claude.json"
     assert code == 1
     assert said == [f"would sync projects, theme of {config} into {prime}"]
+
+
+def used(path, usage):
+    """Write `usage` as the skillUsage of the `.claude.json` at `path`, its other keys kept."""
+    found = json.loads(path.read_text())
+    found["skillUsage"] = usage
+    path.write_text(json.dumps(found))
+
+
+def usage_of(path):
+    return json.loads(path.read_text()).get("skillUsage")
+
+
+def ms(minutes_ago=0):
+    return int((time.time() - 60 * minutes_ago) * 1000)
+
+
+def test_skill_use_in_each_home_is_pooled_into_every_home(home, capsys):
+    """Two accounts each used a skill the others did not: after a run every home has all."""
+    main = home / ".claude.json"
+    prime, third = home / ".claude_prime" / ".claude.json", home / ".claude_third" / ".claude.json"
+    used(main, {"crew": {"usageCount": 3, "lastUsedAt": ms(60)}})
+    used(prime, {"tdd": {"usageCount": 1, "lastUsedAt": ms(30)}})
+    used(third, {"home": {"usageCount": 2, "lastUsedAt": ms(20)}})
+    code, _, err = mirror(capsys)
+    assert (code, err) == (0, "")
+    for path in (main, prime, third):
+        assert sorted(usage_of(path)) == ["crew", "home", "tdd"], path
+        assert usage_of(path)["tdd"]["usageCount"] == 1
+        assert usage_of(path)["home"]["usageCount"] == 2
+
+
+def test_a_higher_count_and_a_later_time_are_each_kept_whichever_home_holds_them(home, capsys):
+    main, prime = home / ".claude.json", home / ".claude_prime" / ".claude.json"
+    early, late = ms(90), ms(10)
+    used(main, {"crew": {"usageCount": 2, "lastUsedAt": late}})
+    used(prime, {"crew": {"usageCount": 7, "lastUsedAt": early, "pinned": 1}})
+    mirror(capsys)
+    pooled = {"usageCount": 7, "lastUsedAt": late, "pinned": 1}
+    for path in (main, prime, home / ".claude_third" / ".claude.json"):
+        assert usage_of(path) == {"crew": pooled}, path
+
+
+def test_check_is_clean_right_after_a_run_that_pooled(home, capsys):
+    used(home / ".claude.json", {"crew": {"usageCount": 1, "lastUsedAt": ms(60)}})
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms()}})
+    mirror(capsys)
+    code, said, err = mirror(capsys, "--check")
+    assert (code, err) == (0, "")
+    assert said == [
+        f"ok        {home / at} mirrors {home / '.claude'}"
+        for at in (".claude_prime", ".claude_third")
+    ]
+
+
+def test_use_since_the_last_sync_is_pooling_and_no_failure(home, capsys):
+    mirror(capsys)
+    prime = home / ".claude_prime" / ".claude.json"
+    used(prime, {"tdd": {"usageCount": 1, "lastUsedAt": ms(1)}})
+    code, said, err = mirror(capsys, "--check")
+    assert (code, err) == (0, "")
+    assert f"pooling   skillUsage tdd into {home / '.claude.json'}" in said
+    assert f"pooling   skillUsage tdd into {home / '.claude_third' / '.claude.json'}" in said
+    assert not any(str(prime) in line for line in said)
+
+
+def test_a_skill_missing_from_a_home_for_longer_than_a_sync_period_fails_and_is_named(home, capsys):
+    mirror(capsys)
+    used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(9)}})
+    code, said, _ = mirror(capsys, "--check", "--instance", THIRD)
+    third = home / ".claude_third" / ".claude.json"
+    assert code == 1
+    assert said == [f"would pool skillUsage tdd into {third}"]
+
+
+def test_a_malformed_skill_usage_entry_fails_naming_the_skill_and_pools_nothing(home, capsys):
+    mirror(capsys)
+    prime = home / ".claude_prime" / ".claude.json"
+    used(home / ".claude.json", {"crew": {"usageCount": 1, "lastUsedAt": ms(60)}})
+    used(prime, {"tdd": {"usageCount": "many", "lastUsedAt": ms(60)}})
+    code, _, err = mirror(capsys, "--check")
+    assert code == 2 and f"{prime}: skillUsage tdd is malformed" in err
+    code, _, err = mirror(capsys)
+    assert code == 2 and f"{prime}: skillUsage tdd is malformed" in err
+    assert usage_of(prime)["tdd"]["usageCount"] == "many"
+    assert "crew" not in (usage_of(home / ".claude_third" / ".claude.json") or {})
