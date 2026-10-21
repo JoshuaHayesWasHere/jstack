@@ -1,0 +1,35 @@
+name: borders
+
+# A label is part of what the lint reads, so a label added or taken off runs it again: the
+# default types leave those two out. It is a workflow of its own and not a job of check.yml,
+# since a label event there would cancel the running `check` in its concurrency group and
+# leave a skipped `check` as the newest run of that name, which jmerge reads as not passed.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borders-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Warns, as annotations, on a path with no owner or two, a new path outside the feature
+  # layout, and a change across two features with no `cross-cutting` label. It exits 0 on a
+  # warning: unit 37 makes it hard. Standard library only, so no uv sync, and a label flip
+  # costs seconds. On GitHub's merge of the pull request HEAD^1 is the tip of the base.
+  borders:
+    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      # The labels reach the shell through the environment, never spliced into the script.
+      - name: lint borders
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: python3 scripts/lint-borders.py --base HEAD^1 --labels "$LABELS"

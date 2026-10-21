@@ -7,6 +7,8 @@
     "tests/test_playbook*.py",
     "tests/test_docs_tree.py",
     "scripts/check-jstack-docs.py",
+    "scripts/lint-borders.py",
+    "tests/test_lint_borders.py",
     "tests/test_docs_true.py",
     "tests/test_readme_current.py",
     "tests/test_module_size.py",

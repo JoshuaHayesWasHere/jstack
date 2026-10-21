@@ -160,6 +160,7 @@ def jobs(text):
 
 def test_every_job_takes_its_runner_from_the_repos_variable_and_githubs_with_none():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
+        "borders.yml": {"borders": PICK},
         "browser.yml": {"browser": PICK},
         "check.yml": {"check": PICK, "full": PICK},
         "pstack-drift.yml": {"drift": PICK},
