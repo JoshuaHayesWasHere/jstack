@@ -27,14 +27,5 @@
       "name": "pre-push",
       "script": "hooks/pre-push.sh"
     }
-  ],
-  "owns": [
-    "src/jleak/**",
-    "docs/jleak.md",
-    "hooks/outbound-command.sh",
-    "hooks/pre-push.sh",
-    "tests/test_jleak*.py",
-    "tests/test_pull_request_words.py",
-    ".claude/skills/verify-jstack/features/jleak.md"
   ]
 }

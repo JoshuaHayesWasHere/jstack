@@ -186,6 +186,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         files
     )
     assert "features/show-me-your-work/tests/test_show_me_your_work.py" in files
+    assert "features/jleak/hooks/pre-push.sh" in files
     assert {
         "templates/jbus.service",
         "templates/jbus.timer",

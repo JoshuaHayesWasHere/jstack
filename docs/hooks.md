@@ -14,8 +14,8 @@ Each hook below is a feature's, as its `features/<name>/feature.json` declares i
 | `PreToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
 | `PostToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
 | the status line | [hooks/limits.sh](../hooks/limits.sh) | claude-code | `jgauge` |
-| `PreToolUse`, matcher `Bash`, refuses | [hooks/outbound-command.sh](../hooks/outbound-command.sh) | claude-code | `jleak` |
-| git `pre-push` | [hooks/pre-push.sh](../hooks/pre-push.sh) | git | `jleak` |
+| `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](../features/jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
+| git `pre-push` | [features/jleak/hooks/pre-push.sh](../features/jleak/hooks/pre-push.sh) | git | `jleak` |
 | `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
 <!-- generated: end -->
 
