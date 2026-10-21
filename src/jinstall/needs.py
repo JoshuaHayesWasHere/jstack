@@ -44,7 +44,7 @@ from jinstall.kinds import (
     declared,
     templates,
 )
-from jinstall.layout import Layout, skills
+from jinstall.layout import UNREADABLE, Layout, skills
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
@@ -79,7 +79,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     of each skills root for GoneLink, and the provider inventory, which names the instances
     and the Claude homes to probe. A release has no checkout, and lists neither the generated
     line nor the git hook. An inventory that cannot be taken
-    names none, and its own line says why.
+    names none, and its own line says why. A skills.json that cannot be read names no
+    skill, and each layout's line says why.
 
     Only probed:
       hard      linux                         Linux
@@ -124,7 +125,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  units ~/.config/systemd/user  Units
     """
     repo, home = machine.checkout, machine.home
-    named = skills(machine.source)
+    try:
+        named = skills(machine.source)
+    except UNREADABLE:
+        named = []
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"

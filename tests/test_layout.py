@@ -239,6 +239,30 @@ def test_a_new_skill_is_in_every_layout_on_the_next_install_and_an_edit_is_live(
     assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
 
 
+@pytest.mark.parametrize("broken", ["conflicted", "missing"])
+@pytest.mark.parametrize("args", [("--check",), ()], ids=["check", "install"])
+def test_a_source_whose_catalog_cannot_be_read_is_named_on_its_lines_and_ends_in_no_traceback(
+    user, tmp_path, broken, args
+):
+    checkout = copied(tmp_path)
+    catalog = checkout / "skills.json"
+    if broken == "missing":
+        catalog.unlink()
+    else:
+        catalog.write_text("<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> theirs\n")
+    done = user.start(*args, checkout=checkout)
+    out, err = done.communicate()
+    lines = out.splitlines()
+    assert done.returncode == 1
+    assert "Traceback" not in err
+    generated = line_for(lines, "generated files are current")
+    assert len(generated) == 1 and generated[0].startswith("old hard ")
+    for harness in HARNESSES:
+        part = f"layout {harness.name} {laid(user.home, harness.name)}"
+        [said] = line_for(lines, part)
+        assert said.startswith(f"old hard {part} -> the source cannot be read: ")
+
+
 def test_check_names_what_is_stale_in_a_layout_and_a_run_mends_it(user):
     user.run()
     gone = user.layout / "skills" / "crew" / "SKILL.md"

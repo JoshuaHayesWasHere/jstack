@@ -31,9 +31,11 @@ from pathlib import Path, PurePosixPath
 from jinstall import links, terms
 from jinstall.harnesses import Harness
 from jinstall.kinds import Found
-from jinstall.machine import Dropped, Machine
+from jinstall.machine import Dropped, Machine, Refused
 
 CATALOG = "skills.json"
+UNREADABLE = (OSError, ValueError, KeyError, TypeError)
+"""What reading a source whose `skills.json` is missing, not JSON or not its shape raises."""
 PLUGIN = "plugin.json"
 SHOWN = 1
 NOT_THE_SKILL = frozenset(
@@ -240,7 +242,7 @@ class Layout:
         at = folder(machine, self.harness)
         try:
             assembled = self._assembled(machine)
-        except (OSError, ValueError, KeyError) as error:
+        except UNREADABLE as error:
             return Found.old(f"the source cannot be read: {error}")
         if assembled.faults:
             return Found.old(_first(list(assembled.faults)))
@@ -257,7 +259,10 @@ class Layout:
 
     def put(self, machine: Machine) -> None:
         at = folder(machine, self.harness)
-        assembled = self._assembled(machine)
+        try:
+            assembled = self._assembled(machine)
+        except UNREADABLE as error:
+            raise Refused(f"the source cannot be read: {error}") from error
         machine.make_dirs(at)
         for path in stale(assembled, at):
             target = at / path
@@ -278,7 +283,7 @@ class Layout:
             return Dropped()
         try:
             entries = self._assembled(machine).entries
-        except (OSError, ValueError, KeyError):
+        except UNREADABLE:
             entries = {}
         kept = 0
         for path in _found(at):
