@@ -110,7 +110,9 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
     asked.write_text("Playbook: investigation\nSkills: tdd\n")
     opened = released.run(home, "jbus", "playbook", "scout", str(asked))
     assert opened.returncode == 0, opened.stderr
-    assert opened.stdout.splitlines()[0] == str(released.source / "playbooks" / "investigation.md")
+    assert opened.stdout.splitlines()[0] == str(
+        released.source / "features" / "scout" / "playbooks" / "investigation.md"
+    )
     loaded = released.run(home, "jbriefs", "--skills", str(asked))
     assert loaded.returncode == 0, loaded.stderr
     assert loaded.stdout.splitlines()[0].startswith("loaded: tdd")

@@ -72,8 +72,8 @@ def test_a_brief_is_a_crewmates_with_its_playbook_line(home):
 def test_a_request_is_a_scouts_with_its_playbook_line(home):
     said = jbriefs(str(home / "scouts" / "why-slow.md"))
     assert said[:2] == [
-        "role scout: /scout why-slow (skills/scout/SKILL.md)",
-        "playbook investigation: playbooks/investigation.md (its Playbook: line)",
+        "role scout: /scout why-slow (features/scout/SKILL.md)",
+        "playbook investigation: features/scout/playbooks/investigation.md (its Playbook: line)",
     ]
 
 
