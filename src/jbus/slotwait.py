@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import shlex
 from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
 from jbus import END_TURN, verbs
@@ -87,6 +88,15 @@ def wake(run: Pass, client: Client) -> None:
             tell(run, client, one)
 
 
+def waited(one: Waiter, now: datetime) -> int:
+    """Whole minutes since the thread first waited, which `jgauge sample --report` counts."""
+    try:
+        since = datetime.fromisoformat(one.since)
+    except ValueError:
+        return 0
+    return max(0, int((now - since).total_seconds() // 60))
+
+
 def tell(run: Pass, client: Client, one: Waiter) -> None:
     command = shlex.join(one.command)
     message = MESSAGE.format(lane=one.lane, command=command)
@@ -103,7 +113,10 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
         return
     waiters.woken(slot.locks_dir(), one.id, run.now)
-    line = f"slot-wake: woke {one.thread}, a {one.lane} slot is free for `{command}`"
+    line = (
+        f"slot-wake: woke {one.thread}, a {one.lane} slot is free for `{command}`,"
+        f" after {waited(one, run.now)} min"
+    )
     run.find("", "slot-wake", line, key=one.id)
     run.say(line)
 

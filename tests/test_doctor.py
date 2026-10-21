@@ -239,11 +239,19 @@ def test_a_jbus_config_the_loader_refuses_is_old_in_the_loaders_words(user, writ
     assert said.startswith(f"old optional jbus config {path} -> {path} {why}")
 
 
+@pytest.mark.parametrize(("written", "shown"), [("[1]", "[1]"), ('"many"', "'many'"), ("0", "0")])
+def test_a_crew_cap_that_is_no_count_is_old_in_one_line(user, written, shown):
+    path = user.jbus / "config.toml"
+    user.private(path, f"{JBUS}max_running = {written}\n")
+    assert user.line("jbus config") == (
+        f"old optional jbus config {path} -> max_running in {path} is {shown},"
+        " and the number of max_running is 1 or more"
+    )
+
+
 @pytest.mark.parametrize(
     ("written", "raised"),
     [
-        ("max_running = [1]\n", "TypeError"),
-        ('max_running = "many"\n', "ValueError"),
         (
             '[[project]]\nname = "one"\ncheckout = "~nobody-by-this-name/x"\nprojectId = "1"\n',
             "RuntimeError",

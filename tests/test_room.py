@@ -84,6 +84,8 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
     )
     put(stub / "nproc", f"#!/bin/sh\necho {cores}\n", 0o755)
+    if str(cores).isdecimal():
+        put(proc / "stat", "".join(f"cpu{n} 1 1 1 1 0 0 0 0 0 0\n" for n in range(int(cores))))
     if plan is None:
         (where / "limits").unlink(missing_ok=True)
     else:

@@ -55,6 +55,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import jsettings
+from jgauge import sizes
 
 Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
@@ -64,7 +65,6 @@ IGNORED = ("loud",)
 NUMBERED = "numbered"
 REPO, SCRATCH = "repo", "scratch"
 TIMESTAMPED = "timestamped"
-MAX_RUNNING = 24
 Hook = tuple[str, str]
 REDACTED = "[redacted]"
 URL_PART = 8
@@ -362,18 +362,16 @@ def load(directory: Path | None = None) -> Config:
         user = jsettings.load()
     except jsettings.Invalid as error:
         raise Refused(f"refused: {error}") from error
-    max_running = int(raw.get("max_running", MAX_RUNNING))
-    if max_running < 1:
-        raise Refused(
-            f"refused: {path} has max_running = {max_running}: "
-            f"give 1 or more, or leave it out for {MAX_RUNNING}"
-        )
+    try:
+        cap = sizes.resolve(sizes.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path)
+    except sizes.Refused as error:
+        raise Refused(f"refused: {error}") from error
     home = Path.home()
     return Config(
         server=server,
         runtime_mode=raw.get("runtimeMode") or None,
         dispatch=bool(raw.get("dispatch", True)),
-        max_running=max_running,
+        max_running=cap.value,
         warn_days=int(raw.get("warn_days", 5)),
         wake_alert=int(raw.get("wake_alert", 12)),
         room_passes=int(raw.get("room_passes", 10)),
