@@ -185,6 +185,84 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     assert generate(copy, "--check").returncode == 0
 
 
+def git(root, *args):
+    return subprocess.run(
+        ["git", "-c", "user.name=jtrees", "-c", "user.email=jtrees@example.com", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+
+
+def unmoved(root, name):
+    """A feature whose package, command, page, hook, skill and test sit at the repo root, as a
+    feature's do before its move: its manifest owns them there."""
+    files = {
+        f"src/{name}/__init__.py": "",
+        f"src/{name}/cli.py": "def main():\n    return 0\n",
+        f"docs/{name}.md": f"# {name}\n",
+        f"hooks/{name}-start.sh": "#!/bin/sh\n",
+        f"skills/{name}/SKILL.md": f"---\nname: {name}\ndescription: Do {name}.\n---\n\n# {name}\n",
+        f"tests/test_{name}.py": "",
+    }
+    for path, text in files.items():
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        (root / path).write_text(text)
+    manifest = {
+        "$schema": "../../schemas/feature.schema.json",
+        "name": name,
+        "description": f"Does {name}.",
+        "packages": [f"src/{name}"],
+        "commands": {name: f"{name}.cli:main"},
+        "docs": [f"docs/{name}.md"],
+        "hooks": [
+            {"event": "SessionStart", "script": f"hooks/{name}-start.sh", "harnesses": ["codex"]}
+        ],
+        "owns": [f"src/{name}/**", f"docs/{name}.md", f"hooks/{name}-start.sh"]
+        + [f"skills/{name}/**", f"tests/test_{name}.py"],
+    }
+    (root / "features" / name).mkdir(parents=True)
+    (root / "features" / name / "feature.json").write_text(json.dumps(manifest))
+
+
+def move(root, name):
+    """Move the feature's files into features/<name>/, drop its owns rows, and regenerate."""
+    folder = f"features/{name}"
+    for old, new in {
+        f"src/{name}": f"{folder}/src/{name}",
+        f"docs/{name}.md": f"{folder}/docs/{name}.md",
+        f"hooks/{name}-start.sh": f"{folder}/hooks/{name}-start.sh",
+        f"skills/{name}/SKILL.md": f"{folder}/SKILL.md",
+        f"tests/test_{name}.py": f"{folder}/tests/test_{name}.py",
+    }.items():
+        (root / new).parent.mkdir(parents=True, exist_ok=True)
+        assert git(root, "mv", old, new).returncode == 0
+    manifest = root / folder / "feature.json"
+    manifest.write_text(json.dumps(json.loads(manifest.read_text()) | {"owns": []}))
+    assert generate(root).returncode == 0
+
+
+def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(copy):
+    for name in ("foo", "qux"):
+        unmoved(copy, name)
+    assert generate(copy).returncode == 0
+    assert git(copy, "init", "-q", "-b", "main").returncode == 0
+    assert git(copy, "add", "-A").returncode == 0
+    assert git(copy, "commit", "-qm", "base").returncode == 0
+    for name in ("foo", "qux"):
+        assert git(copy, "checkout", "-qb", name, "main").returncode == 0
+        move(copy, name)
+        assert git(copy, "add", "-A").returncode == 0
+        assert git(copy, "commit", "-qm", f"move {name}").returncode == 0
+    changed = git(copy, "diff", "--name-only", "main", "foo").stdout.split()
+    assert {"README.md", "docs/hooks.md", "pyproject.toml", "skills.json"} <= set(changed)
+    merged = git(copy, "merge-tree", "--write-tree", "--name-only", "foo", "qux")
+    assert (merged.returncode, merged.stdout.splitlines()[1:]) == (0, [])
+    tree = merged.stdout.split()[0]
+    assert git(copy, "read-tree", "--reset", "-u", tree).returncode == 0
+    assert generate(copy, "--check").returncode == 0
+
+
 def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
     (copy / "docs" / "jbus" / "a-new-page.md").write_text("# A new page\n\nIts words.\n")
     ran = generate(copy, "--check")
