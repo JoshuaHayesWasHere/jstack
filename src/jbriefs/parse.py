@@ -63,7 +63,6 @@ _PROVES = "(name a test, a command, a metric, a dataset, an external judge or th
 
 SIZES = ("S", "M", "L", "XL")
 _SIZES = "(S, M, L or XL)"
-PLAYBOOKS = Path(__file__).parents[2] / "playbooks"
 _PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
 
 
@@ -253,8 +252,8 @@ def crewmates(name: str) -> bool:
     """Whether `playbooks/<name>.md` is one a brief may name: its `Run by:` line says a
     crewmate runs it, and not the one that is never picked for a brief."""
     try:
-        text = (PLAYBOOKS / f"{name}.md").read_text()
-    except OSError:
+        text = skills.where("playbook", name).read_text()
+    except (LookupError, OSError):
         return False
     by = next((line for line in text.splitlines() if line.startswith("Run by: ")), "")
     return by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by
@@ -282,7 +281,7 @@ def playbook(text: str) -> str:
         fault = "is empty"
     elif _template(said):
         fault = "is the template's own text"
-    elif "/" in name or not (PLAYBOOKS / f"{name}.md").is_file():
+    elif name not in skills.listed("playbook"):
         fault = f"names {name}, which is no file in playbooks/"
     elif not crewmates(name):
         fault = f"names {name}, which is not a crewmate's playbook"

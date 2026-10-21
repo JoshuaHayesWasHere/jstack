@@ -1,0 +1,40 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jleak",
+  "description": "Finds what must not leave the machine for a public repo, before a push or a pull request.",
+  "packages": [
+    "src/jleak"
+  ],
+  "commands": {
+    "jleak": "jleak.cli:main"
+  },
+  "docs": [
+    "docs/jleak.md"
+  ],
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/outbound-command.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "refuses": true
+    }
+  ],
+  "gitHooks": [
+    {
+      "name": "pre-push",
+      "script": "hooks/pre-push.sh"
+    }
+  ],
+  "owns": [
+    "src/jleak/**",
+    "docs/jleak.md",
+    "hooks/outbound-command.sh",
+    "hooks/pre-push.sh",
+    "tests/test_jleak*.py",
+    "tests/test_pull_request_words.py",
+    ".claude/skills/verify-jstack/features/jleak.md"
+  ]
+}

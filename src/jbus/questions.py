@@ -109,6 +109,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
+from jbriefs import skills
 from jbus import END_TURN, Config, Refused, dispatch, mirror, queue, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused, typed
 from jbus.wake import Pass
@@ -117,7 +118,7 @@ EVENTS = {"note": "quiet"}
 NAME = "questions.json"
 SOURCE = "jbus"
 NOTE = "note"
-TEMPLATE = Path(__file__).parents[2] / "templates" / "gates.md"
+TEMPLATE = "gates.md"
 _HEAD = re.compile(r"## Gate (<n>|[0-9]+): [^<]")
 GO = (
     "jbus: {user} answered question {number} ({question}) with the default ({default}), which "
@@ -388,7 +389,9 @@ def _held(lines: str) -> tuple[str, str]:
 
 def _labels() -> list[str]:
     """The labels of the template's head, under its first line and down to the first blank one."""
-    head = itertools.takewhile(str.strip, TEMPLATE.read_text().splitlines()[1:])
+    head = itertools.takewhile(
+        str.strip, skills.where("template", TEMPLATE).read_text().splitlines()[1:]
+    )
     return [line.split(":", 1)[0] + ":" for line in head if ":" in line]
 
 

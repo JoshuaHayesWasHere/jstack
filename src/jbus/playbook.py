@@ -6,11 +6,11 @@ skills each call it, and none keeps a block of its own that reads the `Playbook:
 of the first `Playbook:` line of the file's head (`jbriefs.parse.playbook_named`), or the
 one `--name` gives, which a home and an expert are given in place of a line.
 
-A name that is `none`, or no name, prints nothing. Otherwise the file is
-`playbooks/<name>.md` of the repo this package lives in, the one the skills live in too,
-also when the work is in another repo. A name with a `/`, or that is no file there, prints
-`no playbook: ...`. A playbook whose `Run by:` line names another role than the one asked
-for prints `not <role's>: ...`. A playbook of the role prints, by role:
+A name that is `none`, or no name, prints nothing. Otherwise the file is the playbook of
+that name that `skills.json` lists in the repo this package lives in, the one the skills
+live in too, also when the work is in another repo (`jbriefs.skills.where`). A name it does
+not list prints `no playbook: ...`. A playbook whose `Run by:` line names another role than
+the one asked for prints `not <role's>: ...`. A playbook of the role prints, by role:
 
 - `crewmate` and `scout`: its path; a `has` or `lacks` line for each line its `Run by:`
   asks a brief to have; its numbered steps under a line that names them; a `no principle`
@@ -33,9 +33,10 @@ from pathlib import Path
 
 import jbus
 from jbriefs import parse as briefs
+from jbriefs import skills
 from jbus import verbs
 
-REPO = briefs.PLAYBOOKS.parent
+REPO: Path | None = None
 ROLES = {
     "crewmate": "a crewmate",
     "scout": "a scout",
@@ -55,14 +56,14 @@ CHECKLIST = "a checklist to copy into your todo list as printed"
 STEP = re.compile(r"^[0-9]+\. ")
 
 
-def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]:
+def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> list[str]:
     """What `jbus playbook` prints for `role`, with `text` the brief, request or plan, and
     `name` the playbook's name where one is given in place of its line."""
     name = name or briefs.playbook_named(text)
     if name in ("", "none"):
         return []
-    path = repo / "playbooks" / f"{name}.md"
-    if "/" in name or not path.is_file():
+    path = skills.listed("playbook", repo).get(name)
+    if path is None or not path.is_file():
         said = f"no playbook: playbooks/ has no {name}.md"
         return [f"{said}: the crewmate worked with none" if role == "reviewer" else said]
     playbook = path.read_text()
@@ -76,8 +77,12 @@ def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]
         return [f"{said}: the crewmate worked with none" if role == "reviewer" else said]
     asked = ASKED.findall(by.partition(" in a brief with ")[2])
     cited = list(dict.fromkeys(CITED.findall(playbook)))
+    principles = skills.listed("principle", repo)
+    found = {
+        one: principles.get(one.removeprefix("principles/").removesuffix(".md")) for one in cited
+    }
     if role == "reviewer":
-        return _reviewed(name, [repo / one for one in cited if (repo / one).is_file()])
+        return _reviewed(name, [path for path in found.values() if path is not None])
     if role == "expert":
         return [str(path.resolve())]
     if role == "home":
@@ -93,7 +98,7 @@ def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]
         said += steps
     there = []
     for one in cited:
-        if (repo / one).is_file():
+        if found[one] is not None:
             there.append(one)
         else:
             said.append(f"no principle: playbooks/{name}.md cites {one}, which is not there")
@@ -101,7 +106,7 @@ def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]
         names = " ".join(one.removeprefix("principles/").removesuffix(".md") for one in there)
         said.append(f"the principles playbooks/{name}.md cites, each in full below: {names}")
         for one in there:
-            said += ["", f"==> {one} <==", *(repo / one).read_text().splitlines()]
+            said += ["", f"==> {one} <==", *found[one].read_text().splitlines()]
     return said
 
 

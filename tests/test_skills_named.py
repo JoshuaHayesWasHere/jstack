@@ -289,14 +289,17 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
     assert "names then, before, done, against, the and 1 more, which are no skill" in why
 
 
-def test_skills_json_is_what_make_skills_json_writes_and_lists_every_skill_and_principle():
+def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_principle():
     listed = json.loads((REPO / skills.CATALOG).read_text())["items"]
     on_disk = {path.parent.name for path in (REPO / "skills").glob("*/SKILL.md")}
     on_disk |= {path.stem for path in (REPO / "principles").glob("*.md")}
-    assert {item["name"] for item in listed} == on_disk
+    named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
+    assert named == on_disk
     assert {item["source"] for item in listed} <= {"pstack", "adapted", "josh"}
     stale = subprocess.run(
-        [sys.executable, "scripts/skills_json.py", "--check"], cwd=REPO, capture_output=True
+        [sys.executable, "scripts/generate-jstack-trees.py", "--check"],
+        cwd=REPO,
+        capture_output=True,
     )
     assert stale.returncode == 0, stale.stderr
 
@@ -314,3 +317,24 @@ def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonic
     one = skills.resolve("deeper")
     assert (one.name, one.kind, one.relative) == ("sharpen", "skill", item["path"])
     assert [found.name for found in skills.named("Skills: deeper, sharpen\n")] == ["sharpen"]
+
+
+def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_list():
+    assert skills.root() == REPO.resolve()
+    assert skills.where("template", "gates.md") == REPO.resolve() / "templates" / "gates.md"
+    assert skills.where("skill", "crew") == REPO.resolve() / "skills" / "crew" / "SKILL.md"
+    assert skills.where("playbook", "feature").is_file()
+    assert skills.where("principle", "principle-prove-it-works").is_file()
+    with pytest.raises(LookupError, match="skills.json lists no playbook crew"):
+        skills.where("playbook", "crew")
+
+
+def test_no_module_reads_a_file_of_the_checkout_from_its_own_place_in_it():
+    """The one `parents[2]` left is the view's own source root, which bounds the modules it
+    watches for a newer copy, and reads no file."""
+    found = {
+        str(path.relative_to(REPO))
+        for path in (REPO / "src").rglob("*.py")
+        if re.search(r"parents\[[24]\]", path.read_text())
+    }
+    assert found == {"src/jbus/view/__init__.py"}

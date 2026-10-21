@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "ketchup",
+  "description": "Catches you up on this chat since your last message.",
+  "owns": [
+    "skills/ketchup/**"
+  ]
+}

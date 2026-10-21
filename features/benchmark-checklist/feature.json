@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "benchmark-checklist",
+  "description": "Vets a measured number before it is reported or acted on.",
+  "owns": [
+    "skills/benchmark-checklist/**"
+  ]
+}

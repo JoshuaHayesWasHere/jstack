@@ -1,0 +1,13 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "lessons",
+  "description": "Turns a mistake agents keep making into a rule they cannot break.",
+  "owns": [
+    "skills/correct/**",
+    "skills/reflect/**",
+    "playbooks/correct.md",
+    "tests/test_lessons.py",
+    "tests/fixtures/lessons/**",
+    ".claude/skills/verify-jstack/features/lessons-skills.md"
+  ]
+}

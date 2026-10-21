@@ -7,6 +7,7 @@ and refuses another role's. The real `uv` runs the call once under `sh` and once
 The home's block that lists the playbooks is lifted from the home skill and run against
 `playbooks/` and against a directory with a file added."""
 
+import json
 import os
 import re
 import shutil
@@ -93,6 +94,17 @@ def written(skill, line):
     return "\n".join(lines) + "\n"
 
 
+def catalogued(repo):
+    """The `skills.json` of a made repo: each playbook and principle it holds, which is how
+    `jbus playbook` finds them."""
+    items = [
+        {"name": path.stem, "kind": kind, "path": str(path.relative_to(repo))}
+        for kind, folder in (("playbook", "playbooks"), ("principle", "principles"))
+        for path in sorted((repo / folder).glob("*.md"))
+    ]
+    (repo / "skills.json").write_text(json.dumps({"items": items}))
+
+
 def opened(skill, text, tmp_path, repo=REPO, name="", shell="sh", real=False):
     """What the block prints for a brief, a request or a plan, run as the user has the
     skill: a symlink under ~/.claude/skills, used from another repo, by `shell`. `repo` is
@@ -100,6 +112,8 @@ def opened(skill, text, tmp_path, repo=REPO, name="", shell="sh", real=False):
     plan's. An expert is given `text` as the name, after the block that finds its folder
     under that user's home, where `home-id` says this thread is the expert. `real` runs the
     `uv` on the PATH, which runs the verb of this checkout, in place of `uv` above."""
+    if repo != REPO:
+        catalogued(repo)
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(repo / "skills" / skill)

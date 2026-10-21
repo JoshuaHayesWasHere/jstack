@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/JoshuaHayesWasHere/jstack/blob/main/schemas/feature.schema.json",
+  "title": "jstack feature manifest",
+  "description": "features/<name>/feature.json: what a feature ships beyond its SKILL.md files. scripts/generate-jstack-trees.py reads it, and writes skills.json, the generated regions of pyproject.toml and the docs indexes from it. A path is relative to the feature's folder, or, while the file has not moved there, to the repo root.",
+  "type": "object",
+  "required": ["$schema", "name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/feature.schema.json"
+    },
+    "name": {
+      "description": "The feature's folder under features/.",
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "description": {
+      "description": "One sentence: what the feature does.",
+      "type": "string",
+      "minLength": 1
+    },
+    "packages": {
+      "description": "Each Python package of the wheel, as src/<package>.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^src/[a-z][a-z0-9_]*$"}
+    },
+    "commands": {
+      "description": "Each command on PATH, and the function it runs: [project.scripts].",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*:[a-z_][a-z0-9_]*$"
+      }
+    },
+    "units": {
+      "description": "Each systemd user unit the install links.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^(?:units|templates)/[a-z0-9-]+\\.(?:service|timer)$"}
+    },
+    "hooks": {
+      "description": "Each harness hook the install adds.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event", "script", "harnesses"],
+        "additionalProperties": false,
+        "properties": {
+          "event": {"enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"]},
+          "matcher": {"type": "string", "minLength": 1},
+          "script": {"type": "string", "pattern": "^hooks/[a-z0-9-]+\\.sh$"},
+          "harnesses": {"type": "array", "items": {"enum": ["claude-code", "codex"]}},
+          "refuses": {"type": "boolean"}
+        }
+      }
+    },
+    "statusLine": {
+      "description": "The status line the install sets, unless the user has one of their own.",
+      "type": "object",
+      "required": ["script"],
+      "additionalProperties": false,
+      "properties": {
+        "script": {"type": "string", "pattern": "^hooks/[a-z0-9-]+\\.sh$"}
+      }
+    },
+    "gitHooks": {
+      "description": "Each git hook the install puts in a main checkout.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "script"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"enum": ["pre-push"]},
+          "script": {"type": "string", "pattern": "^hooks/[a-z0-9-]+\\.sh$"}
+        }
+      }
+    },
+    "docs": {
+      "description": "Each page of the feature; the first is the one the README links.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^docs/[a-z0-9/-]+\\.md$"}
+    },
+    "everyRun": {
+      "description": "Each test that runs on every change, whatever the change touches.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^tests/test_[a-z0-9_]+\\.py$"}
+    },
+    "needs": {
+      "description": "Each Needs: line of the feature's page of the verify skill.",
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "nameable": {
+      "description": "Each playbook of the feature that a brief's Skills: line may name.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
+    "upstream": {
+      "description": "Each file taken from pstack, and how.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "from": {"type": "string", "pattern": "^pstack/"},
+          "to": {"type": "string", "minLength": 1},
+          "source": {"enum": ["pstack", "adapted"]}
+        }
+      }
+    },
+    "owns": {
+      "description": "Until the feature's files move into its folder: each repo-root path or glob it owns. dir/** is the whole tree, and * does not cross a /.",
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

@@ -1,0 +1,97 @@
+"""The tree the generator reads: each feature, what it holds, and who owns a path.
+
+A feature is `features/<name>/`. Until its files move there, its `feature.json` names the
+repo-root paths it still owns (`owns`), and a path it declares (a package, a page, a hook) is
+read from the feature's folder where the file is there and from the repo root where it is not.
+A path under no feature's folder is owned by the rows of `owns`, or by the repo itself
+(`REPO_OWNERS`); `Tree.owners` gives every owner a path has, so none and two are both seen.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+
+FEATURES = "features"
+MANIFEST = "feature.json"
+Kind = Literal["skill", "principle", "playbook", "template"]
+KINDS: tuple[Kind, ...] = ("skill", "principle", "playbook", "template")
+
+
+def pattern(glob: str) -> re.Pattern[str]:
+    """A row of `owns` as a regex over a repo-relative path: `dir/**` is the whole tree, and
+    otherwise `*` and `?` do not cross a `/`. A `**` anywhere else is refused."""
+    if "**" in glob.removesuffix("/**"):
+        raise ValueError(f"{glob}: ** is only the whole tree, at the end after a /")
+    if glob.endswith("/**"):
+        return re.compile(re.escape(glob[:-2]) + ".*")
+    parts = ("[^/]*" if c == "*" else "[^/]" if c == "?" else re.escape(c) for c in glob)
+    return re.compile("".join(parts))
+
+
+@dataclass(frozen=True)
+class Item:
+    """One file a brief, a skill or the runtime finds by name: `skills.json` lists it."""
+
+    name: str
+    kind: Kind
+    path: str
+    feature: str
+    description: str = ""
+    nameable: bool = False
+
+
+@dataclass(frozen=True)
+class Hook:
+    event: str
+    script: str
+    harnesses: tuple[str, ...]
+    matcher: str = ""
+    refuses: bool = False
+
+
+@dataclass(frozen=True)
+class Feature:
+    name: str
+    description: str
+    packages: tuple[str, ...] = ()
+    commands: tuple[tuple[str, str], ...] = ()
+    docs: tuple[str, ...] = ()
+    hooks: tuple[Hook, ...] = ()
+    status_line: str = ""
+    git_hooks: tuple[tuple[str, str], ...] = ()
+    nameable: tuple[str, ...] = ()
+    owns: tuple[str, ...] = ()
+    _owns: tuple[re.Pattern[str], ...] = field(default=(), repr=False, compare=False)
+
+    @property
+    def folder(self) -> str:
+        return f"{FEATURES}/{self.name}"
+
+    def holds(self, path: str) -> bool:
+        """Whether `path` is the feature's: under its folder, or matched by a row of `owns`."""
+        return path.startswith(f"{self.folder}/") or any(o.fullmatch(path) for o in self._owns)
+
+
+@dataclass(frozen=True)
+class Tree:
+    root: Path
+    features: tuple[Feature, ...]
+    items: tuple[Item, ...]
+    repo_owners: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = ()
+
+    def feature(self, name: str) -> Feature:
+        return next(one for one in self.features if one.name == name)
+
+    def owners(self, path: str) -> tuple[str, ...]:
+        """Every owner of a repo-relative path: a feature's name, or the repo's own owner
+        (`INFRA`, `SHARED-DELETE`). A path under a feature's folder is that feature's, and a
+        row of another that claims it too is a second owner."""
+        found = [one.name for one in self.features if one.holds(path)]
+        found += [name for name, rows in self.repo_owners if any(r.fullmatch(path) for r in rows)]
+        return tuple(found)
+
+    def of(self, kind: Kind) -> tuple[Item, ...]:
+        return tuple(item for item in self.items if item.kind == kind)

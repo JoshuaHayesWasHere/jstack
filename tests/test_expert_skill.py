@@ -342,6 +342,7 @@ def made(tmp_path, playbooks):
     (repo / "playbooks").mkdir()
     for name, by in playbooks.items():
         (repo / "playbooks" / f"{name}.md").write_text(f"# A kind\n\nRun by: {by}\n")
+    wiring.catalogued(repo)
     return repo
 
 

@@ -6,20 +6,24 @@ This is the one resolver. `jbus queue add` refuses a name it does not resolve
 names (`jbriefs --skills`), and `jmerge` holds a pull request whose Results leave a named
 skill with no artifact (`jmerge.ready.short_of`).
 
-The names are listed in `skills.json` at the repo root, which `make skills-json` writes
-from skills/ and principles/ (`scripts/skills_json.py`) and nothing else edits: `make check`
-fails when it is stale. A name is a skill, `skills/<name>/SKILL.md`, or a principle,
-`principles/principle-<name>.md`, and its canonical form is the directory's or the file's
-name: `architect`, `principle-model-the-domain`. The file is also what any reader outside
-this repo (another provider, another machine) takes the set from.
+The names are listed in `skills.json` at the repo root, which
+`scripts/generate-jstack-trees.py` writes from `features/` and the files they own, and nothing
+else edits: `make check` fails when it is stale. A name is a skill or a principle, and its
+canonical form is the skill's directory or the principle's file name: `architect`,
+`principle-model-the-domain`. The file is also what any reader outside this repo (another
+provider, another machine) takes the set from.
 
 The names are pstack's, so that a name in a brief resolves the same way in Grok Bot, which
 pstack drives, and in T3, which jstack drives. Three kinds of alias resolve. An entry's
 `pstack_name`, where pstack's name for it differs, is that entry. A principle's name before
 it took pstack's prefix, `model-the-domain`, is that principle. A pstack skill that jstack
-keeps as a playbook (`PLAYBOOKS`) is `playbooks/<name>.md`. Any other spelling, a path, a
-`/` in front or a capital letter, is no name, and so is a pstack skill jstack did not take
-(`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
+keeps as a playbook, one its feature marks `nameable`, is that playbook. Any other spelling,
+a path, a `/` in front or a capital letter, is no name, and so is a pstack skill jstack did
+not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
+
+`skills.json` also lists every playbook and template, and `where(kind, name)` is the one way
+the runtime finds any of these files: no module reads a path of the checkout from its own
+place in it.
 
 `templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
 one item, `- <name>: <the artifact>`, its further lines indented.
@@ -32,12 +36,11 @@ import re
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from typing import Any
 
-ROOT = Path(__file__).parents[2]
 CATALOG = "skills.json"
-PLAYBOOK_DIR = ROOT / "playbooks"
-PLAYBOOKS = ("arena", "swarm")
-ARTIFACTS = ROOT / "templates" / "skill-artifacts.md"
+MARKER = "pyproject.toml"
+NAMEABLE = ("skill", "principle")
 ALIAS = "principle-"
 DEFAULT = "default"
 LABEL = "Skills:"
@@ -78,13 +81,54 @@ class Named:
 
     @property
     def relative(self) -> str:
-        return str(self.path.relative_to(ROOT)) if self.path else ""
+        return str(self.path.relative_to(root())) if self.path else ""
 
 
 @cache
-def _listed() -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
-    """The items of `skills.json`, by name and by `pstack_name`."""
-    items = json.loads((ROOT / CATALOG).read_text())["items"]
+def root() -> Path:
+    """The checkout this package runs from: the nearest directory above it with both a
+    `pyproject.toml` and a `skills.json`, wherever the package sits in it, so another
+    project's `pyproject.toml` above an installed copy is not taken for it."""
+    here = Path(__file__).resolve()
+    found = next(
+        (up for up in here.parents if (up / MARKER).is_file() and (up / CATALOG).is_file()), None
+    )
+    if found is None:
+        raise LookupError(f"no {CATALOG} beside a {MARKER} above {here}: no checkout of jstack")
+    return found
+
+
+def _items(at: Path) -> tuple[dict[str, Any], ...]:
+    """The items of the `skills.json` at `at`, read again whenever the file changes, so a
+    long-running server sees a regenerated list."""
+    path = at / CATALOG
+    return _read(path, path.stat().st_mtime_ns)
+
+
+@cache
+def _read(path: Path, changed: int) -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads(path.read_text())["items"])
+
+
+def listed(kind: str, at: Path | None = None) -> dict[str, Path]:
+    """Every file of `kind` (`skill`, `principle`, `playbook` or `template`) that the
+    `skills.json` of the checkout `at`, this one by default, lists, by name."""
+    at = root() if at is None else at
+    return {item["name"]: at / item["path"] for item in _items(at) if item["kind"] == kind}
+
+
+def where(kind: str, name: str, at: Path | None = None) -> Path:
+    """The file of `name` of `kind`, from `skills.json`: a template by its path under
+    `templates/`, as `where("template", "gates.md")`. LookupError for one it does not list."""
+    found = listed(kind, at).get(name)
+    if found is None:
+        raise LookupError(f"{CATALOG} lists no {kind} {name}")
+    return found
+
+
+def _listed() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """The skills and principles of `skills.json`, by name and by `pstack_name`."""
+    items = [item for item in _items(root()) if item["kind"] in NAMEABLE]
     by_name = {item["name"]: item for item in items}
     by_alias = {item["pstack_name"]: item for item in items if "pstack_name" in item}
     return by_name, by_alias
@@ -101,11 +145,14 @@ def resolve(said: str) -> Named:
     if item is None and not said.startswith(ALIAS):
         old = by_name.get(f"{ALIAS}{said}")
         item = old if old is not None and old["kind"] == "principle" else None
+    if item is None:
+        item = next(
+            (one for one in _items(root()) if one["name"] == said and one.get("nameable")), None
+        )
     if item is not None:
-        path = ROOT / item["path"]
+        path = root() / item["path"]
         return Named(said, path if path.is_file() else None)
-    playbook = PLAYBOOK_DIR / f"{said}.md"
-    return Named(said, playbook if said in PLAYBOOKS and playbook.is_file() else None)
+    return Named(said, None)
 
 
 def _none(line: str) -> bool:
@@ -165,8 +212,9 @@ def unknown(text: str) -> str:
     return f"brief's Skills: line {fault} {_NAMES}"
 
 
-def artifacts(path: Path = ARTIFACTS) -> dict[str, str]:
+def artifacts(path: Path | None = None) -> dict[str, str]:
     """What each name leaves in a Result, from the map file: `- <name>: <the artifact>`."""
+    path = where("template", "skill-artifacts.md") if path is None else path
     found: dict[str, str] = {}
     for line in path.read_text().splitlines():
         item = _ITEM.match(line)
@@ -185,11 +233,10 @@ def _ends() -> frozenset[str]:
     """The labels that end a `Skills run:` section: every other field of the Result and of
     the scout's report, read from their templates, so an artifact may hold a line such as
     `Candidate A: ...` of its own."""
-    templates = ROOT / "templates"
     return frozenset(
         found["label"]
         for name in ("result.md", "scout-report.md")
-        for line in (templates / name).read_text().splitlines()
+        for line in where("template", name).read_text().splitlines()
         if (found := _LABEL.match(line)) and f"{found['label']}:" != RUN
     )
 

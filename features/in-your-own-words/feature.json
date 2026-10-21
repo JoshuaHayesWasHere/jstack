@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "in-your-own-words",
+  "description": "Plays back what you are after before any work starts.",
+  "owns": [
+    "skills/in-your-own-words/**"
+  ]
+}

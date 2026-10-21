@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "arena-swarm",
+  "description": "Runs one task as several threads that do not see each other, and judges or merges what they make.",
+  "nameable": [
+    "arena",
+    "swarm"
+  ],
+  "owns": [
+    "skills/arena/**",
+    "skills/swarm/**",
+    "playbooks/arena.md",
+    "playbooks/swarm.md"
+  ]
+}

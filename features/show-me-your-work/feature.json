@@ -1,0 +1,9 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "show-me-your-work",
+  "description": "Keeps a decision log you can review after stepping away.",
+  "owns": [
+    "skills/show-me-your-work/**",
+    "tests/test_show_me_your_work.py"
+  ]
+}

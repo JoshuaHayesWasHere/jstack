@@ -46,19 +46,22 @@ A pstack skill jstack did not take, `poteto-mode` and the `Not taken:` line of `
 
 ### skills.json
 
-`skills.json` is written by `make skills-json` (`scripts/skills_json.py`, which `jbriefs.skills` does not import) from `skills/`, `principles/` and the pstack map of `THIRD_PARTY.md`, and nobody edits it by hand.
+`skills.json` is written by `python3 scripts/generate-jstack-trees.py` (`make trees`, which `jbriefs.skills` does not import) from `features/`, the skills, principles, playbooks and templates they own, and the pstack map of `THIRD_PARTY.md`, and nobody edits it by hand.
 `make check` and `make check-fast` fail when it is stale, with the names of the items that differ, so a pull request that adds, renames or removes a skill or principle commits the file it regenerates.
 It is also what a reader outside this repo takes the set from: another provider, another machine, a persona.
 Its `items` are sorted by kind, then name, and each has these keys:
 
 | Key | What it holds |
 | --- | --- |
-| `name` | The canonical name a `Skills:` line uses. |
-| `kind` | `skill` or `principle`. |
+| `name` | The canonical name a `Skills:` line uses; for a template, its path under `templates/`. |
+| `kind` | `skill`, `principle`, `playbook` or `template`. |
 | `path` | The file it loads, from the repo root. |
 | `source` | `pstack` for pstack's item of the same name, brought over one to one; `adapted` for one built from pstack's item with other material beside it, or from a pstack item of another name; `josh` for jstack's own, with no pstack skill or principle behind it. |
 | `pstack_name` | Only where pstack's name for it differs from `name`: an alias the resolver maps to `name`. |
+| `description` | A skill's frontmatter `description`, or the paragraph under a principle's title. |
+| `nameable` | Only on a playbook a `Skills:` line may name, because its feature lists it as `nameable`. |
 
+`jbriefs.skills.where(kind, name)` is the one way the runtime finds any of these files, as `where("template", "gates.md")`: no module reads a path of the checkout from its own place in it.
 The source is read from the `Upstream map:` block of `THIRD_PARTY.md`, the paths each file was written from, so there is no second list to keep.
 `THIRD_PARTY.md` says what changed in each, and how deep: one brought over one to one still has jstack's frontmatter and pointers.
 `josh` means only that no pstack skill or principle is behind the item, and it may still borrow a passage: `crew` and `pr-review` take theirs from pstack's `interrogate` reference files, which the map lists, and `grilling` is from Matt Pocock, as `THIRD_PARTY.md` says.
