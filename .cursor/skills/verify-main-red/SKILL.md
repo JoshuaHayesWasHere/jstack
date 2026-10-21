@@ -1,12 +1,12 @@
 ---
 name: verify-main-red
-description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainjson, `jmerge.rows.red`, the pass order in `jbus.cli`, `watch._check`'s answers or the "Main is not red" rule in docs/jmerge.md, and on any move of the modules it names.
+description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainjson, `jmerge.rows.red`, the pass order in `jbus.cli`, `watch._check`'s answers or the "Main is not red" rule in features/jmerge/docs/jmerge.md, and on any move of the modules it names.
 ---
 
 # verify-main-red
 
 `main.json` in a jbus project's state is the one record of main's red tip.
-`mainmoved.tell` (`src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
+`mainmoved.tell` (`src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`features/jmerge/src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
 A test runs the orders someone wrote down.
 This check runs every order of merges, check answers, T3 Code answers and passes within its bounds, through the real `tell` and the real `rows.red`, and checks two properties after every pass:
 
@@ -25,15 +25,15 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 Rerun it when the diff touches any of these:
 
 - `src/jbus/mainmoved.py` (`tell`, `main_check`, `SETTLED`, the `STEPS` slot);
-- `src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`);
-- `src/jmerge/rows.py` (`main`, `red`);
+- `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`);
+- `features/jmerge/src/jmerge/rows.py` (`main`, `red`);
 - `src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `src/jbus/merge.py`;
 - `src/jbus/watch.py` `_check` (797-828), the answers a tip's check can have;
 - `write_json` in `src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
-- the "Main is not red" rule in `docs/jmerge.md`;
+- the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
 - a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
 
-`scripts/select_tests.py` selects `tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainjson.py`, `rows.py`, `merge.py`, `cli.py` or `docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
+`scripts/select_tests.py` selects `tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainjson.py`, `rows.py`, `merge.py`, `cli.py` or `features/jmerge/docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
 Run it by hand anyway when you change the contract on purpose: what it prints is the point.
 
 ## Run it
@@ -85,7 +85,7 @@ The line numbers below are of the code before the fix (`fa810ec`).
 - **F3 (S2).**
   The mirror of F2: while main is red jmerge merges only the fix, so a second tip lands by another merge (a second fix, a merge by hand, `--accept`), and a green tip it follows before a pass looks at it is never seen: `broken` stays while the newest tip is pending.
   F2 and F3 have one cause, `tell` reading the newest tip only (`mainmoved.py:87-100`), so one fix that reads every tip since `main` may flip both.
-  `docs/jmerge.md` says the wait "ends when jbus sees a green tip", and jbus never sees this one.
+  `features/jmerge/docs/jmerge.md` says the wait "ends when jbus sees a green tip", and jbus never sees this one.
 
 ## Read a trace
 
@@ -94,7 +94,7 @@ Tips are `M0` (green, there from the start) to `M3`; a record is printed with it
 For example F1, on the code before the fix:
 
 ```
-S2 breaks in 3 of 1006 states (Options(one_at_a_time=True, lost_sends=True)), against "Main is not red" in docs/jmerge.md
+S2 breaks in 3 of 1006 states (Options(one_at_a_time=True, lost_sends=True)), against "Main is not red" in features/jmerge/docs/jmerge.md
   1. start: M0 is green, no main.json, one red pull request
   2. M1 lands: jmerge merges beta
   3. M1's check settles: failed
@@ -117,7 +117,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | Step | Backed by |
 |---|---|
 | `pass (...)` | one `tell` under the pass lock, `src/jbus/cli.py:215-219`, in the `after-expedite` slot, `src/jbus/mainmoved.py:222-230` |
-| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `src/jbus/cli.py:146` |
+| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `src/jbus/cli.py:146` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainjson.fix_of`), a merge by hand, `jmerge --accept` |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `src/jbus/watch.py:797-828`; `pending` is a check not ended |
 | `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `src/jbus/mainmoved.py:185-195` |

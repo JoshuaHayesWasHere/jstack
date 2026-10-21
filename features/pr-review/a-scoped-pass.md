@@ -9,7 +9,7 @@ The message is the same one.
 Its ranges are the patch up to the head the last review saw, then the patch up to the fixed head, so the range-diff shows the fix as the commits on the new side alone.
 A blocking decline is owed the same pass, also when nothing was pushed: a declined finding changes no line, so the range-diff alone would never show it again.
 Then both ranges end at the head the review saw, the range-diff shows no change, and the pass is its ruling on the declines (step 5).
-A path listed in `src/jmerge/guarded.txt` gets the stricter gate that `docs/jmerge.md` gives under "Protected and guarded paths".
+A path listed in `features/jmerge/src/jmerge/guarded.txt` gets the stricter gate that `features/jmerge/docs/jmerge.md` gives under "Protected and guarded paths".
 
 It is one pass per rebased or fixed head, and never a full review. It is not the second pass either: a brief that already has a `## Review` section is not refused for it, and in "Start" the check for a `## Review` section does not stop it. The rest of "Start" holds: the brief's `Review:` line, the pull request, the ground.
 

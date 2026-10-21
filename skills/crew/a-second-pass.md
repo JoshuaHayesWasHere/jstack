@@ -10,7 +10,7 @@ A blocking finding you declined by id gets that scoped review all the same, also
 That review is the last: a fix pushed for its findings gets no further review, and merges on its checks.
 No fix gets a whole second review.
 
-A path listed in `src/jmerge/guarded.txt` gets the stricter gate that `docs/jmerge.md` gives under "Protected and guarded paths", and jbus's message says what its fix is owed.
+A path listed in `features/jmerge/src/jmerge/guarded.txt` gets the stricter gate that `features/jmerge/docs/jmerge.md` gives under "Protected and guarded paths", and jbus's message says what its fix is owed.
 
 What decides is this, run with the block at the top, in this worktree. Run it once the findings are handled and the fix, if there is one, is pushed, before the `Fixed:` line is written, and on each wake that finds the pull request green after that. It is the only check:
 

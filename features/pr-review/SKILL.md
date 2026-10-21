@@ -230,7 +230,7 @@ A finding can be wider than the brief in a second way: it is about a changed lin
 ### The merge gate
 
 A repo may name a merge gate: a `merge-gate` file in its state directory, beside `fresh-check`, whose one line is a command.
-`jmerge` runs it before every merge and holds the pull request on a non-zero exit (`docs/jmerge.md`, "Merge gate").
+`jmerge` runs it before every merge and holds the pull request on a non-zero exit (`features/jmerge/docs/jmerge.md`, "Merge gate").
 The reviewer runs the same command on the head it reviews, so that the crewmate hears of a failing gate with the review and not only at the merge.
 Run this in this worktree, with the block at the top and the head kept at the start in place of the words in angle brackets:
 

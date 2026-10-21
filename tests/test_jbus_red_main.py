@@ -1,8 +1,8 @@
 """A red main changes the order: the fix jbus files for it is queued ahead of every row of its
 project and is the next launch there, `main.json` (`mainmoved`'s record) keeps the last tip
 of main that was green and the red tip that is not, `jmerge` reads that file
-(`tests/test_jmerge_order.py`), and a launched brief names the green sha on a `Green main:`
-line. Run as `tests/test_jbus_watch.py` runs: the real pass, against the fakes.
+(`features/jmerge/tests/test_jmerge_order.py`), and a launched brief names the green sha on a
+`Green main:` line. Run as `tests/test_jbus_watch.py` runs: the real pass, against the fakes.
 """
 
 import json

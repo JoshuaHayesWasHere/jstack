@@ -23,8 +23,8 @@ from jbus import merge as jbus_merge
 from jmerge import cli, rangediff, ready
 from testing.paths import REPO
 
-SOURCE = REPO / "src" / "jmerge"
-LISTED = "acceptance/\n.github/workflows/\nsrc/jmerge/\nsrc/jbus/\nskills/\n"
+SOURCE = REPO / "features" / "jmerge" / "src" / "jmerge"
+LISTED = "acceptance/\n.github/workflows/\nfeatures/jmerge/src/jmerge/\nsrc/jbus/\nskills/\n"
 GUARDED = ready.patterns_of(LISTED)
 CI = ready.patterns_of((SOURCE / "ci-paths.txt").read_text())
 STARTED = {**merge.PASSED, "startedAt": "2000-01-01T12:00:00Z"}
@@ -87,7 +87,9 @@ def on_main(proven_merged, path):
     merge.git(proven_merged.home.main, "push", "-q")
 
 
-@pytest.mark.parametrize("path", ["deploy/id.key", "secrets/x.json", "src/jmerge/guarded.txt"])
+@pytest.mark.parametrize(
+    "path", ["deploy/id.key", "secrets/x.json", "features/jmerge/src/jmerge/guarded.txt"]
+)
 def test_a_secret_path_and_the_lists_themselves_are_held_for_the_user(proven_merged, rules, path):
     proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL, path])
     assert jmerge(proven_merged, rules) == [f"hold 7 {merge.URL}: needs user, touches {path}"]
@@ -101,7 +103,7 @@ def test_the_shipped_list_guards_no_path_so_a_ready_one_merges_with_no_proof(
     (proven_merged.home.tasks / "alpha.md").write_text(
         merge.brief(merge.review("clean", proven_merged.head))
     )
-    files = ["a.txt", SKILL, "src/jbus/merge.py", "src/jmerge/ready.py"]
+    files = ["a.txt", SKILL, "src/jbus/merge.py", "features/jmerge/src/jmerge/ready.py"]
     proven_merged.home.open_pull_request(proven_merged.head, files=files)
     assert jmerge(proven_merged, shipped, "--check") == [
         f"ready 7 {proven_merged.head} alpha alpha"
@@ -112,7 +114,9 @@ def test_the_shipped_list_guards_no_path_so_a_ready_one_merges_with_no_proof(
     assert "guarded" not in said
 
 
-@pytest.mark.parametrize("path", ["src/jmerge/guarded.txt", "src/jmerge/protected.txt"])
+@pytest.mark.parametrize(
+    "path", ["features/jmerge/src/jmerge/guarded.txt", "features/jmerge/src/jmerge/protected.txt"]
+)
 def test_the_shipped_lists_still_hold_a_change_to_either_list_for_the_user(
     proven_merged, shipped, path
 ):
@@ -478,14 +482,14 @@ def test_after_a_merge_that_changes_jmerge_every_later_guarded_one_waits(
     proven_merged, monkeypatch
 ):
     proven_merged.home.open_pull_request(
-        proven_merged.head, checks=(STARTED,), files=["src/jmerge/ready.py"]
+        proven_merged.head, checks=(STARTED,), files=["features/jmerge/src/jmerge/ready.py"]
     )
     asked = []
     here = repo(proven_merged, monkeypatch, asked)
-    one = pull_request("src/jmerge/ready.py", head=proven_merged.head)
+    one = pull_request("features/jmerge/src/jmerge/ready.py", head=proven_merged.head)
     slug, verb, why, note, judged = here.waits(one, "main")
     assert (slug, verb, why, note) == ("alpha", "", "", "")
-    assert judged == ready.Judged("src/jmerge/ready.py", proven_merged.start, True)
+    assert judged == ready.Judged("features/jmerge/src/jmerge/ready.py", proven_merged.start, True)
     assert here.merge(one, slug, note, judged).startswith("merged 7 alpha ")
     *_, why, _, judged = here.waits(pull_request(SKILL, head=proven_merged.head), "main")
     assert (why, judged) == (f"guarded (touches {SKILL}), jmerge's rules changed in this run", None)

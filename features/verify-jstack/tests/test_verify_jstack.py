@@ -129,7 +129,7 @@ def test_doctor_fails_the_feature_whose_seed_is_missing(sandbox):
 
     assert ran.returncode == 1
     lines = ran.stdout.splitlines()
-    assert "bad  jmerge-decision: seed lacks gh/open.json" in lines
+    assert "bad  jmerge: seed lacks gh/open.json" in lines
     assert any(line.startswith("ok   jinstall: seed has ") for line in lines)
     assert lines[-1] == "doctor: not ok"
 

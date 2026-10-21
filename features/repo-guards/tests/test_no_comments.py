@@ -43,7 +43,7 @@ SWEPT = (
     "features/*/units/*.timer",
     "templates/*.html",
     "features/*/templates/*.html",
-    "src/jmerge/*.txt",
+    "features/jmerge/src/jmerge/*.txt",
 )
 READ_BY_A_TOOL = ("# type:", "# pragma")
 LINKED = "https://"
@@ -196,9 +196,9 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "templates/jbus.timer",
         "features/jroles/units/jroles-mirror.timer",
         "features/grilling/templates/grill-page.html",
-        "src/jmerge/protected.txt",
-        "src/jmerge/guarded.txt",
-        "src/jmerge/ci-paths.txt",
+        "features/jmerge/src/jmerge/protected.txt",
+        "features/jmerge/src/jmerge/guarded.txt",
+        "features/jmerge/src/jmerge/ci-paths.txt",
     } <= set(files)
 
 

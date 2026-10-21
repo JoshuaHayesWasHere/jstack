@@ -72,7 +72,13 @@ On `jbus merges` it runs no `jmerge`: jbus runs it on each pass, and this home's
 
 A line is as of jbus's last pass, not of now: `jmerge` writes one only when it changes, and nothing here says how old it is. No `fixed and green` line is sent while jbus merges, so a pull request that just turned ready often still has the `wait` from before its `Fixed:` line: jbus's next pass judges it, and its `merged` line comes on a later run of this step. If jbus is stopped the lines stay as they were: `systemctl --user status jbus.timer` says whether it runs.
 
-jbus runs `jmerge` for the whole repo, and the block prints this home's lines alone: a `merged` line whose slug is a brief of this home's, and the line of an open pull request that one's `Branch:` line ends on, the first such brief by name in codepoint order, as `jmerge` finds it. A brief is the home's that its `Home:` line names: by its thread id, by the id on the `Was home:` line of its handoff, or by its scope, which is a directory of `$H` with a `home-id` or such a handoff. A brief is the root's when it has no such line, when its line names no such home, or when the pull request has no brief. That is `jmerge`'s one rule (`home_of` in `src/jmerge/claims.py`, over `homes` in `src/jmerge/cli.py`): `jmerge --claims` prints a brief's home by it, and on `home merges` `jmerge --home` leaves the others' out by it. The block first prints the `merged` lines this home has not read, as on `jbus merges`, and sets the mark past them before `jmerge` runs, so a run cut short tells none of them twice. After the run it prints what `jmerge` printed, then any `merged` line of this home's that another writer logged meanwhile, and sets the mark to the end of the log: what this home's own run printed is not news after the switch is emptied. It ends with what `jmerge` ended with and does not end the call, so a sweep joined after it runs.
+jbus runs `jmerge` for the whole repo, and the block prints this home's lines alone: a `merged` line whose slug is a brief of this home's, and the line of an open pull request that one's `Branch:` line ends on, the first such brief by name in codepoint order, as `jmerge` finds it.
+A brief is the home's that its `Home:` line names: by its thread id, by the id on the `Was home:` line of its handoff, or by its scope, which is a directory of `$H` with a `home-id` or such a handoff.
+A brief is the root's when it has no such line, when its line names no such home, or when the pull request has no brief.
+That is `jmerge`'s one rule (`home_of` in `features/jmerge/src/jmerge/claims.py`, over `homes` in `features/jmerge/src/jmerge/cli.py`): `jmerge --claims` prints a brief's home by it, and on `home merges` `jmerge --home` leaves the others' out by it.
+The block first prints the `merged` lines this home has not read, as on `jbus merges`, and sets the mark past them before `jmerge` runs, so a run cut short tells none of them twice.
+After the run it prints what `jmerge` printed, then any `merged` line of this home's that another writer logged meanwhile, and sets the mark to the end of the log: what this home's own run printed is not news after the switch is emptied.
+It ends with what `jmerge` ended with and does not end the call, so a sweep joined after it runs.
 
 jbus runs `jmerge` with no `--home`, as the root home would. So the pull request of a brief whose `Home:` line names a scoped home is `wait <number> <url>: another home's` to it, also when it is ready or would be held, and nobody merges it while jbus merges: no `fixed and green` line comes for it either, so when the user asks for status, tell them that this line is a pull request nobody merges, and that it is theirs to merge once its brief has a `Fixed:` line.
 
@@ -91,7 +97,8 @@ On `home merges` it runs `jmerge`. For each open pull request of this repo that 
 | `wait <number> <url>: another home's` | its brief's `Home:` line names another home of this repo, and a home merges its own. `--all` merges those too: add it only on the user's word |
 | `wait: could not ask GitHub` | nothing was looked at |
 
-Ready means all of these hold. The rules are in `src/jmerge/ready.py`, and nowhere else:
+Ready means all of these hold.
+The rules are in `features/jmerge/src/jmerge/ready.py`, and nowhere else:
 
 - its base is the default branch. A pull request based on another branch would be merged into that branch, and nothing of it would reach the default one: the line is `wait <number> <url>: its base is <branch>, not <default branch>`, and no flag lifts it;
 - its brief has no `Stack:` line in its head, or the user said to land that stack. A stack is landed by the user: the line is `wait <number> <url>: it is in the stack <name>, which the user lands`, and `--land <name>` lifts it, for that stack alone. A `Stack:` line with no name is held, and no `--land` lifts it;
@@ -105,10 +112,20 @@ Ready means all of these hold. The rules are in `src/jmerge/ready.py`, and nowhe
 
 Two more things keep a ready pull request from the command, and only the user lifts them. They are looked at last, so each is said of a pull request that is short of nothing else:
 
-- it changes no protected path. The patterns are in `src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the two lists themselves, `/src/jmerge/protected.txt` and `/src/jmerge/guarded.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records. A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none. Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `src/jbus/merge.py`. A `*` matches within one part of a path. `jmerge` refuses to run, and merges nothing, while that file, `guarded.txt` or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored. The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it, `--all` and `--land` included. A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not. GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else. GitHub must have said every path the pull request changes: one whose file list it cut short is held, and so is one whose renames it would not give the old paths of. To protect or guard another path, a pull request adds a line to `protected.txt` or `guarded.txt`, and since it changes one of the two lists the user merges it;
+- it changes no protected path.
+  The patterns are in `features/jmerge/src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the two lists themselves, `/features/jmerge/src/jmerge/protected.txt` and `/features/jmerge/src/jmerge/guarded.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
+  A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
+  Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `src/jbus/merge.py`.
+  A `*` matches within one part of a path.
+  `jmerge` refuses to run, and merges nothing, while that file, `guarded.txt` or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
+  The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it, `--all` and `--land` included.
+  A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
+  GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.
+  GitHub must have said every path the pull request changes: one whose file list it cut short is held, and so is one whose renames it would not give the old paths of.
+  To protect or guard another path, a pull request adds a line to `protected.txt` or `guarded.txt`, and since it changes one of the two lists the user merges it;
 - the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
 
-A pull request that changes a path listed in `src/jmerge/guarded.txt`, and no protected one, is merged by `jmerge` itself, under the stricter gate that `docs/jmerge.md` gives under "Protected and guarded paths".
+A pull request that changes a path listed in `features/jmerge/src/jmerge/guarded.txt`, and no protected one, is merged by `jmerge` itself, under the stricter gate that `features/jmerge/docs/jmerge.md` gives under "Protected and guarded paths".
 
 A pull request that is held (`hold`) is merged by the user, by hand, and so is any pull request of a repo whose merge is off. The sweep below then removes what its thread left.
 
@@ -143,7 +160,8 @@ On `no sweep`, nothing was run and there are no lists to act on. On `home merges
 | `kept <directory>: no brief or request names its branch <branch>` | a worktree of T3 Code's that is nobody's task here. It is never removed |
 | `wait: could not read origin` | nothing was looked at |
 
-Removable means all of these hold. The rules are in `src/jmerge/sweep.py`, and nowhere else:
+Removable means all of these hold.
+The rules are in `features/jmerge/src/jmerge/sweep.py`, and nowhere else:
 
 - the brief's last Result says `Status: done` and `Left: none`, or the request's last Report says `Status: done` and names no page: a page may still wait on the user;
 - its pull request is merged, or it has none;

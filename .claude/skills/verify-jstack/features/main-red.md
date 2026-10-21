@@ -5,10 +5,10 @@ When main's check fails at a commit within a day of a merge, a pass says `retro 
 Paths:
 - `src/jbus/watch.py`
 - `src/jbus/mainmoved.py`
-- `src/jmerge/mainjson.py`
-- `src/jmerge/rows.py`
+- `features/jmerge/src/jmerge/mainjson.py`
+- `features/jmerge/src/jmerge/rows.py`
 - `src/jbus/merge.py`
-- `docs/jmerge.md`
+- `features/jmerge/docs/jmerge.md`
 Tests: none
 
 The red wait itself, `main.json` as `mainmoved.tell` writes it and `rows.red` reads it, is checked over every order of events by `tests/test_main_red_model.py`, which its imports select: `.cursor/skills/verify-main-red/SKILL.md` says how to run it and read what it finds.

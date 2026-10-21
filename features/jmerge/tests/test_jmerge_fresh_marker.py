@@ -7,8 +7,9 @@ the line that says so names the tree and the run, in `merge.log` and in what jbu
 the line. A marker of another tree, one a red run left, or none, is no proof, and the check
 runs as it always did.
 
-The command is run against a real origin with a fake `gh` (`tests/test_jmerge_fresh.py`)
-that also answers the API's list of artifacts and its runs from files."""
+The command is run against a real origin with a fake `gh`
+(`features/jmerge/tests/test_jmerge_fresh.py`) that also answers the API's list of artifacts
+and its runs from files."""
 
 import json
 
@@ -135,8 +136,8 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
     """A pass that ran stands over a main that moved off its tests
-    (`tests/test_jmerge_fresh.py`). A skip does not: its marker names the tree it was taken
-    on, and the new main makes another, which has none."""
+    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not: its marker names the tree
+    it was taken on, and the new main makes another, which has none."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
     stub = kitchen.home.stub
     (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))

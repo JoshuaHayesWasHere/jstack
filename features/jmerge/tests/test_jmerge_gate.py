@@ -2,10 +2,11 @@
 `jmerge` runs before every merge, once every other reason is clear, in a checkout of the head,
 with the merge base and the head as its last two arguments and as `BASE` and `HEAD`. A
 non-zero exit is a hold whose line quotes the gate's first line, and `merge.log` keeps the
-whole output. A repo with no such file merges as before (`tests/test_jmerge_fresh.py`).
+whole output. A repo with no such file merges as before
+(`features/jmerge/tests/test_jmerge_fresh.py`).
 
-The command is run against a real origin and a fake `gh`, as `tests/test_jmerge_fresh.py`
-runs it."""
+The command is run against a real origin and a fake `gh`, as
+`features/jmerge/tests/test_jmerge_fresh.py` runs it."""
 
 import fcntl
 import json
