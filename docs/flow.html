@@ -154,14 +154,14 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">3</span>Send a scout</b><small>Only when the brief cannot be written from the state directory. <code>t3_thread_launch</code> with the message <code>/scout &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>the request, shaped as <code>templates/scout-request.md</code></small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>the request, shaped as <code>features/scout/templates/scout-request.md</code></small></div><i class="ar r"></i></div>
       <div class="cell c other"><div class="box scout"><span class="tag">Scout thread</span><b>Research, read only</b><small>Answers the request's questions from the code and the docs. Changes nothing in the repo.</small></div></div>
       <div class="cell g"></div>
     </div>
 
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Read the report</b><small>From disk, not from the scout's thread.</small></div><i class="ar l"></i></div>
-      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>gains <code>## Report</code>, shaped as <code>templates/scout-report.md</code></small></div><div class="box file"><b>tasks/&lt;slug&gt;.md &nbsp;reports/&lt;slug&gt;.html</b><small>the crewmate's brief and a page, each only when the request asks</small></div><div class="box msg"><span class="tag">Message</span><b>the report is written</b><small>once, at most five lines: status, recommendation, paths</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>gains <code>## Report</code>, shaped as <code>features/scout/templates/scout-report.md</code></small></div><div class="box file"><b>tasks/&lt;slug&gt;.md &nbsp;reports/&lt;slug&gt;.html</b><small>the crewmate's brief and a page, each only when the request asks</small></div><div class="box msg"><span class="tag">Message</span><b>the report is written</b><small>once, at most five lines: status, recommendation, paths</small></div><i class="ar l"></i></div>
       <div class="cell c other"><div class="box scout"><span class="tag">Scout thread</span><b>Write it down</b><small>Then tells the home and settles itself. It never becomes the crewmate.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -287,8 +287,8 @@
       <tr><td><code>templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
       <tr><td><code>features/grilling/templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. Two or more open gates are shown the same way.</td></tr>
       <tr><td><code>features/grilling/templates/grill-round.schema.json</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>Every key of a round, the block a thread writes into the grill page, and what each holds.</td></tr>
-      <tr><td><code>templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
-      <tr><td><code>templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
+      <tr><td><code>features/scout/templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
+      <tr><td><code>features/scout/templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
       <tr><td><code>features/pr-review/templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
@@ -385,7 +385,7 @@
     <thead><tr><th>Thread</th><th>Typed as</th><th>Its full text</th></tr></thead>
     <tbody>
       <tr><td>Home</td><td><code>/home</code>, <code>/home &lt;scope&gt;</code></td><td><code>skills/home/SKILL.md</code></td></tr>
-      <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>skills/scout/SKILL.md</code></td></tr>
+      <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>features/scout/SKILL.md</code></td></tr>
       <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>skills/crew/SKILL.md</code></td></tr>
       <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>features/pr-review/SKILL.md</code></td></tr>
       <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>skills/handoff/SKILL.md</code></td></tr>

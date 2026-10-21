@@ -23,10 +23,10 @@ import test_home_merge as merge
 import test_playbooks as shape
 from test_home_thread import as_read
 from testing.layouts import assembled
-from testing.paths import REPO, playbooks
+from testing.paths import REPO, playbooks, skills
 
-TEMPLATES = REPO / "templates"
 COPY = assembled()
+TEMPLATES = COPY / "templates"
 PLAYBOOK = playbooks()
 NAMES = sorted(PLAYBOOK)
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -54,7 +54,7 @@ def opening(skill):
     """The skill's block that opens the playbook, and its `T=` line, as an agent reads them.
     An expert's `T=` line is in the block it runs before every other, which finds its folder:
     that block whole."""
-    text = as_read(REPO / "skills" / skill / "SKILL.md")
+    text = as_read(skills()[skill] / "SKILL.md")
     (block,) = [
         found
         for found in FENCED.findall(text)

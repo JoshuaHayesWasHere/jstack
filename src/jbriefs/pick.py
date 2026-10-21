@@ -155,6 +155,12 @@ def scoped(lines: list[str]) -> list[str]:
     return [p for p in _PATH.findall(text) if not p.startswith((_ALONGSIDE, "~"))]
 
 
+def at(name: str, root: Path | None = None) -> str:
+    """Where the playbook `name` is, from the root of the checkout, as `skills.json` lists it."""
+    top = checkout() if root is None else root
+    return listed("playbook", top)[name].relative_to(top).as_posix()
+
+
 def best(lines: list[str], role: Role, found: list[Row], root: Path | None = None) -> Line:
     """The row of the role's runner that fits the brief best: one whose asked lines the brief
     has, the most of them first; then one whose scope holds every path the brief changes; then
@@ -166,7 +172,7 @@ def best(lines: list[str], role: Role, found: list[Row], root: Path | None = Non
     if asked:
         row = max(asked, key=lambda r: len(r.asks))
         return Line(
-            "playbook", row.name, f"playbooks/{row.name}.md (the brief has {', '.join(row.asks)})"
+            "playbook", row.name, f"{at(row.name, root)} (the brief has {', '.join(row.asks)})"
         )
     paths = scoped(lines)
     for row in mine:
@@ -178,13 +184,11 @@ def best(lines: list[str], role: Role, found: list[Row], root: Path | None = Non
             return Line(
                 "playbook",
                 row.name,
-                f"playbooks/{row.name}.md (every path it changes is {' or '.join(row.scope)})",
+                f"{at(row.name, root)} (every path it changes is {' or '.join(row.scope)})",
             )
     if role.default == "none":
         return Line("playbook", "none", f"(no row {role.runner} runs fits)")
-    return Line(
-        "playbook", role.default, f"playbooks/{role.default}.md ({role.runner}'s default row)"
-    )
+    return Line("playbook", role.default, f"{at(role.default, root)} ({role.runner}'s default row)")
 
 
 def playbook(job: Work, root: Path | None = None) -> Line:
@@ -195,7 +199,7 @@ def playbook(job: Work, root: Path | None = None) -> Line:
         return Line("playbook", "none", "(its Playbook: line)")
     if name and not name.startswith("<"):
         if name in listed("playbook", root):
-            return Line("playbook", name, f"playbooks/{name}.md (its Playbook: line)")
+            return Line("playbook", name, f"{at(name, root)} (its Playbook: line)")
         return Line("unknown", name, "(its Playbook: line names no file in playbooks/)")
     return best(lines, job.role, rows(root), root)
 

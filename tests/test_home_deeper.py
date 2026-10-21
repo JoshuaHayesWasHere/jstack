@@ -4,8 +4,10 @@ to a crewmate", lifted from it and run here: for those kinds it prints its own c
 questions of `/sharpen`, each with the line of the brief its answer goes on, and for a mechanical
 fix, a docs change or a bug fix with a known cause it prints `skip`."""
 
+import os
 import re
 import subprocess
+import sys
 import textwrap
 
 import pytest
@@ -36,11 +38,17 @@ def deeper_playbooks():
     return [name for name in names if name not in KINDS]
 
 
-def test_every_playbook_the_step_names_is_a_file_in_playbooks():
+def test_every_playbook_the_step_names_is_one_jbus_finds():
     names = deeper_playbooks()
     assert {"investigation", "perf-issue"} <= set(names)
     for name in names:
-        assert (REPO / "playbooks" / f"{name}.md").is_file(), name
+        opened = subprocess.run(
+            [sys.executable, "-m", "jbus", "playbook", "home", "--name", name, os.devnull],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert opened.stdout and not opened.stdout.startswith("no playbook"), (name, opened)
 
 
 @pytest.mark.parametrize("picked", [*KINDS, "investigation", "perf-issue", "runtime-forensics"])

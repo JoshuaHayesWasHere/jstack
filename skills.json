@@ -102,7 +102,7 @@
     {
       "name": "investigation",
       "kind": "playbook",
-      "path": "playbooks/investigation.md",
+      "path": "features/scout/playbooks/investigation.md",
       "source": "adapted"
     },
     {
@@ -175,7 +175,7 @@
     {
       "name": "trace-forensics",
       "kind": "playbook",
-      "path": "playbooks/trace-forensics.md",
+      "path": "features/scout/playbooks/trace-forensics.md",
       "source": "josh"
     },
     {
@@ -558,7 +558,7 @@
     {
       "name": "scout",
       "kind": "skill",
-      "path": "skills/scout/SKILL.md",
+      "path": "features/scout/SKILL.md",
       "source": "josh",
       "description": "Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual page when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>."
     },
@@ -851,13 +851,13 @@
     {
       "name": "scout-report.md",
       "kind": "template",
-      "path": "templates/scout-report.md",
+      "path": "features/scout/templates/scout-report.md",
       "source": "josh"
     },
     {
       "name": "scout-request.md",
       "kind": "template",
-      "path": "templates/scout-request.md",
+      "path": "features/scout/templates/scout-request.md",
       "source": "josh"
     },
     {

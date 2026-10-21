@@ -62,8 +62,8 @@ packages = ["features/jdrift/src/jdrift", "features/jsettings/src/jsettings", "s
 # `make check` runs it with `-n`, on the workers the Makefile counts.
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-testpaths = ["tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
-pythonpath = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
+testpaths = ["tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
+pythonpath = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
 # end generated
 # A run writes about 170,000 files under the temporary directory, and by default pytest
 # keeps the last three runs. `/tmp` holds a million files and is shared by every runner and
@@ -90,7 +90,7 @@ markers = [
 target-version = "py312"
 line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-src = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
+src = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/grilling/tests", "features/jdrift/tests", "features/jsettings/tests", "features/pr-review/tests", "features/scout/tests", "features/show-me-your-work/tests", "features/verify-jstack/tests"]
 # end generated
 
 [tool.ruff.lint]
