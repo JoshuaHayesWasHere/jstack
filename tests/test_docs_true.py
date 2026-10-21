@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from jbriefs import skills as catalog
 from testing.paths import REPO
 
 README = REPO / "README.md"
@@ -364,8 +365,7 @@ def counts(text, noun):
 
 def test_the_readme_counts_the_skills_and_the_commands_as_the_tree_has_them():
     said = README.read_text()
-    spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
-    skills = [path.parent for spot in spots for path in REPO.glob(spot)]
+    skills = [path.parent for path in catalog.listed("skill").values()]
     listed = re.findall(r"^\| `([\w-]+)` \| `/", said, re.M)
     assert len(skills) > 20 and set(listed) < {path.name for path in skills}
     assert counts(said, "skills") == [len(skills), len(listed)]

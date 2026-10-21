@@ -80,7 +80,6 @@ def problems(path, root):
     elif steps(text) != list(range(1, len(steps(text)) + 1)):
         found.append(f"numbers its steps {steps(text)}")
     names = named("\n".join(row for row in text.splitlines() if not row.startswith("Source:")))
-    # A named path is read from the copy an agent is linked to, where the repo has one.
     read = root / COPY if (root / COPY).is_dir() else root
     found += [f"names {name}, which is not there" for name in names if not (read / name).is_file()]
     if not any(name.startswith("principles/") for name in names):

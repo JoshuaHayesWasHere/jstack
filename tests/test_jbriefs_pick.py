@@ -14,7 +14,7 @@ from jbriefs import pick
 from testing.paths import REPO
 
 SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
-HOOK = REPO / "hooks" / "skill-tips.sh"
+HOOK = REPO / "harness" / "jstack" / "claude-code" / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
 # tidy-gauge: the gauge prints its slots in order
@@ -134,7 +134,7 @@ def test_every_skill_and_playbook_printed_is_a_file(home):
         *jbriefs("-", stdin="review the pr and fix this bug, then catch me up, see /handoff\n"),
     ]
     named = [line for line in lines if not line.startswith(("unknown ", "playbook none:"))]
-    files = [re.search(r"\b(?:skills|playbooks)/[\w/.-]+\.md", line) for line in named]
+    files = [re.search(r"\b(?:features|skills|playbooks)/[\w/.-]+\.md", line) for line in named]
     assert None not in files and len(named) >= 8
     assert [f[0] for f in files if not (REPO / f[0]).is_file()] == []
 
@@ -197,7 +197,8 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
 
 
 def hook_tip(tmp_path, prompt):
-    """The skill `hooks/skill-tips.sh` tips for a prompt, in a fresh session, or None."""
+    """The skill the installed `hooks/skill-tips.sh` tips for a prompt, in a fresh session, or
+    None."""
     outside = tmp_path / "outside"
     outside.mkdir(exist_ok=True)
     event = {"session_id": f"s{abs(hash(prompt))}", "cwd": str(outside), "prompt": prompt}

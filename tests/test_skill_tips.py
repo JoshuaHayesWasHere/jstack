@@ -14,7 +14,6 @@ import pytest
 from testing.paths import REPO, skills
 
 HOOK = REPO / "hooks" / "skill-tips.sh"
-# The hook as install.sh wires it: in the harness copy, beside every skill.
 INSTALLED = REPO / "harness" / "jstack" / "claude-code" / "hooks" / "skill-tips.sh"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab"

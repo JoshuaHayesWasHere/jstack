@@ -5,6 +5,7 @@ import re
 import pytest
 from jsonschema import Draft202012Validator
 
+from jbriefs.skills import listed
 from test_home_thread import named
 from testing.paths import REPO, skills
 
@@ -236,7 +237,7 @@ def test_a_misspelt_key_in_a_json_block_is_refused(call):
 def test_a_launch_starts_its_thread_with_a_skill_that_exists(call):
     typed = re.fullmatch(r"/([\w-]+)( .+)?", call.given["message"])
     assert typed, f"{call.where}: the message is not a skill and its arguments"
-    assert typed[1] in SKILLS, f"{call.where}: no skill {typed[1]!r}"
+    assert typed[1] in listed("skill"), f"{call.where}: no skill {typed[1]!r}"
 
 
 @pytest.mark.parametrize("call", TWINS, ids=where)

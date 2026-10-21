@@ -182,7 +182,6 @@ def test_an_added_skill_has_no_problem(name):
 
 @pytest.mark.parametrize("name", ADDED)
 def test_every_file_an_added_skill_names_is_there(name):
-    # Read where an agent loads the skill: the harness copy, laid out as it is installed.
     skill = COPY / "skills" / name / "SKILL.md"
     missing = [path for path in named_files(skill) if not (skill.parent / path).is_file()]
     assert missing == []
