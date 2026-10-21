@@ -117,9 +117,9 @@
    On any other line, for an `after` brief, send nothing to anyone, and change the section's `Sent to:` line to `Sent to: not sent, Review: after`.
    For a `twice` brief, send the crewmate only one line, with no finding in it, and write that thread's id on the `Sent to:` line.
    Where the block queued a row, the line is `<slug>: the second review of <url> at <head> filed <k> warning or error findings as cleanup-<slug> and dropped <m> info findings; fix nothing for it`.
-   Where it printed `no cleanup row`, the line is `<slug>: the second review of <url> at <head> filed nothing and dropped <m> info findings; fix nothing for it`, with `<m>` the count of `info` findings the block printed.
+   Where it printed `no cleanup row: its second review has no warning or error finding`, the line is `<slug>: the second review of <url> at <head> filed nothing and dropped <m> info findings; fix nothing for it`, with `<m>` the count of `info` findings the block printed.
    It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit, and it is not approved: it waits for the user's go.
-   On `no cleanup row` for an `after` brief, the review was clean or the row is already queued, and nothing more is done.
+   On any other `no cleanup row`, of an `after` brief, or of a `twice` brief whose row is already in the queue, the review was clean or the row is already queued, and nothing more is done.
 
    What follows in this step is for a brief the block above printed `not after` or `first review` for, and the others have nothing more to send.
 
