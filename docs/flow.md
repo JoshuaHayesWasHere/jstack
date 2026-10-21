@@ -40,6 +40,7 @@ Three things come to you. Everything else that is reversible is done without ask
 | A pull request with no review | Its brief says `Review: none` | It is never merged by itself. It waits for your word. |
 
 A brief that says `Review: after` merges once its check passes, and its review's findings come to you as a cleanup row, `cleanup-<slug>`, that waits for your go.
+A brief that says `Review: twice`, the home's default, gets one review and one fix round, then a second review that merges once it is written: its `warning` and `error` findings come to you as the same kind of cleanup row, and its `info` findings are dropped.
 
 A pull request that prints `wait` is not a failure and asks nothing of you. `jmerge` prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.
 

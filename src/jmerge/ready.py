@@ -4,7 +4,7 @@ import ast
 import re
 import string
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -71,7 +71,7 @@ NO_HEAD = Reason("second", "its review names no head to compare its rebase with"
 BASE = Reason("hold", "its base is {base}, not {default}")
 IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
 IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
-REVIEW, NONE, AFTER = "review", "none", "after"
+REVIEW, NONE, AFTER, TWICE = "review", "none", "after", "twice"
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
 NO_REVIEW = Reason("review", "it has no review yet")
 SKILLS_UNRUN = Reason(
@@ -85,6 +85,7 @@ SECOND_UNWRITTEN = Reason(
     "second",
     "its fix changed more than the findings named: the second pass is not written",
 )
+TWICE_UNWRITTEN = Reason("second", "its second review is not written at {head}")
 FIX_UNREVIEWED = Reason("second", "its fix is not reviewed: the scoped review of it is not written")
 DECLINES_UNRULED = Reason("second", "the scoped review has not ruled on the declines of {ids}")
 DECLINES_OVERRULED = Reason(
@@ -404,16 +405,74 @@ def said_of(text: str) -> Said:
 
 
 def _mode(line: str) -> str:
-    """A brief's review mode, from its first `Review:` line: `none`, `after`, or `review` for
-    any other word, as briefs from before the reviewer stopped running tests say more."""
+    """A brief's review mode, from its first `Review:` line: `none`, `after`, `twice`, or
+    `review` for any other word, as briefs from before the reviewer stopped running tests
+    say more."""
     said = _second(line)
-    return said if said in (NONE, AFTER) else REVIEW
+    return said if said in (NONE, AFTER, TWICE) else REVIEW
 
 
 def after(text: str) -> bool:
     """Whether the brief says `Review: after`: it merges on its check, and its review's
     findings go to a cleanup row (`jbus cleanup`), so no review holds it."""
     return said_of(text).mode == AFTER
+
+
+def asks_no_ruling(text: str) -> bool:
+    """Whether no review after the first rules on the pull request: `after` merges on its
+    check and `twice` once its second review is written, so neither asks for a scoped
+    review of the fix, a ruling on a decline or a drop, or a range-diff review after a
+    rebase."""
+    return said_of(text).mode in (AFTER, TWICE)
+
+
+def _first_head(said: Said) -> str:
+    """The head of a brief's first review: the first section that ran, so one that wrote
+    `Verdict: not run` and ran again at a later head is still the first."""
+    return next((one.head for one in said.triage.sections if one.ran and one.head), "")
+
+
+def second_review(text: str) -> tuple[str, ...]:
+    """The heads of a `twice` brief's second review: each head other than the first
+    review's that a section ran at, the head the fix pushed, or none for another mode. Its
+    findings are filed as a cleanup row (`jbus cleanup`) and never answered."""
+    said = said_of(text)
+    if said.mode != TWICE:
+        return ()
+    first = _first_head(said)
+    ran = (one.head for one in said.triage.sections if one.ran and one.head not in ("", first))
+    return tuple(dict.fromkeys(ran))
+
+
+def _twice(said: Said, text: str) -> str:
+    """What a `twice` brief is short of: the first review, its findings answered in one
+    fix round and the fix pushed, then a second review of a later head. A clean first
+    review, or a round that declined every finding and pushed nothing, owes no second
+    review: nothing changed for it to read."""
+    if not said.written:
+        return NO_REVIEW
+    first = _first_head(said)
+    verdicts = [one.verdict for one in said.rounds if one.head == first]
+    owed = said.triage.roster.owed(said.triage.sections)
+    verdict = "" if owed or not verdicts else _worst(verdicts)
+    if verdict not in ("clean", "findings"):
+        return NO_VERDICT
+    if verdict == "clean":
+        return ""
+    if not said.fixed:
+        return NO_FIXED
+    if said.fixed == first:
+        return NOT_PUSHED
+    pushed = bool(_COMMIT.fullmatch(said.fixed))
+    if said.fixed != "none" and not pushed:
+        return FIXED_NO_COMMIT
+    found = [one for one in said.triage.findings if one.lead.head == first]
+    short = unanswered(replace(said, triage=replace(said.triage, findings=found)))
+    if short:
+        return short
+    if pushed and not second_review(text):
+        return TWICE_UNWRITTEN.format(head=said.fixed[:12])
+    return ""
 
 
 def unanswered(said: Said) -> str:
@@ -467,6 +526,8 @@ def short_of(text: str, head: str) -> str:
         return REVIEW_NONE
     if said.mode == AFTER:
         return ""
+    if said.mode == TWICE:
+        return _twice(said, text)
     if not said.written:
         return NO_REVIEW
     if verdict not in ("clean", "findings"):
@@ -515,7 +576,7 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
     """`hold` with why, where the scoped pass did not uphold the decline of a finding on one
     of `findings.RISKS`, review-triage's categories, or nothing twice. Only such a decline
     is the user's: one on none of them waits on the crew and its home (`unruled`)."""
-    if after(text):
+    if asks_no_ruling(text):
         return "", ""
     named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)
     if not named:
@@ -525,6 +586,8 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
 
 
 def _named(said: Said, head: str) -> bool:
+    if said.mode == TWICE:
+        return head in (said.reviewed, said.fixed, said.rebased)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
     return head in (said.reviewed, _ci_fix(said)[0], said.rebased)
@@ -539,6 +602,8 @@ def _covered(said: Said) -> str:
 def under_fix(rebase: Rebase | None, text: str, head: str) -> str:
     said = said_of(text)
     reviewed = said.reviewed
+    if said.mode == TWICE:
+        return ""
     if rebase is None and said.fixed == head != reviewed and _COMMIT.fullmatch(reviewed):
         return reviewed if _COMMIT.fullmatch(head) else ""
     return ""
@@ -700,7 +765,7 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
     silent = unexplained(lost, text, head)
     if silent:
         return "wait", DROPPED.format(lost=_lost(silent), head=head[:12])
-    if after(text):
+    if asks_no_ruling(text):
         return "", ""
     ruled = _rulings(text, head)
     kept, against = ruled or (set(), {})
@@ -719,7 +784,7 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
 
 def to_range_diff(rebase: Rebase | None, text: str, head: str) -> str | None:
     said = said_of(text)
-    if said.mode == AFTER:
+    if said.mode in (AFTER, TWICE):
         return None
     fixed = bool(_COMMIT.fullmatch(said.fixed))
     if _ci_fix(said)[0] == head:

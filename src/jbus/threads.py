@@ -206,12 +206,14 @@ def relay(run: Pass, client: Client, world: World) -> None:
 
     Only for a pull request that is open: the findings of one that merged or closed ask
     for nothing any more. Nor for a brief that says `Review: after`: it merges on its check,
-    and its findings go to a cleanup row (`jbus.cleanup`), not to its crew.
+    and its findings go to a cleanup row (`jbus.cleanup`), not to its crew. Nor for the
+    second review of a brief that says `Review: twice`, which goes to such a row too.
     """
     briefs = _briefs(run)
     client.recipients = frozenset(filter(None, map(dispatch.thread_of, briefs.values())))
     for slug in sorted(set(briefs) & set(world.open)):
-        review = "" if ready.after(briefs[slug]) else mirror.undelivered(briefs[slug])
+        filed = ready.after(briefs[slug]) or ready.second_review(briefs[slug])
+        review = "" if filed else mirror.undelivered(briefs[slug])
         digest = hashlib.sha256(review.encode()).hexdigest()[:16]
         key = f"relayed|{slug}|{digest}"
         if not review or _done(run, key):

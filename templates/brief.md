@@ -10,7 +10,7 @@ Decisions: <any the user already made, in their words>
 Design: <the path of the design `/architect` wrote for this task> | none, <why it needs no design call>
 Skills: <the skills and principles the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's file of `principles/` without `.md`, `principle-model-the-domain`> | none
 Pull request: open one when done | ask first
-Review: review | none | after
+Review: twice | review | none | after
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
 <The line below is there only in a brief a scoped home writes, and it is the scope's name, never a thread id. The root home's brief has no `Home:` line.>
 Home: <scope>
