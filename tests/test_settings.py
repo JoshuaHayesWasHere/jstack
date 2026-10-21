@@ -15,11 +15,11 @@ import pytest
 
 import jbus
 import jsettings
-from conftest import NAMED, OLD_EVENT, OLD_LEVEL, ZONE
 from jbus import wake
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import AT, add, brief, rows, sha12
 from test_stall import ACCEPTED, HEAD, SAFE, URL, held, later, shown
+from testing.jstack_fixtures import NAMED, OLD_EVENT, OLD_LEVEL, ZONE
 
 
 @pytest.fixture

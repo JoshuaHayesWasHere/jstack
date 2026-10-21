@@ -1,4 +1,5 @@
-"""What every test module shares.
+"""What every test module shares, loaded as a pytest plugin by the root `conftest.py`, so a
+test in a feature's own `tests/` has it too.
 
 The hourly heartbeat is an event on the first pass of each hour, so it would be one more
 line in every test that pins what a pass sends. It is off everywhere but in

@@ -52,7 +52,7 @@ packages = ["src/jbriefs", "src/jbus", "src/jdrift", "src/jgauge", "src/jinstall
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 # end generated
 # A run writes about 170,000 files under the temporary directory, and by default pytest
 # keeps the last three runs. `/tmp` holds a million files and is shared by every runner and
@@ -84,3 +84,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "RUF100", "PGH004"]
+
+# `testing/`, the tests' shared plumbing, is a package at the root, imported beside the tests' own.
+[tool.ruff.lint.isort]
+known-first-party = ["testing"]

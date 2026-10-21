@@ -33,6 +33,8 @@ def _python(tree: Tree) -> list[str]:
 
 
 def _tests(tree: Tree) -> list[str]:
+    """The test folders, which pytest collects and also puts on its path: a test imports a
+    module of another folder's tests by its bare name."""
     found = ["tests"] if (tree.root / "tests").is_dir() else []
     found += sorted(
         path.relative_to(tree.root).as_posix() for path in tree.root.glob(f"{FEATURES}/*/tests")
@@ -50,7 +52,8 @@ def _part(tree: Tree, part: str) -> str:
     if part == "harness":
         return f"{json.dumps(harness.COPY)} = {json.dumps(harness.PACKAGED)}\n"
     if part == "paths":
-        return f"testpaths = {_list(_tests(tree))}\npythonpath = {_list(_python(tree))}\n"
+        tests = _tests(tree)
+        return f"testpaths = {_list(tests)}\npythonpath = {_list(_python(tree) + tests)}\n"
     return f"src = {_list(_python(tree) + _tests(tree))}\n"
 
 
