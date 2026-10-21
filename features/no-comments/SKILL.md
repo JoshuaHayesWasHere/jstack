@@ -26,7 +26,8 @@ fi
 
 It prints the root of the repo this skill lives in. Every path below that starts with `playbooks/`, `principles/` or `skills/` is from that root, and a path that starts with `references/` is beside this file. On `no root` the skill was loaded from somewhere else: the root is two directories above the real place of this file, not of a link to it.
 
-Step 2 of `playbooks/opening-a-pr.md` is what every crewmate does to its own diff, and it is milder: there a comment stays for a why the code cannot show. This skill, typed, is stricter: a why about our own code is a flag to reshape the code.
+Step 2 of the opening-a-pr playbook (`features/writing/playbooks/opening-a-pr.md`, which the install places at `$R/playbooks/opening-a-pr.md`) is what every crewmate does to its own diff, and it is milder: there a comment stays for a why the code cannot show.
+This skill, typed, is stricter: a why about our own code is a flag to reshape the code.
 
 ## Scope
 
