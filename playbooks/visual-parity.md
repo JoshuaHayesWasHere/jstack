@@ -20,7 +20,7 @@ Verify skill: `.claude/skills/verify-*/`.
 4. Migrate the component, in small units, each one run against the baseline before the next is started.
 5. Verify against the baseline by image diff, with the harness of step 1 and no other instrument, under the same lock. The repo's verify skill, where it has one, is how the component is reached, not what measures it. A nonzero diff is a fail (`principles/principle-prove-it-works.md`). Open the diff image, name what moved (a font, a spacing, an edge, a state) and fix the component where that comes from (`principles/principle-fix-root-causes.md`). Run it again, in this thread, until the diff is zero. A threshold is not raised and a state is not dropped.
 6. Show the baseline untouched: `git diff --stat <the baseline commit> -- <the baseline images and the harness>` prints nothing. Where the baseline itself looks wrong, do not edit it: carry on against it, and park the question as a gate, as `skills/crew/SKILL.md` "Do the task" says, with "the baseline stands" as its default.
-7. Run `playbooks/opening-a-pr.md`. The full run of the heavy suite is whoever's the block in `skills/crew/SKILL.md` "Do the task" prints.
+7. Run `features/writing/playbooks/opening-a-pr.md`. The full run of the heavy suite is whoever's the block in `skills/crew/SKILL.md` "Do the task" prints.
 
 Never done here, and who does it:
 

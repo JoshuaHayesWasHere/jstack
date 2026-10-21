@@ -19,7 +19,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 5. Prove it on the real mistake (`principles/principle-prove-it-works.md`). Put the mistake from step 2 back, run the check command, and see it fail with the new error. Undo it and see it pass. A check that was never seen red is not kept.
 6. Write the rule's line for `notes.md`, word for word, with what enforces it: `<the rule> (enforced by <the test, check or block>)`. For a written rule with no check: `(nothing enforces it: <why>)`. You do not edit `notes.md`: the line goes in the Result under "Noticed", and the home adds it. If a line for this rule is already there, say which one it replaces.
 7. Commit the check before the change that satisfies it where the two can be told apart, so the branch and the pull request read red, then green (`principles/principle-sequence-verifiable-units.md`).
-8. Run `playbooks/opening-a-pr.md`.
+8. Run `features/writing/playbooks/opening-a-pr.md`.
 
 Never done here, and who does it:
 

@@ -46,7 +46,7 @@ fi
 
 `scripts/log.sh` is beside this file. It stamps `ts`, writes the header on first use, turns a tab or a newline inside a cell into a space, and puts a single quote before a cell that starts with `=`, `+`, `-` or `@`, so that evidence somebody else wrote is not run as a formula when the log is opened in a spreadsheet. Write no row by hand.
 
-Write each row the way you would tell a teammate what you did: plain words, concrete actions. `skills/unslop/SKILL.md`, from the root of the repo this skill lives in, applies to log text too.
+Write each row the way you would tell a teammate what you did: plain words, concrete actions. `features/writing/skills/unslop/SKILL.md`, from the root of the repo this skill lives in, applies to log text too.
 
 Log decisions and checkpoints, not every action: a fork chosen, a unit finished with what its check printed, a pivot or a revert with what set it off, a blocker, a gate parked. In a loop, one row per attempt, kept or reverted. Skip what is trivial.
 
