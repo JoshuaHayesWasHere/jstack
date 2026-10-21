@@ -11,7 +11,7 @@ import jbus
 from jbus import threads
 from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
 from test_jbus_queue import add, gates
-from testing.paths import REPO as ROOT
+from testing.paths import skills
 
 THREAD = "mcp:thread-1"
 
@@ -21,7 +21,7 @@ SKILLS = {"crew: alpha": "crew", "review: alpha, scoped": "pr-review", "scout: a
 
 def skill_file(name):
     """The checkout's own skill file, worked out from this test file and not from jbus."""
-    return ROOT / "skills" / name / "SKILL.md"
+    return skills()[name] / "SKILL.md"
 
 
 HOME = Path("/state/home/demo")

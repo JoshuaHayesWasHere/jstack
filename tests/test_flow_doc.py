@@ -13,10 +13,20 @@ from html.parser import HTMLParser
 import pytest
 
 from jmerge.cli import parser as jmerge_parser
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 PAGE = REPO / "docs" / "flow.html"
-REPO_TOP_DIRS = ("skills", "templates", "playbooks", "principles", "hooks", "src", "tests", "docs")
+REPO_TOP_DIRS = (
+    "features",
+    "skills",
+    "templates",
+    "playbooks",
+    "principles",
+    "hooks",
+    "src",
+    "tests",
+    "docs",
+)
 DRAWN = {"home", "crew", "scout", "pr-review", "handoff", "grilling"}
 TOOL = re.compile(r"t3_[a-z_]+|[a-z]+_pull_request")
 TOOLS = {path.stem for path in (REPO / "tests" / "fixtures" / "t3").glob("*.json")}
@@ -72,8 +82,8 @@ def missing(page):
             if not (REPO / code).exists():
                 wrong.append(f"{code}: no such path in the repo")
         elif typed := re.match(r"/([a-z][a-z-]*)(?= |$)", code):
-            if not (REPO / "skills" / typed[1] / "SKILL.md").is_file():
-                wrong.append(f"{code}: skills/ has no {typed[1]}")
+            if typed[1] not in skills():
+                wrong.append(f"{code}: no skill is named {typed[1]}")
         elif code.split(" ")[0] == "jmerge":
             try:
                 jmerge_parser().parse_args(shlex.split(code)[1:])
@@ -113,10 +123,14 @@ def test_a_name_the_repo_does_not_have_is_caught():
 
 def test_the_page_names_each_template_and_each_skill_it_draws(page):
     named = set(page.codes)
-    templates = {f"templates/{path.name}" for path in (REPO / "templates").iterdir()}
+    folders = [REPO / "templates", *REPO.glob("features/*/templates")]
+    templates = {
+        path.relative_to(REPO).as_posix() for folder in folders for path in folder.iterdir()
+    }
     units = {name for name in templates if name.endswith((".service", ".timer"))}
     assert templates - named == units
-    assert {f"skills/{name}/SKILL.md" for name in DRAWN} - named == set()
+    drawn = {(skills()[name] / "SKILL.md").relative_to(REPO).as_posix() for name in DRAWN}
+    assert drawn - named == set()
     flags = {
         flag
         for action in jmerge_parser()._actions

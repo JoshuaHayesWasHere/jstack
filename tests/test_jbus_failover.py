@@ -462,7 +462,7 @@ def test_a_reviewer_is_told_to_carry_on_its_review_and_logged_under_its_own_thre
     (carry,) = [given for given in sends(kitchen) if given["threadId"] == reviewer["threadId"]]
     brief = kitchen.home / "tasks" / "hot-semantic-lines.md"
     assert f"read `{brief}` and the pull request first" in carry["message"]
-    assert "skills/pr-review/SKILL.md" in carry["message"]
+    assert "features/pr-review/SKILL.md" in carry["message"]
     (line,) = [one for one in failovers(kitchen) if one.startswith("failover review hot-sem")]
     assert line.startswith("failover review hot-semantic-lines: five_hour limit until ")
     assert [e["slug"] for e in kitchen.events("failover") if e["line"] == line] == [
