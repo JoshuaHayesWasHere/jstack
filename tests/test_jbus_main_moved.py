@@ -12,6 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
+from jbus import mainstate
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, gates
 
@@ -360,3 +361,29 @@ def test_a_red_head_told_in_conflict_waits_while_github_has_not_judged_it_again(
     launched.poll(NOW + timedelta(minutes=6))
     assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
     assert jbus.read_json(launched.state / "main.json", {})["main"] == main
+
+
+def test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_pending(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    red = tip(launched)
+    fixed = move(launched)
+    launched.t3.lose_send = True
+    launched.poll()
+    assert mainstate.read(launched.state) == mainstate.Main(green=fixed)
+    launched.t3.lose_send = False
+    move(launched, "")
+    launched.poll(NOW + timedelta(minutes=3))
+    assert mainstate.read(launched.state).red == "", f"main reads red at {red[:12]}"
+    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"] * 2
+
+
+@pytest.mark.parametrize("launched", ["success"], indirect=True)
+def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pending(launched):
+    first = tip(launched)
+    red = move(launched, "failure")
+    newest = move(launched, "")
+    parents = ((newest, red), (red, first))
+    commits = [{**launched.commit(sha), "parents": [{"sha": parent}]} for sha, parent in parents]
+    launched.set("commits.json", commits)
+    launched.poll()
+    assert mainstate.read(launched.state).red == red
