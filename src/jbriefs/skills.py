@@ -89,7 +89,10 @@ def root() -> Path:
     """The checkout this package runs from: the nearest directory above it with a
     `pyproject.toml`, wherever the package sits in it."""
     here = Path(__file__).resolve()
-    return next(above for above in here.parents if (above / MARKER).is_file())
+    found = next((above for above in here.parents if (above / MARKER).is_file()), None)
+    if found is None:
+        raise LookupError(f"no {MARKER} above {here}: this is not a checkout of jstack")
+    return found
 
 
 @cache

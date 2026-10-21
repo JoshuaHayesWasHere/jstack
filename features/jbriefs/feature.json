@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "jbriefs",
-  "description": "Writes one HTML page of every home, plan and brief, and resolves the names a brief's lines use.",
+  "description": "Writes one HTML page of every home, plan and brief.",
   "packages": [
     "src/jbriefs"
   ],

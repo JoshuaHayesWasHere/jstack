@@ -13,9 +13,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs.skills import listed, root
+from jbriefs.skills import listed
+from jbriefs.skills import root as checkout
 
-ROOT = root()
 TIPS = 3
 _FRONT = re.compile(r"\A---\n(.*?)^---$", re.M | re.S)
 _SPAN = re.compile(r"`([^`\n]+)`")
@@ -94,7 +94,7 @@ def front(text: str) -> dict[str, str]:
     return {key.strip(): value.strip() for key, colon, value in pairs if colon}
 
 
-def rows(root: Path = ROOT) -> list[Row]:
+def rows(root: Path | None = None) -> list[Row]:
     """Every playbook's `Run by:` row. A path in backticks in the part before `in a brief with`
     is a scope the row is for, and each span after it is a line the row asks the brief for."""
     found = []
@@ -109,7 +109,7 @@ def rows(root: Path = ROOT) -> list[Row]:
     return found
 
 
-def skills(root: Path = ROOT) -> dict[str, Skill]:
+def skills(root: Path | None = None) -> dict[str, Skill]:
     found = {}
     for _, path in sorted(listed("skill", root).items()):
         fields = front(path.read_text())
@@ -153,7 +153,7 @@ def scoped(lines: list[str]) -> list[str]:
     return [p for p in _PATH.findall(text) if not p.startswith((_ALONGSIDE, "~"))]
 
 
-def best(lines: list[str], role: Role, found: list[Row], root: Path = ROOT) -> Line:
+def best(lines: list[str], role: Role, found: list[Row], root: Path | None = None) -> Line:
     """The row of the role's runner that fits the brief best: one whose asked lines the brief
     has, the most of them first; then one whose scope holds every path the brief changes; then
     the role's own default row."""
@@ -171,7 +171,7 @@ def best(lines: list[str], role: Role, found: list[Row], root: Path = ROOT) -> L
         if (
             paths
             and row.scope
-            and all(any(_in_scope(p, s, root) for s in row.scope) for p in paths)
+            and all(any(_in_scope(p, s, root or checkout()) for s in row.scope) for p in paths)
         ):
             return Line(
                 "playbook",
@@ -185,7 +185,7 @@ def best(lines: list[str], role: Role, found: list[Row], root: Path = ROOT) -> L
     )
 
 
-def playbook(job: Work, root: Path = ROOT) -> Line:
+def playbook(job: Work, root: Path | None = None) -> Line:
     lines = head(job.text) if job.from_file else []
     named = said(lines, "Playbook:")
     name = named.split()[0] if named else ""
@@ -256,7 +256,7 @@ def _tip_text(job: Work) -> str:
     return "\n".join(ln for ln in head(job.text) if ln.startswith(_TIPPED_FROM))
 
 
-def pick(job: Work, root: Path = ROOT) -> list[Line]:
+def pick(job: Work, root: Path | None = None) -> list[Line]:
     """The lines `jbriefs pick` prints for a piece of work, each naming a file that is there,
     or `unknown`."""
     found = skills(root)

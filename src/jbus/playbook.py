@@ -36,7 +36,7 @@ from jbriefs import parse as briefs
 from jbriefs import skills
 from jbus import verbs
 
-REPO = skills.root()
+REPO: Path | None = None
 ROLES = {
     "crewmate": "a crewmate",
     "scout": "a scout",
@@ -56,7 +56,7 @@ CHECKLIST = "a checklist to copy into your todo list as printed"
 STEP = re.compile(r"^[0-9]+\. ")
 
 
-def opened(role: str, text: str, name: str = "", repo: Path = REPO) -> list[str]:
+def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> list[str]:
     """What `jbus playbook` prints for `role`, with `text` the brief, request or plan, and
     `name` the playbook's name where one is given in place of its line."""
     name = name or briefs.playbook_named(text)

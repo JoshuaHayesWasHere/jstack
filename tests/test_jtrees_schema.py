@@ -2,6 +2,7 @@
 `jtrees.schema.validate`, the generator's stdlib validator, gives the same verdict as
 `jsonschema` on a corpus of good and bad manifests."""
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -12,7 +13,7 @@ from jsonschema import Draft202012Validator
 REPO = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from jtrees import schema  # noqa: E402
+schema = importlib.import_module("jtrees.schema")
 
 FEATURE = json.loads((REPO / "schemas" / "feature.schema.json").read_text())
 PLUGIN = json.loads((REPO / "schemas" / "agent-plugins-1.0.0.plugin.schema.json").read_text())

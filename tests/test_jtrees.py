@@ -2,6 +2,7 @@
 that a stale output fails the check by name. Each test runs the script, or `jtrees`, over a
 copy of this checkout."""
 
+import importlib
 import json
 import shutil
 import subprocess
@@ -15,7 +16,8 @@ REPO = Path(__file__).parent.parent
 SCRIPT = "scripts/generate-jstack-trees.py"
 sys.path.insert(0, str(REPO / "scripts"))
 
-from jtrees.crawl import Invalid, borders, crawl, tracked  # noqa: E402
+jtrees = importlib.import_module("jtrees.crawl")
+Invalid, borders, crawl, tracked = jtrees.Invalid, jtrees.borders, jtrees.crawl, jtrees.tracked
 
 
 def generate(root, *args):
@@ -220,7 +222,7 @@ def test_an_owner_is_the_feature_folder_or_one_row_and_two_rows_are_both_seen(co
     tree = crawl(copy)
     assert tree.owners("features/jbus/feature.json") == ("jbus",)
     assert tree.owners("src/jbus/cli.py") == ("jbus",)
-    assert tree.owners("skills/bro/SKILL.md") == ("bro",)
+    assert tree.owners("src/jbriefs/cli.py") == ("jbriefs",)
     assert tree.owners("pyproject.toml") == ("INFRA",)
     assert tree.owners("nowhere/at/all.txt") == ()
     manifest = copy / "features" / "bro" / "feature.json"
