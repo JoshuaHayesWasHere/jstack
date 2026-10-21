@@ -1,0 +1,9 @@
+[Unit]
+Description=jbus ci: keep CI's jobs, write the week's report and alert on a missed target
+Documentation=file:%Y/../docs/jbus/measure-the-ci.md#measure-the-ci
+
+[Service]
+Type=oneshot
+TimeoutStartSec=10min
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus --project jstack ci --report

@@ -6,8 +6,8 @@ through `jbus.load`, `jsettings.load` and `jroles.read_map`, the loaders the com
 the doctor cannot disagree with them about what is valid. A Seeded kind is a config `--setup`
 writes once, where there is no file, and `--uninstall` removes while it is still what was
 written (`Machine.seed`). A Carried kind is also put and dropped, and every Carried kind writes
-the checkout's path into what it puts, which gives the one ownership rule: a piece is this
-checkout's when the piece itself says so.
+the path of the harness copy (`Machine.copy`, a checkout's or a release's) into what it puts,
+which gives the one ownership rule: a piece is this install's when the piece itself says so.
 
     ok       exactly what this checkout puts is there, or the program meets its floor
     missing  nothing is there
@@ -133,7 +133,6 @@ def get(machine: Machine, package: str, command: str) -> str:
     return f"yay -S {package}" if machine.which("pacman") else command
 
 
-HARNESS = Path("harness") / "jstack" / "claude-code"
 GENERATE = "scripts/generate-jstack-trees.py"
 
 
@@ -141,14 +140,13 @@ def points_at(path: Path, target: Path) -> bool:
     return path.is_symlink() and os.readlink(path) == str(target)
 
 
-def dead(path: Path, checkout: Path) -> bool:
+def dead(path: Path, machine: Machine) -> bool:
     """Whether `path` is a link into the copy's `skills/`, or the checkout's own where links
     went before the copy, at a skill that is not there."""
+    folders = (machine.copy, *([machine.checkout] if machine.checkout is not None else []))
     return (
         path.is_symlink()
-        and os.readlink(path).startswith(
-            tuple(f"{folder / 'skills'}{os.sep}" for folder in (checkout / HARNESS, checkout))
-        )
+        and os.readlink(path).startswith(tuple(f"{one / 'skills'}{os.sep}" for one in folders))
         and not (path / "SKILL.md").is_file()
     )
 
@@ -156,7 +154,8 @@ def dead(path: Path, checkout: Path) -> bool:
 @dataclass(frozen=True)
 class Harness:
     """The copy in the checkout, `harness/jstack/claude-code/`, as the generator writes it
-    from the checkout's features: the skills and hooks every other part points at.
+    from the checkout's features: the skills and hooks every other part points at. Listed only
+    with a checkout: a release's copy is what its wheel carries.
     ok: the generator's --check passes. old: what it named first, or why it could not run.
     put writes nothing in the checkout: an install leaves its files as git has them, and
     the user runs the generator. drop removes nothing."""
@@ -183,7 +182,7 @@ class Harness:
 
 @dataclass(frozen=True)
 class Link:
-    """A symlink into the checkout: a skill for an agent.
+    """A symlink into the copy: a skill for an agent.
     old: a link to anywhere else. foreign: `not a link`.
     drop: unlink only when it points at `target`."""
 
@@ -211,14 +210,14 @@ class Link:
 
 @dataclass(frozen=True)
 class GoneLink:
-    """A link under a skills root that points into this checkout's `skills/` at a skill the
-    checkout no longer has. Listed only when found, old until it is unlinked. put and drop
+    """A link under a skills root that points into the copy's `skills/` at a skill the copy
+    no longer has. Listed only when found, old until it is unlinked. put and drop
     unlink it."""
 
     path: Path
 
     def _dead(self, machine: Machine) -> bool:
-        return dead(self.path, machine.checkout)
+        return dead(self.path, machine)
 
     def probe(self, machine: Machine) -> Found:
         if self._dead(machine):
@@ -268,17 +267,17 @@ def rewrite(machine: Machine, file: Path, change: Callable[[dict], bool]) -> boo
 class HookGroup:
     """One group in `.hooks[event]` of ~/.claude/settings.json or ~/.codex/hooks.json:
         {"matcher": <matcher>, "hooks": [{"type": "command",
-          "command": "sh '<checkout>/<harness>/<script>' 2>/dev/null || true", "timeout": 5}]}
+          "command": "sh '<copy>/<script>' 2>/dev/null || true", "timeout": 5}]}
     with no `matcher` key when `matcher` is None. With `refuses` the command is
-    "sh '<checkout>/<script>'" and nothing after it: the hook's exit code and what it writes
+    "sh '<copy>/<script>'" and nothing after it: the hook's exit code and what it writes
     to stderr are how it refuses a tool call, so neither is thrown away, and its timeout is
     30: it starts Python, and a hook that ran out of time has refused nothing.
 
     ok: that group is there, and no other command of the event names `/<script>`.
-    old: a command names `/<script>` and is not that (another checkout, or the README's
+    old: a command names `/<script>` and is not that (another copy, or the README's
       hand-written `"$HOME/..."` form). put takes each such command out and adds the group.
     foreign: the file is not one JSON object with a hooks object: `not a hooks file`.
-    drop: take out only the command that is exactly this checkout's, then each of the group,
+    drop: take out only the command that is exactly this copy's, then each of the group,
       `hooks[event]` and `hooks` that it leaves empty. No other key is touched."""
 
     file: Path
@@ -288,7 +287,7 @@ class HookGroup:
     refuses: bool = False
 
     def _command(self, machine: Machine) -> str:
-        run = f"sh {quoted(machine.checkout / HARNESS / self.script)}"
+        run = f"sh {quoted(machine.copy / self.script)}"
         return run if self.refuses else f"{run} 2>/dev/null || true"
 
     def _group(self, machine: Machine) -> dict:
@@ -384,6 +383,7 @@ class GitHook:
     <checkout>/<script>. The worktrees of a repo run the hooks of its main checkout, so the
     one link covers every branch that is pushed from this machine.
 
+    Listed only with a checkout: a release has no repo of its own.
     due: when `.git` is a directory (the main checkout, not a worktree, whose hooks are not
       its own), and HOME is the account's own or holds the checkout. A run under another
       HOME, a sandbox or a test, leaves a checkout that is outside that HOME as it is.
@@ -407,8 +407,11 @@ class GitHook:
         return self._link(machine).probe(machine)
 
     def due(self, machine: Machine) -> bool:
-        ours = machine.home == machine.account or machine.checkout.is_relative_to(machine.home)
-        return ours and (machine.checkout / ".git").is_dir()
+        checkout = machine.checkout
+        if checkout is None:
+            return False
+        ours = machine.home == machine.account or checkout.is_relative_to(machine.home)
+        return ours and (checkout / ".git").is_dir()
 
     def put(self, machine: Machine) -> None:
         self._link(machine).put(machine)
@@ -465,16 +468,16 @@ class Patterns:
 @dataclass(frozen=True)
 class StatusLine:
     """`statusLine` of ~/.claude/settings.json as
-    {"type": "command", "command": "sh '<checkout>/<harness>/hooks/limits.sh'"}.
+    {"type": "command", "command": "sh '<copy>/hooks/limits.sh'"}.
     due: only when the key is absent or its command names `/hooks/limits.sh`. A status line
       of the user's own is not due and gets no line.
-    old: limits.sh of another checkout. drop: delete the key only when it is exactly ours."""
+    old: limits.sh of another copy. drop: delete the key only when it is exactly ours."""
 
     file: Path
     script: str = "hooks/limits.sh"
 
     def _ours(self, machine: Machine) -> dict:
-        script = machine.checkout / HARNESS / self.script
+        script = machine.copy / self.script
         return {"type": "command", "command": f"sh {quoted(script)}"}
 
     def _there(self, machine: Machine) -> tuple[bool, object]:
@@ -525,36 +528,75 @@ class StatusLine:
 @dataclass(frozen=True)
 class Commands:
     """The commands on PATH. `tool` and `names` come from pyproject.toml (`[project].name`
-    and the keys of `[project.scripts]`), `was` is the tool's name before the rename.
+    and the keys of `[project.scripts]`) in a checkout, and from the copy's plugin.json and the
+    installed package's entry points in a release, whose `version` is the copy's. `was` is the
+    tool's name before the rename.
 
+    With a checkout:
     ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
       and typing each name runs that file or the one in <checkout>/.venv/bin.
     old: `lacks jdrift jroles` (installed before they were added); `tool jgauge, from before
       the rename`; `an install of <other path>`.
     foreign, since no put mends it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
     missing: no tool of either name.
-    foreign: a tool of either name that is no editable install of a checkout (from an index
-      or a git url): `tool jstack is not an editable install of a checkout`. It is not put
-      over and not dropped.
+    foreign: a tool of either name that is no editable install of a checkout (a release, or
+      from an index or a git url). It is not put over and not dropped.
     put: `uv tool uninstall <was>` when its source is this checkout, then
       `uv tool install --editable <checkout> --reinstall`. Never --force.
     drop: `uv tool uninstall` of `tool`, and of `was`, each only when its source is this
-      checkout. Else kept, with the path it is an install of."""
+      checkout. Else kept, with the path it is an install of.
+
+    With no checkout, a release, which is this tool's own: the jinstall that runs is one of
+    its commands, so nothing is installed or removed here.
+    ok: uv has the tool, not as an editable install, its version is the copy's, and each name
+      is in `machine.tool_bin()` and is what typing it runs.
+    old: `tool jstack is 0.1.0, and its copy is 0.2.0`, `lacks jinstall`, an editable install;
+      foreign: shadowed, or not on PATH. missing: uv has no such tool (a jinstall run by hand).
+    put: refused, with the command that installs a release. drop: kept, with the command that
+      removes it."""
 
     tool: str
     names: tuple[str, ...]
     was: str = "jgauge"
+    version: str = ""
+    _install = "uv tool install <the release's wheel> --reinstall"
 
     def _lacks(self, machine: Machine) -> str:
         lacking = [name for name in self.names if not (machine.tool_bin() / name).exists()]
         return f"lacks {' '.join(lacking)}" if lacking else ""
 
+    def _typed(self, machine: Machine, *also: Path) -> Found:
+        """ok when typing each name runs the file in `tool_bin()`, or one of `also`."""
+        for name in self.names:
+            typed = machine.which(name)
+            if typed is None:
+                return Found.foreign(f"{name} is not on PATH: {machine.tool_bin()} is not in it")
+            if typed not in (machine.tool_bin() / name, *(one / name for one in also)):
+                return Found.foreign(f"{name} is shadowed by {typed}")
+        return Found.ok()
+
+    def _released(self, machine: Machine) -> Found:
+        if not machine.has_tool(self.tool):
+            return Found.missing(f"uv has no tool {self.tool}: {self._install}")
+        source = machine.tool_source(self.tool)
+        if source is not None:
+            return Found.old(f"tool {self.tool} is an editable install of {source}")
+        version = machine.tool_version(self.tool)
+        if version != self.version:
+            return Found.old(f"tool {self.tool} is {version}, and its copy is {self.version}")
+        return Found.old(self._lacks(machine)) if self._lacks(machine) else self._typed(machine)
+
     def probe(self, machine: Machine) -> Found:
+        if machine.checkout is None:
+            return self._released(machine)
         source, before = machine.tool_source(self.tool), machine.tool_source(self.was)
         renamed = f"tool {self.was}, from before the rename"
         for tool, of in ((self.tool, source), (self.was, before)):
             if of is None and machine.has_tool(tool):
-                return Found.foreign(f"tool {tool} is not an editable install of a checkout")
+                return Found.foreign(
+                    f"tool {tool} is installed from a release or an index, "
+                    "not as an editable install of this checkout"
+                )
         if source is None and before is None:
             return Found.missing()
         if source is None and before != machine.checkout:
@@ -567,13 +609,7 @@ class Commands:
             return Found.old(f"{renamed}, is still installed")
         if self._lacks(machine):
             return Found.old(self._lacks(machine))
-        for name in self.names:
-            typed = machine.which(name)
-            if typed is None:
-                return Found.foreign(f"{name} is not on PATH: {machine.tool_bin()} is not in it")
-            if typed not in (machine.tool_bin() / name, machine.checkout / ".venv" / "bin" / name):
-                return Found.foreign(f"{name} is shadowed by {typed}")
-        return Found.ok()
+        return self._typed(machine, machine.checkout / ".venv" / "bin")
 
     def due(self, machine: Machine) -> bool:
         return True
@@ -585,11 +621,18 @@ class Commands:
             raise Refused(f"uv {' '.join(args)}: {said[-1] if said else 'uv is not on PATH'}")
 
     def put(self, machine: Machine) -> None:
+        if machine.checkout is None:
+            raise Refused(f"a release's commands are uv's to install: {self._install}")
         if machine.tool_source(self.was) == machine.checkout:
             self._uv(machine, "tool", "uninstall", self.was)
         self._uv(machine, "tool", "install", "--editable", str(machine.checkout), "--reinstall")
 
     def drop(self, machine: Machine) -> Dropped:
+        if machine.checkout is None:
+            if not machine.has_tool(self.tool):
+                return Dropped()
+            why = f"the release this jinstall runs from: uv tool uninstall {self.tool}"
+            return Dropped(kept=(f"commands {self.tool} -> {why}",))
         removed, kept = [], []
         for tool in (self.tool, self.was):
             source = machine.tool_source(tool)
@@ -603,11 +646,17 @@ class Commands:
         return Dropped(tuple(removed), tuple(kept))
 
 
+def templates(machine: Machine) -> Path:
+    """The folder of the units the install links: the checkout's, else the release's copy's."""
+    return (machine.checkout if machine.checkout is not None else machine.copy) / "templates"
+
+
 @dataclass(frozen=True)
 class Units:
-    """The jbus units: a link from ~/.config/systemd/user/<name> to
-    <checkout>/templates/<name> for each of `names` (every templates/*.service and *.timer),
-    and each of `timers` enabled.
+    """The jbus units: a link from ~/.config/systemd/user/<name> to <templates>/<name> for each
+    of `names` (every *.service and *.timer there), and each of `timers` enabled. <templates>
+    is `templates(machine)`: the checkout's, where links went before the copy and where
+    systemd's own links under `timers.target.wants` still point, else the release's copy's.
 
     due: when jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, ~/.local/bin/jbus is there (the units run it),
@@ -633,7 +682,7 @@ class Units:
     config: Path
 
     def _template(self, machine: Machine, name: str) -> Path:
-        return machine.checkout / "templates" / name
+        return templates(machine) / name
 
     def _ours(self, machine: Machine) -> list[str]:
         return [

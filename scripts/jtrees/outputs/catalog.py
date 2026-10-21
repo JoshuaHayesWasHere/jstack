@@ -1,4 +1,5 @@
-"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`.
+"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`. The
+harness copy holds the same list with each path its own (`harness`).
 
 A brief's `Skills:` line names a skill or a principle, or a playbook its feature lists as
 `nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). An
@@ -63,13 +64,20 @@ def _entry(item: Item, upstream: tuple[str, ...]) -> dict[str, object]:
     return entry
 
 
-def render(tree: Tree) -> dict[str, bytes]:
+def entries(tree: Tree) -> list[dict[str, object]]:
+    """Every item as `skills.json` lists it, its `path` the repo's."""
     jdrift = _jdrift(tree)
     third = Path(tree.root / jdrift.FILE).read_text(encoding="utf-8")
     fed: dict[str, list[str]] = {}
     for upstream, local in jdrift.read_section(third).sources.items():
         for path in local:
             fed.setdefault(path, []).append(upstream)
-    items = [_entry(item, tuple(fed.get(item.path, ()))) for item in tree.items]
-    text = json.dumps({"$comment": COMMENT, "items": items}, indent=2) + "\n"
-    return {PATH: text.encode()}
+    return [_entry(item, tuple(fed.get(item.path, ()))) for item in tree.items]
+
+
+def text(items: list[dict[str, object]]) -> bytes:
+    return (json.dumps({"$comment": COMMENT, "items": items}, indent=2) + "\n").encode()
+
+
+def render(tree: Tree) -> dict[str, bytes]:
+    return {PATH: text(entries(tree))}

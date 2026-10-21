@@ -1,0 +1,14 @@
+[Unit]
+Description=jbus relay: what jbus posts, sent on to Sous Chef, paged when it is silent (loopback only)
+Documentation=file:%Y/../docs/jbus/the-relay.md#the-relay
+
+[Service]
+EnvironmentFile=%h/.config/jbus-relay/env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/jbus relay
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=2
+
+[Install]
+WantedBy=default.target

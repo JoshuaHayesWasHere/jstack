@@ -13,7 +13,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 
 [How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
-Eight commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
+Nine commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
 
 What lasts is on disk, in a state directory outside the repo. A thread can end at any time, and the next one starts from those files.
 
@@ -21,14 +21,14 @@ A thread does reversible work without asking. It pauses only before a force-push
 
 ## Requirements
 
-jstack does not run without a **hard** need. `sh install.sh --doctor` checks each one.
+jstack does not run without a **hard** need. `jinstall --doctor` checks each one.
 
 | Need | Level | Notes |
 |---|---|---|
 | Linux | hard | The only platform. |
 | T3 Code, the nightly build | hard | Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.0.46-nightly.20261010.2935`. |
 | Claude Code | hard | The `claude` command on `PATH`. |
-| `uv` | hard | It installs the eight commands and `tzdata`, the one package they need. The commands read your time zone from `tzdata` where the system has no zone files, and refuse a `timezone` they cannot find. They run on Python 3.12 or newer. `uv` uses one that it finds on the machine. When it finds none it downloads one: 3.12 for `install.sh`, and the newest it knows for a `uv run` or a `make check` in a checkout. |
+| `uv` | hard | It installs the nine commands and `tzdata`, the one package they need. The commands read your time zone from `tzdata` where the system has no zone files, and refuse a `timezone` they cannot find. They run on Python 3.12 or newer. `uv` uses one that it finds on the machine. When it finds none it downloads one: 3.12 for a checkout's `install.sh`, and the newest it knows for a `uv run` or a `make check` in a checkout. |
 | `git` | hard | 2.31 or newer. |
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
@@ -38,48 +38,50 @@ An **optional** need switches a layer on. jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus`, with its config, its systemd timer and a webhook | Nothing runs between your threads. A home thread launches and settles, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. With the timer and no webhook, `jbus` works and sends no event. It asks you each hour, on the desktop and in the journal, to set `webhook_url` and `webhook_key`. |
-| The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so a launch is held back for the machine alone. `install.sh` sets a status line that writes the file, unless you have a status line of your own. |
+| The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so a launch is held back for the machine alone. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
 
 ## Quickstart
 
-These steps take a new machine from a clone to one merged pull request.
+These steps take a new machine to one merged pull request.
 
-1. Clone this repo and enter the checkout.
-
-	```sh
-	git clone <the URL of this repo> jstack
-	cd jstack
-	```
-
-2. Set up. The script walks every need of the machine once, in order. It links each skill into `~/.{claude,agents,codex}/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and installs the eight commands with `uv`, as the one tool `jstack`. It also sets a status line that writes the limits file, unless you have a status line of your own. Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units. It prints one line for each need: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run it again. A second run writes nothing. `sh install.sh` with no flag puts only the parts, as before.
+1. Install the latest release and set it up. It needs nothing but `curl` and a shell: it installs `uv` when it is missing, installs the nine commands as the one `uv` tool `jstack`, and runs `jinstall --setup`.
 
 	```sh
-	sh install.sh --setup
+	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
 	```
 
-3. Check the install. This command prints one line for each part `--setup` put and writes nothing. Every line must start with `ok`.
+	With `uv` already there, the same by hand, for one version:
 
 	```sh
-	sh install.sh --check
+	uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
+	jinstall --setup
 	```
 
-4. Check the machine. The doctor prints one line for each requirement, then the lines of step 3, and writes nothing. The last line must be `doctor: ok`. On a new machine some lines start with `missing optional`. They name the optional layers that you have not set up, and they do not stop you. Every other line that starts with `missing` or `old` has an entry in [Troubleshooting](docs/troubleshooting.md).
+	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
+
+2. Check the install. Every line must start with `ok`.
 
 	```sh
-	sh install.sh --doctor
+	jinstall --check
 	```
 
-5. Pick the repo that you want work done in. It needs a GitHub remote that `gh` can push to, and a CI check named `check`, because `jmerge` merges on that check. Add the repo's main checkout to T3 Code as a project.
-6. Open a new thread in that project. The thread becomes the repo's home by itself and gives a short status. If it does not, type the command below.
+3. Check the machine. The doctor prints a line for each requirement, then the lines of step 2. The last line must be `doctor: ok`. A `missing optional` line names a layer you have not set up. Every other `missing` or `old` line has an entry in [Troubleshooting](docs/troubleshooting.md).
+
+	```sh
+	jinstall --doctor
+	```
+
+4. Pick the repo that you want work done in. It needs a GitHub remote that `gh` can push to, and a CI check named `check`, because `jmerge` merges on that check. Add the repo's main checkout to T3 Code as a project.
+5. Open a new thread in that project. The thread becomes the repo's home by itself and gives a short status. If it does not, type the command below.
 
 	```text
 	/home
 	```
 
-7. Tell the home one small task. The home plans it with you, writes a brief, and launches a crewmate thread in its own worktree.
-8. Watch the crewmate. It does the task, runs the repo's check command, opens a pull request, and launches a reviewer. It then fixes what the review found.
-9. Merge. When the crewmate says the pull request is fixed and green, run `jmerge` in the repo's main checkout. It merges every pull request that is reviewed, fixed and green, and prints `merged` or `wait` and the reason for each one. It also removes the worktree and the branch.
+6. Tell the home one small task. The home plans it with you, writes a brief, and launches a crewmate thread in its own worktree.
+7. Watch the crewmate. It does the task, runs the repo's check command, opens a pull request, and launches a reviewer. It then fixes what the review found.
+8. Merge. When the crewmate says the pull request is fixed and green, run `jmerge` in the repo's main checkout. It merges every pull request that is reviewed, fixed and green, and prints `merged` or `wait` and the reason for each one. It also removes the worktree and the branch.
 
 	```sh
 	jmerge
@@ -87,7 +89,7 @@ These steps take a new machine from a clone to one merged pull request.
 
 Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
 
-To remove jstack from the machine, run `sh install.sh --uninstall`. It takes away only what names this checkout.
+To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
 
 ## Limits
 
@@ -118,13 +120,14 @@ Each command has one page.
 | `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [docs/jdrift.md](docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
+| `jinstall` | [docs/jinstall.md](docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
 | `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
 | `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
 | `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
 <!-- generated: end -->
 
-`install.sh` puts the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
+`jinstall` and `install.sh` put the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
 
 | Page | Read it to |
 |---|---|
@@ -161,8 +164,8 @@ The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `playbooks/` | The numbered steps for one kind of task. |
 | `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
 | `hooks/` | `home-start.sh`, `skill-tips.sh`, `limits.sh`, and the two hooks of `jleak`: `pre-push.sh` and `outbound-command.sh`. |
-| `src/` | The eight commands, one package each, and the code `install.sh` runs. |
-| `install.sh` | Installs, checks and removes jstack on a machine. |
+| `src/` | The nine commands, one package each. |
+| `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
 | `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
@@ -181,7 +184,11 @@ The Python code is one `uv` project.
 
 `tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook. Its `launch.sh` prints `ready:` only after `jbus --project demo queue show` and `jmerge --check` have run there. Its `doctor.sh` fails a feature whose seed the sandbox lacks: `bad  <feature>: seed lacks <x>`.
+`verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+
+## Releasing
+
+`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it. A version bump is a pull request. [Releasing](docs/jinstall.md#releasing) has the steps.
 
 ## License
 

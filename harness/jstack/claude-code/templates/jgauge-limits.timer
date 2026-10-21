@@ -1,0 +1,10 @@
+[Unit]
+Description=jgauge limits: each Claude account's use every 2 min
+Documentation=file:%Y/../docs/jgauge.md#jgauge
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

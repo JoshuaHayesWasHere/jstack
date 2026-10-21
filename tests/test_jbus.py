@@ -11,6 +11,7 @@ import json
 import re
 import shlex
 import stat
+import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -57,7 +58,7 @@ def test_a_config_or_a_token_others_can_read_stops_jbus(kitchen, name, mode):
     assert kitchen.log("jmerge") == []
 
 
-def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
+def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
     files = [
         *(REPO / "src/jbus").rglob("*.py"),
         REPO / "src/jbus/view/page.html",
@@ -72,8 +73,16 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
         REPO / "docs/configuration.md",
     ]
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
+    told = subprocess.run(
+        ["sh"],
+        input=(REPO / "install.sh").read_text(),
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    ).stdout
+    own = re.search(r"[a-z]+:\S+?(?=/releases/)", told)[0]
     for path in files:
-        text = path.read_text()
+        text = path.read_text().replace(own, "")
         for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
             assert allowed.match(host) or host == "", f"{path.name}: {host}"
         assert not re.search(r"Bearer [A-Za-z0-9_-]{20,}", text), path.name
