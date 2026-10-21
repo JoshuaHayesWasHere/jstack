@@ -3,7 +3,9 @@
 The scripts of this skill make a sandbox, check it, keep the evidence and clean up: `launch.sh`, `doctor.sh`, `record.sh`, `cleanup.sh`, and the stand-ins for T3 Code, `gh` and `systemctl`.
 
 Paths:
-- `.claude/skills/verify-jstack/`
+- `features/verify-jstack/`
+- `.claude/skills/verify-jstack/SKILL.md`
+- `.cursor/skills/verify-jstack`
 Tests: none
 
 ## Sub-features

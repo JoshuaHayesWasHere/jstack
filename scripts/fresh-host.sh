@@ -4,7 +4,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd -P)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 git clone -q --no-hardlinks "$repo" "$work/jstack"
-cp "$repo/.cursor/skills/verify-jstack/scripts/fake-systemctl" "$work/systemctl"
+cp "$repo/features/verify-jstack/project-skill/scripts/fake-systemctl" "$work/systemctl"
 
 docker run --rm -i -v "$work:/src:ro" archlinux:latest sh -eu << 'IN_THE_CONTAINER'
 pacman -Sy --noconfirm --needed uv git jq findutils diffutils > /dev/null
