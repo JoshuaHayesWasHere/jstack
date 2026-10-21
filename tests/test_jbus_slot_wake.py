@@ -73,7 +73,7 @@ def test_two_waiters_one_slot_frees_only_the_oldest_is_woken(kitchen, slots):
     assert "a short test slot is free" in given["message"]
     assert f"uv run pytest {older}" in given["message"]
     assert given["message"].endswith(jbus.END_TURN)
-    line = f"slot-wake: woke {older}, a short slot is free for `uv run pytest {older}`"
+    line = f"slot-wake: woke {older}, a short slot is free for `uv run pytest {older}`, after 9 min"
     assert line in said and kitchen.lines("slot-wake") == [line]
     by = {one.thread: one for one in waiters.read(slot.locks_dir())}
     assert by[older].woken and not by[younger].woken

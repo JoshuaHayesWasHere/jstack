@@ -5,7 +5,7 @@ A pass launches a row only when all of these hold:
 - the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](the-queue.md#what-an-approval-is-bound-to));
 - every slug in `depends` is merged;
 - no branch of its name exists, and no settled thread has its slug;
-- fewer than `max_running` crewmates (24 unless the config sets it) are out across every project in the config;
+- fewer than `max_running` crewmates (derived from the machine unless the config sets it, `jgauge sizes` prints it) are out across every project in the config;
 - `jgauge room` prints `go`.
 
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.

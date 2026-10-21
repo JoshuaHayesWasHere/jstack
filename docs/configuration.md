@@ -8,6 +8,7 @@ jstack runs with none of these files. Each one changes a default or switches on 
 |---|---|---|
 | `~/.config/jstack/config.toml` | Your name and time zone | You, or `install.sh --setup` once |
 | `~/.config/jstack/roles` | The model for each role | You, or `install.sh --setup` once |
+| `~/.config/jstack/machine.toml` | The full and short test slots, where the machine's own count is not wanted | You |
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
 | `~/.config/jstack/providers.json` | The provider instances this machine runs | infra's install, as a link |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
@@ -57,7 +58,6 @@ Each value is one word with no space and no comma. A file with any other key, or
 server = "http://127.0.0.1:<port>"
 runtimeMode = "full-access"
 dispatch = true
-max_running = 24
 
 [[project]]
 name = "<project>"
@@ -75,7 +75,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
 | `dispatch` | `true` | `dispatch = false` launches nothing. |
-| `max_running` | `24` | How many crewmates may be out at once, counted across every project. A value under 1 is refused. |
+| `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. A value under 1 is refused. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days before the sign-in runs out its gate starts. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
@@ -162,6 +162,26 @@ The install leaves every other key of those files as it was. It writes `statusLi
 
 To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/off`.
 
+## The machine's sizes
+
+Three numbers are sizes of the machine: the full test slots, the short test slots and the crew cap.
+Each has a default that `jgauge.sizes` derives from the whole machine, its processors in `/proc/stat` and its `MemTotal`, and never from the caller's own CPU quota, so `jbus.service` and every shell count the same slots.
+`jgauge sizes` prints the three, the value each caller gets and where it came from, and room's lines.
+`~/.config/jstack/machine.toml` sets a slot count where the derived one is not wanted, and nothing else:
+
+```toml
+test_slots = 3
+```
+
+| Key | Default | What it sets | Read by |
+|---|---|---|---|
+| `test_slots` | One full slot for each desk run's workers, a quarter of the processors, at most one for each 4 GiB: 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room) | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
+| `short_slots` | One for each 8 processors, from 2 to 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
+
+A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.
+The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), where it was before.
+[Limits](limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
+
 ## The limits file
 
 The limits files are the ledger ([jroles](jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
@@ -215,12 +235,13 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 
 | Variable | Default | Read by |
 |---|---|---|
-| `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `install.sh` |
+| `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `jgauge`, `install.sh` |
 | `XDG_CACHE_HOME` | `~/.cache` | `jbriefs`, `jdrift` |
 | `LIMITS` | `~/.local/state/claude/limits` | `hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
-| `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `install.sh` |
-| `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus` |
+| `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `jgauge sizes`, `install.sh` |
+| `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus`, `jgauge sample --report` |
 | `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus`, `install.sh --doctor` |
-| `TEST_SLOTS` | `3` | `jgauge test-slot` |
+| `TEST_SLOTS` | `test_slots` in `machine.toml`, else derived | `jgauge test-slot`, for one run: `jbus.service` does not see a shell's |
+| `PROC` | `/proc` | `jgauge room`, `jgauge sizes`, `jgauge sample`, `jbus`, for a test |
 | `JGAUGE_LOCKS_DIR` | `~/.local/state/locks` | `jgauge test-slot`, `jbus` |
 | `JMERGE_TIMEOUT` | `120` | `jmerge` |

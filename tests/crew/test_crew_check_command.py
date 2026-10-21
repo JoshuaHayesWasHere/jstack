@@ -10,6 +10,7 @@ import time
 import test_room as room
 from crew.helpers import FENCED, SKILL, block, held_open, sections
 from jbriefs import parse as briefs
+from test_machine_sizes import fake_proc
 
 
 def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
@@ -183,15 +184,18 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
     """The thread's turn then ends with the one line, and jbus wakes it: the file has it. The
-    full lane is the default two slots, whatever `TEST_SLOTS` the machine sets."""
+    lanes are the 4 full and 3 short slots 24 processors and 62 GiB derive, whatever
+    `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
     (tmp_path / "stub").mkdir()
     room.uv(tmp_path / "stub")
     home = tmp_path / "home"
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     held = []
-    for lane, count in (("test-slot", 3), ("test-slot-short", 3)):
+    for lane, count in (("test-slot", 4), ("test-slot-short", 3)):
         for n in range(1, count + 1):
             fd = os.open(locks / f"{lane}.{n}.lock", os.O_RDWR | os.O_CREAT)
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

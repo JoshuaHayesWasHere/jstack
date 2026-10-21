@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from jgauge import slot, waiters
+from test_machine_sizes import fake_proc
 from test_room import BIN
 
 REPO = Path(__file__).parent.parent
@@ -22,8 +23,11 @@ NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def machine(tmp_path):
-    """A home of its own, whose lock files a test can hold."""
+def machine(tmp_path, monkeypatch):
+    """A home of its own, whose lock files a test can hold, on 24 processors and 62 GiB, so 3
+    short slots, and no limits file."""
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     home = tmp_path / "home"
     return SimpleNamespace(home=home, locks=home / ".local" / "state" / "locks")
 
@@ -65,7 +69,7 @@ def jgauge(machine, *args, thread=THREAD):
 def hold_short(machine):
     held = []
     machine.locks.mkdir(parents=True, exist_ok=True)
-    for n in range(1, slot.SHORT_SLOTS + 1):
+    for n in range(1, slot.short().slots + 1):
         fd = os.open(machine.locks / f"test-slot-short.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
@@ -86,7 +90,7 @@ def test_with_every_short_slot_taken_a_thread_registers_and_ends_its_turn(machin
     assert (one.thread, one.lane, one.slots, one.command) == (
         THREAD,
         "short",
-        slot.SHORT_SLOTS,
+        slot.short().slots,
         ("echo", "ran"),
     )
     assert not one.woken
@@ -106,8 +110,8 @@ def test_a_thread_asked_twice_is_one_waiter_with_one_place(machine):
 
 
 def test_a_thread_that_takes_a_slot_runs_and_leaves_the_waiters(machine):
-    waiters.register(machine.locks, THREAD, "short", slot.SHORT_SLOTS, ["echo", "ran"], NOW)
-    waiters.register(machine.locks, "mcp:other", "short", slot.SHORT_SLOTS, ["true"], NOW)
+    waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "ran"], NOW)
+    waiters.register(machine.locks, "mcp:other", "short", slot.short().slots, ["true"], NOW)
     ran = jgauge(machine, "--short", "--", "echo", "ran")
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
     assert [one.thread for one in waiters.read(machine.locks)] == ["mcp:other"]
@@ -139,7 +143,7 @@ def test_the_waiters_are_printed(machine):
 
 def test_free_counts_the_slots_no_one_holds_and_creates_no_lock_file(machine, monkeypatch):
     monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(machine.locks))
-    assert slot.free(slot.short()) == slot.SHORT_SLOTS
+    assert slot.free(slot.short()) == slot.short().slots
     assert not machine.locks.exists() or not list(machine.locks.glob("test-slot-short.*"))
     held = hold_short(machine)
     try:

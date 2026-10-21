@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-import jbus
 from jbus import queue, t3, wake
 from jbus.view.panels.usage import panel as usage
 from jmerge import cli
@@ -100,7 +99,7 @@ def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
     import tomllib
 
     given = tomllib.loads(example)
-    assert (given["dispatch"], given["max_running"]) == (True, jbus.MAX_RUNNING)
+    assert given["dispatch"] is True and "max_running" not in given
     (project,) = given["project"]
     assert set(project) == {"name", "checkout", "state", "projectId", "webhook_url", "webhook_key"}
     assert all("<" in project[key] for key in ("projectId", "webhook_url", "webhook_key"))

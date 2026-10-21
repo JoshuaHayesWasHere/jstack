@@ -39,14 +39,13 @@ import time
 import tomllib
 from pathlib import Path
 
-from jgauge import slot
+import pytest
+
+from jgauge import sizes
 
 REPO = Path(__file__).parent.parent
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT")
-RUNNERS = 3
-RUNNER_QUOTA = 4
-PROCESSORS = 24
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -206,12 +205,15 @@ def test_a_runner_of_githubs_own_takes_every_processor():
     assert workers("RUNNER_ENVIRONMENT=github-hosted", "CORES=24") == 6
 
 
-def test_every_slot_and_every_runner_at_once_ask_at_most_one_and_a_half_workers_a_processor():
-    """3 x 6 + 3 x 6 = 36 workers on 24 processors, at 0.51 of a core each about 18 busy."""
-    desk = workers(f"CORES={PROCESSORS}")
-    runner = workers(f"CORES={RUNNER_QUOTA}", GITHUB_ACTIONS="true")
-    assert (slot.DEFAULT, desk, RUNNERS, runner) == (3, 6, 3, 6)
-    assert slot.DEFAULT * desk + RUNNERS * runner <= 1.5 * PROCESSORS
+@pytest.mark.parametrize("cores", [1, 2, 4, 8, 12, 24, 64])
+def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores):
+    """The full slots are counted from the Makefile's desk share: `DESK_SHARE` is its copy, and
+    `make` is the one that counts. At 0.86 of a core a worker (yelena, 2026-10-20), every slot
+    at once keeps at most 86% of the processors busy."""
+    desk = workers(f"CORES={cores}")
+    assert desk == sizes.desk_workers(cores)
+    slots = sizes.derive(sizes.Name.TEST_SLOTS, sizes.Machine(cores, 1024))
+    assert slots * desk <= max(cores, desk)
 
 
 def test_a_count_of_processors_given_empty_is_read_as_two_and_the_tests_still_get_a_number():
