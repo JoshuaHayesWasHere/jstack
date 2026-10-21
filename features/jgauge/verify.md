@@ -1,7 +1,7 @@
 # jgauge room
 
 `jgauge room` says whether the machine and the plan have room for one more thread: `go`, or `wait: ` and the first reading that has none. jbus asks it before every launch, so a row with no room waits and is launched on a later pass.
-`jgauge session` counts what a thread's session used, `jgauge context` tells a home how full its context is, through `hooks/home-gauge.sh`, and `jgauge test-slot` runs a command while it holds one of the machine's test slots.
+`jgauge session` counts what a thread's session used, `jgauge context` tells a home how full its context is, through `features/home/hooks/home-gauge.sh`, and `jgauge test-slot` runs a command while it holds one of the machine's test slots.
 The counts are checked against two probe sessions (`features/jgauge/docs/meter-findings.md`).
 
 Paths:
@@ -9,7 +9,7 @@ Paths:
 - `features/jgauge/hooks/`
 - `features/jgauge/docs/`
 - `features/jgauge/units/`
-- `hooks/home-gauge.sh`
+- `features/home/hooks/home-gauge.sh`
 Tests: none
 
 ## Sub-features

@@ -180,7 +180,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     }
     assert {
         "install.sh",
-        "hooks/home-start.sh",
+        "features/home/hooks/home-start.sh",
         "features/jgauge/hooks/limits.sh",
         "features/skill-library/hooks/skill-tips.sh",
     } <= set(files)

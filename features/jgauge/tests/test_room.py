@@ -9,9 +9,8 @@ from pathlib import Path
 import pytest
 
 import jsettings
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
-SKILLS = REPO / "skills"
 ROOM = REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh"
 BIN = Path(sys.executable).parent
 KB_PER_GB = 1048576
@@ -701,7 +700,9 @@ def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_
 
 
 def test_no_skill_holds_a_copy_of_the_check(tmp_path):
-    held = [path for path in SKILLS.rglob("*") if path.is_file() and "CUSHION=" in path.read_text()]
+    files = [path for one in skills().values() for path in one.rglob("*") if path.is_file()]
+    assert files
+    held = [path for path in files if b"CUSHION=" in path.read_bytes()]
     assert held == []
     used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
     assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(

@@ -28,8 +28,8 @@ ONE_WAY = [
 def carriers():
     """Every file that could carry a copy of a block: each skill and each file beside it,
     and each hook."""
-    return sorted(REPO.glob("skills/**/*.md")) + sorted(
-        path for path in (REPO / "hooks").iterdir() if path.is_file()
+    return sorted(path for folder in skills().values() for path in folder.glob("*.md")) + sorted(
+        path for path in REPO.glob("features/*/hooks/*") if path.is_file()
     )
 
 

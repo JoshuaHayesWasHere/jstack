@@ -36,7 +36,7 @@ from jinstall.kinds import HomeSkills, HookGroup, Program, ProviderInstance, Sta
 from jinstall.machine import Machine
 from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 README = REPO / "README.md"
 DOCS = REPO / "docs"
@@ -206,10 +206,12 @@ def test_the_readme_opens_with_what_jstack_is_then_what_it_needs_then_the_quicks
     assert re.findall(r"^#+ .*", said, re.M)[:3] == ["# jstack", "## Requirements", "## Quickstart"]
     first = said.splitlines()[:SCREEN]
     status = next(n for n, line in enumerate(first) if line.startswith("**Status: "))
-    drawn = [n for n, line in enumerate(first) if ("img", "docs/flow.svg") in linked(line)]
+    drawn = [
+        n for n, line in enumerate(first) if ("img", "features/home/docs/flow.svg") in linked(line)
+    ]
     assert drawn and status < drawn[0]
     assert [line for line in first[: drawn[0]] if line.startswith("#")] == ["# jstack"]
-    assert ("a", "docs/flow.md") in linked("\n".join(first))
+    assert ("a", "features/home/docs/flow.md") in linked("\n".join(first))
 
 
 def linked(text):
@@ -262,7 +264,7 @@ def test_a_link_or_a_picture_that_leads_nowhere_is_found(tmp_path):
 
 def test_the_readme_links_no_html_page_and_each_one_is_linked_from_a_page_it_links():
     said = linked(README.read_text())
-    assert ("img", "docs/flow.svg") in said
+    assert ("img", "features/home/docs/flow.svg") in said
     assert [target for _, target in said if ".html" in target] == []
     reached = {(REPO / target.partition("#")[0]).resolve() for _, target in said}
     told = {
@@ -287,7 +289,7 @@ def colours(rules):
 
 
 def test_the_picture_is_one_svg_that_draws_each_role_and_carries_both_themes():
-    drawn = ElementTree.parse(DOCS / "flow.svg").getroot()
+    drawn = ElementTree.parse(where("flow.svg")).getroot()
     space = "{http://www.w3.org/2000/svg}"
     assert drawn.tag == f"{space}svg" and drawn.get("viewBox")
     words = [text.text.strip() for text in drawn.iter(f"{space}text")]
@@ -404,7 +406,7 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
         [sys.executable, "-m", "jmerge", "--help"], capture_output=True, text=True, cwd=tmp_path
     )
     assert helped.returncode == 0 and helped.stdout.startswith("usage: jmerge")
-    skill = (REPO / "skills" / "home" / "SKILL.md").read_text()
+    skill = (REPO / "features" / "home" / "skills" / "home" / "SKILL.md").read_text()
     assert re.search(r"\A---\n(?:.*\n)*?name: home\n", skill)
     user = Doctored(tmp_path)
     for line in typed[2:5]:
@@ -551,7 +553,8 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
 
 
 def test_no_page_and_no_skill_names_one_persons_checkout():
-    read = [*PAGES, *sorted(DOCS.glob("*.html")), *sorted((REPO / "skills").rglob("*.md"))]
+    held = sorted(path for one in skills().values() for path in one.rglob("*.md"))
+    read = [*PAGES, *sorted(DOCS.glob("*.html")), *held]
     assert len(read) > 30
     found = [
         f"{path.relative_to(REPO)}: {word}"

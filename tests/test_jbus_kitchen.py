@@ -872,7 +872,8 @@ OPTIONS = (
 
 
 def asking(question="which one?", default="the first"):
-    """A gate of `templates/gates.md` filled in, asking `question`, with the two `OPTIONS`."""
+    """A gate of `features/home/templates/gates.md` filled in, asking `question`, with the two
+    `OPTIONS`."""
     return (
         f"## Gate <n>: {question}\nStatus: open\nAsked by: alpha, thread mcp:a-thread\n"
         f"Default: {default}\nBuilt on it: nothing\nUndo: pick the other\n" + OPTIONS

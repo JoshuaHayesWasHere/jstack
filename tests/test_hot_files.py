@@ -18,7 +18,7 @@ from test_home_thread import as_read
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "hot_files.py"
-SKILL = REPO / "skills" / "home" / "SKILL.md"
+SKILL = REPO / "features" / "home" / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^```sh\n(.*?)^```", re.M | re.S)
 URL = "https://github.com/o/r"
 SHA = {name: name * 40 for name in "0123456789abcdef"}

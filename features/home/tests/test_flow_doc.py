@@ -1,4 +1,4 @@
-"""`docs/flow.html` names only what the repo has.
+"""`features/home/docs/flow.html` names only what the repo has.
 
 The page is read with an HTML parser, and each name in a `<code>` element is held against the
 repo itself: a path against the tree, a typed command against `skills/`, a `jmerge` line against
@@ -15,7 +15,7 @@ import pytest
 from jmerge.cli import parser as jmerge_parser
 from testing.paths import REPO, skills
 
-PAGE = REPO / "docs" / "flow.html"
+PAGE = REPO / "features" / "home" / "docs" / "flow.html"
 REPO_TOP_DIRS = (
     "features",
     "skills",

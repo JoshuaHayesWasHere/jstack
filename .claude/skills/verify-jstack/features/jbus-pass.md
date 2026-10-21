@@ -15,7 +15,7 @@ Paths:
 - `docs/jbus.md`
 - `docs/chef.md`
 - `docs/configuration.md`
-- `docs/state.md`
+- `features/home/docs/state.md`
 - `docs/troubleshooting.md`
 - `templates/jbus.service`
 - `templates/jbus.timer`

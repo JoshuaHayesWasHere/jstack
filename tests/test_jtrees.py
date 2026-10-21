@@ -60,12 +60,12 @@ def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
 
 
 def test_a_hand_edit_inside_a_generated_region_makes_the_check_fail_naming_that_file(copy):
-    page = copy / "docs" / "playbooks.md"
+    page = copy / "features" / "home" / "docs" / "playbooks.md"
     page.write_text(page.read_text().replace("| `bro` |", "| `bro-edited` |", 1))
     ran = generate(copy, "--check")
     assert ran.returncode == 1
     assert ran.stderr.splitlines() == [
-        "stale: docs/playbooks.md",
+        "stale: features/home/docs/playbooks.md",
         f"run python3 {SCRIPT} and commit the result",
     ]
 
@@ -125,8 +125,8 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     assert ran.returncode == 1
     assert set(ran.stderr.splitlines()[:-1]) == {
         "stale: README.md",
-        "stale: docs/hooks.md",
-        "stale: docs/playbooks.md",
+        "stale: features/home/docs/hooks.md",
+        "stale: features/home/docs/playbooks.md",
         "stale: features/foo/docs/foo.md",
         "stale: pyproject.toml",
         "stale: skills.json",
@@ -169,14 +169,17 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     assert "features/foo/tests" in project["tool"]["ruff"]["src"]
     readme = (copy / "README.md").read_text()
     assert "| `foo` | [features/foo/docs/foo.md](features/foo/docs/foo.md) | Does foo. |" in readme
-    assert "[foo](../features/foo/SKILL.md)" in (copy / "docs" / "playbooks.md").read_text()
     assert (
-        "[foo-run](../features/foo/playbooks/foo-run.md)"
-        in (copy / "docs" / "playbooks.md").read_text()
+        "[foo](../../foo/SKILL.md)"
+        in (copy / "features" / "home" / "docs" / "playbooks.md").read_text()
     )
-    hooks = (copy / "docs" / "hooks.md").read_text()
     assert (
-        "| `SessionStart` | [features/foo/hooks/foo-start.sh](../features/foo/hooks/foo-start.sh) |"
+        "[foo-run](../../foo/playbooks/foo-run.md)"
+        in (copy / "features" / "home" / "docs" / "playbooks.md").read_text()
+    )
+    hooks = (copy / "features" / "home" / "docs" / "hooks.md").read_text()
+    assert (
+        "| `SessionStart` | [features/foo/hooks/foo-start.sh](../../foo/hooks/foo-start.sh) |"
         in hooks
     )
     assert (
@@ -244,7 +247,9 @@ def move(root, name):
 
 
 def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(copy):
-    for name in ("foo", "qux"):
+    """foo and qux move on two branches, while bar stays where it is, as some feature does until
+    the last move, so the root folders they leave are not emptied by the merge."""
+    for name in ("foo", "qux", "bar"):
         unmoved(copy, name)
     assert generate(copy).returncode == 0
     assert git(copy, "init", "-q", "-b", "main").returncode == 0
@@ -256,7 +261,9 @@ def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(co
         assert git(copy, "add", "-A").returncode == 0
         assert git(copy, "commit", "-qm", f"move {name}").returncode == 0
     changed = git(copy, "diff", "--name-only", "main", "foo").stdout.split()
-    assert {"README.md", "docs/hooks.md", "pyproject.toml", "skills.json"} <= set(changed)
+    assert {"README.md", "features/home/docs/hooks.md", "pyproject.toml", "skills.json"} <= set(
+        changed
+    )
     merged = git(copy, "merge-tree", "--write-tree", "--name-only", "foo", "qux")
     assert (merged.returncode, merged.stdout.splitlines()[1:]) == (0, [])
     tree = merged.stdout.split()[0]

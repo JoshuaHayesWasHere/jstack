@@ -28,7 +28,7 @@ from test_jbus_kitchen import Kitchen, complete
 from testing.layouts import assembled
 from testing.paths import REPO
 
-TEMPLATE = REPO / "templates" / "gates.md"
+TEMPLATE = REPO / "features" / "home" / "templates" / "gates.md"
 ROOT = "mcp:the-root-home"
 SCOPED = "mcp:the-scoped-home"
 CREW = "mcp:crew-alpha"

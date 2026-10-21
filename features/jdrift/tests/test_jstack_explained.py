@@ -27,7 +27,7 @@ from testing.paths import REPO, playbooks, skills
 
 PAGE = REPO / "features/jdrift/docs/jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
-LOCAL = {"../../../docs/flow.html"}
+LOCAL = {"../../home/docs/flow.html"}
 
 
 VOID = {"meta", "br", "hr", "img", "wbr", "input", "link", "source"}
@@ -252,7 +252,7 @@ def test_a_card_has_the_words_of_its_own_file(tree):
 def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to_the_page(
     tmp_path,
 ):
-    for folder in ("skills", "features", "playbooks"):
+    for folder in ("features", "playbooks"):
         shutil.copytree(REPO / folder, tmp_path / folder)
     (tmp_path / "docs").mkdir()
     page = Path(shutil.copy(PAGE, tmp_path / "docs"))
@@ -444,5 +444,6 @@ def test_a_style_that_loads_a_file_is_read():
 
 def test_the_page_names_no_place_of_a_person():
     text = PAGE.read_text()
-    for banned in ("—", "~/", "/home/", "github.com"):
+    for banned in ("—", "~/", "github.com"):
         assert banned not in text, banned
+    assert not re.search(r"(?<![\w.])/home/", text), "a path under /home/"

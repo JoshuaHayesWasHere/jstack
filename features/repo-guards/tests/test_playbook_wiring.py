@@ -304,7 +304,7 @@ def test_each_value_a_template_offers_opens_a_playbook_or_is_none(skill, tmp_pat
 def rows(templates):
     """What the home's block prints with `$T` at `templates`: a row for each file in the
     `playbooks/` beside it, as the name and what follows `Run by:`."""
-    text = as_read(REPO / "skills" / "home" / "SKILL.md")
+    text = as_read(REPO / "features" / "home" / "skills" / "home" / "SKILL.md")
     (block,) = [
         found for found in FENCED.findall(text) if "Run by:" in found and "Playbook:" not in found
     ]

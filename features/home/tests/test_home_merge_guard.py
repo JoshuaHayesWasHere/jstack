@@ -11,10 +11,11 @@ import pytest
 
 from test_home_thread import OTHER, TYPED, WHICH, Scene, about_the_home_id, block, paths
 from test_jbus_kitchen import Kitchen
+from testing.layouts import assembled
 from testing.paths import REPO
 
 THREAD = "mcp:thread-one"
-SCANNED = ["skills", "src", "features", ".cursor", "hooks", "install.sh"]
+SCANNED = ["src", "features", ".cursor", "install.sh"]
 NAMED = r"[^\s|;&<>()]*home-thread"
 WRITES = [
     re.compile(rf">>?\s*{NAMED}"),
@@ -35,12 +36,13 @@ def writes(text):
 
 
 def scanned():
-    """Each file of `SCANNED`, but a feature's tests, which set the switch as a user does."""
+    """Each file of `SCANNED`, but a feature's tests, which set the switch as a user does, and
+    its docs, which say who writes it."""
     for top in SCANNED:
         assert (REPO / top).exists(), f"{top} is scanned and is not in the repo"
         for path in sorted([REPO / top, *(REPO / top).rglob("*")]):
             parts = path.relative_to(REPO).parts
-            if parts[:1] == ("features",) and parts[2:3] == ("tests",):
+            if parts[:1] == ("features",) and parts[2:3] in (("tests",), ("docs",)):
                 continue
             if path.is_file() and "__pycache__" not in path.parts:
                 yield path
@@ -99,7 +101,7 @@ def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkey
         (kitchen.home / "plan.md").write_text("# demo: plan\n")
         user = tmp_path / "user"
         (user / ".claude").mkdir(parents=True)
-        (user / ".claude" / "skills").symlink_to(REPO / "skills")
+        (user / ".claude" / "skills").symlink_to(assembled() / "skills")
         (user / ".local" / "state").mkdir(parents=True)
         (user / ".local" / "state" / "home").symlink_to(kitchen.home.parent)
 

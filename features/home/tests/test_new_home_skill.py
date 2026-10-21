@@ -1,8 +1,8 @@
 """`/new-home <repo>`: the blocks of the skill are run, on a made-up home directory and repo.
 
-Each block is taken out of `skills/new-home/SKILL.md`, its placeholders filled as the skill
-says, and run by `sh` with `jbus` on PATH as the real command over a made-up config. The
-steps that are tool calls are held to their tools' schemas by
+Each block is taken out of `features/home/skills/new-home/SKILL.md`, its placeholders filled
+as the skill says, and run by `sh` with `jbus` on PATH as the real command over a made-up
+config. The steps that are tool calls are held to their tools' schemas by
 `features/repo-guards/tests/test_tool_calls.py`.
 """
 
@@ -265,7 +265,7 @@ def test_under_zsh_a_repo_with_one_yml_workflow_and_no_yaml_one_is_read_as_sh_re
 
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
 def test_every_block_starts_by_asking_zsh_to_read_it_as_sh(machine):
-    text = (REPO / "skills/new-home/SKILL.md").read_text()
+    text = (REPO / "features/home/skills/new-home/SKILL.md").read_text()
     assert len(blocks(text, "sh")) == 3
     for body in blocks(text, "sh"):
         done = subprocess.run(["zsh", "-c", body], cwd=machine.home, capture_output=True, text=True)

@@ -124,7 +124,7 @@ The doctor prints a `units` line only once `jbus` has a config.
 
 ## A thread did not become a home
 
-A new thread becomes a home by itself only when `hooks/home-start.sh` prints its message. Check each condition in order:
+A new thread becomes a home by itself only when `features/home/hooks/home-start.sh` prints its message. Check each condition in order:
 
 1. Run `sh install.sh --check`. The line `ok hard hook <home>/.claude/settings.json SessionStart` must be there.
 2. Open the thread in T3 Code. The hook is silent in a terminal session.

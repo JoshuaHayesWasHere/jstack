@@ -139,7 +139,7 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>hooks/home-start.sh</code>, which prints <code>templates/hook-message.md</code>. Runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
+      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
       <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-thread</b><small>written: this thread's id</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
@@ -147,7 +147,7 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">2</span>Plan with you</b><small>One entry per pull request, each with a "Done when" list. A shape that is not settled is grilled in rounds first: <code>features/grilling/SKILL.md</code>.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>features/grilling/templates/grill-page.html</code></small></div></div>
+      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>features/home/templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>features/grilling/templates/grill-page.html</code></small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -182,7 +182,7 @@
 
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Park the gate</b><small>Numbers it and shows the open gates at its start, on status, and when the planned work is done.</small></div><i class="ar l"></i></div>
-      <div class="cell s"><div class="box file"><b>gates.md</b><small>written by the home only</small></div><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: gate</b><small>then the lines of <code>templates/gates.md</code>, filled in</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>gates.md</b><small>written by the home only</small></div><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: gate</b><small>then the lines of <code>features/home/templates/gates.md</code>, filled in</small></div><i class="ar l"></i></div>
       <div class="cell c"><div class="box plain"><b>A question only you can answer</b><small>Takes a default and carries on. A scout does the same.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -251,8 +251,8 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Files what was learned, launches the next home with <code>/home &lt;seed&gt;</code>, the seed shaped as <code>templates/handoff-seed.md</code>, then renames and settles itself.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-thread</b><small>removed</small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Files what was learned, launches the next home with <code>/home &lt;seed&gt;</code>, the seed shaped as <code>features/home/templates/handoff-seed.md</code>, then renames and settles itself.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>features/home/templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-thread</b><small>removed</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -283,14 +283,14 @@
   <table>
     <thead><tr><th>Template</th><th>Step</th><th>Filled in by</th><th>Becomes</th></tr></thead>
     <tbody>
-      <tr><td><code>templates/hook-message.md</code></td><td>1</td><td><code>hooks/home-start.sh</code></td><td>The <code>[home]</code> lines a new thread in a main checkout starts with</td></tr>
-      <tr><td><code>templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
+      <tr><td><code>features/home/templates/hook-message.md</code></td><td>1</td><td><code>features/home/hooks/home-start.sh</code></td><td>The <code>[home]</code> lines a new thread in a main checkout starts with</td></tr>
+      <tr><td><code>features/home/templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
       <tr><td><code>features/grilling/templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. Two or more open gates are shown the same way.</td></tr>
       <tr><td><code>features/grilling/templates/grill-round.schema.json</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>Every key of a round, the block a thread writes into the grill page, and what each holds.</td></tr>
       <tr><td><code>features/scout/templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>features/scout/templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>features/jbriefs/templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
-      <tr><td><code>templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
+      <tr><td><code>features/home/templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
       <tr><td><code>features/pr-review/templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
       <tr><td><code>features/crew/templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
       <tr><td><code>features/skill-library/templates/skill-artifacts.md</code></td><td>8</td><td>Crewmate, and a scout</td><td>The artifact each name on a <code>Skills:</code> line leaves under <code>Skills run:</code> in the Result or the Report</td></tr>
@@ -298,8 +298,8 @@
       <tr><td><code>features/crew/templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>When a reviewer is sent <code>again</code>: the one line it is sent, and the line it accepts</td></tr>
       <tr><td><code>features/expert/templates/expert-answer.md</code></td><td>any</td><td>Expert</td><td>An answer to an ask, in its four parts: it is no step of a task</td></tr>
       <tr><td><code>features/jpack/templates/context</code></td><td>4</td><td>A scout or a crewmate, on the subject repo's brief</td><td>A repo's context pack, copied into the repo it is about and read by its home at its start (<code>features/jpack/docs/context.md</code>)</td></tr>
-      <tr><td><code>templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
-      <tr><td><code>templates/handoff-seed.md</code></td><td>14</td><td>Home</td><td>The next home's first message</td></tr>
+      <tr><td><code>features/home/templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
+      <tr><td><code>features/home/templates/handoff-seed.md</code></td><td>14</td><td>Home</td><td>The next home's first message</td></tr>
       <tr><td><code>features/skill-library/templates/playbook.md</code></td><td>none</td><td>Whoever writes a playbook, by <code>features/skill-library/playbooks/authoring-a-playbook.md</code></td><td>The frame of a file in <code>playbooks/</code></td></tr>
     </tbody>
   </table>
@@ -384,11 +384,11 @@
   <table>
     <thead><tr><th>Thread</th><th>Typed as</th><th>Its full text</th></tr></thead>
     <tbody>
-      <tr><td>Home</td><td><code>/home</code>, <code>/home &lt;scope&gt;</code></td><td><code>skills/home/SKILL.md</code></td></tr>
+      <tr><td>Home</td><td><code>/home</code>, <code>/home &lt;scope&gt;</code></td><td><code>features/home/skills/home/SKILL.md</code></td></tr>
       <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>features/scout/SKILL.md</code></td></tr>
       <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>features/crew/SKILL.md</code></td></tr>
       <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>features/pr-review/SKILL.md</code></td></tr>
-      <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>skills/handoff/SKILL.md</code></td></tr>
+      <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>features/home/skills/handoff/SKILL.md</code></td></tr>
       <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>features/grilling/SKILL.md</code></td></tr>
     </tbody>
   </table>

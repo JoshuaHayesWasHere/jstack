@@ -31,10 +31,10 @@ Three things come to you. Everything else that is reversible is done without ask
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
 - **A held pull request.**
   `jmerge` printed `hold`.
-  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](configuration.md#jstack).
+  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../../docs/configuration.md#jstack).
   Add `--check` to see what it would do.
   It is refused without the review's proven safety fact.
-  [jmerge](../features/jmerge/docs/jmerge.md) has the rest.
+  [jmerge](../../jmerge/docs/jmerge.md) has the rest.
 
 | Asked for | When | If you are away |
 |---|---|---|
@@ -54,13 +54,13 @@ A pull request that prints `wait` is not a failure and asks nothing of you. `jme
 Two HTML pages in this directory draw the same flow in more detail. github.com shows an HTML file as its source, so open them from a clone:
 
 ```sh
-xdg-open docs/flow.html
+xdg-open features/home/docs/flow.html
 xdg-open features/jdrift/docs/jstack-explained.html
 ```
 
 | Page | Shows |
 |---|---|
 | [`flow.html`](flow.html) | One task from a home to a merge, column by column: every file a step reads or writes, and every message a thread sends. |
-| [`jstack-explained.html`](../features/jdrift/docs/jstack-explained.html) | The ten steps as a drawing, a first day, and one card for each skill, playbook, principle and command. |
+| [`jstack-explained.html`](../../jdrift/docs/jstack-explained.html) | The ten steps as a drawing, a first day, and one card for each skill, playbook, principle and command. |
 
 Both pages load nothing from the network.

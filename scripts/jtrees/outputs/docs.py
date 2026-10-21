@@ -5,9 +5,9 @@ A region is the text between `<!-- generated: <part> ... -->` and the next
 parts are:
 
 - `commands`, in README.md: one row a command, its page and what its feature does.
-- `catalog`, in docs/playbooks.md: one row a feature, with its skills, principles and
+- `catalog`, in features/home/docs/playbooks.md: one row a feature, with its skills, principles and
   playbooks.
-- `hooks`, in docs/hooks.md: one row a hook, status line or git hook the install adds.
+- `hooks`, in features/home/docs/hooks.md: one row a hook, status line or git hook the install adds.
 - `pages`, in any page `<x>.md`: one line a page of the folder `<x>/` beside it, its first
   line `# <heading>`.
 
@@ -31,7 +31,11 @@ REGION = re.compile(
     re.S,
 )
 HEADING = re.compile(r"\A# (.+)\n")
-REQUIRED = {"README.md": "commands", "docs/playbooks.md": "catalog", "docs/hooks.md": "hooks"}
+REQUIRED = {
+    "README.md": "commands",
+    "features/home/docs/playbooks.md": "catalog",
+    "features/home/docs/hooks.md": "hooks",
+}
 
 
 def _link(page: str, target: str) -> str:

@@ -7,7 +7,7 @@ Paths:
 - `src/jbus/packs.py`
 - `features/jpack/templates/context/`
 - `features/jpack/docs/`
-- `skills/home/`
+- `features/home/skills/home/`
 Tests: none
 
 ## Sub-features

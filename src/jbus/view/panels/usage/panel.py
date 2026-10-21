@@ -31,7 +31,7 @@ FIRST = False
 KEPT = "~/.claude/projects"
 PROJECTS = Path(KEPT).expanduser()
 WORKTREES = Path.home() / ".t3" / "worktrees"
-GAUGE = Path("hooks") / "home-gauge.sh"
+GAUGE = Path("features") / "home" / "hooks" / "home-gauge.sh"
 JOINED = timedelta(minutes=10)
 EARLY = timedelta(minutes=1)
 SUMMED = (*session.SUMMED, "peak_context")

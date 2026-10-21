@@ -16,9 +16,9 @@ import pytest
 
 import repo_template
 from test_home_thread import as_read
-from testing.paths import REPO, skills
+from testing.paths import skills
 
-SKILL = REPO / "skills" / "home" / "SKILL.md"
+SKILL = skills()["home"] / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 NAME = "a demo repo"
 URL = "https://example.test/pull/7"
@@ -74,7 +74,7 @@ LIST = (
 ME = "mcp:this-home"
 OTHER = "mcp:another-home"
 
-NOHOME = REPO / "skills" / "nohome" / "SKILL.md"
+NOHOME = skills()["nohome"] / "SKILL.md"
 
 GH = """\
 #!/bin/sh

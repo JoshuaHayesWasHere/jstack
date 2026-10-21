@@ -14,7 +14,7 @@ from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
 from test_tool_calls import CALLS, PLACEHOLDER, REPO, errors
 
-TEMPLATES = REPO / "templates"
+TEMPLATES = REPO / "features" / "home" / "templates"
 THE_HOME = (
     "the home: start the next home, then rename and settle this thread\n"
     f"title: home: {NAME}\n"

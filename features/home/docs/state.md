@@ -6,7 +6,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 
 | File | Holds |
 |---|---|
-| `notes.md` | Facts about the repo that a new thread would otherwise relearn. A home reads it when a step needs one. No context pack text is copied here: a repo's pack is in its own checkout, at `<repo>/docs/context/` ([context.md](../features/jpack/docs/context.md)). |
+| `notes.md` | Facts about the repo that a new thread would otherwise relearn. A home reads it when a step needs one. No context pack text is copied here: a repo's pack is in its own checkout, at `<repo>/docs/context/` ([context.md](../../jpack/docs/context.md)). |
 | `standing.md` | Your standing rules for the repo's homes. A home reads it whole at its start. |
 | `tasks/<slug>.md` | A crewmate's brief, then its Result, then its Review. |
 | `scouts/<slug>.md` | A scout's request, then its report. |

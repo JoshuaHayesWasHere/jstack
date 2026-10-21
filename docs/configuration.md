@@ -162,15 +162,15 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 
 ## Hook entries
 
-`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them. You write none of them by hand. [Hooks](hooks.md) shows each entry and says what its script does.
+`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them. You write none of them by hand. [Hooks](../features/home/docs/hooks.md) shows each entry and says what its script does.
 
 | File | Key | Runs | Read by |
 |---|---|---|---|
-| `~/.claude/settings.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Claude Code |
+| `~/.claude/settings.json` | `hooks.SessionStart`, matcher `startup` | `features/home/hooks/home-start.sh` | Claude Code |
 | `~/.claude/settings.json` | `hooks.UserPromptSubmit` | `features/skill-library/hooks/skill-tips.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.PostToolUse` | `hooks/home-gauge.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.PreToolUse` | `hooks/home-gauge.sh` | Claude Code |
-| `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `hooks/home-start.sh` | Codex |
+| `~/.claude/settings.json` | `hooks.PostToolUse` | `features/home/hooks/home-gauge.sh` | Claude Code |
+| `~/.claude/settings.json` | `hooks.PreToolUse` | `features/home/hooks/home-gauge.sh` | Claude Code |
+| `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `features/home/hooks/home-start.sh` | Codex |
 | `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `features/jleak/hooks/outbound-command.sh` | Claude Code |
 | `~/.claude/settings.json` | `statusLine` | `features/jgauge/hooks/limits.sh` | Claude Code |
 
@@ -249,11 +249,11 @@ With no `origin` a snapshot keeps its commit and fails, and the failure alerts o
 
 ## Switches for one repo
 
-These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout. [State](state.md) lists the other files there, which the threads write.
+These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout. [State](../features/home/docs/state.md) lists the other files there, which the threads write.
 
 | File | Default | Holds | What it switches | Read by |
 |---|---|---|---|---|
-| `off` | Absent | Nothing | While it is there, a new thread in the repo does not become a home by itself. `/nohome repo` makes it and `/nohome on` removes it. | `hooks/home-start.sh` |
+| `off` | Absent | Nothing | While it is there, a new thread in the repo does not become a home by itself. `/nohome repo` makes it and `/nohome on` removes it. | `features/home/hooks/home-start.sh` |
 | `merge-off` | Absent | Nothing | While it is there, `jmerge` merges nothing in the repo. `/nohome merge` makes it and `/nohome merge on` removes it. | `jmerge` |
 | `home-thread` | Absent | One line, a home's thread id | Who runs `jmerge` for the repo. Empty or absent, `jbus` runs it on each pass and a home runs none. With an id, that home runs it and `jbus` does not. Nothing writes this file but you. | `jbus`, the `home` skill |
 | `fresh-check` | Absent | One line, a command such as `make check` | `jmerge` runs the command on a pull request merged over today's main, in place of waiting for a new CI run. With no file, `jmerge` runs no local check. | `jmerge` |

@@ -18,6 +18,7 @@ import pytest
 
 from skill_blocks import block, git
 from test_jbus_kitchen import NOW
+from testing.layouts import assembled
 from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
@@ -43,7 +44,7 @@ class Machine:
         self.bin = tmp_path / "bin"
         for made in (self.repo, self.state, self.config.parent, self.bin, self.home / ".claude"):
             made.mkdir(parents=True)
-        (self.home / ".claude" / "skills").symlink_to(REPO / "skills")
+        (self.home / ".claude" / "skills").symlink_to(assembled() / "skills")
         git(self.repo, "init", "-q", "-b", "wip")
         git(self.repo, "commit", "-q", "--allow-empty", "-m", "one")
         for name, text in (("plan.md", ""), ("notes.md", ""), ("home-id", f"{THREAD}\n")):
@@ -113,7 +114,7 @@ def added(machine):
 
 
 def test_a_home_whose_repo_jbus_lacks_adds_it_and_leaves_the_merge_to_jbus(machine):
-    step3 = REPO / "templates" / ".." / "skills" / "new-home" / "SKILL.md"
+    step3 = assembled() / "templates" / ".." / "skills" / "new-home" / "SKILL.md"
     assert step3.is_file()
     assert machine.start() == [
         "not on the bus: Winnie has no project in jbus's config: add it with the block of "
