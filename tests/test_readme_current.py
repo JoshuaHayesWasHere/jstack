@@ -40,7 +40,8 @@ from testing.paths import REPO
 
 README = REPO / "README.md"
 DOCS = REPO / "docs"
-PAGES = (README, *sorted(DOCS.glob("**/*.md")))
+PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))
+HTML = (*sorted(DOCS.glob("*.html")), *sorted(REPO.glob("features/*/docs/*.html")))
 COMMANDS = tuple(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 LIMIT = 15_000
 SCREEN = 25
@@ -111,9 +112,17 @@ IS = (
 )
 
 
+def where(name):
+    """A page of `docs/`, or of the `docs/` of the feature it moved into."""
+    if (DOCS / name).is_file():
+        return DOCS / name
+    return next(REPO.glob(f"features/*/docs/{name}"))
+
+
 def page(name):
     """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`."""
-    paths = (DOCS / name, *sorted((DOCS / Path(name).stem).glob("*.md")))
+    found = where(name)
+    paths = (found, *sorted((found.parent / Path(name).stem).glob("*.md")))
     return "\n".join(path.read_text() for path in paths)
 
 
@@ -261,7 +270,7 @@ def test_the_readme_links_no_html_page_and_each_one_is_linked_from_a_page_it_lin
         if kind == "a"
     }
     assert told
-    assert [path.name for path in sorted(DOCS.glob("*.html")) if path.resolve() not in told] == []
+    assert [path.name for path in HTML if path.resolve() not in told] == []
 
 
 def colours(rules):
@@ -304,7 +313,7 @@ def codes(text):
 
 
 def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
-    explained = (DOCS / "jstack-explained.html").read_text()
+    explained = (REPO / "features/jdrift/docs/jstack-explained.html").read_text()
     steps = re.findall(
         r'<li class="step \w+"><b><span class="n">(\d+)</span>(.*?)</b><small>(.*?)</small>',
         explained,
@@ -327,7 +336,7 @@ def test_each_command_has_its_page_and_the_readme_links_it():
     assert len(COMMANDS) == 9
     for command in COMMANDS:
         assert page(f"{command}.md").startswith(f"# {command}\n")
-        assert f"(docs/{command}.md)" in said
+        assert f"({where(f'{command}.md').relative_to(REPO)})" in said
 
 
 def slug(heading):

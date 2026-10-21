@@ -64,8 +64,13 @@ seed() {
   *) return 64 ;;
   esac
 }
-for feature in "$(dirname "$0")"/../features/*.md; do
-  name=$(basename "$feature" .md)
+# A feature's page is in this skill's features/, or once it has moved, its folder's verify.md.
+for feature in "$(dirname "$0")"/../features/*.md "$VERIFY_JSTACK_REPO"/features/*/verify.md; do
+  if [ ! -f "$feature" ]; then continue; fi
+  case $feature in
+  */verify.md) name=$(basename "$(dirname "$feature")") ;;
+  *) name=$(basename "$feature" .md) ;;
+  esac
   if [ "$name" = README ]; then continue; fi
   needs=$(sed -n 's/^Needs: //p' "$feature" | head -n 1 | tr -d '`,')
   if [ -z "$needs" ]; then say bad "$name: no Needs: line says which seed its journey relies on"; fi

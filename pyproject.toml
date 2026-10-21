@@ -38,7 +38,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/**/evals/"]
 # generated: packages by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-packages = ["features/jsettings/src/jsettings", "src/jbriefs", "src/jbus", "src/jdrift", "src/jgauge", "src/jinstall", "src/jleak", "src/jmerge", "src/jpack", "src/jroles"]
+packages = ["features/jdrift/src/jdrift", "features/jsettings/src/jsettings", "src/jbriefs", "src/jbus", "src/jgauge", "src/jinstall", "src/jleak", "src/jmerge", "src/jpack", "src/jroles"]
 # end generated
 
 # The source tree, as the wheel's shared data: installed at <venv>/share/jstack, so a release runs
@@ -62,8 +62,8 @@ packages = ["features/jsettings/src/jsettings", "src/jbriefs", "src/jbus", "src/
 # `make check` runs it with `-n`, on the workers the Makefile counts.
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-testpaths = ["tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
-pythonpath = ["features/jsettings/src", "src", "tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
+testpaths = ["tests", "features/jdrift/tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
+pythonpath = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/jdrift/tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
 # end generated
 # A run writes about 170,000 files under the temporary directory, and by default pytest
 # keeps the last three runs. `/tmp` holds a million files and is shared by every runner and
@@ -90,7 +90,7 @@ markers = [
 target-version = "py312"
 line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-src = ["features/jsettings/src", "src", "tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
+src = ["features/jdrift/src", "features/jsettings/src", "src", "tests", "features/jdrift/tests", "features/jsettings/tests", "features/show-me-your-work/tests"]
 # end generated
 
 [tool.ruff.lint]

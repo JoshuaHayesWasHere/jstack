@@ -10,14 +10,5 @@
   },
   "docs": [
     "docs/jdrift.md"
-  ],
-  "owns": [
-    "src/jdrift/**",
-    "docs/jdrift.md",
-    "docs/jstack-explained.html",
-    "tests/test_drift.py",
-    "tests/test_jstack_explained.py",
-    "tests/fixtures/pstack-names.txt",
-    ".claude/skills/verify-jstack/features/jdrift.md"
   ]
 }
