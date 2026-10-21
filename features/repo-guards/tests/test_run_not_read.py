@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import textwrap
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -32,7 +33,6 @@ import pytest
 
 from testing.paths import REPO
 
-TESTS = REPO / "tests"
 DOCS = ("skills", "playbooks", "principles", "templates")
 DOC_PATH = re.compile(rf"^(\.*/)*({'|'.join(DOCS)})(/|$)|/({'|'.join(DOCS)})/")
 FILE_NAME = re.compile(r"^[\w.*/-]*\.(md|py|sh|json|toml|txt|yml|yaml|html|css|js)$")
@@ -133,8 +133,9 @@ def root(node):
 class Lint:
     """The test modules of one tree, read with `ast`, and what each test reaches."""
 
-    def __init__(self, sources):
+    def __init__(self, sources, paths=None):
         self.modules = {name: Module.parse(name, text) for name, text in sources.items()}
+        self.paths = paths or {name: f"tests/{name.replace('.', '/')}.py" for name in sources}
         self.memo = {}
 
     def top(self, module, name):
@@ -280,9 +281,8 @@ def errors(lint, changed):
         module = lint.modules[module_name]
         for name, node in lint.flagged(module_name):
             if name in names and not excepted(module, node):
-                path = f"tests/{module_name.replace('.', '/')}.py"
                 yield (
-                    f"{path}:{node.lineno} {name} reads a skill's, playbook's, "
+                    f"{lint.paths[module_name]}:{node.lineno} {name} reads a skill's, playbook's, "
                     f"principle's or template's words, asserts on them and runs nothing: "
                     f"{WHAT_TO_DO}. An exception is a comment on that line: "
                     f'# words only: <reason> (the user, <when>: "<their words>")'
@@ -322,14 +322,29 @@ def dumped_tests(source):
     return {name: ast.dump(node) for name, node in Module.parse("", source).tests()}
 
 
+def collected(repo=REPO):
+    """The folders pytest collects tests from, as the repo's `pyproject.toml` lists them."""
+    config = tomllib.loads((repo / "pyproject.toml").read_text())
+    return config["tool"]["pytest"]["ini_options"]["testpaths"]
+
+
+def module_of(path, roots):
+    """A test module's name within the test path it is under, as `crew.test_go`, or None."""
+    for folder in roots:
+        if re.fullmatch(rf"{re.escape(folder)}/(\w+/)*test_\w+\.py", path):
+            return dotted(Path(path).relative_to(folder))
+    return None
+
+
 def moved_from(since, repo):
-    """Each test of every test file of `tests/` at the commit, by its name: a test in a file
-    that is new since then is unchanged where one of its name had the same code there, so a
-    test moved to another file is not counted as added."""
-    listed = git("ls-tree", "-r", "--name-only", since, "--", "tests", repo=repo).splitlines()
+    """Each test of every test file of the test paths at the commit, by its name: a test in a
+    file that is new since then is unchanged where one of its name had the same code there, so
+    a test moved to another file or another test path is not counted as added."""
+    roots = collected(repo)
+    listed = git("ls-tree", "-r", "--name-only", since, "--", *roots, repo=repo).splitlines()
     found = {}
     for path in listed:
-        if re.fullmatch(r"tests/(\w+/)*test_\w+\.py", path):
+        if module_of(path, roots):
             for name, dumped in dumped_tests(git("show", f"{since}:{path}", repo=repo)).items():
                 found.setdefault(name, dumped)
     return found
@@ -337,13 +352,13 @@ def moved_from(since, repo):
 
 def changed_tests(since, repo=REPO):
     """{module: test names} added or changed since the commit, the worktree's own edits in."""
-    paths = git("diff", "--name-only", since, "--", "tests", repo=repo).splitlines()
-    paths += git(
-        "ls-files", "--others", "--exclude-standard", "--", "tests", repo=repo
-    ).splitlines()
+    roots = collected(repo)
+    paths = git("diff", "--name-only", since, "--", *roots, repo=repo).splitlines()
+    paths += git("ls-files", "--others", "--exclude-standard", "--", *roots, repo=repo).splitlines()
     changed = {}
     for path in sorted(set(paths)):
-        if not re.fullmatch(r"tests/(\w+/)*test_\w+\.py", path) or not (repo / path).exists():
+        module = module_of(path, roots)
+        if not module or not (repo / path).exists():
             continue
         try:
             before = dumped_tests(git("show", f"{since}:{path}", repo=repo))
@@ -354,23 +369,24 @@ def changed_tests(since, repo=REPO):
         now = dumped_tests((repo / path).read_text())
         names = {name for name, dumped in now.items() if before.get(name) != dumped}
         if names:
-            changed[dotted(Path(path).relative_to("tests"))] = names
+            changed[module] = names
     return changed
 
 
 def dotted(path):
-    """A module of `tests/` by the name it is imported by, as `crew.helpers` or `conftest`."""
+    """A module of a test path by the name it is imported by, as `crew.helpers` or `conftest`."""
     return ".".join(path.with_suffix("").parts).removesuffix(".__init__")
 
 
-def tree():
-    return Lint(
-        {
-            dotted(path.relative_to(TESTS)): path.read_text()
-            for path in sorted(TESTS.rglob("*.py"))
-            if path.relative_to(TESTS).parts[0] != "fixtures"
-        }
-    )
+def tree(repo=REPO):
+    """Every module of every test path, by the name it is imported by, with its path."""
+    paths = {}
+    for folder in collected(repo):
+        for path in sorted((repo / folder).rglob("*.py")):
+            if path.relative_to(repo / folder).parts[0] != "fixtures":
+                paths[dotted(path.relative_to(repo / folder))] = path.relative_to(repo)
+    sources = {name: (repo / path).read_text() for name, path in paths.items()}
+    return Lint(sources, {name: str(path) for name, path in paths.items()})
 
 
 def test_no_test_added_or_changed_on_this_branch_reads_words_and_runs_nothing():
@@ -599,6 +615,7 @@ def test_a_test_is_changed_when_its_code_is_and_new_files_count_before_a_commit(
         path.write_text(textwrap.dedent(text))
 
     git("init", "-q", repo=tmp_path)
+    (tmp_path / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
     init(
         tmp_path / "tests" / "test_a.py",
         """
@@ -669,6 +686,7 @@ def test_a_changed_test_in_a_folder_is_named_by_its_dotted_name_and_a_moved_one_
     tmp_path,
 ):
     git("init", "-q", repo=tmp_path)
+    (tmp_path / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
     (tmp_path / "README").write_text("x\n")
     git("add", ".", repo=tmp_path)
     git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base", repo=tmp_path)
@@ -710,3 +728,10 @@ def test_a_test_under_any_test_path_counts_and_one_moved_into_a_feature_is_not_a
         "test_old": {"test_added"},
         "test_new": {"test_new"},
     }
+    (tmp_path / "skills" / "x").mkdir(parents=True)
+    (tmp_path / "features" / "area" / "tests" / "test_new.py").write_text(
+        "from pathlib import Path\n\n\ndef test_new():\n"
+        '    assert "go" in Path("skills/x/SKILL.md").read_text()\n'
+    )
+    (error,) = errors(tree(tmp_path), changed_tests(since, tmp_path))
+    assert error.startswith("features/area/tests/test_new.py:4 test_new reads")
