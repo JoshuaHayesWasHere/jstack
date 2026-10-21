@@ -58,7 +58,8 @@ A release is cut from a clean `main` that is `origin/main`, by one command:
 make release
 ```
 
-It tags `v<version>`, the version of `pyproject.toml`, and pushes the tag.
+It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`), then tags it and pushes the tag.
+Where the push fails, it drops the tag again, so the next `make release` starts clean.
 The tag runs `.github/workflows/release.yml`.
 It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make check` and `make dist`.
 It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.

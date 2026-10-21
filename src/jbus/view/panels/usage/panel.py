@@ -218,14 +218,20 @@ def _homes(read: Read) -> list[dict[str, Any]]:
     return found
 
 
+def gauge() -> Path:
+    """The `home-gauge.sh` the panel reads: `GAUGE` under the checkout, else under the copy
+    a release carries."""
+    return skills.root() / GAUGE
+
+
 def limit(read: Read) -> dict[str, Any]:
     """The context a home is held to, read where `home-gauge.sh` reads it: the two lines of
     the home's `limit` file, and where one is not a number, the default of the hook."""
     try:
-        gauge = skills.root() / GAUGE
-        script = gauge.read_text()
+        hook = gauge()
+        script = hook.read_text()
     except LookupError:
-        gauge, script = GAUGE, ""
+        hook, script = GAUGE, ""
     except OSError:
         script = ""
     named = {
@@ -244,7 +250,7 @@ def limit(read: Read) -> dict[str, Any]:
     if said["limit"] is not None and said["ceiling"] is not None:
         said["ceiling"] = max(said["ceiling"], said["limit"])
     mine = given.get("limit", "").isdigit()
-    return said | {"from": _short(read.home / "limit") if mine else _short(gauge)}
+    return said | {"from": _short(read.home / "limit") if mine else _short(hook)}
 
 
 def build(read: Read) -> dict[str, Any]:
