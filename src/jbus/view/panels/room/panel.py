@@ -15,12 +15,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import jgauge
 import jsettings
 from jbus.view.clean import ANY
 from jbus.view.state import Read, Source, Sources, Spot, _lines, _mtime, iso, text, when
 
 FIRST = True
-ROOM = Path(__file__).resolve().parents[4] / "jgauge" / "room.sh"
+ROOM = Path(jgauge.__file__).with_name("room.sh")
 LIMITS = {"five_hour": "five-hour", "seven_day": "seven-day"}
 SHAPE = {
     "room": {

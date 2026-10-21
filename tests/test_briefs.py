@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import cli, page, parse
+from jbriefs import cli, page, parse, skills
 from jbus import watch
 
 TEMPLATE = Path(__file__).parent.parent / "templates" / "brief.md"
@@ -686,7 +686,7 @@ def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other
     """A brief names a playbook a crewmate runs: not a scout's, a home's or an expert's, and
     not `opening-a-pr`, which is the last step of every other one."""
     taken = set()
-    for path in parse.PLAYBOOKS.glob("*.md"):
+    for path in skills.listed("playbook").values():
         by = next(line for line in path.read_text().splitlines() if line.startswith("Run by: "))
         said = parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {path.stem}"))
         if by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by:

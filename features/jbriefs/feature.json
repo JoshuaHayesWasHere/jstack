@@ -1,0 +1,26 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jbriefs",
+  "description": "Writes one HTML page of every home, plan and brief, and resolves the names a brief's lines use.",
+  "packages": [
+    "src/jbriefs"
+  ],
+  "commands": {
+    "jbriefs": "jbriefs.cli:main"
+  },
+  "docs": [
+    "docs/jbriefs.md"
+  ],
+  "owns": [
+    "src/jbriefs/**",
+    "docs/jbriefs.md",
+    "tests/test_briefs.py",
+    "tests/test_jbriefs_*.py",
+    "tests/test_skills_named.py",
+    "tests/fixtures/findings/**",
+    "tests/fixtures/skills/**",
+    "tests/fixtures/principles-before-rename.txt",
+    "templates/brief.md",
+    ".claude/skills/verify-jstack/features/jbriefs.md"
+  ]
+}

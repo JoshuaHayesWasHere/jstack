@@ -1,0 +1,11 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "evals",
+  "description": "Measures a skill's effect against a baseline, with runs a grader scores.",
+  "owns": [
+    "playbooks/eval.md",
+    "evals/**",
+    "tests/test_eval_skill_cut.py",
+    ".claude/skills/verify-jstack/features/evals.md"
+  ]
+}

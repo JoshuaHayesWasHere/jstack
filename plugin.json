@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jstack",
+  "version": "0.1.0",
+  "description": "One person's stack for running a repo's tasks as agent threads under T3 Code: a home plans and briefs, a crewmate does one task and opens its pull request, a reviewer reviews it, and jbus and jmerge do the routine work.",
+  "author": {
+    "name": "Joshua Hayes"
+  },
+  "homepage": "https://github.com/JoshuaHayesWasHere/jstack",
+  "repository": "https://github.com/JoshuaHayesWasHere/jstack",
+  "license": "MIT",
+  "keywords": ["agents", "claude-code", "t3-code", "skills", "playbooks", "pull-requests"]
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "recall",
+  "description": "Rebuilds where you left off from your chat history and the home's record.",
+  "owns": [
+    "skills/recall/**"
+  ]
+}

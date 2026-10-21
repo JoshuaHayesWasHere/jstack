@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jroles",
+  "description": "Picks the model for a role from the role map.",
+  "packages": [
+    "src/jroles"
+  ],
+  "commands": {
+    "jroles": "jroles.cli:main"
+  },
+  "docs": [
+    "docs/jroles.md"
+  ],
+  "owns": [
+    "src/jroles/**",
+    "docs/jroles.md",
+    "templates/jroles-*",
+    "tests/test_roles.py",
+    "tests/test_jroles_mirror.py",
+    ".claude/skills/verify-jstack/features/jroles.md"
+  ]
+}

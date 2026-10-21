@@ -2,6 +2,20 @@
 
 `install.sh` writes five hook entries and one status line, each with the path of its own checkout. This page says what each script does and shows the entry as the install writes it, with `<checkout>` for that path. [Configuration](configuration.md) lists the entries with every other file you write.
 
+Each hook below is a feature's, as its `features/<name>/feature.json` declares it.
+
+<!-- generated: hooks by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
+| Hook | Script | Harnesses | Feature |
+|---|---|---|---|
+| `SessionStart`, matcher `startup` | [hooks/home-start.sh](../hooks/home-start.sh) | claude-code, codex | `home` |
+| `PreToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
+| `PostToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
+| the status line | [hooks/limits.sh](../hooks/limits.sh) | claude-code | `jgauge` |
+| `PreToolUse`, matcher `Bash`, refuses | [hooks/outbound-command.sh](../hooks/outbound-command.sh) | claude-code | `jleak` |
+| git `pre-push` | [hooks/pre-push.sh](../hooks/pre-push.sh) | git | `jleak` |
+| `UserPromptSubmit` | [hooks/skill-tips.sh](../hooks/skill-tips.sh) | claude-code | `skill-library` |
+<!-- generated: end -->
+
 ## The start hook
 
 `hooks/home-start.sh` is a `SessionStart` hook. It makes a new T3 Code thread the repo's home without anyone typing `/home`. It prints `templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply. It prints nothing unless all of these hold:

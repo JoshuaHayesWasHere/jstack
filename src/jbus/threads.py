@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from jbriefs import skills
 from jbus import (
     END_TURN,
     dispatch,
@@ -133,13 +134,12 @@ MERGED = (
     "`Left:` line of its last Result names, and write a follow-up Result when it is done."
 )
 REPORT = "## Report"
-ROOT = Path(__file__).resolve().parents[2]
 SKILLS = {"crew": "crew", "reviewer": "pr-review", "scout": "scout"}
 
 
 def skill_file(name: str) -> Path:
-    """The jstack checkout's own file of skill `name`, found from this module's place."""
-    return ROOT / "skills" / name / "SKILL.md"
+    """The jstack checkout's own file of skill `name`, as `skills.json` lists it."""
+    return skills.where("skill", name)
 
 
 READ_SKILL = (

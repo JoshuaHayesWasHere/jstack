@@ -111,16 +111,18 @@ jstack is one person's stack, shared as is. It is experimental, and no support i
 
 Each command has one page.
 
+<!-- generated: commands by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
 | Command | Page | What it does |
 |---|---|---|
-| `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
+| `jbriefs` | [docs/jbriefs.md](docs/jbriefs.md) | Writes one HTML page of every home, plan and brief, and resolves the names a brief's lines use. |
 | `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
-| `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
-| `jbriefs` | [docs/jbriefs.md](docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
-| `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
 | `jdrift` | [docs/jdrift.md](docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
+| `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
 | `jleak` | [docs/jleak.md](docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
+| `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
+| `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
+<!-- generated: end -->
 
 `install.sh` puts the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
 

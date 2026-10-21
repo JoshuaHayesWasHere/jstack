@@ -13,7 +13,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path(__file__).parents[2]
+from jbriefs.skills import listed, root
+
+ROOT = root()
 TIPS = 3
 _FRONT = re.compile(r"\A---\n(.*?)^---$", re.M | re.S)
 _SPAN = re.compile(r"`([^`\n]+)`")
@@ -96,7 +98,7 @@ def rows(root: Path = ROOT) -> list[Row]:
     """Every playbook's `Run by:` row. A path in backticks in the part before `in a brief with`
     is a scope the row is for, and each span after it is a line the row asks the brief for."""
     found = []
-    for path in sorted((root / "playbooks").glob("*.md")):
+    for _, path in sorted(listed("playbook", root).items()):
         by = next((ln[8:] for ln in path.read_text().splitlines() if ln.startswith("Run by: ")), "")
         runner, _, what = by.partition(", for ")
         if not what or "never picked" in what:
@@ -109,7 +111,7 @@ def rows(root: Path = ROOT) -> list[Row]:
 
 def skills(root: Path = ROOT) -> dict[str, Skill]:
     found = {}
-    for path in sorted((root / "skills").glob("*/SKILL.md")):
+    for _, path in sorted(listed("skill", root).items()):
         fields = front(path.read_text())
         name = fields.get("name") or path.parent.name
         tip = fields.get("tip", "").split("|")
@@ -190,7 +192,7 @@ def playbook(job: Work, root: Path = ROOT) -> Line:
     if name == "none":
         return Line("playbook", "none", "(its Playbook: line)")
     if name and not name.startswith("<"):
-        if "/" not in name and (root / "playbooks" / f"{name}.md").is_file():
+        if name in listed("playbook", root):
             return Line("playbook", name, f"playbooks/{name}.md (its Playbook: line)")
         return Line("unknown", name, "(its Playbook: line names no file in playbooks/)")
     return best(lines, job.role, rows(root), root)

@@ -1,0 +1,43 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jbus",
+  "description": "Does a home's routine work from a timer, so a repo can run with no home thread.",
+  "packages": [
+    "src/jbus"
+  ],
+  "commands": {
+    "jbus": "jbus.cli:main"
+  },
+  "docs": [
+    "docs/jbus.md",
+    "docs/chef.md"
+  ],
+  "owns": [
+    "src/jbus/**",
+    "docs/jbus.md",
+    "docs/jbus/**",
+    "docs/chef.md",
+    "templates/jbus*",
+    "tests/test_jbus*.py",
+    "tests/view/**",
+    "tests/ci_replay.py",
+    "tests/relay_leaves.py",
+    "tests/fixtures/ci/**",
+    "tests/fixtures/jbus-help/**",
+    "tests/fixtures/jbus-view/**",
+    "tests/fixtures/projects/**",
+    "tests/fixtures/t3/**",
+    "tests/fixtures/usage-limit-2026-10-20.json",
+    "tests/test_item.py",
+    "tests/test_work.py",
+    "tests/test_stall.py",
+    "tests/test_gates.py",
+    "tests/test_view_tokens.py",
+    "tests/test_gh_said.py",
+    ".claude/skills/verify-jstack/features/jbus-pass.md",
+    ".claude/skills/verify-jstack/features/jbus-view.md",
+    ".claude/skills/verify-jstack/features/queue-row.md",
+    ".claude/skills/verify-jstack/features/main-red.md",
+    ".claude/skills/verify-jstack/features/gate-wake.md"
+  ]
+}
