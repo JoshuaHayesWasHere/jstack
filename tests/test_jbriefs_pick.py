@@ -12,7 +12,7 @@ import pytest
 
 from jbriefs import pick
 from testing.layouts import assembled
-from testing.paths import REPO
+from testing.paths import REPO, playbooks
 
 SKILL = REPO / "features" / "skill-library" / "skills" / "poteto-help" / "SKILL.md"
 HOOK = assembled() / "hooks" / "skill-tips.sh"
@@ -125,7 +125,8 @@ def test_a_brief_with_no_playbook_line_takes_the_row_of_its_role_that_fits(tmp_p
         brief.write_text(
             BRIEF.replace("Playbook: feature\n", "").replace("Where: src/jgauge/", where)
         )
-        assert jbriefs(str(brief))[1].startswith(f"playbook {expected}: playbooks/{expected}.md")
+        path = playbooks()[expected].relative_to(REPO).as_posix()
+        assert jbriefs(str(brief))[1].startswith(f"playbook {expected}: {path}")
 
 
 def test_every_skill_and_playbook_printed_is_a_file(home):
