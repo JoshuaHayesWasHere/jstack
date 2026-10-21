@@ -69,19 +69,33 @@ class Refused(Exception):
     """An effect the machine did not carry out, with the reason as it is printed."""
 
 
+HARNESS = Path("harness") / "jstack" / "claude-code"
+
+
 @dataclass(frozen=True)
 class Machine:
     """`account` is the home directory the account has by its passwd entry: with `home` it
-    tells the user's real HOME from a sandbox's or a test's."""
+    tells the user's real HOME from a sandbox's or a test's. `checkout` is the git checkout
+    jstack is installed from, None for a release, whose copy is `release`: the harness copy
+    its wheel installed (`jbriefs.skills.packaged`)."""
 
-    checkout: Path
+    checkout: Path | None
     home: Path
     env: Mapping[str, str]
     run: Callable[[Sequence[str]], Ran]
     account: Path
+    release: Path | None = None
+
+    @property
+    def copy(self) -> Path:
+        """The harness copy every link, hook command and status line points into: the
+        checkout's, else the release's."""
+        copy = self.checkout / HARNESS if self.checkout is not None else self.release
+        assert copy is not None, "a machine has a checkout or a release"
+        return copy
 
     @classmethod
-    def here(cls, checkout: Path) -> "Machine":
+    def here(cls, checkout: Path | None, release: Path | None = None) -> "Machine":
         """The real one: HOME and PATH from the environment, `run` through subprocess."""
         env = dict(os.environ)
 
@@ -100,7 +114,7 @@ class Machine:
             return Ran(done.returncode, done.stdout)
 
         account = Path(pwd.getpwuid(os.getuid()).pw_dir)
-        return cls(checkout, Path(env.get("HOME") or account), env, run, account)
+        return cls(checkout, Path(env.get("HOME") or account), env, run, account, release)
 
     def which(self, name: str) -> Path | None:
         """What typing `name` would run, by this machine's PATH."""
@@ -143,9 +157,25 @@ class Machine:
                 continue
         return None
 
+    def tool_version(self, tool: str) -> str | None:
+        """The version uv's tool `tool` has, from the `Version:` of its package's METADATA.
+        None when there is no such tool or no record says."""
+        record = f"lib/python*/site-packages/{tool.replace('-', '_')}-*.dist-info/METADATA"
+        for path in sorted((self._tools() / tool).glob(record)):
+            try:
+                lines = path.read_text().splitlines()
+            except OSError:
+                continue
+            for line in lines:
+                if line.startswith("Version:"):
+                    return line.removeprefix("Version:").strip()
+        return None
+
     def in_a_worktree_of_the_account(self) -> bool:
         """Whether a plain install here would point the account's live skills at a linked
         worktree: HOME is the account's own, and the checkout's `.git` is a worktree's file."""
+        if self.checkout is None:
+            return False
         git = self.checkout / ".git"
         try:
             return self.home == self.account and git.is_file() and "/worktrees/" in git.read_text()

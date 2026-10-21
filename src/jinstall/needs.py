@@ -5,14 +5,15 @@ is done, already there, or the user's to do, and when its kind is Carried the in
 puts, checks and removes it, with no other edit.
 """
 
+import json
 import tomllib
 from dataclasses import dataclass
 from enum import Enum
+from importlib import metadata
 from pathlib import Path
 
 import jleak
 from jinstall.kinds import (
-    HARNESS,
     Carried,
     Commands,
     GhSignIn,
@@ -40,6 +41,7 @@ from jinstall.kinds import (
     claude_homes,
     dead,
     declared,
+    templates,
 )
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
@@ -71,9 +73,10 @@ class Need:
 
 def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order printed. Nothing is probed here: the list is derived from the
-    checkout (the copy's skills/*/SKILL.md, templates/*.service and *.timer, pyproject.toml), from
-    one listing of each skills root for GoneLink, and from the provider inventory, which
-    names the instances and the Claude homes to probe. An inventory that cannot be taken
+    copy's skills/*/SKILL.md, the units (`templates`), the commands (`_commands`), one listing
+    of each skills root for GoneLink, and the provider inventory, which names the instances
+    and the Claude homes to probe. A release has no checkout, and lists neither the harness
+    line nor the git hook. An inventory that cannot be taken
     names none, and its own line says why.
 
     Only probed:
@@ -98,12 +101,13 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
     Carried, in the order they are put. Uninstall walks them backwards. Every link and hook
-    command points into the copy, <checkout>/harness/jstack/claude-code, but the git hook:
-      hard      harness/ is current           Harness, the generator's --check
+    command points into the copy, <checkout>/harness/jstack/claude-code or the release's, but
+    the git hook:
+      hard      harness/ is current           Harness, the generator's --check, in a checkout
       hard      ~/.claude/skills/<skill>      Link
       hard      ~/.agents/skills/<skill>      Link, the root Cursor reads beside ~/.claude/skills
       hard      ~/.codex/skills/<skill>       Link
-      hard      <root>/<name>                 GoneLink, for each dead link into this checkout
+      hard      <root>/<name>                 GoneLink, for each dead link into this copy
       hard      hook ~/.claude/settings.json SessionStart      HookGroup("startup", home-start)
       hard      hook ~/.claude/settings.json UserPromptSubmit  HookGroup(None, skill-tips)
       hard      hook ~/.claude/settings.json PostToolUse       HookGroup(None, home-gauge)
@@ -111,13 +115,12 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      hook ~/.codex/hooks.json SessionStart          HookGroup("startup", home-start)
       optional  patterns <path>               Patterns
       hard      hook ~/.claude/settings.json PreToolUse        HookGroup("Bash", outbound-command)
-      hard      hook <checkout>/.git/hooks/pre-push pre-push   GitHook, in a main checkout
+      hard      hook <checkout>/.git/hooks/pre-push pre-push   GitHook, in a checkout
       hard      commands <tool>               Commands
       optional  statusline ~/.claude/settings.json             StatusLine
       optional  units ~/.config/systemd/user  Units
     """
-    repo, home = machine.checkout, machine.home
-    copy = repo / HARNESS
+    repo, home, copy = machine.checkout, machine.home, machine.copy
     skills = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
     roots = (home / ".claude" / "skills", home / ".agents" / "skills", home / ".codex" / "skills")
     jbus, limits = _jbus_config(machine), _limits(machine)
@@ -165,7 +168,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"mirror {each.home}", Level.OPTIONAL, Mirrored(each))
         for each in mirrors(inventory, home)
     ]
-    found.append(Need("harness/ is current", Level.HARD, Harness()))
+    if repo is not None:
+        found.append(Need("harness/ is current", Level.HARD, Harness()))
     found += [
         Need(str(root / skill), Level.HARD, Link(root / skill, copy / "skills" / skill))
         for root in roots
@@ -175,7 +179,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(str(path), Level.HARD, GoneLink(path))
         for root in roots
         for path in _listed(root)
-        if dead(path, repo) and path.name not in skills
+        if dead(path, machine) and path.name not in skills
     ]
     settings, codex = home / ".claude" / "settings.json", home / ".codex" / "hooks.json"
     found += [
@@ -196,23 +200,40 @@ def needs(machine: Machine) -> tuple[Need, ...]:
             Level.HARD,
             HookGroup(settings, "PreToolUse", "Bash", "hooks/outbound-command.sh", refuses=True),
         ),
-        Need(f"hook {repo / '.git' / 'hooks' / pushed.name} {pushed.name}", Level.HARD, pushed),
     ]
-    project = tomllib.loads((repo / "pyproject.toml").read_text())["project"]
-    commands = Commands(project["name"], tuple(project["scripts"]))
+    if repo is not None:
+        hook = repo / ".git" / "hooks" / pushed.name
+        found.append(Need(f"hook {hook} {pushed.name}", Level.HARD, pushed))
+    commands = _commands(machine)
     found.append(Need(f"commands {commands.tool}", Level.HARD, commands))
     found.append(Need(f"statusline {settings}", Level.OPTIONAL, StatusLine(settings)))
-    templates = sorted(
-        path.name for kind in ("*.service", "*.timer") for path in (repo / "templates").glob(kind)
+    names = sorted(
+        path.name for kind in ("*.service", "*.timer") for path in templates(machine).glob(kind)
     )
     units = Units(
         machine.config_home() / "systemd" / "user",
-        tuple(templates),
-        tuple(name for name in templates if name.endswith(".timer")),
+        tuple(names),
+        tuple(name for name in names if name.endswith(".timer")),
         jbus,
     )
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
+
+
+def _commands(machine: Machine) -> Commands:
+    """The tool and its commands: a checkout's pyproject.toml; for a release, the copy's
+    plugin.json, whose name and version are the package's, and the commands its installed
+    package declares, none where it is not installed."""
+    if machine.checkout is not None:
+        project = tomllib.loads((machine.checkout / "pyproject.toml").read_text())["project"]
+        return Commands(project["name"], tuple(project["scripts"]))
+    plugin = json.loads((machine.copy / "plugin.json").read_text())
+    try:
+        points = metadata.distribution(plugin["name"]).entry_points
+    except metadata.PackageNotFoundError:
+        points = metadata.EntryPoints(())
+    names = sorted(one.name for one in points if one.group == "console_scripts")
+    return Commands(plugin["name"], tuple(names), version=plugin["version"])
 
 
 def _jbus_config(machine: Machine) -> Path:

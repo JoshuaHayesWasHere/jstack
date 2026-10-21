@@ -2,6 +2,8 @@
 
     python -m jinstall <checkout> [--check | --uninstall | --doctor | --setup]
 
+which `install.sh` runs in a checkout, and `jinstall [<verb>]` (`cli`), a release's command.
+
 Install and --check are one function with one branch, whether `put` is called between two
 probes, so they cannot print different lines for one machine and a second install is a check. The
 doctor probes the same kinds and prints through the same `say`, so it gives --check's answer
@@ -153,17 +155,25 @@ def doctor(machine: Machine) -> Report:
     return Report(tuple(lines), "", 1 if hard else 0)
 
 
+def verb_of(argv: Sequence[str], usage: str) -> Verb:
+    """`[verb]`. Anything else: `usage` on stderr and SystemExit(2)."""
+    verbs = {verb.value: verb for verb in Verb if verb is not Verb.INSTALL}
+    if len(argv) > 1 or (argv and argv[0] not in verbs):
+        print(usage, file=sys.stderr)
+        raise SystemExit(2)
+    return verbs[argv[0]] if argv else Verb.INSTALL
+
+
 def parse(argv: Sequence[str]) -> tuple[Machine, Verb]:
     """`<checkout> [verb]`. Anything else: the usage line on stderr and SystemExit(2)."""
-    verbs = {verb.value: verb for verb in Verb if verb is not Verb.INSTALL}
-    if len(argv) not in (1, 2) or (argv[1:] and argv[1] not in verbs):
+    if not argv:
         print(USAGE, file=sys.stderr)
         raise SystemExit(2)
-    return Machine.here(Path(argv[0])), verbs[argv[1]] if argv[1:] else Verb.INSTALL
+    return Machine.here(Path(argv[0])), verb_of(argv[1:], USAGE)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    machine, verb = parse(list(sys.argv[1:] if argv is None else argv))
+def act(machine: Machine, verb: Verb) -> int:
+    """Run `verb` on `machine`, print its report, and return its exit code."""
     if verb is Verb.CHECK:
         report = install(machine, write=False)
     elif verb is Verb.DOCTOR:
@@ -179,6 +189,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if report.note:
         print(report.note, file=sys.stderr)
     return report.code
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return act(*parse(list(sys.argv[1:] if argv is None else argv)))
 
 
 if __name__ == "__main__":

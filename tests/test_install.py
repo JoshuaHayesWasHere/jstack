@@ -691,7 +691,10 @@ def test_with_a_manager_that_reads_another_home_only_the_links_are_made_and_remo
 
 def test_a_tool_that_is_no_editable_install_is_not_put_over_and_uninstall_keeps_it(user):
     user.write(user.tools / "jstack" / "names", " ".join(NAMES))
-    not_ours = "tool jstack is not an editable install of a checkout"
+    not_ours = (
+        "tool jstack is installed from a release or an index, "
+        "not as an editable install of this checkout"
+    )
     for args in ((), ("--check",)):
         code, said = user.run(*args)
         assert (code, line_for(said, "commands")) == (
@@ -1220,3 +1223,101 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
     assert loaded.returncode == 0, loaded.stderr
     assert loaded.stdout.splitlines()[0].startswith("loaded: tdd")
     assert "==> skills/tdd/SKILL.md <==" in loaded.stdout
+
+
+def release_parts(home, copy):
+    settings = home / ".claude" / "settings.json"
+    names = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
+    return [
+        *(f"hard {home / root / name}" for root in ROOTS for name in names),
+        f"hard hook {settings} SessionStart",
+        f"hard hook {settings} UserPromptSubmit",
+        f"hard hook {settings} PostToolUse",
+        f"hard hook {settings} PreToolUse",
+        f"hard hook {home / '.codex' / 'hooks.json'} SessionStart",
+        f"optional patterns {home / '.config' / 'jstack' / 'outbound.toml'}",
+        f"hard hook {settings} PreToolUse",
+        "hard commands jstack",
+        f"optional statusline {settings}",
+    ]
+
+
+def stand_ins(tmp_path):
+    """A directory with the fake systemctl, for a release's commands to find first on PATH."""
+    stub = tmp_path / "stub"
+    stub.mkdir(exist_ok=True)
+    (stub / "systemctl").symlink_to(SYSTEMCTL)
+    return {"PATH": f"{stub}:{os.environ['PATH']}", "FAKE_SYSTEMCTL_LOG": str(tmp_path / "log")}
+
+
+def test_a_release_links_every_skill_hook_and_status_line_into_its_copy_and_checks_ok(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    put = released.run(home, "jinstall", **env)
+    assert (put.returncode, put.stderr) == (0, "")
+    assert put.stdout.splitlines() == [f"ok {part}" for part in release_parts(home, released.copy)]
+    checked = released.run(home, "jinstall", "--check", **env)
+    assert (checked.returncode, checked.stdout) == (0, put.stdout)
+    links = [path for root in ROOTS for path in (home / root).iterdir()]
+    assert len(links) == 3 * len(list((released.copy / "skills").iterdir()))
+    for link in links:
+        assert os.readlink(link) == str(released.copy / "skills" / link.name)
+    settings = json.loads((home / ".claude" / "settings.json").read_text())
+    commands = [
+        hook["command"]
+        for groups in settings["hooks"].values()
+        for group in groups
+        for hook in group["hooks"]
+    ]
+    assert all(f"sh '{released.copy}/hooks/" in command for command in commands), commands
+    assert settings["statusLine"]["command"] == f"sh '{released.copy / 'hooks' / 'limits.sh'}'"
+    assert not line_for(put.stdout.splitlines(), "pre-push")
+
+
+def test_a_release_with_jbus_set_up_links_its_units_into_the_copy(released, tmp_path):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    (home / ".config" / "jbus").mkdir(parents=True)
+    (home / ".config" / "jbus" / "config.toml").write_text("")
+    (home / ".local" / "bin").mkdir(parents=True)
+    (home / ".local" / "bin" / "jbus").symlink_to(released.bin / "jbus")
+    put = released.run(home, "jinstall", **env)
+    assert put.stdout.splitlines()[-1] == f"ok optional units {home / '.config/systemd/user'}"
+    unit = home / ".config" / "systemd" / "user" / "jbus.timer"
+    assert os.readlink(unit) == str(released.copy / "templates" / "jbus.timer")
+
+
+def test_a_release_whose_version_is_not_its_copys_is_told_so_and_not_put_over(released, tmp_path):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    plugin = json.loads((released.copy / "plugin.json").read_text())
+    metadata = next(released.tools.glob("jstack/lib/python*/site-packages/jstack-*.dist-info"))
+    said = (metadata / "METADATA").read_text()
+    (metadata / "METADATA").write_text(said.replace(f"Version: {plugin['version']}", "Version: 9"))
+    try:
+        checked = released.run(home, "jinstall", "--check", **env)
+    finally:
+        (metadata / "METADATA").write_text(said)
+    assert checked.returncode == 1
+    assert line_for(checked.stdout.splitlines(), "commands") == [
+        f"old hard commands jstack -> tool jstack is 9, and its copy is {plugin['version']}"
+    ]
+
+
+def test_uninstall_from_a_release_removes_what_it_put_and_keeps_the_tool_it_runs_from(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    assert released.run(home, "jinstall", **env).returncode == 0
+    gone = released.run(home, "jinstall", "--uninstall", **env)
+    assert gone.returncode == 0, gone.stderr
+    assert "kept commands jstack -> the release this jinstall runs from" in gone.stdout
+    assert not any((home / root).exists() for root in ROOTS)
+    assert (released.bin / "jinstall").exists()
