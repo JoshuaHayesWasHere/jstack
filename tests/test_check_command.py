@@ -357,10 +357,10 @@ OFF = ["-m", "not", "browser"]
 
 
 def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path):
-    copy, path, asked = changed_copy(tmp_path, "src/jdrift/__init__.py")
+    copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
     tests = selected(copy)
-    assert "tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
+    assert "features/jdrift/tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
     assert asked.read_text().splitlines() == [
         *LINT,
         " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
@@ -375,7 +375,7 @@ def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_o
 
 
 def test_check_fast_fails_on_a_base_that_is_not_a_commit_and_runs_nothing(tmp_path):
-    copy, path, asked = changed_copy(tmp_path, "src/jdrift/__init__.py")
+    copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     made = subprocess.run(
         ["make", "check-fast", "BASE=nowhere"],

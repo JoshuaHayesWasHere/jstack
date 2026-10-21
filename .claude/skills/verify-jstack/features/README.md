@@ -69,7 +69,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [jbriefs reads a brief](./jbriefs.md), not driven yet.
 - [A jbus pass](./jbus-pass.md), not driven yet.
 - [jbus view](./jbus-view.md), not driven yet.
-- [jdrift lists what changed upstream](./jdrift.md), not driven yet.
+- [jdrift lists what changed upstream](../../../../features/jdrift/verify.md), not driven yet.
 - [jgauge meters a session](./jgauge-meter.md), not driven yet.
 - [jleak stops a leak](./jleak.md), not driven yet.
 - [jroles names a model](./jroles.md), not driven yet.
@@ -94,7 +94,7 @@ Cross-cutting:
 - `tests/test_docs_true.py`
 - `tests/test_docs_tree.py`
 - `tests/test_home_merge_guard.py`
-- `tests/test_jstack_explained.py`
+- `features/jdrift/tests/test_jstack_explained.py`
 - `tests/test_no_comments.py`
 - `tests/test_no_mistakes_gone.py`
 - `tests/test_playbook_wiring.py`

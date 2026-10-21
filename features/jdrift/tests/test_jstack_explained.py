@@ -1,4 +1,5 @@
-"""`docs/jstack-explained.html` has a card for everything it explains, and loads nothing.
+"""`features/jdrift/docs/jstack-explained.html` has a card for everything it explains, and loads
+nothing.
 
 The page is read with an HTML parser and held against the repo itself: the step numbers of
 its lead drawing against 1 to 10, the rules file of each command against the tree, and each
@@ -24,9 +25,9 @@ from jdrift.explained import BUILT, build
 from jdrift.explained import COMMENT as CARD
 from testing.paths import REPO, skills
 
-PAGE = REPO / "docs" / "jstack-explained.html"
+PAGE = REPO / "features/jdrift/docs/jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
-LOCAL = {"flow.html"}
+LOCAL = {"../../../docs/flow.html"}
 
 
 VOID = {"meta", "br", "hr", "img", "wbr", "input", "link", "source"}
@@ -158,7 +159,10 @@ MADE_UP = {
 def tree(tmp_path):
     """A made-up tree of two skills (one moved into its feature), two playbooks and a principle,
     with a page of four tiles."""
-    for name, text in {**MADE_UP, "docs/jstack-explained.html": MADE_UP_PAGE}.items():
+    for name, text in {
+        **MADE_UP,
+        "features/jdrift/docs/jstack-explained.html": MADE_UP_PAGE,
+    }.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text(text)
     return tmp_path
@@ -266,14 +270,20 @@ def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to
 
 
 def test_the_build_writes_the_page_once_and_changes_nothing_the_second_time(tree):
-    page = tree / "docs" / "jstack-explained.html"
+    page = tree / "features/jdrift/docs/jstack-explained.html"
     first = explained(tree)
-    assert (first.returncode, first.stdout) == (0, "built: docs/jstack-explained.html\n")
+    assert (first.returncode, first.stdout) == (
+        0,
+        "built: features/jdrift/docs/jstack-explained.html\n",
+    )
     once = page.read_text()
     assert ' id="playbook-one"' in once
     second = explained(tree)
     assert second.returncode == 0
-    assert second.stdout == "current: docs/jstack-explained.html has what the tree has\n"
+    assert (
+        second.stdout
+        == "current: features/jdrift/docs/jstack-explained.html has what the tree has\n"
+    )
     assert page.read_text() == once
 
 
@@ -290,18 +300,21 @@ def test_the_build_of_the_real_page_leaves_what_is_hand_written():
 
 
 def test_the_check_says_the_page_is_behind_the_tree_and_writes_nothing(tree):
-    page = tree / "docs" / "jstack-explained.html"
+    page = tree / "features/jdrift/docs/jstack-explained.html"
     assert explained(tree).returncode == 0
     current = explained(tree, "--check")
     assert current.returncode == 0
-    assert current.stdout == "current: docs/jstack-explained.html has what the tree has\n"
+    assert (
+        current.stdout
+        == "current: features/jdrift/docs/jstack-explained.html has what the tree has\n"
+    )
     (tree / "playbooks" / "made-up.md").write_text("<!-- card: Build | 2 | A thing. -->\n")
     (tree / "principles" / "prove.md").unlink()
     before = page.read_text()
     behind = explained(tree, "--check")
     assert behind.returncode == 1
     assert behind.stdout == (
-        "behind: docs/jstack-explained.html lacks playbook-made-up; "
+        "behind: features/jdrift/docs/jstack-explained.html lacks playbook-made-up; "
         "still has principle-prove: run uv run python -m jdrift.explained\n"
     )
     assert page.read_text() == before
@@ -313,7 +326,7 @@ def test_the_check_finds_a_card_whose_words_changed(tree):
     behind = explained(tree, "--check")
     assert behind.returncode == 1
     assert behind.stdout == (
-        "behind: docs/jstack-explained.html has other words than the tree: "
+        "behind: features/jdrift/docs/jstack-explained.html has other words than the tree: "
         "run uv run python -m jdrift.explained\n"
     )
 
@@ -371,7 +384,7 @@ def test_a_file_whose_card_line_cannot_be_read_is_named_and_nothing_is_written(
     refused = explained(tree)
     assert refused.returncode == 2
     assert refused.stderr == f"jdrift.explained: {name}: {said}\n"
-    assert (tree / "docs" / "jstack-explained.html").read_text() == MADE_UP_PAGE
+    assert (tree / "features/jdrift/docs/jstack-explained.html").read_text() == MADE_UP_PAGE
 
 
 def test_a_tile_the_page_does_not_have_is_refused_with_the_tiles_it_has(tree):
@@ -380,7 +393,7 @@ def test_a_tile_the_page_does_not_have_is_refused_with_the_tiles_it_has(tree):
     assert refused.returncode == 2
     assert refused.stderr == (
         "jdrift.explained: playbook-made-up names the tile `No such tile`, and "
-        "docs/jstack-explained.html has no cards of it: it has Build; Decide\n"
+        "features/jdrift/docs/jstack-explained.html has no cards of it: it has Build; Decide\n"
     )
 
 
@@ -400,11 +413,12 @@ def test_each_command_has_a_card_with_a_rules_file_of_its_own(page):
     assert carded(page, "command-") == COMMANDS
     rules = {}
     for name in COMMANDS:
-        paths = set(re.findall(r"src/[\w/-]+\.(?:py|sh)", page.cards["command-" + name]))
+        card = page.cards["command-" + name]
+        paths = set(re.findall(r"(?:features/[\w-]+/)?src/[\w/-]+\.(?:py|sh)", card))
         assert len(paths) == 1, (name, paths)
         rules[name] = paths.pop()
         assert (REPO / rules[name]).is_file(), rules[name]
-        assert rules[name].startswith(f"src/{name.split('-')[0]}/")
+        assert re.match(rf"(features/[\w-]+/)?src/{name.split('-')[0]}/", rules[name])
     assert len(set(rules.values())) == len(COMMANDS)
 
 

@@ -185,7 +185,11 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
 
 def pinned():
     """The skill names of pstack at the pin, and the commit they are of."""
-    lines = (FIXTURES / "pstack-names.txt").read_text().splitlines()
+    lines = (
+        (REPO / "features" / "jdrift" / "tests" / "fixtures" / "pstack-names.txt")
+        .read_text()
+        .splitlines()
+    )
     (commit,) = re.findall(r"[0-9a-f]{40}", lines[0])
     return commit, [line for line in lines if line and not line.startswith("#")]
 

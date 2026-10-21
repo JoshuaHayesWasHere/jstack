@@ -1,4 +1,5 @@
-"""`python -m jdrift.explained [--check]`: the cards of `docs/jstack-explained.html`, from the tree.
+"""`python -m jdrift.explained [--check]`: the cards of
+`features/jdrift/docs/jstack-explained.html`, from the tree.
 
 Run in this repo's root, it reads one card line from each skill's `SKILL.md`, `playbooks/*.md`
 and `principles/*.md`, and writes the page's built parts from them: the text between each
@@ -33,7 +34,7 @@ from pathlib import Path
 
 from jdrift import Refused
 
-PAGE = "docs/jstack-explained.html"
+PAGE = "features/jdrift/docs/jstack-explained.html"
 RUN = "uv run python -m jdrift.explained"
 BUILT = re.compile(
     r"(?P<begin><!-- built: (?P<kind>\w+) (?P<part>cards|links), (?P<tile>.+?) -->\n)"

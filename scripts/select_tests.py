@@ -21,9 +21,10 @@ A changed file that is no module (a doc, a skill, a hook) selects the test files
 path, in the file or in a test module it imports: the parts of a path in a string or a `/`
 chain, from its file name up the directories until no other tracked file ends alike, as `crew`
 and `SKILL.md` for `skills/crew/SKILL.md`. A fixture selects the tests that spell it or the
-nearest directory above it, and `all` where none does. The map of verify-jstack's features
-adds to this: a feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
-syntax) and the tests that read them in a way no string shows (`Tests:`), and a changed path
+nearest directory above it, and `all` where none does. The map of verify-jstack's features,
+with each `features/<name>/verify.md`, adds to this: a feature file names the paths a feature
+owns (`Paths:`, in jmerge's pattern syntax) and the tests that read them in a way no string
+shows (`Tests:`), and a changed path
 selects the `Tests:` of each feature that owns it. An edit to a feature file selects that
 feature's tests: its `Tests:` and every test file that imports a module it owns. Its README
 lists the test files that read the whole tree (`Cross-cutting:`), which every change runs.
@@ -64,6 +65,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".claude/skills/verify-jstack/features"
+PAGE = "verify.md"
 TESTS = re.compile(r"(features/[^/]+/)?tests/")
 SOURCE = re.compile(r"(features/[^/]+/)?src/")
 TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
@@ -115,14 +117,22 @@ def listed(text, label):
     return []
 
 
+def pages():
+    """Each feature file's name, with its path: `<MAP>/<name>.md`, or `features/<name>/verify.md`
+    once the feature's page has moved into its folder."""
+    found = {path.stem: path for path in sorted((ROOT / MAP).glob("*.md")) if path.stem != "README"}
+    for path in sorted(ROOT.glob(f"features/*/{PAGE}")):
+        name = path.parent.name
+        if name in found:
+            raise Unread(f"{path.relative_to(ROOT)}: the feature {name} also has {found[name]}")
+        found[name] = path
+    return {name: path.relative_to(ROOT).as_posix() for name, path in sorted(found.items())}
+
+
 def features():
     """Each feature file's name, with its `Paths:` and its `Tests:`."""
-    texts = {path.stem: path.read_text() for path in sorted((ROOT / MAP).glob("*.md"))}
-    return {
-        name: (listed(text, "Paths"), listed(text, "Tests"))
-        for name, text in texts.items()
-        if name != "README"
-    }
+    texts = {name: (ROOT / path).read_text() for name, path in pages().items()}
+    return {name: (listed(text, "Paths"), listed(text, "Tests")) for name, text in texts.items()}
 
 
 def cross_cutting():
@@ -494,10 +504,11 @@ def selection(changed):
             if SOURCE.match(path):
                 found["imports"] |= test_files(importers(users(path)))
             found["names"] |= readers(path)
+    where = pages()
     for name, (owned, listed_tests) in features().items():
         if any(owns(owned, path) for path in changed):
             found["features"] |= set(listed_tests)
-        if f"{MAP}/{name}.md" in changed:
+        if where[name] in changed:
             found["features"] |= feature_tests(name)
     found["cross-cutting"] = set(cross_cutting())
     present = {

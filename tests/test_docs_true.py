@@ -36,7 +36,7 @@ from testing.paths import REPO
 
 README = REPO / "README.md"
 DOCS = REPO / "docs"
-PAGES = (README, *sorted(DOCS.glob("**/*.md")))
+PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))
 SCRIPTS = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"]
 WIDTH = "200"
 ENDS = ("|", "||", "&&", ";", "--", ">", ">>", "<", "<<")
@@ -278,8 +278,11 @@ def test_an_option_line_the_walk_cannot_read_fails_and_is_not_passed_over(line):
 
 
 def told(command):
-    """A command's page and the pages of its folder, `docs/<command>/`, as one text."""
-    paths = (DOCS / f"{command}.md", *sorted((DOCS / command).glob("*.md")))
+    """A command's page and the pages of its folder, `docs/<command>/`, as one text: of `docs/`,
+    or of the `docs/` of the feature it moved into."""
+    found = [DOCS / f"{command}.md", *REPO.glob(f"features/*/docs/{command}.md")]
+    page = next(path for path in found if path.is_file())
+    paths = (page, *sorted((page.parent / command).glob("*.md")))
     return "\n".join(path.read_text() for path in paths)
 
 

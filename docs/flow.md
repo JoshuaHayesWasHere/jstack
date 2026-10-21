@@ -50,12 +50,12 @@ Two HTML pages in this directory draw the same flow in more detail. github.com s
 
 ```sh
 xdg-open docs/flow.html
-xdg-open docs/jstack-explained.html
+xdg-open features/jdrift/docs/jstack-explained.html
 ```
 
 | Page | Shows |
 |---|---|
 | [`flow.html`](flow.html) | One task from a home to a merge, column by column: every file a step reads or writes, and every message a thread sends. |
-| [`jstack-explained.html`](jstack-explained.html) | The ten steps as a drawing, a first day, and one card for each skill, playbook, principle and command. |
+| [`jstack-explained.html`](../features/jdrift/docs/jstack-explained.html) | The ten steps as a drawing, a first day, and one card for each skill, playbook, principle and command. |
 
 Both pages load nothing from the network.
