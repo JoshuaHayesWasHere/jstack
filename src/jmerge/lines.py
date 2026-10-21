@@ -17,6 +17,7 @@ from typing import Literal, cast
 Word = Literal["merged", "wait", "hold", "refused"]
 LINE = re.compile(r"^(merged|wait|hold|refused) (\d+)\b(?: (\S+)(?: (.+))?)?")
 READY = re.compile(r"^ready (\d+) \S+ .*?, (safe because .+ \(proven at [0-9a-f]+\))$")
+GATE_OK = "gate: ok"
 
 
 @dataclass(frozen=True)

@@ -8,9 +8,9 @@ A line `jmerge` prints about a pull request is read by `parse`, which is `jmerge
 `stall` and `watch` read the `Line` it gives, not the text. `rebase` still reads the text of
 a `wait` line by itself.
 
-A `hold` is the user's, but for the one a crew can lift (`UNRULED`), which `expedite` asks
-its crew for first. No line is sent to them from here: `waiting` lists the holds that are
-theirs.
+A `hold` is the user's, but for the ones a crew can lift (`UNRULED`, and a merge gate that
+did not pass), which `expedite` asks its crew for first. No line is sent to them from here:
+`waiting` lists the holds that are theirs.
 
 A sweep is `jmerge`'s too, and jbus only ever asks what one would remove: `SWEEP` is the
 one command it runs for it, and it has `--check`.

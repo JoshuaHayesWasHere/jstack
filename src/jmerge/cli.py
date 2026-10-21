@@ -417,6 +417,104 @@ class Fresh:
             _run(self.main, "git", "worktree", "remove", "--force", str(at))
 
 
+class Gated(NamedTuple):
+    verb: str
+    why: str
+    note: str
+
+
+class Gate:
+    """The repo's merge gate: the command in its state's `merge-gate` file, run before every
+    merge in a checkout of the head, with the merge base and the head as its last two
+    arguments and as `BASE` and `HEAD`. It is run on every judgement, and its answer is kept
+    for that run only: a fix outside git is seen on the next. A run starts no gate once its
+    gates took `BUDGET`, so that one more, stopped at `TIMEOUT`, still ends inside the time
+    jbus gives `jmerge`."""
+
+    TIMEOUT = 10 * 60
+    BUDGET = 5 * 60
+    NAME = "merge-gate"
+
+    def __init__(
+        self, main: Path, state: Path, timeout: float = TIMEOUT, budget: float = BUDGET
+    ) -> None:
+        self.main = main
+        self.state = state
+        self.timeout = timeout
+        self.budget = budget
+        self.spent = 0.0
+        self.command = ready.fresh_command(_read(state / self.NAME))
+        self.answers: dict[tuple[int, str, str], Gated] = {}
+        self.output: dict[int, str] = {}
+
+    def of(self, number: int, head: str, branch: str) -> Gated:
+        _run(self.main, "git", "fetch", "-q", "origin", branch)
+        tip = _run(self.main, "git", "rev-parse", "-q", "--verify", f"origin/{branch}^{{commit}}")
+        key = (number, head, tip.stdout.strip())
+        if key not in self.answers:
+            if self.spent > self.budget:
+                return Gated("wait", ready.GATE_BUSY, "")
+            started = time.monotonic()
+            self.answers[key] = self._run(number, head, key[2])
+            self.spent += time.monotonic() - started
+        return self.answers[key]
+
+    def _unstarted(self, why: str) -> Gated:
+        return Gated("hold", ready.GATE_UNSTARTED.format(why=why), "")
+
+    def _run(self, number: int, head: str, tip: str) -> Gated:
+        if _run(self.main, "git", "cat-file", "-e", f"{head}^{{commit}}").returncode:
+            _run(self.main, "git", "fetch", "-q", "origin", f"refs/pull/{number}/head")
+        fork = _run(self.main, "git", "merge-base", tip, head) if tip else None
+        if fork is None or fork.returncode:
+            return self._unstarted("where it left main could not be worked out")
+        base = fork.stdout.strip()
+        at = self.state / "gate" / str(number)
+        _run(self.main, "git", "worktree", "remove", "--force", str(at))
+        shutil.rmtree(at, ignore_errors=True)
+        _run(self.main, "git", "worktree", "prune")
+        added = _run(self.main, "git", "worktree", "add", "-q", "--detach", str(at), head)
+        if added.returncode:
+            return self._unstarted(f"its head could not be checked out ({_said(added)})")
+        env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
+        env |= {"BASE": base, "HEAD": head}
+        out = at.with_name(f"{number}.log")
+        try:
+            with out.open("wb") as log:
+                ran = subprocess.Popen(
+                    ["sh", "-c", f'{self.command} "$@"', self.NAME, base, head],
+                    cwd=at,
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+                try:
+                    code = ran.wait(self.timeout)
+                except subprocess.TimeoutExpired:
+                    os.killpg(ran.pid, signal.SIGKILL)
+                    ran.wait()
+                    code = None
+        except OSError as error:
+            return self._unstarted(str(error))
+        finally:
+            _run(self.main, "git", "worktree", "remove", "--force", str(at))
+        said = _read(out)
+        out.unlink(missing_ok=True)
+        if code == 0:
+            return Gated("", "", lines.GATE_OK)
+        self.output[number] = said
+        if code is None:
+            limit = self.timeout
+            told = f"{limit // 60:g} minutes" if limit % 60 == 0 else f"{limit:g} s"
+            return Gated("hold", ready.GATE_TIMED_OUT.format(limit=told), "")
+        first = ready.first_line(said, code)
+        if code in (126, 127):
+            return self._unstarted(first)
+        return Gated("hold", ready.GATE_FAILED.format(first=first), "")
+
+
 class Homes(NamedTuple):
     known: dict[str, str]
     running: dict[str, str]
@@ -446,6 +544,7 @@ class Repo:
         fresh: Fresh | None = None,
         *,
         user: jsettings.Settings,
+        gate: Gate | None = None,
     ) -> None:
         self.user = user
         self.main = main
@@ -456,6 +555,7 @@ class Repo:
         self.guarded = guarded
         self.ci = ci
         self.fresh = fresh
+        self.gate = gate
         self.rules = rules
         self.own = own
         self.unruly: str | None = None
@@ -948,10 +1048,18 @@ class Repo:
                 )
         if (self.state / "merge-off").exists():
             return Judgement(brief.stem, "wait", ready.MERGE_OFF, note, None)
+        gated = (
+            self.gate.of(one.number, one.head, one.base)
+            if self.gate and self.gate.command
+            else None
+        )
+        if gated and gated.verb:
+            return Judgement(brief.stem, gated.verb, gated.why, note, None)
         rules = bool(path) and ready.changes_the_rules(one, left)
         if one.number in self.order:
             self.through = one.number
-        return Judgement(brief.stem, "", "", note, ready.Judged(path, tip, rules, fresh))
+        judged = ready.Judged(path, tip, rules, fresh, gated.note if gated else "")
+        return Judgement(brief.stem, "", "", note, judged)
 
     def holds(self) -> dict[str, str]:
         try:
@@ -981,6 +1089,9 @@ class Repo:
         if first.verb != "hold":
             state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
             say(f"refused {about}: it is not held, {state}")
+            return 1
+        if ready.gate_held(first.why):
+            say(f"refused {about}: {first.why}, and a gate that passes lifts it, not --accept")
             return 1
         was = self.holds().get(str(one.number), "")
         if was != one.head:
@@ -1116,6 +1227,8 @@ class Repo:
             notes.append(f"guarded: {judged.path}")
         if judged.fresh:
             notes.append(judged.fresh)
+        if judged.gate:
+            notes.append(judged.gate)
         return lines.merged(number, slug, commit, one.title, notes, one.url)
 
 
@@ -1403,6 +1516,9 @@ def parser() -> argparse.ArgumentParser:
         "changed none of its paths or a CI path since, and jmerge's own rules are main's; "
         "otherwise it is printed as wait, guarded (touches <path>). "
         "A merge-off file in the repo's state merges nothing. "
+        "Where the repo's state has a merge-gate file, its command is run last, in a checkout "
+        "of the head with the merge base and the head as its last two arguments, and a "
+        "non-zero exit is printed as hold, its merge gate failed. "
         "With --sweep it merges nothing: it "
         "removes the worktree and the branches of each finished thread whose "
         "work is all merged or pushed, and prints what it removed and what it kept. With "
@@ -1507,6 +1623,7 @@ def main(argv: list[str] | None = None) -> int:
         found = rules_are_mains(PACKAGE)
         return found.pull() if isinstance(found, Behind) and not args.check else found
 
+    gate = Gate(main_checkout, state)
     repo = Repo(
         main_checkout,
         state,
@@ -1520,14 +1637,23 @@ def main(argv: list[str] | None = None) -> int:
         PACKAGE.resolve().is_relative_to(main_checkout.resolve()),
         Fresh(main_checkout, state, run=not args.check),
         user=user,
+        gate=gate,
     )
 
     now = datetime.now().astimezone()
 
     def say(line: str) -> None:
         print(line, flush=True)
+        said = lines.one(line)
+        held = said and said.word == "hold" and ready.gate_held(said.reason)
+        output = (
+            "".join(f"  | {one}\n" for one in gate.output.get(said.number, "").splitlines())
+            if held
+            else ""
+        )
+        if args.check and output:
+            print(output, end="", flush=True)
         if not args.check and state.is_dir():
-            said = lines.one(line)
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             if waits:
                 try:
@@ -1540,7 +1666,7 @@ def main(argv: list[str] | None = None) -> int:
                     return
                 last[waits] = line
             with (state / "merge.log").open("a", encoding="utf-8") as log:
-                log.write(f"{now:%Y-%m-%d %H:%M} {line}\n")
+                log.write(f"{now:%Y-%m-%d %H:%M} {line}\n{output}")
             if waits:
                 (state / "merge.log.last").write_text(json.dumps(last), encoding="utf-8")
 
@@ -1568,13 +1694,13 @@ def main(argv: list[str] | None = None) -> int:
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
-        if found.verb == "hold" and not args.check:
+        if found.verb == "hold" and not args.check and not ready.gate_held(found.why):
             repo.hold(one)
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
         elif args.check:
             guarded = f"guarded: {found.judged.path}" if found.judged.path else ""
-            notes = [found.note, guarded, found.judged.fresh]
+            notes = [found.note, guarded, found.judged.fresh, found.judged.gate]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
