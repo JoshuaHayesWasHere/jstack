@@ -52,17 +52,19 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         "already gh",
         "already gh sign-in",
     ]
-    assert said[8:15] == [
+    assert said[8:14] == [
         f"done jbus config {user.jbus_config}",
         f"needs you jbus sign-in {user.token} -> jbus t3 login",
-        f"needs you limits {user.limits} -> claude",
         f"done config {user.config}",
         f"done roles {user.roles}",
         "already lavish-axi",
         f"needs you state repo {user.state} -> git init {user.state}"
         f" && git -C {user.state} remote add origin <url>",
     ]
-    assert said[15] == "needs you provider inventory -> run infra's install"
+    assert said[14:16] == [
+        "needs you provider inventory -> run infra's install",
+        f"needs you limits {user.limits} -> jgauge limits",
+    ]
     parts = [*user.parts(), f"optional units {user.units}"]
     assert said[16:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
@@ -117,7 +119,7 @@ def test_a_second_run_says_only_already_and_needs_you_and_writes_nothing(user):
     code, said = user.setup()
     assert code == 0
     assert {line.split(" ")[0] for line in said} == {"already", "needs"}
-    assert line_for(said, "limits") == [f"needs you limits {user.limits} -> claude"]
+    assert line_for(said, "limits") == [f"needs you limits {user.limits} -> jgauge limits"]
     assert user.snapshot() == before
     assert (user.created.read_bytes(), user.seeded.read_bytes()) == (created, seeded)
 

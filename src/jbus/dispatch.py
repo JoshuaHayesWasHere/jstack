@@ -271,14 +271,16 @@ def mirrored_choice(
     checked: dict[str, bool],
     here: str | None = None,
     kept: ledger.Ledger | None = None,
+    full: float = ledger.FULL,
 ) -> pool.Choice:
     """The pool's choice for `instances` with every instance that is not mirrored passed
     over, on the ledger `kept`, as it is on disk where none is given. `here`, the instance a
-    thread is on already, is no move and is not asked."""
+    thread is on already, is no move and is not asked. An instance is full at `full`: a real
+    cap for a move, the user's headroom for a launch."""
     skip: dict[str, str] = {}
     kept = ledger.read(instances) if kept is None else kept
     while True:
-        choice = pool.choose(instances, kept, run.now, skip)
+        choice = pool.choose(instances, kept, run.now, skip, full)
         at = choice.instance
         if at is None or at == here or mirrored(run, slug, at, checked):
             return choice
@@ -419,11 +421,14 @@ class Turns:
                 continue
             try:
                 (routed,) = pool.routes("crew", run.now) or (None,)
+                full = pool.headroom("crew")
             except jroles.Refused as error:
                 run.gate(slug, "the role map gives the crew no model", str(error))
                 continue
             if routed:
-                found = mirrored_choice(run, slug, routed.selection.instances, self.checked)
+                found = mirrored_choice(
+                    run, slug, routed.selection.instances, self.checked, full=full
+                )
                 routed = pool.Route(routed.selection, found)
             choice = routed.choice if routed else pool.Choice(None, "")
             if routed and choice.instance is None:

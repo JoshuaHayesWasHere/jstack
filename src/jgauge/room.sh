@@ -4,7 +4,7 @@ room() (
   CPU=40
   MEMORY=6
   PRESSURE=10
-  CUSHION=100
+  CUSHION=${HEADROOM:-90}
   SLOTS=85
   PROC=${PROC:-/proc}
   LIMITS=${LIMITS:-$HOME/.local/state/claude/limits}

@@ -455,12 +455,14 @@ def test_a_machine_with_old_parts_prints_only_lines_the_troubleshooting_page_has
     user.write(user.token, "{}")
     user.write(user.config, 'name = "sam"\n')
     user.write(user.limits, f"five_hour 10 {int(time.time()) - 60}\n")
+    os.utime(user.limits, (time.time() - 20 * 60,) * 2)
     code, said = user.doctor()
     assert code == 1
     assert len([line for line in said if line.startswith("old ")]) >= 10
     assert unkeyed(said) == []
     user.program("t3", "exit 1")
-    user.write(user.limits, "nothing\n")
+    user.limits.unlink()
+    user.limits.mkdir()
     assert unkeyed(user.doctor()[1]) == []
 
 

@@ -777,6 +777,18 @@
       "source": "josh"
     },
     {
+      "name": "jgauge-limits.service",
+      "kind": "template",
+      "path": "templates/jgauge-limits.service",
+      "source": "josh"
+    },
+    {
+      "name": "jgauge-limits.timer",
+      "kind": "template",
+      "path": "templates/jgauge-limits.timer",
+      "source": "josh"
+    },
+    {
       "name": "jgauge-sample.service",
       "kind": "template",
       "path": "templates/jgauge-sample.service",

@@ -181,7 +181,8 @@ def test_a_start_that_is_not_a_time_is_refused(machine, capsys):
 def test_each_of_rooms_lines_is_read_from_room_sh(machine):
     room = (REPO / "src" / "jgauge" / "room.sh").read_text()
     for name in sample.ROOM_LINES:
-        assert f"  {name}={sample.room_line(name)}\n" in room
+        line = sample.room_line(name)
+        assert f"  {name}={line}\n" in room or f"  {name}=${{HEADROOM:-{line}}}\n" in room
 
 
 def test_a_log_from_before_the_tmp_columns_gets_them_once_and_keeps_its_rows(machine):
