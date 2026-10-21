@@ -8,9 +8,10 @@ skill), the templates with the systemd units, each hook a feature declares as `h
 copy's own, which `jbriefs.skills` reads where no checkout is above it. `skills/` and
 `templates/` are siblings in it, as in the checkout, so a skill that finds its templates
 through its own link still finds them. src/, tests/ and docs/ stay in the checkout. The wheel
-takes the copy whole as the folder `PACKAGED`, beside the packages (the pyproject output), so
-a release is installed with no checkout. Each Markdown file's relative links are rewritten for
-the copy (`links`). The folder is written whole: a file in it that no item makes is removed.
+takes the copy whole as shared data, installed at `PACKAGED` under the environment (the
+pyproject output), so a release is installed with no checkout. Each Markdown file's relative
+links are rewritten for the copy (`links`). The folder is written whole: a file in it that no
+item makes is removed.
 """
 
 from __future__ import annotations
@@ -27,8 +28,9 @@ from jtrees.outputs import catalog
 HARNESS = "claude-code"
 COPY = f"harness/jstack/{HARNESS}"
 PYTHONPATH = "harness/jstack/pythonpath"
-# The copy's folder in the wheel, beside the packages: `jbriefs.skills.PACKAGED` reads it.
-PACKAGED = "jstack_harness"
+# Where the wheel puts the copy, under the environment it is installed into (its shared data,
+# `<venv>/share/...`), a path with no Python version in it: `jbriefs.skills.PACKAGED` reads it.
+PACKAGED = "share/jstack/claude-code"
 DIRS = (COPY,)
 # What a skill's folder holds that is not the skill: a feature's other parts, and its
 # playbooks, which the copy puts in playbooks/.

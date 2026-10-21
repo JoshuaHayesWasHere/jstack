@@ -40,11 +40,11 @@ build-backend = "hatchling.build"
 packages = ["src/jbriefs", "src/jbus", "src/jdrift", "src/jgauge", "src/jinstall", "src/jleak", "src/jmerge", "src/jpack", "src/jroles", "src/jsettings"]
 # end generated
 
-# The harness copy, whole, as package data beside the packages, so a release installs with no
-# checkout: `jbriefs.skills` and `jinstall` find it there.
-[tool.hatch.build.targets.wheel.force-include]
+# The harness copy, whole, as the wheel's shared data: installed at <venv>/share/jstack/claude-code,
+# so a release runs with no checkout, and `jbriefs.skills` and `jinstall` find it there.
+[tool.hatch.build.targets.wheel.shared-data]
 # generated: harness by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
-"harness/jstack/claude-code" = "jstack_harness"
+"harness/jstack/claude-code" = "share/jstack/claude-code"
 # end generated
 
 # The repo's test command is `uv run pytest`, which runs the tests one after another.

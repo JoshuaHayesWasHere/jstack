@@ -23,7 +23,9 @@ not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
 
 `skills.json` also lists every playbook and template, and `where(kind, name)` is the one way
 the runtime finds any of these files: no module reads a path of the checkout from its own
-place in it.
+place in it. A release has no checkout: its wheel carries the harness copy beside the
+packages' environment, with a `skills.json` of the copy's own paths, and `root()` is that
+copy.
 
 `templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
 one item, `- <name>: <the artifact>`, its further lines indented.
@@ -33,6 +35,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -40,6 +43,9 @@ from typing import Any
 
 CATALOG = "skills.json"
 MARKER = "pyproject.toml"
+# Where a release's wheel puts the harness copy, under the environment it is installed into
+# (scripts/jtrees/outputs/harness.py writes it into pyproject.toml).
+PACKAGED = "share/jstack/claude-code"
 NAMEABLE = ("skill", "principle")
 ALIAS = "principle-"
 DEFAULT = "default"
@@ -85,16 +91,36 @@ class Named:
 
 
 @cache
-def root() -> Path:
+def checkout() -> Path | None:
     """The checkout this package runs from: the nearest directory above it with both a
     `pyproject.toml` and a `skills.json`, wherever the package sits in it, so another
-    project's `pyproject.toml` above an installed copy is not taken for it."""
+    project's `pyproject.toml` above an installed copy is not taken for it. None for a
+    release, which has no checkout above it."""
     here = Path(__file__).resolve()
-    found = next(
+    return next(
         (up for up in here.parents if (up / MARKER).is_file() and (up / CATALOG).is_file()), None
     )
+
+
+def packaged() -> Path | None:
+    """The harness copy a release's wheel installs under the environment this runs in,
+    `PACKAGED`, whose `skills.json` gives each path from the copy itself. None where it is
+    not there."""
+    copy = Path(sys.prefix) / PACKAGED
+    return copy if (copy / CATALOG).is_file() else None
+
+
+@cache
+def root() -> Path:
+    """Where every path of `skills.json` is read from: the checkout this package runs from,
+    else the copy a release carries beside it."""
+    found = checkout() or packaged()
     if found is None:
-        raise LookupError(f"no {CATALOG} beside a {MARKER} above {here}: no checkout of jstack")
+        here, copy = Path(__file__).resolve(), Path(sys.prefix) / PACKAGED
+        raise LookupError(
+            f"no {CATALOG} beside a {MARKER} above {here}, and none in {copy}: "
+            "no checkout of jstack and no release"
+        )
     return found
 
 

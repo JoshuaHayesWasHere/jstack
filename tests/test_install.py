@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -1119,3 +1120,103 @@ def test_a_skill_edited_after_the_copy_was_made_makes_the_harness_line_old(user,
     assert f"run python3 {generate} and commit the result" in err
     subprocess.run([sys.executable, "-I", generate], check=True, capture_output=True)
     assert first("--check")[1] == CURRENT
+
+
+# A release: the wheel `uv build` makes from this checkout, installed by uv into a tool
+# directory of its own under the test's temporary directory, so no checkout of jstack is on
+# any parent path of the tool, its copy or the HOME it runs under.
+
+PACKAGES = ("jbriefs", "jbus", "jdrift", "jgauge", "jinstall", "jleak", "jmerge", "jpack")
+PACKAGES += ("jroles", "jsettings")
+
+
+def no_checkout_above(path):
+    return not any((up / "pyproject.toml").is_file() for up in path.parents)
+
+
+@pytest.fixture(scope="module")
+def wheel(tmp_path_factory):
+    out = tmp_path_factory.mktemp("dist")
+    built = subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(out), str(REPO)],
+        capture_output=True,
+        text=True,
+    )
+    assert built.returncode == 0, built.stderr
+    (found,) = out.glob("*.whl")
+    return found
+
+
+class Release:
+    """The wheel as `uv tool install <wheel>` leaves it, and a HOME to run its commands under."""
+
+    def __init__(self, root, wheel):
+        self.root, self.tools, self.bin = root, root / "tools", root / "bin"
+        env = {k: v for k, v in os.environ.items() if not k.startswith(SCRUBBED)}
+        self.uv_env = env | {"UV_TOOL_DIR": str(self.tools), "UV_TOOL_BIN_DIR": str(self.bin)}
+        done = subprocess.run(
+            ["uv", "tool", "install", str(wheel)], env=self.uv_env, capture_output=True, text=True
+        )
+        assert done.returncode == 0, done.stderr
+        self.copy = self.tools / "jstack" / "share" / "jstack" / "claude-code"
+        assert no_checkout_above(self.copy)
+
+    def run(self, home, *args, **env):
+        home.mkdir(exist_ok=True)
+        path = f"{self.bin}:{os.environ['PATH']}"
+        return subprocess.run(
+            [str(self.bin / args[0]), *args[1:]],
+            env=self.uv_env | {"HOME": str(home), "PATH": path} | env,
+            cwd=home,
+            capture_output=True,
+            text=True,
+        )
+
+
+@pytest.fixture(scope="module")
+def released(wheel, tmp_path_factory):
+    return Release(tmp_path_factory.mktemp("release"), wheel)
+
+
+def test_the_wheel_carries_every_package_the_copy_whole_and_the_jinstall_command(wheel):
+    with zipfile.ZipFile(wheel) as built:
+        names = set(built.namelist())
+        (points,) = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
+        scripts = built.read(points).decode()
+    for package in PACKAGES:
+        assert f"{package}/__init__.py" in names, package
+    data = next(name.split("/")[0] for name in names if ".data/" in name)
+    shared = f"{data}/data/share/jstack/claude-code"
+    copied = {
+        f"{shared}/{path.relative_to(COPY).as_posix()}"
+        for path in COPY.rglob("*")
+        if path.is_file()
+    }
+    assert copied <= names, sorted(copied - names)[:5]
+    for part in (
+        "skills/crew/SKILL.md",
+        "playbooks/feature.md",
+        "principles/principle-prove-it-works.md",
+        "templates/jbus.timer",
+        "templates/result.md",
+        "hooks/outbound-command.sh",
+        "plugin.json",
+        "skills.json",
+    ):
+        assert f"{shared}/{part}" in names, part
+    assert "jinstall = jinstall.cli:main" in scripts.splitlines()
+
+
+def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from_the_copy(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    asked = tmp_path / "req.md"
+    asked.write_text("Playbook: investigation\nSkills: tdd\n")
+    opened = released.run(home, "jbus", "playbook", "scout", str(asked))
+    assert opened.returncode == 0, opened.stderr
+    assert opened.stdout.splitlines()[0] == str(released.copy / "playbooks" / "investigation.md")
+    loaded = released.run(home, "jbriefs", "--skills", str(asked))
+    assert loaded.returncode == 0, loaded.stderr
+    assert loaded.stdout.splitlines()[0].startswith("loaded: tdd")
+    assert "==> skills/tdd/SKILL.md <==" in loaded.stdout

@@ -344,10 +344,10 @@ def test_the_copys_skills_json_lists_what_the_checkouts_does_each_path_a_file_of
     assert pairs["template", "jbus.timer"] == "templates/jbus.timer"
 
 
-def test_the_wheel_takes_the_copy_whole_as_package_data_and_jinstall_as_a_command():
+def test_the_wheel_takes_the_copy_whole_as_shared_data_and_jinstall_as_a_command():
     project = tomllib.loads((REPO / "pyproject.toml").read_text())
     wheel = project["tool"]["hatch"]["build"]["targets"]["wheel"]
-    assert wheel["force-include"] == {COPY: "jstack_harness"}
+    assert wheel["shared-data"] == {COPY: "share/jstack/claude-code"}
     assert "src/jinstall" in wheel["packages"]
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
 
