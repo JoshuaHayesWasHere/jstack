@@ -1092,7 +1092,7 @@ def refused(text):
         if ": " not in content:
             continue
         value = content.partition(": ")[2].strip()
-        if not value or value[0] in "'\"[{&*!":
+        if not value or value[0] in "#'\"[{&*!":
             continue
         value = value.partition(" #")[0].strip()
         if value[0] in "|>":
@@ -1114,7 +1114,8 @@ def test_an_unquoted_value_with_a_colon_and_a_space_is_refused_and_a_quoted_or_b
     assert refused(f"jobs:\n  one:\n{step}        - run: echo a:\n") == [5]
     assert refused(f"jobs:\n  one:\n{step}        run: >-\n          {bad}") == []
     assert refused(f"jobs:\n  one:\n{step}        run: '{bad.strip()}'\n") == []
-    assert refused("on:\n  push:\n    tags: ['v*'] # a: tag\n") == []
+    assert refused("on:\n  push:\n    tags: v* # a: tag\n") == []
+    assert refused("on:\n  push: # note: x\n    tags: v*\n") == []
 
 
 VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
