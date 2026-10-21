@@ -276,7 +276,8 @@ class Writes:
         did = "approved" if action == APPROVE else action
         say = f"{id} {did} at {user.clock(now)}: {made['line']}"
         if action == item.Steer.MESSAGE:
-            say = f"{say.rstrip('.')}. {self._message(name, made['id'], now)}"
+            joint = " " if say.endswith((".", "?", "!")) else ". "
+            say = f"{say}{joint}{self._message(name, made['id'], now)}"
         return self._steered(name, 200, id, say, now)
 
     def _message(self, name: str, line: str, now: datetime) -> str:

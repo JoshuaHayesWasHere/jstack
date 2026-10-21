@@ -955,13 +955,14 @@
     missed += 1;
     if (missed >= MISSED_TILL_GONE) { gone = true; if (S || STACK) NOW = Date.now(); render(); }
   }
-  var turnOf = 0, pending = "", beat = 0;
+  var turnOf = 0, pending = "", beat = 0, asks = 0, drawnAsk = 0;
+  function newest(n) { if (n < drawnAsk) return false; drawnAsk = n; return true; }
   function poll(fresh) {
-    var mine = turnOf;
-    if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf) tookStack(st); }, function () { if (mine === turnOf) lost(); });
+    var mine = turnOf, n = ++asks;
+    if (!PROJECT) return ask("/stack.json").then(function (st) { if (mine === turnOf && newest(n)) tookStack(st); }, function () { if (mine === turnOf) lost(); });
     if (!STACK) ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; render(); } }, function () {});
     else if (!fresh && ++beat % STACK_EVERY_POLLS === 0) return ask("/stack.json").then(function (st) { if (mine === turnOf) { STACK = st; heard(); render(); } }, function () { if (mine === turnOf) lost(); });
-    return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf) took(st); }, function (e) {
+    return ask("/state.json" + QUERY).then(function (st) { if (mine === turnOf && newest(n)) took(st); }, function (e) {
       if (mine !== turnOf) return;
       if (e && e.status === 404) { NOSUCH = PROJECT; S = null; heard(); render(); } else lost();
     }).then(function () { if (mine === turnOf && pending && S) { var o = pending; pending = ""; openDrawer(o); } });

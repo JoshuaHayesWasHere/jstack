@@ -5,7 +5,6 @@ var LOST_STEER = "The view server did not answer, so it is not known whether the
 function steering(id) { return (S.steering || {})[id] || { source: "", steers: [] }; }
 function steerOf(it) {
   if (!STEERED || STEERED.id !== it.id) STEERED = { id: it.id, action: "", words: "", phase: "edit", said: null };
-  if (STEERED.phase !== "busy") STEERED.seen = it.last_event;
   return STEERED;
 }
 function willSay(it, st) {
@@ -29,6 +28,7 @@ function dItem(id) {
   var it = ITEMS[id]; if (!it) return null;
   var more = steering(id), source = more.source || (it.lines[0] && it.lines[0].verb === "proposed" ? it.lines[0].where : "");
   var steers = more.steers.filter(function (a) { return STEERS[a]; }), st = steerOf(it);
+  if (st.phase !== "busy") st.seen = it.last_event;
   var h = head("Work item", id + (it.title ? " " + it.title : ""));
   h += '<div class="now w-' + (it.state === "waiting_on_you" || it.state === "proposed" ? "user" : "crew") + '"><span class="tag">Now: ' + esc(ITEM_WORD[it.state] || it.state) + '</span><span class="big">' + esc(it.title || it.slug || id) + '</span></div>';
   h += '<dl class="kv" style="margin-top:12.5px"><dt>What</dt><dd>' + esc(it.title || "no title kept") + '</dd><dt>Source</dt><dd>' + esc(ITEM_WHERE[source] || source || "not kept") + '</dd><dt>Owner</dt><dd>' + esc(it.owner) + '</dd><dt>State</dt><dd>' + esc(ITEM_WORD[it.state] || it.state) + '</dd>' +
