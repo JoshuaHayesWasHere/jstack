@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "architect",
-  "description": "Sketches types, signatures and module structure before any code.",
-  "owns": [
-    "skills/architect/**"
-  ]
+  "description": "Sketches types, signatures and module structure before any code."
 }
