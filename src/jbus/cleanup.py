@@ -34,7 +34,9 @@ from jmerge import ready
 PRIORITY = 50
 NOT_AFTER = "no cleanup row: the brief does not say Review: after or twice"
 FIRST = "first review: a Review: twice brief's first review goes to its crewmate, as step 4 named"
-NO_WARNING = "no cleanup row: its second review has no warning or error finding, {info} info dropped"
+NO_WARNING = (
+    "no cleanup row: its second review has no warning or error finding, {info} info dropped"
+)
 FILED = ("error", "warning")
 UNREVIEWED = "no cleanup row: its last review has no verdict yet"
 CLEAN = "no cleanup row: its last review is clean"

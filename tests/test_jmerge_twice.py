@@ -77,7 +77,8 @@ def test_it_waits_for_the_fix_round_and_then_for_the_second_review():
 
 
 def test_a_clean_first_review_or_a_round_that_pushed_nothing_owes_no_second_review():
-    assert ready.short_of(brief(result="Fixed: none needed, clean\n") + review(HEAD, ()), HEAD) == ""
+    clean = brief(result="Fixed: none needed, clean\n") + review(HEAD, ())
+    assert ready.short_of(clean, HEAD) == ""
     declined = "Finding F1: not fixed, the loop, because a.py:3 reads it once\n"
     nothing = brief(result=declined + "Fixed: none needed, declined\n") + review(HEAD)
     assert ready.short_of(nothing, HEAD) == ""
