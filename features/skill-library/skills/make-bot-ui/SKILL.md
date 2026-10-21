@@ -122,7 +122,7 @@ Done when:
 - the Result gives both links, http://<the tailnet name>:<port>/ and http://<the tailnet address>:<port>/
 Where: <the page's directory>, ~/.config/systemd/user/bot-ui-<name>.service
 Do not touch: <C> (read it through the server only), the tailnet (no `tailscale up`)
-Design: none, the server is skills/make-bot-ui/scripts/bot_ui.py as it is
+Design: none, the server is features/skill-library/skills/make-bot-ui/scripts/bot_ui.py as it is
 Playbook: feature
 Review: review
 Pull request: <open one when the page is in a repo, else none>

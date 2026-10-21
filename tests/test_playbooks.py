@@ -8,7 +8,7 @@ from testing.layouts import assembled
 from testing.paths import REPO, playbooks
 
 PLAYBOOKS = REPO / "playbooks"
-TEMPLATE = "templates/playbook.md"
+TEMPLATE = "features/skill-library/templates/playbook.md"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(playbooks().values())
 ROLES = {"a crewmate": "crew", "a scout": "scout", "the home": "home", "an expert": "expert"}
@@ -243,10 +243,10 @@ def test_a_source_that_is_neither_this_repo_nor_a_pstack_file_is_a_problem(root,
 def test_a_standing_paragraph_that_differs_from_the_template_is_a_problem(root):
     copy, paths = standing(root, "crew")
     assert check(root, copy=copy.replace("word for word", "roughly")) == [
-        "does not carry standing paragraph 1 of templates/playbook.md"
+        "does not carry standing paragraph 1 of features/skill-library/templates/playbook.md"
     ]
     assert check(root, paths=None) == [
-        "does not carry standing paragraph 2 of templates/playbook.md"
+        "does not carry standing paragraph 2 of features/skill-library/templates/playbook.md"
     ]
 
 
@@ -257,7 +257,7 @@ def test_a_scouts_playbook_carries_the_scout_skills_path_and_not_the_crews(root)
     }
     assert check(root, "scout", **scout) == []
     assert check(root, "crew", **scout) == [
-        "does not carry standing paragraph 2 of templates/playbook.md"
+        "does not carry standing paragraph 2 of features/skill-library/templates/playbook.md"
     ]
 
 

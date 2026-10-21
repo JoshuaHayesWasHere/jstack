@@ -4,7 +4,8 @@ The work is a brief (a file under `tasks/`), a scout's request (a file under `sc
 text with no file, which goes to the home. Everything comes from the tree this module sits in:
 the role from the file's place, the playbook from the file's `Playbook:` line or the `Run by:`
 rows of `playbooks/`, the other skills from the `tip:` phrases of `skills/*/SKILL.md` by the
-rule of `hooks/skill-tips.sh`, and last each skill the text names. No table here names a skill.
+rule of `features/skill-library/hooks/skill-tips.sh`, and last each skill the text names. No
+table here names a skill.
 """
 
 from __future__ import annotations
@@ -212,10 +213,11 @@ _ONE_TO_FOUR = "[a-z0-9]+( [a-z0-9]+)?( [a-z0-9]+)?( [a-z0-9]+)?"
 
 
 def tipped(text: str, found: dict[str, Skill]) -> list[tuple[str, str]]:
-    """The skills whose `tip:` phrases the text says, by the rule of `hooks/skill-tips.sh`: a
-    phrase is its words, `*` stands for one to four of them, and it matches at word bounds of
-    the text's words. A skill counts by its phrase with the most literal words. A skill the
-    text names as `/name` or `$name` is not tipped. The most words first, then by name."""
+    """The skills whose `tip:` phrases the text says, by the rule of
+    `features/skill-library/hooks/skill-tips.sh`: a phrase is its words, `*` stands for one
+    to four of them, and it matches at word bounds of the text's words. A skill counts by its
+    phrase with the most literal words. A skill the text names as `/name` or `$name` is not
+    tipped. The most words first, then by name."""
     typed = re.sub(r"[^a-z0-9/$_-]+", " ", text.lower())
     named = f" {typed} "
     words = f" {_words(typed)} "

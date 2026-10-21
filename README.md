@@ -163,7 +163,7 @@ The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 | `templates/` | The one copy of each text the skills and the start hook fill in, and the systemd units of `jbus`. |
 | `playbooks/` | The numbered steps for one kind of task. |
 | `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
-| `hooks/` | `home-start.sh`, `skill-tips.sh`, `limits.sh`, and the two hooks of `jleak`: `pre-push.sh` and `outbound-command.sh`. |
+| `hooks/` | `home-start.sh`, `limits.sh`, and the two hooks of `jleak`: `pre-push.sh` and `outbound-command.sh`. |
 | `src/` | The nine commands, one package each. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
 | `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |

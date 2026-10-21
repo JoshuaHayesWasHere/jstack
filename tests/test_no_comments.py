@@ -175,9 +175,12 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "jgauge",
         "jroles",
     }
-    assert {"install.sh", "hooks/home-start.sh", "hooks/limits.sh", "hooks/skill-tips.sh"} <= set(
-        files
-    )
+    assert {
+        "install.sh",
+        "hooks/home-start.sh",
+        "hooks/limits.sh",
+        "features/skill-library/hooks/skill-tips.sh",
+    } <= set(files)
     assert {"src/jgauge/room.sh", "testing/jstack_fixtures.py", "tests/test_no_comments.py"} <= set(
         files
     )

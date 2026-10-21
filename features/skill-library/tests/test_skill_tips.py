@@ -1,6 +1,6 @@
-"""`hooks/skill-tips.sh`: the one line it gives for a prompt that matches a skill, and every
-place it stays silent. Every test runs the hook, on a copy beside a temporary `skills/`, or the
-repo's own."""
+"""`features/skill-library/hooks/skill-tips.sh`: the one line it gives for a prompt that
+matches a skill, and every place it stays silent. Every test runs the hook, on a copy beside a
+temporary `skills/`, or the repo's own."""
 
 import json
 import os
@@ -14,7 +14,7 @@ import pytest
 from testing.layouts import assembled
 from testing.paths import REPO, skills
 
-HOOK = REPO / "hooks" / "skill-tips.sh"
+HOOK = REPO / "features" / "skill-library" / "hooks" / "skill-tips.sh"
 INSTALLED = assembled() / "hooks" / "skill-tips.sh"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab"

@@ -23,7 +23,7 @@ It ends in a cited explanation or a recommendation, never in a change to the cod
 
 Never done here, and who does it:
 
-- **The change the answer points to.** A crewmate does it, from a brief, in a fresh thread. When the request asks for a brief, say in it which playbook the task is: `playbooks/bug-fix.md`, `playbooks/feature.md`, `playbooks/refactoring.md` or `playbooks/authoring-a-skill.md`.
+- **The change the answer points to.** A crewmate does it, from a brief, in a fresh thread. When the request asks for a brief, say in it which playbook the task is: `playbooks/bug-fix.md`, `playbooks/feature.md`, `playbooks/refactoring.md` or `features/skill-library/playbooks/authoring-a-skill.md`.
 - **A run that writes.** A question that needs one is not answered: the report says what run would answer it, and a crewmate makes it.
 - **A pull request.** A scout commits nothing and opens none.
 

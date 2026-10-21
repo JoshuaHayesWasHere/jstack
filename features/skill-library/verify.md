@@ -3,6 +3,7 @@
 Every skill under `skills/` and every template under `templates/` is installed as one library: each skill has its frontmatter, takes its arguments the way a loaded skill does, names only templates and tools that exist, and fits the rules every skill shares. The tests here read every skill or every template at once.
 
 Paths:
+- `features/skill-library/`
 - `skills/`
 - `templates/`
 Tests:

@@ -16,7 +16,7 @@ Each hook below is a feature's, as its `features/<name>/feature.json` declares i
 | the status line | [hooks/limits.sh](../hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [hooks/outbound-command.sh](../hooks/outbound-command.sh) | claude-code | `jleak` |
 | git `pre-push` | [hooks/pre-push.sh](../hooks/pre-push.sh) | git | `jleak` |
-| `UserPromptSubmit` | [hooks/skill-tips.sh](../hooks/skill-tips.sh) | claude-code | `skill-library` |
+| `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
 <!-- generated: end -->
 
 ## The start hook

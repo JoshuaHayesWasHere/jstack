@@ -26,8 +26,8 @@ the runtime finds any of these files: no module reads a path of the checkout fro
 place in it. A release has no checkout: its wheel carries the source tree beside the
 packages' environment, `skills.json` with it, and `root()` is that tree.
 
-`templates/skill-artifacts.md` says what each one leaves under `Skills run:` in a Result:
-one item, `- <name>: <the artifact>`, its further lines indented.
+`features/skill-library/templates/skill-artifacts.md` says what each one leaves under
+`Skills run:` in a Result: one item, `- <name>: <the artifact>`, its further lines indented.
 """
 
 from __future__ import annotations
