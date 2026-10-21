@@ -162,7 +162,14 @@ def test_a_path_git_quotes_or_ends_with_a_tab_is_judged(repo, path):
     assert said[0].startswith(f"{path}:1: ")
 
 
-def test_only_markdown_of_the_four_folders_is_judged(repo):
+def test_a_skill_under_features_is_judged(repo):
+    change(repo, "features/new/SKILL.md", lambda _: "One. Two.\n")
+    code, said = check(repo)
+    assert code == 1
+    assert said[0].startswith("features/new/SKILL.md:1: ")
+
+
+def test_only_markdown_of_the_five_folders_is_judged(repo):
     change(repo, "src/notes.md", lambda _: "One. Two.\n")
     change(repo, "templates/new.txt", lambda _: "One. Two.\n")
     change(repo, "README.md", lambda _: "One. Two.\n")
