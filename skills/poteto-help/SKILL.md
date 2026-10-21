@@ -38,7 +38,7 @@ said=$(cat << 'THE_ASK_ENDS_HERE'
 <what the user typed after the skill's name>
 THE_ASK_ENDS_HERE
 )
-if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/src/jbriefs/pick.py" ]; then
+if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/skills/poteto-help/SKILL.md" ]; then
     repo=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null) && H=~/.local/state/home/$(basename "$(dirname "$repo")") || H=
     path=
     for maybe in "$said" "$H/$said" "$H/tasks/$said.md" "$H/scouts/$said.md"; do
@@ -50,12 +50,13 @@ if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/src
     done
     echo "root: $R"
     if [ -n "$path" ]; then
-        uv run --quiet --no-sync --project "$R" python -m jbriefs pick "$path"
+        uv run --quiet --no-sync --project "$R" jbriefs pick "$path"
     else
-        printf '%s\n' "$said" | uv run --quiet --no-sync --project "$R" python -m jbriefs pick -
+        printf '%s\n' "$said" | uv run --quiet --no-sync --project "$R" jbriefs pick -
     fi
-    if grep -q -e '--setup' "$R/install.sh" "$R"/src/jinstall/*.py 2> /dev/null; then
-        echo "setup: sh $R/install.sh --setup"
+    C=${R%/harness/jstack/claude-code}
+    if [ -f "$C/install.sh" ]; then
+        echo "setup: sh $C/install.sh --setup"
     else
         echo "setup: README.md, Quickstart"
     fi

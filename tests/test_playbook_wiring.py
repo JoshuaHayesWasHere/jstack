@@ -26,6 +26,7 @@ from test_home_thread import as_read
 REPO = Path(__file__).parent.parent
 PLAYBOOKS = REPO / "playbooks"
 TEMPLATES = REPO / "templates"
+COPY = REPO / "harness" / "jstack" / "claude-code"
 NAMES = sorted(path.stem for path in PLAYBOOKS.glob("*.md"))
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 SLUG = "alpha"
@@ -66,11 +67,15 @@ def opening(skill):
 
 def uv(where):
     """A `uv` in `where` that runs `uv run --project <repo> jbus ...` as `jbus` does, with
-    `<repo>` as the repo whose `playbooks/` and `principles/` it opens."""
+    `<repo>` as the repo whose `playbooks/` and `principles/` it opens: the first folder from
+    `<repo>` up that has a `pyproject.toml`, as uv finds the project, else `<repo>`."""
     where.mkdir(parents=True, exist_ok=True)
     run = (
         "import sys; from pathlib import Path; from jbus import cli, playbook; "
-        "playbook.REPO = Path(sys.argv[1]).resolve(); sys.exit(cli.main(sys.argv[2:]))"
+        "at = Path(sys.argv[1]).resolve(); "
+        'up = [d for d in (at, *at.parents) if (d / "pyproject.toml").is_file()]; '
+        "playbook.REPO = (up or [at])[0]; "
+        "sys.exit(cli.main(sys.argv[2:]))"
     )
     (where / "uv").write_text(
         '#!/bin/sh\n[ "$1 $2 $4" = "run --project jbus" ] || exit 64\nrepo=$3\nshift 4\n'
@@ -116,7 +121,8 @@ def opened(skill, text, tmp_path, repo=REPO, name="", shell="sh", real=False):
         catalogued(repo)
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / skill).symlink_to(repo / "skills" / skill)
+    linked = COPY if repo == REPO else repo
+    (user / ".claude" / "skills" / skill).symlink_to(linked / "skills" / skill)
     state = tmp_path / "state"
     if skill == "home":
         state.mkdir()
@@ -540,3 +546,15 @@ def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
     assert said[1:] == ["1. Do one thing.", "2. Then."]
+
+
+def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_copy():
+    """`T` is `<copy>/templates` once install.sh links a skill into the copy, so `$T/../<path>`
+    must name a file or folder the copy holds, not one it leaves in the checkout."""
+    reached = {
+        found.rstrip("/.")
+        for path in COPY.rglob("*.md")
+        for found in re.findall(r"\$T/\.\./([A-Za-z0-9_./-]+)", path.read_text())
+    }
+    assert "skills/crew/do-the-task.md" in reached
+    assert sorted(one for one in reached if not (COPY / one).exists()) == []
