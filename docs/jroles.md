@@ -32,6 +32,18 @@ Since the user's word of 2026-10-20 every review runs as two Claude Sonnet 5.5 t
 It replaces, for now, the earlier rule that Claude does the coding and the other providers review.
 A review line that names Claude's built-in instance, or a pool of Claude instances, is placed and moved on a cap like any other Claude thread (see Pools).
 
+## Models
+
+The Claude model ids the docs name, each one a `claudeAgent` line may give as `<model>`.
+`jroles` passes the id to T3 Code as written and checks it against no list.
+`scripts/check-jstack-docs.py` fails a page that names a Claude id this table lacks, so a new model is added here first.
+
+| Model | Name |
+| --- | --- |
+| `claude-opus-5-5` | Claude Opus 5.5 |
+| `claude-sonnet-5-5` | Claude Sonnet 5.5 |
+| `claude-haiku-5-5` | Claude Haiku 5.5 |
+
 ## Effort and fast
 
 Each provider names its effort with its own T3 Code option id, and takes only the levels T3 Code lists for it, up to the ceiling the user's rule gives the role:

@@ -39,6 +39,7 @@ PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "no
 .PHONY: check
 check:
 	python3 scripts/generate-jstack-trees.py --check
+	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
 	uv run ruff format --check .
 	$(PYTEST)
@@ -49,7 +50,9 @@ check:
 # pull request is the tip of main; a desk takes origin/main. The full suite runs on main
 # after the merge. Before the tests, scripts/prose_lint.py holds each prose line the diff adds
 # to one sentence, and scripts/generate-jstack-trees.py fails a generated file that is stale
-# against features/ (`make check` runs that itself where the selection is `all`).
+# against features/, and scripts/check-jstack-docs.py fails a page of the README or the docs
+# that says what the tree does not have (`make check` runs both itself where the selection is
+# `all`).
 BASE ?= origin/main
 
 .PHONY: check-fast
@@ -58,6 +61,7 @@ check-fast:
 	python3 scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	python3 scripts/generate-jstack-trees.py --check || exit; \
+	python3 scripts/check-jstack-docs.py || exit; \
 	set -x; \
 	uv run ruff check . && uv run ruff format --check . && $(PYTEST) $$tests
 

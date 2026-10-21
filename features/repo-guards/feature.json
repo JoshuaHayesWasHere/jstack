@@ -6,6 +6,7 @@
     "tests/test_tool_calls.py",
     "tests/test_playbook*.py",
     "tests/test_docs_tree.py",
+    "scripts/check-jstack-docs.py",
     "tests/test_docs_true.py",
     "tests/test_readme_current.py",
     "tests/test_module_size.py",
