@@ -571,6 +571,29 @@ def test_a_timer_that_is_not_enabled_is_old_and_a_run_enables_it(user):
     assert user.run() == (0, user.every("ok", units))
 
 
+def test_units_linked_where_templates_kept_them_before_a_move_are_old_and_a_run_relinks_them(
+    user,
+):
+    units = user.with_jbus()
+    user.run()
+    was = {
+        name: REPO / "templates" / name for name in ("jroles-mirror.service", "jroles-mirror.timer")
+    }
+    for name, there in was.items():
+        (user.units / name).unlink()
+        (user.units / name).symlink_to(there)
+    wanted = user.units / "timers.target.wants" / "jroles-mirror.timer"
+    wanted.unlink()
+    wanted.symlink_to(was["jroles-mirror.timer"])
+
+    stale = f"old {units} -> jroles-mirror.service -> {was['jroles-mirror.service']}"
+    assert line_for(user.run("--check")[1], "units") == [stale]
+    assert user.run() == (0, user.every("ok", units))
+    for name in was:
+        assert os.readlink(user.units / name) == str(template(name))
+    assert os.readlink(wanted) == str(template("jroles-mirror.timer"))
+
+
 def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone(user):
     units = user.with_jbus()
     for name in UNITS:
