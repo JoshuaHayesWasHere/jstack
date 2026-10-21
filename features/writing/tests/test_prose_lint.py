@@ -1,8 +1,9 @@
-"""One sentence per line, for new prose: `scripts/prose_lint.py <base>` is run here as
-`make check-fast` runs it, with `python3 -I -S`, in a repo made from `tests/fixtures/prose/`,
-with a pull request's commit on top of it. A prose line the commit adds or changes fails when
-it holds more than one sentence, and a line it leaves alone is never judged. `sentences`, the
-one function that says what a sentence is, is tested on its own."""
+"""One sentence per line, for new prose: `features/writing/scripts/prose_lint.py <base>` is run
+here as `make check-fast` runs it, with `python3 -I -S`, in a repo made from
+`features/writing/tests/fixtures/prose/`, with a pull request's commit on top of it. A prose
+line the commit adds or changes fails when it holds more than one sentence, and a line it
+leaves alone is never judged. `sentences`, the one function that says what a sentence is, is
+tested on its own."""
 
 import importlib.util
 import shutil
@@ -13,8 +14,9 @@ import pytest
 
 from testing.paths import REPO
 
-SCRIPT = REPO / "scripts" / "prose_lint.py"
-OLD = REPO / "tests" / "fixtures" / "prose" / "old.md"
+FEATURE = REPO / "features" / "writing"
+SCRIPT = FEATURE / "scripts" / "prose_lint.py"
+OLD = FEATURE / "tests" / "fixtures" / "prose" / "old.md"
 SPEC = importlib.util.spec_from_file_location("prose_lint", SCRIPT)
 lint = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(lint)

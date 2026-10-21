@@ -114,7 +114,7 @@
     {
       "name": "opening-a-pr",
       "kind": "playbook",
-      "path": "playbooks/opening-a-pr.md",
+      "path": "features/writing/playbooks/opening-a-pr.md",
       "source": "josh"
     },
     {
@@ -607,7 +607,7 @@
     {
       "name": "technical-writing",
       "kind": "skill",
-      "path": "skills/technical-writing/SKILL.md",
+      "path": "features/writing/skills/technical-writing/SKILL.md",
       "source": "pstack",
       "description": "Layered technical-writing standard: Di\u00e1taxis structure, Google developer style sentences, STE instruction rules, Global English syntax. Use for /technical-writing or when writing or reviewing docs, RFCs, readmes, PR descriptions, or commit messages."
     },
@@ -621,7 +621,7 @@
     {
       "name": "unslop",
       "kind": "skill",
-      "path": "skills/unslop/SKILL.md",
+      "path": "features/writing/skills/unslop/SKILL.md",
       "source": "pstack",
       "description": "Cut AI tells from any writing. Use for /unslop, or when a playbook step names this skill."
     },

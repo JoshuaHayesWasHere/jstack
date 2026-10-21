@@ -80,7 +80,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [The skill library](./skill-library.md), not driven yet.
 - [The skills a user types](./understanding-skills.md), not driven yet.
 - [The verify-jstack harness](../../../../features/verify-jstack/verify.md), not driven yet.
-- [Writing for a reader](./writing-skills.md), not driven yet.
+- [Writing for a reader](../../../../features/writing/verify.md), not driven yet.
 
 No recipe drives these yet: `jgauge session`, `jgauge run` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.
 

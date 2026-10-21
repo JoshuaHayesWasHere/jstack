@@ -10,8 +10,8 @@ The files in `principles/` are adapted from the principle skills of pstack, by L
 - Commit: 99743e9c151c8537cbbf1f98bb38f34ef3368453
 - Taken from: `pstack/skills/principle-<name>/SKILL.md`, one file per principle
 - Changed here: the frontmatter is gone and its description is the first paragraph, links between principles point at the files in this directory, and pointers to pstack skills that are not in this repo are dropped or reworded. Each file has pstack's name, `principles/principle-<name>.md`, so that a name on a brief's `Skills:` line reads the same in pstack and here; the name before the prefix still resolves (`src/jbriefs/skills.py`).
-- Also covered, from the same commit: six playbook files, `authoring-a-skill.md`, `bug-fix.md`, `feature.md`, `opening-a-pr.md` and `refactoring.md` in `playbooks/` and `investigation.md` in `features/scout/playbooks/`, each adapted from `pstack/skills/poteto-mode/playbooks/<name>.md` and rewritten for this repo's crewmate and scout, with `bug-fix.md` also drawing on `pstack/skills/tdd/SKILL.md` and `investigation.md` on `pstack/skills/how/SKILL.md` and `pstack/skills/why/SKILL.md`.
-- Also covered, from the same commit: `skills/unslop/SKILL.md` and `skills/technical-writing/SKILL.md`, each taken whole from `pstack/skills/<name>/SKILL.md`. Changed here: each has a `tip:` line for `hooks/skill-tips.sh`, unslop's description says when it loads, and technical-writing names `templates/pr-body.md` and says where it is.
+- Also covered, from the same commit: six playbook files, `authoring-a-skill.md`, `bug-fix.md`, `feature.md` and `refactoring.md` in `playbooks/`, `opening-a-pr.md` in `features/writing/playbooks/` and `investigation.md` in `features/scout/playbooks/`, each adapted from `pstack/skills/poteto-mode/playbooks/<name>.md` and rewritten for this repo's crewmate and scout, with `bug-fix.md` also drawing on `pstack/skills/tdd/SKILL.md` and `investigation.md` on `pstack/skills/how/SKILL.md` and `pstack/skills/why/SKILL.md`.
+- Also covered, from the same commit: `features/writing/skills/unslop/SKILL.md` and `features/writing/skills/technical-writing/SKILL.md`, each taken whole from `pstack/skills/<name>/SKILL.md`. Changed here: each has a `tip:` line for `hooks/skill-tips.sh`, unslop's description says when it loads, and technical-writing names `templates/pr-body.md` and says where it is.
 - Also covered, from the same commit: the things to look for under the fourth and fifth questions of the review, in the `SCOPE` text of `features/pr-review/SKILL.md`, shortened from `pstack/skills/interrogate/references/rubric.md` and the dimensions of `pstack/skills/interrogate/references/code-quality-review.md`; and the two endings of a finding in `skills/crew/SKILL.md` "The review", which stand in for the four buckets of `pstack/skills/interrogate/references/lead-judgment.md`.
 - Also covered, from the same commit: `skills/correct/SKILL.md` and `playbooks/correct.md` (the playbook file `correct.md`), adapted from `pstack/skills/correct/SKILL.md`, and `skills/reflect/SKILL.md` with the four prompts in `skills/reflect/references/`, adapted from `pstack/skills/reflect/` and its `references/`, both rewritten for Claude Code and this repo's home, crewmate and brief.
 - Also covered, from the same commit: `playbooks/authoring-a-playbook.md` (the playbook file `authoring-a-playbook.md`), drawn from the phases of `pstack/skills/figure-it-out/SKILL.md` (a falsifiable definition of done, the check built before the work, the riskiest unknown first, each unit an experiment, a recurring correction encoded as a check or a script) and narrowed from designing a workflow for one task to writing a playbook for a kind of task. The `skip: <reason>` rule that every playbook carries is from `pstack/skills/poteto-mode/SKILL.md`.
@@ -78,7 +78,7 @@ playbooks/feature.md <- pstack/skills/poteto-mode/playbooks/feature.md
 playbooks/hillclimb.md <- pstack/skills/poteto-mode/playbooks/hillclimb.md
 features/scout/playbooks/investigation.md <- pstack/skills/poteto-mode/playbooks/investigation.md, pstack/skills/how/SKILL.md, pstack/skills/why/SKILL.md
 playbooks/multi-phase-plan.md <- pstack/skills/poteto-mode/playbooks/multi-phase-plan.md
-playbooks/opening-a-pr.md <- pstack/skills/poteto-mode/playbooks/opening-a-pr.md
+features/writing/playbooks/opening-a-pr.md <- pstack/skills/poteto-mode/playbooks/opening-a-pr.md
 playbooks/orchestrate.md <- pstack/skills/poteto-mode/playbooks/orchestrate.md
 playbooks/pause-safely.md <- pstack/skills/poteto-mode/playbooks/pause-safely.md
 playbooks/perf-issue.md <- pstack/skills/poteto-mode/playbooks/perf-issue.md
@@ -157,10 +157,10 @@ features/show-me-your-work/scripts/log.sh <- pstack/skills/show-me-your-work/scr
 features/arena-swarm/skills/swarm/SKILL.md <- pstack/skills/swarm/SKILL.md
 features/tdd/SKILL.md <- pstack/skills/tdd/SKILL.md
 features/teach/SKILL.md <- pstack/skills/teach/SKILL.md
-skills/technical-writing/SKILL.md <- pstack/skills/technical-writing/SKILL.md
+features/writing/skills/technical-writing/SKILL.md <- pstack/skills/technical-writing/SKILL.md
 features/typescript-best-practices/SKILL.md <- pstack/skills/typescript-best-practices/SKILL.md
 features/typescript-best-practices/references/patterns.md <- pstack/skills/typescript-best-practices/references/patterns.md
-skills/unslop/SKILL.md <- pstack/skills/unslop/SKILL.md
+features/writing/skills/unslop/SKILL.md <- pstack/skills/unslop/SKILL.md
 skills/why/SKILL.md <- pstack/skills/why/SKILL.md
 skills/why/references/epistemics.md <- pstack/skills/why/references/epistemics.md
 skills/why/references/investigator-prompt.md <- pstack/skills/why/references/investigator-prompt.md

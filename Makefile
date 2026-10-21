@@ -48,17 +48,17 @@ check:
 # reaches, as scripts/select_tests.py names them. Where the script says `all`, it is
 # `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
 # pull request is the tip of main; a desk takes origin/main. The full suite runs on main
-# after the merge. Before the tests, scripts/prose_lint.py holds each prose line the diff adds
-# to one sentence, and scripts/generate-jstack-trees.py fails a generated file that is stale
-# against features/, and scripts/check-jstack-docs.py fails a page of the README or the docs
-# that says what the tree does not have (`make check` runs both itself where the selection is
-# `all`).
+# after the merge. Before the tests, features/writing/scripts/prose_lint.py holds each prose
+# line the diff adds to one sentence, and scripts/generate-jstack-trees.py fails a generated
+# file that is stale against features/, and scripts/check-jstack-docs.py fails a page of the
+# README or the docs that says what the tree does not have (`make check` runs both itself
+# where the selection is `all`).
 BASE ?= origin/main
 
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
-	python3 scripts/prose_lint.py '$(BASE)' || exit; \
+	python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	python3 scripts/generate-jstack-trees.py --check || exit; \
 	python3 scripts/check-jstack-docs.py || exit; \
