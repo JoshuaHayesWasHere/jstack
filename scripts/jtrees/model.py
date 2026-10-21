@@ -22,7 +22,9 @@ KINDS: tuple[Kind, ...] = ("skill", "principle", "playbook", "template")
 
 def pattern(glob: str) -> re.Pattern[str]:
     """A row of `owns` as a regex over a repo-relative path: `dir/**` is the whole tree, and
-    otherwise `*` and `?` do not cross a `/`."""
+    otherwise `*` and `?` do not cross a `/`. A `**` anywhere else is refused."""
+    if "**" in glob.removesuffix("/**"):
+        raise ValueError(f"{glob}: ** is only the whole tree, at the end after a /")
     if glob.endswith("/**"):
         return re.compile(re.escape(glob[:-2]) + ".*")
     parts = ("[^/]*" if c == "*" else "[^/]" if c == "?" else re.escape(c) for c in glob)
@@ -85,11 +87,8 @@ class Tree:
 
     def owners(self, path: str) -> tuple[str, ...]:
         """Every owner of a repo-relative path: a feature's name, or the repo's own owner
-        (`INFRA`, `SHARED-DELETE`). A path under a feature's folder has that feature alone."""
-        if path.startswith(f"{FEATURES}/"):
-            name = path.split("/", 2)[1]
-            if any(one.name == name for one in self.features):
-                return (name,)
+        (`INFRA`, `SHARED-DELETE`). A path under a feature's folder is that feature's, and a
+        row of another that claims it too is a second owner."""
         found = [one.name for one in self.features if one.holds(path)]
         found += [name for name, rows in self.repo_owners if any(r.fullmatch(path) for r in rows)]
         return tuple(found)

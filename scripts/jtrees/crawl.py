@@ -150,6 +150,11 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
         for one in manifest.get("hooks", ())
     )
     owns = tuple(manifest.get("owns", ()))
+    try:
+        rows = tuple(pattern(one) for one in owns)
+    except ValueError as error:
+        faults.append(f"{where}: owns {error}")
+        return None
     return Feature(
         name=name,
         description=manifest["description"],
@@ -163,7 +168,7 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
         ),
         nameable=tuple(manifest.get("nameable", ())),
         owns=owns,
-        _owns=tuple(pattern(one) for one in owns),
+        _owns=rows,
     )
 
 

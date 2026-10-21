@@ -3,7 +3,8 @@
 A brief's `Skills:` line names a skill or a principle, or a playbook its feature lists as
 `nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). An
 item's `source` is read from the `Upstream map:` of `THIRD_PARTY.md`, through jdrift's own
-reader, loaded from jdrift's package wherever the tree has it.
+reader, loaded from jdrift's package wherever the tree has it: jdrift's `__init__` runs
+here, so it must import nothing but the standard library, as the generator does.
 """
 
 from __future__ import annotations

@@ -241,3 +241,19 @@ def test_the_crawl_raises_every_fault_at_once(copy):
         "features/bro/feature.json",
         "features/tdd/feature.json",
     }
+
+
+def test_a_feature_row_that_claims_another_features_folder_is_a_second_owner(copy):
+    manifest = copy / "features" / "bro" / "feature.json"
+    manifest.write_text(
+        manifest.read_text().replace('"skills/bro/**"', '"skills/bro/**", "features/jbus/**"')
+    )
+    assert crawl(copy).owners("features/jbus/feature.json") == ("bro", "jbus")
+
+
+def test_an_owns_row_with_a_double_star_inside_it_is_refused(copy):
+    manifest = copy / "features" / "bro" / "feature.json"
+    manifest.write_text(manifest.read_text().replace('"skills/bro/**"', '"skills/**/SKILL.md"'))
+    ran = generate(copy, "--check")
+    assert ran.returncode == 2
+    assert "features/bro/feature.json: owns skills/**/SKILL.md: ** is only" in ran.stderr

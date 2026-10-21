@@ -86,18 +86,28 @@ class Named:
 
 @cache
 def root() -> Path:
-    """The checkout this package runs from: the nearest directory above it with a
-    `pyproject.toml`, wherever the package sits in it."""
+    """The checkout this package runs from: the nearest directory above it with both a
+    `pyproject.toml` and a `skills.json`, wherever the package sits in it, so another
+    project's `pyproject.toml` above an installed copy is not taken for it."""
     here = Path(__file__).resolve()
-    found = next((above for above in here.parents if (above / MARKER).is_file()), None)
+    found = next(
+        (up for up in here.parents if (up / MARKER).is_file() and (up / CATALOG).is_file()), None
+    )
     if found is None:
-        raise LookupError(f"no {MARKER} above {here}: this is not a checkout of jstack")
+        raise LookupError(f"no {CATALOG} beside a {MARKER} above {here}: no checkout of jstack")
     return found
 
 
-@cache
 def _items(at: Path) -> tuple[dict[str, Any], ...]:
-    return tuple(json.loads((at / CATALOG).read_text())["items"])
+    """The items of the `skills.json` at `at`, read again whenever the file changes, so a
+    long-running server sees a regenerated list."""
+    path = at / CATALOG
+    return _read(path, path.stat().st_mtime_ns)
+
+
+@cache
+def _read(path: Path, changed: int) -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads(path.read_text())["items"])
 
 
 def listed(kind: str, at: Path | None = None) -> dict[str, Path]:
