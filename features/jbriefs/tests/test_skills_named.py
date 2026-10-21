@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
-from testing.paths import REPO
+from testing.paths import REPO, sources
 from testing.paths import skills as skill_folders
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -337,12 +338,24 @@ def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_lis
         skills.where("playbook", "crew")
 
 
+def source_modules():
+    return {path for root in sources() for path in root.rglob("*.py")}
+
+
+def test_the_source_modules_are_every_module_the_wheel_ships():
+    wheel = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"][
+        "targets"
+    ]["wheel"]
+    shipped = {path for package in wheel["packages"] for path in (REPO / package).rglob("*.py")}
+    assert shipped - source_modules() == set()
+
+
 def test_no_module_reads_a_file_of_the_checkout_from_its_own_place_in_it():
     """The one `parents[2]` left is the view's own source root, which bounds the modules it
     watches for a newer copy, and reads no file."""
     found = {
         str(path.relative_to(REPO))
-        for path in (REPO / "src").rglob("*.py")
+        for path in source_modules()
         if re.search(r"parents\[[24]\]", path.read_text())
     }
     assert found == {"src/jbus/view/__init__.py"}
