@@ -441,3 +441,24 @@ def test_a_launch_passes_an_instance_by_at_the_headroom_and_a_move_waits_for_the
     (pooled.config / "config.toml").unlink()
     ledger.path().write_text(f"five_hour 89.9 {resets + 60}\n")
     assert json.loads(pooled("crew")[1])["instanceId"] == "claudeAgent"
+
+
+def test_a_declared_claude_agent_at_its_own_home_is_read_there_and_not_at_dot_claude(tmp_path):
+    """`~/.claude` stands for `claudeAgent` only where the inventory puts no home of its own
+    under that name: a declared home is never overwritten by the fallback."""
+    from jroles.inventory import claude_instances, instances
+
+    declared = instances(
+        {
+            "claudeAgent": {"driver": "claudeAgent", "config": {"homePath": "~/.claude_main"}},
+            PRIME: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+        },
+        tmp_path,
+    )
+    assert claude_instances(declared, tmp_path) == {
+        "claudeAgent": tmp_path / ".claude_main",
+        PRIME: tmp_path / ".claude_prime",
+    }
+    assert claude_instances(instances({}, tmp_path), tmp_path) == {
+        "claudeAgent": tmp_path / ".claude"
+    }
