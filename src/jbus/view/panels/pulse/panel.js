@@ -2,7 +2,7 @@ function sourceList() {
   return '<ul class="clean rows">' + S.sources.map(function (s) {
     var at = ms(s.at);
     return '<li><code><b>' + esc(s.name) + '</b></code> ' + (s.state === "missing" || s.state === "unreadable" ? gap(s.state) : (at == null ? gap("no time") : dur(NOW - at) + ' old <span class="src">(' + day(at) + ')</span>') + (s.state === "stale" ? " " + gap("stale") : "")) + ' ' +
-      (stopped || gone ? (s.by === "jbus" ? fz() : lv()) : '<span class="chip plain">' + (s.by === "jbus" ? "jbus writes it" : s.by === "session" ? "a session's status line writes it" : "the server reads it itself") + '</span>') + '</li>';
+      '<span class="chip plain">' + (s.by === "jbus" ? "jbus writes it" : s.by === "session" ? "a session's status line writes it" : "the server reads it itself") + '</span></li>';
   }).join("") + '</ul>';
 }
 function dPulse() {

@@ -47,9 +47,15 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 | `#/` | Every project. |
 | `#/<project>` | One project's page. |
 | `#/<project>/task/<slug>` | That page with the drawer of one task open. |
+| `#/help` | The glossary over the page, every term of it. |
 | `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/infra/gate/3`, `#/infra/you/gate` or `#/infra/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
 
 `&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
+
+A drawer's head says once how fresh it is, as the header does for the page: the time it was read, or, while jbus is stopped, the time of the last pass it stands as, and that the server reads it itself where it does (the room, the checks, the gates).
+The page draws no badge, fold button or `?` beside a part: each part has one plain heading, and every term, shape, mark and count is in the glossary at `#/help`, which the header's `?` and the key <kbd>?</kbd> open.
+Hovering a shape, a mark or a count, or reaching a token by Tab, still says what it means beside it.
+The bus drawer lists the last 10 events of `events.jsonl`, with a link to the last 40.
 
 A drawer opened from a drawer opens over it. Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same: one layer back. The browser's back closes the drawer in front and forward opens it again. Close goes to the page under every drawer. The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
 
@@ -101,5 +107,7 @@ A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other 
 2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
 3. Open it from somewhere: a `data-open="<name>"` on its card, or in `adds.task` or `adds.you`, which put a line in the task drawer or a count beside the Needs you queue.
 4. Set `FIRST = True` in `panel.py` only when the first screen needs the data. Without it the page asks `/panel/<name>.json` when the drawer opens.
+
+A panel whose data the server reads itself says so with `reads`, and its drawer's head then says it is read now.
 
 An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.

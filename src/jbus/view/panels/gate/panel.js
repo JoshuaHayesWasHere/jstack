@@ -45,4 +45,4 @@ document.addEventListener("input", function (e) {
   OPEN_GATE.words = e.target.value;
   $("gfoot").innerHTML = gateFoot(OPEN_GATE.w);
 });
-panel({ drawer: dGate });
+panel({ reads: "mixed", drawer: dGate });

@@ -20,8 +20,9 @@ A panel's folder holds two files, and its name is the panel's. `panel.py` is its
   task's drawer, and `adds.you()` one count of the wait band;
 - `wide`, for a drawer of the full width, and `title`, the heading of the drawer of a panel
   that is asked for, while its answer is on its way.
-- `gloss`, what its cards mean, by name, as `[name, text]`: the ? beside each card opens it,
-  and the glossary at `#/help` lists it.
+- `gloss`, what its cards mean, by name, as `[name, text]`: the glossary at `#/help` lists it;
+- `reads`, how fresh its drawer is, said once in the drawer's head: `"server"` for what the
+  server reads itself on each request, `"mixed"` for both, and none for what a pass wrote.
 
 Nothing else names a panel. The server lists this directory when it starts (`found`), and
 the keys of `/state.json`, the shapes, the list of sources, the routes and the page's
