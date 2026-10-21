@@ -50,7 +50,11 @@ With no private patterns file, `jleak` checks the built-in patterns and says so 
 
 Both hooks run `jleak --strict`, so neither passes anything while the private patterns are missing.
 
-`features/jleak/hooks/pre-push.sh` is git's `pre-push` hook. It runs `jleak --push`, which reads each ref git is about to send. It asks the URL of the push what it has, with `git ls-remote`. It checks the ref's name, and for each commit the destination does not have yet: the message, each line the commit adds, and the name of each file it creates. A finding refuses the push:
+`features/jleak/hooks/pre-push.sh` is git's `pre-push` hook.
+It runs `jleak --push`, which reads each ref git is about to send.
+It asks the URL of the push what it has, with `git ls-remote`.
+It checks the ref's name, and for each commit the destination does not have yet: the message, each line the commit adds, and the name of each file it creates.
+A finding refuses the push:
 
 ```text
 branch:1: user-name
@@ -61,7 +65,8 @@ jleak: 3 findings, so the push is refused
 
 `sh install.sh` links it at `.git/hooks/pre-push` of the main checkout. The repo's worktrees run the same hook.
 
-`features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands. It runs `jleak --command` and refuses, with exit code 2:
+`features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands.
+It runs `jleak --command` and refuses, with exit code 2:
 
 - a `gh pr create`, `gh pr edit`, `gh pr comment` or `gh pr review` whose text matches a pattern. It reads the whole command, less a `cd` in front, and reads the file that `gh pr create --body-file`, or the same flag of the other three, names;
 - a `git push --no-verify`, and a `git push` that sets `core.hooksPath`, since either skips the first hook.

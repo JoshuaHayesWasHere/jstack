@@ -169,7 +169,8 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 | `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `features/jleak/hooks/outbound-command.sh` | Claude Code |
 | `~/.claude/settings.json` | `statusLine` | `hooks/limits.sh` | Claude Code |
 
-It also links `.git/hooks/pre-push` of the main checkout to `features/jleak/hooks/pre-push.sh`. That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](../features/jleak/docs/jleak.md)).
+It also links `.git/hooks/pre-push` of the main checkout to `features/jleak/hooks/pre-push.sh`.
+That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](../features/jleak/docs/jleak.md)).
 
 The install leaves every other key of those files as it was. It writes `statusLine` when the key is absent, and replaces one that runs `hooks/limits.sh` of another checkout. It leaves a status line of your own as it is.
 
