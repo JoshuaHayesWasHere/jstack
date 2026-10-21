@@ -1,11 +1,9 @@
 # Lessons from a thread
 
-`correct` and `reflect` turn what went wrong in a thread into a lesson kept where the next thread reads it, with `playbooks/correct.md`.
+`correct` and `reflect` turn what went wrong in a thread into a lesson kept where the next thread reads it, with `features/lessons/skills/correct/playbooks/correct.md`.
 
 Paths:
-- `skills/correct/`
-- `skills/reflect/`
-- `playbooks/correct.md`
+- `features/lessons/`
 Tests: none
 
 ## Sub-features

@@ -1,4 +1,4 @@
-# Fixtures for `tests/test_lessons.py`
+# Fixtures for `features/lessons/tests/test_lessons.py`
 
 `projects/` is a fake `~/.claude/projects`, written by hand, not taken from a real session. It has one directory, `-work-demo`, the name Claude Code gives the transcripts of threads that ran in `/work/demo`, with two sessions:
 

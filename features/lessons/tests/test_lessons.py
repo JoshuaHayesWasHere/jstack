@@ -11,12 +11,13 @@ import pytest
 
 from testing.paths import REPO
 
-SKILLS = {name: REPO / "skills" / name / "SKILL.md" for name in ("correct", "reflect")}
-FIXTURE = Path(__file__).parent / "fixtures" / "lessons" / "projects"
+FEATURE = Path(__file__).parents[1]
+SKILLS = {name: FEATURE / "skills" / name / "SKILL.md" for name in ("correct", "reflect")}
+FIXTURE = Path(__file__).parent / "fixtures" / "projects"
 EM_DASH = "\N{EM DASH}"
 TEXTS = sorted(
-    path for name in SKILLS for path in (REPO / "skills" / name).rglob("*") if path.is_file()
-) + [REPO / "playbooks" / "correct.md"]
+    path for name in SKILLS for path in (FEATURE / "skills" / name).rglob("*") if path.is_file()
+)
 HOME_SESSION = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 OTHER_SESSION = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 
