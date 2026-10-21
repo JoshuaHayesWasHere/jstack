@@ -1321,3 +1321,33 @@ def test_uninstall_from_a_release_removes_what_it_put_and_keeps_the_tool_it_runs
     assert "kept commands jstack -> the release this jinstall runs from" in gone.stdout
     assert not any((home / root).exists() for root in ROOTS)
     assert (released.bin / "jinstall").exists()
+
+
+def test_a_releases_outbound_hook_checks_a_push_on_the_tools_own_python_with_no_python_on_path(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    assert released.run(home, "jinstall", **env).returncode == 0
+    narrow = tmp_path / "narrow"
+    narrow.mkdir()
+    for program in ("dirname", "readlink", "cat"):
+        (narrow / program).symlink_to(shutil.which(program))
+    hook = released.copy / "hooks" / "outbound-command.sh"
+
+    def told(command):
+        said = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+        return subprocess.run(
+            ["/bin/sh", str(hook)],
+            input=said,
+            env={"HOME": str(home), "PATH": str(narrow)},
+            capture_output=True,
+            text=True,
+        )
+
+    clean = told("git push origin a-branch")
+    assert (clean.returncode, clean.stderr) == (0, "")
+    leaked = told(f"gh pr create --body 'see {home}/notes'")
+    assert leaked.returncode == 2
+    assert "home-path" in leaked.stderr

@@ -5,13 +5,19 @@ case $input in
 *gh*pr* | *push*) ;;
 *) exit 0 ;;
 esac
-repo=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 2
-repo=${repo%/harness/jstack/claude-code}
+copy=$(dirname "$(dirname "$(readlink -f "$0")")") || exit 2
+repo=${copy%/harness/jstack/claude-code}
 pythonpath=$repo/harness/jstack/pythonpath
-[ -f "$pythonpath" ] || {
-  echo "jleak: $pythonpath is missing, so the command is refused" >&2
-  exit 2
-}
+if [ ! -f "$pythonpath" ]; then
+  python=${copy%/share/jstack/claude-code}/bin/python
+  [ "$python" != "$copy/bin/python" ] && [ -x "$python" ] || {
+    echo "jleak: $copy is no checkout's copy and no release's, so the command is refused" >&2
+    exit 2
+  }
+  printf '%s' "$input" | PYTHONDONTWRITEBYTECODE=1 "$python" -I -m jleak --strict --command
+  [ "$?" -eq 0 ] || exit 2
+  exit 0
+fi
 path=
 while IFS= read -r folder; do path=${path:+$path:}$repo/$folder; done < "$pythonpath"
 for python in python3 python; do
