@@ -18,7 +18,8 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 4. What turns up on the way is yours when it is inside the brief's **Where** and reversible: a flaky check, a broken script, a related bug in a file you are in. Fix it at its cause in a commit of its own, log the row, and go back to the predicate (`principles/principle-fix-root-causes.md`). What is outside **Where** goes under "Noticed". Ask nothing that an experiment can settle. A question only the user can answer is parked as a gate with your default, as `skills/crew/SKILL.md` "Do the task" says, and the run carries on (`principles/principle-never-block-on-the-human.md`). Only the four pauses of that skill's "Carry on" wait.
 5. A plateau is not a stop. After three rounds in which no line moved, read the log, then change the approach: another cause, a smaller step, the check itself read again. Stop only when the predicate command exits zero, or at a real dead end, which is a line that no change inside **Where** can make hold. Then the Result says `Status: blocked`, the line, and what was tried, from the log. Never edit the predicate command so that a line holds.
 6. Check the log as "Check the log before handing over" in the log skill says. Run the predicate command once more on the committed head with `git status --porcelain` printing nothing, and keep what it prints for the `Proof:` line.
-7. Run `features/writing/playbooks/opening-a-pr.md`. With a pull request open the run goes on as `skills/crew/SKILL.md` "Stay on the pull request" says: the watch wakes this thread, and a failed check or a finding is one more round.
+7. Run `features/writing/playbooks/opening-a-pr.md`.
+   With a pull request open the run goes on as `skills/crew/SKILL.md` "Stay on the pull request" says: the watch wakes this thread, and a failed check or a finding is one more round.
 
 Never done here, and who does it:
 
