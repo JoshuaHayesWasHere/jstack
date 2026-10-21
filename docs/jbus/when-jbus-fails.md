@@ -13,7 +13,8 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 The alert goes out after 3 failures in a row, and for `snapshot` and `stale` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`. Later failures say nothing. The first success after an alert sends `recovered: <key> after <n> failures since <HH:MM zone>`. An alert is a `user` event, so it goes to both webhooks, and the one that works says the other failed. jbus raises a `pass`, `snapshot` or `stale` alert on the desktop with `notify-send`, and the others while the project's own webhook is failing. Every alert also waits in each project's outbox, goes to the webhook, and from there to the relay ([The relay](the-relay.md)) where a webhook names it: where none does, an alert reaches the desktop, the outbox and the webhook only.
 
 A pass goes on past a project that raises.
-It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1. jbus stops a `jmerge` it runs after 17 minutes and any other command after 300 seconds, and the unit stops a pass after 20 minutes (`TimeoutStartSec=20min`), so a command that hangs cannot hold every later pass.
+It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1.
+jbus stops a `jmerge` it runs after 17 minutes and any other command after 300 seconds, and the unit stops a pass after 20 minutes (`TimeoutStartSec=20min`), so a command that hangs cannot hold every later pass.
 A fresh check runs outside the pass ([jmerge](../../features/jmerge/docs/jmerge.md)), and a pass does not wait on one.
 A pass that finds the lock held prints `busy` and ends.
 

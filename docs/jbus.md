@@ -22,7 +22,8 @@ One pass, under one lock, does this for every project in the config:
    A pass that still owes a crew its message keeps the old commit to look at again and writes the green tip as `fixed`, so main reads as green from that pass on.
    A tip whose check has not ended or was cancelled changes neither, so a main stays red until a later tip is green.
    `jmerge` reads the file (`features/jmerge/docs/jmerge.md`, "Main is not red, or it is the fix of a red main").
-   A run of main that was cancelled is no failed check, whether its check run ended `cancelled` or it was cancelled before it had a job and left the commit with no check run. jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attempt` for it is 1.
+   A run of main that was cancelled is no failed check, whether its check run ended `cancelled` or it was cancelled before it had a job and left the commit with no check run.
+   jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attempt` for it is 1.
    It says `retro <slug>: main check cancelled twice at <sha>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha>, and GitHub did not run it again` when GitHub refuses.
    A job that `timeout-minutes` stops also ends `cancelled`, not `timed_out`, so a suite that hangs on main is run again and then reads `cancelled twice`, never `main check failed`.
 4. It ties each crewmate to its thread, [as the table below says](jbus/tying-a-crewmate-to-its-thread.md).
