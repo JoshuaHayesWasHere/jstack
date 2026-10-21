@@ -134,3 +134,59 @@ def test_a_clean_review_or_another_mode_makes_no_row(reviewer, mode, verdict, sa
     reviewer.brief(mode, verdict)
     assert reviewer.run().startswith(said)
     assert reviewer.rows() == []
+
+
+FIX = "b" * 40
+SECOND = (
+    "- error src/a.py:40 the retry never stops (bucket: Act on)\n"
+    "- warning src/d.py:7 a test asserts what the code computed (bucket: Noted)\n"
+    "- info src/b.py:3 a name says less than it could (bucket: Consider)\n"
+    "- info src/c.py:1 not worth it (bucket: Act on)\n"
+)
+
+
+def twice(reviewer, second=None):
+    """A `twice` brief: its first review answered at the head the fix pushed, and the second
+    review of that head, when `second` lists its findings."""
+    text = (
+        '# alpha: a task\nTask: "do it"\nPull request: open one when done\nReview: twice\n\n'
+        f"## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n"
+        "Reviewer: mcp:9 #1\nFinding F1: fixed, the loop\n"
+        f"Fixed: {FIX}\nSecond reviewer: mcp:10 #1\n\n"
+        f"## Review\nBy: codex #1\nVerdict: findings\nHead: {HEAD}\nFindings:\n{FOUND}"
+        "Sent to: mcp:crew\n"
+    )
+    if second is not None:
+        verdict = "findings" if second else "clean"
+        text += (
+            f"\n## Review\nBy: codex #1\nVerdict: {verdict}\nHead: {FIX}\nFindings:\n"
+            f"{second or '- none'}\n"
+        )
+    (reviewer.tasks / "alpha.md").write_text(text)
+
+
+def test_the_second_review_of_a_twice_brief_files_its_warnings_and_errors_as_one_row(reviewer):
+    twice(reviewer, SECOND)
+    reviewer.run()
+    (row,) = reviewer.rows()
+    assert (row["slug"], row["approved"]) == ("cleanup-alpha", "")
+    stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
+    assert "src/a.py:40" in stored and "src/d.py:7" in stored
+    assert "src/b.py" not in stored and "src/c.py" not in stored
+    assert "src/a.py:12" not in stored, "the first review's findings were the crew's to fix"
+    assert "2 info findings" in stored
+    assert f"{PULL}, not merged when the review of {FIX} was written" in stored
+
+
+def test_a_second_review_of_info_findings_alone_or_clean_makes_no_row(reviewer):
+    twice(reviewer, "".join(line for line in SECOND.splitlines(True) if line.startswith("- info")))
+    assert reviewer.run().strip() == cleanup.NO_WARNING.format(info=2)
+    twice(reviewer, "")
+    assert reviewer.run().strip() == cleanup.NO_WARNING.format(info=0)
+    assert reviewer.rows() == []
+
+
+def test_the_first_review_of_a_twice_brief_files_nothing_and_goes_to_the_crew(reviewer):
+    twice(reviewer)
+    assert reviewer.run().strip() == cleanup.FIRST
+    assert reviewer.rows() == []
