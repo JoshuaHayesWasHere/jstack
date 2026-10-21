@@ -19,6 +19,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -536,7 +537,9 @@ class Commands:
     ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
       and typing each name runs that file or the one in <checkout>/.venv/bin.
     old: `lacks jdrift jroles` (installed before they were added); `tool jgauge, from before
-      the rename`; `an install of <other path>`.
+      the rename`; `an install of <other path>`; `stale: its editable paths lack <root>`, a
+      package root pyproject.toml lists (`[tool.hatch.build.targets.wheel].packages`) that the
+      install's `.pth` does not, since the package moved after it was built.
     foreign, since no put mends it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
     missing: no tool of either name.
     foreign: a tool of either name that is no editable install of a checkout (a release, or
@@ -564,6 +567,17 @@ class Commands:
     def _lacks(self, machine: Machine) -> str:
         lacking = [name for name in self.names if not (machine.tool_bin() / name).exists()]
         return f"lacks {' '.join(lacking)}" if lacking else ""
+
+    def _stale(self, machine: Machine, checkout: Path) -> list[str]:
+        """Each package root of the checkout's pyproject.toml the tool's paths lack."""
+        try:
+            wheel = tomllib.loads((checkout / "pyproject.toml").read_text())["tool"]["hatch"]
+            listed = wheel["build"]["targets"]["wheel"]["packages"]
+        except (OSError, ValueError, KeyError, TypeError):
+            return []
+        roots = sorted({checkout / Path(package).parent for package in listed})
+        paths = machine.tool_paths(self.tool)
+        return [str(root) for root in roots if root not in paths]
 
     def _typed(self, machine: Machine, *also: Path) -> Found:
         """ok when typing each name runs the file in `tool_bin()`, or one of `also`."""
@@ -607,6 +621,8 @@ class Commands:
             return Found.old(f"an install of {source}")
         if before == machine.checkout:
             return Found.old(f"{renamed}, is still installed")
+        if lacking := self._stale(machine, machine.checkout):
+            return Found.old(f"stale: its editable paths lack {' '.join(lacking)}")
         if self._lacks(machine):
             return Found.old(self._lacks(machine))
         return self._typed(machine, machine.checkout / ".venv" / "bin")

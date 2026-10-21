@@ -157,6 +157,19 @@ class Machine:
                 continue
         return None
 
+    def tool_paths(self, tool: str) -> frozenset[Path]:
+        """The directories the `.pth` files of uv's tool `tool` put on its path: an editable
+        install lists one for each package root it was built with, and is not rebuilt when the
+        checkout moves a package. A line that runs code (`import ...`) is not a path."""
+        found: set[Path] = set()
+        for path in sorted((self._tools() / tool).glob("lib/python*/site-packages/*.pth")):
+            try:
+                lines = path.read_text().splitlines()
+            except OSError:
+                continue
+            found |= {Path(line.strip()) for line in lines if line.strip().startswith("/")}
+        return frozenset(found)
+
     def tool_version(self, tool: str) -> str | None:
         """The version uv's tool `tool` has, from the `Version:` of its package's METADATA.
         None when there is no such tool or no record says."""
