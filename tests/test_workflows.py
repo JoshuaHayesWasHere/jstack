@@ -1078,7 +1078,8 @@ def refused(text):
     """The lines whose value YAML refuses, by line number: an unquoted value that holds `: `
     or ends `:`, which YAML reads as a second mapping on one line. GitHub cannot use such a
     file, and reports a run named after its path with no jobs on every push, whatever its
-    triggers say. A block scalar's lines (after `|` or `>`) are the shell's, not YAML's."""
+    triggers say. A block scalar's lines (after `|` or `>`, indented past its key, not past a
+    list item's dash) are the shell's, not YAML's."""
     found, under = [], None
     for number, line in enumerate(text.splitlines(), 1):
         indent = len(line) - len(line.lstrip())
@@ -1088,7 +1089,8 @@ def refused(text):
         content = line.strip()
         if not content or content.startswith("#"):
             continue
-        content = content.removeprefix("- ")
+        item = content.removeprefix("- ").lstrip()
+        column, content = indent + len(content) - len(item), item
         if ": " not in content:
             continue
         value = content.partition(": ")[2].strip()
@@ -1096,7 +1098,7 @@ def refused(text):
             continue
         value = value.partition(" #")[0].strip()
         if value[0] in "|>":
-            under = indent
+            under = column
         elif ": " in value or value.endswith(":"):
             found.append(number)
     return found
