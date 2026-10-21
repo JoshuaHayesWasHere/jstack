@@ -678,15 +678,24 @@ UNIT_FOLDERS = ("templates", "features/*/units")
 each feature that has moved there."""
 
 
+def unit_templates(source: Path) -> dict[str, Path]:
+    """Each unit under `source`, by name: every *.service and *.timer of `UNIT_FOLDERS`.
+    Raises ValueError for a name two folders hold, so neither shadows the other."""
+    found: dict[str, Path] = {}
+    for folder in UNIT_FOLDERS:
+        for path in sorted(source.glob(f"{folder}/*")):
+            if path.suffix not in (".service", ".timer"):
+                continue
+            if path.name in found:
+                both = " and ".join(str(p.relative_to(source)) for p in (found[path.name], path))
+                raise ValueError(f"the unit {path.name} is in two folders: {both}")
+            found[path.name] = path
+    return found
+
+
 def templates(machine: Machine) -> dict[str, Path]:
-    """Each unit the install links, by name: every *.service and *.timer of `UNIT_FOLDERS` in
-    the source, a checkout's or a release's."""
-    return {
-        path.name: path
-        for folder in UNIT_FOLDERS
-        for path in sorted(machine.source.glob(f"{folder}/*"))
-        if path.suffix in (".service", ".timer")
-    }
+    """Each unit the install links, by name, in the source, a checkout's or a release's."""
+    return unit_templates(machine.source)
 
 
 @dataclass(frozen=True)
