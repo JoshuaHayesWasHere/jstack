@@ -217,7 +217,7 @@ def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_tak
     same name, `poteto-help`."""
     _, names = pinned()
     refused = {name for name in names if skills.resolve(name).path is None}
-    own = {name for name in names if (REPO / "skills" / name / "SKILL.md").is_file()}
+    own = {name for name in names if name in skill_folders()}
     assert "poteto-help" in own and "poteto-mode" not in own
     assert refused == ({"poteto-mode"} | not_taken()) - own
     for name in names:

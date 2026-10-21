@@ -209,13 +209,17 @@ def resolve(rev: str) -> str:
 def spellings(path: str) -> tuple[str, ...]:
     """The paths a file a case names has had: a principle as `principles/<name>.md` before it
     took pstack's prefix and `principles/principle-<name>.md` after, and a skill's file as
-    `skills/<name>/<file>` before its move and `features/<name>/<file>` after, so a case names
-    it either way."""
+    `skills/<name>/<file>` before its move and `features/<name>/<file>` or
+    `features/<feature>/skills/<name>/<file>` after, so a case names it either way."""
     if path.startswith("principles/"):
         name = path.removeprefix("principles/").removeprefix("principle-")
         return (f"principles/principle-{name}", f"principles/{name}")
     if path.startswith("skills/"):
-        return (path, "features/" + path.removeprefix("skills/"))
+        rest = path.removeprefix("skills/")
+        held = sorted(
+            one.relative_to(REPO).parts[1] for one in REPO.glob(f"features/*/skills/{rest}")
+        )
+        return (path, *(f"features/{one}/skills/{rest}" for one in held), "features/" + rest)
     return (path,)
 
 

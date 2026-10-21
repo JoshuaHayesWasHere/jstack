@@ -137,7 +137,7 @@ else
         if [ -n "$scope" ]; then echo "Home: $scope"; fi
         echo "Read: \`$dir/SKILL.md\` and \`$dir/features/\`${read}"
         echo "Rests on: the scouts' reports above${gaps:+; no report for:$gaps, which you read from source yourself}"
-        echo "Sources: \`skills/maintain-verification-skill/SKILL.md\`, the steps this brief carries"
+        echo "Sources: \`features/skill-library/skills/maintain-verification-skill/SKILL.md\`, the steps this brief carries"
         echo "Ruled out: a subagent per feature (not durable), driving the app from the home or a scout"
     } > "$B"
     echo "wrote: tasks/$run.md"

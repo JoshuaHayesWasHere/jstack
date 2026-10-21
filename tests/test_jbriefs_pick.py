@@ -12,9 +12,9 @@ import pytest
 
 from jbriefs import pick
 from testing.layouts import assembled
-from testing.paths import REPO
+from testing.paths import REPO, playbooks
 
-SKILL = REPO / "skills" / "poteto-help" / "SKILL.md"
+SKILL = REPO / "features" / "skill-library" / "skills" / "poteto-help" / "SKILL.md"
 HOOK = assembled() / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
@@ -125,7 +125,8 @@ def test_a_brief_with_no_playbook_line_takes_the_row_of_its_role_that_fits(tmp_p
         brief.write_text(
             BRIEF.replace("Playbook: feature\n", "").replace("Where: src/jgauge/", where)
         )
-        assert jbriefs(str(brief))[1].startswith(f"playbook {expected}: playbooks/{expected}.md")
+        path = playbooks()[expected].relative_to(REPO).as_posix()
+        assert jbriefs(str(brief))[1].startswith(f"playbook {expected}: {path}")
 
 
 def test_every_skill_and_playbook_printed_is_a_file(home):
@@ -159,7 +160,7 @@ def user(tmp_path, home):
     folder of the repo `demo` under its state."""
     made = tmp_path / "user"
     (made / ".claude" / "skills").mkdir(parents=True)
-    (made / ".claude" / "skills" / "poteto-help").symlink_to(SKILL.parent)
+    (made / ".claude" / "skills" / "poteto-help").symlink_to(assembled() / "skills" / "poteto-help")
     (made / ".local" / "state" / "home").mkdir(parents=True)
     (made / ".local" / "state" / "home" / "demo").symlink_to(home)
     return made
@@ -183,7 +184,7 @@ def test_the_skills_block_prints_the_same_lines_as_jbriefs_pick(user, home, demo
         ("tasks/tidy-gauge.md", str(home / "tasks" / "tidy-gauge.md")),
     ):
         said = run_block(user, demo, typed)
-        assert said[0] == f"root: {REPO}"
+        assert said[0] == f"root: {assembled()}"
         assert said[1:-1] == jbriefs(path)
         assert said[-1] == "setup: README.md, Quickstart" or said[-1].startswith("setup: sh ")
     asked = run_block(user, demo, QUESTION.strip())

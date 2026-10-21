@@ -8,7 +8,7 @@
 | `--out <path>` | Where to write the page. Defaults to `$XDG_CACHE_HOME/jbriefs/briefs.html`, or `~/.cache/jbriefs/briefs.html`. |
 | `--skills-run <brief>` | Writes no page. Prints the artifact the brief's Results hold under `Skills run:` for each skill its `Skills:` line names, as `jmerge` reads it, or `- <name>: no artifact`. The reviewer's intent has it. |
 | `--findings <brief>` | Writes no page. Prints the findings of every `## Review` section of the brief as one triaged list, the same on every run: each by its id (`F1`, `F2`, ...), with its bucket, severity, place and principle, the reviewers that raised it, the head, the answer it has by id and whether that answer counts, and for a blocking decline the scoped pass's ruling on it, `upheld` or `not upheld` with the disproof. A dismissal another reviewer wrote of the same place is printed beside the finding it contradicts. The last line, `next:`, says what the crew is to do. With `--left` it prints only that line, the crew skill's count; with `--rounds` it prints how many sections ran, the head the last saw, every head a section names and the blocking declines no scoped pass has ruled on, which the crew's "A second pass" reads. `src/jbriefs/findings.py` is the one parser of findings and answers: `jmerge`, the crew skill and jbus's `expedite` read briefs through it. |
-| `--skills <brief>` | Writes no page. Prints in full each skill or principle the brief's `Skills:` line names, under a line `loaded: <names>`, then the artifact each owes under `Skills run:` in the Result (`templates/skill-artifacts.md`). A name it does not resolve gets a line `unknown skill: <name> ...`. The crew and scout skills run it at their start. |
+| `--skills <brief>` | Writes no page. Prints in full each skill or principle the brief's `Skills:` line names, under a line `loaded: <names>`, then the artifact each owes under `Skills run:` in the Result (`features/skill-library/templates/skill-artifacts.md`). A name it does not resolve gets a line `unknown skill: <name> ...`. The crew and scout skills run it at their start. |
 
 ## `jbriefs pick`
 
@@ -25,7 +25,9 @@ The lines after the role line:
 - `playbook <name>: <its path> (<why>)`, the path as `skills.json` lists it, such as `playbooks/feature.md` or `features/scout/playbooks/investigation.md`.
   The name comes from the file's `Playbook:` line.
   A file with no such line gets a `Run by:` row of its role's runner: first a row whose `in a brief with` lines the file has, then a row whose backticked path covers every path on the file's `Where:` and `Change:` lines (tests aside), then the role's default, which is `feature` for a crewmate, `investigation` for a scout and `none` for the home.
-- `tip <skill>: ...`: at most three skills whose `tip:` phrases the words say, by the rule of `hooks/skill-tips.sh`, the most literal words first. A brief or a request is read by its title, its `Task:` and its list items. Other text is read whole.
+- `tip <skill>: ...`: at most three skills whose `tip:` phrases the words say, by the rule of `features/skill-library/hooks/skill-tips.sh`, the most literal words first.
+  A brief or a request is read by its title, its `Task:` and its list items.
+  Other text is read whole.
 - `named <skill>: ...`: each skill the text names as `/<name>` or as `skills/<name>`, read from a brief's or a request's head (no Result or Review under it) and from other text whole. A path such as `/tmp/x` names none.
 - `unknown <name>: ...`: a name from a `Playbook:` line, a `/<name>` or a `skills/<name>` that is no file here. It is printed, never dropped.
 

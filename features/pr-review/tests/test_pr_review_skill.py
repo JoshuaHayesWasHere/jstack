@@ -28,8 +28,8 @@ from testing.paths import REPO
 
 SKILL = REPO / "features" / "pr-review" / "SKILL.md"
 REVIEW = REPO / "features" / "pr-review" / "templates" / "review.md"
-INTERROGATE = REPO / "skills" / "interrogate"
-BLAST_RADIUS = REPO / "skills" / "blast-radius" / "SKILL.md"
+INTERROGATE = REPO / "features" / "skill-library" / "skills" / "interrogate"
+BLAST_RADIUS = REPO / "features" / "skill-library" / "skills" / "blast-radius" / "SKILL.md"
 
 BRIEF = """\
 # a-task: a title

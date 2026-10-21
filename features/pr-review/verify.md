@@ -4,8 +4,8 @@ The pr-review skill reviews a finished pull request in a fresh thread: it reads 
 
 Paths:
 - `features/pr-review/`
-- `skills/blast-radius/`
-- `skills/interrogate/`
+- `features/skill-library/skills/blast-radius/`
+- `features/skill-library/skills/interrogate/`
 - `templates/rerun.md`
 Tests: none
 

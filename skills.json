@@ -11,13 +11,13 @@
     {
       "name": "authoring-a-playbook",
       "kind": "playbook",
-      "path": "playbooks/authoring-a-playbook.md",
+      "path": "features/skill-library/playbooks/authoring-a-playbook.md",
       "source": "adapted"
     },
     {
       "name": "authoring-a-skill",
       "kind": "playbook",
-      "path": "playbooks/authoring-a-skill.md",
+      "path": "features/skill-library/playbooks/authoring-a-skill.md",
       "source": "josh"
     },
     {
@@ -390,7 +390,7 @@
     {
       "name": "blast-radius",
       "kind": "skill",
-      "path": "skills/blast-radius/SKILL.md",
+      "path": "features/skill-library/skills/blast-radius/SKILL.md",
       "source": "pstack",
       "description": "Find what a change could break somewhere else before it ships, beyond the diff, and prove the one fact it's safe because of by running real code instead of writing it up. Use for /blast-radius, 'blast radius of X', 'what could this break', or reviewing a small diff you don't trust."
     },
@@ -411,14 +411,14 @@
     {
       "name": "create-formal-verification-skill",
       "kind": "skill",
-      "path": "skills/create-formal-verification-skill/SKILL.md",
+      "path": "features/skill-library/skills/create-formal-verification-skill/SKILL.md",
       "source": "pstack",
       "description": "Generate a project-local skill that formally verifies the code where a bug costs the most and tests reach the least, in any language, with whichever verification tool fits. Use for /create-formal-verification-skill, \"model-check this race\", \"prove this invariant\", or when concurrency, retries, state machines, parsers, or unsafe code need more than tests."
     },
     {
       "name": "create-verification-skill",
       "kind": "skill",
-      "path": "skills/create-verification-skill/SKILL.md",
+      "path": "features/skill-library/skills/create-verification-skill/SKILL.md",
       "source": "pstack",
       "description": "Generate a project-local verification skill, `.claude/skills/verify-<app>/`, that drives the repo's app the way a user does, in any language, framework or platform. Use for /create-verification-skill, \"make a verify skill for this repo\", or when a repo has no scripted way to prove UI, CLI or service behavior."
     },
@@ -439,7 +439,7 @@
     {
       "name": "figure-it-out",
       "kind": "skill",
-      "path": "skills/figure-it-out/SKILL.md",
+      "path": "features/skill-library/skills/figure-it-out/SKILL.md",
       "source": "pstack",
       "description": "Frame a task no playbook fits (a large migration, an ambitious multi-part change, work reviewed after stepping away) and, in a home, turn it into plan entries whose crewmates each keep a decision log. Use for /figure-it-out or 'figure it out'."
     },
@@ -481,7 +481,7 @@
     {
       "name": "interrogate",
       "kind": "skill",
-      "path": "skills/interrogate/SKILL.md",
+      "path": "features/skill-library/skills/interrogate/SKILL.md",
       "source": "pstack",
       "description": "Use for /interrogate, \"interrogate\", \"adversarial review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Two reviewers that do not see each other challenge changes, and the lead filters what they found."
     },
@@ -495,14 +495,14 @@
     {
       "name": "maintain-verification-skill",
       "kind": "skill",
-      "path": "skills/maintain-verification-skill/SKILL.md",
+      "path": "features/skill-library/skills/maintain-verification-skill/SKILL.md",
       "source": "pstack",
       "description": "Keep a repo's verify skill, `.claude/skills/verify-<app>/`, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
     },
     {
       "name": "make-bot-ui",
       "kind": "skill",
-      "path": "skills/make-bot-ui/SKILL.md",
+      "path": "features/skill-library/skills/make-bot-ui/SKILL.md",
       "source": "pstack",
       "description": "Build a page whose buttons wake this T3 Code thread through a schedule_task webhook, served on the tailnet by a local server that keeps the webhook's URL and key off the browser. Use for /make-bot-ui, 'make a bot UI', 'buttons that wake this thread'."
     },
@@ -530,7 +530,7 @@
     {
       "name": "poteto-help",
       "kind": "skill",
-      "path": "skills/poteto-help/SKILL.md",
+      "path": "features/skill-library/skills/poteto-help/SKILL.md",
       "source": "josh",
       "description": "Answer a help question about jstack: how to get set up, which role takes a piece of work, and which playbook and skills fit a brief, a scout's request or a plain question, each with the file it came from. Type /poteto-help with a question, a brief's path or its slug."
     },
@@ -821,7 +821,7 @@
     {
       "name": "playbook.md",
       "kind": "template",
-      "path": "templates/playbook.md",
+      "path": "features/skill-library/templates/playbook.md",
       "source": "josh"
     },
     {
@@ -863,11 +863,18 @@
     {
       "name": "skill-artifacts.md",
       "kind": "template",
-      "path": "templates/skill-artifacts.md",
+      "path": "features/skill-library/templates/skill-artifacts.md",
       "source": "josh"
     }
   ],
   "hooks": [
+    {
+      "name": "skill-tips.sh",
+      "path": "features/skill-library/hooks/skill-tips.sh",
+      "harnesses": [
+        "claude-code"
+      ]
+    },
     {
       "name": "home-gauge.sh",
       "path": "hooks/home-gauge.sh",
@@ -893,13 +900,6 @@
     {
       "name": "outbound-command.sh",
       "path": "hooks/outbound-command.sh",
-      "harnesses": [
-        "claude-code"
-      ]
-    },
-    {
-      "name": "skill-tips.sh",
-      "path": "hooks/skill-tips.sh",
       "harnesses": [
         "claude-code"
       ]
