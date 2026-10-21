@@ -155,6 +155,8 @@ A directory is merged before it is moved and again after, so a run that stopped 
 A mirror whose home is not there is said on stderr, and the run exits 2: the home is made by the account's first login, which is infra's.
 
 `jroles mirror --check` changes nothing, takes no lock, prints `would ...` for each entry that differs and exits 1 if there is one.
+Its line for `.claude.json` names the shared keys whose values differ, `would sync <keys> of ~/.claude.json into <home>/.claude.json`, so an account key that changed is no drift.
+A mirror with nothing to do prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.
 `templates/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
 `install.sh --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while it differs.
