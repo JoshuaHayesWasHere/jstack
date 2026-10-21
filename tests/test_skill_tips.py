@@ -343,6 +343,7 @@ def test_the_command_the_readme_wires_runs_the_hook_and_does_nothing_without_it(
         return done.stdout
 
     assert run() == ""
-    (scene.user / "repos").mkdir()
-    (scene.user / "repos" / "jstack").symlink_to(scene.root)
+    copy = scene.user / "repos" / "jstack" / "harness" / "jstack" / "claude-code"
+    copy.parent.mkdir(parents=True)
+    copy.symlink_to(scene.root)
     assert json.loads(run()) == {"systemMessage": BLAST_TIP}

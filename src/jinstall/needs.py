@@ -12,11 +12,13 @@ from pathlib import Path
 
 import jleak
 from jinstall.kinds import (
+    HARNESS,
     Carried,
     Commands,
     GhSignIn,
     GitHook,
     GoneLink,
+    Harness,
     HomeSkills,
     HookGroup,
     JbusConfig,
@@ -69,7 +71,7 @@ class Need:
 
 def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order printed. Nothing is probed here: the list is derived from the
-    checkout (skills/*/SKILL.md, templates/*.service and *.timer, pyproject.toml), from
+    checkout (the copy's skills/*/SKILL.md, templates/*.service and *.timer, pyproject.toml), from
     one listing of each skills root for GoneLink, and from the provider inventory, which
     names the instances and the Claude homes to probe. An inventory that cannot be taken
     names none, and its own line says why.
@@ -95,7 +97,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      skills <home>                 HomeSkills, for each declared Claude home
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
-    Carried, in the order they are put. Uninstall walks them backwards:
+    Carried, in the order they are put. Uninstall walks them backwards. Every link and hook
+    command points into the copy, <checkout>/harness/jstack/claude-code, but the git hook:
+      hard      harness/ is current           Harness, the generator's --check
       hard      ~/.claude/skills/<skill>      Link
       hard      ~/.agents/skills/<skill>      Link, the root Cursor reads beside ~/.claude/skills
       hard      ~/.codex/skills/<skill>       Link
@@ -113,7 +117,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  units ~/.config/systemd/user  Units
     """
     repo, home = machine.checkout, machine.home
-    skills = sorted(path.parent.name for path in (repo / "skills").glob("*/SKILL.md"))
+    copy = repo / HARNESS
+    skills = sorted(path.parent.name for path in (copy / "skills").glob("*/SKILL.md"))
     roots = (home / ".claude" / "skills", home / ".agents" / "skills", home / ".codex" / "skills")
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
@@ -153,15 +158,16 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for name, instance in providers.items()
     ]
     found += [
-        Need(f"skills {each}", Level.HARD, HomeSkills(each, roots[0], repo / "skills"))
+        Need(f"skills {each}", Level.HARD, HomeSkills(each, roots[0], copy / "skills"))
         for each in claude_homes(providers, home)
     ]
     found += [
         Need(f"mirror {each.home}", Level.OPTIONAL, Mirrored(each))
         for each in mirrors(inventory, home)
     ]
+    found.append(Need("harness/ is current", Level.HARD, Harness()))
     found += [
-        Need(str(root / skill), Level.HARD, Link(root / skill, repo / "skills" / skill))
+        Need(str(root / skill), Level.HARD, Link(root / skill, copy / "skills" / skill))
         for root in roots
         for skill in skills
     ]
@@ -169,7 +175,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(str(path), Level.HARD, GoneLink(path))
         for root in roots
         for path in _listed(root)
-        if dead(path, repo)
+        if dead(path, repo) and path.name not in skills
     ]
     settings, codex = home / ".claude" / "settings.json", home / ".codex" / "hooks.json"
     found += [

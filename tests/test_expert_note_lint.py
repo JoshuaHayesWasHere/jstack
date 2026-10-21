@@ -4,6 +4,7 @@ folder in a temporary directory, by itself and by the block the `expert-study` p
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -275,9 +276,16 @@ def test_the_study_playbook_runs_the_lint_on_the_whole_folder(tmp_path, notes, s
     """The pass wrote the first note only: the other is one an earlier pass left."""
     expert = folder(tmp_path, notes)
     block = step_six().replace("<the notes of this pass>", next(iter(notes)))
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "jpack").write_text(
+        f'#!/bin/sh\nPYTHONPATH={REPO / "src"} exec {sys.executable} -m jpack "$@"\n'
+    )
+    (bin / "jpack").chmod(0o755)
+    copy = REPO / "harness" / "jstack" / "claude-code"
     done = subprocess.run(
         ["sh", "-c", block],
-        env={"PATH": "/usr/bin:/bin", "E": str(expert), "T": str(REPO / "templates")},
+        env={"PATH": f"{bin}:/usr/bin:/bin", "E": str(expert), "T": str(copy / "templates")},
         capture_output=True,
         text=True,
     )

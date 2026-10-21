@@ -39,7 +39,7 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/hooks/home-start.sh' 2>/dev/null || true",
+            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-start.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -75,7 +75,7 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/hooks/skill-tips.sh' 2>/dev/null || true",
+            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/skill-tips.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -92,13 +92,13 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
 At the limit, and after every tool call from then on, the agent gets one line:
 
 ```
-context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <checkout>/skills/handoff/SKILL.md and do its steps. Start nothing new.
+context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <checkout>/harness/jstack/claude-code/skills/handoff/SKILL.md and do its steps. Start nothing new.
 ```
 
 That line stops nothing: the tool call has run, and the next one runs too. At the ceiling the hook denies a tool call before it runs, and the agent gets this line as the reason:
 
 ```
-context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <checkout>/skills/handoff/SKILL.md and do its steps.
+context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <checkout>/harness/jstack/claude-code/skills/handoff/SKILL.md and do its steps.
 ```
 
 A home over its ceiling still makes the calls the `handoff` skill makes, and no other:
@@ -138,7 +138,7 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/hooks/home-gauge.sh' 2>/dev/null || true",
+            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-gauge.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -149,7 +149,7 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
         "hooks": [
           {
             "type": "command",
-            "command": "sh '<checkout>/hooks/home-gauge.sh' 2>/dev/null || true",
+            "command": "sh '<checkout>/harness/jstack/claude-code/hooks/home-gauge.sh' 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -175,7 +175,7 @@ The script prints nothing and exits 0 on any input, so the status line it leaves
 {
   "statusLine": {
     "type": "command",
-    "command": "sh '<checkout>/hooks/limits.sh'"
+    "command": "sh '<checkout>/harness/jstack/claude-code/hooks/limits.sh'"
   }
 }
 ```

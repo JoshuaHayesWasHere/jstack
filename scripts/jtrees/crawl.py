@@ -41,6 +41,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "schemas/**",
         "scripts/generate-jstack-trees.py",
         "scripts/jtrees/**",
+        "harness/**",
         "scripts/green_tree.py",
         "scripts/fresh-host.sh",
         "scripts/select_tests.py",
@@ -90,11 +91,13 @@ SPOTS: tuple[tuple[Kind, str, str], ...] = (
 
 
 class Invalid(Exception):
-    """The tree cannot be generated from: each fault, as `<path>: <why>`."""
+    """The tree cannot be generated from: each fault, as `<path>: <why>`, printed after
+    `prefix`."""
 
-    def __init__(self, faults: list[str]) -> None:
+    def __init__(self, faults: list[str], prefix: str = "invalid: ") -> None:
         super().__init__("\n".join(faults))
         self.faults = faults
+        self.prefix = prefix
 
 
 def _json(path: Path, faults: list[str], root: Path) -> Any:
