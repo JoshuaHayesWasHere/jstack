@@ -22,7 +22,7 @@ import pytest
 
 from jdrift.explained import BUILT, build
 from jdrift.explained import COMMENT as CARD
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 PAGE = REPO / "docs" / "jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
@@ -184,11 +184,7 @@ def carded(page, prefix):
 
 
 KINDS = {
-    "skill-": lambda: {
-        path.parent.name
-        for spot in ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
-        for path in REPO.glob(spot)
-    },
+    "skill-": lambda: set(skills()),
     "playbook-": lambda: {path.stem for path in (REPO / "playbooks").glob("*.md")},
     "principle-": lambda: {path.stem for path in (REPO / "principles").glob("*.md")},
 }

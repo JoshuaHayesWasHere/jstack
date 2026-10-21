@@ -16,6 +16,7 @@ from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
 from testing.paths import REPO
+from testing.paths import skills as skill_folders
 
 FIXTURES = Path(__file__).parent / "fixtures"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
@@ -291,8 +292,7 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
 
 def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_principle():
     listed = json.loads((REPO / skills.CATALOG).read_text())["items"]
-    spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
-    on_disk = {path.parent.name for spot in spots for path in REPO.glob(spot)}
+    on_disk = set(skill_folders())
     on_disk |= {path.stem for path in (REPO / "principles").glob("*.md")}
     named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
     assert named == on_disk
