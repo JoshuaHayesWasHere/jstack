@@ -25,7 +25,9 @@ The lines after the role line:
 - `playbook <name>: <its path> (<why>)`, the path as `skills.json` lists it, such as `playbooks/feature.md` or `features/scout/playbooks/investigation.md`.
   The name comes from the file's `Playbook:` line.
   A file with no such line gets a `Run by:` row of its role's runner: first a row whose `in a brief with` lines the file has, then a row whose backticked path covers every path on the file's `Where:` and `Change:` lines (tests aside), then the role's default, which is `feature` for a crewmate, `investigation` for a scout and `none` for the home.
-- `tip <skill>: ...`: at most three skills whose `tip:` phrases the words say, by the rule of `features/skill-library/hooks/skill-tips.sh`, the most literal words first. A brief or a request is read by its title, its `Task:` and its list items. Other text is read whole.
+- `tip <skill>: ...`: at most three skills whose `tip:` phrases the words say, by the rule of `features/skill-library/hooks/skill-tips.sh`, the most literal words first.
+  A brief or a request is read by its title, its `Task:` and its list items.
+  Other text is read whole.
 - `named <skill>: ...`: each skill the text names as `/<name>` or as `skills/<name>`, read from a brief's or a request's head (no Result or Review under it) and from other text whole. A path such as `/tmp/x` names none.
 - `unknown <name>: ...`: a name from a `Playbook:` line, a `/<name>` or a `skills/<name>` that is no file here. It is printed, never dropped.
 
