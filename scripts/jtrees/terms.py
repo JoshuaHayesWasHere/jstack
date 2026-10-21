@@ -1,10 +1,10 @@
 """The words of one harness that a skill copied for another harness needs an adapter for.
 
 `TERMS` holds one table a harness: the tools, paths and files a skill names that only that
-harness has. A skill copied for harness `h` that uses a term of another harness's table gets
-`adapter_line(h)` under its title, and the adapter, `docs/harness/<h>.md`, has a row for each
-such term. With one harness there is no other table, so nothing is flagged: the table is here
-for the harness that comes next, whose copy puts the line in.
+harness has. A skill copied for harness `h` that uses a term of another harness's table needs
+the adapter, `docs/harness/<h>.md`, with a row for each such term. With one harness there is no
+other table, so nothing is flagged: the table is here for the harness that comes next, whose
+copy points its skills at the adapter.
 """
 
 from __future__ import annotations
@@ -35,11 +35,3 @@ def used(text: str, harness: str) -> set[str]:
         for term, pattern in table.items()
         if pattern.search(text)
     }
-
-
-def adapter_line(harness: str) -> str:
-    """The line a skill that `used` flags gets under its title."""
-    return (
-        f"In {harness}, read [the adapter](../../docs/harness/{harness}.md) once per session "
-        "before you follow this skill."
-    )

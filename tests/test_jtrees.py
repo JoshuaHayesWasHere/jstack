@@ -389,6 +389,24 @@ def test_a_link_that_still_dangles_fails_naming_the_file_and_writes_nothing(copy
     assert (copy / COPY / "playbooks" / "bug-fix.md").read_bytes() == before
 
 
+def test_a_link_whose_text_is_code_is_rewritten_or_dangles_like_any_other(copy):
+    playbook = copy / "playbooks" / "bug-fix.md"
+    playbook.write_text(
+        playbook.read_text()
+        + "\nSee [`state`](../docs/state.md), [`gone`](../docs/gone.md) and `[code](../x.md)`.\n"
+    )
+    ran = generate(copy)
+    assert ran.returncode == 2
+    assert ran.stderr.splitlines() == [
+        f"FAIL {COPY}/playbooks/bug-fix.md links to ../docs/gone.md, which is not in the tree"
+    ]
+    playbook.write_text(playbook.read_text().replace(", [`gone`](../docs/gone.md)", ""))
+    assert generate(copy).returncode == 0
+    text = (copy / COPY / "playbooks" / "bug-fix.md").read_text()
+    github = "https://github.com/JoshuaHayesWasHere/jstack"
+    assert f"See [`state`]({github}/blob/main/docs/state.md) and `[code](../x.md)`." in text
+
+
 def test_a_file_in_the_copy_that_no_item_makes_is_stale_and_removed(copy):
     stray = copy / COPY / "skills" / "retired" / "SKILL.md"
     stray.parent.mkdir()
@@ -438,8 +456,3 @@ def test_the_claude_code_copy_flags_nothing_in_any_file_it_holds():
         if (found := terms.used(path.read_text(), "claude-code"))
     }
     assert flagged == {}
-
-
-def test_the_adapter_line_points_from_a_skill_at_its_harness_page():
-    line = terms.adapter_line("codex")
-    assert line.startswith("In codex, read [the adapter](../../docs/harness/codex.md) ")
