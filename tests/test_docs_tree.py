@@ -240,4 +240,3 @@ def test_a_skill_playbook_or_command_no_table_or_link_lists_is_found(small):
         "FAIL README.md:1 no page of the docs links features/eta/skills/epsilon/SKILL.md",
         "FAIL README.md:1 no page of the docs links skills/gamma/SKILL.md",
     ]
-

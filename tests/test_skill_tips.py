@@ -11,9 +11,11 @@ import time
 
 import pytest
 
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 HOOK = REPO / "hooks" / "skill-tips.sh"
+# The hook as install.sh wires it: in the harness copy, beside every skill.
+INSTALLED = REPO / "harness" / "jstack" / "claude-code" / "hooks" / "skill-tips.sh"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab"
 
@@ -286,7 +288,7 @@ def test_a_state_directory_that_cannot_be_written_gets_nothing(scene):
 
 def tip_lines():
     """Each of the repo's skills that has a `tip:` line: its name, what it is for, its triggers."""
-    for path in sorted((REPO / "skills").glob("*/SKILL.md")):
+    for path in (folder / "SKILL.md" for folder in skills().values()):
         head = path.read_text().split("\n---\n")[0]
         found = re.search(r"^tip: (.*)$", head, re.M)
         if found:
@@ -307,7 +309,7 @@ def test_each_trigger_of_the_repos_skills_gets_that_skills_tip(tmp_path, name, p
     assert triggers
     for count, trigger in enumerate(triggers):
         prompt = f"So, {trigger.replace('*', 'the thing').upper()}?"
-        assert scene.tip(prompt, session=f"s{count}", hook=HOOK) == f"tip: /{name} {purpose}"
+        assert scene.tip(prompt, session=f"s{count}", hook=INSTALLED) == f"tip: /{name} {purpose}"
 
 
 def wired(checkout):

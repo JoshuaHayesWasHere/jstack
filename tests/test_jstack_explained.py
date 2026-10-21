@@ -143,8 +143,9 @@ MADE_UP_PAGE = """<h2>Hand-written</h2>
 <p>The end.</p>
 """
 MADE_UP = {
-    "features/how/SKILL.md": '---\nname: how\ncard: "Read | 2 | Says <how> & why. | When `x` is new. '
-    '| op: the operator; plain: a step of `one`"\n---\n\n# How\n\ncard: "not this"\n',
+    "features/how/SKILL.md": '---\nname: how\ncard: "Read | 2 | Says <how> & why. '
+    '| When `x` is new. | op: the operator; plain: a step of `one`"\n---\n\n# How\n\n'
+    'card: "not this"\n',
     "skills/scout/SKILL.md": '---\nname: scout\ncard: "Read | 1 | Finds out. | When asked. '
     '| model: a home | look: scout"\n---\n\n# Scout\n',
     "playbooks/one.md": "# One\n\n<!-- card: Build | 1 | One thing. -->\n\n1. Do it.\n",
@@ -155,7 +156,8 @@ MADE_UP = {
 
 @pytest.fixture
 def tree(tmp_path):
-    """A made-up tree of two skills (one moved into its feature), two playbooks and a principle, with a page of four tiles."""
+    """A made-up tree of two skills (one moved into its feature), two playbooks and a principle,
+    with a page of four tiles."""
     for name, text in {**MADE_UP, "docs/jstack-explained.html": MADE_UP_PAGE}.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text(text)

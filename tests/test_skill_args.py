@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from testing.paths import REPO
+from testing.paths import skills
 
-SKILLS = sorted((REPO / "skills").glob("*/*.md"))
+SKILLS = [path for folder in skills().values() for path in sorted(folder.glob("*.md"))]
 
 TYPED = {
     "pr-review": ["run a-slug", "a-slug"],

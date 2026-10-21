@@ -13,3 +13,11 @@ def _root(start: Path) -> Path:
 
 
 REPO = _root(Path(__file__).resolve())
+SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
+
+
+def skills(root: Path = REPO) -> dict[str, Path]:
+    """Each skill's folder by its name, sorted: in `skills/`, or where a move puts it in its
+    feature, as `scripts/jtrees/crawl.py` finds them."""
+    found = (path.parent for spot in SPOTS for path in root.glob(spot))
+    return dict(sorted((folder.name, folder) for folder in found))
