@@ -12,7 +12,7 @@ import jsettings
 from testing.paths import REPO
 
 SKILLS = REPO / "skills"
-ROOM = REPO / "src" / "jgauge" / "room.sh"
+ROOM = REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh"
 BIN = Path(sys.executable).parent
 KB_PER_GB = 1048576
 IDLE = {"load": "0.42", "cores": "12", "memory": 19 * KB_PER_GB, "pressure": "0.00"}

@@ -2,10 +2,10 @@
 instances this machine runs, in T3 Code's `providerInstances` shape. infra's install links it;
 jstack only reads it, here, for `jinstall` and `jgauge limits` alike.
 
-`claude_instances` is the rule `hooks/limits.sh` keeps from a Claude home to the instance whose
-ledger file it writes: the first declared Claude instance whose `config.homePath` is that home
-(`~/.claude` where it names none), and the built-in `claudeAgent` for `~/.claude` where no
-declared instance is there.
+`claude_instances` is the rule `features/jgauge/hooks/limits.sh` keeps from a Claude home to the
+instance whose ledger file it writes: the first declared Claude instance whose
+`config.homePath` is that home (`~/.claude` where it names none), and the built-in
+`claudeAgent` for `~/.claude` where no declared instance is there.
 """
 
 from __future__ import annotations

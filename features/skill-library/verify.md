@@ -7,7 +7,7 @@ Paths:
 - `skills/`
 - `templates/`
 Tests:
-- `tests/test_room.py`
+- `features/jgauge/tests/test_room.py`
 
 ## Sub-features
 

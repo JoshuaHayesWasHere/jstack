@@ -114,8 +114,8 @@ For a new launch an instance has headroom while none of its windows is at the us
 A thread already running moves off its instance only at a real cap, 100% (`jbus`, "A usage limit").
 Three writers keep the ledger, by one rule (`features/jroles/src/jroles/ledger.py`): two resets under 5 minutes apart are one window, which keeps the larger share, and otherwise the later reset wins.
 A writer floors its reset to the second, and the usage endpoint's moves a second either way between calls, so a lower share of a window never replaces a cap on it.
-`jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](../../../docs/jgauge.md)).
-The other two write only when something happens: the status line (`hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, at 100% from a turn T3 Code ended on a usage limit.
+`jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](../../jgauge/docs/jgauge.md)).
+The other two write only when something happens: the status line (`features/jgauge/hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, at 100% from a turn T3 Code ended on a usage limit.
 A source that fails writes nothing, so the last line stands and a capped account is never read as free.
 `jgauge limits --check` and `install.sh --check` name a file 15 minutes old or more.
 

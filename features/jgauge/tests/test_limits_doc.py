@@ -1,16 +1,16 @@
-"""docs/limits.md stays true: a row whose Where is a `path:line` of this repo has, as its
-Value, text that file holds, and every machine size and room line has a row. The line number
-is a pointer and is not held: a change to any other line of the file would move it, and a
-test that pinned it would fail every pull request that touched that file."""
+"""features/jgauge/docs/limits.md stays true: a row whose Where is a `path:line` of this repo
+has, as its Value, text that file holds, and every machine size and room line has a row. The
+line number is a pointer and is not held: a change to any other line of the file would move
+it, and a test that pinned it would fail every pull request that touched that file."""
 
 import re
 
 from jgauge import sample, sizes
 from testing.paths import REPO
 
-DOC = REPO / "docs" / "limits.md"
+DOC = REPO / "features" / "jgauge" / "docs" / "limits.md"
 CELL = re.compile(r"`([^`]+)`")
-PLACE = re.compile(r"^((?:src|tests|templates)/[\w./-]+|Makefile):(\d+)$")
+PLACE = re.compile(r"^((?:src|tests|templates|features)/[\w./-]+|Makefile):(\d+)$")
 
 
 def rows():

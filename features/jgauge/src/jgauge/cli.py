@@ -327,7 +327,8 @@ def parser() -> argparse.ArgumentParser:
         description="Print test_slots, short_slots and max_running as their callers get them:"
         " from a flag or TEST_SLOTS, the local file (~/.config/jstack/machine.toml, or"
         " max_running in ~/.config/jbus/config.toml), else derived from the machine's cores and"
-        " memory. Then room's lines, from src/jgauge/room.sh. docs/limits.md lists every limit.",
+        " memory. Then room's lines, from features/jgauge/src/jgauge/room.sh."
+        " features/jgauge/docs/limits.md lists every limit.",
     )
     machine.set_defaults(run=cmd_sizes)
     return top

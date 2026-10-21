@@ -7,7 +7,7 @@ Paths:
 - `src/jbus/view/*.py`
 - `src/jbus/view/panels/__init__.py`
 - `features/jbriefs/src/jbriefs/`
-- `src/jgauge/`
+- `features/jgauge/src/jgauge/`
 - `src/jmerge/`
 - `features/jpack/src/jpack/`
 - `features/jroles/src/jroles/`

@@ -93,9 +93,10 @@ The doctor reads the provider inventory and T3 Code's settings, and writes neith
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing optional statusline <file>` | `<file>` has no `statusLine`, so nothing writes the limits file. | Run `sh install.sh`. |
-| `old optional statusline <file> -> <command>` | The status line runs `hooks/limits.sh` of another checkout. | Run `sh install.sh`. |
+| `old optional statusline <file> -> <command>` | The status line runs jgauge's `limits.sh` from another checkout. | Run `sh install.sh`. |
 
-A status line of your own gets no line. [Configuration](configuration.md#the-limits-file) shows how to call `hooks/limits.sh` from it.
+A status line of your own gets no line.
+[Configuration](configuration.md#the-limits-file) shows how to call `features/jgauge/hooks/limits.sh` from it.
 
 ## The configs and the limits file
 
@@ -135,7 +136,7 @@ If the thread is already open, type `/home` in it. The thread becomes the home w
 
 ## `jgauge room` prints `wait:`
 
-[`jgauge room` prints `wait:`](troubleshooting/jgauge-room-prints-wait.md) has its lines.
+[`jgauge room` prints `wait:`](../features/jgauge/docs/troubleshooting/jgauge-room-prints-wait.md) has its lines.
 
 ## A launch waits on a usage limit
 

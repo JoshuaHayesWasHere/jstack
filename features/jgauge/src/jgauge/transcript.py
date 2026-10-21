@@ -1,6 +1,6 @@
 """Reading a Claude Code transcript: its lines, and its calls counted once each.
 
-The counting rule (docs/meter-findings.md has the observations behind it):
+The counting rule (features/jgauge/docs/meter-findings.md has the observations behind it):
 
 - A call is one `message.id`. A message has one line per content block, and a
   line can be written twice, so lines are never counted.

@@ -9,10 +9,10 @@ The window is `five_hour` or `seven_day`, the share is percent used, and the res
 time. The built-in instance, `claudeAgent`, keeps the file `LIMITS` names
 (`~/.local/state/claude/limits` where it names none), and every other instance the file beside
 it, `<LIMITS>.<instanceId>`. Three writers keep them: `jgauge limits`, ahead of time, every two
-minutes, from each Claude account's own usage (`jgauge.limits`); `hooks/limits.sh`, from what
-Claude Code hands a status line, for the instance its `CLAUDE_CONFIG_DIR` is the home of; and
-`jbus`, from a turn T3 Code ended on a usage limit, at 100 until the reset that failure names
-(`cap_of`). `room.sh` and `jroles` read them.
+minutes, from each Claude account's own usage (`jgauge.limits`);
+`features/jgauge/hooks/limits.sh`, from what Claude Code hands a status line, for the instance
+its `CLAUDE_CONFIG_DIR` is the home of; and `jbus`, from a turn T3 Code ended on a usage
+limit, at 100 until the reset that failure names (`cap_of`). `room.sh` and `jroles` read them.
 
 `merge` is the one rule every writer keeps: for an instance and a window, two resets under
 `SAME` apart are one window, which keeps the larger share and the later reset; otherwise the
@@ -79,8 +79,8 @@ BUILT_IN = "claudeAgent"
 
 
 def path() -> Path:
-    """The file `LIMITS` names, the built-in instance's, as `room.sh` and `hooks/limits.sh`
-    find it."""
+    """The file `LIMITS` names, the built-in instance's, as `room.sh` and
+    `features/jgauge/hooks/limits.sh` find it."""
     named = os.environ.get("LIMITS")
     return Path(named) if named else Path.home() / ".local" / "state" / "claude" / "limits"
 

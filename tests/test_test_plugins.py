@@ -39,6 +39,9 @@ def test_a_test_in_a_features_own_folder_gets_the_isolation_and_the_shared_helpe
         shutil.copy2(REPO / name, copy / name)
     for name in ("src", "testing", "tests"):
         (copy / name).symlink_to(REPO / name)
+    (copy / "features").mkdir()
+    for feature in (REPO / "features").iterdir():
+        (copy / "features" / feature.name).symlink_to(feature)
     probe = copy / "features" / "x" / "tests" / "test_probe.py"
     probe.parent.mkdir(parents=True)
     probe.write_text(PROBE)

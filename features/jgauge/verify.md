@@ -1,11 +1,15 @@
 # jgauge room
 
 `jgauge room` says whether the machine and the plan have room for one more thread: `go`, or `wait: ` and the first reading that has none. jbus asks it before every launch, so a row with no room waits and is launched on a later pass.
+`jgauge session` counts what a thread's session used, `jgauge context` tells a home how full its context is, through `hooks/home-gauge.sh`, and `jgauge test-slot` runs a command while it holds one of the machine's test slots.
+The counts are checked against two probe sessions (`features/jgauge/docs/meter-findings.md`).
 
 Paths:
-- `src/jgauge/`
-- `hooks/limits.sh`
-- `docs/jgauge.md`
+- `features/jgauge/src/jgauge/`
+- `features/jgauge/hooks/`
+- `features/jgauge/docs/`
+- `features/jgauge/units/`
+- `hooks/home-gauge.sh`
 Tests: none
 
 ## Sub-features
@@ -16,6 +20,7 @@ Tests: none
 - `room-instance` reads the limits of the instance `--instance` names, from `<LIMITS>.<instanceId>`, and the built-in `claudeAgent`'s from `LIMITS`.
 - `room-unknown` prints `go` and a `note:` on stderr when the plan's limits are not known.
 - `room-holds-launch` keeps an approved row from launching while there is no room.
+- `meter` counts a session, a home's context and a test slot: not driven yet.
 
 ## How to get to it (user POV)
 

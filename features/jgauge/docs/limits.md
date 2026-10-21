@@ -4,12 +4,12 @@ Every number in jstack that caps work, where it is set, what it protects, and th
 The machine is yelena: 24 processors (Intel Core Ultra 7 270K Plus, no SMT), 62 GiB, a btrfs root with no inode limit, and `/tmp` a 32 GB tmpfs of 1,048,576 file slots.
 The measurements are of 2026-10-20 unless a row says otherwise, and "the busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.
 
-Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](configuration.md#the-machines-sizes)).
+Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../../docs/configuration.md#the-machines-sizes)).
 `jgauge sizes` prints the three as their callers get them, and room's lines.
 A local value goes in `~/.config/jstack/machine.toml`, or `max_running` in `~/.config/jbus/config.toml`, and nowhere in jstack.
 Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system, and says so.
 
-A row whose Where is a `path:line` of this repo has, as its Value, text on that line, and `tests/test_limits_doc.py` holds the file to the value; the line number is where it was when this page was written.
+A row whose Where is a `path:line` of this repo has, as its Value, text on that line, and `features/jgauge/tests/test_limits_doc.py` holds the file to the value; the line number is where it was when this page was written.
 
 ## The measurements
 
@@ -56,28 +56,28 @@ The stall was a review that had not been written, not the machine.
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
-| Crew cap, `max_running` | `src/jgauge/sizes.py:49`, and `max_running` in `~/.config/jbus/config.toml` | `CREW_GIB = 2` | `MAX_RUNNING = 24` in `src/jbus/__init__.py` by #116 (2026-10-19, yelena, the owner's "we can push the boundaries more with yelena"); 16 and 12 before on adalaide | Memory, and how many crews the reviews and merges keep up with | 24 agents are 7.4 GB of 49 GiB available; one crew a processor | Moved: derived as `min(cores, GiB // 2)`, 24 on yelena; the config's `max_running = 24` stays, the owner's word |
-| Full test slots, `test_slots` | `src/jgauge/sizes.py:38`, `~/.config/jstack/machine.toml`, `TEST_SLOTS`, `--slots` | `DESK_SHARE = 4` | `DEFAULT = 3` in `src/jgauge/slot.py` by #109 (2026-10-19, yelena); `TEST_SLOTS=4` in the owner's zshenv (word 3593730d3e4f), which `jbus.service` never saw | CPU for whole suites, machine-wide | Four suites at once is the knee of the table above, CPU pressure 17 to 29 | Moved: derived as `cores // desk workers`, 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room); the zshenv line is dropped |
-| Memory a full slot takes | `src/jgauge/sizes.py:45` | `SUITE_GIB = 4` | This change | Slots on a small machine | A suite peaks at 1.1 GB | New: binds under 16 GiB, never on yelena |
-| Short test slots, `short_slots` | `src/jgauge/sizes.py:53`, `~/.config/jstack/machine.toml` | `SHORT_PER_CORES = 8` | `SHORT_SLOTS = 3` in `src/jgauge/slot.py` by #51 (2026-10-16, machine not named) | A targeted run or a reviewer's proof never waits behind a suite | 9 waits for a short slot on the busy night | Moved: derived as `clamp(cores // 8, 2, 8)`, 3 on yelena |
-| Short lane's time limit | `src/jgauge/slot.py:36` | `SHORT_LIMIT_SECONDS = 120.0` | #51 | A full suite cannot sit in the short lane | Design choice, not a machine size: a whole suite takes 89 s alone | Kept |
+| Crew cap, `max_running` | `features/jgauge/src/jgauge/sizes.py:49`, and `max_running` in `~/.config/jbus/config.toml` | `CREW_GIB = 2` | `MAX_RUNNING = 24` in `src/jbus/__init__.py` by #116 (2026-10-19, yelena, the owner's "we can push the boundaries more with yelena"); 16 and 12 before on adalaide | Memory, and how many crews the reviews and merges keep up with | 24 agents are 7.4 GB of 49 GiB available; one crew a processor | Moved: derived as `min(cores, GiB // 2)`, 24 on yelena; the config's `max_running = 24` stays, the owner's word |
+| Full test slots, `test_slots` | `features/jgauge/src/jgauge/sizes.py:38`, `~/.config/jstack/machine.toml`, `TEST_SLOTS`, `--slots` | `DESK_SHARE = 4` | `DEFAULT = 3` in `features/jgauge/src/jgauge/slot.py` by #109 (2026-10-19, yelena); `TEST_SLOTS=4` in the owner's zshenv (word 3593730d3e4f), which `jbus.service` never saw | CPU for whole suites, machine-wide | Four suites at once is the knee of the table above, CPU pressure 17 to 29 | Moved: derived as `cores // desk workers`, 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room); the zshenv line is dropped |
+| Memory a full slot takes | `features/jgauge/src/jgauge/sizes.py:45` | `SUITE_GIB = 4` | This change | Slots on a small machine | A suite peaks at 1.1 GB | New: binds under 16 GiB, never on yelena |
+| Short test slots, `short_slots` | `features/jgauge/src/jgauge/sizes.py:53`, `~/.config/jstack/machine.toml` | `SHORT_PER_CORES = 8` | `SHORT_SLOTS = 3` in `features/jgauge/src/jgauge/slot.py` by #51 (2026-10-16, machine not named) | A targeted run or a reviewer's proof never waits behind a suite | 9 waits for a short slot on the busy night | Moved: derived as `clamp(cores // 8, 2, 8)`, 3 on yelena |
+| Short lane's time limit | `features/jgauge/src/jgauge/slot.py:36` | `SHORT_LIMIT_SECONDS = 120.0` | #51 | A full suite cannot sit in the short lane | Design choice, not a machine size: a whole suite takes 89 s alone | Kept |
 | Desk test workers | `Makefile:31` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | #109 (yelena) | One check's share of the machine | 6 workers: 89 to 94 s, 5.2 cores busy | Kept: a share, the same on any machine |
 | Runner test workers | `Makefile:31` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | #109 (yelena) | A runner's check time on its quota | 6 workers on a quota of 4; not run again here | Kept: a share of the container's quota |
 | Runners and each one's share | `hosts/yelena/runners/*.conf` in infra, `CPUS=4`, `MEMORY=4g` | 7 full, 2 fast | infra | CI beside the desk | The slice's 20 CPUs at CPUWeight 50 give way to the desk | infra's machine config, not jstack's: recorded, not moved |
 
 ## Room
 
-`jgauge room` asks these before a launch and a review, in `src/jgauge/room.sh`.
+`jgauge room` asks these before a launch and a review, in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
-| Load line | `src/jgauge/room.sh:3` | `LOAD=200` | #117 (2026-10-19, yelena), 85 before, sized for adalaide | A backstop for when CPU pressure cannot be read | Six suites reach 216% of the cores; the busy night's hold was at 120 to 146% | Kept: a share of the cores |
-| CPU pressure line | `src/jgauge/room.sh:4` | `CPU=40` | #117 (yelena) | Launches stop when work waits for a core | Five suites reach 30 and six 55, so it holds the sixth | Kept: a share of time |
-| Memory floor, GB | `src/jgauge/room.sh:5` | `MEMORY=6` | Before this repo's history | Room for one more launch and its check | A launch and a suite are 1.4 GB; the idle machine has 49 GiB available | Kept: a floor, not a size |
-| Memory pressure line | `src/jgauge/room.sh:6` | `PRESSURE=10` | Before this repo's history | Launches stop when work waits for memory | 0 in every run | Kept: a share of time |
-| Plan cushion, percent | `src/jgauge/room.sh:7` | `CUSHION=${HEADROOM:-90}` | #102 (the owner's gate 20) at 100; account-limits, the owner's account-failover round 1, at 90 | A launch passes an account by before its plan window is used up | The provider's, not the machine's | Moved: the user's `headroom` in `config.toml`, `CUSHION=90` with none |
-| `/tmp` file slots line, percent | `src/jgauge/room.sh:8` | `SLOTS=85` | Before this repo's history | `/tmp` never fills, which fails every shell | Six suites at once peak at 36% | Kept: a share |
-| A review skips the load | `src/jgauge/cli.py:202` | `"--light",` | #102 (yelena, "at load 30 of 24 cores") | A review is not held by load it does not add | A review is about 2% of a core | Kept |
+| Load line | `features/jgauge/src/jgauge/room.sh:3` | `LOAD=200` | #117 (2026-10-19, yelena), 85 before, sized for adalaide | A backstop for when CPU pressure cannot be read | Six suites reach 216% of the cores; the busy night's hold was at 120 to 146% | Kept: a share of the cores |
+| CPU pressure line | `features/jgauge/src/jgauge/room.sh:4` | `CPU=40` | #117 (yelena) | Launches stop when work waits for a core | Five suites reach 30 and six 55, so it holds the sixth | Kept: a share of time |
+| Memory floor, GB | `features/jgauge/src/jgauge/room.sh:5` | `MEMORY=6` | Before this repo's history | Room for one more launch and its check | A launch and a suite are 1.4 GB; the idle machine has 49 GiB available | Kept: a floor, not a size |
+| Memory pressure line | `features/jgauge/src/jgauge/room.sh:6` | `PRESSURE=10` | Before this repo's history | Launches stop when work waits for memory | 0 in every run | Kept: a share of time |
+| Plan cushion, percent | `features/jgauge/src/jgauge/room.sh:7` | `CUSHION=${HEADROOM:-90}` | #102 (the owner's gate 20) at 100; account-limits, the owner's account-failover round 1, at 90 | A launch passes an account by before its plan window is used up | The provider's, not the machine's | Moved: the user's `headroom` in `config.toml`, `CUSHION=90` with none |
+| `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh:8` | `SLOTS=85` | Before this repo's history | `/tmp` never fills, which fails every shell | Six suites at once peak at 36% | Kept: a share |
+| A review skips the load | `features/jgauge/src/jgauge/cli.py:202` | `"--light",` | #102 (yelena, "at load 30 of 24 cores") | A review is not held by load it does not add | A review is about 2% of a core | Kept |
 | Passes a row waits for room before its gate | `src/jbus/__init__.py:329` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
 
 ## The plan's pools
@@ -94,10 +94,10 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
 | jbus's pass | `templates/jbus.timer:7` | `OnUnitActiveSec=1min` | Before this repo's history | How soon a launch, a wake or a merge happens | The busy night's passes took 29 s on average and 51.5 s at most | Kept |
-| A sample of the load | `templates/jgauge-sample.timer:7` | `OnUnitActiveSec=15s` | #107 | The load history | A sample is one read of `/proc` | Kept |
+| A sample of the load | `features/jgauge/units/jgauge-sample.timer:7` | `OnUnitActiveSec=15s` | #107 | The load history | A sample is one read of `/proc` | Kept |
 | A look for a missing pass | `templates/jbus-stale.timer:7` | `OnUnitActiveSec=15min` | #113 (yelena) | An alert when jbus stops | Design choice | Kept |
-| A thread waits for a test slot | `src/jgauge/sample.py:43` | `STALL_MINUTES = 5` | This change, the task's line for a stall | What the report counts as a stall | Design choice | New |
-| The report's low CPU pressure | `src/jgauge/sample.py:39` | `PRESSURE_LINE = 10.0` | #107 | A load over the line while CPU pressure is low is load room needn't hold | Design choice, and not room's memory `PRESSURE` | Kept |
+| A thread waits for a test slot | `features/jgauge/src/jgauge/sample.py:43` | `STALL_MINUTES = 5` | This change, the task's line for a stall | What the report counts as a stall | Design choice | New |
+| The report's low CPU pressure | `features/jgauge/src/jgauge/sample.py:39` | `PRESSURE_LINE = 10.0` | #107 | A load over the line while CPU pressure is low is load room needn't hold | Design choice, and not room's memory `PRESSURE` | Kept |
 | The hourly resend of what waits on the user | `src/jbus/stall.py:56` | `AGAIN = 60 * 60` | Before this repo's history | The owner is told again, once an hour | Design choice | Kept |
 | The hourly list of what blocks | `src/jbus/leftover.py:65` | `REFRESH_MINUTES = 60` | #22 | The relay's list stays whole | Design choice | Kept |
 | A blocker's one reminder | `src/jbus/leftover.py:64` | `REMIND_MINUTES = 15` | #22 | A blocker is not forgotten | Design choice | Kept |
@@ -123,8 +123,8 @@ The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limit
 | Carry-ons a thread gets | `src/jbus/threads.py:129` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |
 | Failures before an alert | `src/jbus/alert.py:38` | `AFTER = 3` | Before this repo's history | One failure is not an alert | Design choice | Kept |
 | Passes before an expedite | `src/jbus/expedite.py:81` | `AFTER = 3` | Before this repo's history | A crew is told what to do | Design choice | Kept |
-| A woken waiter's claim on a slot | `src/jgauge/waiters.py:44` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
-| A wait no thread came back for | `src/jgauge/waiters.py:45` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
+| A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:44` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
+| A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:45` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
 | GitHub's file list | `src/jmerge/ready.py:150` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2 | No merge with files nobody saw: GitHub lists at most 100 | GitHub's limit, not the machine's | Kept |
 | The heavy-suite lock | `~/.local/state/locks/heavy-suite.lock` | One at a time | Before this repo's history | A heavy suite runs alone on the machine | Design choice | Kept |
 | The browser lock | `~/.local/state/locks/browser.lock` | One at a time | Before this repo's history | One browser test at a time | Design choice | Kept |

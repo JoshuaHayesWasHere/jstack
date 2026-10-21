@@ -178,7 +178,7 @@ def test_a_start_that_is_not_a_time_is_refused(machine, capsys):
 
 
 def test_each_of_rooms_lines_is_read_from_room_sh(machine):
-    room = (REPO / "src" / "jgauge" / "room.sh").read_text()
+    room = (REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh").read_text()
     for name in sample.ROOM_LINES:
         line = sample.room_line(name)
         assert f"  {name}={line}\n" in room or f"  {name}=${{HEADROOM:-{line}}}\n" in room

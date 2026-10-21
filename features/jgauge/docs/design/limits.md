@@ -2,9 +2,9 @@
 
 ## Problem
 
-jstack's limits were sized by hand for adalaide (12 cores) and nudged for yelena (24 cores, 62 GB), and the owner wants machine-neutral defaults derived from what the code can measure, machine values only in local config, and one inventory, `docs/limits.md`.
+jstack's limits were sized by hand for adalaide (12 cores) and nudged for yelena (24 cores, 62 GB), and the owner wants machine-neutral defaults derived from what the code can measure, machine values only in local config, and one inventory, `features/jgauge/docs/limits.md`.
 Most of the numbers are not machine sizes at all.
-Room's six lines in `src/jgauge/room.sh` (`LOAD=200`, `CPU=40`, `MEMORY=6`, `PRESSURE=10`, `CUSHION=100`, `SLOTS=85`) are a share of the cores, pressure shares of time, a floor and percents, which mean the same on any machine.
+Room's six lines in `features/jgauge/src/jgauge/room.sh` (`LOAD=200`, `CPU=40`, `MEMORY=6`, `PRESSURE=10`, `CUSHION=100`, `SLOTS=85`) are a share of the cores, pressure shares of time, a floor and percents, which mean the same on any machine.
 The Makefile already sizes `TEST_WORKERS` from the run's own processors.
 Only three numbers are sizes of the machine: the full test slots (`slot.DEFAULT = 3`, with `TEST_SLOTS=4` in the owner's zshenv), the short test slots (`SHORT_SLOTS = 3`), and the crew cap (`MAX_RUNNING = 24`, and `max_running = 24` in `~/.config/jbus/config.toml`).
 
@@ -25,7 +25,7 @@ $ jgauge sizes
 test_slots   4  derived from 24 cores, 62 GiB
 short_slots  3  derived from 24 cores, 62 GiB
 max_running 24  ~/.config/jbus/config.toml (derived: 24)
-room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=100 SLOTS=85  src/jgauge/room.sh
+room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=100 SLOTS=85  features/jgauge/src/jgauge/room.sh
 ```
 
 To change a machine size, the owner edits one file, which takes these two keys and refuses any other:
@@ -35,7 +35,7 @@ To change a machine size, the owner edits one file, which takes these two keys a
 test_slots = 5
 ```
 
-`jgauge test-slot` (`src/jgauge/slot.py`):
+`jgauge test-slot` (`features/jgauge/src/jgauge/slot.py`):
 
 ```python
 def count(asked: str | None) -> int:
@@ -63,7 +63,7 @@ def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores)
 
 ## Shape
 
-`src/jgauge/sizes.py` holds the three sizes and nothing else.
+`features/jgauge/src/jgauge/sizes.py` holds the three sizes and nothing else.
 Its types are `Name` (a `StrEnum` of the three keys), `Machine(cores, memory_gib, fell_back)` and `Limit(name, value, came_from, where, derived)`.
 `resolve` is the only maker of a `Limit`, so every value a caller holds is 1 or more.
 Nothing is cached and nothing is written, so a count edited by hand applies to the next take, and two readers at once change nothing.
@@ -96,7 +96,7 @@ The one copy across the language line is `DESK_SHARE = 4`, which the test above 
 `sample.load_line()` becomes `sample.room_line(name)`, the parser of room.sh's `NAME=` lines, which `jgauge sizes` uses too.
 `sample.PRESSURE_LINE = 10.0` stays: it is the report's own line for "CPU pressure is low", compared with `cpu_some_avg60`, and not a copy of room's memory `PRESSURE`.
 
-`docs/limits.md` is hand-written, one row per limit, with where it is set, its value, who set it for which machine, what it protects and the measurement it rests on.
+`features/jgauge/docs/limits.md` is hand-written, one row per limit, with where it is set, its value, who set it for which machine, what it protects and the measurement it rests on.
 A test keeps it true: each row that names a constant, a room.sh line or a `sizes.Name` gives the value the code has now.
 
 The public surface is `resolve`, `Name`, `Refused`, `every` for the one command, and `derive`, `desk_workers` and `Machine` for tests.
@@ -140,4 +140,4 @@ The judge and I picked round-two b, with two grafts and one cut:
 
 ## Next implementation step
 
-Implement `Machine.here`, `derive`, `count` and `resolve` in `src/jgauge/sizes.py` with tests over a fake `PROC` tree, then switch `slot.count`, `slot.short` and `jbus.load` to `resolve`.
+Implement `Machine.here`, `derive`, `count` and `resolve` in `features/jgauge/src/jgauge/sizes.py` with tests over a fake `PROC` tree, then switch `slot.count`, `slot.short` and `jbus.load` to `resolve`.
