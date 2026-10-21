@@ -31,6 +31,7 @@ import ipaddress
 import json
 import os
 import secrets
+import socketserver
 import stat
 import sys
 import threading
@@ -52,6 +53,18 @@ LIMIT = 64 * 1024
 
 class Refused(Exception):
     """A config, an address or a request this server will not take."""
+
+
+class Server(ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
+
+    `HTTPServer.server_bind` calls `socket.getfqdn` before it listens, and a resolver slow to
+    answer for `127.0.0.2` kept that address from listening for seconds after `127.0.0.1` did.
+    """
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 def load(config: Path) -> dict:
@@ -186,9 +199,7 @@ def serve(config: Path, page: Path, port: int, host: str | None, names: list[str
     load(config)
     bound = addresses(host)
     known = {f"{name}:{port}" for name in [*bound, "localhost", *names]}
-    servers = [
-        ThreadingHTTPServer((one, port), handler(config, page, frozenset(known))) for one in bound
-    ]
+    servers = [Server((one, port), handler(config, page, frozenset(known))) for one in bound]
     for server in servers:
         print(f"bot ui: listening on {server.server_address[0]}:{port}", flush=True)
         threading.Thread(target=server.serve_forever, daemon=True).start()

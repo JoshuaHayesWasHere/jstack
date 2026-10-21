@@ -188,3 +188,36 @@ def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addre
     assert key not in text and stand_in.url not in text
     os.chmod(config, 0o644)
     assert run("probe", config).returncode == 2 and len(stand_in.seen) == 3
+
+
+@pytest.mark.timeout(60)
+def test_the_server_listens_on_both_addresses_at_once_however_slow_a_reverse_lookup_is(tmp_path):
+    """A runner whose DNS is slow to answer for 127.0.0.2 had the server listen on 127.0.0.1
+    and not yet on 127.0.0.2: `HTTPServer` looks up a name for each address it binds."""
+    config = tmp_path / "ui" / "config.json"
+    assert run("key", config).returncode == 0
+    page = tmp_path / "page"
+    page.mkdir()
+    slow = tmp_path / "slow"
+    slow.mkdir()
+    (slow / "sitecustomize.py").write_text(
+        "import socket, time\n"
+        "def getfqdn(name=''):\n"
+        "    time.sleep(5)\n"
+        "    return name\n"
+        "socket.getfqdn = getfqdn\n"
+    )
+    port = free_port()
+    server = subprocess.Popen(
+        ["uv", "run", "--script", str(SCRIPT), "serve", str(config), "--page", str(page)]
+        + ["--port", str(port), "--host", "127.0.0.2"],
+        env={**os.environ, "PYTHONPATH": str(slow)},
+    )
+    try:
+        deadline = time.monotonic() + 20
+        while not reaches("127.0.0.1", port) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert reaches("127.0.0.1", port) and reaches("127.0.0.2", port)
+    finally:
+        server.terminate()
+        server.wait()
