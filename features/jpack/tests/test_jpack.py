@@ -14,7 +14,7 @@ import pytest
 from jpack import cli
 from testing.paths import REPO
 
-TEMPLATE = REPO / "templates" / "context"
+TEMPLATE = REPO / "features" / "jpack" / "templates" / "context"
 UPLOAD = "".join(
     {12: "RETRIES = 3\n", 30: "    for _ in range(RETRIES):\n", 31: "        time.sleep(1)\n"}.get(
         number, f"line {number}\n"

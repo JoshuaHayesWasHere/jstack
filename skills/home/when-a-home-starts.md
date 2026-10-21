@@ -97,7 +97,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
    When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then `$H/notes.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
-   A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [docs/context.md](../../docs/context.md) of the jstack checkout says how a pack is checked and pruned.
+   A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../features/jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
    Then run it in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"), in the main checkout:
 
    ```sh
