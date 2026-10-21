@@ -14,7 +14,7 @@ the one asked for prints `not <role's>: ...`. A playbook of the role prints, by 
 
 - `crewmate` and `scout`: its path; a `has` or `lacks` line for each line its `Run by:`
   asks a brief to have; its numbered steps under a line that names them; a `no principle`
-  line for each citation of a file `principles/` does not have; and each principle it
+  line for each cited principle `skills.json` does not list; and each principle it
   cites, once and in full, under a line that names them all.
 - `home`: its path, and an `asks of its brief:` line for each line its `Run by:` asks.
 - `expert`: its path.
@@ -78,11 +78,9 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
     asked = ASKED.findall(by.partition(" in a brief with ")[2])
     cited = list(dict.fromkeys(CITED.findall(playbook)))
     principles = skills.listed("principle", repo)
-    found = {
-        one: principles.get(one.removeprefix("principles/").removesuffix(".md")) for one in cited
-    }
+    found = {one: principles.get(_named(one)) for one in cited}
     if role == "reviewer":
-        return _reviewed(name, [path for path in found.values() if path is not None])
+        return _reviewed(name, {one: path for one, path in found.items() if path is not None})
     if role == "expert":
         return [str(path.resolve())]
     if role == "home":
@@ -103,19 +101,25 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
         else:
             said.append(f"no principle: playbooks/{name}.md cites {one}, which is not there")
     if there:
-        names = " ".join(one.removeprefix("principles/").removesuffix(".md") for one in there)
+        names = " ".join(_named(one) for one in there)
         said.append(f"the principles playbooks/{name}.md cites, each in full below: {names}")
         for one in there:
             said += ["", f"==> {one} <==", *found[one].read_text().splitlines()]
     return said
 
 
-def _reviewed(name: str, cited: list[Path]) -> list[str]:
+def _named(cited: str) -> str:
+    """The principle's name a citation names: `principles/<name>.md`, the stub each layout
+    holds for it, is `<name>`."""
+    return cited.removeprefix("principles/").removesuffix(".md")
+
+
+def _reviewed(name: str, cited: dict[str, Path]) -> list[str]:
     """The reviewer's lines: the playbook's name, and each cited principle's first paragraph,
     the lines after its `# ` title up to the first blank line under them, joined."""
     said = [f"Playbook: {name}, the steps the crewmate worked by."]
     first = []
-    for path in cited:
+    for one, path in cited.items():
         lines = path.read_text().splitlines()
         title = next((at for at, line in enumerate(lines) if line.startswith("# ")), None)
         if title is None:
@@ -127,7 +131,7 @@ def _reviewed(name: str, cited: list[Path]) -> list[str]:
             elif paragraph:
                 break
         if paragraph:
-            first.append(f"- {path.stem}: {' '.join(paragraph)}")
+            first.append(f"- {_named(one)}: {' '.join(paragraph)}")
     if first:
         said += ["The principles it cites, and when each applies:", *first]
     return said

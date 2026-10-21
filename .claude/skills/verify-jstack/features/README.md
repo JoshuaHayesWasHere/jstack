@@ -37,7 +37,12 @@ Each feature file starts with an H1 title and one paragraph on what the user see
 - `Paths:` the repo paths the feature owns, each in backticks on a line of its own, in the pattern syntax of `src/jmerge/ci-paths.txt` (`src/jgauge/` a directory, `hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part). A feature owns its own code and the code that code imports, so a change to either runs its tests. A path may be owned by more than one feature.
 - `Tests:` the test files that read the feature in a way no import and no string shows, each in backticks on a line of its own, `tests/test_<name>.py`, or `Tests: none` on one line. The tests that import a module the feature owns are not listed: `scripts/select_tests.py` follows the imports.
 
-`scripts/select_tests.py <base> <head>` reads the two lists of every file, and the `Cross-cutting:` list below, to name the tests a diff needs. A changed path selects the tests that import the module it is, or a module beside it, through any chain of imports, and the tests that spell its path. An edit to a feature file selects that feature's tests: its `Tests:` and every test that imports a module the feature owns, not `all`. `tests/test_select_tests.py` fails when a path under `src/`, `skills/`, `playbooks/`, `principles/`, `templates/`, `hooks/`, `docs/`, `scripts/`, `evals/` or `.cursor/`, or `install.sh`, is owned by no feature, when a `Paths:`, `Tests:` or `Cross-cutting:` line holds two entries, when a `Tests:` list names a file that is not there, when a `Tests:` list names a test an import or a name already selects, when a test file is selected by no change and is not cross-cutting, and when importing the test files loads a module the script's import graph does not show. A test that runs a package of `src/` in a process of its own, and does not import it, is taken to import every module of the package when a string in it is the package name. A feature that no recipe drives yet has the two lists and its H1 paragraph, and each of its four sections says `Not driven yet.`, with `Needs: \`home\`` under the third, which every sandbox has, so that Doctor passes it.
+`scripts/select_tests.py <base> <head>` reads the two lists of every file, and the `Cross-cutting:` list below, to name the tests a diff needs.
+A changed path selects the tests that import the module it is, or a module beside it, through any chain of imports, and the tests that spell its path.
+An edit to a feature file selects that feature's tests: its `Tests:` and every test that imports a module the feature owns, not `all`.
+`tests/test_select_tests.py` fails when a path under `src/`, `skills/`, `playbooks/`, `templates/`, `hooks/`, `docs/`, `scripts/`, `evals/` or `.cursor/`, or `install.sh`, is owned by no feature, when a `Paths:`, `Tests:` or `Cross-cutting:` line holds two entries, when a `Tests:` list names a file that is not there, when a `Tests:` list names a test an import or a name already selects, when a test file is selected by no change and is not cross-cutting, and when importing the test files loads a module the script's import graph does not show.
+A test that runs a package of `src/` in a process of its own, and does not import it, is taken to import every module of the package when a string in it is the package name.
+A feature that no recipe drives yet has the two lists and its H1 paragraph, and each of its four sections says `Not driven yet.`, with `Needs: \`home\`` under the third, which every sandbox has, so that Doctor passes it.
 
 Then the file has exactly four H2 sections, in this order.
 
@@ -74,7 +79,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [jleak stops a leak](../../../../features/jleak/verify.md), not driven yet.
 - [jroles names a model](./jroles.md), not driven yet.
 - [Lessons from a thread](./lessons-skills.md), not driven yet.
-- [Playbooks and principles](./playbooks-and-principles.md), not driven yet.
+- [Playbooks and principles](../../../../features/principles/verify.md), not driven yet.
 - [A pull request is reviewed](../../../../features/pr-review/verify.md), not driven yet.
 - [A scout answers one question](../../../../features/scout/verify.md), not driven yet.
 - [The skill library](../../../../features/skill-library/verify.md), not driven yet.

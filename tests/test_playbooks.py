@@ -111,12 +111,14 @@ def problems(path, root):
 
 
 def uncited(root):
-    """The principles at `root` that no playbook there names, so no thread is sent to read them."""
+    """The principles at `root`, or in its layout, that no playbook there names, so no thread is
+    sent to read them."""
     cited = set()
     for path in playbooks(root).values():
         rows = path.read_text().splitlines()
         cited.update(named("\n".join(row for row in rows if not row.startswith("Source:"))))
-    every = (f"principles/{path.name}" for path in (root / "principles").glob("*.md"))
+    read = assembled() if root == REPO else root
+    every = (f"principles/{path.name}" for path in (read / "principles").glob("*.md"))
     return sorted(name for name in every if name not in cited)
 
 

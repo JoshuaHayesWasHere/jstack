@@ -21,7 +21,6 @@ REPO_TOP_DIRS = (
     "skills",
     "templates",
     "playbooks",
-    "principles",
     "hooks",
     "src",
     "tests",

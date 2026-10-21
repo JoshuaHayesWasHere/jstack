@@ -41,7 +41,7 @@ A go from the user is bound to the brief's goal, scope and done-when: its title,
 
 A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in a Grok Bot brief, which pstack drives, and in T3, which jstack drives.
 The names are listed in `skills.json` at the repo root, and the resolver reads them from there, not from the directories.
-The canonical form of a skill is its directory under `skills/`, `architect`; of a principle, its file under `principles/` without `.md`, `principle-model-the-domain`.
+The canonical form of a skill is its directory under `skills/`, `architect`; of a principle, its directory under `features/principles/skills/`, `principle-model-the-domain`.
 Three aliases resolve too: an item's `pstack_name` in `skills.json`, where pstack names it otherwise; a principle's name from before it took pstack's prefix, `model-the-domain`; and `arena` and `swarm`, pstack skills that jstack keeps as playbooks.
 A brief writes the canonical form, the one the resolver reads at once: `principle-build-the-lever`, not `build-the-lever`, which it reaches only after looking for an item of that name.
 The two spellings are one name, on the `Skills:` line and under the Result's `Skills run:` alike, and `jmerge`'s wait names a skill as the brief spelled it.

@@ -5,8 +5,8 @@ The source is a checkout, or the tree a release's wheel carries (`jbriefs.skills
 and the one thing read from it is its `skills.json`, which the generator writes from
 `features/`: each skill, principle, playbook, template and hook, at its path in the source. A
 layout holds every skill as `skills/<name>/`, flat, each file of its folder; every playbook as
-`playbooks/<name>.md`; every principle as `principles/<name>.md`, a stub that points at it once
-a principle is a skill; the templates; the hooks of that harness as `hooks/<file>`; a README;
+`playbooks/<name>.md`; every principle as `principles/<name>.md`, a stub that points at its
+skill; the templates; the hooks of that harness as `hooks/<file>`; a README;
 and `source`, a link to the source itself, the way back from a skill to the checkout (its
 `install.sh`, its git) or to the release. `skills/` and `templates/` are siblings, so a skill
 that finds its templates through its own link, `realpath ~/.claude/skills/<name>/../../templates`,
@@ -93,11 +93,9 @@ def hooks(source: Path) -> tuple[dict, ...]:
 
 
 def skills(source: Path) -> list[str]:
-    """The name of every skill the layouts hold: each skill and each principle that is one."""
+    """The name of every skill the layouts hold: each skill and each principle."""
     return sorted(
-        item["name"]
-        for item in catalog(source)
-        if item["kind"] in ("skill", "principle") and item["path"].endswith("/SKILL.md")
+        item["name"] for item in catalog(source) if item["kind"] in ("skill", "principle")
     )
 
 
@@ -120,14 +118,12 @@ def _placed(source: Path, harness: Harness) -> tuple[dict[str, str], dict[str, s
     held: dict[str, list[str]] = {}
     for item in catalog(source):
         path, kind, name = PurePosixPath(item["path"]), item["kind"], item["name"]
-        if kind in ("skill", "principle") and path.name == "SKILL.md":
+        if kind in ("skill", "principle"):
             for one in _skill_files(source, path.parent):
                 placed[str(one)] = f"skills/{name}/{one.relative_to(path.parent)}"
                 held.setdefault(name, []).append(str(one))
             if kind == "principle":
                 stubs[f"principles/{name}.md"] = name
-        elif kind == "principle":
-            placed[str(path)] = f"principles/{name}.md"
         elif kind == "playbook":
             placed[str(path)] = f"playbooks/{name}.md"
         else:

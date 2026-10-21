@@ -510,7 +510,8 @@ def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
     )
     printed = "\n".join(said) + "\n"
     for rule in names:
-        assert printed.count((REPO / "principles" / f"{rule}.md").read_text()) == 1
+        skill = REPO / "features" / "principles" / "skills" / rule / "SKILL.md"
+        assert printed.count(skill.read_text()) == 1
         assert said.count(f"==> principles/{rule}.md <==") == 1
 
 

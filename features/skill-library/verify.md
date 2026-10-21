@@ -7,7 +7,6 @@ Paths:
 - `skills/`
 - `templates/`
 Tests:
-- `features/jdrift/tests/test_drift.py`
 - `tests/test_room.py`
 
 ## Sub-features

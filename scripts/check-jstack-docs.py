@@ -47,6 +47,7 @@ EXTERNAL = {
 }
 PROSE_SLASH = re.compile(r"(?<![\w/.~<>$-])/([a-z][a-z0-9-]*)(?![\w/-]|\.\w)")
 NAMED_SKILL = re.compile(r"`([a-z][a-z0-9-]*)` skills?\b|\bskills? `([a-z][a-z0-9-]*)`")
+PRINCIPLE = "principle-"
 ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
 TREE_PATH = re.compile(rf"(?<![\w/.~<>*$-])((?:{'|'.join(ROOTS)})/[\w.-]+(?:/[\w.-]+)*)")
 LINK = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
@@ -130,7 +131,7 @@ class Tree:
     skills: frozenset[str]
     playbooks: tuple[str, ...]
     commands: tuple[str, ...]
-    principles: int
+    principles: frozenset[str]
     models: frozenset[str]
 
     @classmethod
@@ -141,15 +142,21 @@ class Tree:
             frozenset(path.parent.name for path in skill_files(root)),
             tuple(sorted(path.stem for path in playbook_files(root))),
             tuple(sorted(scripts)),
-            len(list((root / "principles").glob("*.md"))),
+            frozenset(path.parent.name for path in principle_files(root)),
             models_of(root / JROLES),
         )
+
+    def principle(self, path: str) -> bool:
+        """Whether `path` is `principles/<name>.md` for a principle: the stub each layout
+        holds where the principle is read, which the source tree does not have."""
+        name = path.removeprefix("principles/").removesuffix(".md")
+        return path == f"principles/{name}.md" and name in self.principles
 
     def count(self, noun: str) -> int:
         return {
             "skills": len(self.skills),
             "commands": len(self.commands),
-            "principles": self.principles,
+            "principles": len(self.principles),
             "playbooks": len(self.playbooks),
         }[noun]
 
@@ -168,9 +175,16 @@ def models_of(page: Path) -> frozenset[str]:
 
 
 def skill_files(root: Path) -> list[Path]:
-    """Each skill's `SKILL.md`, where it is now and where a move puts it."""
+    """Each skill's `SKILL.md`, where it is now and where a move puts it: a principle is not
+    one of them."""
     spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
-    return sorted(path for spot in spots for path in root.glob(spot))
+    found = (path for spot in spots for path in root.glob(spot))
+    return sorted(path for path in found if not path.parent.name.startswith(PRINCIPLE))
+
+
+def principle_files(root: Path) -> list[Path]:
+    """Each principle's `SKILL.md`: a skill whose name has the prefix `principle-`."""
+    return sorted(root.glob(f"features/*/skills/{PRINCIPLE}*/SKILL.md"))
 
 
 def playbook_files(root: Path) -> list[Path]:
@@ -246,7 +260,7 @@ def paths(tree: Tree, doc: Doc) -> Found:
     for line in doc.lines:
         for path in TREE_PATH.findall(re.sub(r"\]\([^)]*\)", "]", line.text)):
             path = path.rstrip(".,:;")
-            if not (tree.root / path).exists():
+            if not (tree.root / path).exists() and not tree.principle(path):
                 why = f"{path} is named and the tree has no such path"
                 found.append((line.number, why))
     return found

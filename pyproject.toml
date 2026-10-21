@@ -64,7 +64,6 @@ packages = [
 "features" = "share/jstack/features"
 "hooks" = "share/jstack/hooks"
 "playbooks" = "share/jstack/playbooks"
-"principles" = "share/jstack/principles"
 "skills" = "share/jstack/skills"
 "templates" = "share/jstack/templates"
 # end generated
@@ -81,6 +80,7 @@ testpaths = [
     "features/jleak/tests",
     "features/jsettings/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",
@@ -99,6 +99,7 @@ pythonpath = [
     "features/jleak/tests",
     "features/jsettings/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",
@@ -143,6 +144,7 @@ src = [
     "features/jleak/tests",
     "features/jsettings/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",

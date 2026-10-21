@@ -451,7 +451,8 @@ def test_the_intent_is_the_brief_from_task_to_the_end_of_decisions_then_the_scop
 
 def applies(name):
     """The paragraph a principle opens with, under its title, as one line."""
-    text = (REPO / "principles" / f"{name}.md").read_text()
+    skill = REPO / "features" / "principles" / "skills" / name / "SKILL.md"
+    text = skill.read_text().split("\n---\n\n", 1)[1]
     return " ".join(text.split("\n\n")[1].splitlines())
 
 
