@@ -23,7 +23,7 @@ What one step is, in the code:
 - **pass**: one run of `tell`, under the pass lock (`src/jbus/cli.py:215-219`), so no two
   passes overlap and a pass is one indivisible step. In a pass, jmerge reads `main.json`
   before `tell` writes it (`src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs later in
-  the `after-expedite` slot, `src/jbus/mainmoved.py:176-183`): a merge in a pass is the
+  the `after-expedite` slot, `src/jbus/mainmoved.py:222-230`): a merge in a pass is the
   event `lands, jmerge merges` followed by the event `pass`, and reads the record the last
   pass wrote, as a merge between passes does.
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`.
@@ -36,14 +36,15 @@ What one step is, in the code:
 - **settles**: a pending tip's check ends, as `watch._check` answers
   (`src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that was
   cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
-  `again` (`src/jbus/mainmoved.py:68-74`), so the last two reach `tell` through
+  `again` (`src/jbus/mainmoved.py:74-80`), so the last two reach `tell` through
   `checks.json`, where watch's retro writes them (`_check(..., again=True)`). A tip whose
   check never ends is a tip no `settles` event reaches: it stays `pending`.
 - T3 Code's answer to a send is a choice of the pass: it answers, it loses the send
-  (`T3Error`, `src/jbus/mainmoved.py:150-153`) or it refuses it (`T3Refused`, 145-149).
+  (`T3Error`, `src/jbus/mainmoved.py:192-195`) or it refuses it (`T3Refused`, 187-191).
 
 What is stubbed, and only this: `mainmoved.main_check` returns the tip's check from the
-model (it would ask GitHub), `dispatch.launched` says `alpha` was launched, `dispatch.thread_of`
+model (it would ask GitHub), GitHub's list of main's commits is the model's tips, each the
+first parent of the next, `dispatch.launched` says `alpha` was launched, `dispatch.thread_of`
 gives its thread, and `rebase.held` holds back no message (the crew's turn has ended).
 `Pass`, `Client` and `World` are fakes with only what `tell` reads; `sent.json` and
 `main.json` are real files in a temporary state directory, written by the real code.
@@ -160,6 +161,12 @@ class FakePass:
     def run(self, *command: str) -> Asked:
         if command[:2] == ("git", "symbolic-ref"):
             return Asked("origin/main\n")
+        if command[:2] == ("gh", "api"):
+            landed = range(len(self.checks))
+            commits = [
+                {"sha": sha(n), "parents": [{"sha": sha(n - 1)}] if n else []} for n in landed
+            ]
+            return Asked(json.dumps(commits[::-1]))
         return Asked(f"{self.tip}\trefs/heads/main\n")
 
     def gate(self, slug: str, what: str, text: str = "", *, key: str = "") -> None:
