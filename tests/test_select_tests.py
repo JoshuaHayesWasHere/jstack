@@ -18,6 +18,7 @@ import pytest
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
+PYTHONPATH = "harness/jstack/pythonpath"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
@@ -116,12 +117,17 @@ def write(repo, files):
 
 
 class Repo:
-    """A repo with the script, a copy of `src/`, a map and a few modules and tests."""
+    """A repo with the script, a copy of each folder of packages, a map and a few modules and
+    tests."""
 
     def __init__(self, root, features=None, files=None):
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
-        shutil.copytree(REPO / "src", root / "src", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy2(REPO / PYTHONPATH, self.put(PYTHONPATH))
+        for folder in (REPO / PYTHONPATH).read_text().split():
+            shutil.copytree(
+                REPO / folder, root / folder, ignore=shutil.ignore_patterns("__pycache__")
+            )
         features = features or {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
         write(root / select.MAP, features)
         write(root, FILES if files is None else files)

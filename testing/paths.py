@@ -16,6 +16,12 @@ REPO = _root(Path(__file__).resolve())
 SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 
 
+def sources(root: Path = REPO) -> tuple[Path, ...]:
+    """The folders jstack's packages sit in: `src/`, and each feature's own `src/` once its
+    package moves there, as `scripts/jtrees/crawl.py` places a manifest's `packages`."""
+    return (root / "src", *sorted(root.glob("features/*/src")))
+
+
 def skills(root: Path = REPO) -> dict[str, Path]:
     """Each skill's folder by its name, sorted: in `skills/`, or where a move puts it in its
     feature, as `scripts/jtrees/crawl.py` finds them."""
