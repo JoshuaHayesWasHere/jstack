@@ -1,10 +1,11 @@
 """jbus runs the stale check of a project's context pack once a day, and logs what it finds.
 
 A project whose main checkout has a pack, `docs/context/` with a `notes/` folder, gets the
-stale check of `jpack.stale` once a day. The check runs against the default branch as the
-checkout's `origin/HEAD` names it, or against its `HEAD` where that is not known. Its `stale`
-and `prune` lines go into one quiet event, `pack`: the log has them, and jbus posts them to
-nobody. A pack with nothing stale logs nothing. jbus edits no pack: the subject repo's home
+stale check of `jpack.stale` once a day. The check runs against the default branch that the
+checkout's `origin/HEAD` names. When the checkout has no such branch, the check runs against
+the checkout's `HEAD`. jbus puts the check's `stale` and `prune` lines into one quiet event,
+`pack`. The log keeps them, and jbus posts them to nobody. For a pack with nothing stale, jbus
+logs nothing. jbus edits no pack: the subject repo's home
 rechecks or prunes a note, in a pull request of its own.
 
 `packs.json` in the project's state directory records the day the check last ran, so a pass
@@ -25,8 +26,8 @@ NAME = "packs.json"
 
 
 def check(run: Pass) -> None:
-    """Run the day's stale check of the project's pack, if it has one and today's check
-    has not run yet."""
+    """Run the day's stale check of the project's pack, if the project has a pack and
+    today's check has not run yet."""
     pack = run.project.checkout.joinpath(*PACK)
     path = run.state / NAME
     if not (pack / "notes").is_dir() or read_json(path, {}).get("day") == run.day:

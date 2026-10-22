@@ -1,11 +1,11 @@
 """`jbus project add`: add one more `[[project]]` table at the end of jbus's config.
 
-The config holds a webhook's key, so neither a person nor a skill writes it. `add` reads the
+The config holds a webhook's key, so neither a person nor a skill writes the config. `add` reads the
 file as text and writes it back with one table after its last byte. Every other table keeps
 the same bytes. First `add` saves a copy of the file as it was, beside it, as
 `config.toml.<time>.bak`, and both stay mode 600. The table has `name`, `checkout` and
 `projectId`, and no webhook. The new project uses the `webhook_url` and `webhook_key` at the
-top of the config when the config has them. With none there, a pass POSTs nothing for it.
+top of the config when the config has them. With none there, a pass POSTs nothing for the project.
 
 The file must load as a pass loads it (`jbus.load`). `add` refuses a config that a pass
 refuses, before it writes anything, with the line `jbus.load` gives.
@@ -13,8 +13,8 @@ refuses, before it writes anything, with the line `jbus.load` gives.
 `add` answers with one line, or raises `jbus.Refused` with one line. When a second run has the
 same name, checkout and id, `add` refuses it with the line `HAS`, which a caller may read as
 already done. It also refuses a name or a checkout that the config already has when any
-other field differs. Its line names what the two share. No line holds the value of any key, the
-values the caller gave included, so a line of this command is safe in any log.
+other field differs. Its line names what the two share. No line holds the value of any key, not
+even a value the caller gave, so a line of this command is safe in any log.
 
 `add --scratch` writes a scratch home's table in place of a repo's: `name`, `kind =
 "scratch"` and `projectId`, and no checkout, since it has no repo (`jbus.Scratch`). `add`

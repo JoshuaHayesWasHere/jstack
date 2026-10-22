@@ -1,10 +1,10 @@
 """Ask GitHub for a project's Actions jobs and pull requests, and keep them (`jbus.ci.ledger`).
 
-Every call is a read through `gh api`. It reads the repo's workflow runs of the last `days` days and
-the pull requests. For each run it reads the jobs the ledger does not keep yet, with `filter=all` so
-that it gets every attempt of a rerun. For each pull request it reads the timeline, where a
-force-push of its branch is an event. For a red job on a local runner it reads the log once, for the
-failing tests the log names and the runner faults it shows.
+Every call is a read through `gh api`. The collector reads the repo's workflow runs of the last
+`days` days and the pull requests. For each run it reads the jobs the ledger does not keep yet, with
+`filter=all` so that it gets every attempt of a rerun. For each pull request it reads the timeline,
+where a force-push of its branch is an event. For a red job on a local runner it reads the log once,
+for the failing tests the log names and the runner faults the log shows.
 
 The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
 API returns only its annotations, since the API cannot read a job summary. The telemetry is an

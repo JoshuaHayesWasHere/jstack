@@ -7,28 +7,26 @@ with.
 - `disk <mount>` and `inodes <mount>` are the space and the inodes used on each mount the
   stack writes to (jbus's state and homes, each project's checkout, the temp directory, the
   user's home, the ledger, the relay's state). Each is over its limit at `FULL` (80%) or
-  more. A
-  filesystem that counts no inodes (btrfs) has no inode number.
+  more. A filesystem that counts no inodes (btrfs) has no inode number.
 - `timeout jbus` and `timeout jmerge` count the passes systemd stopped at `jbus.service`'s
   TimeoutStartSec, and the runs of `jmerge` that a pass stopped at `JMERGE_TIMEOUT`. Both read the
   journal of `jbus.service` over the last `TIMEOUT_MINUTES`. A single one is an incident. A pass
   that systemd stopped cannot say so itself, so the journal is the one place that shows both.
-- `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config
-  posts to the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env
-  file, which `jbus.service` does not load. Each is over on one of these: the relay's unit is
-  not active; its heartbeat is older than `BEAT_MINUTES`; it heard no body for the
-  heartbeat's `silent_minutes`, `RELAY_SILENT_MINUTES` in the relay's env; a route's POSTs
-  have failed for `ERRORS_MINUTES`; a target refused a body for good in the last
-  `REFUSED_MINUTES`. Such a body stays in the relay's `dead/` and the relay never sends it
-  (`jbus.relay`). jbus does not judge silence and errors from a heartbeat that is stale.
-- `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's
-  pools and the built-in one. They read the ledger (`jroles.ledger`), which the threads'
-  status lines and limit failures write. jbus pages for the seven-day window at `FULL`. The
-  five-hour window fills and resets each day, so jbus pages for it only when it is full.
-  `capped` is the instance `jroles.pool.choose` skips: while the cap lasts, new launches go
-  to the next instance of the pool, and with every instance capped no launch starts. The
-  cap ends by itself at the reset, and its recovered line says that launches on the
-  instance resume.
+- `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config posts to
+  the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file, which
+  `jbus.service` does not load. Each is over its limit in one of these cases: the relay's unit is
+  not active; its heartbeat is older than `BEAT_MINUTES`; the relay heard no body for the
+  heartbeat's `silent_minutes`, `RELAY_SILENT_MINUTES` in the relay's env; a route's POSTs have
+  failed for `ERRORS_MINUTES`; a target refused a body permanently in the last `REFUSED_MINUTES`.
+  Such a body stays in the relay's `dead/` and the relay never sends it (`jbus.relay`). jbus does
+  not judge silence and errors from a heartbeat that is stale.
+- `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's pools
+  and the built-in one. They read the ledger (`jroles.ledger`), which gets its entries from the
+  threads' status lines and from their limit failures. jbus pages for the seven-day window at
+  `FULL`. The five-hour window fills and resets each day, so jbus pages for it only when it is full.
+  A `capped` reading is over while `jroles.pool.choose` skips its instance. While the cap lasts, new
+  launches go to the next instance of the pool, and with every instance capped no launch starts. The
+  cap ends by itself at the reset, and its recovered line says that launches on the instance resume.
 
 A reading over its limit is an incident, with the key `health <the reading's key>`, which
 `jbus.alert` keeps as a streak. jbus pages it once when it starts (`alert.opened`), and once
@@ -95,7 +93,7 @@ class Mount:
 @dataclass(frozen=True)
 class Relay:
     """A `Relay` is what the relay shows. `state` is its unit's state, and `beat` is its
-    heartbeat, None where it has none."""
+    heartbeat, or None when the relay has none."""
 
     state: str
     beat: dict[str, Any] | None
@@ -119,8 +117,8 @@ class Machine:
 class Reading:
     """A `Reading` is one check's number. `said` is the number and what it counts, and `limit`
     is what jbus compares it with. `over` is whether the number is past the limit, or None
-    where jbus could not read it. `then` is what follows while it is over, and `after` is
-    what follows once it is not."""
+    where jbus could not read it. `then` is what follows while the reading is over, and
+    `after` is what follows once it is not."""
 
     key: str
     said: str
@@ -137,7 +135,7 @@ class Reading:
 
 
 class Senses:
-    """`Senses` reads the machine for `gather`. A test passes its own."""
+    """`Senses` reads the machine for `gather`. A test passes its own `Senses`."""
 
     def mounts(self, paths: Iterable[Path]) -> list[Mount]:
         """Return the mount of each path, once each, by its mount point."""
@@ -187,7 +185,7 @@ SENSES = Senses()
 
 
 def clock() -> datetime:
-    """Return the time `jbus health` looks at."""
+    """Return the time at which `jbus health` takes its look."""
     return datetime.now(UTC)
 
 
@@ -270,7 +268,7 @@ def gather(
 
 
 def _share(used: int, whole: int) -> int:
-    """Return a share in whole percent, rounded up, as `df` gives it."""
+    """Return a share in whole percent, rounded up, as `df` shows it."""
     return math.ceil(used * 100 / whole) if whole else 0
 
 
@@ -436,7 +434,7 @@ def look(
 
 
 def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> list[Reading]:
-    """Look, and page each incident that starts or ends: see the module."""
+    """Take a look, and page each incident that starts or ends: see the module."""
     found = look(config, now, say)
     state = config.state_dir
     taken = {PREFIX + one.key: one for one in found}
@@ -485,7 +483,7 @@ def show(found: list[Reading]) -> list[str]:
 
 
 def run_health(args: argparse.Namespace, config: jbus.Config) -> int:
-    """Print every reading, and return 1 when one is over its limit."""
+    """Print every reading, and return 1 when a reading is over its limit."""
     found = look(config, clock(), print)
     for line in show(found):
         print(line)

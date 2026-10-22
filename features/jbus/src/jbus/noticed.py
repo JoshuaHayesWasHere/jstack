@@ -22,11 +22,11 @@ that is empty or says `none`.
   from `new`. `row` is the queue row or plan entry that took it up, and `why` says why the marker
   dropped it. `by` and `at` say who marked it and when, copied from `--by` and `--at`.
 
-A project's first pass finds no file. It marks every line that exists then
-as `dropped`, with the why `FROM_BEFORE` and `by` jbus. jbus does not count a line as new
-when the threads wrote it before jbus kept the list. jbus writes nothing into a brief, asks
-nobody about a line and makes no queue row for one. When the file does not parse, every verb
-that would write it refuses (`Unparsable`), and a pass says so and leaves the file as it is.
+A project's first pass finds no file. It marks every line that exists then as `dropped`, with the
+why `FROM_BEFORE` and with `by` set to jbus. jbus does not count a line as new when the threads
+wrote it before jbus kept the list. jbus writes nothing into a brief, asks nobody about a line and
+makes no queue row for one. When the file does not parse, every verb that would write it refuses
+(`Unparsable`), and a pass says so and leaves the file as it is.
 """
 
 from __future__ import annotations
@@ -156,7 +156,7 @@ def _locked(state: Path) -> Iterator[None]:
 
 def read(state: Path) -> list[Record] | None:
     """Return every record as the file keeps it, or None where there is no file yet. Raise
-    `Unparsable` for a file that is not one this module wrote."""
+    `Unparsable` when the file is not in the form this module writes."""
     file = path(state)
     if not file.exists():
         return None
@@ -175,10 +175,10 @@ def _write(state: Path, records: list[Record]) -> None:
 
 
 def keep(state: Path, home: Path, now: datetime, *, before: frozenset[str] = frozenset()) -> int:
-    """Add what is new, and return how many records it added. On the first pass it adds every line
-    that exists, marked dropped with the why `FROM_BEFORE`. It does the same for every line of the
-    files `before` names, as `tasks/<slug>.md` or `scouts/<slug>.md`: the ones `mirror.scan` found
-    restored."""
+    """Add what is new, and return how many records this function added. On the first pass it adds
+    every line that exists, marked dropped with the why `FROM_BEFORE`. It does the same for every
+    line of the files `before` names, which look like `tasks/<slug>.md` or `scouts/<slug>.md`: the
+    ones `mirror.scan` found restored."""
     with _locked(state):
         records = read(state)
         first = records is None
@@ -205,8 +205,8 @@ def scan(run: Pass) -> None:
 
 
 def _named(state: Path, home: Path, slug: str) -> bool:
-    """Return whether a queue row or an entry of a plan, open or done, of any home, has the
-    slug."""
+    """Return whether any home has a queue row or a plan entry with the slug, open or
+    done."""
     try:
         rows = queue.load(state)
     except queue.Unparsable as error:

@@ -4,7 +4,7 @@
 serve the same dict at an address. `build` reads only what the passes left and calls no service:
 no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dict has these keys:
 
-- `at` is when it was built, and `since` is the time from which the digest counts merges.
+- `at` is when `build` built the dict, and `since` is the time from which the digest counts merges.
 - `projects` maps each project's name to a dict with these keys:
   - `rows` holds the rows of the queue that are not over (`queue.over`), each with the
     columns in `COLUMNS`. It is None where `queue.json` does not parse. A row that merged or
@@ -13,13 +13,13 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
   - `merged` holds `{"slug", "pr", "at"}` for each row that turned `merged` at or after
     `since`, oldest first, from `transitions.jsonl`. Each entry's `pr` is the row's own
     value, `#<n>`, or empty.
-  - `done` holds the same for each row that turned `done`, which has no pull request.
-  - `pulls` holds `{"number", "slug", "url", "waits"}` for each of those rows that has a pull
+  - `done` holds the same for each row that turned `done`. Such a row has no pull request.
+  - `pulls` holds `{"number", "slug", "url", "waits"}` for each row of `rows` that has a pull
     request and is not merged. Its `waits` is the last line `jmerge` logged for it, as
     `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
   - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
     not, that a home approved by a standing rule at or after `since`, oldest first. The user
-    said nothing about such a row. The list's length is the count the user is told.
+    said nothing about such a row. The list's length is the count jbus tells the user.
     `follows` is the row the user did approve. `at` is when the home ran the approval, to the
     minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
     lists a row twice at worst and never misses it.
@@ -81,14 +81,14 @@ COLUMNS = (
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:
     """Read a `since` as the user types it or puts it in an address: an ISO 8601 time, or a
-    day alone. Return None when none is given. A time with no zone is in the user's zone, and a
+    day alone. Return None when none is given. A time with no zone is in the user's zone. A
     string that is not a time raises a `ValueError`."""
     return user.local(datetime.fromisoformat(given)) if given else None
 
 
 def status(config: Config) -> dict[str, Any]:
-    """Return what `jbus status` prints: the status file, the streaks and the homes not on the bus
-    as they are now, and the record of the pass."""
+    """Return what `jbus status` prints: the status file, the record of the pass, the streaks
+    as they are now, and the homes that are not on the bus now."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
@@ -190,8 +190,8 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
 def build(
     config: Config, since: datetime | None = None, now: datetime | None = None
 ) -> dict[str, Any]:
-    """Build the digest. `since` is the time from which it counts merges, a day before `now`
-    when none is given."""
+    """Build the digest. `since` is the time from which the digest counts merges. Without a
+    `since`, it counts from a day before `now`."""
     now = config.user.local(now or datetime.now(UTC))
     since = config.user.local(since or now - DAY)
     expires = t3.expiry(config.token_path)
@@ -221,7 +221,7 @@ def _status(_: argparse.Namespace, config: Config) -> int:
 
 
 def _start(given: str | None, config: Config) -> datetime | None:
-    """Read `--since` as `since` reads it, and refuse one that is not a time."""
+    """Read `--since` as `since` reads it, and refuse a value that is not a time."""
     try:
         return since(given, config.user)
     except ValueError:

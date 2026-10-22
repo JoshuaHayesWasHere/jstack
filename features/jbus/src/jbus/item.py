@@ -1,12 +1,11 @@
 """Work items: jbus keeps every piece of work as one item with a stable id, a source, an owner
 and one state, in `items.jsonl` in the project's state directory.
 
-jbus names an item `w<n>`, with a number it mints from the project's counter
-(`items-next.json`), as it mints a question's number. It never gives that name again, even
-where the log was lost. An item has
-a slug only once a row of the queue links to it. An item proposed in chat has none. When
-`jbus queue add` makes a row, the row links at once, to the item that `--item` names or to a
-new item that the command mints.
+jbus names an item `w<n>`, with a number it mints from the project's counter (`items-next.json`), as
+it mints a question's number. It never gives that name again, even if the log is lost. An item has a
+slug only once a row of the queue links to it. An item proposed in chat has none. When
+`jbus queue add` makes a row, the row links at once to the item that `--item` names, or to a new
+item that the command mints.
 
 The record is the log. jbus only ever appends to it, under `items.lock`, and never trims it:
 `forget` trims `events.jsonl` and leaves the log alone. A line is `{id, item, at, by, where,
@@ -209,12 +208,12 @@ config."""
 
 @dataclass(frozen=True)
 class Item:
-    """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller calls
-    `risk` for the item. `back` is the state the item entered `waiting_on_you` from, and None in any
-    other state. `redirect` is the id of a redirect that has had no approval by the item's id
-    since (an `approved` line with `by_id`, which only `approve` writes). It is empty where
-    there is none. While it is set, no rule, no word from chat, no approval of the row and no
-    pass approves the item (`jbus.steer`, `planned`)."""
+    """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller calls `risk`
+    for the item. `back` is the state the item entered `waiting_on_you` from, and None in any other
+    state. `redirect` is the id of a redirect that no approval by the item's id has followed yet.
+    Such an approval is an `approved` line with `by_id`, which only `approve` writes. `redirect` is
+    empty where there is none. While it is set, no rule, no word from chat, no approval of the row
+    and no pass approves the item (`jbus.steer`, `planned`)."""
 
     id: str
     project: str
@@ -254,7 +253,7 @@ def move_of(line: dict[str, Any]) -> Move:
 
 
 def advance(item: Item | None, line: dict[str, Any]) -> Item:
-    """Return the item after one line, or `Refused` where the line's move is not in `MOVES`."""
+    """Return the item after one line. Raise `Refused` where the line's move is not in `MOVES`."""
     verb, move = Verb(line["verb"]), move_of(line)
     to = MOVES.get((item.state if item else None, move))
     if to is None:
@@ -377,11 +376,11 @@ def write(
 ) -> dict[str, Any]:
     """Append one line, and its event. Return the line.
 
-    A `proposed` line makes the item that `item` names, which is an id that `reserve` gave, or
-    else mints a new item. Any other line names its item. `write` refuses a line, with a
-    sentence, where `MOVES` has no such move, or where `seen` is given and is not the item's
-    last line. It also refuses a link where the item is linked already or another item has the
-    slug. A refused line writes nothing.
+    A `proposed` line makes the item that its `item` names, an id that `reserve` gave. A `proposed`
+    line with no such id mints a new item. Any other line names its item. `write` refuses a line,
+    with a sentence, where `MOVES` has no such move, or where `seen` is given and is not the item's
+    last line. It also refuses a link where the item is linked already or another item has the slug.
+    For a refused line, `write` writes nothing.
     """
     with _locked(state):
         made = _put(state, verb, item=item, by=by, where=where, line=line, seen=seen, **more)
@@ -472,7 +471,7 @@ def _put(
 
 def told(box: wake.Box, made: dict[str, Any]) -> None:
     """Write a line's quiet event in `events.jsonl`. This function writes it after the line, so
-    when the event cannot be written, the line still stands."""
+    if writing the event fails, the line stays in the log."""
     verb, name, slug = Verb(made["verb"]), made["item"], made.get("slug", "")
     did = f"{verb} ({made['action']})" if verb is Verb.STEER else str(verb)
     said = f"item {box.project.name}: {name} {did}" + (f", {slug}" if slug else "")
@@ -505,12 +504,11 @@ def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:
     """Return the verbs a pass writes for an item, in order. They follow from its row's go and
     the value `work.py` judged for the row this pass (None where it confirmed no value).
 
-    A pass approves an item that is proposed or held where the row has a go, except an item
-    that was redirected and that nobody has approved by its id since. Then the pass moves the item
-    to the state `AIM` says, by the one move `MOVES` has for it. If the item waits on the user
-    and its row no longer waits, the pass resumes it first. `MOVES` has that move only from the
-    state the item came from. The pass makes no other move: it makes
-    none that the facts do not show.
+    A pass approves an item that is proposed or held where the row has a go, except an item that was
+    redirected and that nobody has approved by its id since. Then the pass moves the item to the
+    state `AIM` says, by the one move `MOVES` has for it. If the item waits on the user and its row
+    no longer waits, the pass resumes it first. `MOVES` has that move only from the state the item
+    came from. The pass makes no other move: it makes none that the facts do not show.
     """
     made: list[Verb] = []
     state, back = (item.state, item.back) if item else (S.PROPOSED, None)

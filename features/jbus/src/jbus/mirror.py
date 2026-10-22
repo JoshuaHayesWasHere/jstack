@@ -1,15 +1,15 @@
 """Read what the threads wrote down, and never write it: briefs, scout requests and the gates.
 
-Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state directory.
-It sends one event for each new section: a Result (a follow-up included), a Review, a
-Report, an open gate, an answered gate, and a gate that a thread with no home wrote into its
-own Result or Report. A gate that a thread piped to `jbus gate` is a question jbus keeps
-(`questions`). `gate_key` gives it the same key as the gate in the file, so the two are one
-event, and jbus sends no event for its answer. `seen.json` keeps the file, heading and hash
-of every section jbus sent. So jbus sends each section once, and sends a Result, Review or Report
-again when its text changes. The first pass of a project sends nothing: it only records what
-is already there. jbus also sends nothing for a file that no pass read before and whose slug
-was never a row of the queue. A tree restored from a backup puts such a file back (`scan`).
+Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state directory. It sends
+one event for each new section: a Result (a follow-up included), a Review, a Report, an open gate,
+an answered gate, and a gate that a thread with no home wrote into its own Result or Report. A gate
+that a thread piped to `jbus gate` is a question jbus keeps (`questions`). `gate_key` gives such a
+question the same key as the gate in the file, so the two are one event, and jbus sends no event for
+its answer. `seen.json` keeps the file, heading and hash of every section jbus sent. So jbus sends
+each section once, and sends a Result, Review or Report again when its text changes. On a project's
+first pass jbus sends nothing: it only records what is already there. jbus also sends nothing for a
+file that no pass read before and whose slug was never a row of the queue. Restoring a tree from a
+backup puts such a file back (`scan`).
 """
 
 from __future__ import annotations
@@ -82,8 +82,8 @@ def last_result(text: str) -> str:
 
 
 def page(report: str) -> str:
-    """Return what a scout's Report says after its last `Page:`, or nothing when it names no
-    page.
+    """Return what a scout's Report says after its last `Page:`, or nothing when the Report names
+    no page.
 
     `Page: none` names no page, and neither does `Page: none, <why>`. `jmerge --sweep` and the
     scout skill's own settle block read the line the same way.
@@ -148,7 +148,7 @@ def options(lines: str) -> tuple[list[tuple[str, str, frozenset[str]]], list[str
 
 
 def context(lines: str) -> str:
-    """Return what a gate's `Context:` line says, or nothing for a line that is not filled in."""
+    """Return what a gate's `Context:` line says, or nothing for a line that nobody filled in."""
     said = field(lines, "Context")
     return "" if said.startswith("<") else said
 
@@ -216,8 +216,8 @@ def scan(
 ) -> int:
     """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`).
     `rows` is the rows of the queue as the pass loaded them, or None where the pass could not
-    load them. With None, the pass treats no file as restored. It
-    records everything there is, as on a project's first pass.
+    load them. With None, the pass treats no file as restored, as it does on a
+    project's first pass, which records everything there is.
 
     `seen.json` keeps each file the pass reads. While a file has nothing to send, its entry has
     no heading. So a later pass can tell that a pass read the file. Suppose no pass ever read a

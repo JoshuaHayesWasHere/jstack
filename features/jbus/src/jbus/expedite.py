@@ -16,21 +16,21 @@ reason with its sentence:
 - `unanswered`, `uncited`, `repeated` and `risky`, the waits of an answer by id
   (`jbriefs.findings`): answer each finding by id, and give a decline a reason that cites a
   path:line, a command or a gate. Give each finding its own reason, and park a gate for a
-  risky one. These four reasons and the three above each list, by id, the findings that have
-  no answer that counts;
-- `second`, `the second pass is not written`: launch the second reviewer. A brief from the
-  time before fixes got a scoped review gives this reason;
+  risky one. For each of these four reasons and the three above, the line lists by id the
+  findings that have no answer that counts;
+- `second`, `the second pass is not written`: launch the second reviewer. `jmerge` gives this
+  reason for a brief written before fixes got a scoped review;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
   with the two ranges, the patch the last review saw and the patch at the head. Where the
   crew cannot work out a range, run the crew skill's block, which says what to do;
 - `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
   skill's block of "A second pass". The block launches the one scoped pass that a blocking
   decline needs, even where the crew pushed nothing;
-- `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each finding and
-  answer it `fixed`, or, where the crew still stands by the decline, tell its home. Its
-  stall goes to the home's thread and never to the user (`OVERRULED_HOME`). Only a decline
-  on one of `findings.RISKS` is the user's to settle. That one is a `hold`, and jbus asks
-  no crew to lift it;
+- `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each finding and answer
+  it `fixed`, or, where the crew still stands by the decline, tell its home. The stall for this
+  reason goes to the home's thread and never to the user (`OVERRULED_HOME`). Only a decline on one
+  of `findings.RISKS` is the user's to settle. That one is a `hold`, and jbus asks no crew to lift
+  it;
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
 - `unreviewed`, `it has no review yet`: launch the reviewer the pull request is owed. Or send a
@@ -65,15 +65,15 @@ also sends that stall, and where somebody is at work in that pass, the stall say
 A `hold` is the user's, except for `unruled` and `gate`. `tell` returns the pull requests whose hold
 it has in hand, and a pass shows those to the user as a `wait`. A hold that is not in hand is an
 item of the user's list (`waiting`), and the user learns of it when it appears on that list. Such a
-hold always has an owner. A hold that `tell` cannot take on goes to the user at once: one whose crew
-jbus did not launch, or with no `Rebase:` line to take the ranges from. A hold also goes to the user
-when jbus could not tell its crew by the `LAPSE`th pass, because the thread stays at work or the
-message is not delivered. A hold that its crew did not lift goes to the user too. Starting with the
-pass after a stall that finds nobody at work, that hold is an item of the user's list, until the
-reason or the head changes. A stall that jbus sends while work is still going on does not make the
-hold the user's. The hold becomes the user's once that work has ended and `PASSES` idle passes have
-gone by. A pass that could not ask T3 Code or GitHub has no crew to ask. Then `told` keeps in hand
-the holds `tell` had in hand, and every other hold is the user's.
+hold always has an owner. A hold that `tell` cannot take on goes to the user at once: a hold whose
+crew jbus did not launch, or one with no `Rebase:` line to take the ranges from. A hold also goes to
+the user when jbus could not tell its crew by the `LAPSE`th pass, because the thread stays at work
+or the message is not delivered. A hold that its crew did not lift goes to the user too. Starting
+with the pass after a stall that finds nobody at work, that hold is an item of the user's list,
+until the reason or the head changes. A stall that jbus sends while work is still going on does not
+make the hold the user's. The hold becomes the user's once that work has ended and `PASSES` idle
+passes have gone by. A pass that could not ask T3 Code or GitHub has no crew to ask. Then `told`
+keeps in hand the holds `tell` had in hand, and every other hold is the user's.
 """
 
 from __future__ import annotations
@@ -130,14 +130,13 @@ MESSAGE = (
 
 @dataclass(frozen=True)
 class Short:
-    """A `Short` holds one thing a crew can fix: the word, the reason that `jmerge` gives for
-    it, and the sentence that tells the crew what to do. `reviewed` marks a reason that a review
-    clears. `tell` does not send such a reason while a reviewer is at work. `unless` reads the
-    brief for a head, and says where the crew cannot fix it after all. `sends` is the line that
-    the sentence asks the crew to send to a reviewer. The event repeats that line as the crew
-    sent it. `rerun` adds the statement in `features/crew/templates/rerun.md`, the one place
-    that says when a re-run needs `again`. The reviewer's Start 1 prints that statement when
-    it refuses a message."""
+    """A `Short` holds one thing a crew can fix: the word, the reason that `jmerge` gives for it,
+    and the sentence that tells the crew what to do. `reviewed` marks a reason that a review clears.
+    `tell` does not send such a reason while a reviewer is at work. `unless` reads the brief for a
+    head, and says when the crew cannot fix the thing after all. `sends` is the line that the
+    sentence asks the crew to send to a reviewer. The event repeats that line as the crew sent it.
+    `rerun` adds the statement in `features/crew/templates/rerun.md`, the one place that says when a
+    re-run needs `again`. The reviewer's Start 1 prints that statement when it refuses a message."""
 
     kind: str
     word: str
@@ -359,7 +358,7 @@ def _kept(run: Pass, slug: str) -> str:
 
 def _ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None:
     """Return the two ranges of a scoped review that ends on `head`: the patch before it and
-    the patch after, each starting where it branched off the default branch.
+    the patch after. Each patch starts where its branch left the default branch.
 
     The patch before ends on one commit. For a rebase, that commit is the one the `Rebase:`
     line of this head names. With no such line, it is the newest head the crew kept under
@@ -396,7 +395,7 @@ def _reviewing(run: Pass, client: Client, slug: str) -> bool | None:
 
 def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> bool | None:
     """Say whether somebody is at work on what the row is short of: the crew, or a reviewer
-    for a row that a review ends. Return None where T3 Code did not say."""
+    for a row that a review clears. Return None where T3 Code did not say."""
     if any(thread["status"] in LIVE for thread in world.threads.get(slug, [])):
         return True
     return _reviewing(run, client, slug) if row.reviewed else False
@@ -421,8 +420,8 @@ def told(run: Pass, pulls: merge.Said) -> set[int]:
 def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]:
     """Tell each crew what its pull request has been short of for `AFTER` passes, once per
     reason and head. Send a stall for a crew that has made no progress after `PASSES` idle
-    passes. Return the pull requests whose hold is in hand here, which the user sees as a
-    `wait`. A hold that stalled with nobody at work is in hand for that pass. It is the user's
+    passes. Return the pull requests whose hold `tell` has in hand. The user sees each of them
+    as a `wait`. A hold that stalled with nobody at work is in hand for that pass. It is the user's
     hold from the next pass on.
     """
     by_number = {pull["number"]: slug for slug, pull in world.open.items()}
@@ -523,8 +522,8 @@ def _tell(
     run: Pass, client: Client, world: World, number: int, slug: str, row: Short, entry: dict
 ) -> str:
     """Send the message that is due, and return how it went: `told`, `users` for a hold no
-    message can lift, or nothing when the next pass
-    must try the message again."""
+    message can lift, or nothing when the
+    next pass must try the message again."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix"):

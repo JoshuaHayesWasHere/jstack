@@ -22,8 +22,9 @@ TEXT = ("project", "item", "verb", "by", "seen_event")
 
 
 def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
-    """Take a decision from Sous Chef's chat on a card, `POST /item`, as `jbus item approve` or
-    `jbus item steer` decides it, `where: chat`. Return the HTTP status and its body.
+    """Take a decision from Sous Chef's chat on a card, `POST /item`. Decide it the way
+    `jbus item approve` or `jbus item steer` would, and record it with `where: chat`. Return
+    the HTTP status and its body.
 
     `verb` is one of the card's actions: `approve`, `message`, or `hold`, which the card's
     button confirms. `seen_event` is the card's `id`. The line it names must still be the

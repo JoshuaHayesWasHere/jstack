@@ -1,5 +1,5 @@
 """When a thread stops on a usage limit, `failover` moves it to another instance of its pool,
-and the thread goes on once there.
+and the thread carries on there.
 
 A turn that ends `failed` on a usage limit cannot carry on where it was. The instance it ran
 on is capped until the window resets, and a carry-on sent there fails the same way and spends
@@ -17,7 +17,7 @@ the run was on. Then it sends the thread on to the instance of the thread's pool
   the map with the thread's instance, so no work goes to another provider.
 - When an instance has headroom, `failover` puts the thread on the first such instance with
   `t3_thread_configure`, and sends it one queued carry-on. The model and the options (effort,
-  fast mode) stay as `t3_thread_configuration` gave them, and only the `instanceId` changes.
+  fast mode) stay as `t3_thread_configuration` returned them, and only the `instanceId` changes.
   A thread already on that instance gets only the carry-on. This works both ways: a thread
   capped on a later instance goes back to an earlier one with headroom, just as a thread
   capped on the first instance goes on to the next.
@@ -104,8 +104,8 @@ _NUMBER = re.compile(r",\s*\d+$")
 
 @dataclass(frozen=True)
 class Mover:
-    """A `Mover` is a thread failover may move, with its role. `role` is the name
-    `threads.ROLES` gives it (`crew`, `reviewer`, `scout`, `home`). `slug` is the brief it
+    """A `Mover` is a thread failover may move, with its role. `role` is its name in
+    `threads.ROLES` (`crew`, `reviewer`, `scout`, `home`). `slug` is the brief it
     works on, and a home has none."""
 
     role: str
@@ -113,8 +113,8 @@ class Mover:
 
     @property
     def name(self) -> str:
-        """Return the name the thread has in the ledger's lines: the slug for a crew, `home`
-        for a home, or the role and the slug for any other."""
+        """Return the name of the thread in the lines jbus says about it: the slug for a crew,
+        `home` for a home, or the role and the slug for any other."""
         if self.role == "crew":
             return self.slug
         return "home" if self.role == "home" else f"{MAP_ROLE[self.role]} {self.slug}"
@@ -160,7 +160,7 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
     """Return each of the `listed` threads failover may move, keyed by its id. Those are a home
     in a `home-id`, a crew that a brief names on its `Thread:` line, and a crew, a reviewer or
     a scout found by its title. It leaves out a thread whose title names no crew, reviewer or
-    scout, a `home: ` title included. A reviewer's title may end in its number,
+    scout. That includes a `home: ` title. A reviewer's title may end in its number,
     `review: <slug>, <n>`, and that number is not part of its slug."""
     homes, named = _homes(run), _named(run)
     found = {}
@@ -256,7 +256,7 @@ def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
 
 
 def failover(run: Pass, client: Client, world: World) -> None:
-    """Move each thread that failed on a usage limit to the instance that is not capped, and
+    """Move each thread that failed on a usage limit to an instance that is not capped, and
     tell it to carry on. See the module for the rules."""
     try:
         said = client.call(
@@ -314,7 +314,7 @@ def failover(run: Pass, client: Client, world: World) -> None:
 class Move:
     """A `Move` is the result of a cap for one thread. It has the cap and the instance the cap
     is for, the thread's selection and pool, and the instance that `pool.choose` picked. That
-    last one is None while every instance of the pool is capped."""
+    instance is None while every instance of the pool is capped."""
 
     thread: dict[str, Any]
     mover: Mover
@@ -360,9 +360,9 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap
-    added, chooses the move, and writes nothing. It returns None for a
-    thread whose configuration names no model.
+    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap added,
+    chooses the move, and writes nothing. It returns None for a thread whose configuration names no
+    model.
 
     A replay sets `fill`. Then, when the ledger has a window running for the capped instance
     and that window resets later, the cap fills that window. Without `fill`, a cap moved to now
@@ -443,7 +443,7 @@ def handle(
 
 def _items(path: Path) -> list[dict[str, Any]]:
     """Read the items of a recording: a list of T3 Code's thread items, or an object whose
-    `items` is one."""
+    `items` is such a list."""
     try:
         found = json.loads(path.read_text())
     except (OSError, ValueError) as error:

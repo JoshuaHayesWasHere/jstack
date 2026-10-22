@@ -7,9 +7,9 @@ again. The playbook's name is the first word of the first `Playbook:` line in th
 (`jbriefs.parse.playbook_named`), or the name `--name` gives. A home and an expert give the
 name with `--name`, in place of a line.
 
-With the name `none`, or no name, it prints nothing. Otherwise it looks the name up in the
+With the name `none`, or no name, the command prints nothing. Otherwise it looks the name up in the
 `skills.json` of the repo this package is in, and opens that playbook. The skills are in that repo
-too, and it reads that repo also when the work is in another repo (`jbriefs.skills.where`).
+too, and the command reads that repo even when the work is in another repo (`jbriefs.skills.where`).
 For a name `skills.json` does not list, it prints `no playbook: ...`. For a playbook whose
 `Run by:` line names a role other than the one asked for, it prints `not <role's>: ...`. For
 a playbook of the role, it prints, by role:

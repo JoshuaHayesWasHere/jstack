@@ -8,7 +8,7 @@ same ledger.
 
 `--report` also writes `reports/ci-week-<date>.md` in the project's home over the last
 `WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`).
-`jbus-ci.timer` runs it every Monday at 09:00 ET.
+`jbus-ci.timer` runs `jbus ci --report` every Monday at 09:00 ET.
 
 `--notice` is for a CI job: it prints the annotation that gives the collector the job's
 telemetry (`jbus.ci.notice`), and needs no config.

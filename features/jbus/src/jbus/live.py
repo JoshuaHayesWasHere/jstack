@@ -1,5 +1,5 @@
 """Say whether a launched thread that is still out is alive, in one word that `judge` works
-out from what T3 Code says about it.
+out from what T3 Code reports about the thread.
 
 `judge` does all of the work. It reads no clock and no file: the pass gives it the thread's
 status, the minutes since the thread last wrote an item, how many runs are queued behind
@@ -10,13 +10,13 @@ The word is one of `LIVENESS`:
 
 - `moving`: a turn is under way and wrote something within `QUIET_MINUTES`;
 - `quiet`: a turn is under way and has written nothing for `QUIET_MINUTES`;
-- `hung`: it has written nothing for `HUNG_MINUTES`, or for `QUIET_MINUTES` while a run is
+- `hung`: the thread has written nothing for `HUNG_MINUTES`, or for `QUIET_MINUTES` while a run is
   queued behind it. A long run that is still working has no wake waiting behind it;
 - `waiting`: the thread waits on a request, or is silent while a request or a page waits on
   the user. That is never a hang;
 - `ended`: no turn is under way;
 - `unknown`: no rule above matches the facts given. It is never `moving`. `judge` returns
-  the facts with the word, so a case nobody foresaw is reported as it is.
+  the facts with the word, so the caller sees a case that nobody foresaw as it is.
 """
 
 from __future__ import annotations
@@ -33,8 +33,8 @@ OVER = ("completed", "failed", "interrupted", "cancelled", "rolled_back", "idle"
 
 @dataclass(frozen=True)
 class Facts:
-    """A `Facts` holds what a pass knows of one thread. `silent` is None where the pass does not
-    know the thread's last write."""
+    """A `Facts` holds what a pass knows of one thread. `silent` is None when the pass does not
+    know when the thread last wrote."""
 
     status: str
     silent: float | None

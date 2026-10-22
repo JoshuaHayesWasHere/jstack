@@ -74,7 +74,7 @@ def actions(item: Item) -> list[str]:
 
 
 def last(line: dict[str, Any], user: jsettings.Settings) -> str:
-    """Write the line as one sentence for the card, as
+    """Return the line as one sentence for the card, such as
     "Approved in jbus view by Josh, 11:52 EDT"."""
     where = Where(line["where"])
     said = f"{SAID[move_of(line)]}{SAID_IN.get(where, '')} by {line['by']}"
@@ -82,10 +82,10 @@ def last(line: dict[str, Any], user: jsettings.Settings) -> str:
 
 
 def view_link(project: str, name: str) -> str:
-    """Return the item's page in jbus view. The page is at the first origin in
-    `JBUS_VIEW_ORIGINS`, which is the proxy in front of the view. Without one, it is at the
-    first name in `JBUS_VIEW_NAMES`, then at the address in `JBUS_VIEW_HOST`, and last at
-    127.0.0.1, at the view's port."""
+    """Return the item's page in jbus view. The page is at the first origin in `JBUS_VIEW_ORIGINS`,
+    which is the proxy in front of the view. Without such an origin, the page is at the first name
+    in `JBUS_VIEW_NAMES`, then at the address in `JBUS_VIEW_HOST`, and last at 127.0.0.1, at the
+    view's port."""
     page = f"/#/{project}/item/{name}"
     origins = [one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(",")]
     origin = next((one for one in origins if one), "")
@@ -155,10 +155,10 @@ def cards(
 
 
 def post(run: wake.Pass) -> int:
-    """Post each card still to post to each route that is the relay, in order, as the pass's
-    step. Record in the route's `cards.json` how many lines of the log have their card. When a
-    POST fails, this function posts nothing more to that route in this pass, and the next pass
-    starts again from that card. Return how many cards it posted."""
+    """Run the pass's step that posts cards. Post each card still to post, in order, to each route
+    that is the relay. Record in the route's `cards.json` how many lines of the log have their card.
+    When a POST fails, this function posts nothing more to that route in this pass, and the next
+    pass starts again from that card. Return how many cards it posted."""
     state, sent = run.state, 0
     for route in run.box.routes:
         if not relayed(route):

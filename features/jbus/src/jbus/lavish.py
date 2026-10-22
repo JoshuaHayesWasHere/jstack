@@ -4,9 +4,9 @@ Lavish keeps each review page's session in one file, `state.json` under `LAVISH_
 or `~/.lavish-axi`. The file holds the sessions by their key. Each session has the page's
 `file` and its `chat`, the entries sent on that page. An entry is `{role, id, at, tag, text}`,
 and an entry whose role is `user` is what the user sent from the page. No command of Lavish's
-is on every `PATH`, so jbus reads the file itself. It reads it for a scout's page that may
-still wait on the user (`threads`), and for a pick the user sent from a page, which an
-approval may depend on (`picked`).
+is on every `PATH`, so jbus reads the file itself. jbus reads the file for two things: a
+scout's page that may still wait on the user (`threads`), and a pick that the user sent from
+a page, which an approval may depend on (`picked`).
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ def path() -> Path:
 
 
 def _kept(where: Path) -> dict[str, Any]:
-    """Return the sessions the file keeps, by key. A file that is not there raises `OSError`,
-    and one that does not parse raises `ValueError`."""
+    """Return the sessions the file keeps, by key. Raise `OSError` when the file does not
+    exist, and `ValueError` when it does not parse."""
     state = json.loads(where.read_text())
     kept = state.get("sessions") if isinstance(state, dict) else None
     if not isinstance(kept, dict):
@@ -42,7 +42,7 @@ def _kept(where: Path) -> dict[str, Any]:
 
 
 def sessions() -> list[dict[str, Any]]:
-    """Return each session Lavish keeps, or none where the file is not there or does not
+    """Return each session Lavish keeps, or none when the file does not exist or does not
     parse."""
     try:
         return list(_kept(path()).values())
@@ -55,8 +55,8 @@ def picked(user: jsettings.Settings, ref: str) -> queue.Said:
     as it is now. Return its text on one line, its time in the user's zone, and the page's
     file.
 
-    It refuses an entry whose role is not the user's, and an entry the file does not have.
-    The refusal names the one thing that is missing.
+    The function refuses an entry whose role is not the user's, and an entry that the file
+    does not have. The refusal names the one thing that is missing.
     """
     key, _, entry = ref.partition("/")
     if not key or not entry:

@@ -20,10 +20,10 @@ that table or nothing reads it any more, are secret while they are in the file.
 A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the top-level
 webhook. It receives the events of every project: jbus posts it each event, for the user of each
 project. Every project that has neither key of its own also uses it as its pair. A project with both
-keys of its own uses them as they are. jbus posts the project's events to that pair as well
-(`wake.Box`), and only once where the two pairs are the same. `load` refuses a project with only one
-of the two keys, because half a pair beside the top-level one would post with the wrong key. The
-top-level pair is secret whether a project uses it or not.
+keys of its own uses them as they are. jbus posts the project's events to that pair as well as to
+the top-level one (`wake.Box`), and only once where the two pairs are the same. `load` refuses a
+project with only one of the two keys, because half a pair beside the top-level one would post with
+the wrong key. The top-level pair is secret whether a project uses it or not.
 
 A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
 target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to several
@@ -89,8 +89,8 @@ class Project:
 
     `migrations` is the directory, from the checkout's root, where the repo keeps its
     migrations. It is empty where the repo has none. `migration_names` says how the repo names a
-    migration: `numbered`, as `0004_insulin`, which takes its number when it lands, or
-    `timestamped`, whose name cannot collide. `jmerge` reads both."""
+    migration. With `numbered`, a name looks like `0004_insulin`, and the migration takes its
+    number when it lands. With `timestamped`, two names cannot collide. `jmerge` reads both."""
 
     name: str
     checkout: Path
@@ -201,12 +201,11 @@ class Config:
 
 
 def old_names() -> dict[str, str]:
-    """Return each name that changed, with the name it has now. The old names are those of
-    `WAS`, and each name of `NAMED_AFTER` spelled with the user's name from the settings, as
-    jbus wrote it then. A name that is a level now, as
-    `user` is with the default settings, is not an old name. This function reads the settings
-    file, so a caller with many names to read calls it once and passes the map to the two
-    functions below."""
+    """Return each name that changed, with the name it has now. The old names are those of `WAS`,
+    and each name of `NAMED_AFTER` spelled with the user's name from the settings, as jbus wrote it
+    then. A name that is a level now, as `user` is with the default settings, is not an old name.
+    This function reads the settings file, so a caller with many names to read calls it once and
+    passes the map to the two functions below."""
     try:
         name = jsettings.load().user.lower()
     except jsettings.Invalid:
@@ -225,9 +224,10 @@ def current_kind(name: str, names: dict[str, str]) -> str:
     """Return a kind of event by the name it has now. `names` is `old_names`.
 
     `wake.Box` reads the outbox, the keys of what it sent, and the log through this function.
-    Nothing writes an old name any more. It maps no old name of a level to a kind, because a key of
-    `sent.json` may begin with any word, the user's name among them. A module that looks one key up
-    in `sent.json` reads the file as it is, since no such module looks up a kind that changed.
+    Nothing writes an old name any more. This function maps no old name of a level to a kind,
+    because a key of `sent.json` may begin with any word, the user's name among them. A module that
+    looks one key up in `sent.json` reads the file as it is, since no such module looks up a kind
+    that changed.
     """
     now = names.get(name, name)
     return name if now in LEVELS else now
@@ -283,7 +283,8 @@ BLOCKING = ("blocking_url", "blocking_key")
 
 
 def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
-    """Return the key that the table's pair is missing while it has the other, or None. A URL with
+    """When the table has one key of its pair and not the other, return the missing key.
+    Otherwise return None. A URL with
     an empty key counts as a missing key, since it would post with no key. An empty URL beside
     a key is not a webhook, and `load` accepts it."""
     url, key = pair

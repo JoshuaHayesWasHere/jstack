@@ -10,7 +10,7 @@ the page, which a person wrote by hand, as it is. A second run changes nothing.
 tree, and needs no import of jbus.
 
 With `--check` it writes nothing, says whether a committed page is behind the tree, and exits
-1 when one is.
+1 when a page is behind.
 """
 
 from __future__ import annotations
@@ -43,8 +43,8 @@ class Refused(Exception):
 
 
 def events() -> str:
-    """Return the table of the kinds of event, one row for each level, as `wake.LOUDNESS` has
-    them."""
+    """Return the table of the kinds of event, one row for each level, as `wake.LOUDNESS`
+    lists them."""
     rows = ["| `loud` | Kinds | What happens |\n", "|---|---|---|\n"]
     for level in LEVELS:
         kinds = ", ".join(f"`{kind}`" for kind, at in sorted(wake.LOUDNESS.items()) if at == level)

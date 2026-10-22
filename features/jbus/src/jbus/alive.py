@@ -1,6 +1,6 @@
 """`jbus alarm`: count a pass that did not finish, or, with `--stale`, look for a pass that
-ended within a limit. `jbus-failed.service` runs the first when a pass fails.
-`jbus-stale.timer` runs the second, so jbus also notices a pass timer that is stopped.
+ended within a limit. `jbus-failed.service` runs the count when a pass fails.
+`jbus-stale.timer` runs the `--stale` look, so jbus also notices a pass timer that is stopped.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def span(given: str) -> timedelta:
 
 
 def _shown(limit: timedelta) -> str:
-    """Write a limit the way `span` reads it, in its largest whole unit."""
+    """Format a limit the way `span` reads it, in its largest whole unit."""
     minutes = int(limit.total_seconds() // 60)
     return next(f"{minutes // size}{unit}" for unit, size in SIZES if minutes % size == 0)
 
@@ -59,8 +59,8 @@ def stale(
     The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
     a pass that died. When the last pass is past the limit, or there is no record at all, the
     look counts a failure of the `stale` streak. That streak alerts once, at its first failure
-    (`alert.sound`). The next pass in which nothing raised ends the streak and says that it
-    recovered (`poll`).
+    (`alert.sound`). The next pass in which nothing raised ends the streak and reports the
+    recovery (`poll`).
     """
     now = now or datetime.now(UTC)
     kept = record.read(config)

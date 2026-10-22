@@ -4,7 +4,7 @@ home closes it.
 A leftover is a row whose thread ended or whose pull request merged, and whose last Result
 has a `Left:` line that is not `none`. No thread is at work on it (`ended`). A row whose
 thread ended or hung with no Result at all is a leftover too, once its crew has had its
-carry-ons (`watch.unwritten`). For such a row the `left` text gives that reason, and the
+carry-ons (`watch.unwritten`). For such a row, the `left` text states that reason, and the
 message says to carry the thread on, to remove the row, or to end it with a Result.
 
 jbus closes no leftover and starts no thread for one. `tell` sends the row's home one queued
@@ -130,7 +130,8 @@ def path(state: Path) -> Path:
 
 
 def read(state: Path) -> dict[str, Record]:
-    """Return the record of each slug, or none where the file is not one this module wrote."""
+    """Return the record of each slug. Return no records when this module did not write
+    the file."""
     kept = read_json(path(state), {})
     try:
         return {slug: Record(**one) for slug, one in kept.items()}
@@ -150,7 +151,8 @@ def late(record: Record, now: datetime) -> bool:
 
 
 def his(record: Record, now: datetime) -> str:
-    """Return why a leftover is the user's, or nothing while it is its home's."""
+    """Return why a leftover is the user's, or nothing while the leftover is still its
+    home's."""
     if record.why:
         return record.why
     if late(record, now):
@@ -176,8 +178,8 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
 
 
 def note(brief: str) -> str:
-    """Return the whole `Left:` line of a brief's last Result, or nothing where it leaves
-    nothing."""
+    """Return the whole `Left:` line of a brief's last Result, or nothing when that
+    Result leaves nothing."""
     text = mirror.field(mirror.last_result(brief), "Left")
     return "" if text == "none" else text
 
@@ -240,8 +242,8 @@ def _judge(
     record: Record,
     out: set[str] | None,
 ) -> Record:
-    """Return a leftover's record after this pass, which says whether its home or the user
-    has it, and send the message once."""
+    """Return a leftover's record after this pass, and send the message once. The record
+    says whether the home or the user has the leftover."""
     thread = thread_of(home_of(run.home, brief))
     if not thread:
         return replace(record, why=NO_HOME)
@@ -281,7 +283,7 @@ def tell(
     """Tell the home of each leftover, once for a row and a `Left:` text, and rewrite
     `leftover.json`.
 
-    `out` is what `threads.out` gave: the threads that are not settled, or None where T3
+    `out` is what `threads.out` returned: the threads that are not settled, or None where T3
     Code could not list them. A row keeps its record while its last Result has the same
     `Left:` text, even through a pass in which a thread is at work on it. It loses the record
     when the Result leaves nothing or the row is gone.

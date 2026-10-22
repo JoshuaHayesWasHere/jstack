@@ -20,8 +20,8 @@ silent: the failures before the threshold, the ones after the alert, and a succe
 before it.
 
 This module returns a line on each count until `told` records that the line is in the queue,
-and only `told` marks the streak. When a caller raises, or is killed, after it gets the line
-and before it queues it, its next count returns the line again. So a line goes out at least
+and only `told` marks the streak. A caller may raise or be killed after it gets the line and
+before it queues it. Then its next count returns the line again. So a line goes out at least
 once, and twice only after such a break.
 
 The streaks are in `streaks.json`. Only this module writes that file, and it writes under a
@@ -94,7 +94,8 @@ def streaks(state: Path) -> dict[str, dict]:
 
 
 def streak(state: Path, key: str) -> Streak | None:
-    """Return the streak that is open under this key, or None when its last try succeeded."""
+    """Return the streak that is open under this key, or None when the last try under the key
+    succeeded."""
     kept = streaks(state).get(key)
     return Streak(**kept) if kept else None
 
@@ -119,7 +120,8 @@ def failed(
     now: datetime | None = None,
     user: jsettings.Settings,
 ) -> str | None:
-    """Count one failure. Return the alert line, from the count `after` on, until `told`."""
+    """Count one failure. From the count `after` on, return the alert line on each call until
+    `told` records it."""
     now = now or datetime.now(UTC)
     with _locked(state):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
@@ -222,7 +224,7 @@ def retire(state: Path, key: str) -> None:
 
 
 def deliver(run: wake.Pass, line: str | None, *, desk: bool = True) -> None:
-    """Send an alert or a recovered line to the chat, and nothing when there is no line.
+    """Send an alert or a recovered line to the chat. Send nothing when there is no line.
 
     While the project's webhook is failing, the line would only wait in the outbox, so this
     function tells the desk as well. `desk=False` is for a caller that has told the desk itself.
@@ -250,12 +252,12 @@ def flush(run: wake.Pass) -> int:
     """Post what waits for the project to each of its webhooks, and count each webhook's
     streak by how the post went. Return how many events the project's own webhook accepted.
 
-    This function posts to the project's own webhook first, so that an alert from that
-    webhook's streak goes to the top-level webhook in the same pass. For a project with no
-    top-level route any more, it ends that streak with no line and drops what waited for the
-    route. If the pair comes back later, the route gets only what is new. It also posts to the
-    second target before the others, with its own streak, so that an alert from that streak
-    goes to the others in the same pass.
+    This function posts to the project's own webhook first, so that an alert from that webhook's
+    streak goes to the top-level webhook in the same pass. For a project with no top-level route any
+    more, it ends that streak with no line and drops what waited for the route. If the top-level
+    pair comes back later, the route gets only what is new. It also posts to the second target
+    before the others, with its own streak, so that an alert from that streak goes to the others in
+    the same pass.
     """
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:
@@ -291,7 +293,7 @@ def _count(run: wake.Pass, key: str, went: list[str]) -> None:
 
 
 def why(error: Exception, *hooks: jbus.Project | jbus.Hook) -> str:
-    """Write an exception as one line, for the journal and the status file.
+    """Format an exception as one line, for the journal and the status file.
 
     An error from a webhook URL that cannot be used quotes the URL, whole or in part, so this
     function removes each hook's secrets from it (`jbus.secrets`).

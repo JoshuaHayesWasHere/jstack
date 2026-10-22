@@ -73,8 +73,8 @@ def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
 def status(entry: Entry, rows: list[queue.Row]) -> str:
     """Return the progress of the entry's work. `rows` are the rows of the entry.
 
-    With rows, it counts them: the finished ones first, `4 of 7 merged`, then each open row
-    that has a pull request, by its number, `#383 at pr`, then the rest by status,
+    With rows, the function counts them: the finished ones first, `4 of 7 merged`, then each open
+    row that has a pull request, by its number, `#383 at pr`, then the rest by status,
     `1 queued not approved`. With every row over, it says to close the entry. With no rows, it
     returns the entry's stage, or its typed line, or `no stage`.
     """

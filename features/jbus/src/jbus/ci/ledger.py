@@ -15,8 +15,8 @@ Each lever's telemetry is a field of the same line, `None` where the run did not
 and `workers` (the CPU), and `tmp_inode_pct`. A job writes these with `jbus ci --notice`; see
 `jbus.ci.notice`.
 
-`ci-prs.jsonl` has one line per pull request, and each run rewrites it: `number`, `branch`,
-`head`, `created`, `merged`, `closed`, `merge_commit` and `pushes`, the times someone
+`ci-prs.jsonl` has one line per pull request, and each run of `jbus ci` rewrites the file: `number`,
+`branch`, `head`, `created`, `merged`, `closed`, `merge_commit` and `pushes`, the times someone
 force-pushed its branch.
 """
 
@@ -73,7 +73,7 @@ def read(path: Path) -> list[dict[str, Any]]:
 
 
 def add(path: Path, rows: Iterable[dict[str, Any]]) -> int:
-    """Append the rows whose job the file does not have yet, and return how many it added."""
+    """Append the rows whose job the file does not have yet, and return how many rows it added."""
     seen = {one.get("job") for one in read(path)}
     new = []
     for row in rows:
