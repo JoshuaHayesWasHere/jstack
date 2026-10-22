@@ -86,6 +86,14 @@ def test_a_shell_line_and_a_script_comment_are_read_and_a_string_is_not(tmp_path
     ]
 
 
+def test_a_lone_double_quote_hides_no_hit_on_a_later_line(tmp_path):
+    (tmp_path / "inch.py").write_text('"""A 5" pipe.\n\nIt utilizes things.\n\nA 6" pipe."""\n')
+    assert lint(tmp_path, "inch.py") == [
+        "warn inch.py:3: rule 31 plain word: utilizes",
+        "comment_lint.py: 1 warning in comments and docstrings, which fail nothing",
+    ]
+
+
 def test_code_quotes_stands_as_strings_and_a_minified_script_are_let_through(tmp_path):
     (tmp_path / "exempt.py").write_text(EXEMPT)
     (tmp_path / "vendor.min.js").write_text("/* it leverages numerous things */\n")
