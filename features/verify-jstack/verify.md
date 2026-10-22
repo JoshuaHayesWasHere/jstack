@@ -4,8 +4,6 @@ The scripts of this skill make a sandbox, check it, keep the evidence and clean 
 
 Paths:
 - `features/verify-jstack/`
-- `.claude/skills/verify-jstack/SKILL.md`
-- `.cursor/skills/verify-jstack`
 Tests: none
 
 ## Sub-features

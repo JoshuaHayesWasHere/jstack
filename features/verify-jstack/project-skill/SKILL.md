@@ -67,7 +67,7 @@ It also checks the seed, feature by feature. Each file in `features/` has a `Nee
 The harness is the shell. Type the commands a user types, with `record` in front of each one that is part of the proof. `record <name> <command>` runs the command, prints what it printed, and appends the command, its output and its exit code to `$VERIFY_JSTACK_EVIDENCE/<name>.txt`. A command that reads stdin gets it through `record`.
 
 One feature, start to finish: a row of the jbus queue from `add` to a launched thread.
-The other features are in [`.claude/skills/verify-jstack/features/`](../../../.claude/skills/verify-jstack/features/) and in each `features/<name>/verify.md`.
+The other features are in each `features/<name>/verify.md`, and the shared test tooling's in [`testing/verify/`](../../../testing/verify/).
 
 ```sh
 printf '# alpha: a demo task\nWhere: `src/alpha/`\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1

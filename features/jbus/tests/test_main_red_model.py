@@ -4,7 +4,7 @@ every order of events within its bounds, with the real `mainmoved.tell` and `row
 Each property is walked in the world where it must hold, and fails there with its trace.
 The findings the walk found first (F1, a lost send; F2 and F3, a tip no pass saw) are the
 worlds of the tests that walk every order or a lost send.
-The skill that reruns this is `.cursor/skills/verify-main-red/SKILL.md`."""
+The skill that reruns this is `features/jbus/project-skill/verify-main-red/SKILL.md`."""
 
 import json
 from unittest import mock

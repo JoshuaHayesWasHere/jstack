@@ -167,7 +167,7 @@ The others are loaded by name.
 | `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
-| `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
+| `testing/` | The shared test tooling, and in `testing/verify/` its verify page. |
 
 ## Develop
 
@@ -183,7 +183,7 @@ The Python code is one `uv` project.
 
 `features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+`verify-jstack` (`features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
 
 ## Releasing
 

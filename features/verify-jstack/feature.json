@@ -1,5 +1,8 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "verify-jstack",
-  "description": "Drives jstack's commands in a throwaway sandbox, the way a user does."
+  "description": "Drives jstack's commands in a throwaway sandbox, the way a user does.",
+  "projectSkills": [
+    "project-skill"
+  ]
 }

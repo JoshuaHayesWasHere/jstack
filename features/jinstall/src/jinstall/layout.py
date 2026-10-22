@@ -103,6 +103,12 @@ def git_hooks(source: Path) -> tuple[dict, ...]:
     return tuple(_catalog(source).get("gitHooks", ()))
 
 
+def project_skills(source: Path) -> tuple[dict, ...]:
+    """Every project skill of the source's `skills.json`, its name and its folder in the
+    source, which the install links into a checkout's own skill folders."""
+    return tuple(_catalog(source).get("projectSkills", ()))
+
+
 def skills(source: Path) -> list[str]:
     """The name of every skill the layouts hold: each skill and each principle."""
     return sorted(
