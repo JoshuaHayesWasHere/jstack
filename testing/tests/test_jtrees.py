@@ -408,9 +408,9 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
 
 
 def test_every_path_the_contributing_pages_table_of_the_repo_names_is_in_the_repo():
-    """Somebody writes the rows below "| Path | Holds |" of CONTRIBUTING.md by hand, and no run of the generator
-    updates them. So each path in the Path column must be in the checkout. Each name that a row
-    gives in backticks must be there too, as a path from the root or from the row's own
+    """Somebody writes the rows below "| Path | Holds |" of CONTRIBUTING.md by hand, and no run of
+    the generator updates them. So each path in the Path column must be in the checkout. Each name
+    that a row gives in backticks must be there too, as a path from the root or from the row's own
     folder. A name with `~`, `<`, `{` or a space is a
     pattern, and one with no `/` and no `.` is a command."""
     lines = (REPO / "CONTRIBUTING.md").read_text().splitlines()
