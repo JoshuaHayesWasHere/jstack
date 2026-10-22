@@ -19,7 +19,6 @@ import pytest
 from skill_blocks import block, git
 from test_jbus_kitchen import NOW
 from testing.layouts import assembled
-from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
