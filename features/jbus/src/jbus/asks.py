@@ -20,6 +20,7 @@ from typing import Any
 import jbus
 from jbriefs import parse as briefs
 from jbus import (
+    blockers,
     dispatch,
     item,
     lavish,
@@ -114,21 +115,28 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "apply":
         asks = _asks(config, project)
         text = sys.stdin.read()
+        counts = []
         for _, verb in queue.parse(text):
             if isinstance(verb, queue.Approve):
                 steer.approvable(state, verb.slug)
+            if isinstance(verb, queue.Add):
+                counts.append(blockers.admit(config, project, verb.slug, verb.text))
         print("\n".join(queue.apply(state, text, config.user, asks)))
+        for count in counts:
+            count()
         return 0
     if args.verb == "verify":
         return _verify(state, args.slug, args.brief)
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = sys.stdin.read()
+        count = blockers.admit(config, project, args.slug, text)
         named = _item(state, args.slug, args.item or "")
         after = queue.slugs(args.merge_after or "")
         said = queue.add(
             state, args.slug, args.priority, depends, text, args.entry or "", named, after
         )
+        count()
         if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
             print(said)
         try:

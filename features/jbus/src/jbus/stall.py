@@ -54,7 +54,7 @@ from jmerge.lines import READY
 if TYPE_CHECKING:
     from jbus.cli import Half
 
-EVENTS = {"waiting-on-user": "quiet", "stall": "user"}
+EVENTS = {"waiting-on-user": "quiet", "stall": "quiet"}
 EVENT = "waiting-on-user"
 AGAIN = 60 * 60
 

@@ -5,12 +5,12 @@ An event is one JSON object, `{"project", "slug", "event", "line", "text", "loud
 finding in one line, and `text` is what made it. `loud` says who should see the event, and jbus
 looks `loud` up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the
 `EVENTS` that each of its modules declares at its top, so a new kind needs one line in the module
-that sends it and none in this one. There are two levels. `user` is an escalation: a new question, a
-hold or an approval for the user to give, an alert, a stall. Such an event waits in the outbox for
-the next POST. It also has `say`, the line to post in the chat as it is. That line begins with the
-project, since the user acts in that project's home. `quiet` is everything else, a fact for the
-record: jbus writes it to the log and never posts it. The caller that queues an event may give it
-the lower level: a `waiting` event that asks nothing new of the user is `quiet`.
+that sends it and none in this one. There are two levels. `user` is an escalation: a decision
+the user has to make (`jbus.blockers`), a sign-in, an alert that stands. Such an event waits in the
+outbox for the next POST. It also has `say`, the line to post in the chat as it is. That line begins
+with the project, since the user acts in that project's home. `quiet` is everything else, a fact
+for the record: jbus writes it to the log and never posts it, and the digest lists the routine
+ones. The caller that queues an event may give it the lower level.
 
 `Box` keeps a project's outbox and the keys of everything it has sent, so jbus sends a finding only
 once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an event

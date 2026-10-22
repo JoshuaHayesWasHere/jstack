@@ -56,6 +56,7 @@ Run it after the block at the top, in the same call as each block below that nam
 |---|---|---|
 | `$M/handoff.md` | The note the last home left: what is next, what it has out that jbus does not hold, what not to redo, what is uncommitted, and each gate jbus could not take. Rewritten at every handoff, from `handoff.next.md` beside it. | Ten lines, and its gates |
 | `$M/plan.md` | The work this home has planned: one entry per task, each with a "Done when" list. | Open tasks only |
+| `$M/blockers.json` | Each blocker this home briefed a fix of, with each fix queued for it, which `jbus queue add` counts against the retry cap and writes: never by hand ("Clearing its own blockers"). | One entry per blocker |
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request with no `Home:` line, a scoped home's for one that names its scope. | One line |
 | `$H/home-thread` | The merge switch, and not this home's id. Empty or missing, jbus runs `jmerge` on each pass, also while a home runs, and the home runs none: it tells the user what jbus logged. An id in it stops jbus's run for the project, and only the home merges. One of the two merges, never both: the block of "Who merges" reads it before every run ("Merging a pull request that is ready"). Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
@@ -127,6 +128,11 @@ Before a task goes to a crewmate, and when a step elsewhere names a step of this
 ## When a thread sends a message
 
 When a thread this home sent out sends it a message, when the user asks for status, and when a step elsewhere names a step of this section: read `$T/../skills/home/when-a-thread-sends-a-message.md` now.
+
+## Clearing its own blockers
+
+Each time this home wakes, at its start, on a thread's message and on an audit tick, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
+No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
 
 ## Gates
 

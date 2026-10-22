@@ -33,6 +33,7 @@ With a thread id in that file the home merges, and jbus prints `skipped <project
 - [A scratch home](jbus/a-scratch-home.md)
 - [Add a project](jbus/add-a-project.md)
 - [Back up the homes' state](jbus/back-up-the-homes-state.md)
+- [Decisions](jbus/decisions.md)
 - [Events and the webhook](jbus/events-and-the-webhook.md)
 - [Measure the CI](jbus/measure-the-ci.md)
 - [Questions](jbus/questions.md)

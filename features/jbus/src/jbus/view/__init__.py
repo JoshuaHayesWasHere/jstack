@@ -223,6 +223,7 @@ DIGEST = {
             "pulls": [{"number": None, "slug": None, "url": None, "waits": None}],
             "by_rule": [{"slug": None, "rule": None, "follows": None, "at": None}],
             "waiting": [_WAITS],
+            "routine": [{"at": None, "event": None, "slug": None, "line": None}],
             "sweep": None,
         }
     },
