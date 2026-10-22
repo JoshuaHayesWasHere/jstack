@@ -38,9 +38,10 @@ and gives the facts it has.
 A task is in one state, `state`, and the page says that state: its kind (the value of
 `work.json`), its name, its one sentence, and the one thing it waits for. Only open work is
 in `tasks`. The pass may judge a row merged or done while the queue does not yet count the
-row as over. Such a row is in `ended`. A task that cannot move names the task that blocks it in
-`blocked`, and `blocks` has how many tasks wait behind it. A task that the last pass did
-not confirm says so in `unconfirmed`.
+row as over. Such a row is in `ended`. A task that cannot move says what holds it in
+`blocked`: the task that blocks it, or a cause that is no task, with `by` empty. `blocks` has
+how many tasks wait behind it. A task that the last pass did not confirm says so in
+`unconfirmed`.
 
 `threads` is every thread that the last pass saw and that is not settled: a crew's, a
 scout's, a reviewer's, a home's or any other, each with its liveness (`jbus.live`). It is

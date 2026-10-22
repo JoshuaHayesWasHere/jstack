@@ -281,7 +281,7 @@ class Finding:
     @property
     def sent(self) -> bool:
         """Whether the reviewer sent the finding to the crew, so that the crew must answer it. The
-        reviewer sends the findings of a section that still counts."""
+        reviewer sends a finding of a section that still counts, in a bucket of `SENT`."""
         return not self.superseded and self.bucket in SENT
 
     @property
@@ -642,8 +642,8 @@ def left(said: Triage) -> str:
     """The one line that the crew's count prints to say what the crew does next with the
     findings. The line tells the crew to wait for a reviewer, to answer the findings that
     have no answer, or to write a `Fixed:` line, and names that line. A fix answers the
-    findings of the last round. The last round is the set of sections at the head of the
-    last section."""
+    findings of the last round. The last round is the last section and the sections right
+    before it that name the same head."""
     sent = said.sent()
     if not said.sections:
         return "wait: the review is not written in the brief yet"

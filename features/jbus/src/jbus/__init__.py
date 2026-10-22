@@ -284,9 +284,8 @@ BLOCKING = ("blocking_url", "blocking_key")
 
 def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
     """When the table has one key of its pair and not the other, return the missing key.
-    Otherwise return None. A URL with
-    an empty key counts as a missing key, since it would post with no key. An empty URL beside
-    a key is not a webhook, and `load` accepts it."""
+    Otherwise return None. A URL with an empty key counts as a missing key, since it would post
+    with no key. An empty URL beside a key is not a webhook, and `load` accepts it."""
     url, key = pair
     present = [name for name in pair if name in table]
     if len(present) == 1:

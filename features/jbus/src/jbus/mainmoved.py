@@ -1,4 +1,4 @@
-"""`tell` tells a crew that main was fixed. Nothing else wakes the crew of a red pull request.
+"""`tell` tells a crew that main was fixed, a wake that a red pull request never gets by itself.
 
 A pull request that is red because main was broken has no review. `jmerge` says only that the
 pull request has none, and `rebase.tell` finds nothing in it to act on. The pull request's crew
@@ -11,8 +11,7 @@ moves while green, a branch has no reason to move.
 `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for a launch
 and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip follows it. So
 `tell` loses no tip whose check had not ended when the tip landed, and no second red tip
-either.
-It keeps the last tip whose check passed as `green`.
+either. It keeps the last tip whose check passed as `green`.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
@@ -33,10 +32,9 @@ The message names the green tip that ended the red. The message's key,
 that got no answer looks again. With the mark, no pass sends the same message twice.
 A pass that still owes a send writes only `fixed`, the green tip. `jmerge.mainjson` then
 reads main as green. The record still keeps the old commit, so the next pass looks at it
-again. The next pass
-takes the red as ended at that tip, whatever tip main is at by then. A pass does the same
-when the rebase message went to a red head and GitHub has not yet said whether that head
-still conflicts.
+again. The next pass takes the red as ended at that tip, whatever tip main is at by then. A
+pass does the same when the rebase message went to a red head and GitHub has not yet said
+whether that head still conflicts.
 
 `rebase.held` holds back a message when its thread is at work or its head moved. A held
 message delays no other message: a turn may last long, and a pull request that turns red meanwhile
