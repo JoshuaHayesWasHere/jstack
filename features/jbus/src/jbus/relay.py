@@ -20,7 +20,7 @@ After a 4xx, sending the body again would never succeed. So the sender moves the
 `dead/<route>/`, writes a line, and goes on with the bodies behind it. The codes of `AGAIN` are
 the exception: the sender keeps a body that got one of them in the spool and sends it again. A
 401, 403, 404 or 407 means the target refuses a key or an address, which is a setting to fix. A
-408 or a 429 passes with time.
+408 or a 429 is temporary, so a later try can succeed.
 
 Once a route has sent a body under the body's own id, it never spools that id again. A route does
 not spool a hashed id again while it holds the id, or after it sent the id in the last

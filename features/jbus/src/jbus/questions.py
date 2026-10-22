@@ -487,12 +487,12 @@ def answer(
     heard: queue.Said | None = None,
 ) -> Question:
     """Close a question with the user's answer. `answer` refuses a second answer and puts
-    the first in the refusal. The one exception is a question that silence closed: that close
-    is not the user's answer, so the user's answer replaces it.
+    the first in the refusal. The one exception is a question that a pass closed by silence:
+    that close is not the user's answer, so the user's answer replaces it.
 
     `keeps` says the answer is the default. Only the person who heard the answer knows
     whether it keeps the default, because words such as "yes" do not say it. For an answer given as
-    `--message`, `heard` is the T3 Code message in which jbus read the words and the time.
+    `--message`, `heard` is the T3 Code message, and jbus reads the answer's words and time from it.
     """
     if by != user.user:
         raise Refused(f"refused: only {user.user} answers a question, not {by}")

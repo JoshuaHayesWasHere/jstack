@@ -155,11 +155,11 @@ def keep(
 ) -> Word:
     """Keep a word for the project, and return its record: the one there was, or a new one.
 
-    For a word given as `--message`, `heard` is the message from which jbus read the words and the
-    time, and `ref` is then the message's `<thread id>/<message id>`. `recorder` is the thread that
-    ran `jbus word`, for `--from`. When a new word was said in the project's home thread, or
-    recorded by that thread, `keep` records the word as sent to that thread and posts it to
-    nobody (`skipped`).
+    For a word given as `--message`, `heard` is the T3 Code message, and jbus reads the word's words
+    and time from it. `ref` is then the message's `<thread id>/<message id>`. `recorder` is the
+    thread that ran `jbus word`, for `--from`. When a new word was said in the project's home
+    thread, or recorded by that thread, `keep` records the word as sent to that thread and posts it
+    to nobody (`skipped`).
     """
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])

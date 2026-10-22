@@ -1,17 +1,17 @@
-"""This module reads the work that is out from T3 Code and GitHub, and writes each finding as
+"""This module asks T3 Code and GitHub for the work that is out, and writes each finding as
 one line.
 
 `look` asks once a pass for the project's crewmate threads, its open pull requests and the ones
-merged lately. `look` counts the threads of a slug that was removed from the queue, but leaves
-them out of its answer, so no pass finds such a thread stale or tells it to carry on. The slug's
-pull requests stay in the answer. When only GitHub was silent, the answer from `look` still gives
-how many crews are out. The machine has one such count: `jbus poll` adds it up over every
-project. `watch` sends a line for what a home would have noticed: a merge; a thread that ran past
-its timebox, waits on a request, or ended with no Result; a main branch whose check failed after
-a merge; a red run of the browser workflow; and a revert. `watch` names no cause and changes
-nothing. What no rule covers is a gate. `status` gives the table's derived column for a slug.
-`why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull
-request, what stopped the slug's launch, or what the slug's Result leaves.
+merged lately. `look` counts the threads of a slug that was removed from the queue, but leaves them
+out of its answer, so no pass finds such a thread stale or tells it to carry on. The slug's pull
+requests stay in the answer. When only GitHub was silent, the answer from `look` still gives how
+many crews are out. The machine has one such count: `jbus poll` adds it up over every project.
+`watch` sends a line for what a home would have noticed: a merge; a thread that ran past its
+timebox, waits on a request, or ended with no Result; a main branch whose check failed after a
+merge; a red run of the browser workflow; and a revert. `watch` names no cause and changes nothing.
+A finding that no rule covers becomes a gate. `status` gives the table's derived column for a slug.
+`why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull request,
+what stopped the slug's launch, or what the slug's Result leaves.
 
 A pull request belongs to the slug whose brief names it on the `Branch:` line of a Result,
 and `jmerge` ties the two the same way (`tied`). The name of a pull request's branch gives

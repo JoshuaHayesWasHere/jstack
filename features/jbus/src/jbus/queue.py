@@ -37,14 +37,14 @@ and the follow-up's line says that the user said nothing of the follow-up. A `ho
 parent, or a `remove` of a parent that did not merge, also takes back the go of the parent's queued
 follow-ups.
 
-`brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the
-brief's head, which say whom the brief is sent to and not what it asks for: a launch writes
-`Thread:` in, and a brief queued again under another home is the same brief. jbus stores the
-brief whole, those lines included, and a launch sends it without them (`body`). A row that the
-user approved before jbus had the fingerprint keeps its go only for the text of that approval.
-jbus matches that text by the row's `brief_sha`, or, for a row approved before the sha left the two
-lines out, by the sha256 of the whole text. `approved_text` still accepts both, and an `add` of
-such a row replaces the second with the `brief_sha` of the text the user approved.
+`brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the brief's
+head, which say whom the brief is sent to and not what it asks for: a launch writes `Thread:` in,
+and a brief queued again under another home is the same brief. jbus stores the brief whole, those
+lines included, and a launch sends it without them (`body`). A row that the user approved before
+jbus had the fingerprint keeps its go only for the text of that approval. jbus matches that text by
+the row's `brief_sha`. A row approved before `brief_sha` left out the two lines is matched by the
+sha256 of the whole text instead. `approved_text` still accepts both, and an `add` of such a row
+replaces the second with the `brief_sha` of the text the user approved.
 
 `remove` takes a row out for good. The slug then goes into `removed.json` beside the table,
 with who said so and when, and a pass reads that file to decide that a slug is gone: it sends
@@ -330,9 +330,10 @@ def sha(text: str) -> str:
 
 def body(text: str) -> str:
     """Return the brief with no `Home:`, `Thread:` or `Green main:` line in its head, the
-    lines above its first `## `. The first two name the threads that receive the brief, and a
-    brief is the same brief under another home. A launch writes the third (`dispatch`). A
-    launch sends this text, so no line goes out that the sha leaves out."""
+    lines above its first `## `. The first two name the threads that receive the brief, and
+    they are left out because a brief is the same brief under another home. A launch writes the
+    third (`dispatch`). A launch sends this text, so every line that a launch sends is a line
+    that `brief_sha` covers."""
     kept, head = [], True
     for line in text.splitlines(keepends=True):
         head = head and not line.startswith("## ")
@@ -358,8 +359,8 @@ def approved_text(row: Row, text: str) -> bool:
 
     A go recorded with a fingerprint holds for every brief that means the same (`meaning.same`),
     whatever its wording. An older go holds only for the text the user approved: its row's
-    `brief_sha`, or, for a row approved before the sha left the two lines out, the sha256 of the
-    whole text, line for line.
+    `brief_sha`. For a row approved before `brief_sha` left out the two lines, it is the sha256 of
+    the whole text, line for line.
     """
     kept = record(row)
     if kept and kept.scope:
