@@ -96,6 +96,17 @@ def layouts(home):
     }
 
 
+def hook_parts(home, source):
+    """The line of each hook entry the source's skills.json gives, in its order, in the file
+    its harness reads."""
+    files = {harness.name: home / harness.hooks for harness in HARNESSES if harness.hooks}
+    return [
+        f"hard hook {files[one['harness']]} {one['event']}"
+        for hook in layout.hooks(source)
+        for one in hook["events"]
+    ]
+
+
 def lines_of(state, parts, home):
     """Each part's line in `state`, with what a layout's ok line adds after it."""
     added = layouts(home) if state == "ok" else {}
@@ -218,12 +229,7 @@ class User:
             *layouts(self.home),
             *(f"hard {link}" for link in self.links()),
             f"optional patterns {self.patterns}",
-            f"hard hook {self.settings} PreToolUse",
-            f"hard hook {self.settings} PostToolUse",
-            f"hard hook {self.settings} SessionStart",
-            f"hard hook {self.codex} SessionStart",
-            f"hard hook {self.settings} PreToolUse",
-            f"hard hook {self.settings} UserPromptSubmit",
+            *hook_parts(self.home, REPO),
             "hard commands jstack",
             f"optional statusline {self.settings}",
         ]

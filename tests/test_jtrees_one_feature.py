@@ -11,6 +11,9 @@ import sys
 
 import pytest
 
+from jinstall.kinds import HookGroup
+from jinstall.machine import Machine
+from jinstall.needs import needs
 from testing.paths import REPO
 
 sys.path.insert(0, str(REPO / "scripts"))
@@ -117,3 +120,17 @@ def test_one_new_hook_playbook_or_skill_changes_its_own_feature_and_the_repo_onl
     for path in changed:
         owners = set(tree.owners(path))
         assert owners == {feature} or (owners and owners <= REPO_OWNED), (path, owners)
+    if feature == "jleak":
+        listed = json.loads((copy / "skills.json").read_text())["hooks"]
+        (added,) = [one for one in listed if one["name"] == "after-push.sh"]
+        assert added["events"] == [
+            {"harness": "claude-code", "event": "PostToolUse", "matcher": "Bash"}
+        ]
+        script = "features/jleak/hooks/after-push.sh"
+        assert (
+            f"| [{script}]({script}) | claude-code | `jleak` |" in (copy / "CATALOG.md").read_text()
+        )
+        machine = Machine.here(copy)
+        settings = machine.home / ".claude" / "settings.json"
+        hooked = HookGroup(settings, "PostToolUse", "Bash", "hooks/after-push.sh")
+        assert hooked in [need.kind for need in needs(machine)]

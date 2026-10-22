@@ -4,7 +4,7 @@ Each hook, status line and git hook of every `features/<name>/feature.json`, rea
 generator's own crawl, is one `HookGroup`, `StatusLine` or `GitHook` of `needs()`, and
 `needs()` has no other: a hook in one and not the other fails. The install reads them from
 `skills.json`, so this also holds the generated file to the manifests. The hooks `needs()`
-hard-coded before it read them are pinned too, so the install writes what it wrote then.
+hard-coded before it read them are pinned too: each is still built, in the same order.
 """
 
 import sys
@@ -100,14 +100,15 @@ def hard_coded(machine):
     ]
 
 
-def test_the_install_builds_from_the_manifests_the_hook_needs_it_hard_coded():
-    """The same needs, and in each file the groups of each event in the same order, which is
-    the order a fresh install writes them in."""
+def test_the_install_still_builds_each_hook_need_it_hard_coded_and_in_the_same_order():
+    """Each need it hard-coded is built from the manifests, and in each file the groups of each
+    event keep their order, the order a fresh install writes them in. A hook added since is
+    built too, and is the manifests test's to hold."""
     machine = Machine.here(REPO)
     hooked = (HookGroup, StatusLine, GitHook)
-    built = [(n.name, n.level, n.kind) for n in needs(machine) if isinstance(n.kind, hooked)]
     expected = hard_coded(machine)
-    assert sorted(built, key=str) == sorted(expected, key=str)
+    built = [(n.name, n.level, n.kind) for n in needs(machine) if isinstance(n.kind, hooked)]
+    assert [one for one in expected if one not in built] == []
 
     def by_entry(found):
         each = {}
@@ -115,4 +116,4 @@ def test_the_install_builds_from_the_manifests_the_hook_needs_it_hard_coded():
             each.setdefault(name, []).append(kind)
         return each
 
-    assert by_entry(built) == by_entry(expected)
+    assert by_entry([one for one in built if one in expected]) == by_entry(expected)
