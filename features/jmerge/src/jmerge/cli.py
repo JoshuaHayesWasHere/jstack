@@ -47,6 +47,7 @@ PROTECTED = PACKAGE / "protected.txt"
 GUARDED = PACKAGE / "guarded.txt"
 CI_PATHS = PACKAGE / "ci-paths.txt"
 INTEGRATION = "integration"
+REQUIRED_CHECKS = "required-checks"
 JUDGED_AGAIN_AT_MOST = 2
 TIMEOUT_SECONDS = 120
 
@@ -581,6 +582,7 @@ class Repo:
         self.rebasing: set[int] = set()
         self.numbers_on: dict[str, set[int]] = {}
         self.integration = ready.integration_of(_read(state / INTEGRATION))
+        self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
@@ -1757,7 +1759,7 @@ def main(argv: list[str] | None = None) -> int:
 
     asked = _run(main_checkout, "gh", "pr", "list", "--state", "open", "--json", LIST, *repo.about)
     try:
-        listed = [ready.pull_request(one) for one in json.loads(asked.stdout)]
+        listed = [ready.pull_request(one, repo.required) for one in json.loads(asked.stdout)]
     except (ValueError, KeyError, TypeError, AttributeError):
         listed = None
     default, silent = repo.default() if listed else ("", "")
