@@ -44,6 +44,9 @@ class Machine:
         jbus = self.bin / "jbus"
         jbus.write_text(f'#!/bin/sh\nexec {sys.executable} -m jbus "$@"\n')
         jbus.chmod(0o755)
+        jinstall = self.bin / "jinstall"
+        jinstall.write_text(f'#!/bin/sh\nexec {sys.executable} -m jinstall.cli "$@"\n')
+        jinstall.chmod(0o755)
 
     def run(self, marker, cwd=None, path=None, shell="sh", **filled):
         body = block("new-home", marker)
@@ -77,6 +80,11 @@ class Machine:
 
     def files(self):
         return sorted(str(p.relative_to(self.home)) for p in self.home.rglob("*") if p.is_file())
+
+
+def hooks(repo):
+    """Step 3's line for a repo that `jinstall --repo` gave both git hooks."""
+    return f"3 git hooks: done, 2 ok in {repo}/.git/hooks"
 
 
 @pytest.fixture
@@ -154,7 +162,8 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
         f"1 state directory: already, {machine.state} has its plan.md",
         f"home-id: {THREAD}",
     ]
-    (said,) = machine.jbus()
+    said, hooked = machine.jbus()
+    assert hooked == hooks(machine.repo)
     (backup,) = machine.config.parent.glob("config.toml.*.bak")
     assert said == (
         f"3 jbus project: done, one [[project]] table, the file as it was is {backup}: "
@@ -182,7 +191,10 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
     assert sorted(p.name for p in machine.state.parent.iterdir()) == ["Winnie"]
 
     now = machine.config.read_text()
-    assert machine.jbus() == ["3 jbus project: already, jbus's config has its table"]
+    assert machine.jbus() == [
+        "3 jbus project: already, jbus's config has its table",
+        hooks(machine.repo),
+    ]
     assert machine.config.read_text() == now
     assert len(list(machine.config.parent.glob("config.toml.*.bak"))) == 1
 
@@ -193,7 +205,9 @@ def test_a_name_the_config_has_for_another_checkout_is_the_users_to_settle(machi
     machine.jbus()
     assert machine.jbus(checkout=other) == [
         '3 jbus project: needs you: jbus project add said "refused: the config already has a '
-        'project of that name"'
+        'project of that name"',
+        f"3 git hooks: needs you: jinstall --repo {other} said:",
+        f"install.sh: {other} is no git repository",
     ]
 
 
@@ -201,7 +215,8 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
     machine.config.unlink()
     assert machine.jbus() == [
         "3 jbus project: needs you: set jbus up once for the machine, as "
-        'features/jbus/docs/jbus.md "Set up jbus" says, then type /new-home Winnie again'
+        'features/jbus/docs/jbus.md "Set up jbus" says, then type /new-home Winnie again',
+        hooks(machine.repo),
     ]
     assert not machine.config.exists()
     bare = machine.bin.parent / "bare"
@@ -214,7 +229,9 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
         **{"the checkout": str(machine.repo), "the T3 project id": PROJECT},
     ) == [
         "3 jbus project: needs you: sh install.sh in the checkout that holds this skill, "
-        "jbus is not on PATH"
+        "jbus is not on PATH",
+        "3 git hooks: needs you: sh install.sh in the checkout that holds this skill, "
+        "jinstall is not on PATH",
     ]
 
 

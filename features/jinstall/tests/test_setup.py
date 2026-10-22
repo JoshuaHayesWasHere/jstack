@@ -5,6 +5,7 @@ name set."""
 
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tomllib
@@ -213,7 +214,9 @@ def test_setup_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp
 def test_usage_names_setup(user):
     code, said, err = user.run_with_stderr("--setup", "--check")
     assert (code, said) == (2, [])
-    assert err == "usage: install.sh [--check | --uninstall | --doctor | --setup]\n"
+    assert (
+        err == "usage: install.sh [--check | --uninstall | --doctor | --setup | --repo [<path>]]\n"
+    )
     assert os.listdir(user.home) == []
 
 
@@ -254,3 +257,77 @@ def test_a_zone_the_loader_would_not_take_is_left_out_and_the_pass_goes_on(user,
     assert code == 0
     assert tomllib.loads(user.config.read_text()) == {"user": "Sam"}
     assert said[-1] == f"done units {user.units}"
+
+
+def no_checkout_behind(home, tmp_path):
+    """A HOME whose setup-pstack link leads to a layout whose source has no install.sh, as a
+    release's does."""
+    source = tmp_path / "share" / "jstack"
+    layout = tmp_path / "layout"
+    source.mkdir(parents=True)
+    (layout / "skills" / "setup-pstack").mkdir(parents=True)
+    (layout / "source").symlink_to(source)
+    (home / ".claude" / "skills").mkdir(parents=True)
+    (home / ".claude" / "skills" / "setup-pstack").symlink_to(layout / "skills" / "setup-pstack")
+
+
+def narrow_path(tmp_path, **stubs):
+    """A PATH of the programs the skill's block runs, and a stand-in for each of `stubs`."""
+    narrow = tmp_path / "narrow"
+    narrow.mkdir()
+    for program in ("realpath", "awk", "tail", "cat"):
+        (narrow / program).symlink_to(shutil.which(program))
+    for name, text in stubs.items():
+        (narrow / name).write_text(text)
+        (narrow / name).chmod(0o755)
+    return narrow
+
+
+JINSTALL = """#!/bin/sh
+echo "$*" >> "$JINSTALL_LOG"
+case "$1" in
+--setup) printf 'already linux\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'; exit 1 ;;
+--doctor) printf 'ok hard linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
+esac
+exit 2
+"""
+
+
+def test_the_skill_on_a_release_runs_jinstall_setup_then_the_doctor(tmp_path):
+    home = tmp_path / "home"
+    no_checkout_behind(home, tmp_path)
+    narrow = narrow_path(tmp_path, jinstall=JINSTALL)
+    log = tmp_path / "jinstall.log"
+    env = {"HOME": str(home), "PATH": str(narrow), "JINSTALL_LOG": str(log)}
+
+    done = subprocess.run(
+        ["/bin/sh", "-c", skill_block()], env=env, cwd=home, capture_output=True, text=True
+    )
+
+    assert (done.returncode, done.stderr) == (0, "")
+    assert done.stdout.splitlines() == [
+        f"release: {narrow / 'jinstall'}",
+        "already linux",
+        "done patterns x",
+        "needs you gh sign-in -> gh auth login",
+        "setup: 1 done, 1 already, 1 needs you, exit 1",
+        "doctor: not ok, 1 hard",
+    ]
+    assert log.read_text() == "--setup\n--doctor\n"
+
+
+def test_the_skill_with_no_checkout_and_no_jinstall_names_the_release_install(tmp_path):
+    home = tmp_path / "home"
+    no_checkout_behind(home, tmp_path)
+    env = {"HOME": str(home), "PATH": str(narrow_path(tmp_path))}
+
+    done = subprocess.run(
+        ["/bin/sh", "-c", skill_block()], env=env, cwd=home, capture_output=True, text=True
+    )
+
+    said = done.stdout.splitlines()
+    assert said[0].startswith("not set up: ")
+    assert said[1] == (
+        "needs you: curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/"
+        "download/install.sh | sh"
+    )

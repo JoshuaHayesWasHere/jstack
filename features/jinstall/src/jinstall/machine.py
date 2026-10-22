@@ -315,6 +315,34 @@ class Machine:
             if was.existed:
                 shutil.copymode(was.real, next_to)
 
+    def _repos(self) -> Path:
+        return self.state_home() / "jstack" / "repos"
+
+    def repos(self) -> list[Path]:
+        """The repos that `--repo` set up, by main checkout, in the order it set them up
+        (${XDG_STATE_HOME:-~/.local/state}/jstack/repos, one path on each line)."""
+        try:
+            return [Path(line) for line in self._repos().read_text().splitlines() if line]
+        except OSError:
+            return []
+
+    def add_repo(self, repo: Path) -> None:
+        """Put `repo` at the end of the list of repos, once."""
+        known = self.repos()
+        if repo in known:
+            return
+        self._note(None)
+        with _beside(self._repos()) as next_to:
+            next_to.write_text("".join(f"{path}\n" for path in (*known, repo)))
+
+    def forget_repos(self) -> Dropped:
+        """Remove the list of repos, a step of uninstall after each repo's hooks are gone."""
+        try:
+            self._repos().unlink()
+        except FileNotFoundError:
+            return Dropped()
+        return Dropped(removed=(f"repos {self._repos()}",))
+
     def _seeds(self) -> Path:
         return self.state_home() / "jstack" / "seeded"
 

@@ -30,6 +30,7 @@ From a checkout, `sh install.sh --setup` does the same for the checkout, and ins
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
 | `jinstall --setup` | Walks every need once, in order: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
+| `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. One line a hook. |
 | `jinstall --uninstall` | Takes away what it put, and keeps what is yours. |
 
 `--setup` links each skill into `~/.{claude,agents,codex}/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and sets a status line that writes the limits file, unless you have a status line of your own.
@@ -45,7 +46,8 @@ A second run writes nothing.
 | The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
 | Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
 | The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
-| Also checked | nothing more | the generated files are current (`generated files are current`), and the git hooks of a main checkout |
+| Also checked | nothing more | the generated files are current (`generated files are current`) |
+| The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
 
 A release's `--uninstall` keeps the tool it runs from: `uv tool uninstall jstack` removes it after.
 A new release replaces its source in place, so the layouts' links stay where they are.
@@ -81,8 +83,39 @@ Each harness reads its entries from one file: Claude Code from `~/.claude/settin
 Each entry runs the script from that harness's layout, `<layout>/hooks/<script>`.
 Cursor gets no hook entry.
 The status line is Claude Code's, a `statusLine` in `~/.claude/settings.json`: the install writes it when the key is absent, replaces one that runs the same script from another layout, and leaves a status line of your own as it is.
-A git hook is no settings entry: the install links `.git/hooks/<name>` of the main checkout to its script, and the repo's worktrees run it too.
+A git hook is no settings entry: the install links `.git/hooks/<name>` of a repo's main checkout to its script, and the repo's worktrees run it too ("Git hooks in your repos").
 The install leaves every other key of those files as it was.
+
+## Git hooks in your repos
+
+jleak's `pre-push` and `commit-msg` hooks go into every repo jstack works in:
+
+- the checkout jstack is installed from, when it is installed from one;
+- the checkout of each project of `jbus`'s config, which `/new-home` adds;
+- each repo you set up with `jinstall --repo`, which the install keeps in `~/.local/state/jstack/repos`.
+
+To add the hooks to another repo, run `jinstall --repo` in it, or `jinstall --repo <path>` (`sh install.sh --repo <path>` from a checkout).
+`/new-home` runs it for the repo it sets up.
+A plain install, `--setup` and `--uninstall` then cover the repo with the rest, and `--check` and the doctor print one line for each of its hooks.
+
+The hook in jstack's own checkout is `hard`, and a hook in any other repo is `optional`, so a repo with hooks of its own never makes the doctor fail.
+A hook links to its script in the release's source, or in the checkout, so it runs with no checkout: a release's script runs jleak on the release's own Python.
+
+A hook of the repo's own is never written over: a file, a link to anything but jleak's script, or a folder that `core.hooksPath` names.
+Its line says `old` and names the file, with the line that runs jstack's hook from it:
+
+```text
+old optional hook /home/you/repos/app/.git/hooks/pre-push pre-push -> a hook of the repo's own, which the install does not write over: run sh '/home/you/.local/share/uv/tools/jstack/share/jstack/features/jleak/hooks/pre-push.sh' "$@" from it
+```
+
+Once your hook runs that script, the line says `ok` with `chained from the repo's own hook`, and `--uninstall` leaves your hook as it is.
+git gives `pre-push` the refs it pushes on standard input, so a `pre-push` hook of your own that reads them hands them on:
+
+```sh
+refs=$(cat)
+printf '%s\n' "$refs" | sh '<the script the line names>' "$@" || exit 1
+printf '%s\n' "$refs" | <the rest of your hook>
+```
 
 ## AI co-author trailers
 
