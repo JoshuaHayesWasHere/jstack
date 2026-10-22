@@ -1215,3 +1215,133 @@ def test_each_check_jmerge_requires_is_a_job_of_a_pull_request_and_borders_fails
         assert name in jobs(workflow.read_text())
     (*_, lint), _ = steps(BORDERS.read_text(), "borders")
     assert lint["run"].startswith("python3 scripts/lint-borders.py --hard ")
+
+
+NO_AI_TRAILERS = REPO / "scripts" / "no_ai_trailers.py"
+CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
+
+
+def test_a_pull_requests_check_fails_on_an_ai_trailer_after_the_suite_whatever_it_said():
+    found, _ = steps(CHECK.read_text(), "check")
+    (trailer,) = [step for step in found if step.get("name") == "no AI co-author trailer"]
+    assert trailer["run"] == "uv run python scripts/no_ai_trailers.py"
+    assert trailer["if"] == "!cancelled() && steps.suite.outcome != 'skipped'"
+    assert trailer["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+    assert found.index(trailer) > [step.get("id") for step in found].index("suite")
+
+
+class Compare:
+    """GitHub's compare API for one range, served on localhost a page at a time."""
+
+    def __init__(self, messages):
+        import http.server
+        import threading
+        from urllib.parse import parse_qs, urlsplit
+
+        listed = [{"sha": f"{at:040x}", "commit": {"message": m}} for at, m in enumerate(messages)]
+        self.asked = []
+        asked = self.asked
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                url = urlsplit(self.path)
+                asked.append((url.path, self.headers.get("Authorization")))
+                query = parse_qs(url.query)
+                size, page = int(query["per_page"][0]), int(query["page"][0])
+                body = {"total_commits": len(listed), "commits": listed[(page - 1) * size :][:size]}
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps(body).encode())
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}"
+
+    def close(self):
+        self.server.shutdown()
+
+
+def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it changed."):
+    """Run the check's script on a pull request with these commits, as the step runs it."""
+    event = tmp_path / "event.json"
+    pull = {"title": title, "body": body, "base": {"sha": "b" * 40}, "head": {"sha": "h" * 40}}
+    event.write_text(json.dumps({"pull_request": pull}))
+    compare = Compare(messages)
+    try:
+        ran = subprocess.run(
+            [sys.executable, str(NO_AI_TRAILERS)],
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "GITHUB_EVENT_PATH": str(event),
+                "GITHUB_API_URL": compare.url,
+                "GITHUB_REPOSITORY": "owner/repo",
+                "GITHUB_TOKEN": "t0ken",
+            },
+        )
+    finally:
+        compare.close()
+    return ran.returncode, ran.stdout.splitlines(), compare.asked
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        CLAUDE,
+        "co-authored-by: claude <claude@example.com>",
+        "Co-authored-by: Someone <someone@anthropic.com>",
+        "Co-authored-by: Codex <codex@example.com>",
+        "Co-authored-by: OpenAI <noreply@openai.com>",
+        "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+        "Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>",
+        "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+    ],
+)
+def test_a_commit_with_an_ai_trailer_fails_the_check_naming_the_commit_and_the_line(tmp_path, line):
+    code, printed, asked = no_ai_trailers(tmp_path, ["feat: one", f"fix: two\n\nWhy.\n\n{line}"])
+    assert code == 1
+    sha = f"{1:040x}"[:12]
+    assert printed[0] == f"::error title=AI co-author trailer::commit {sha} line 5: {line}"
+    assert len(printed) == 2
+    path = f"/repos/owner/repo/compare/{'b' * 40}...{'h' * 40}"
+    assert asked == [(path, "Bearer t0ken")]
+
+
+def test_a_title_or_a_body_with_an_ai_trailer_fails_the_check_naming_where(tmp_path):
+    code, printed, _ = no_ai_trailers(
+        tmp_path, ["feat: one"], title="feat: a change", body=f"Why.\n\n{CLAUDE}"
+    )
+    assert (code, printed[:1]) == (
+        1,
+        [f"::error title=AI co-author trailer::body line 3: {CLAUDE}"],
+    )
+
+
+def test_a_clean_range_with_a_human_co_author_passes_and_every_page_is_read(tmp_path):
+    messages = [f"feat: {at}" for at in range(150)] + [f"fix: last\n\n{HUMAN}"]
+    code, printed, asked = no_ai_trailers(tmp_path, messages, body=f"Paired.\n\n{HUMAN}")
+    assert (code, printed) == (
+        0,
+        ["no-ai-trailers: the title, the body and 151 commits carry none"],
+    )
+    assert len(asked) == 2
+
+
+def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):
+    event = tmp_path / "event.json"
+    pull = {"title": "t", "body": None, "base": {"sha": "b"}, "head": {"sha": "h"}}
+    event.write_text(json.dumps({"pull_request": pull}))
+    env = {**os.environ, "GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": "owner/repo"}
+    ran = subprocess.run(
+        [sys.executable, str(NO_AI_TRAILERS)],
+        capture_output=True,
+        text=True,
+        env=env | {"GITHUB_API_URL": "http://127.0.0.1:9"},
+    )
+    assert ran.returncode == 2
+    assert ran.stdout.startswith("::error::no-ai-trailers: the commits could not be read: ")

@@ -223,10 +223,12 @@ def test_two_ready_pull_requests_on_other_files_both_merge_each_judged_after_the
     assert merge.calls(kitchen.home) == [
         f"pr list --state open --json {merge.LIST} {about}",
         f"repo view {kitchen.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
-        f"pr merge 6 --squash --match-head-commit {one} --subject feat: one (#6) --body-file - {about}",
+        f"pr merge 6 --squash --match-head-commit {one} --subject feat: one (#6)"
+        f" --body-file - {about}",
         f"pr view 6 --json mergeCommit --jq .mergeCommit.oid {about}",
         f"pr list --base one --state open --json number {about}",
-        f"pr merge 7 --squash --match-head-commit {two} --subject feat: two (#7) --body-file - {about}",
+        f"pr merge 7 --squash --match-head-commit {two} --subject feat: two (#7)"
+        f" --body-file - {about}",
         f"pr view 7 --json mergeCommit --jq .mergeCommit.oid {about}",
         f"pr list --base two --state open --json number {about}",
     ]
