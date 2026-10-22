@@ -75,9 +75,9 @@ Preconditions:
 
 The checkout's own skills, from a clone inside the sandbox's HOME, since a run under a HOME that is not yours links none into a checkout outside it:
 
-- **Clone and install.** Run `git clone -q "$VERIFY_JSTACK_REPO" "$HOME/jstack" && cd "$HOME/jstack"`, then `record project-skills sh install.sh`.
-- **See each project skill resolve.** Run `record project-skills sh -c 'readlink -f .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'`. It prints each one's `SKILL.md` in its feature's folder, under `features/verify-jstack/project-skill/` and `features/jbus/project-skill/verify-main-red/`.
-- **See git track none of it.** Run `record project-skills git ls-files .claude .cursor`. It prints nothing, and `git status --short --ignored .claude .cursor` prints `!! .claude/` and `!! .cursor/`.
+- Clone and install: run `git clone -q "$VERIFY_JSTACK_REPO" "$HOME/jstack" && cd "$HOME/jstack"`, then `record project-skills sh install.sh`.
+- See each project skill resolve: `record project-skills sh -c 'readlink -f .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'` prints each one's `SKILL.md` in its feature's folder.
+- See git track none of it: `record project-skills git ls-files .claude .cursor` prints nothing, and `git status --short --ignored .claude .cursor` prints `!! .claude/` and `!! .cursor/`.
 
 From a wheel, in a second sandbox, so that no checkout is above its HOME or its tool:
 
