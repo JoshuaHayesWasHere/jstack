@@ -98,7 +98,7 @@ To add the hooks to another repo, run `jinstall --repo` in it, or `jinstall --re
 `/new-home` runs it for the repo it sets up.
 A plain install, `--setup` and `--uninstall` then cover the repo with the rest, and `--check` and the doctor print one line for each of its hooks.
 
-The hook in jstack's own checkout is `hard`, and a hook in any other repo is `optional`, so a repo with hooks of its own never makes the doctor fail.
+The hook in jstack's own checkout is `hard`, and a hook in any other repo is `optional`, so a repo with hooks of its own never makes the install, `--check` or the doctor fail, while `--repo` exits 1 until the repo runs jstack's hook.
 A hook links to its script in the release's source, or in the checkout, so it runs with no checkout: a release's script runs jleak on the release's own Python.
 
 A hook of the repo's own is never written over: a file, a link to anything but jleak's script, or a folder that `core.hooksPath` names.

@@ -66,7 +66,9 @@ def refused(machine: Machine, verb: str) -> Report | None:
 def install(machine: Machine, write: bool, repo: Path | None = None) -> Report:
     """Probe each due Carried need. With `write`, put the need and probe it again when the
     probe answers missing, or answers an old that is replaceable. Each line gives the answer
-    of the last probe, and the exit code is 1 when a line is not ok.
+    of the last probe, and the exit code is 1 when a line is not ok. A repo's own git hook in
+    a repo that is not jstack's is the exception (`yours`): its line says so, and it leaves
+    the exit code as it is, since no install can put that hook.
 
     When a put fails, the loop catches the failure, adds its reason to `note`, and goes on.
     The second probe then reports the actual state. With `write`, the function refuses a
@@ -90,10 +92,16 @@ def install(machine: Machine, write: bool, repo: Path | None = None) -> Report:
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")
             found = kind.probe(machine)
-        if found.state is not State.OK:
+        if found.state is not State.OK and not yours(need, found):
             code = 1
         lines.append(say(need, found))
     return Report(tuple(lines), "\n".join(notes), code)
+
+
+def yours(need: Need, found: Found) -> bool:
+    """Whether the line is an optional git hook that is the repo's own: one the install never
+    writes over."""
+    return need.level is Level.OPTIONAL and isinstance(need.kind, GitHook) and not found.replaceable
 
 
 def setup(machine: Machine) -> Report:
@@ -150,7 +158,8 @@ def set_up_repo(machine: Machine, path: Path) -> Report:
     if not report.lines:
         why = f"install.sh: {repo} gets no git hook: it is outside HOME, and HOME is not your own"
         return Report((), "\n".join(filter(None, (report.note, why))), 1)
-    return report
+    left = any(not line.startswith(f"{State.OK.value} ") for line in report.lines)
+    return Report(report.lines, report.note, 1 if left else report.code)
 
 
 def uninstall(machine: Machine) -> Report:

@@ -201,3 +201,24 @@ def test_a_repo_whose_folder_is_gone_drops_out_of_the_check(user):
     _, checked, _ = said(user, "--check")
 
     assert line_for(checked, str(repo)) == []
+
+
+def test_a_projects_own_hook_is_reported_and_fails_neither_install_nor_check(user):
+    repo = scratch(user, "project")
+    own = hook(repo, "pre-push")
+    own.write_text("#!/bin/sh\nexit 0\n")
+    user.jbus.mkdir()
+    config = user.jbus / "config.toml"
+    table = f'[[project]]\nname = "project"\ncheckout = "{repo}"\nprojectId = "p"\n'
+    config.write_text(f'server = "http://127.0.0.1:3773"\n{table}')
+    config.chmod(0o600)
+
+    put, lines, _ = said(user)
+    checked, again, _ = said(user, "--check")
+
+    reported = f"old {part(repo, 'pre-push')} -> a hook of the repo's own"
+    assert (put, checked) == (0, 0)
+    assert any(line.startswith(reported) for line in lines)
+    assert any(line.startswith(reported) for line in again)
+    assert own.read_text() == "#!/bin/sh\nexit 0\n"
+    assert said(user, "--repo", str(repo))[0] == 1
