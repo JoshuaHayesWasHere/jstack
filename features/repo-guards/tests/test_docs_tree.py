@@ -63,15 +63,11 @@ def test_a_copy_with_a_broken_link_an_unknown_skill_and_a_wrong_count_fails_each
     readme.write_text(readme.read_text() + "\nSee [FAKE page](docs/fake-missing.md).\n")
     page = copy / "features" / "home" / "docs" / "state.md"
     page.write_text(page.read_text() + "\nRun `/fake-skill` first.\n")
-    count = copy / "features" / "home" / "docs" / "playbooks.md"
-    count.write_text(count.read_text() + "\nThe tree has 99 principles.\n")
+    readme.write_text(readme.read_text() + "\nThe tree has 99 principles.\n")
     found = ran(copy)
     assert len(found) == 3, found
     assert found[0].startswith("FAIL README.md:") and "docs/fake-missing.md" in found[0]
-    assert (
-        found[1].startswith("FAIL features/home/docs/playbooks.md:")
-        and "counts 99 principles" in found[1]
-    )
+    assert found[1].startswith("FAIL README.md:") and "counts 99 principles" in found[1]
     assert (
         found[2].startswith("FAIL features/home/docs/state.md:")
         and "/fake-skill is named" in found[2]

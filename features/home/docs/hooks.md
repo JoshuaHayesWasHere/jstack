@@ -1,23 +1,9 @@
 # Hooks
 
-`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
-This page says what each script does and shows the entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
+`install.sh` writes home's three hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
+This page says what home's two scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
-[Configuration](../../../docs/configuration.md) lists the entries with every other file you write.
-
-Each hook below is a feature's, as its `features/<name>/feature.json` declares it.
-
-<!-- generated: hooks by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
-| Hook | Script | Harnesses | Feature |
-|---|---|---|---|
-| `SessionStart`, matcher `startup` | [features/home/hooks/home-start.sh](../hooks/home-start.sh) | claude-code, codex | `home` |
-| `PreToolUse` | [features/home/hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
-| `PostToolUse` | [features/home/hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
-| the status line | [features/jgauge/hooks/limits.sh](../../jgauge/hooks/limits.sh) | claude-code | `jgauge` |
-| `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](../../jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
-| git `pre-push` | [features/jleak/hooks/pre-push.sh](../../jleak/hooks/pre-push.sh) | git | `jleak` |
-| `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../../skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
-<!-- generated: end -->
+[The catalog](../../../CATALOG.md#hooks) lists the hooks of every feature, and [jinstall](../../jinstall/docs/jinstall.md#hook-entries) says which file of each harness they go in.
 
 ## The start hook
 
@@ -56,42 +42,6 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
 ```
 
 A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
-
-## The tips hook
-
-`features/skill-library/hooks/skill-tips.sh` is a `UserPromptSubmit` hook.
-When a prompt matches a skill you have, it gives one line, such as `tip: /blast-radius finds what a small diff could break elsewhere`.
-It calls no model.
-
-A skill gets tips from one line in its frontmatter:
-
-```
-tip: <what it is for> | <trigger> | <trigger>
-```
-
-A trigger matches whole words, whatever the case and the punctuation, and a `*` in it stands for one to four words. A prompt gets one tip at most, for the longest trigger that matches. The hook reads the first 4,000 characters of a prompt. It gives no tip for a prompt that starts with `/` or `$`, for the skill a prompt names, for a skill the session already had a tip for, or in a worktree.
-
-Outside T3 Code the hook prints the line as a `systemMessage`, which is for you and not for the agent. Inside T3 Code it hands the line to the agent as context, with the instruction to pass it on and not to act on it.
-
-To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in the settings: it is a hard need, so `install.sh --check` exits 1 without it and the next install puts it back. The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh '<layout>/hooks/skill-tips.sh' 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-```
 
 ## The gauge hook
 
@@ -169,27 +119,3 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
   }
 }
 ```
-
-## The limits writer
-
-`features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
-Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
-The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
-`claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`.
-An account the inventory does not declare writes nothing, so one account's limits never stand for another's.
-`jgauge room` reads those files ([jroles](../../jroles/docs/jroles.md#the-ledger)).
-The script prints nothing and exits 0 on any input, so the status line it leaves is empty.
-
-`install.sh` sets it as `statusLine` in `~/.claude/settings.json` only when that key is absent:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "sh '<layout>/hooks/limits.sh'"
-  }
-}
-```
-
-A status line of your own is left as it is.
-[Configuration](../../../docs/configuration.md#the-limits-file) shows how to call the script from it.

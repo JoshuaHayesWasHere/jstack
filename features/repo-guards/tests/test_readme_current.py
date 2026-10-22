@@ -512,19 +512,38 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
     assert len([one for one in patterns() if "rename" in one.pattern]) == 3
 
 
-def test_the_entries_the_hooks_page_shows_are_the_ones_the_install_writes():
+def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
+    """Every JSON block of a page that holds a hook entry or a status line for `<layout>` is
+    the group, or the status line, that `needs()` writes for that event and script."""
     here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
-    shown = [json.loads("\n".join(block)) for block in blocks(page("hooks.md"), "json")]
-    settings = Path("settings.json")
-    start = HookGroup(settings, "SessionStart", "startup", "hooks/home-start.sh")
-    tips = HookGroup(settings, "UserPromptSubmit", None, "hooks/skill-tips.sh")
-    gauge = HookGroup(settings, "PostToolUse", None, "hooks/home-gauge.sh")
-    assert shown == [
-        {"hooks": {"SessionStart": [start._group(here)]}},
-        {"hooks": {"UserPromptSubmit": [tips._group(here)]}},
-        {"hooks": {"PostToolUse": [gauge._group(here)], "PreToolUse": [gauge._group(here)]}},
-        {"statusLine": StatusLine(settings)._ours(here)},
-    ]
+    written = {}
+    for need in listed.needs(Machine.here(REPO)):
+        kind = need.kind
+        if isinstance(kind, HookGroup):
+            written[kind.event, kind.script] = kind._group(here)
+        elif isinstance(kind, StatusLine):
+            written["statusLine", kind.script] = kind._ours(here)
+
+    def script(command):
+        return re.search(r"<layout>/(hooks/[^'\s]+)", command)[1]
+
+    shown = set()
+    for path in (*PAGES, REPO / "CATALOG.md"):
+        for block in blocks(path.read_text(), "json"):
+            value = json.loads("\n".join(block))
+            if not isinstance(value, dict) or "<layout>" not in json.dumps(value):
+                continue
+            for event, groups in value.get("hooks", {}).items():
+                for group in groups:
+                    (hook,) = group["hooks"]
+                    key = event, script(hook["command"])
+                    assert group == written.get(key), (path.name, key)
+                    shown.add(key)
+            if "statusLine" in value:
+                key = "statusLine", script(value["statusLine"]["command"])
+                assert value["statusLine"] == written.get(key), (path.name, key)
+                shown.add(key)
+    assert len(shown) >= 5
 
 
 def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prints_its_own(

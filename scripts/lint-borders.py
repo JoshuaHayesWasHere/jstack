@@ -29,6 +29,7 @@ INFRA_ROOT = (
     "uv.lock",
     "plugin.json",
     "README.md",
+    "CATALOG.md",
     "skills.json",
 )
 CROSS = "cross-cutting"

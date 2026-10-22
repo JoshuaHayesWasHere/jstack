@@ -60,6 +60,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
     ),
     "SHARED-DELETE": (
         "README.md",
+        "CATALOG.md",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "THIRD_PARTY.md",

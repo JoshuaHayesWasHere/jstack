@@ -134,13 +134,15 @@ Each command has one page.
 | [Configuration](docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
 | [Troubleshooting](docs/troubleshooting.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
 | [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
-| [Hooks](features/home/docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
+| [Hooks](features/home/docs/hooks.md) | See what the start hook and the gauge hook do. |
 | [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
 | [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |
 
 ## Skills
 
-`skills/` and `features/` hold 39 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`features/` holds every skill, and [the catalog](CATALOG.md) lists each one by its feature.
+Eight skills run the flow, `poteto-help` as the way in.
+Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|

@@ -1,86 +1,57 @@
-"""The table of hook entries in docs/configuration.md is the list `jinstall.needs` installs.
+"""The hook entries `jinstall.needs` installs are the ones the features declare.
 
-Each row of the table under "Hook entries" is read as a file, a key, a matcher and a script,
-and each `HookGroup` and `StatusLine` of `needs()` the same way: a hook in one and not the
-other fails. A script is named by its path in the checkout, the one `skills.json` gives the
-layout's `hooks/<name>`. A git hook (`GitHook`) is no settings entry, so it is held to the
-lines under the table instead: each one `needs()` puts is named there by its
-`.git/hooks/<name>` link and its script, and no other is.
+Each hook, status line and git hook of every `features/<name>/feature.json`, read by the
+generator's own crawl, is one `HookGroup`, `StatusLine` or `GitHook` of `needs()`, and
+`needs()` has no other: a hook in one and not the other fails. The install reads them from
+`skills.json`, so this also holds the generated file to the manifests. The hooks `needs()`
+hard-coded before it read them are pinned too, so the install writes what it wrote then.
 """
 
-import json
-import re
+import sys
+from pathlib import PurePosixPath
 
+from jinstall.harnesses import HARNESSES
 from jinstall.kinds import GitHook, HookGroup, StatusLine
 from jinstall.machine import Machine
 from jinstall.needs import Level, needs
 from testing.paths import REPO
 
-PAGE = REPO / "docs" / "configuration.md"
-ROW = re.compile(r"^\| `([^`]+)` \| `([^`]+)`(?:, matcher `([^`]+)`)? \| `([^`]+)` \| [^|]+ \|$")
+sys.path.insert(0, str(REPO / "scripts"))
+from jtrees.crawl import crawl
+
+HOOKED = (HookGroup, StatusLine, GitHook)
 
 
-def section():
-    said = PAGE.read_text()
-    start = said.index("\n## Hook entries\n")
-    end = said.index("\n## ", start + 1)
-    return said[start:end]
-
-
-def table():
-    """Each row, as (file, key, matcher, script), and the text under the table."""
-    lines = section().splitlines()
-    rows = [line for line in lines if line.startswith("| `")]
-    under = "\n".join(lines[lines.index(rows[-1]) + 1 :])
+def declared(machine):
+    """Each hook kind the features' manifests ask the install for."""
+    files = {one.name: machine.home / one.hooks for one in HARNESSES if one.hooks}
     found = []
-    for row in rows:
-        match = ROW.match(row)
-        assert match, f"a row that is not file, key, script, reader: {row}"
-        found.append(match.groups())
-    return found, under
+    for feature in crawl(REPO).features:
+        for hook in feature.hooks:
+            script = f"hooks/{PurePosixPath(hook.script).name}"
+            found += [
+                HookGroup(
+                    files[harness],
+                    hook.event,
+                    hook.matcher or None,
+                    script,
+                    refuses=hook.refuses,
+                    harness=harness,
+                )
+                for harness in hook.harnesses
+            ]
+        if feature.status_line:
+            script = f"hooks/{PurePosixPath(feature.status_line).name}"
+            found.append(StatusLine(files["claude-code"], script))
+        found += [GitHook(name, script) for name, script in feature.git_hooks]
+    return found
 
 
-def source(script):
-    """The path in the checkout of a script the layout has at `hooks/<name>`."""
-    hooks = json.loads((REPO / "skills.json").read_text())["hooks"]
-    return {f"hooks/{one['name']}": one["path"] for one in hooks}.get(script, script)
-
-
-def installed():
-    """Each settings entry `needs()` puts, as a row of the table has it, and the git hooks."""
+def test_the_install_puts_each_hook_the_features_declare_and_no_other():
     machine = Machine.here(REPO)
-    entries, git = [], []
-    for need in needs(machine):
-        kind = need.kind
-        if isinstance(kind, HookGroup):
-            shown = f"~/{kind.file.relative_to(machine.home)}"
-            entries.append((shown, f"hooks.{kind.event}", kind.matcher, source(kind.script)))
-        elif isinstance(kind, StatusLine):
-            shown = f"~/{kind.file.relative_to(machine.home)}"
-            entries.append((shown, "statusLine", None, source(kind.script)))
-        elif isinstance(kind, GitHook):
-            git.append(kind)
-    return entries, git
-
-
-def test_the_hook_table_lists_each_settings_entry_the_install_puts_and_no_other():
-    rows, _ = table()
-    entries, _ = installed()
-    assert len(entries) >= 7
-    assert sorted(rows, key=str) == sorted(entries, key=str)
-
-
-def test_each_git_hook_the_install_links_has_its_line_under_the_table():
-    _, under = table()
-    _, git = installed()
-    assert git
-    for hook in git:
-        line = next(
-            (line for line in under.splitlines() if f"`.git/hooks/{hook.name}`" in line), ""
-        )
-        assert f"`{hook.script}`" in line, f"no line under the table names {hook.name}"
-    named = set(re.findall(r"`\.git/hooks/([^`]+)`", under))
-    assert named == {hook.name for hook in git}
+    built = [need.kind for need in needs(machine) if isinstance(need.kind, HOOKED)]
+    assert len(built) >= 8
+    assert sorted(built, key=str) == sorted(declared(machine), key=str)
 
 
 def hard_coded(machine):

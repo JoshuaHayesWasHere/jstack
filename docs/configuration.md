@@ -162,28 +162,8 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 
 ## Hook entries
 
-`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them.
-You write none of them by hand.
-[Hooks](../features/home/docs/hooks.md) shows each entry and says what its script does.
-
-| File | Key | Runs | Read by |
-|---|---|---|---|
-| `~/.claude/settings.json` | `hooks.SessionStart`, matcher `startup` | `features/home/hooks/home-start.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.UserPromptSubmit` | `features/skill-library/hooks/skill-tips.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.PostToolUse` | `features/home/hooks/home-gauge.sh` | Claude Code |
-| `~/.claude/settings.json` | `hooks.PreToolUse` | `features/home/hooks/home-gauge.sh` | Claude Code |
-| `~/.codex/hooks.json` | `hooks.SessionStart`, matcher `startup` | `features/home/hooks/home-start.sh` | Codex |
-| `~/.claude/settings.json` | `hooks.PreToolUse`, matcher `Bash` | `features/jleak/hooks/outbound-command.sh` | Claude Code |
-| `~/.claude/settings.json` | `statusLine` | `features/jgauge/hooks/limits.sh` | Claude Code |
-
-It also links `.git/hooks/pre-push` of the main checkout to `features/jleak/hooks/pre-push.sh`.
-That is git's `pre-push` hook, not a settings entry, and the repo's worktrees run it too ([jleak](../features/jleak/docs/jleak.md)).
-
-The install leaves every other key of those files as it was.
-It writes `statusLine` when the key is absent, and replaces one that runs jgauge's `limits.sh` from another checkout.
-It leaves a status line of your own as it is.
-
-To switch the tips off and keep the entry, run `touch ~/.local/state/skill-tips/off`.
+`install.sh` writes every hook entry, and you write none of them by hand.
+[The catalog](../CATALOG.md#hooks) lists each hook with the feature that declares it, and [jinstall](../features/jinstall/docs/jinstall.md#hook-entries) says which file of each harness its entry goes in.
 
 ## The machine's sizes
 

@@ -60,12 +60,12 @@ def test_a_skill_description_edit_makes_the_check_fail_naming_skills_json(copy):
 
 
 def test_a_hand_edit_inside_a_generated_region_makes_the_check_fail_naming_that_file(copy):
-    page = copy / "features" / "home" / "docs" / "playbooks.md"
+    page = copy / "CATALOG.md"
     page.write_text(page.read_text().replace("| `bro` |", "| `bro-edited` |", 1))
     ran = generate(copy, "--check")
     assert ran.returncode == 1
     assert ran.stderr.splitlines() == [
-        "stale: features/home/docs/playbooks.md",
+        "stale: CATALOG.md",
         f"run python3 {SCRIPT} and commit the result",
     ]
 
@@ -119,14 +119,24 @@ def foo(root):
         (folder / path).write_text(text)
 
 
+@pytest.mark.parametrize("part", ["commands", "catalog", "hooks"])
+def test_a_region_that_joins_every_feature_in_a_page_a_feature_owns_is_refused(copy, part):
+    page = copy / "features" / "jleak" / "docs" / "jleak.md"
+    page.write_text(page.read_text() + f"\n<!-- generated: {part} -->\n<!-- generated: end -->\n")
+    ran = generate(copy, "--check")
+    assert ran.returncode == 2
+    said = "features/jleak/docs/jleak.md: is jleak's, and holds a region that joins every feature"
+    assert f"{said}, ['{part}']" in ran.stderr
+    assert generate(copy).returncode == 2
+
+
 def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     foo(copy)
     ran = generate(copy, "--check")
     assert ran.returncode == 1
     assert set(ran.stderr.splitlines()[:-1]) == {
         "stale: README.md",
-        "stale: features/home/docs/hooks.md",
-        "stale: features/home/docs/playbooks.md",
+        "stale: CATALOG.md",
         "stale: features/foo/docs/foo.md",
         "stale: pyproject.toml",
         "stale: skills.json",
@@ -150,6 +160,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "name": "foo-start.sh",
         "path": "features/foo/hooks/foo-start.sh",
         "harnesses": ["claude-code"],
+        "events": [{"harness": "claude-code", "event": "SessionStart"}],
     } in hooks
     laid = layout.assemble(copy, CLAUDE_CODE).entries
     assert sorted(path for path in laid if "foo" in path) == [
@@ -169,18 +180,12 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     assert "features/foo/tests" in project["tool"]["ruff"]["src"]
     readme = (copy / "README.md").read_text()
     assert "| `foo` | [features/foo/docs/foo.md](features/foo/docs/foo.md) | Does foo. |" in readme
+    catalog = (copy / "CATALOG.md").read_text()
+    assert "[foo](features/foo/SKILL.md)" in catalog
+    assert "[foo-run](features/foo/playbooks/foo-run.md)" in catalog
     assert (
-        "[foo](../../foo/SKILL.md)"
-        in (copy / "features" / "home" / "docs" / "playbooks.md").read_text()
-    )
-    assert (
-        "[foo-run](../../foo/playbooks/foo-run.md)"
-        in (copy / "features" / "home" / "docs" / "playbooks.md").read_text()
-    )
-    hooks = (copy / "features" / "home" / "docs" / "hooks.md").read_text()
-    assert (
-        "| `SessionStart` | [features/foo/hooks/foo-start.sh](../../foo/hooks/foo-start.sh) |"
-        in hooks
+        "| `SessionStart` | [features/foo/hooks/foo-start.sh](features/foo/hooks/foo-start.sh) |"
+        in catalog
     )
     assert (
         "- [A topic](foo/a-topic.md)\n"
@@ -261,9 +266,7 @@ def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(co
         assert git(copy, "add", "-A").returncode == 0
         assert git(copy, "commit", "-qm", f"move {name}").returncode == 0
     changed = git(copy, "diff", "--name-only", "main", "foo").stdout.split()
-    assert {"README.md", "features/home/docs/hooks.md", "pyproject.toml", "skills.json"} <= set(
-        changed
-    )
+    assert {"README.md", "CATALOG.md", "pyproject.toml", "skills.json"} <= set(changed)
     merged = git(copy, "merge-tree", "--write-tree", "--name-only", "foo", "qux")
     assert (merged.returncode, merged.stdout.splitlines()[1:]) == (0, [])
     tree = merged.stdout.split()[0]
