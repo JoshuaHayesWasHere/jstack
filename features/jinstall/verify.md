@@ -90,13 +90,23 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 
 From a release's own `install.sh`, in a fourth sandbox, as a stranger installs it:
 
-- **Build the assets and serve them.** Run `record release make -s -C "$VERIFY_JSTACK_REPO" dist DIST="$VERIFY_JSTACK_SANDBOX/dist"`, then serve that folder with `python3 -m http.server <a free port> --bind 127.0.0.1` and export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
-- **Install the release.** Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`. Every line is `done` or `already`, but for the `needs you` lines of what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
-- **Run `/setup-pstack`'s block.** Take the one `sh` block of `$HOME/.claude/skills/setup-pstack/SKILL.md` and run it with `$HOME/.local/bin` first on PATH. Its first line is `release: <HOME>/.local/bin/jinstall`, then the setup's lines, `setup: <n> done, <n> already, 4 needs you, exit 1`, and the doctor's last line.
-- **Set a scratch repo up.** Run `git init -q -b main "$HOME/repos/scratch"`, then `jinstall --repo` in it. It prints `ok optional hook <repo>/.git/hooks/pre-push pre-push` and the same for `commit-msg`, and each hook links into `"$UV_TOOL_DIR"/jstack/share/jstack/features/jleak/hooks/`.
-- **Commit an AI trailer.** Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone. git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
-- **See a hook gone.** Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`: each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
-- **Keep a repo's own hook.** In a second scratch repo with a `pre-push` of its own, `jinstall --repo` prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it`, exits 1, and the file is as it was.
+- **Build the assets and serve them.**
+  Run `record release make -s -C "$VERIFY_JSTACK_REPO" dist DIST="$VERIFY_JSTACK_SANDBOX/dist"`, then serve that folder with `python3 -m http.server <a free port> --bind 127.0.0.1` and export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
+- **Install the release.**
+  Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`.
+  Every line is `done` or `already`, but for the `needs you` lines of what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
+- **Run `/setup-pstack`'s block.**
+  Take the one `sh` block of `$HOME/.claude/skills/setup-pstack/SKILL.md` and run it with `$HOME/.local/bin` first on PATH.
+  Its first line is `release: <HOME>/.local/bin/jinstall`, then the setup's lines, `setup: <n> done, <n> already, 4 needs you, exit 1`, and the doctor's last line.
+- **Set a scratch repo up.**
+  Run `git init -q -b main "$HOME/repos/scratch"`, then `jinstall --repo` in it.
+  It prints `ok optional hook <repo>/.git/hooks/pre-push pre-push` and the same for `commit-msg`, and each hook links into `"$UV_TOOL_DIR"/jstack/share/jstack/features/jleak/hooks/`.
+- **Commit an AI trailer.**
+  Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone. git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
+- **See a hook gone.**
+  Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`: each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
+- **Keep a repo's own hook.**
+  In a second scratch repo with a `pre-push` of its own, `jinstall --repo` prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it`, exits 1, and the file is as it was.
 
 From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it.
 `jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `features/jmerge/tests/test_jmerge_follow.py` drives the run it makes after one.
