@@ -36,7 +36,7 @@ jstack does not run without a **hard** need.
 | Need | Level | Notes |
 |---|---|---|
 | Linux | hard | The only platform. |
-| T3 Code, the nightly build | hard | [T3 Code](https://github.com/pingdotgg/t3code) is the desktop app the threads run in, with Claude Code as their agent. Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
+| T3 Code, the nightly build | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
@@ -112,7 +112,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
-	GitHub's [quickstart for GitHub Actions](https://docs.github.com/en/actions/writing-workflows/quickstart) shows how to make a workflow: a job named `check` gives the check its name.
+	A job named `check` in a workflow under `.github/workflows/` that runs `on: pull_request` gives the check its name: GitHub's guide "Quickstart for GitHub Actions" shows how to write one.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
 5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.
