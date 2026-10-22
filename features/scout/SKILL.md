@@ -179,7 +179,12 @@ lavish-axi "$H/reports/$S.html"
        }' "$H/scouts/$S.md"
    ```
 
-   It reads the last report in the request, and a report that names no page has none, as the home's sweep reads it. On `settle`, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`. It takes effect when the turn ends, so it is the last call, made only once the home is told. The worktree and the branch stay: the home's sweep removes them at its next start. On `stay`, or in a session with no such tool, settle nothing and say the reason here: the thread stays where the user can see what is left. On `page`, the page waits on the user: do what follows, and settle the same way once the user has ended the session and the second message, if there is one, is sent.
+   It reads the last report in the request, and a report that names no page has none, as the home's sweep reads it.
+   On `settle`, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
+   It takes effect when the turn ends, so it is the last call, made only once the home is told.
+   A worktree and a branch, where the launch gave this thread one, stay: the home's sweep removes them at its next start.
+   On `stay`, or in a session with no such tool, settle nothing and say the reason here: the thread stays where the user can see what is left.
+   On `page`, the page waits on the user: do what follows, and settle the same way once the user has ended the session and the second message, if there is one, is sent.
 
 Then stop, unless there is a page. With a page, stay, and hold the poll inside this turn. Run this as a tracked command, in one call with the block at the top and `S` set to the slug:
 

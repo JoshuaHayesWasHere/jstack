@@ -562,7 +562,38 @@ def wheres(text: str) -> str:
     )
 
 
+LONGEST = 2000
+
+
+def overlong(text: str, label: str) -> str:
+    """Why the `<label>:` field of a brief or a request is too long, as one line. It is an empty
+    string when the field has `LONGEST` characters or fewer, or when there is no such field.
+
+    The field is as `fields` reads it, its lines joined by one space. A line this long is a
+    pasted transcript or a design, which belongs in a file that the line names: the thread reads
+    the field as the task, and a home or a bot that pastes a conversation into it sends the
+    thread the whole conversation as its task.
+    """
+    held = [lines for name, lines in fields(text) if name == label]
+    if not held:
+        return ""
+    said = " ".join(line.strip() for line in held[0]).strip()
+    if len(said) <= LONGEST:
+        return ""
+    return (
+        f"{label}: line is {len(said)} characters, over the {LONGEST} it may have: put a "
+        "transcript or a long text in a file, and name the file on the line"
+    )
+
+
+def tasked(text: str) -> str:
+    """Why a brief's `Task:` line is too long, as one line (`overlong`)."""
+    said = overlong(text, "Task")
+    return f"brief's {said}" if said else ""
+
+
 CHECKS = (
+    ("Task", tasked),
     ("Design", designed),
     ("Proves it", proven),
     ("Skills", skills.unknown),

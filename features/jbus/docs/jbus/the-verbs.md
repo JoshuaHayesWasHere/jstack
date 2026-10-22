@@ -12,6 +12,7 @@
 | `jbus view [--port <port>]` | Serves the bus as a page. The page reads, and writes one thing: your answer to a question. [The view](the-view.md) has the rest. |
 | `jbus word --to <project> --message <thread id>/<message id>` | Sends your word to a project's home, or with `--all` in place of `--to` to every home. `--by <user> --at "<YYYY-MM-DD HH:MM zone>" <words>` in place of `--message` types it. `--from <thread id>` names the thread running the command: a word recorded by a project's home is not posted back to it. [Your word to a home](your-word-to-a-home.md) has the rest. |
 | `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](the-queue.md) has each verb. |
+| `jbus scout add\|approve\|show` | Stores a scout's request from stdin, records your go for it, or prints each request's state and what its Report says. A pass launches an approved request as a read-only scout. [What a pass launches](what-a-pass-launches.md#a-scout) has the rest. |
 | `jbus item propose\|approve\|steer\|drop\|show\|list` | Proposes, approves, steers or drops a work item, or prints one or every one. [Work items](work-items.md) has each verb. |
 | `jbus plan [--scope <scope>]`, `jbus plan close <entry>` | Prints each entry of a home's `plan.md` with its status, or moves a finished entry out. [The plan](the-plan.md) has the rest. |
 | `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number. |
@@ -32,4 +33,4 @@
 A `<time>` of `--since` is written as ISO 8601 writes it, such as `2026-10-12T15:00` or a day alone. A time with no zone is in your time zone. In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`. `jbus` refuses any other word.
 
 `jbus poll`, `jbus alarm`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
-`jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+`jbus gate`, `jbus done`, `jbus queue add`, `jbus queue apply` and `jbus scout add` read stdin, and wait for it when nothing is piped in.

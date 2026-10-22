@@ -45,7 +45,9 @@ mkdir "$S/gh/logs"
 # A machine with room, and a plan that is under its limits: what `jgauge room` reads.
 echo "0.10 0.10 0.10 1/100 1" >"$S/machine/proc/loadavg"
 echo "MemAvailable:   33554432 kB" >"$S/machine/proc/meminfo"
-echo "some avg10=0.00 avg60=0.00 avg300=0.00 total=0" >"$S/machine/proc/pressure/memory"
+for resource in cpu memory; do
+  echo "some avg10=0.00 avg60=0.00 avg300=0.00 total=0" >"$S/machine/proc/pressure/$resource"
+done
 reset=$(($(date +%s) + 3600))
 printf 'five_hour 10 %s\nseven_day 10 %s\n' "$reset" "$reset" >"$S/machine/limits"
 

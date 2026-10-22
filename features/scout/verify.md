@@ -6,7 +6,8 @@ Paths:
 - `features/scout/`
 - `features/scout/templates/scout-request.md`
 - `features/scout/templates/scout-report.md`
-Tests: none
+Tests:
+- `features/jbus/tests/test_jbus_scout.py`
 
 ## Sub-features
 

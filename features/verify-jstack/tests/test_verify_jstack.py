@@ -3,6 +3,7 @@
 writes what a stand-in set up. Every test but the last runs the scripts, under a temporary
 `TMPDIR`. The last follows each link of the pages to the file it names."""
 
+import json
 import os
 import re
 import shutil
@@ -205,6 +206,52 @@ def test_doctor_still_passes_after_a_recipe_edits_the_seed(sandbox):
 
     assert ran.returncode == 0, ran.stdout
     assert ran.stdout.splitlines()[-1] == "doctor: ok"
+
+
+SCOUT_REQUEST = """\
+# alpha: what the demo repo's first commit holds
+Request: "find out what the demo repo's first commit holds"
+Questions:
+- What does the first commit change? Start at `git log`.
+Deliver:
+- Under "## Report" in this file: the findings with their evidence.
+Playbook: none
+Out of bounds: read-only. Run nothing that writes.
+"""
+
+
+def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandbox):
+    (sandbox.parent / "alpha.md").write_text(SCOUT_REQUEST)
+    added = inside(
+        sandbox, 'jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"'
+    )
+    assert added.returncode == 0, added.stdout + added.stderr
+    sha = added.stdout.split("request ")[1][:12]
+    said = inside(sandbox, 'jbus word --to demo --by user --at "$(date "+%Y-%m-%d %H:%M %Z")" go')
+    word = said.stdout.split()[-1]
+
+    steps = [
+        f"jbus --project demo scout approve alpha --sha {sha} --word {word}",
+        "jbus poll",
+        "jbus poll",
+        "jbus --project demo scout show",
+        'git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format="%(refname)"',
+    ]
+    ran = inside(sandbox, " && ".join(steps))
+
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert ran.stdout.count("launched scout alpha: mcp:sandbox-thread-1") == 1
+    assert "| alpha | launched | none | mcp:sandbox-thread-1 |" in ran.stdout
+    refs = ["refs/heads/main", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]
+    assert ran.stdout.splitlines()[-3:] == refs
+    calls = (sandbox.parent / "t3" / "calls.jsonl").read_text().splitlines()
+    (launch,) = [json.loads(line) for line in calls if '"t3_thread_launch"' in line]
+    assert launch["arguments"]["workspaceStrategy"] == {"type": "root"}
+    assert launch["arguments"]["message"] == "/scout alpha"
+    (thread,) = json.loads((sandbox.parent / "t3" / "threads.json").read_text())
+    assert (thread["title"], thread["branch"]) == ("scout: alpha", None)
+    request = sandbox.parent / "home" / ".local" / "state" / "home" / "demo" / "scouts" / "alpha.md"
+    assert request.read_text() == SCOUT_REQUEST + "Thread: mcp:sandbox-thread-1\n"
 
 
 def test_record_heads_the_evidence_with_what_a_stand_in_set_up(sandbox):
