@@ -53,7 +53,9 @@ Each item below is a reason a pull request waits.
   Its reviewer still runs, and turns the findings into one unapproved queue row, `cleanup-<slug>` (`jbus cleanup`), so it merges once `check` passes and its skills, Rebase and Dropped on rebase lines hold, and a guarded path still waits for a review of its head.
 - A brief that says `Review: twice` waits for its first review, the answers to that review's findings by id and a `Fixed:` line that names a pushed head, then for a second review written at a head after the first review's (`its second review is not written at <head>`).
   The second review's findings hold nothing, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`), and no scoped review, ruling on a decline or range-diff review after a rebase is asked; a clean first review, or a `Fixed: none needed`, owes no second review.
-- **The required check passed, and GitHub says it merges.** Green is the check named `check`, passed at the head, whatever the other checks say: `check has not passed`. A conflict is `it conflicts with its base`.
+- **The required checks passed, and GitHub says it merges.**
+  Green is each check `ready.REQUIRED` names, `check` (the suite) and `borders` (the border lint), passed by its latest run at the head, whatever the other checks say.
+  It waits with `<check> has not passed` for the first of them that has not, and with `it conflicts with its base` for a conflict.
 - **Its queue row lets it merge.**
   `jmerge` reads the `queue.json` of the jbus project whose checkout this is (`features/jmerge/src/jmerge/rows.py`), once a run, and looks up the row whose slug is the brief's.
   A row `jbus queue hold` took the go from waits as `its queue row is held: approve it again to let it merge`: hold stops a merge as it stops a launch, and `--accept` does not lift it.

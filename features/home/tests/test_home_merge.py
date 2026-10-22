@@ -46,6 +46,15 @@ SKIPPED = run("SKIPPED")
 OTHER_PASSED = run("SUCCESS", "lint")
 OTHER_FAILED = run("FAILURE", "lint")
 UNSTARTED = {**FAILED, "detailsUrl": "https://github.com/someone/repo/actions/runs/5/job/1"}
+BORDERS = run("SUCCESS", "borders")
+
+
+def rollup(checks):
+    """A pull request's checks as GitHub lists them: `checks`, and a passed `borders`, the
+    other check jmerge requires, where `checks` has no run of it."""
+    listed = list(checks)
+    named = {one.get("name") or one.get("context") for one in listed}
+    return listed if "borders" in named else [*listed, BORDERS]
 
 
 def timed(conclusion, started, completed, name="check"):
@@ -238,7 +247,7 @@ class Home:
             "headRefOid": head,
             "baseRefName": base,
             "mergeable": mergeable,
-            "statusCheckRollup": list(checks),
+            "statusCheckRollup": rollup(checks),
             "files": [file(path, renamed and path == files[-1]) for path in files],
             "changedFiles": len(files) if changed is None else changed,
             "isDraft": draft,

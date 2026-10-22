@@ -263,7 +263,7 @@ def test_merge_off_still_merges_nothing(proven_merged, rules):
     assert proven_merged.untouched()
 
 
-def pull_request(*files, head=merge.PUSHED, checks=(STARTED,)):
+def pull_request(*files, head=merge.PUSHED, checks=(STARTED,), rollup=merge.rollup):
     listed = {
         "number": 7,
         "url": merge.URL,
@@ -272,7 +272,7 @@ def pull_request(*files, head=merge.PUSHED, checks=(STARTED,)):
         "baseRefName": "main",
         "mergeable": "MERGEABLE",
         "title": merge.TITLE,
-        "statusCheckRollup": list(checks),
+        "statusCheckRollup": rollup(checks),
         "files": [merge.file(path) for path in files],
         "changedFiles": len(files),
     }
@@ -287,6 +287,23 @@ def test_the_start_of_a_check_is_its_latest_run_named_check():
     )
     assert pull_request("a.txt", checks=runs).started == datetime(2026, 10, 11, 22, 5, tzinfo=UTC)
     assert pull_request("a.txt", checks=(merge.OTHER_PASSED,)).started is None
+
+
+BORDERS_PASSED = merge.run("SUCCESS", "borders")
+
+
+@pytest.mark.parametrize(
+    ("checks", "short"),
+    [
+        ((merge.PASSED, BORDERS_PASSED), ""),
+        ((merge.PASSED,), "borders has not passed"),
+        ((merge.PASSED, merge.run("FAILURE", "borders")), "borders has not passed"),
+        ((BORDERS_PASSED,), "check has not passed"),
+        ((merge.FAILED, merge.run("FAILURE", "borders")), "check has not passed"),
+    ],
+)
+def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
+    assert ready.short_on_github(pull_request("a.txt", checks=checks, rollup=list)) == short
 
 
 UNCHANGED = ready.Rebase("unchanged", (), merge.REVIEWED, merge.PUSHED)

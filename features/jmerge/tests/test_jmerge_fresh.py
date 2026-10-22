@@ -119,7 +119,7 @@ class Kitchen:
             "headRefOid": head,
             "baseRefName": "main",
             "mergeable": "MERGEABLE",
-            "statusCheckRollup": list(checks),
+            "statusCheckRollup": merge.rollup(checks),
             "files": [merge.file(path, renamed and path == list(files)[-1]) for path in files],
             "changedFiles": len(files),
             "isDraft": False,
@@ -138,7 +138,7 @@ class Kitchen:
         (self.home.stub / "list.json").write_text(json.dumps(list(self.pulls.values())))
 
     def checked(self, slug, *checks):
-        self.pulls[slug]["statusCheckRollup"] = list(checks)
+        self.pulls[slug]["statusCheckRollup"] = merge.rollup(checks)
         self.brief(slug, self.pulls[slug]["headRefOid"])
 
     def on_main(self, files, rename=None):
@@ -169,7 +169,7 @@ class Kitchen:
             raise AssertionError("the rebase met no conflict")
         git(tree, "push", "-q", "--force-with-lease", "origin", slug)
         head = git(tree, "rev-parse", "HEAD")
-        self.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": [AFTER]}
+        self.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": merge.rollup([AFTER])}
         line = f"Rebase: patch changed in {' '.join(resolved)}, before {before or was}, head {head}"
         self.brief(slug, was, f"{line}\n")
         return head
@@ -523,7 +523,7 @@ def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
     notes.rebase(
         "two", {"n.txt": "one\ntwo\nthree\ntheirs\n"}, {"n.txt": "one\ntwo\nthree\nours\n"}
     )
-    notes.pulls["two"]["statusCheckRollup"] = [STARTED]
+    notes.pulls["two"]["statusCheckRollup"] = merge.rollup([STARTED])
     (notes.home.stub / "list.json").write_text(json.dumps(list(notes.pulls.values())))
     notes.on_main({"n.txt": "zero\none\ntwo\nthree\ntheirs\n"})
     held = f"wait 7 {url(7)}: the rebase dropped 1 of main's lines in n.txt {unsaid(notes)}"
