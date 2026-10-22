@@ -368,40 +368,44 @@ def unit(name):
     return read
 
 
-@pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
-def test_the_timer_runs_every_monday_at_nine_in_new_york_whatever_the_machines_zone():
-    timer = unit("jbus-ci.timer")
+def fire(zone):
+    """The next three times `jbus-ci.timer` fires after 2026-10-18 on a machine in `zone`, in
+    UTC, as systemd counts them."""
     asked = subprocess.run(
         [
             "systemd-analyze",
             "calendar",
             "--base-time=2026-10-18",
             "--iterations=3",
-            timer["Timer"]["OnCalendar"],
+            unit("jbus-ci.timer")["Timer"]["OnCalendar"],
         ],
         capture_output=True,
         text=True,
-        env={"TZ": "Asia/Tokyo", "PATH": os.environ["PATH"]},
+        env={"TZ": zone, "PATH": os.environ["PATH"]},
     )
     assert asked.returncode == 0, asked.stderr
-    utc = [line.split(": ", 1)[1] for line in asked.stdout.splitlines() if "(in UTC)" in line]
-    assert len(utc) == 3 and all(one.startswith("Mon ") for one in utc)
-    assert [one.split()[2] for one in utc] == ["13:00:00", "13:00:00", "14:00:00"]
+    return [line.split(": ", 1)[1] for line in asked.stdout.splitlines() if "(in UTC)" in line]
+
+
+@pytest.mark.skipif(not shutil.which("systemd-analyze"), reason="no systemd-analyze")
+def test_the_timer_runs_every_monday_at_nine_in_the_machines_own_zone():
+    tokyo, new_york = fire("Asia/Tokyo"), fire("America/New_York")
+    assert len(tokyo) == 3 and all(one.startswith("Mon ") for one in tokyo)
+    assert [one.split()[2] for one in tokyo] == ["00:00:00", "00:00:00", "00:00:00"]
+    assert [one.split()[2] for one in new_york] == ["13:00:00", "13:00:00", "14:00:00"]
+    timer = unit("jbus-ci.timer")
     assert timer["Timer"]["Persistent"] == "true"
     assert timer["Install"]["WantedBy"] == "timers.target"
 
 
-def test_the_service_command_collects_and_writes_the_report_for_the_jstack_home(
-    kitchen, monkeypatch
-):
-    service = unit("jbus-ci.service")
-    assert service["Service"]["Type"] == "oneshot"
-    command = shlex.split(service["Service"]["ExecStart"])
+def service(kitchen, monkeypatch):
+    """Run the command of `jbus-ci.service` in the kitchen, with GitHub's recorded answers,
+    and return its exit code, what it printed, and the kitchen's project."""
+    command = shlex.split(unit("jbus-ci.service")["Service"]["ExecStart"])
     assert command[0].endswith("/.local/bin/jbus")
     import jbus
 
-    config = jbus.load()
-    project = config.projects[0]
+    project = jbus.load().projects[0]
     monkeypatch.setattr(collect, "Cli", Replay)
     subprocess.run(
         [
@@ -415,9 +419,49 @@ def test_the_service_command_collects_and_writes_the_report_for_the_jstack_home(
         ],
         check=True,
     )
-    code, said = kitchen.main(*[project.name if one == "jstack" else one for one in command[1:]])
+    code, said = kitchen.main(*command[1:])
+    return code, said, project
+
+
+def test_the_service_writes_no_report_and_alerts_nobody_where_no_project_asks_for_one(
+    kitchen, monkeypatch
+):
+    asked = []
+    monkeypatch.setattr(Replay, "pages", lambda self, *args: asked.append(args) or [])
+
+    code, said, project = service(kitchen, monkeypatch)
+
+    assert (code, said.strip()) == (0, "ci: no project asks for the week's report (ci_report)")
+    assert asked == [] and kitchen.webhook.said == []
+    assert not (jbus_home(project) / "reports").exists()
+
+
+def test_the_service_collects_and_writes_the_report_of_each_project_that_asks_for_one(
+    kitchen, monkeypatch
+):
+    other = kitchen.second()
+    path = kitchen.config_dir / "config.toml"
+    path.write_text(
+        path.read_text().replace('state = "demo"\n', 'state = "demo"\nci_report = true\n')
+    )
+
+    code, said, project = service(kitchen, monkeypatch)
+
     assert code == 0, said
-    assert list((config.home(project) / "reports").glob("ci-week-*.md"))
+    assert list((jbus_home(project) / "reports").glob("ci-week-*.md"))
+    assert not (other.home / "reports").exists()
+    assert f"ci: {project.name}, the last 14 days" in said and "ci: other" not in said
+
+
+def test_each_project_and_a_named_project_together_are_refused(kitchen):
+    code, said = kitchen.main("--project", "demo", "ci", "--report", "--each")
+    assert (code, said.strip()) == (2, "refused: --each is every project that asks, not --project")
+
+
+def jbus_home(project):
+    import jbus
+
+    return jbus.load().home(project)
 
 
 def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
@@ -446,3 +490,18 @@ def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
     second.join(30)
     assert (counts["first"].jobs, counts["second"].jobs) == (314, 0)
     assert len(ledger.read(tmp_path / ledger.JOBS)) == 314
+
+
+@pytest.mark.parametrize("value", ['"yes"', "1"])
+def test_a_ci_report_that_is_not_true_or_false_is_refused(kitchen, value):
+    path = kitchen.config_dir / "config.toml"
+    path.write_text(
+        path.read_text().replace('state = "demo"\n', f'state = "demo"\nci_report = {value}\n')
+    )
+
+    code, said = kitchen.main("ci", "--report", "--each")
+
+    assert (code, said.strip()) == (
+        1,
+        "refused: project demo has a ci_report that is not true or false",
+    )

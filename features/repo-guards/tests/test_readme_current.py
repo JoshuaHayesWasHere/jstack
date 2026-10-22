@@ -71,7 +71,15 @@ OPTIONAL = {
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "`lavish-axi`": ("lavish-axi",),
 }
-NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory", "state repo")
+NO_REQUIREMENT = (
+    "config",
+    "roles",
+    "patterns",
+    "provider inventory",
+    "state repo",
+    "ci report",
+    "relay",
+)
 OF_THE_CHECKOUT = ("generated files are current",)
 LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
 NAMED = (
@@ -426,7 +434,7 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
         assert (code, err) == (0, ""), line
         ends = ("ok ", "missing optional ")
         if "--setup" in line:
-            ends = ("done ", "already ", "needs you ")
+            ends = ("done ", "already ", "needs you ", "missing optional ")
         assert all(each.startswith(ends) for each in printed[:-1]), line
     assert printed[-1] == "doctor: ok"
 

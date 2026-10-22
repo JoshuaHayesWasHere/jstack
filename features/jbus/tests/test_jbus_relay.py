@@ -289,7 +289,7 @@ def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks
         ("GROK_WEBHOOK_KEY", "REPLACE_ME", "GROK_WEBHOOK_KEY is REPLACE_ME"),
         ("GROK_WEBHOOK_URL", "https://example.com/REPLACE_ME", "GROK_WEBHOOK_URL is REPLACE_ME"),
         ("GROK_WEBHOOK_URL", "", "GROK_WEBHOOK_URL is empty"),
-        ("GROK_WEBHOOK_KEY", None, "GROK_WEBHOOK_KEY is missing"),
+        ("GROK_WEBHOOK_KEY", None, "target webhook: RELAY_WEBHOOK_KEY is missing"),
         ("RELAY_INBOUND_KEY", None, "RELAY_INBOUND_KEY is missing"),
         ("PAGER_HA_TOKEN", "REPLACE_ME", "PAGER_HA_TOKEN is REPLACE_ME"),
         ("PAGER_HA_URL", None, "PAGER_HA_URL is missing"),
@@ -363,7 +363,7 @@ def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(rela
     assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [said["id"], later["id"]]
     until(lambda: relay.spooled("blocking") == [])
     log = relay.stop()
-    assert f"relay: POST to sous-chef (blocking) failed for event {said['id']}: HTTP 503" in log
+    assert f"relay: POST to webhook (blocking) failed for event {said['id']}: HTTP 503" in log
     assert SOUS_CHEF_KEY not in log
 
 
@@ -378,7 +378,7 @@ def test_a_slow_webhook_does_not_hold_back_taking_the_next_event(relay, hooks):
 
     assert code == 202 and time.monotonic() - start < 0.5
     assert len(relay.spooled("blocking")) == 2
-    until(lambda: "relay: POST to sous-chef (blocking) failed for event" in relay.said())
+    until(lambda: "relay: POST to webhook (blocking) failed for event" in relay.said())
 
 
 def test_the_wrong_inbound_key_is_refused_and_spools_nothing(relay):
@@ -542,7 +542,7 @@ def test_a_sous_chef_that_takes_the_page_pages_nothing(relay, hooks):
     sous_chef, _, pager = hooks
 
     _, said = relay.send(body(event("gate", "user")))
-    until(lambda: f"relay: sent event {said['id']} to sous-chef (blocking)" in relay.said())
+    until(lambda: f"relay: sent event {said['id']} to webhook (blocking)" in relay.said())
 
     assert "relay: paged" not in relay.heard() and "failed" not in relay.said()
     assert pager.posts == [] and relay.notified() == []
@@ -842,7 +842,7 @@ def test_a_body_refused_for_good_keeps_the_failure_of_the_bodies_behind_it(tmp_p
 
     monkeypatch.setattr(relaying, "post", post)
     config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
-    lane = relaying.Lane(relaying.ROUTES[0], config.targets["sous-chef"], config, lambda line: None)
+    lane = relaying.Lane(relaying.ROUTES[0], config.targets["webhook"], config, lambda line: None)
     lane.take("first", {"id": "first"})
     lane.take("second", {"id": "second"})
     assert lane.drain() is False
@@ -899,3 +899,34 @@ def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch)
     older.join(5)
     newer.join(5)
     assert json.loads((tmp_path / "heartbeat.json").read_text())["failing"] == []
+
+
+def test_the_webhook_has_neutral_names_and_the_older_grok_names_still_set_it(tmp_path):
+    from jbus import relay as relaying
+
+    owner = env_for_lane()
+    neutral = {
+        name.replace("GROK_", "RELAY_"): value
+        for name, value in owner.items()
+        if name.startswith(("GROK_", "RELAY_", "PAGER_"))
+    }
+    both = {**owner, "RELAY_WEBHOOK_URL": "http://127.0.0.1:8/"}
+    for env, url in ((owner, owner["GROK_WEBHOOK_URL"]), (neutral, owner["GROK_WEBHOOK_URL"])):
+        (target,) = relaying.settings(env).targets.values()
+        assert (target.name, target.url, target.key) == ("webhook", url, SOUS_CHEF_KEY)
+    assert relaying.settings(both).targets["webhook"].url == "http://127.0.0.1:8/"
+
+
+def test_the_env_file_is_read_as_systemd_reads_it(tmp_path):
+    """systemd's EnvironmentFile= skips an `export KEY=value` line, so the relay never sees it.
+    With systemd 262, `systemd-run --user -p EnvironmentFile=<file>` left an exported key
+    unset and set the plain one."""
+    from jbus import relay as relaying
+
+    path = tmp_path / "env"
+    path.write_text(
+        "# a comment\nexport RELAY_PORT=4391\nRELAY_STATE='/a b'\n"
+        "RELAY_SILENT_MINUTES=\nno-equals\n"
+    )
+    assert relaying.env_file(path) == {"RELAY_STATE": "/a b", "RELAY_SILENT_MINUTES": ""}
+    assert relaying.env_file(tmp_path / "none") == {}

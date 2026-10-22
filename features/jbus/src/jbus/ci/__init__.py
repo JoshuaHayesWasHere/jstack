@@ -8,7 +8,9 @@ same ledger.
 
 `--report` also writes `reports/ci-week-<date>.md` in the project's home over the last
 `WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`).
-`jbus-ci.timer` runs `jbus ci --report` every Monday at 09:00 ET.
+`--each` runs it for every project whose table says `ci_report = true`, and for none when no
+project does. `jbus-ci.timer` runs `jbus ci --report --each` every Monday at 09:00, in the
+machine's own zone.
 
 `--notice` is for a CI job: it prints the annotation that gives the collector the job's
 telemetry (`jbus.ci.notice`), and needs no config.
@@ -72,12 +74,28 @@ def run(args: argparse.Namespace, _: jbus.Config | None) -> int:
         print("refused: field=value is for --notice")
         return 2
     config = jbus.load()
-    project = verbs.project(config, args.project)
+    if not args.each:
+        return one(args, config, verbs.project(config, args.project))
+    if args.project is not None:
+        print("refused: --each is every project that asks, not --project")
+        return 2
+    asked = [project for project in config.projects if project.ci_report]
+    if not asked:
+        print("ci: no project asks for the week's report (ci_report)")
+        return 0
+    return max(one(args, config, project) for project in asked)
+
+
+def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) -> int:
+    """Collect and count the CI of one project, and with `--report` write its week and alert."""
     state, now = config.state(project), datetime.now(UTC)
     try:
         counts = collect.collect(collect.Cli(), repo_of(project.checkout), state, now, args.days)
     except collect.Unavailable as error:
-        print(f"ci: GitHub did not answer: {error}")
+        print(f"ci: {project.name}: GitHub did not answer: {error}")
+        return 1
+    except jbus.Refused as error:
+        print(f"ci: {project.name}: {error}")
         return 1
     print(f"ci: {counts.runs} runs seen, {counts.jobs} jobs added, {counts.pulls} pull requests")
     facts = facts_of(state, now)
@@ -99,6 +117,11 @@ def run(args: argparse.Namespace, _: jbus.Config | None) -> int:
 def _arguments(shown: argparse.ArgumentParser) -> None:
     shown.add_argument("--days", type=int, default=DAYS, help=f"days to collect and count ({DAYS})")
     shown.add_argument("--report", action="store_true", help="write the week's report and alert")
+    shown.add_argument(
+        "--each",
+        action="store_true",
+        help="every project whose config says ci_report = true, and none when no project does",
+    )
     shown.add_argument(
         "--notice",
         action="store_true",

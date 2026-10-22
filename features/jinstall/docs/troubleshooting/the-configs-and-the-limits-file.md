@@ -12,6 +12,12 @@
 | `old optional jbus config <path> -> <path> is mode <mode>, readable by others: chmod 600 it` | The file holds a key, and group or others can read it. | Run `chmod 600 <path>`. |
 | `old optional jbus config <path> -> <why>` | `jbus` refuses the file. `<why>` is its own line: the file does not parse, lacks a key, or has a `loud` it cannot use. | Correct what `<why>` names. [Configuration](../configuration.md#jbus) has every key. |
 | `old optional jbus config <path> -> jbus cannot read it: <error>` | The loader failed in a way it has no line for. `<error>` is the kind of error. | Compare the file with the example in [Configuration](../configuration.md#jbus). |
+| `missing optional ci report <path> -> no jbus config, so no project asks for it` | `jbus` is not set up, so no week's CI report is written. | Nothing. |
+| `missing optional ci report <path> -> no project has ci_report = true, so jbus-ci.timer is off` | No project asks for the week's CI report, so the install leaves its timer off. | Nothing, or add `ci_report = true` to a `[[project]]` table, as [Configuration](../configuration.md#jbus) shows, then run `sh install.sh`. |
+| `ok optional ci report <path> -> <names>` | Each project named asks for the week's CI report, and `jbus-ci.timer` is on. | Nothing. |
+| `old optional ci report <path> -> <why>` | `jbus` refuses its config, so the install leaves `jbus-ci.timer` as it is. | Read the doctor's line for the jbus config, above. |
+| `missing optional relay <path> -> no env file, so the relay is off` | The relay is an optional integration with a chat bot of your own, and it is off. Nothing alerts. | Nothing, or write its keys to `<path>` as [The relay](../../../jbus/docs/jbus/the-relay.md) says, then run `sh install.sh`. |
+| `old optional relay <path> -> the relay would not start: <why>` | The relay would refuse the env file, so the install does not turn it on, and a relay already on stays on. `<why>` names each key, never a value. | Correct each key `<why>` names, then run `sh install.sh`. |
 | `missing optional jbus sign-in <path> -> run jbus t3 login` | `jbus` has not signed in to T3 Code. | Run `jbus t3 login`. |
 | `old optional jbus sign-in <path> -> holds no token, run jbus t3 login` | The sign-in file has no token in it. | Run `jbus t3 login`. |
 | `old optional jbus sign-in <path> -> expired <date>, run jbus t3 login` | The sign-in ran out on `<date>`. | See [A T3 Code sign-in ran out](../../../jbus/docs/troubleshooting/a-t3-code-sign-in-ran-out.md). |

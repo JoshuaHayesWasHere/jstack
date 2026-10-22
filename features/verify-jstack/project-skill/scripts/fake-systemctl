@@ -10,23 +10,36 @@ echo "$*" >>"$log"
   exit 64
 }
 shift
+# The folder systemd's enable links a unit into: the .wants of the target its WantedBy= names.
+# It reads the unit with the shell alone, since a test's PATH may hold no sed or grep.
+wants() {
+  target=timers.target
+  while IFS= read -r line; do
+    case $line in WantedBy=?*)
+      target=${line#WantedBy=}
+      break
+      ;;
+    esac
+  done <"$units/$1" 2>/dev/null
+  echo "$units/$target.wants"
+}
 case ${1-} in
 show-environment) echo "HOME=$HOME" ;;
 daemon-reload) ;;
 is-enabled)
-  if [ -L "$units/timers.target.wants/$2" ]; then echo enabled; else
+  if [ -L "$(wants "$2")/$2" ]; then echo enabled; else
     echo linked
     exit 1
   fi
   ;;
 enable)
   [ "$2" = --now ] && [ -L "$units/$3" ] || exit 1
-  mkdir -p "$units/timers.target.wants"
-  ln -sfn "$(readlink "$units/$3")" "$units/timers.target.wants/$3"
+  mkdir -p "$(wants "$3")"
+  ln -sfn "$(readlink "$units/$3")" "$(wants "$3")/$3"
   ;;
 disable)
   [ "$2" = --now ] && [ -L "$units/$3" ] || exit 1
-  rm -f "$units/timers.target.wants/$3" "$units/$3"
+  rm -f "$(wants "$3")/$3" "$units/$3"
   ;;
 show) for unit in "$@"; do case $unit in *.service | *.timer) echo no ;; esac done ;;
 *)

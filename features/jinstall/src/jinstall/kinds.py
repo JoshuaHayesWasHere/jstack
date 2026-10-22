@@ -37,7 +37,7 @@ import jbus
 import jleak
 import jroles
 import jsettings
-from jbus import t3
+from jbus import relay, t3
 from jgauge import limits
 from jinstall.harnesses import HARNESSES
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
@@ -752,33 +752,48 @@ def templates(machine: Machine) -> dict[str, Path]:
     return unit_templates(machine.source)
 
 
+def wanted_by(template: Path) -> str:
+    """The target a unit's `[Install]` names in `WantedBy=`, whose `.wants` folder systemd's
+    enable links the unit into: `timers.target` for a timer, `default.target` for a service."""
+    for line in template.read_text().splitlines():
+        if line.startswith("WantedBy="):
+            return line.removeprefix("WantedBy=").split()[0]
+    return "timers.target"
+
+
 @dataclass(frozen=True)
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
     install links ~/.config/systemd/user/<name> to its template, and it enables each of
     `timers`. The template is the checkout's, or else the release's. The checkout's template is
     the file that the links pointed at before the release's copy, and that systemd's own links under
-    `timers.target.wants` still point at.
+    the `.wants` folder of the unit's `WantedBy=` still point at.
+
+    `opted` is each unit that only some machines run, with the need that switches it on: the
+    install enables it while that need is ok, disables it while the need is missing, and leaves
+    it as it is while the need is old, so a key mistyped in a working setup stops nothing.
 
     due: jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, and ~/.local/bin/jbus is there, since the units run
-      it. When the manager reads this HOME, each timer is also enabled and no reload is due.
-      With a manager that reads another HOME (a sandbox), the probe checks only the links. Under
-      the account's own HOME, a manager that does not answer makes the need old, since nothing
-      enabled the timer.
+      it. When the manager reads this HOME, each timer and each opted unit whose need is ok is
+      also enabled, no opted unit whose need is missing is, and no reload is due. With a manager
+      that reads another HOME (a sandbox), the probe checks only the links. Under the account's
+      own HOME, a manager that does not answer makes the need old, since nothing enabled the
+      timer.
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
-      `jbus.timer is not enabled`, `needs daemon-reload`. A regular file whose bytes equal
-      its template is a copy that someone made by hand from the README, and the install may
-      replace it.
+      `jbus.timer is not enabled`, `jbus-ci.timer is enabled, and nothing asks for it`,
+      `needs daemon-reload`. A regular file whose bytes equal its template is a copy that
+      someone made by hand from the README, and the install may replace it.
     foreign: a file that differs from its template, `jbus.service -> not a link, differs`.
       The need is also foreign for two cases that no put repairs: `no ~/.local/bin/jbus`,
       and a manager that did not answer.
     put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
-      Otherwise make `timers.target.wants` through the machine, link each unit to its
-      template, run daemon-reload, and run enable --now.
-    drop: run disable --now on each timer whose link is the install's, unlink each link that
-      points at its template, and run daemon-reload. systemd's disable unlinks a linked unit
-      by itself, and drop unlinks the links that it leaves.
+      Otherwise disable --now each opted unit that is enabled while its need is missing, make
+      `timers.target.wants` through the machine, link each unit to its template, run
+      daemon-reload, and run enable --now on each unit that is to be on.
+    drop: run disable --now on each timer and opted unit whose link is the install's, unlink
+      each link that points at its template, and run daemon-reload. systemd's disable unlinks a
+      linked unit by itself, and drop unlinks the links that it leaves.
     Each systemctl step goes through `machine.systemctl`. So with a manager that reads
     another HOME, the need only makes, checks and removes the links."""
 
@@ -786,6 +801,7 @@ class Units:
     names: tuple[str, ...]
     timers: tuple[str, ...]
     config: Path
+    opted: tuple[tuple[str, Kind], ...] = ()
 
     def _template(self, machine: Machine, name: str) -> Path:
         return templates(machine)[name]
@@ -797,8 +813,25 @@ class Units:
             if points_at(self.directory / name, self._template(machine, name))
         ]
 
-    def _wanted(self, timer: str) -> Path:
-        return self.directory / "timers.target.wants" / timer
+    def _wanted(self, machine: Machine, name: str) -> Path:
+        target = wanted_by(self._template(machine, name))
+        return self.directory / f"{target}.wants" / name
+
+    def _split(self, machine: Machine) -> tuple[list[str], list[str]]:
+        """The units to enable, and the opted units to disable, by what each opted unit's need
+        answers now."""
+        on, off = list(self.timers), []
+        for name, need in self.opted:
+            state = need.probe(machine).state
+            if state is State.OK:
+                on.append(name)
+            elif state is State.MISSING:
+                off.append(name)
+        return on, off
+
+    def _enabled(self, machine: Machine, name: str) -> bool:
+        ran = machine.systemctl("is-enabled", name)
+        return ran is not None and ran.out.strip() == "enabled"
 
     def due(self, machine: Machine) -> bool:
         return self.config.is_file() or bool(self._ours(machine))
@@ -827,14 +860,18 @@ class Units:
             return Found.old(f"{' '.join(copies)}: a copy of its template, not a link")
         if not (machine.home / ".local" / "bin" / "jbus").exists():
             return Found.foreign("no ~/.local/bin/jbus")
-        for timer in self.timers:
-            enabled = machine.systemctl("is-enabled", timer)
+        on, off = self._split(machine)
+        for name in on:
+            enabled = machine.systemctl("is-enabled", name)
             if enabled is None and machine.home == machine.account:
-                return Found.foreign(f"systemctl --user did not answer, so {timer} is not enabled")
+                return Found.foreign(f"systemctl --user did not answer, so {name} is not enabled")
             if enabled is None:
                 return Found.ok()
             if enabled.out.strip() != "enabled":
-                return Found.old(f"{timer} is not enabled")
+                return Found.old(f"{name} is not enabled")
+        for name in off:
+            if self._enabled(machine, name):
+                return Found.old(f"{name} is enabled, and nothing asks for it")
         reload = machine.systemctl("show", "--property", "NeedDaemonReload", "--value", *self.names)
         if reload is not None and "yes" in reload.out.split():
             return Found.old("needs daemon-reload")
@@ -849,23 +886,28 @@ class Units:
     def put(self, machine: Machine) -> None:
         if not (machine.home / ".local" / "bin" / "jbus").exists():
             raise Refused("no ~/.local/bin/jbus for the units to run, so none is linked")
-        if self.timers:
-            machine.make_dirs(self._wanted(self.timers[0]).parent)
+        on, off = self._split(machine)
+        for name in off:
+            if self._enabled(machine, name):
+                self._systemctl(machine, "disable", "--now", name)
+        for name in on:
+            machine.make_dirs(self._wanted(machine, name).parent)
         for name in self.names:
             machine.link(self.directory / name, self._template(machine, name))
         self._systemctl(machine, "daemon-reload")
-        for timer in self.timers:
-            self._systemctl(machine, "enable", "--now", timer)
+        for name in on:
+            self._systemctl(machine, "enable", "--now", name)
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)
         if not ours:
             return Dropped()
-        for timer in self.timers:
-            if timer in ours:
-                self._systemctl(machine, "disable", "--now", timer)
-                if points_at(self._wanted(timer), self._template(machine, timer)):
-                    machine.unlink(self._wanted(timer))
+        for name in [*self.timers, *(name for name, _ in self.opted)]:
+            if name in ours:
+                wanted = self._wanted(machine, name)
+                self._systemctl(machine, "disable", "--now", name)
+                if points_at(wanted, self._template(machine, name)):
+                    machine.unlink(wanted)
         for name in ours:
             if points_at(self.directory / name, self._template(machine, name)):
                 machine.unlink(self.directory / name)
@@ -1069,10 +1111,13 @@ class Limits:
 
 @dataclass(frozen=True)
 class StateRepo:
-    """The homes' state tree, which `jbus snapshot` commits and sends to its `origin`.
-    ok: the directory is the top of a git repo with an origin. The detail names the origin,
-      with any credentials taken out of it.
-    missing: the directory is not a git repo, or the repo has no origin."""
+    """The homes' state tree, which `jbus snapshot` commits and sends to its `origin`: the
+    backup, an optional layer that `jbus-snapshot.timer` runs once this need is ok.
+    ok: the directory is the top of a git repo with an origin, and gitleaks is on PATH. The
+      detail names the origin, with any credentials taken out of it.
+    missing: the directory is not a git repo, or the repo has no origin, so the backup is off.
+    old: the repo has an origin and there is no gitleaks, which each snapshot needs to read
+      the changes for secrets before it commits them."""
 
     path: Path
 
@@ -1080,7 +1125,10 @@ class StateRepo:
         """The url is the user's own private repository, so the command says where the
         snapshots go."""
         add = f"git -C {self.path} remote add origin <url>"
-        if self.probe(machine).detail == "not a git repo":
+        found = self.probe(machine)
+        if found.state is State.OLD:
+            return get(machine, "gitleaks", "gitleaks")
+        if found.detail == "not a git repo":
             return f"git init {self.path} && {add}"
         return add
 
@@ -1090,8 +1138,62 @@ class StateRepo:
             return Found.missing("not a git repo")
         origin = machine.run(["git", "-C", str(self.path), "remote", "get-url", "origin"])
         if origin.code != 0 or not origin.out.strip():
-            return Found.missing("no remote")
+            return Found.missing("no remote, so the backup is off")
+        if machine.which("gitleaks") is None:
+            return Found.old("needs gitleaks, which reads each snapshot for secrets")
         return Found.ok(re.sub(r"//[^/@]*@", "//", origin.out.strip()))
+
+
+@dataclass(frozen=True)
+class CiReport:
+    """The projects of jbus's config whose table says `ci_report = true`, for which
+    `jbus-ci.timer` writes the week's CI report: an optional layer, off on a machine where no
+    project asks for it.
+    ok: a project asks for it. The detail names each one.
+    missing: there is no jbus config, or no project asks for it.
+    old: jbus's loader refuses the config."""
+
+    config: Path
+
+    def ask(self, machine: Machine) -> str:
+        return f"ci_report = true in a [[project]] of {self.config}"
+
+    def probe(self, machine: Machine) -> Found:
+        if not self.config.is_file():
+            return Found.missing("no jbus config, so no project asks for it")
+        try:
+            loaded = jbus.load(self.config.parent)
+        except Exception as error:
+            return Found.old(_said(error))
+        asked = [project.name for project in loaded.projects if project.ci_report]
+        if not asked:
+            return Found.missing("no project has ci_report = true, so jbus-ci.timer is off")
+        return Found.ok(", ".join(asked))
+
+
+@dataclass(frozen=True)
+class RelayKeys:
+    """The relay's env file, which `jbus-relay.service` reads: the relay is an optional
+    integration that sends what jbus posts on to a chat bot of your own, and the install
+    enables its unit once this need is ok.
+    ok: the relay's own settings accept the file.
+    missing: there is no file, so the relay is off.
+    old: the relay would refuse to start on the file. The detail names each key and why,
+      never a value."""
+
+    path: Path
+
+    def ask(self, machine: Machine) -> str:
+        return f"write the relay's keys to {self.path}, as the relay's page says"
+
+    def probe(self, machine: Machine) -> Found:
+        if not self.path.is_file():
+            return Found.missing("no env file, so the relay is off")
+        try:
+            relay.settings(relay.env_file(self.path))
+        except relay.Refused as error:
+            return Found.old(f"the relay would not start: {error}")
+        return Found.ok()
 
 
 @dataclass(frozen=True)

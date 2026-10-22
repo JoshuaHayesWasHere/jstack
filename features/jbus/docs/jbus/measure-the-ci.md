@@ -32,6 +32,12 @@ It finds 2 flaky tests where the plan named 9 by hand.
 
 ### The week's report
 
-`jbus-ci.timer` runs `jbus-ci.service` every Monday at 09:00 New York time, whatever the machine's zone (`Persistent=true` runs one the machine slept through when it is up). The service runs `jbus --project jstack ci --report`, which collects, then writes `reports/ci-week-<date>.md` in jstack's home: the nine targets over the last 7 days, each with how it was counted, the jobs counted (local and hosted apart, and how many were cancelled while they waited), and main's red minutes by day. A week where every target is met, or has no data, sends nothing. A week with a target missed sends one `alert` event, naming each target missed and the report, once for that day. A run that fails shows in `journalctl --user -u jbus-ci`.
+The report is optional, and a project asks for it with `ci_report = true` in its `[[project]]` table of `~/.config/jbus/config.toml`.
+The install enables `jbus-ci.timer` only while a project asks for it, and with none asking it leaves the timer off and nothing alerts.
+The timer runs `jbus-ci.service` every Monday at 09:00 in the machine's own zone (`Persistent=true` runs one the machine slept through when it is up).
+The service runs `jbus ci --report --each`, which for each project that asks collects, then writes `reports/ci-week-<date>.md` in that project's home: the nine targets over the last 7 days, each with how it was counted, the jobs counted (local and hosted apart, and how many were cancelled while they waited), and main's red minutes by day.
+A week where every target is met, or has no data, sends nothing.
+A week with a target missed sends one `alert` event, naming each target missed and the report, once for that day.
+A run that fails shows in `journalctl --user -u jbus-ci`.
 
 The `ci` panel of [the view](the-view.md) opens at `#/<project>/ci` (it has no card, so the first screen keeps its size) and draws the same files: each target with its value and what it is held to, and its series by day, with a dashed mark at the merge of `ci-one-suite-per-tree`, `ci-slow-tail` and `ci-test-map` in this project's home and of `jstack-fast-4`, the change of the runner's CPUs, in infra's.

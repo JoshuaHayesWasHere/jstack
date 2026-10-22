@@ -90,7 +90,10 @@ class Project:
     `migrations` is the directory, from the checkout's root, where the repo keeps its
     migrations. It is empty where the repo has none. `migration_names` says how the repo names a
     migration. With `numbered`, a name looks like `0004_insulin`, and the migration takes its
-    number when it lands. With `timestamped`, two names cannot collide. `jmerge` reads both."""
+    number when it lands. With `timestamped`, two names cannot collide. `jmerge` reads both.
+
+    `ci_report` is whether `jbus-ci.timer` writes the project's week of CI (`jbus ci --each`).
+    It is off unless the project's table says `ci_report = true`."""
 
     name: str
     checkout: Path
@@ -100,6 +103,7 @@ class Project:
     webhook_key: str
     migrations: str = ""
     migration_names: str = NUMBERED
+    ci_report: bool = False
 
 
 @dataclass(frozen=True)
@@ -352,6 +356,10 @@ def load(directory: Path | None = None) -> Config:
                 )
             url, key = _pair(entry, webhook)
             migrations, names = _migrations(entry)
+            if not isinstance(entry.get("ci_report", False), bool):
+                raise Refused(
+                    f"refused: project {entry['name']} has a ci_report that is not true or false"
+                )
             projects.append(
                 Project(
                     name=str(entry["name"]),
@@ -362,6 +370,7 @@ def load(directory: Path | None = None) -> Config:
                     webhook_key=key,
                     migrations=migrations,
                     migration_names=names,
+                    ci_report=entry.get("ci_report", False),
                 )
             )
         server = str(raw["server"]).rstrip("/")

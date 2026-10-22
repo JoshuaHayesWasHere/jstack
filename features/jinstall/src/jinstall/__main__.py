@@ -107,7 +107,9 @@ def yours(need: Need, found: Found) -> bool:
 def setup(machine: Machine) -> Report:
     """Walk every need once, in order, and print one line for each. The line is `done <name>`
     for what this run wrote, `already <name>` for what was there, and
-    `needs you <name> -> <command>` for each step that is left for the user.
+    `needs you <name> -> <command>` for each step that is left for the user. An optional
+    need that is missing is a layer the user has not set up, and its line is the doctor's,
+    `missing optional <name> -> <command>`.
 
     Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
     the install puts it. The jbus config comes before the units in the list, so a run that
@@ -140,7 +142,9 @@ def setup(machine: Machine) -> Report:
                 continue
         ask = kind.ask(machine) if isinstance(kind, Asks) else found.detail
         code |= need.level is Level.HARD
-        lines.append(f"needs you {need.name} -> {ask or found.state.value}")
+        layer = need.level is Level.OPTIONAL and found.state is State.MISSING
+        said = "missing optional" if layer else "needs you"
+        lines.append(f"{said} {need.name} -> {ask or found.state.value}")
     return Report(tuple(lines), "\n".join(notes), code)
 
 

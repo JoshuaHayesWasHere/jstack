@@ -74,8 +74,8 @@ def alarm():
     return said
 
 
-def no_remote(tree):
-    return f"snapshot: no remote: {tree} has no origin to push to"
+def no_remote(tree, done="committed"):
+    return f"snapshot: {done}, not pushed: {tree} has no origin, so the backup is off"
 
 
 def test_a_change_is_committed_as_a_snapshot_at_the_users_time(tree, tmp_path):
@@ -94,40 +94,32 @@ def test_with_nothing_changed_nothing_is_committed(tree, tmp_path):
     assert git(tree, "rev-parse", "HEAD") == before
 
 
-def test_with_no_remote_a_change_is_committed_and_the_snapshot_fails(tree):
-    """A snapshot that backed up nowhere is not a success, so the unit fails and alarms."""
+def test_with_no_remote_a_change_is_committed_here_and_the_snapshot_succeeds(tree):
+    """With no origin the backup is off, and each snapshot is still a commit an edit can be
+    undone to."""
     (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
-    assert take() == (1, [no_remote(tree)])
+    assert take() == (0, [no_remote(tree)])
     assert git(tree, "log", "-1", "--format=%s") == "snapshot 2026-10-12 11:00 ET"
     assert git(tree, "status", "--porcelain") == ""
     before = git(tree, "rev-parse", "HEAD")
-    assert take() == (1, [no_remote(tree)])
+    assert take() == (0, [no_remote(tree, "nothing changed")])
     assert git(tree, "rev-parse", "HEAD") == before
 
 
-def test_with_no_remote_the_alarm_alerts_once_and_a_pushed_snapshot_recovers(
+def test_with_no_remote_nothing_alerts_and_a_remote_set_later_gets_every_commit(
     kitchen, tree, tmp_path
 ):
     (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
-    assert take() == (1, [no_remote(tree)])
-    assert alarm() == ["snapshot failed", "alert sent: demo"]
-    assert take() == (1, [no_remote(tree)])
-    assert alarm() == ["snapshot failed"]
-    posted = [event for post in kitchen.webhook.posts for event in post]
-    assert [(e["event"], e["line"]) for e in posted] == [("alert", FAILED)]
-    assert kitchen.log("notify") == [f"jbus | {FAILED}"]
+    assert take() == (0, [no_remote(tree)])
+    assert kitchen.webhook.posts == [] and kitchen.log("notify") == []
     bare = with_origin(tree, tmp_path)
-    code, said = take()
-    assert (code, said[0]) == (0, "snapshot: nothing changed, pushed")
+    assert take() == (0, ["snapshot: nothing changed, pushed"])
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
-    (recovered,) = [line for line in kitchen.lines("alert") if line.startswith("recovered")]
-    assert recovered.startswith("recovered: snapshot after 2 failures since 11:00 ET")
-    assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
 
 
 def test_the_verb_takes_the_snapshot(kitchen, tree):
     (tree / "demo" / "notes.md").write_text("# notes\nmore\n")
-    assert kitchen.main("snapshot") == (1, f"{no_remote(tree)}\n")
+    assert kitchen.main("snapshot") == (0, f"{no_remote(tree)}\n")
     assert git(tree, "log", "-1", "--format=%s").startswith("snapshot ")
 
 
