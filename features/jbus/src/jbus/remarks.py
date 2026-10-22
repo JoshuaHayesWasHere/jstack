@@ -1,27 +1,29 @@
-"""Relaying what is posted under the repo owner's login on a pull request, and nobody else's.
+"""When the repo owner's login posts on a crew's pull request, jbus relays that text to the
+crew. It relays nothing that anybody else posts.
 
-A comment or a review on a pull request is text from GitHub, and on a public repo anybody
-may write one. The owner's login proves nothing about who wrote it: reviewer bots post under
-the user's account. So a relayed remark is never the user's word. The message names GitHub,
-the kind of remark, the login and the link, and says it is reviewer or bot output; the
-user's word reaches a crew only from `jbus word` or in its own thread.
+A comment or a review on a pull request is text from GitHub, and on a public repo anybody may write
+one. The owner's login proves nothing about who wrote it: reviewer bots post under the user's
+account. So a relayed remark is never the user's word. The message that jbus sends names GitHub, the
+kind of remark, the login and the link, and says the remark is reviewer or bot output. The user's
+word reaches a crew only from `jbus word` or in the crew's own thread.
 
-`tell` reads the three lists GitHub keeps of them for each open pull request of a slug jbus
-launched, and sends its crew the ones whose author is the repo's owner, one message each.
-The owner is asked of GitHub every pass, `gh api repos/{owner}/{repo}`, and is written
-nowhere in the tree. With no answer to that, nothing is relayed.
+For each open pull request of a slug that jbus launched, `tell` reads GitHub's three lists of
+remarks. It sends the slug's crew each remark whose author is the repo's owner, one message
+each. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
+and writes the owner nowhere in the tree. When GitHub gives no answer, jbus relays nothing.
 
-A remark by anybody else is counted and never read further: its body is not kept, logged,
-sent to a thread or sent to the Chef. The pass says how many there are when that changes,
-and `remarks.json` keeps the one count for a pull request.
+jbus counts a remark by anybody else and reads it no further. It does not keep or log the
+remark's body, and sends it neither to a thread nor to the Chef. The pass says how many such
+remarks there are when the count changes, and `remarks.json` keeps one count for each pull
+request.
 
 A crew is the thread on a brief's `Thread:` line, whoever launched it.
 
 A remark's key, `remark|<slug>|#<number>|<kind> <id> <when>`, is its retry key at T3 Code
-and its mark in `sent.json`, so one is relayed once. A comment its author edits is relayed
-again, since `<when>` is when it last changed. A review is relayed as it was submitted: one
-not yet submitted is left out, and a later edit of its words is not seen. Each list is read
-to its last page.
+and its mark in `sent.json`, so jbus relays each remark once. When an author edits a comment,
+jbus relays the comment again, since `<when>` is when the comment last changed. jbus relays a
+review as its author submitted it. jbus leaves out a review not yet submitted, and does not
+relay a later edit of a review's words. jbus reads each list to its last page.
 """
 
 from __future__ import annotations
@@ -54,7 +56,7 @@ MESSAGE = (
 
 @dataclass(frozen=True)
 class Remark:
-    """One comment, line comment or review, as GitHub lists it."""
+    """A `Remark` is one comment, line comment or review, as GitHub lists it."""
 
     kind: str
     id: str
@@ -71,8 +73,8 @@ class Remark:
 
     @property
     def empty(self) -> bool:
-        """A review that says nothing yet: one its author has not submitted, or one with no
-        words that only holds line comments, which have their own list."""
+        """True for a review that says nothing yet: one its author has not submitted, or one
+        with no words that only has line comments, which have their own list."""
         if self.kind != "review":
             return False
         return self.state == "PENDING" or (not self.body.strip() and self.state == "COMMENTED")
@@ -92,14 +94,14 @@ def _remark(kind: str, one: dict[str, Any]) -> Remark:
 
 
 def owner_of(run: Pass) -> str:
-    """The login that owns the repo, as GitHub says now, or nothing where it did not say."""
+    """Return the repo owner's login as GitHub gives it now, or nothing if GitHub gave none."""
     said = _api(run, REPO)
     login = (said.get("owner") or {}).get("login") if isinstance(said, dict) else ""
     return login if isinstance(login, str) else ""
 
 
 def _pages(run: Pass, path: str) -> list[list[Any]] | None:
-    """Every page of a list, as `gh api --paginate --slurp` gives them, or None."""
+    """Return every page of a list, as `gh api --paginate --slurp` gives them, or None."""
     asked = run.run("gh", "api", path, "--paginate", "--slurp")
     try:
         pages = json.loads(asked.stdout) if asked.returncode == 0 else None
@@ -110,7 +112,7 @@ def _pages(run: Pass, path: str) -> list[list[Any]] | None:
 
 
 def read(run: Pass, number: int) -> list[Remark] | None:
-    """Every remark on a pull request, or None where one of the lists was not given."""
+    """Return every remark on a pull request, or None if GitHub did not give every list."""
     found: list[Remark] = []
     for kind, path in LISTS:
         pages = _pages(run, f"{REPO}/{path.format(number=number)}?per_page=100")
@@ -125,7 +127,7 @@ def by_owner(remark: Remark, owner: str) -> bool:
 
 
 def message(remark: Remark, owner: str, number: int) -> str:
-    """What a crew is sent: the remark as GitHub text by its author, never as the user's word."""
+    """Return a crew's message: the remark as GitHub text by its author, never the user's word."""
     whole = remark.body.strip()
     said = whole[:BODY] or f"({remark.state.lower() or 'no words'})"
     if len(whole) > BODY:
@@ -143,7 +145,7 @@ def message(remark: Remark, owner: str, number: int) -> str:
 
 
 def tell(run: Pass, client: Client, world: World) -> None:
-    """Send each crew what the owner wrote on its open pull request, once for a remark."""
+    """Send each crew what the owner wrote on its open pull request, once for each remark."""
     crews = []
     for slug, pull in world.open.items():
         try:

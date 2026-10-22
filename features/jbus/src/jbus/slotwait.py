@@ -1,22 +1,22 @@
-"""Waking a thread that waits on a test slot, when a slot of its lane is free.
+"""This module wakes a thread that waits on a test slot once a slot of its lane is free.
 
 A thread that finds every slot taken registers in `test-slot-waiters.json` (`jgauge.waiters`,
-which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3 Code resumes it, so
-each pass of `jbus poll` does, in `wake`:
+which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3 Code resumes that
+thread, so each pass of `jbus poll` resumes it, in `wake`:
 
-- A waiter whose thread is gone, settled, archived or ended is dropped (`dead`): a thread that
-  ended its turn to wait is `completed`, and is alive.
-- A woken wait whose thread was told long ago, and did nothing, is dropped.
-- For each lane that has a slot free, the oldest waiters on it are woken, one for each free
+- `wake` drops a waiter whose thread is gone, settled, archived or ended (`dead`). A thread
+  that ended its turn to wait has the status `completed`, and counts as alive.
+- `wake` drops a woken waiter that jbus told long ago and that has done nothing since.
+- For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
-  `waiters.HOLDS`: it has been told, and has not taken it yet.
-- A wake is one `t3_thread_send`, mode queue, keyed by the wait, so a retry is the same message.
-  It is recorded as woken only after T3 Code took it, so a wait is woken once and a message
-  that got no answer is tried again.
+  `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
+- A wake is one `t3_thread_send` in mode queue, keyed by the wait, so a retry sends the same
+  message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
+  each wait once, and sends again a message that got no answer.
 
-The file is the machine's, not a project's: a pass of any project wakes any waiter, and
-whichever pass records the wake first, the others see it. A thread that takes a slot leaves the
-file (`jgauge.slot.take`).
+`test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
+waiter, and once one pass records a wake in the file, the other passes read that record there. A
+thread that takes a slot leaves the file (`jgauge.slot.take`).
 """
 
 from __future__ import annotations
@@ -43,8 +43,9 @@ MESSAGE = (
 
 
 def dead(run: Pass, client: Client, waiter: Waiter) -> bool:
-    """Whether the waiter's thread cannot be woken: it is gone, settled, archived or ended with
-    a failure, an interrupt or a cancel. A thread that T3 Code could not be asked about is not."""
+    """Say whether the waiter's thread cannot be woken: it is gone, settled or archived, or it
+    ended with a failure, an interrupt or a cancel. When T3 Code does not answer about the
+    thread, `dead` returns False."""
     try:
         read = client.call("t3_thread_read", {"threadId": waiter.thread, "limit": 1})
     except T3Refused as error:
@@ -89,7 +90,8 @@ def wake(run: Pass, client: Client) -> None:
 
 
 def waited(one: Waiter, now: datetime) -> int:
-    """Whole minutes since the thread first waited, which `jgauge sample --report` counts."""
+    """Return the whole minutes since the thread first waited, which `jgauge sample --report`
+    counts."""
     try:
         since = datetime.fromisoformat(one.since)
     except ValueError:
