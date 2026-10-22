@@ -43,7 +43,7 @@ def _row(path: Path, role: str, seen: set[str]) -> dict:
 
 
 def _total(sums: dict) -> int:
-    """Every token of a sum. A floor is output too, only not yet final."""
+    """Every token of a sum. A floor counts as output too, though it is not yet final."""
     return (
         sums["tokens_in"]
         + sums["cache_write"]
@@ -56,8 +56,8 @@ def _total(sums: dict) -> int:
 def _rows(path: Path, seen: set[str]) -> list[dict]:
     """A session's row, then one for each subagent it started.
 
-    The search goes down the whole `subagents/` directory: an agent a workflow
-    started is written a level below, in `subagents/workflows/<workflow id>/`.
+    The search goes down the whole `subagents/` directory: Claude Code writes an agent that a
+    workflow started a level below, in `subagents/workflows/<workflow id>/`.
     """
     agents = sorted((path.with_suffix("") / "subagents").rglob("agent-*.jsonl"))
     return [_row(path, "session", seen), *(_row(agent, "subagent", seen) for agent in agents)]

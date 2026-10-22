@@ -1,9 +1,9 @@
-"""Every repo with a home is a jbus project. A home's start adds its repo with the one block
-that adds a repo, new-home's step 3, which never writes `home-thread`: jbus merges for every
-project. What slips past is named by each pass, by `jbus status` and on the view's machine row.
+"""Every repo with a home is a jbus project. A home's start adds its repo with the one block that
+adds a repo, new-home's step 3, which never writes `home-thread`: jbus merges for every project.
+Each pass, `jbus status` and the view's machine row name a home whose repo is no jbus project.
 
-The skill's blocks are run as the home skill says, in one call with the block at the top, the
-block that finds this home and the block that reads jbus, on a made-up home directory with
+The tests run the skill's blocks as the home skill says, in one call with the block at the top, the
+block that finds this home and the block that reads jbus. They run on a made-up home directory, with
 `jbus` on PATH as the real command over a made-up config.
 """
 

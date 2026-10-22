@@ -2,13 +2,13 @@
 
 The counting rule (features/jgauge/docs/meter-findings.md has the observations behind it):
 
-- A call is one `message.id`. A message has one line per content block, and a
-  line can be written twice, so lines are never counted.
-- A line with a `stop_reason` was written when the message finished and holds
+- A call is one `message.id`. A message has one line per content block, and Claude Code can
+  write a line twice, so the reader never counts lines.
+- Claude Code writes a line with a `stop_reason` when the message finishes, and that line has
   its final counts. A message with such a line is final.
 - A message with no such line has only the output count as it started: a floor.
-  Its input and cache counts are still exact. The floor is kept apart from the
-  final output and flagged, never added to it and never estimated upward.
+  Its input and cache counts are still exact. The floor is a flagged count, kept apart from
+  the final output, never added to it and never estimated upward.
 - A message whose model is `<synthetic>` is the harness's own text, not a call.
 """
 

@@ -29,7 +29,7 @@ class Homes(Scene):
         (self.home_dir / SCOPE / "plan.md").write_text("# the second home: plan\n")
 
     def sent(self, reader, slug, *lines):
-        """A brief or a request the reader's thread was launched from."""
+        """A brief or a request the home launched the reader's thread from."""
         text = "\n".join([f"# {slug}: a title", 'Task: "make it so"', *lines])
         (self.home_dir / HOME_LINE_IN[reader] / f"{slug}.md").write_text(text + "\n")
         return slug

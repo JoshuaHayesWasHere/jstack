@@ -1,8 +1,8 @@
 """A home writing a brief or a scout's request asks for the deeper version of research, perf,
-analysis and outcome work itself. The step is a shell block in the home skill's "Handing a task
-to a crewmate", lifted from it and run here: for those kinds it prints its own copy of the four
-questions of `/sharpen`, each with the line of the brief its answer goes on, and for a mechanical
-fix, a docs change or a bug fix with a known cause it prints `skip`."""
+analysis and outcome work itself. The step is a shell block in the home skill's "Handing a task to a
+crewmate", and the test takes it from the skill and runs it. For those kinds the block prints its
+own copy of the four questions of `/sharpen`, each with the line of the brief its answer goes on.
+For a mechanical fix, a docs change or a bug fix with a known cause it prints `skip`."""
 
 import re
 import subprocess
@@ -31,7 +31,7 @@ def run(picked):
 
 
 def deeper_playbooks():
-    """The playbook names the block runs the step for, read off its `case` arm."""
+    """The playbook names the block runs the step for, as its `case` arm lists them."""
     (arm,) = [line for line in block().splitlines() if "investigation |" in line]
     names = [name.strip() for name in arm.strip().rstrip(")").split("|")]
     return [name for name in names if name not in KINDS]

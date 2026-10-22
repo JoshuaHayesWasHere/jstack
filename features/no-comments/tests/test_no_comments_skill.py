@@ -1,5 +1,5 @@
-"""The no-comments skill names files outside its own directory: linked, it prints the repo's root,
-and every file it names from there is under it."""
+"""The no-comments skill names files outside its own directory. When the skill is linked, its block
+prints the repo's root, and every file the skill names from there is under that root."""
 
 from skill_blocks import (
     home,

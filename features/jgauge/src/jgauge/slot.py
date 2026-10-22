@@ -1,17 +1,18 @@
 """A test slot: run one command while holding one of N lock files, machine-wide.
 
-A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`, held by this process and
-not by the command, so it is free again when the command ends or when this process dies.
+A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`. This process holds it, not
+the command, so the slot is free again when the command ends or when this process dies.
 
 There are two lanes. The full lane is for a whole suite and has N slots, `test_slots` in
-`jgauge.sizes`: derived from the machine unless `--slots`, `TEST_SLOTS` or the local machine
-file sets it. The short lane is for a run of a second or a minute, a reviewer's proof or a
-crewmate's targeted tests: it has slots of its own, `short_slots` there, as
-`test-slot-short.<n>.lock`, so it never waits behind a full suite, and a command in it is
-stopped at its time limit, so a full suite cannot sit there. A short command runs in a process
-group of its own, and the stop and every signal go to the whole group: a `sh -c` wrapper does
-not leave its pytest running once the slot is free. Out of the terminal's group, an interrupt
-reaches it only through this process, which passes it on.
+`jgauge.sizes`, which derives the count from the machine unless `--slots`, `TEST_SLOTS` or the
+local machine file sets it. The short lane is for a run of a second or a minute, a reviewer's
+proof or a crewmate's targeted tests. It has slots of its own, `short_slots` there, as
+`test-slot-short.<n>.lock`, so it never waits behind a full suite. This process stops a
+command in the short lane at its time limit, so a full suite cannot keep a short slot. A short
+command runs in a process group of its own, and the stop and every signal go to the whole
+group: a `sh -c` wrapper does not leave its pytest running once the slot is free. Since that
+group is out of the terminal's group, an interrupt reaches the command only through this
+process, which passes it on.
 
 A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
 and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`)
@@ -85,8 +86,8 @@ def lane_of(kind: str, slots: int) -> Lane:
 
 
 def free(lane: Lane) -> int:
-    """How many slots of the lane no one holds now. A slot is looked at and let go at once,
-    and a lock file that is not there is a slot no one has taken."""
+    """How many slots of the lane no one holds now. The function tries each slot's lock and lets
+    it go at once, and a lock file that is not there is a slot no one has taken."""
     locks, found = locks_dir(), 0
     for n in range(1, lane.slots + 1):
         try:
@@ -121,8 +122,8 @@ def _first_free(locks: Path, lane: Lane) -> int | None:
 
 def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int | None:
     """Wait for a slot and take it. With a `thread` it waits for none: with every slot taken it
-    registers the thread as a waiter on the lane, says so in one line, and takes nothing. One
-    that takes a slot leaves the waiters."""
+    registers the thread as a waiter on the lane, says so in one line, and takes nothing. A
+    thread that takes a slot leaves the waiters."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread:
@@ -147,7 +148,8 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int 
 
 
 def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
-    """Tell the command, and in the short lane every process it started, which is its group."""
+    """Send the signal to the command, and in the short lane to every process it started, which
+    is its process group."""
     if lane.limit is None:
         child.send_signal(number)
         return

@@ -1,7 +1,7 @@
-"""A queue and its hourly audit: the home skill's three blocks, lifted from the skill and run
-against a temporary `$H`. The first says whether a queue is out and what to do about the audit,
-the second keeps the audit's id, and the third judges each thread out by its side effects,
-from what the real `jmerge --claims` prints over a fake `gh`."""
+"""A queue and its hourly audit: the tests take the home skill's three blocks from the skill and run
+them against a temporary `$H`. The first says whether a queue is out and what to do about the audit,
+the second keeps the audit's id, and the third judges each thread out by its side effects, from what
+the real `jmerge --claims` prints over a fake `gh`."""
 
 import json
 import os

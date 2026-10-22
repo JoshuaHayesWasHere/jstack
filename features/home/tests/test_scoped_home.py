@@ -1,7 +1,7 @@
-"""A scoped home: `/home <scope>` starts a home beside the repo's root home, with its handoff,
-plan, log and `home-id` in a directory of its own under the repo's, and the notes,
-briefs, requests and pages shared. Every block here is lifted from the home skill and run in
-a temporary repo that has both homes."""
+"""A scoped home: `/home <scope>` starts a home beside the repo's root home, with its handoff, plan,
+log and `home-id` in a directory of its own under the repo's, and the notes, briefs, requests and
+pages shared. Each test takes every block from the home skill and runs it in a temporary repo that
+has both homes."""
 
 import os
 import re
@@ -456,7 +456,7 @@ def test_a_heading_is_shown_until_it_is_marked_and_a_start_cut_before_shows_it_a
 def test_a_start_reads_the_plan_as_jbus_counts_it_and_whole_only_where_jbus_gives_none(
     homes, monkeypatch, code
 ):
-    """The block of step 4 runs the real verb's words: `plan`, and `--scope` for a scope."""
+    """The block of step 4 runs the real verb with its words: `plan`, and `--scope` for a scope."""
     stub = homes.user / "bin"
     stub.mkdir()
     (stub / "jbus").write_text(f'#!/bin/sh\necho "jbus $*"\nexit {code}\n')

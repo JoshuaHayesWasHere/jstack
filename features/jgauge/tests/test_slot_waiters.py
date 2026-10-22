@@ -1,5 +1,5 @@
-"""A thread that finds every slot taken registers as a waiter in the file the slot queue owns,
-and says so in one line, instead of waiting in the call. Run as `test_slot.py` runs: the
+"""A thread that finds every slot taken registers as a waiter in the slot queue's file, and
+says so in one line, instead of waiting in the call. The tests run as `test_slot.py` does: the
 real `jgauge test-slot`, against lock files in a home of its own."""
 
 import fcntl
@@ -45,7 +45,8 @@ def _split(args):
 
 
 def jgauge(machine, *args, thread=THREAD):
-    """`jgauge test-slot` with these arguments, the thread's option put before the `--`."""
+    """`jgauge test-slot` with these arguments, with the thread's option placed before the
+    `--`."""
     head, dashes, command = (list(part) for part in _split(args))
     return subprocess.run(
         [

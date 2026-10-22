@@ -1,24 +1,28 @@
-"""`jgauge limits`: each Claude account's five-hour and weekly use, read ahead of time into the
-ledger (`jroles.ledger`), so a launch passes an account by before it is capped.
+"""`jgauge limits`: each Claude account's five-hour and weekly use. The command reads it ahead
+of time into the ledger (`jroles.ledger`), so a launch can skip an account before the account
+is capped.
 
-The accounts are the Claude homes of the provider inventory (`jroles.inventory`), each read as
-its instance. A home is read from the first of its sources that answers:
+The accounts are the Claude homes of the provider inventory (`jroles.inventory`), and the
+command reads each as its instance. For each home it reads the first of these sources that
+answers:
 
 1. `GET https://api.anthropic.com/api/oauth/usage` with the home's own access token, from
-   `<home>/.credentials.json`, while that token has not expired: the call Claude Code makes for
-   `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
+   `<home>/.credentials.json`, while that token has not expired. Claude Code makes the same
+   call for `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
 2. The answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`),
-   `cachedUsageUtilization`, while it is under `FRESH` old and of the account signed in there.
+   `cachedUsageUtilization`, while it is under `FRESH` old and belongs to the account signed in
+   there.
 
-A token is never refreshed, written or printed, and neither file is ever written: a refresh
-token rotates, and a refresh here would race the sessions signed in with it. A home no source
-answers writes nothing, so its last line stands and a capped account is never read as free;
-it prints `stale <instance>: <why>`. A home that is read has its file's time set to now, also
-when no line changed, so `--check` tells a reader that stopped from an account that is idle.
+The command never refreshes, writes or prints a token, and it never writes either file. A
+refresh token rotates, and a refresh here would race the sessions signed in with it. When no
+source answers for a home, the command writes nothing for it, so its last line stays and a
+capped account is never read as free; it prints `stale <instance>: <why>`. When it reads a
+home, it sets the time of the home's file to now, also when no line changed, so `--check` can
+tell a reader that stopped from an account that is idle.
 
-A reset comes back a little different on each call (21:29:59.74, then 21:30:00.31): it is
-floored to the second, as the other writers do, and the ledger's merge takes resets a few
-minutes apart as one window. A window with no reset is not open, and gives no line.
+The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
+The command floors it to the second, as the other writers do, and the ledger's merge takes
+resets a few minutes apart as one window. A window with no reset is not open, and gives no line.
 """
 
 from __future__ import annotations
@@ -51,8 +55,8 @@ class Home:
         return self.path / ".credentials.json"
 
     def config(self) -> Path:
-        """Where Claude Code keeps this home's `.claude.json`: beside `~/.claude`, not in it,
-        for the home it takes when `CLAUDE_CONFIG_DIR` is not set."""
+        """Where Claude Code keeps this home's `.claude.json`. For the home Claude Code uses when
+        `CLAUDE_CONFIG_DIR` is not set, the file is beside `~/.claude`, not in it."""
         if self.path == Path.home() / ".claude":
             return Path.home() / ".claude.json"
         return self.path / ".claude.json"
@@ -63,8 +67,8 @@ class Stale(Exception):
 
 
 def homes(home: Path | None = None) -> list[Home]:
-    """Each Claude home of the inventory, or the built-in one where it declares none. Refused
-    with the reason for an inventory that cannot be read."""
+    """Each Claude home of the inventory, or the built-in one where the inventory declares
+    none. Raises `Stale` with the reason when the inventory cannot be read."""
     home = home or Path.home()
     found = inventory.declared(inventory.path(), home)
     if isinstance(found, str):
@@ -85,8 +89,9 @@ def _json(file: Path) -> dict:
 
 
 def records(instance: str, usage: object) -> list[ledger.Record]:
-    """The ledger's lines of a usage answer, `{five_hour: {utilization, resets_at}, ...}`, the
-    shape the endpoint gives and Claude Code caches. ValueError for an answer not in it."""
+    """The ledger's lines of a usage answer in the shape that the endpoint returns and Claude
+    Code caches, `{five_hour: {utilization, resets_at}, ...}`. Raises ValueError for an answer
+    not in that shape."""
     if not isinstance(usage, Mapping):
         raise ValueError("the answer is not an object")
     found = []
@@ -159,7 +164,7 @@ def from_cache(home: Home, now: datetime) -> list[ledger.Record]:
 
 
 def read(home: Home, now: datetime, get: Fetch = fetch) -> tuple[str, list[ledger.Record]]:
-    """The source that answered for `home`, and its lines. Stale where none did."""
+    """The source that answered for `home`, and its lines. Raises `Stale` where none did."""
     reasons = []
     for name, source in (
         ("endpoint", lambda: from_endpoint(home, now, get)),
@@ -173,7 +178,7 @@ def read(home: Home, now: datetime, get: Fetch = fetch) -> tuple[str, list[ledge
 
 
 def keep(home: Home, found: list[ledger.Record], now: datetime) -> Path:
-    """Merge the lines into the home's file, which is made where there is none, and set its
+    """Merge the lines into the home's file, make the file where there is none, and set its
     time to now."""
     file = ledger.file_of(home.instance)
     for record in found:
@@ -205,8 +210,8 @@ def stale(file: Path, now: datetime) -> str | None:
 
 
 def run(now: datetime, get: Fetch = fetch) -> list[str]:
-    """Read every home, and the line for each: `<instance> <source> <file>` for one read, and
-    `stale <instance>: <why>` for one not."""
+    """Read every home and return a line for each: `<instance> <source> <file>` for a home
+    that was read, and `stale <instance>: <why>` for one that was not."""
     said = []
     for home in homes():
         try:

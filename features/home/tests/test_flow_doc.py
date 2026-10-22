@@ -1,9 +1,9 @@
 """`features/home/docs/flow.html` names only what the repo has.
 
-The page is read with an HTML parser, and each name in a `<code>` element is held against the
-repo itself: a path against the tree, a typed command against `skills/`, a `jmerge` line against
-the command's own parser, a T3 Code tool against the schemas kept in
-`features/jbus/tests/fixtures/t3/`. The page's sentences are not compared with anything.
+The test reads the page with an HTML parser and checks each name in a `<code>` element against the
+repo itself: a path against the tree, a typed command against `skills/`, a `jmerge` line against the
+command's own parser, a T3 Code tool against the schemas kept in `features/jbus/tests/fixtures/t3/`.
+The test compares none of the page's sentences with anything.
 """
 
 import re

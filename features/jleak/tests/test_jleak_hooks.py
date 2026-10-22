@@ -372,7 +372,8 @@ def test_a_pull_request_command_with_no_private_patterns_file_is_refused(pattern
 
 
 def refused_from(root, hooks, given):
-    """The command hook, copied to `<root>/<hooks>`, fed `given`: its exit code and stderr."""
+    """Copy the command hook to `<root>/<hooks>`, feed it `given`, and give its exit
+    code and stderr."""
     (root / hooks).mkdir(parents=True)
     (root / hooks / COMMAND.name).write_text(COMMAND.read_text())
     done = subprocess.run(

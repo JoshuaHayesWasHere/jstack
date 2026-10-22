@@ -1,5 +1,5 @@
-"""`features/jgauge/hooks/limits.sh`: the file it writes from what Claude Code hands a status
-line, read back by `room`, and every input it leaves the file alone on.
+"""`features/jgauge/hooks/limits.sh`: the file it writes from what Claude Code passes a status
+line, which `room` reads back, and every input on which it leaves the file alone.
 Every test runs the script."""
 
 import json
@@ -258,8 +258,8 @@ def inventory(tmp_path, env, prime_home):
 
 @pytest.mark.parametrize("prime_home", ["~/.claude_prime", "{home}/.claude_prime/"])
 def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_path, env, prime_home):
-    """Each account's status line writes the file of the instance its CLAUDE_CONFIG_DIR is the
-    home of, so one account's limits never stand for another's."""
+    """Each account's status line writes the file of the instance whose home is its
+    CLAUDE_CONFIG_DIR, so one account's limits never count as another's."""
     home = tmp_path / "home"
     named = inventory(tmp_path, {**env, "HOME": str(home)}, prime_home.format(home=home))
     write(handed(five_hour=(12, SOON), seven_day=(30, WEEK)), named)

@@ -1,16 +1,18 @@
-"""A log of the machine's load, pressure and /tmp files, a row every 15 s from a user timer,
-and a report of a span of it: how often the load was over room's line while CPU pressure was
-low, the peaks against room's other lines, and the stalls jbus recorded in the span.
+"""A log of the machine's load, pressure and /tmp files, and a report on a span of it. A user
+timer adds a row every 15 s. The report says how often the load was over room's line while CPU
+pressure was low, gives the peaks against room's other lines, and lists the stalls that jbus
+recorded in the span.
 
-The log is one TSV file under a header of COLUMNS. A field that cannot be read (no
-/proc/pressure/io, a kernel with no `full` line for cpu) is empty, never a crash. It holds 30
-days at most: once its first row is older than that, the sampler writes it again with the last
-29 days, so the file is rewritten about once a day and not on every sample. A log written
-before the two /tmp columns is written again once, with those fields empty in its old rows.
+The log is one TSV file under a header of COLUMNS. The sampler leaves a field empty when it
+cannot read it (no /proc/pressure/io, a kernel with no `full` line for cpu), and does not crash.
+The log holds 30 days at most: once its first row is older than that, the sampler writes it
+again with the last 29 days, so it rewrites the file about once a day and not on every sample.
+The sampler rewrites a log from before the two /tmp columns once, with those fields empty in
+its old rows.
 
-The stalls are read from each project's `events.jsonl` under jbus's state directory: a
+The report reads the stalls from each project's `events.jsonl` under jbus's state directory: a
 `stall`, a `slot-wake` (a thread that waited for a test slot, and how many minutes), and the
-`condition` jbus's gate writes when a row had no room for its passes."""
+`condition` that jbus's gate writes when a row had no room for its passes."""
 
 from __future__ import annotations
 
@@ -65,9 +67,10 @@ def jbus_state() -> Path:
 
 
 def room_line(name: str) -> int:
-    """One of room's lines, `<name>=` in room.sh, the one copy: `LOAD` is a percent of the
-    cores, `CPU` and `PRESSURE` a share of time, `MEMORY` GB, `CUSHION` and `SLOTS` percents.
-    `CUSHION` is the user's `headroom`, which `jgauge room` hands it: this is its default."""
+    """One of room's lines, read from its `<name>=` in room.sh, which holds the one copy.
+    `LOAD` is a percent of the cores, `CPU` and `PRESSURE` are shares of time, `MEMORY` is in
+    GB, and `CUSHION` and `SLOTS` are percents. `CUSHION` is the user's `headroom`, which
+    `jgauge room` passes to room.sh, so the value here is its default."""
     found = re.search(rf"^\s*{name}=(?:\$\{{\w+:-)?(\d+)\}}?$", ROOM.read_text(), re.MULTILINE)
     if not found:
         raise SystemExit(f"jgauge: {ROOM} has no {name}= line to read room's line from")
@@ -82,7 +85,7 @@ def _read(path: Path) -> str:
 
 
 def _pressure(text: str) -> dict[str, str]:
-    """`some avg10=1.00 avg60=2.00 ...` lines as {"some_avg10": "1.00", ...}."""
+    """Parse `some avg10=1.00 avg60=2.00 ...` lines into {"some_avg10": "1.00", ...}."""
     found = {}
     for line in text.splitlines():
         kind, *fields = line.split() or [""]
@@ -124,8 +127,8 @@ def _first_time(log: Path) -> int | None:
 
 
 def _widen(log: Path) -> None:
-    """Write a log of the columns before /tmp's again under today's header, its old rows with
-    the two /tmp fields empty."""
+    """Rewrite a log from before the /tmp columns under today's header, with the two /tmp
+    fields empty in its old rows."""
     part = log.with_name(f".{log.name}.part")
     with log.open() as old, part.open("w") as new:
         next(old)
@@ -138,8 +141,9 @@ def _widen(log: Path) -> None:
 
 
 def _prune(log: Path, now: int) -> None:
-    """Write the log again with the rows of the last PRUNED_TO_DAYS, by time and not by place,
-    so a clock that went back loses no row it should keep."""
+    """Write the log again with the rows of the last PRUNED_TO_DAYS. It picks the rows by their
+    time and not by their place in the file, so a clock that went back loses no row it should
+    keep."""
     since = now - PRUNED_TO_DAYS * DAY
     part = log.with_name(f".{log.name}.part")
     with log.open() as old, part.open("w") as new:
@@ -154,7 +158,8 @@ def _prune(log: Path, now: int) -> None:
 
 
 def take(log: Path) -> None:
-    """Append one row, under a lock on the log's directory, which a rename does not move."""
+    """Append one row while holding a lock on the log's directory, since a rename of the log
+    leaves the directory in place."""
     log.parent.mkdir(parents=True, exist_ok=True)
     header = "\t".join(COLUMNS) + "\n"
     folder = os.open(log.parent, os.O_RDONLY)
@@ -304,9 +309,9 @@ def _peaks(rows: list[list[str]], at: dict[str, int]) -> list[str]:
 
 
 def _stalls(start: int, until: int) -> str:
-    """What jbus recorded in the span as a thread or a row held up: its `stall` events, the
-    threads woken from a wait for a test slot and how many waited over STALL_MINUTES, and the
-    rows gated for no room."""
+    """What jbus recorded in the span as a held-up thread or row: its `stall` events, the
+    threads it woke from a wait for a test slot and how many of them waited over STALL_MINUTES,
+    and the rows its gate held for lack of room."""
     stalls = waits = timed = long = longest = rooms = 0
     files = sorted(jbus_state().glob("*/events.jsonl"))
     for path in files:

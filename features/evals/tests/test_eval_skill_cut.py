@@ -1,5 +1,6 @@
-"""The skill-cut eval scores an answer from its text and its case's key alone, reads the files
-under test from git revisions and never the working tree, and applies the README's rule."""
+"""The skill-cut eval scores an answer from its text and its case's key alone. It reads the
+files under test from git revisions, never from the working tree, and it applies the README's
+rule."""
 
 import importlib.util
 import json
@@ -218,8 +219,9 @@ def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeyp
 
 
 def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
-    """A case names `principles/type-system-discipline.md`, its name before pstack's prefix,
-    and a revision after the rename gives the renamed file for it, as for its own name."""
+    """A case names `principles/type-system-discipline.md`, the file's name before pstack's
+    prefix. At a revision after the rename, the eval reads the renamed file for that name, as it
+    does for the file's own name."""
     path = "principles/type-system-discipline.md"
     renamed = "HEAD:features/principles/skills/principle-type-system-discipline/SKILL.md"
     now = subprocess.run(

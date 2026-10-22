@@ -1,6 +1,6 @@
-"""A pull request that is reviewed, fixed and green is merged by one command, `jmerge`, which
-the home skill tells a home to run. The line is lifted from the skill and run, against a fake
-`gh` and a temporary repo."""
+"""One command, `jmerge`, merges a pull request that is reviewed, fixed and green, and the home
+skill tells a home to run it. The test takes the line from the skill and runs it against a fake `gh`
+and a temporary repo."""
 
 import functools
 import json
@@ -29,7 +29,8 @@ TITLE = "feat: the task, done"
 
 @functools.cache
 def uv_cache():
-    """The uv cache of the user the tests run as, asked of `uv` once, when a test needs it."""
+    """The uv cache of the user the tests run as. The fixture asks `uv` for it once, when a test
+    needs it."""
     ran = subprocess.run(["uv", "cache", "dir"], check=True, capture_output=True, text=True)
     return ran.stdout.strip()
 
@@ -308,8 +309,9 @@ class Home:
 
 
 def pushed_on(home):
-    """Three commits git has, one on the other from where the branch left main, which say
-    what a text says of `REVIEWED`, `PUSHED` and `LATER`: a fix sits on the reviewed head."""
+    """Make three commits on a branch from where it left main, each on top of the one before, and
+    give back a function that puts their real ids in a text in place of `REVIEWED`, `PUSHED` and
+    `LATER`. A fix is the commit on top of the reviewed head."""
     git(home.main, "update-ref", "refs/remotes/origin/main", "HEAD")
     git(home.main, "checkout", "-q", "-b", "alpha")
     real = {}
@@ -716,7 +718,7 @@ def test_a_pull_request_short_of_ready_is_printed_with_the_first_reason(home, ca
 
 @pytest.mark.parametrize("case", [case for case in SHORT if SHORT[case][2] == NO_ORIGIN])
 def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case):
-    """What the cases above reach the fetch for: the `Fixed:` commit, else the reviewed head."""
+    """The commit the cases above fetch: the `Fixed:` commit, else the reviewed head."""
     from jmerge import ready
 
     text, listed, _ = SHORT[case]

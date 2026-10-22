@@ -1,13 +1,14 @@
-"""The process skills are gates, read from what each one leaves behind.
+"""The process skills are gates, and the tests read each one from what it leaves behind.
 
 A review's step 5 (blast-radius) leaves a `Proof:` line in its `## Review` section, and
 `jmerge` merges a guarded path only where that line proves the one safety fact at the head.
-A hold is lifted by `jmerge --accept`, the user's hand-merge, which asks for the same fact.
+`jmerge --accept`, the user's hand-merge, lifts a hold, and it asks for the same fact.
 A design call (`/architect`) leaves a `Design:` line in the brief, and `jbus queue add` queues
 no brief that has none. A row already approved is grandfathered and launches.
 
-`jmerge` is run against `test_home_merge`'s fake `gh` and real origin, and the pass as
-`features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code server."""
+The tests run `jmerge` against `test_home_merge`'s fake `gh` and real origin, and they run the
+pass as `features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code
+server."""
 
 import json
 import re
@@ -371,7 +372,7 @@ def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_mer
 
 
 def held(proven_merged):
-    """A pull request `jmerge` holds for the user, said in a pass of its own."""
+    """A pull request that `jmerge` holds for the user, and says so in a pass of its own."""
     proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
     assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
     assert proven_merged.untouched()
@@ -432,8 +433,9 @@ def test_a_proof_carries_over_a_rebase_jmerge_compared_and_found_clean(proven_me
 
 
 def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_head(proven_merged):
-    """A drop is held once a review of the rebased head did not rule on it. That head is
-    compared with no other, so the proof of the commit before the rebase does not carry."""
+    """`jmerge` holds a drop once a review of the rebased head did not rule on it. It
+    compares that head with no other, so the proof of the commit before the rebase does not
+    count for it."""
     rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"})
     ack = (
         f"Dropped on rebase: {rangediff.FILE}, 1 of main's, 0 of its own, "
@@ -623,7 +625,8 @@ UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "")
 
 
 def test_queue_add_refuses_a_brief_with_no_design_line():
-    """A lint runs when a row is first queued: `jbus queue add` is where a brief is refused."""
+    """A lint runs when a row is first queued: `jbus queue add` is the command that refuses a
+    brief."""
     assert parse.NO_DESIGN in parse.faults(UNDESIGNED)
     assert parse.faults(brief("alpha")) == []
 

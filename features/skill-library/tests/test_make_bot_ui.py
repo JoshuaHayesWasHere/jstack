@@ -1,7 +1,8 @@
-"""`/make-bot-ui`: its `schedule_task` block is a call the tool takes, whose signature the
-server it ships signs to, and that server, run as the skill runs it against a stand-in
-webhook on 127.0.0.1, sends both key headers and the signature, tries once within its timeout,
-logs a failed body, and binds 127.0.0.1 and the address it is given, never every address."""
+"""`/make-bot-ui`: its `schedule_task` block is a call the tool takes, and the server the skill
+ships signs to that call's signature. The tests run the server as the skill runs it, against a
+stand-in webhook on 127.0.0.1. The server sends both key headers and the signature, tries once
+within its timeout, logs a failed body, and binds 127.0.0.1 and the address it is given, never
+every address."""
 
 import hashlib
 import hmac

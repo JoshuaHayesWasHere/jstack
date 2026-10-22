@@ -1,6 +1,6 @@
-"""`jgauge limits` reads each Claude account's use ahead of time into the ledger. It is run here
-as the timer runs it, the command itself, in a throwaway HOME with two Claude homes, against a
-fake usage endpoint that answers each home's token with that account's use."""
+"""`jgauge limits` reads each Claude account's use ahead of time into the ledger. These tests
+run the command itself, as the timer runs it, in a throwaway HOME with two Claude homes, against
+a fake usage endpoint that answers each home's token with that account's use."""
 
 import json
 import os
@@ -31,7 +31,8 @@ def usage(five, week, five_at=FIVE, week_at=WEEK):
 
 
 class Endpoint:
-    """The usage endpoint: an answer, or a status, for each token, and every token it was sent."""
+    """A fake usage endpoint: an answer or a status for each token, and every token the command
+    sent it."""
 
     def __init__(self):
         self.answers = {}
@@ -282,7 +283,8 @@ def test_with_no_inventory_the_built_in_home_alone_is_read(machine):
 
 
 def test_a_reading_merges_by_the_ledgers_rule_and_never_lowers_a_cap_of_the_same_window(machine):
-    """jbus wrote 100 until the reset; the endpoint's lower share of the same window loses."""
+    """jbus wrote 100 until the reset, and the endpoint's lower share of the same window does
+    not replace it."""
     machine.ledger.parent.mkdir(parents=True)
     machine.ledger.write_text(f"five_hour 100 {FIVE_AT}\n")
     machine.answer("claudeAgent", usage(99.0, 36.0))
@@ -296,8 +298,8 @@ def test_a_reading_merges_by_the_ledgers_rule_and_never_lowers_a_cap_of_the_same
     "given", ["2026-10-20T21:29:59.919173+00:00", "2026-10-20T21:30:00.310194+00:00"]
 )
 def test_a_cap_another_writer_floored_to_the_second_is_the_same_window_and_stands(machine, given):
-    """`hooks/limits.sh` and jbus write a reset to the second; the endpoint's lands a second
-    either side of it. Both are one window, and the lower share never replaces the cap."""
+    """`hooks/limits.sh` and jbus write a reset to the second, and the endpoint's reset comes a
+    second either side of it. Both are one window, and the lower share never replaces the cap."""
     machine.ledger.parent.mkdir(parents=True)
     machine.ledger.write_text("five_hour 100 1792531799\n")
     machine.answer("claudeAgent", usage(63.0, 36.0, five_at=given))

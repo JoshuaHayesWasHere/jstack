@@ -1,9 +1,10 @@
-"""A home plans, assigns and starts: what finishes the work reaches it only while it merges.
+"""A home plans, assigns and starts: word of finished work reaches it only while it merges.
 
-A crewmate asks who merges before any line about its pull request, by the test the home
-skill's "Who merges" makes. A gate is piped to `jbus gate` and not sent to the home, and
-`features/jbus/tests/test_gates.py` has the home read it back from jbus. Every block here is lifted
-from its skill and run, the gate's against the real `jbus` in a temporary state directory."""
+A crewmate asks who merges before any line about its pull request, by the test the home skill's "Who
+merges" makes. A crewmate pipes a gate to `jbus gate` and does not send it to the home, and
+`features/jbus/tests/test_gates.py` has the home read it back from jbus. Each test takes every block
+from its skill and runs it, the gate's block against the real `jbus` in a temporary state
+directory."""
 
 import json
 import os

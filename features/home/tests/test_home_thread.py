@@ -1,6 +1,6 @@
-"""`home-id`: a home writes its thread id there, in its own directory. Three skills read the
-root home's to know whom to tell, and the handoff removes it. Every block here is lifted from
-the skill that gives it."""
+"""`home-id`: a home writes its thread id there, in its own directory. Three skills read the root
+home's to know whom to tell, and the handoff removes it. Each test takes every block from the skill
+that gives it."""
 
 import os
 import re
@@ -71,9 +71,9 @@ PROPOSED = "Option: tea (default, recommended): the cups stay\nOption: coffee: t
 
 
 def a_gate_in(sends, entry):
-    """A skill's gate block with a gate in it, as a thread fills it in: the entry in place of
-    the block's one line, its `Context:` line filled, and its `Option:` line twice: once as
-    the block writes it, both marks kept, and once with no mark."""
+    """A skill's gate block with a gate in it, as a thread fills it in. The entry takes the place of
+    the block's one line, the thread fills the `Context:` line, and the `Option:` line appears
+    twice: once as the block writes it, with both marks kept, and once with no mark."""
     assert FILLED in sends
     (context,) = [line for line in sends.splitlines() if line.startswith("Context: <")]
     (option,) = [line for line in sends.splitlines() if line.startswith("Option: <")]
@@ -93,7 +93,7 @@ def about_the_home_id(skill):
 
 
 def start_block():
-    """Step 4 of a home's start, after the block it is run after that reads jbus ("Gates")."""
+    """Step 4 of a home's start, after the block that reads jbus ("Gates"), which runs first."""
     return f"{block('home', 'OPEN=')}\n{block('home', '## to read')}"
 
 
@@ -282,8 +282,8 @@ def test_a_handoff_by_the_home_removes_its_file_and_names_it_on_the_note(scene):
 
 @pytest.mark.parametrize("switch", [None, "", f"{OTHER}\n"])
 def test_a_start_and_a_handoff_leave_the_merge_switch_as_it_was(scene, switch):
-    """`home-thread` hands merging from jbus to a home, and is set by hand: a home that starts
-    and hands off neither writes it nor removes it."""
+    """`home-thread` hands merging from jbus to a home, and the user sets it by hand: a home that
+    starts and hands off neither writes it nor removes it."""
     merges = scene.home_dir / "home-thread"
     if switch is not None:
         merges.write_text(switch)

@@ -1,8 +1,7 @@
-"""The end of a handoff: a repo's home writes a note of ten lines at most, starts the next
-home, then renames and settles itself, and any other thread starts nothing. A party's home
-starts its next thread on the model the role map gives its role. The shell is the handoff
-skill's own block, run in a temporary repo, and the calls are the skill's own JSON blocks,
-checked against the tools."""
+"""The end of a handoff: a repo's home writes a note of ten lines at most, starts the next home,
+then renames and settles itself, and any other thread starts nothing. A party's home starts its next
+thread on the model the role map gives its role. The tests run the handoff skill's own shell block
+in a temporary repo and check the skill's own JSON blocks against the tools."""
 
 import json
 import re
@@ -40,8 +39,9 @@ def scene(tmp_path):
 
 
 def hands_off(scene, thread, checkout=None):
-    """What the handoff's close prints, run by `thread` as step 3 says, the note written and
-    the reply of `list_scheduled_tasks` left out: its lines on the tasks are not here."""
+    """What the handoff's close prints when `thread` runs it as step 3 says, after the test writes
+    the note. The test gives the close no reply of `list_scheduled_tasks`, so the close's lines on
+    the tasks are not here."""
     ran = scene.home_hands_off(thread, checkout)
     assert ran.returncode == 0
     return "".join(line for line in ran.stdout.splitlines(True) if not line.startswith("not read:"))
@@ -92,8 +92,8 @@ CLOSED_BEFORE = re.compile(r"closed before: .*Launch only if no next home was st
 
 
 def test_a_close_run_twice_and_cut_before_the_launch_ends_where_one_run_ends(scene):
-    """The close is run again, and the turn cut between the removal of `home-id` and the
-    launch: the next home's start finds the note and writes its own id."""
+    """The test runs the close again and cuts the turn between the removal of `home-id` and the
+    launch. The next home's start finds the note and writes its own id."""
     scene.home_starts(THREAD)
     assert hands_off(scene, THREAD) == THE_HOME
     after = state(scene)
@@ -219,7 +219,7 @@ def role_map(jstack_config):
 
 
 def launched(printed):
-    """The launch call a party's close printed, and that the launch tool takes it."""
+    """The launch call a party's close printed, after a check that the launch tool takes it."""
     given = json.loads(dict(printed)["launch"])
     assert takes("t3_thread_launch", given) == []
     return given

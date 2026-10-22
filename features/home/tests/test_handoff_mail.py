@@ -1,9 +1,9 @@
-"""A handoff does not lose a message sent to the home. A thread that handed off sends what
-still reaches it on to the next home. No party keeps a file for the home: the user's word
-comes down by `jbus word`, so a `to-<repo>.md` left beside the home is neither read at a start
-nor named on a handoff, and the handoff tells no party the new id. Every block here is lifted
-from the skill that gives it and run in a temporary state directory, and each call is the
-skill's own JSON, held against the tool's schema."""
+"""A handoff does not lose a message sent to the home: a thread that handed off sends on to the next
+home what still reaches it. No party keeps a file for the home. The user's word reaches the home by
+`jbus word`, so a home's start does not read a `to-<repo>.md` left beside the home, a handoff does
+not name it, and the handoff tells no party the new id. Each test takes every block from the skill
+that gives it and runs it in a temporary state directory, and checks each call, the skill's own
+JSON, against the tool's schema."""
 
 import json
 import os
@@ -25,7 +25,7 @@ PASS_ON, TELL_THE_SENDER = (
 
 
 class Mail(Scene):
-    """A repo's home, and beside its state directory the directory of another party."""
+    """A repo's home, and the directory of another party beside the home's state directory."""
 
     def __init__(self, tmp_path):
         super().__init__(tmp_path)

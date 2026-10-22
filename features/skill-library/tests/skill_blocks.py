@@ -1,7 +1,7 @@
-"""What a test of a skill's shell blocks shares: each block lifted out of the skill as an agent
-reads it, run under a home directory and in a repository of the test's own, and the skill linked
-where a user has it. The tests of each skill's own feature import these by the module's bare
-name."""
+"""Helpers that the tests of a skill's shell blocks share. They lift each block out of the skill
+as an agent reads it, run it under a home directory and in a repository of the test's own, and
+link the skill where a user has it. The tests of each skill's own feature import these by the
+module's bare name."""
 
 import os
 import re
@@ -81,8 +81,9 @@ def linked(home, name, to=None):
 
 
 def prints_the_root_and_names_only_files_under_it(name, repo, home):
-    """A skill that names files outside its own directory, linked where a user has it: its
-    block prints the repo's root, and every file it names from there is under it."""
+    """Check a skill that names files outside its own directory, linked where a user has it:
+    its block prints the repo's root, and every file the skill names from there is under that
+    root."""
     linked(home, name)
     (root,) = run(block(name, "no root:"), repo, home)
     assert root == str(COPY)
@@ -96,7 +97,8 @@ def prints_the_root_and_names_only_files_under_it(name, repo, home):
 
 
 def says_it_is_no_link_into_the_repo(name, repo, home):
-    """The same skill with no link, and then a folder in its place: its block says so."""
+    """Check the same skill with no link, and then with a folder in its place: each time, its
+    block says so."""
     said = f"no root: ~/.claude/skills/{name} is not a link into the repo this skill lives in"
     assert run(block(name, "no root:"), repo, home) == [said]
     (home / ".claude" / "skills" / name).mkdir(parents=True)

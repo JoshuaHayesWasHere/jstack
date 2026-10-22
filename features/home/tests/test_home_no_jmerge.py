@@ -1,7 +1,7 @@
-"""One merger for a repo: jbus runs `jmerge` while `home-thread` is empty or missing, so no
-skill step may run it then. Every `sh` block of a skill that runs `jmerge` to merge, land or
-sweep is lifted and run, with the blocks its skill says to run first, against a stub `jmerge`
-that records its calls."""
+"""One merger for a repo: jbus runs `jmerge` while `home-thread` is empty or missing, so no skill
+step may run it then. The tests take every `sh` block of a skill that runs `jmerge` to merge, land
+or sweep, and run it with the blocks its skill says to run first, against a stub `jmerge` that
+records its calls."""
 
 import json
 import os
@@ -147,8 +147,9 @@ class Repo:
         return self.sh(*first(HOME), step.replace(line, f"flags='{' '.join(flags)}'"), me=me)
 
     def log(self, *lines):
-        """`jmerge`, run by jbus, prints these: each is appended to the log, dated, and a
-        `wait` or `hold` line is kept as the last one said of its pull request."""
+        """Write lines that `jmerge`, run by jbus, prints, as jbus keeps them: it appends each to
+        the log with a date, and keeps a `wait` or `hold` line as the last one said of its pull
+        request."""
         with (self.state / "merge.log").open("a") as log:
             log.writelines(f"2026-10-12 13:40 {line}\n" for line in lines)
         last = self.state / "merge.log.last"
@@ -334,8 +335,9 @@ LANDING = re.compile(r"`(flags='[^'`]*--land <name>')`")
     ],
 )
 def test_a_playbooks_landing_is_the_merge_step_with_its_flags_line(repo, playbook, asked):
-    """The `flags=` lines a playbook gives are put in place of the merge step's own, as it
-    says, and the step is run: they reach its one `jmerge` line, and no other block runs."""
+    """The test puts the `flags=` lines a playbook gives in place of the merge step's own, as the
+    playbook says, and runs the step. The lines reach its one `jmerge` line, and no other block
+    runs."""
     given = LANDING.findall((PLAYBOOKS / f"{playbook}.md").read_text())
     assert [line.replace("<name>", "demo") for line in given] == [f"flags='{a}'" for a in asked]
     (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]
@@ -415,7 +417,7 @@ OWNERS = {
 
 
 def test_whose_a_brief_is_agrees_with_jmerge(repo):
-    """One case, three readers: the skill's `whose`, the `homes` of `jmerge --claims`, and
+    """Three readers agree on each case: the skill's `whose`, the `homes` of `jmerge --claims`, and
     the `others` of `jmerge --home`. A `Home:` line that names no home is the root's."""
     scope = repo.state / "billing"
     scope.mkdir()
@@ -447,8 +449,9 @@ def mine(repo, me):
 
 
 def test_a_brief_has_one_home_whoever_asks(repo):
-    """A thread that is no home now is left every brief, the ones that name it too: one
-    whose id is in no `home-id`, and one that handed off, a `Was home:` id."""
+    """For a thread that is no home now, `jmerge --home` leaves every brief to another home, a brief
+    that names the thread included. Such a thread has an id that is in no `home-id`, or handed off
+    and has a `Was home:` id."""
     scope = repo.state / "billing"
     scope.mkdir()
     (scope / "home-id").write_text("mcp:scoped\n")

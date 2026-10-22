@@ -1,10 +1,10 @@
 """The check with no model that a pack's citations say what the notes claim.
 
-For each citation it reads the subject repo at the cited commit: the commit is there, the
-path is in it, the file has the cited lines, and the quote that follows the citation is on
-them, with white space read as one space. A citation that quotes nothing is a fault, since
-the line alone proves nothing the note claims. Whoever wrote the notes, a scout or a crewmate,
-this is the outside check on them: it can say no.
+For each citation it reads the subject repo at the cited commit, and checks that the commit is
+there, the path is in it, the file has the cited lines, and the quote that follows the citation
+is on them, with white space read as one space. A citation that quotes nothing is a fault,
+since the line alone proves nothing the note claims. A scout or a crewmate writes the notes,
+and this check reads them from outside, so it can fail them.
 """
 
 from __future__ import annotations

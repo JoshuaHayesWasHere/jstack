@@ -1,6 +1,6 @@
 """`features/skill-library/hooks/skill-tips.sh`: the one line it gives for a prompt that
-matches a skill, and every place it stays silent. Every test runs the hook, on a copy beside a
-temporary `skills/`, or the repo's own."""
+matches a skill, and every case where it prints nothing. Every test runs the hook: a copy beside
+a temporary `skills/`, or the repo's own."""
 
 import json
 import os
@@ -59,7 +59,7 @@ class Scene:
         )
 
     def send(self, stdin, *, t3=False, path=None, hook=None):
-        """Run the hook as the harness does, and give back what it printed. It never fails."""
+        """Run the hook as the harness does, and return what it printed. The hook never fails."""
         env = {key: value for key, value in os.environ.items() if key not in T3}
         env["HOME"] = str(self.user)
         if t3:

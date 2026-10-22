@@ -27,7 +27,7 @@ def pressure(some, full):
 
 @pytest.fixture
 def machine(tmp_path, monkeypatch):
-    """A /proc made of files, and a log the sampler is pointed at, both under tmp_path."""
+    """A /proc made of files, and a log that the test points the sampler at, both under tmp_path."""
     proc = tmp_path / "proc"
     (proc / "pressure").mkdir(parents=True)
     (proc / "loadavg").write_text("11.54 8.96 7.51 11/2475 114345\n")

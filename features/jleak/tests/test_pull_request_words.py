@@ -1,6 +1,7 @@
-"""The two blocks that stand between a stranger and a crewmate, each run as an agent runs
-it, against a `gh` that records what it was asked: the playbook's block that opens a pull
-request and locks it, and the crew skill's block that says whose a comment is."""
+"""The two blocks that keep a stranger's words from reaching a crewmate as orders.
+Each test runs a block as an agent runs it, against a `gh` that records what it was asked. One
+block is the playbook's, which opens a pull request and locks it. The other is the crew
+skill's, which says whose a comment is."""
 
 import json
 import os
@@ -50,7 +51,8 @@ def block(path, about):
 
 @pytest.fixture
 def run(tmp_path):
-    """Run a block with `gh` answering from `said`, and give what it printed and was asked."""
+    """Run a block with `gh` answering from `said`, and give what the block printed and
+    what `gh` was asked."""
     stub = tmp_path / "stub"
     stub.mkdir()
     (stub / "gh").write_text(GH.format(python=sys.executable, stub=str(stub)))

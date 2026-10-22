@@ -1,7 +1,7 @@
-"""`home-thread` is the switch that hands merging from jbus to a home, and it is set by hand:
-no skill step and no script writes it. A home keeps its own id in `home-id`, which jbus does
-not read, so jbus goes on merging while a home runs. The start block is lifted from the home
-skill and run, and jbus's pass is run over what it left."""
+"""`home-thread` is the switch that hands merging from jbus to a home, and the user sets it by hand:
+no skill step and no script writes it. A home keeps its own id in `home-id`, which jbus does not
+read, so jbus goes on merging while a home runs. The test takes the start block from the home skill
+and runs it, then runs jbus's pass over what the block left."""
 
 import os
 import re
@@ -142,9 +142,9 @@ def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkey
 
 @pytest.mark.parametrize("left", [THREAD, OTHER])
 def test_a_start_over_a_switch_that_holds_an_id_says_jbus_does_not_merge(tmp_path, left):
-    """The state directory as a home of the skill before `home-id` left it, or as a hand
-    set it: `home-thread` holds an id and there is no `home-id`. The start says so, and
-    leaves the switch as it is."""
+    """The state directory as a home left it before the skill had `home-id`, or as the user set it
+    by hand: `home-thread` holds an id and there is no `home-id`. The start says so and leaves the
+    switch as it is."""
     scene = Scene(tmp_path)
     (scene.home_dir / "plan.md").write_text("# a demo repo: plan\n")
     switch = scene.home_dir / "home-thread"

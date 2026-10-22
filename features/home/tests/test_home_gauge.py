@@ -1,6 +1,6 @@
-"""`jgauge context` and `hooks/home-gauge.sh`: the count a home is told, when it is told it,
-the tool calls it is refused past its ceiling, and the record the hook leaves. Every hook test
-runs the hook on a made-up transcript."""
+"""`jgauge context` and `hooks/home-gauge.sh`: the count the hook tells a home, when it tells it,
+the tool calls the hook refuses a home past its ceiling, and the record the hook leaves. Every hook
+test runs the hook on a made-up transcript."""
 
 import json
 import os
@@ -468,7 +468,8 @@ def big(size):
     ],
 )
 def test_the_count_the_hook_records_is_the_one_jgauge_context_prints(scene, capsys, entries):
-    """Also when `jgauge context` prints none, for a transcript with no line it can read."""
+    """The counts agree also when `jgauge context` prints none, for a transcript with no line it can
+    read."""
     scene.transcript.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
     with scene.transcript.open("a") as file:
         file.write('{"type": "assistant", "message": {"id": "m9", "usa')

@@ -175,7 +175,7 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
 
 def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not(tmp_path):
     """The sizes are the whole machine's: a shell, `jbus.service` and a CI container count the
-    same slots whatever CPUs or quota they are given. Run on the real /proc."""
+    same slots whatever CPUs or quota they are given. The test runs on the real /proc."""
     env = {key: value for key, value in os.environ.items() if key not in ("PROC", "TEST_SLOTS")}
     env |= {"XDG_CONFIG_HOME": str(tmp_path / "config"), "JBUS_CONFIG_DIR": str(tmp_path)}
 

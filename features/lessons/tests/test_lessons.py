@@ -1,4 +1,5 @@
-"""The two lessons skills, `correct` and `reflect`: their shell blocks are lifted out and run."""
+"""The two lessons skills, `correct` and `reflect`: the tests lift their shell blocks out and
+run them."""
 
 import json
 import os
@@ -344,7 +345,8 @@ WORKTREE = block("reflect", "reflect-before")
 
 
 class Worktree:
-    """A git repository with one commit, and the reflect skill's worktree check run in it."""
+    """A git repository with one commit, in which the test runs the reflect skill's worktree
+    check."""
 
     def __init__(self, tmp_path):
         self.path = tmp_path / "repo"

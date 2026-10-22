@@ -1,6 +1,6 @@
-"""The expert skill: every shell block it gives is lifted from it and run here, under a
-temporary `HOME` with a made-up expert's folder, and the calls its blocks print are held
-against the tools' schemas. The answer template is read beside the file that has the tiers."""
+"""The expert skill: these tests lift every shell block the skill gives and run it here, under
+a temporary `HOME` with a made-up expert's folder. They check the calls its blocks print against
+the tools' schemas, and they read the answer template beside the file that has the tiers."""
 
 import json
 import os
@@ -88,8 +88,8 @@ class Scene:
         self.elsewhere.mkdir()
 
     def run(self, which, name=NAME, **filled):
-        """What the block prints, run after the block at the top with its placeholders filled.
-        The exit code comes first when it is not 0."""
+        """Run the block after the block at the top, with its placeholders filled, and return
+        what it prints. The exit code comes first when it is not 0."""
         body = block("top").replace("<name>", name)
         if which != "top":
             body += block(which)
@@ -121,8 +121,8 @@ class Scene:
         return self.run("playbook", threadId=thread, playbook=playbook)
 
     def taken(self, thread, posts_into, **filled):
-        """What the block says after the call that takes the webhook over, over a list in
-        which the webhook kept posts into `posts_into`, or is not there."""
+        """What the block says after the call that takes the webhook over. In the list that
+        call reads, the kept webhook posts into `posts_into`, or the list does not have it."""
         id = (self.folder / "webhook").read_text().split()[0]
         tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
         reply = json.dumps({"tasks": tasks if posts_into else []})
@@ -337,7 +337,8 @@ def test_the_skills_calls_rename_pin_and_keep_a_webhook_and_settle_nothing():
 
 
 def made(tmp_path, playbooks):
-    """A repo the skill lives in, with these playbooks: each name and what follows `Run by:`."""
+    """A repo the skill lives in, with these playbooks, each given as a name and the text that
+    follows its `Run by:`."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
     (repo / "skills" / "expert").mkdir(parents=True)
@@ -408,7 +409,7 @@ def test_a_thread_with_no_id_opens_no_playbook_whoever_the_expert_is(tmp_path, t
 
 
 class Bus:
-    """A `jbus` on the PATH that keeps what it was run with and what it read."""
+    """A `jbus` on the PATH that records its arguments and what it read."""
 
     def __init__(self, scene, exit_code=0, says="queued"):
         self.kept = scene.bin / "kept.json"
@@ -519,8 +520,8 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
 
 
 def started(scene, t3, thread):
-    """An expert's start with its calls made of a made-up T3 Code: the pin, and the unpin of
-    the thread the block of step 3 says this one takes over from."""
+    """An expert's start, with the calls it makes to a made-up T3 Code: the pin, and the unpin
+    of the thread that this one takes over from, which the block of step 3 names."""
     pin, unpin = (
         call
         for call in calls.CALLS

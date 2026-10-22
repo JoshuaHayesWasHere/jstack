@@ -1,8 +1,9 @@
 """The reviewer's scoped pass: one review of what a rebase changed in a reviewed patch.
 
-The block of the skill's "A scoped pass" is run as a reviewer runs it, in a real repo, with
-the two ranges of the message jbus sends. The section it leads to is then read by `jmerge`,
-which merges the rebased head on it."""
+The tests run the block of the skill's "A scoped pass" as a reviewer runs it, in a real repo,
+with the two ranges of the message jbus sends. `jmerge` then reads the section the block leads
+to, and merges the rebased head on it.
+"""
 
 import os
 import re

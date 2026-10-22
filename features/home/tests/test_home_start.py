@@ -1,6 +1,6 @@
-"""`features/home/hooks/home-start.sh` in every repo: where it speaks, where it stays silent,
-and that the home skill's first step and the nohome skill agree with it. Every test runs the
-hook, and the blocks are lifted from the skill that gives them."""
+"""`features/home/hooks/home-start.sh` in every repo: where it prints, where it prints nothing, and
+that the home skill's first step and the nohome skill agree with it. Every test runs the hook, and
+takes the blocks from the skill that gives them."""
 
 import json
 import os
@@ -271,8 +271,8 @@ def bus(tmp_path, monkeypatch):
 
 
 def rows(bus, *made):
-    """Rows of the queue, each `(slug, status, pr, why)`, added by the real verb, then given
-    the columns a pass would have derived."""
+    """Add rows to the queue with the real verb, each `(slug, status, pr, why)`, then give them the
+    columns a pass would have derived."""
     for slug, *_ in made:
         added = bus.kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
         assert added[0] == 0, added
@@ -284,7 +284,7 @@ def rows(bus, *made):
 
 
 def a_note(bus, *briefs):
-    """The note the last home left. Each brief given was shown to a home at its start."""
+    """The note the last home left. A start showed each brief given to a home."""
     for slug in briefs:
         bus.kitchen.brief(slug, "\n## Result\nStatus: done\n")
         with (bus.dir / "read-seen").open("a") as seen:
@@ -293,7 +293,8 @@ def a_note(bus, *briefs):
 
 
 def parts(printed):
-    """What the start block printed, by its parts: the lines before the first under `""`."""
+    """What the start block printed, split into its parts, with the lines before the first part
+    under `""`."""
     found, heading = {"": []}, ""
     for line in printed.splitlines():
         if line.startswith("## "):

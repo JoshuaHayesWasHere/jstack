@@ -1,8 +1,8 @@
 """A party's home: a desk's, or an expert's, whose folder is `_<name>` under the state root and
-holds its thread id in a `home-id`. It is no repo's home, so `/handoff` finds it by that id,
-writes its page, and starts its next thread and nothing else, and `/home` starts nothing there.
-Every block here is lifted from the skill that gives it and run in a temporary state root laid
-out as a party's is."""
+holds its thread id in a `home-id`. It is no repo's home, so `/handoff` finds it by that id, writes
+its page, and starts its next thread and nothing else, and `/home` starts nothing there. Each test
+takes every block from the skill that gives it and runs it in a temporary state root laid out like a
+party's."""
 
 import json
 import os
@@ -80,8 +80,9 @@ class Party:
         return self.run("handoff", found, cwd, quiet)
 
     def hands_off(self, thread=DESK, own=None, page=PAGE):
-        """The path to its end: write the new page where the first block says, close. What
-        the last block printed, as the word before each line's colon and what follows it."""
+        """Run the handoff to its end: write the new page where the first block says, then close.
+        What the last block printed, each line split into the word before its colon and what follows
+        it."""
         own = own or self.own
         *_, write = self.does(WHERE, thread, own).stdout.splitlines()
         assert write == f"write: {own}/handoff.next.md"

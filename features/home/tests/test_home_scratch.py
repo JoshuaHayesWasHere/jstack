@@ -1,6 +1,6 @@
-"""A scratch home starts by the block of the home skill's `a-scratch-home.md`: in a thread of
-no repo, it writes the thread's id to the `home-id` of the scratch home jbus lists. The block
-is lifted from the skill as an agent reads it, and run against a `jbus` that prints a status."""
+"""A scratch home starts by the block of the home skill's `a-scratch-home.md`: in a thread of no
+repo, it writes the thread's id to the `home-id` of the scratch home jbus lists. The test takes the
+block from the skill as an agent reads it and runs it against a `jbus` that prints a status."""
 
 import json
 import os
