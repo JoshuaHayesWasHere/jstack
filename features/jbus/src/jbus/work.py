@@ -6,7 +6,7 @@ facets of one row of the queue or of one thread that belongs to no row, and `jud
 
 - `Row`: whether the queue has the row, and how its go stands.
 - `Thread`: the row's thread as T3 Code has it, with its liveness (`jbus.live`). When T3 Code
-  does not list the thread, the facet is `archived` if the thread reads back as archived,
+  does not list the thread, the facet is `archived` if T3 Code reads it back as archived,
   `missing` if T3 Code has no such thread, and `starting` if T3 Code has the thread and does not
   list it yet. So a launch is not lost because its thread left the list.
 - `Launch`: whether a launch record names a thread.
@@ -15,16 +15,16 @@ facets of one row of the queue or of one thread that belongs to no row, and `jud
   thread nothing.
 - `Pull`: the work's pull request. For one that is open, it is the step that jmerge's reason
   names (`merge.step`), or `other` for a reason that no rule names.
-- `Question`: whether a gate of jbus's is open for the work this pass.
+- `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 
-Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet
-may be, with who holds the work in that state and the one thing it waits for. No two patterns
-hold for one set of facts. A set of facts that no pattern holds for is `unknown`, which carries
-its facts, so that what nobody foresaw is said as it is. A pattern needs the sources of the
-facets it narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those
-sources has not answered, `judge` passes over the pattern. When a source has not answered and no
-pattern holds, the state is the last one a pass judged (`Facts.last`), marked not confirmed.
+Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet may be,
+with who holds the work in that state and the one thing it waits for. No two patterns match one set
+of facts. When no pattern matches a set of facts, the state is `unknown` and carries those facts, so
+jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets it narrows: T3
+Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has not answered,
+`judge` passes over the pattern. When a source has not answered and no pattern matches, the state is
+the last one a pass judged (`Facts.last`), marked not confirmed.
 
 `status` gives the row's `status` column, one of `queue.STATUSES`, as a projection of the
 state, so every reader of the queue goes on reading the words it read before. `write` keeps
@@ -390,8 +390,8 @@ class State:
 
 
 def matching(facts: Facts) -> list[Pattern]:
-    """Return every pattern the facts match, whatever answered. There is one at most, which
-    the walk proves."""
+    """Return every pattern the facts match, whatever answered. At most one pattern matches,
+    as the walk proves."""
     return [pattern for pattern in PATTERNS if pattern.matches(facts)]
 
 

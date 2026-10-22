@@ -1,7 +1,7 @@
 """This module judges the state of each row of the queue once, in the second half of a pass
-(`judged`). The steps after it read that state: they rewrite the table's derived columns (`derive`),
-tell the home of each open pull request that is on no step (`unplaced`), and write `work.json`
-(`keep_work`).
+(`judged`). Three steps then read that state. `derive` rewrites the table's derived columns,
+`unplaced` tells the home of each open pull request that is on no step, and `keep_work` writes
+`work.json`.
 """
 
 from __future__ import annotations
@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 
 
 def judged(half: Half) -> None:
-    """Judge the state of each row of the queue, once (`work.judge`). A row waits on another until
-    that one is merged or ended `done`, which is the rule `dispatch` launches by (`watch.final`).
+    """Judge the state of each row of the queue, once (`work.judge`). A row waits on another row
+    until that row is merged or ended `done`. `dispatch` launches by the same rule (`watch.final`).
 
     When GitHub is silent and T3 Code answers, the steps that list the threads out did not run,
-    since they act on a world. This function lists the threads out the way that step does, and
-    `stall.hung` reads them, so the pass still judges whether each thread is alive and tells of a
-    hang.
+    since those steps need a world and the pass has none. This function then lists the threads out
+    the way those steps do, and `stall.hung` reads the list. So the pass still judges whether each
+    thread is alive, and still tells of a hang.
     """
     run, world, rows, client = half.run, half.seen.world, half.rows, half.client
     if rows is None:
@@ -43,7 +43,7 @@ def judged(half: Half) -> None:
 
 
 def derive(half: Half) -> None:
-    """Rewrite the table's derived columns (`queue.derive`), and say that it changed."""
+    """Rewrite the table's derived columns (`queue.derive`), and say whether the table changed."""
     run, world, states = half.run, half.seen.world, half.states
     waits = watch.waits(run, half.said, merge.home_thread(run))
     unread = watch.unread(run, half.read)
@@ -62,8 +62,8 @@ def derive(half: Half) -> None:
 
 
 def unplaced(half: Half) -> None:
-    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`), going
-    by what `jmerge` said of that pull request in this pass."""
+    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`).
+    `unplaced` goes by what `jmerge` said of that pull request in this pass."""
     run, world, states = half.run, half.seen.world, half.states
     for row in half.table or []:
         slug = row["slug"]
@@ -77,9 +77,9 @@ def unplaced(half: Half) -> None:
 
 
 def keep_work(half: Half) -> None:
-    """Write `work.json`, which holds the state of every row and of every thread out that is no
-    row's, each with who holds it (`work.holder`). When the pass has no list of the threads out, the
-    file keeps the last pass's threads, and this pass has not confirmed them."""
+    """Write `work.json`. The file holds the state of every row, and of every thread out that
+    belongs to no row, each with who holds it (`work.holder`). When the pass has no list of the
+    threads out, the file keeps the threads of the last pass, which this pass has not confirmed."""
     run, rows, states = half.run, half.table or [], half.states
     held = leftover.read(run.state)
     listed = []

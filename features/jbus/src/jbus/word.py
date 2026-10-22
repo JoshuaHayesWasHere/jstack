@@ -1,8 +1,8 @@
 """The user's word, carried down to a home: one record that `jbus word` writes and jbus sends.
 
-A word is an approval or an instruction that answers no open question, said wherever the user
-was, which is most often to Sous Chef. `words.json` in a project's state directory is a list of
-`Word`:
+A word is an approval or an instruction that answers no open question. The user says it
+wherever they are, most often to Sous Chef. `words.json` in a project's state directory is a
+list of `Word`:
 
 - `id`: the first 12 characters of a hash of the project, the words, `by` and `at`, and of
   `ref` when there is one. So the same word for the same project is the same record however
@@ -12,7 +12,7 @@ was, which is most often to Sous Chef. `words.json` in a project's state directo
   jbus read from T3 Code, that thread's title, and true, since the words and the time are the
   message's own. A word typed with `--by` and `--at` has no `ref`, no `said_in`, and `checked`
   false.
-- `kept_at`: when `jbus word` took the word.
+- `kept_at`: when `jbus word` recorded the word.
 - `thread` and `sent_at`: the home's thread the word went to, and when. Both are empty while
   the word waits.
 - `skipped`: why jbus posted the word to nobody, for a word recorded from or by the home it is
@@ -21,16 +21,16 @@ was, which is most often to Sous Chef. `words.json` in a project's state directo
   every other word.
 - `waits`: why the word has not gone yet, as the log last said it.
 
-A word goes once, as one queued message to the thread in the home's `home-id`. jbus reads that
-file when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends
-the word at once, except to the home that recorded it. For a word said in that home's own
-thread (`--message` whose thread is the home's) or recorded by it (`--from <thread id>`),
-`keep` records the word as sent, with `skipped` saying why. With `--all`, it does so only for
-that project's copy. A home that handed off and has no `home-id` is nobody, so a word for it
-waits for the next home like any other word. A word that could not go waits in the file, and
-each pass tries it again (`deliver`). A home with no `home-id`, or one that handed off, gets
-the word on the pass after the next home's start wrote its id there. The retry key is
-`word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3 Code said yes.
+A word goes once, as one queued message to the thread in the home's `home-id`. jbus reads that file
+when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
+at once, except to the home that recorded it. For a word said in that home's own thread (`--message`
+whose thread is the home's) or recorded by it (`--from <thread id>`), `keep` records the word as
+sent, with `skipped` saying why. With `--all`, it does so only for that project's copy. A home that
+handed off and has no `home-id` has no thread to send to, so a word for it waits for the next home
+like any other word. A word that could not go waits in the file, and each pass tries it again
+(`deliver`). A home with no `home-id`, or one that handed off, gets the word on the pass after the
+next home's start wrote its id there. The retry key is `word|<project>|<id>|<thread>`, and jbus
+writes `sent_at` only after T3 Code said yes.
 
 No part of a word is an event. A word is in no outbox, so no POST to a project's webhook or to
 the top-level one carries it, and whoever ran the command hears nothing back. The log still has
@@ -85,7 +85,7 @@ BY_HOME = "it was recorded by this project's home thread {thread}"
 
 
 class Unparsable(Refused):
-    """`words.json` is not what this module writes, so nothing writes over it."""
+    """`words.json` is not what this module writes, so jbus does not write over it."""
 
 
 @dataclass(frozen=True)
@@ -155,11 +155,10 @@ def keep(
 ) -> Word:
     """Keep a word for the project, and return its record: the one there was, or a new one.
 
-    For a word given as `--message`, `heard` is the message jbus read the words and the time
-    from, and `ref` is then its `<thread id>/<message id>`. `recorder` is the thread that ran
-    `jbus word`, for `--from`. When a new word was said in the project's home thread, or
-    recorded by it, `keep` records it as sent to that thread and posts it to nobody
-    (`skipped`).
+    For a word given as `--message`, `heard` is the message from which jbus read the words and the
+    time, and `ref` is then the message's `<thread id>/<message id>`. `recorder` is the thread that
+    ran `jbus word`, for `--from`. When a new word was said in the project's home thread, or
+    recorded by it, `keep` records it as sent to that thread and posts it to nobody (`skipped`).
     """
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])
@@ -188,7 +187,7 @@ def keep(
 
 
 def basis(state: Path, name: str) -> queue.Said:
-    """Return the word with that id, as what an approval rests on. Refuse an id the file does
+    """Return the word with that id, as the basis of an approval. Refuse an id the file does
     not have."""
     for one in load(state):
         if one.id == name:
@@ -198,7 +197,8 @@ def basis(state: Path, name: str) -> queue.Said:
 
 def _change(run: Pass, one: Word, **changed: str) -> bool:
     """Write what became of a word, add its line to the log, and return whether it wrote
-    anything. A word that was sent after `one` was read stays as it is."""
+    anything. When jbus sent the word after the caller read `one`, `_change` leaves the word
+    as it is."""
     with _locked(run.state):
         kept = load(run.state)
         found = [each for each in kept if each.id == one.id and not each.sent_at]
@@ -213,8 +213,8 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
 
 
 def post(client: Client | None, thread: str, message: str, key: str) -> str:
-    """Send one queued message to a home's thread, under the retry key `key`, so a second send
-    of the same key is the same message as the first. Return why it did not go, or nothing
+    """Send one queued message to a home's thread, under the retry key `key`, so T3 Code takes
+    a second send with the same key as a repeat of the first. Return why it did not go, or nothing
     when T3 Code took it. `jbus.item` sends a steer's message through `post` too."""
     if not thread or client is None:
         return NO_T3 if thread else NO_HOME
@@ -251,8 +251,8 @@ def deliver(run: Pass, client: Client | None) -> None:
 
 
 def line(run: Pass, was: Word) -> str:
-    """Return what `jbus word` prints for one project: how the word it kept as `was` stands
-    now."""
+    """Return what `jbus word` prints for one project: the current state of the word that it
+    kept as `was`."""
     (one,) = [one for one in load(run.state) if one.id == was.id]
     name = run.project.name
     if one.skipped:
@@ -267,15 +267,18 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     """`jbus word`: keep the user's word for one project's home, or for every home, from any
     checkout.
 
-    The command keeps the word and sends it at once to the thread in the home's `home-id`. The same
-    words, `by` and `at` for the same project are the same word, so a second run sends nothing
-    again. The user types the words with `--by` and `--at`, or they are the words of the message
-    `--message` names, which jbus reads from T3 Code with its time. A word said in a project's home
-    thread, or recorded by it (`--from`), is kept there as sent and posted to nobody (`keep`).
-    `--to` names a project or a scratch home (`jbus.Scratch`), and `--all` means every project and
-    no scratch home, since a scratch home takes no word about the repos. When a project refuses, as
-    one whose `words.json` does not parse does, the command says so and passes over it. The other
-    projects still get the word, and the command then exits 1.
+    The command keeps the word and sends it at once to the thread in the home's `home-id`.
+    The same words, `by` and `at` for the same project are the same word, so a second run
+    sends nothing again. The user types the words with `--by` and `--at`, or names a message
+    with `--message`, and jbus reads that message's words and time from T3 Code. For a word
+    said in a project's home thread, or recorded by it (`--from`), `keep` records the word
+    as sent and posts it to nobody.
+
+    `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
+    and no scratch home, since a scratch home takes no word about the repos. When a project
+    refuses the word, for example because its `words.json` does not parse, the command says
+    so and skips that project. The other projects still get the word, and the command then
+    exits 1.
     """
     projects = config.projects if args.all else (config.addressee(args.to),)
     heard = typed(args, config, "word")
@@ -350,7 +353,8 @@ def scratch(
     """Run the whole pass of each scratch home, as a chore of the pass: send the home's
     waiting words to its thread. A scratch home is no project of the pass (`jbus.load`), so
     this is no step of a pass. For a scratch home whose `words.json` does not parse,
-    `scratch` says so and raises no gate, since a scratch home has no webhook to ask it on."""
+    `scratch` says so and raises no gate, since a scratch home has no webhook to send a gate
+    to."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)
         try:

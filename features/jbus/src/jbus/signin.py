@@ -1,22 +1,22 @@
-"""jbus reminds the user that its sign-in to T3 Code runs out. Once the sign-in has run out,
-jbus launches nothing until `jbus t3 login` signs in again, so it tells the user beforehand,
-with a `sign-in` event.
+"""jbus reminds the user that jbus's sign-in to T3 Code is running out. Once the sign-in has
+run out, jbus launches nothing until `jbus t3 login` signs in again. So jbus warns the user
+beforehand, with a `sign-in` event.
 
 jbus counts the days left by the calendar of the user's zone, from the day of the pass to the
-day the stored token runs out (`t3.expiry`). The reminder gives the expiry and the days left
-each time, and comes:
+day the stored token runs out (`t3.expiry`). Each reminder gives the expiry and the days
+left. jbus sends it:
 
 - once, on the first pass `WEEK` days out or fewer;
 - once a day from `DAILY` days out, the day it runs out included;
 - once more, on the first pass after it has run out.
 
-A pass gives the reminder of the mark it is in, and none for a mark it has already passed: a
-first pass 2 days out gives that day's reminder and not the week's. jbus keeps the expiry it
-last saw, and the marks it gave for it, in `sign-in.json` in its state. So adding, removing or
-moving a project in the config repeats no mark. An expiry later than the last one seen is a
-renewal. jbus says it once, with the new expiry, and the count starts over. The first expiry
-jbus sees is not a renewal. When jbus cannot read the file, the expiry it finds is not one
-either.
+A pass sends the reminder for the mark it falls in, and none for a mark already behind it:
+a first pass 2 days out sends that day's reminder and not the week's. jbus stores the last
+expiry it saw, and the marks it has sent for that expiry, in `sign-in.json` in its state. So
+when the user adds, removes or moves a project in the config, jbus repeats no mark. An expiry
+later than the last one seen is a renewal. jbus reports the renewal once, with the new
+expiry, and starts the count over. The first expiry jbus sees is not a renewal. When jbus
+cannot read the file, it does not treat the expiry it finds as a renewal either.
 
 The sign-in is the machine's, so jbus gives the reminder once, not once for each project. It
 queues the reminder in the box of the config's first project, as an event of the machine
@@ -48,8 +48,8 @@ def _path(config: Config) -> Path:
 
 
 def _kept(config: Config) -> tuple[datetime | None, list[str]]:
-    """Return the expiry last seen and the marks given for it. A file jbus cannot read as one
-    counts as no expiry seen: the count starts there, and gives no renewal."""
+    """Return the last expiry seen and the marks sent for it. If jbus cannot read the file
+    as such, it returns no expiry: the count starts there, and reports no renewal."""
     kept = read_json(_path(config), {})
     try:
         return datetime.fromisoformat(kept["expires"]), [str(mark) for mark in kept["said"]]
@@ -62,7 +62,7 @@ def _days(expires: datetime, now: datetime, user: jsettings.Settings) -> int:
 
 
 def due(expires: datetime, now: datetime, user: jsettings.Settings) -> tuple[str, str] | None:
-    """Return the mark a pass at `now` is in and its line, or None if the pass is in none."""
+    """Return the mark a pass at `now` falls in, with its line, or None if it falls in none."""
     stamp = user.stamp(expires)
     if now >= expires:
         return "passed", f"{KIND}: {WHOSE} expired {stamp}, no days left: run jbus t3 login"
@@ -79,12 +79,12 @@ def _box(config: Config) -> wake.Box:
 
 
 def remind(config: Config, now: datetime) -> None:
-    """Queue what the reminder owes at `now`, then keep the expiry and the marks given for it.
+    """Queue the reminder lines due at `now`, then store the expiry and the marks sent for it.
 
-    jbus keeps the marks beside the expiry, not in the box, so which project is first does
-    not decide what was said. A new expiry starts the marks over. jbus writes the marks after
-    it queues the lines, so a pass that stops between the two gives a mark again, and never
-    loses one.
+    jbus stores the marks beside the expiry, not in the box, so the choice of first project
+    does not change which marks count as sent. A new expiry starts the marks over. jbus
+    writes the marks after it queues the lines. So a pass that stops between the two steps
+    sends a mark twice rather than losing it.
     """
     expires = t3.expiry(config.token_path)
     if expires is None or not config.projects:

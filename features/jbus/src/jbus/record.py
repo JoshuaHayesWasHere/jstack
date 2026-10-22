@@ -3,14 +3,14 @@
 The pass writes the record twice, under the pass's lock. `Record.start` writes the start with no
 end, so a pass that hangs or dies shows as started and not ended. `Record.end` writes the end and
 the seconds the pass took. For each project it also writes what the pass saw of the project's open
-rows: how many threads each row has that are not settled, the thread's status and last update as
-T3 Code gave them, and the pull request's checks as GitHub gave them. A row stays open until its
-pull request merges. Beside the rows are the project's `threads`: every thread that is not settled,
-a crew's or not, with its role and its liveness (`live`).
+rows: how many threads each row has that are not settled, the thread's status and last update as T3
+Code gave them, and the pull request's checks as GitHub gave them. A row stays open until its pull
+request merges. Beside the rows, the record lists the project's `threads`: every thread that is not
+settled, a crew's or not, with its role and its liveness (`live`).
 
 When the pass cannot write the record, it says `pass record failed` in the journal and goes on. If
 the write that failed was the end, the file keeps the start with no end, as it does for a pass that
-died: the journal and the status file's `last_pass` tell the two apart.
+died: the journal and the status file's `last_pass` show which of the two happened.
 
 The pass reads the seconds from a clock that keeps counting while the machine is suspended, and the
 end is the start plus those seconds.
@@ -73,7 +73,7 @@ def _kept(config: Config, key: str = "projects") -> dict[str, Any]:
 
 @dataclass
 class Record:
-    """The record of one pass holds when the pass began, by both clocks, and what the passes
+    """The record of one pass. It has when the pass began, by both clocks, and what the passes
     before it saw."""
 
     config: Config
@@ -118,7 +118,8 @@ def _time(given: Any) -> str | None:
 
 
 def _order(check: dict[str, Any]) -> tuple[bool, str]:
-    """Sort a check that waits to start after every check that started."""
+    """Return the sort key of a check, which puts a check that waits to start after every
+    check that started."""
     started = _time(check.get("startedAt"))
     return (check.get("status", "COMPLETED") != "COMPLETED" and started is None, started or "")
 

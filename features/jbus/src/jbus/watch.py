@@ -1,28 +1,27 @@
 """jbus reads what is out from T3 Code and GitHub, and writes each finding as one line.
 
-`look` asks once a pass for the project's crewmate threads, its open pull requests and the
-ones merged lately. It counts the threads of a slug that was removed from the queue, then
-leaves them out, so none is found stale or told to carry on. The slug's pull requests stay.
-When only GitHub was silent, what `look` answers still holds how many crews are out: the
-count is one for the machine, and `jbus poll` adds it up over every project. `watch` sends a
-line for what a home would have noticed: a merge; a thread that ran past its timebox, waits
-on a request, or ended with no Result; a main branch whose check failed after a merge; a red
-run of the browser workflow; and a revert. It names no cause and changes nothing. What no
-rule covers is a gate. `status` is the table's derived column for a slug, and `why` is the
-reason its row waits: the line `jmerge` has for its pull request, what stopped its launch, or
-what its Result leaves.
+`look` asks once a pass for the project's crewmate threads, its open pull requests and the ones
+merged lately. It counts the threads of a slug that was removed from the queue, then leaves them
+out, so no pass finds one stale or tells one to carry on. The slug's pull requests stay. When only
+GitHub was silent, the answer from `look` still gives how many crews are out. That count is one for
+the machine, and `jbus poll` adds it up over every project. `watch` sends a line for what a home
+would have noticed: a merge; a thread that ran past its timebox, waits on a request, or ended with
+no Result; a main branch whose check failed after a merge; a red run of the browser workflow; and a
+revert. It names no cause and changes nothing. What no rule covers is a gate. `status` is the
+table's derived column for a slug, and `why` is the reason its row waits: the line `jmerge` has for
+its pull request, what stopped its launch, or what its Result leaves.
 
 A pull request belongs to the slug whose brief names it on the `Branch:` line of a Result,
-and `jmerge` ties the two the same way (`tied`). Only where no brief names a pull request
-does the name of its branch say whose it is.
+and `jmerge` ties the two the same way (`tied`). The name of a pull request's branch gives
+its slug only where no brief names the pull request.
 
 `work.judge` judges a row's state once a pass, from its `facts`. The facts of a thread out
 that belongs to no row are `thread_facts`. A row's status, one of `queue.STATUSES`, is the
 projection of its state (`work.status`): `gate`, `pr`, `merged`, `done`, `left`, `launched`,
 `running`, `waiting`, `stale`, `failed` or `queued`. Its `why` is what a Result leaves, for a
-row that merged, ended or left something. A row that is stale with nothing written, its
-thread ended or hung, is `left` once its crew has had `UNWRITTEN_MINUTES` to be carried on
-(`unwritten`). Its `why` says so, and its home closes it (`leftover`).
+row that merged, ended or left something. A row is stale with nothing written when its
+thread ended or hung. Such a row is `left` once jbus has had `UNWRITTEN_MINUTES` to carry its
+crew on (`unwritten`). Its `why` says so, and its home closes it (`leftover`).
 """
 
 from __future__ import annotations
@@ -79,11 +78,11 @@ _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 class World:
     """A `World` is one pass's answers. `threads` holds a slug's threads that are not settled.
 
-    T3 Code's list leaves out an archived thread, so `jbus.archived` asks after a launched
-    thread the list does not have. `archived` holds, by slug, those that read back archived,
-    `missing` the slugs whose thread T3 Code has no record of, and `unasked` the slugs jbus
-    could not ask about. `waiting` holds the threads that wait on a test slot and are not
-    woken yet (`jgauge.waiters`), which jbus reads once a pass.
+    T3 Code's list leaves out an archived thread, so `jbus.archived` asks after a launched thread
+    the list does not have. `archived` holds, by slug, the threads T3 Code reports as archived,
+    `missing` the slugs whose thread T3 Code has no record of, and `unasked` the slugs jbus could
+    not ask about. `waiting` holds the threads that wait on a test slot and are not woken yet
+    (`jgauge.waiters`), which jbus reads once a pass.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -119,10 +118,11 @@ class Waits:
 
 @dataclass
 class Look:
-    """A `Look` is what a pass could ask. `world` is set when T3 Code and GitHub both answered.
+    """A `Look` holds what a pass could learn. `world` is set when T3 Code and GitHub both
+    answered.
 
-    `out` is the crews T3 Code lists as live, known whenever T3 Code answered, and `why` is
-    why it did not.
+    `out` is the number of crews T3 Code lists as live, which jbus knows whenever T3 Code
+    answered. `why` is the reason T3 Code did not answer.
     """
 
     world: World | None = None
@@ -168,11 +168,12 @@ def pulls(run: Pass, state: str, fields: str, *more: str) -> list[dict[str, Any]
 
 
 def _named(run: Pass, url: str) -> list[dict[str, Any]]:
-    """Return the pull request at this address if it merged, in a list as `pulls` gives.
+    """Return the pull request at this address if it merged, as a list like the one `pulls`
+    returns.
 
-    An address GitHub says it cannot resolve is no pull request, and stops no pass: a brief
-    may name one. A `gh` that failed any other way gave no answer, and `_named` raises
-    `Silent`.
+    If GitHub says it cannot resolve the address, `_named` returns no pull request and the
+    pass goes on, since a brief may name such an address. If `gh` failed any other way, it
+    gave no answer, and `_named` raises `Silent`.
     """
     asked = run.run("gh", "pr", "view", url, "--json", f"{MERGED},state")
     if asked.returncode and UNRESOLVED in asked.stderr:
@@ -197,7 +198,7 @@ def tied(run: Pass) -> dict[str, str]:
     """Return the slug of each pull request a brief names, by its address.
 
     A brief names a pull request with a `Branch:` line that ends on its address, in any of
-    its Results. The first brief that has one gives the slug, as it does for `jmerge`.
+    its Results. The first brief with such a line gives the slug, as it does for `jmerge`.
     """
     found: dict[str, str] = {}
     for path in sorted((run.home / "tasks").glob("*.md")):
@@ -217,12 +218,13 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
 
     With GitHub silent the crews out are still known, and they count toward `max_running`.
 
-    The list of merged pull requests is the last hundred. `look` asks by name for a slug the
-    queue names that is not in it, and keeps a merge it finds that way: the slug stays merged.
+    The list of merged pull requests is the last hundred. When the queue names a slug that is
+    not in that list, `look` asks GitHub for it by name. It keeps a merge it finds that way,
+    so the slug stays merged.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
-    name of its branch where no brief does. It asks for a slug's pull request by the address
-    the slug's brief names.
+    name of its branch where no brief does. When a slug's brief names a pull request, `look`
+    asks for that pull request by its address.
     """
     if client is None:
         return _silent(run, "no token: run `jbus t3 login`")
@@ -345,14 +347,15 @@ def unfinished(result: str) -> str:
 
 
 def after_merge(result: str) -> bool:
-    """Return whether a Result leaves work for after its merge, which the pass tells its thread."""
+    """Return whether a Result leaves work for after its merge. The pass tells the thread of
+    that work."""
     return said_on(result, "Left").lower().startswith(AFTER_MERGE)
 
 
 @dataclass(frozen=True)
 class End:
-    """An `End` is how a row whose thread ended with a Result stands: `done`, or `left` and
-    `why`."""
+    """An `End` is the outcome of a row whose thread ended with a Result: `done`, or `left`
+    with a `why`."""
 
     word: str
     why: str = ""
@@ -361,9 +364,9 @@ class End:
 def ended(run: Pass, world: World, slug: str) -> End | None:
     """Return the end of a slug whose thread ended with a Result and no pull request to wait for.
 
-    Its thread has ended when it is settled or no longer `LIVE`. A slug T3 Code lists no
-    thread for has not started, or was launched in this pass. A slug with a pull request that
-    is open or merged takes its status from that pull request.
+    Its thread has ended when it is settled or no longer `LIVE`. If T3 Code lists no thread
+    for a slug, the slug has not started, or this pass launched it. A slug with a pull request
+    that is open or merged takes its status from that pull request.
     """
     thread = world.thread(slug)
     if slug in world.open or slug in world.merged:
@@ -383,8 +386,8 @@ def gone(run: Pass, world: World, slug: str, launched: str) -> bool:
     request of the slug is open or merged, and its brief has no Result.
 
     `launched` is the thread of its launch record, or nothing for a slug with none. A pass
-    asks this before it launches anything, of the answers it got, so a thread launched after
-    those answers is in neither.
+    calls `gone` before it launches anything, with the answers it already has. A thread
+    launched after those answers is in neither of them.
     """
     if not launched or slug in world.threads or slug in world.settled or slug in world.archived:
         return False
@@ -410,7 +413,7 @@ def written(result: str) -> work.Written:
 def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
     """Return the slug's pull request as the facet `Pull` has it. `said` is what `jmerge`
     last said of an open one (`merge.step`). A `Branch:` line that ends on an address, with
-    neither an open nor a merged pull request under the slug, names one that was closed."""
+    neither an open nor a merged pull request under the slug, means that pull request closed."""
     if slug in world.open:
         return work.Pull(merge.step(said) or work.Pull.OTHER)
     if slug in world.merged:
@@ -481,8 +484,9 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
 
 
 def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozenset[str]:
-    """Return the slugs that a row depending on them no longer waits for: merged, or ended
-    `done`, by the rule `dispatch` launches by. With no world, the rows' own status says so."""
+    """Return the slugs that a dependent row no longer waits for: those merged, or ended
+    `done`, by the rule `dispatch` launches by. With no world, the rows' own status gives
+    them."""
     if world is None:
         return frozenset(row["slug"] for row in rows if row.get("status") in queue.FINAL)
     merged = set(world.merged) - set(world.open)
@@ -558,9 +562,10 @@ OVER = (work.Thread.COMPLETED, work.Thread.FAILED)
 
 
 def owed(run: Pass, role: str, slug: str) -> work.Written:
-    """Return what a thread that belongs to no row has written of what its role owes. A
-    scout owes its last Report, read as a Result is, and a reviewer a Review with a verdict
-    in the brief. A home or another thread owes nothing, so it has written all it owes."""
+    """Return what a thread that belongs to no row has written of the output its role owes.
+    A scout owes its last Report, which jbus reads as it reads a Result. A reviewer owes a
+    Review with a verdict in the brief. A home or any other thread owes nothing, so it has
+    always written all it owes."""
     if role == "scout":
         text = _read(run.home / "scouts" / f"{slug}.md")
         reports = [body for head, body in sections(text, gates_inside=True) if head == "## Report"]
@@ -589,9 +594,9 @@ def _read(path: Any) -> str:
 
 
 def thread_facts(run: Pass, one: dict[str, Any], answered: work.Answered, last: str) -> work.Facts:
-    """Return the facts of a thread out that belongs to no row, one of `threads.out`. Its
-    thread is its own launch. What it wrote counts once its turn is over, since a turn under
-    way still writes."""
+    """Return the facts of a thread out that belongs to no row, one of `threads.out`. The
+    thread counts as its own launch. What it wrote counts once its turn is over, since a turn
+    under way still writes."""
     said = thread(one, str(one.get("live", "")))
     slug = str(one.get("slug") or "")
     return work.Facts(
@@ -637,7 +642,7 @@ def judged(
 def unwritten(
     run: Pass, thread: dict[str, Any] | None, state: work.State, waiting: set[str]
 ) -> str:
-    """Return why a `stale` row has nobody on it, or nothing while its crew still has it.
+    """Return why a `stale` row has nobody on it, or nothing while its crew is still on it.
 
     A thread that ended or hung with nothing written is `stale` for as long as jbus carries
     its crew on (`threads.resume`). Starting `UNWRITTEN_MINUTES` after its thread last wrote,
@@ -646,8 +651,8 @@ def unwritten(
     the queue.
 
     The row of a thread that ended its turn to wait on a test slot, one of `waiting`, is
-    never `left`, however long the thread is quiet: jbus wakes it when a slot is free
-    (`slotwait`). Once jbus wakes it, the rule above counts again from its last write.
+    never `left`, however long the thread is quiet: jbus wakes the thread when a slot is free
+    (`slotwait`). After that, the rule above counts again from the thread's last write.
     """
     if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
         return ""
@@ -667,7 +672,7 @@ def status(
     run: Pass, world: World, slug: str, state: work.State, launched: str = ""
 ) -> dict[str, str]:
     """Return a row's derived columns. Its status is the projection of its state
-    (`work.status`), and `why` holds the reason its status itself carries, what a Result
+    (`work.status`). `why` holds the reason that comes with the status itself: what a Result
     leaves.
 
     `launched` is the thread id of the slug's launch record.
@@ -695,8 +700,8 @@ def waits(run: Pass, pulls: Said, home: str) -> Waits:
 
     `pulls` is what `jmerge` printed in this pass. Where the `home` merges, `jmerge` did
     not run here, and the lines are the last ones it logged, in `merge.log.last`. `waits`
-    reads that file in no other case, since it keeps a line after its pull request stopped
-    waiting.
+    reads that file in no other case, since the file keeps a line even after its pull
+    request stopped waiting.
     """
     said: list[Any] = pulls
     if home:
@@ -869,8 +874,8 @@ def red_brief(
 ) -> str:
     """Return the brief for the fix of a red main at `sha`, in the shape of
     `features/jbriefs/templates/brief.md`. `jobs` is each failed check run's name, URL and
-    failed tests. `red` is the commits from `sha` down to the last green one, that one left
-    out, and `changed` is the files they changed."""
+    failed tests. `red` is the commits from `sha` down to the last green one, not including
+    it. `changed` is the files those commits changed."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
@@ -923,10 +928,10 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
 
 def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
-    approval: the user approves it like any other row. Its priority is one above the first
-    row of the queue, so once approved it is the next launch there. `_file` files it while
-    the queue has no row for it, so a pass that stopped before it added the row files it
-    again. A queue that refuses it is a condition."""
+    approval. The user approves the row like any other. Its priority is one above the first
+    row of the queue, so once approved it is the next launch there. `_file` writes the brief
+    whenever the queue has no row for it. So if a pass stopped before it added the row, the
+    next pass files the brief again. If the queue refuses the brief, that is a condition."""
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
@@ -1004,14 +1009,15 @@ def _browser_name(day: str, taken: set[str]) -> str:
 
 def _browser_red(run: Pass) -> None:
     """File the brief for the fix of a red run of browser.yml, which no pull request's check
-    runs, and queue it unapproved, once per run. `browser-runs.json` keeps each run seen, so
-    jbus does not file a removed row again. It only records a run seen on a project's first
-    pass.
+    runs, and queue it unapproved, once per run. jbus records each run it has seen in
+    `browser-runs.json`, so it does not file a removed row again. On a project's first pass,
+    it only records the runs it sees.
 
     A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. Where GitHub
-    would not give its jobs, or a failed job's log, the next pass asks about the run again. It
-    files the run without the names once the run ended `BROWSER_GRACE` ago. A manual run on a
-    branch other than the default belongs to that branch, and files nothing.
+    would not give its jobs, or a failed job's log, the next pass asks about the run again.
+    Once the run ended `BROWSER_GRACE` ago, jbus files it without the test names. jbus files
+    nothing for a manual run on a branch other than the default: that run is the branch's
+    concern.
     """
     said = _api(
         run,
@@ -1070,15 +1076,15 @@ def _browser_red(run: Pass) -> None:
 
 
 def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
-    """Say a red main within a day of a merge, and a revert of one. Both lines name the
+    """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug.
 
-    A main whose run was cancelled is not red: `_retro` asks for its run again, and says a
-    second cancelled run, or a run GitHub would not start again. It says a red main once a
-    commit. It files and queues the brief for its fix once, and only for main's tip as this
-    pass reads it (`_file`): a red commit that a later one superseded is no main to fix. It
-    says once that a filed row's main is green again before the row launched, and leaves the
-    row as it is.
+    A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
+    only a second cancelled run, or a run GitHub would not start again. It reports a red main
+    once for each commit. It files and queues the brief for its fix once, and only for
+    main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
+    is no longer main, so there is nothing to fix. If main turns green again before a filed
+    row launches, `_retro` reports that once and leaves the row as it is.
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),

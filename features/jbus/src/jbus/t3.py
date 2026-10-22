@@ -2,22 +2,22 @@
 
 `login` registers jbus with the server, sends the user to its approval page, and keeps the
 token the server gives, with the time it gave it. `expiry` says when that token runs out.
-`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test reads
-this package for any other name.
+`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test scans
+this package for any other tool name.
 
-Three of the eight tools change a thread, and `Client.call` lets each through in one form only
-(`_held`):
+Three of the eight tools change a thread, and `Client.call` allows each of them in one form
+only (`_held`):
 
 - `t3_thread_organize`, to settle or archive a thread it names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`).
 - `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:`
   line names or to the thread in a home's `home-id`. jbus sends it for the user's word
-  (`jbus.word`), and for a task of that home's that ended with something left
+  (`jbus.word`), and for a task of that home that ended with something left
   (`jbus.leftover`).
 
 `Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
-the message, its text and its time, and that is what makes a word of the user's a checked one.
+the message, its text and its time, and that is why jbus counts the user's word as checked.
 """
 
 from __future__ import annotations
@@ -65,11 +65,11 @@ class T3Error(Exception):
 
 
 class T3Refused(T3Error):
-    """The server answered, and the answer was no. The server made nothing."""
+    """The server answered no, and made nothing."""
 
 
 def _at(url: str) -> str:
-    """Name the server by its path only, since no message of jbus carries a URL."""
+    """Name the server by its path only, since no message from jbus carries a URL."""
     return f"T3 Code at {urllib.parse.urlsplit(url).path}"
 
 
@@ -191,8 +191,8 @@ def _seconds(value: Any) -> float | None:
 def expiry(token_path: Path) -> datetime | None:
     """Return when the stored token runs out, or None when no token is stored.
 
-    The token was obtained at `obtained_at`. For a token stored before jbus kept that time,
-    it was obtained when its file was last written. It lasts its own `expires_in` seconds, or
+    The token was obtained at `obtained_at`. For a token stored before jbus recorded that time,
+    `expiry` takes the time its file was last written. It lasts its own `expires_in` seconds, or
     `LIFETIME` when it has none. `expiry` does not read the token itself.
     """
     stored = read_json(token_path, {})
@@ -292,8 +292,8 @@ class Client:
         return [tool for tool in self._rpc("tools/list", {})["tools"] if tool["name"] in TOOLS]
 
     def _held(self, tool: str, arguments: dict[str, Any]) -> str:
-        """Return why jbus does not make this call that changes a thread, or nothing when it
-        does make it."""
+        """For a call that changes a thread, return why jbus does not make it, or nothing when
+        jbus does make it."""
         if tool == "t3_thread_organize":
             if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
                 "settle",
@@ -381,7 +381,7 @@ def heard(config: Config, ref: str) -> queue.Said:
     its text on one line, its time in the user's zone, and the title of its thread.
 
     A message that an agent or jbus sent into a thread is not the user's, and `heard` refuses
-    it. It also refuses a message that T3 Code does not give.
+    it. It also refuses a message that T3 Code does not return.
     """
     thread, _, message = ref.partition("/")
     if not thread or not message:
@@ -402,9 +402,9 @@ def heard(config: Config, ref: str) -> queue.Said:
 
 
 def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | None:
-    """Return the form in which `jbus word` and `jbus answer` were given the user's words: the
-    message jbus read, or None for words typed with `--by` and `--at`. `typed` refuses the
-    words when they come in both forms, or in neither."""
+    """Return where the user's words for `jbus word` and `jbus answer` came from: the message
+    jbus read, or None for words typed with `--by` and `--at`. `typed` refuses the words when
+    the command gives both forms, or neither."""
     given = args.by is not None or args.at is not None or bool(args.words)
     if args.message is not None and not given:
         return heard(config, args.message)

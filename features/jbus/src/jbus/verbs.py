@@ -1,29 +1,29 @@
-"""Each verb of the command is declared by the module whose feature it is.
+"""Each feature's module declares the verbs of the command that belong to that feature.
 
-A module says what it adds to `jbus` at its top level, as `VERBS = (Verb(...),)`. A `Verb`
+A module declares what it adds to `jbus` at its top level, as `VERBS = (Verb(...),)`. A `Verb`
 holds the name typed after `jbus`, the line `jbus --help` gives it, a function that adds its
 arguments to its parser, and the function that runs it. `declared` imports every module of
 jbus and gathers the verbs, and `jbus.cli.main` builds its parsers from what `declared`
 returns. So a new verb is a `Verb` in a new module, with no line anywhere else. When two
 modules declare the same name, importing `jbus.cli` raises a `ValueError` that names both.
 
-A module declares a step of a pass the same way, as `STEPS = (Step(...),)`. A `Step` holds
-the slot of `jbus.cli.first_half` or `jbus.cli.second_half` it runs in, its rank in that
-slot, its name, the function that runs it, and what the pass must have for it to run.
-`ranked` gathers the steps, a slot's steps by rank, and each half runs them at the slot's
-place. So a new step is a `Step` in its feature's module, with no line in `jbus.cli`.
-`jbus steps` prints the order. When two modules declare the same rank in one slot, importing
-`jbus.cli` raises a `ValueError` that names both.
+A module declares a step of a pass the same way, as `STEPS = (Step(...),)`. A `Step` holds the slot
+of `jbus.cli.first_half` or `jbus.cli.second_half` it runs in, its rank in that slot, its name, the
+function that runs it, and what the pass must have for it to run. `ranked` gathers the steps and
+orders each slot's steps by rank. Each half runs a slot's steps at that slot's place in the half. So
+a new step is a `Step` in its feature's module, with no line in `jbus.cli`. `jbus steps` prints the
+order. When two modules declare the same rank in one slot, importing `jbus.cli` raises a
+`ValueError` that names both.
 
-A chore is the machine's: it runs once a pass and for no project. A module declares it as
-`CHORES = (Chore(...),)`, with its rank, its name, and the function that runs it. That
-function is given the config, the T3 Code client or None, the pass's time and its `say`.
-`chores` gathers the chores by rank, and `jbus.cli.poll` runs each one after the launches,
-guarded under its name. The chores are the sign-in reminder and the words of the scratch
-homes, which are no project of a pass. When two modules declare the same rank, `chores`
-raises a `ValueError`.
+A chore is work for the machine as a whole: it runs once a pass and for no project. A module
+declares it as `CHORES = (Chore(...),)`, with its rank, its name, and the function that runs
+it. That function takes the config, the T3 Code client or None, the pass's time and its
+`say`. `chores` gathers the chores by rank, and `jbus.cli.poll` runs each one after the
+launches, inside `guarded` under the chore's name. The chores are the sign-in reminder and
+the sending of the scratch homes' words. A scratch home is no project of a pass. When two
+modules declare the same rank, `chores` raises a `ValueError`.
 
-`project` and `here` are the two ways a verb reads which project it is for.
+`project` and `here` are the two ways a verb finds the project it is for.
 
 This module imports none of jbus's features, so that each of them can import it.
 """
@@ -144,7 +144,7 @@ def declared(paths: Iterable[str]) -> dict[str, Verb]:
     """Return every verb the modules under `paths` declare, by its name, in the order
     `jbus --help` lists them. The verbs of `FIRST` come first, in their order there, which is
     the order they had when one function listed them all. Every other verb follows by its
-    name. `FIRST` takes no new name.
+    name. No new verb goes into `FIRST`.
 
     A folder declares its verbs in its `__init__`. `__main__` runs the command, and
     `declared` does not import it.
@@ -208,7 +208,7 @@ def project(config: jbus.Config, name: str | None) -> jbus.Project:
 
 
 def here(config: jbus.Config, name: str | None) -> jbus.Project:
-    """Return the project a thread speaks for: the named one, or the one whose repo this is.
+    """Return the project a thread acts for: the named one, or the one whose repo this is.
 
     Every repo uses the crew and scout skills, so `here` refuses a gate from a repo the config
     does not name, rather than send it as another project's gate.

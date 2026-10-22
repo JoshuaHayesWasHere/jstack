@@ -1,10 +1,10 @@
-"""This module finds what waits on the user. It follows each approved row that cannot move to its
-root.
+"""This module finds what waits on the user. It follows the `depends` links of each approved row
+that cannot move until it reaches a root.
 
 A root is one thing only the user can do, and it has a key:
 
-- `#<n>`: hand-merge a green, reviewed pull request that `jmerge` holds, with `jmerge --accept`. The
-  line names the one fact by which the review proved it safe, at its head;
+- `#<n>`: hand-merge, with `jmerge --accept`, a green and reviewed pull request that `jmerge` holds.
+  The line names the one safety fact that the review proved at the head;
 - `re-approve:<slug>`: approve again a brief that changed after their go;
 - `approve:<slug>`: approve a row that an approved row depends on;
 - `config:<project>`: set the webhook, or sign in to T3 Code.
@@ -12,20 +12,22 @@ A root is one thing only the user can do, and it has a key:
 `walk` starts at every approved row that was not launched and follows its `depends` links
 (`Pass.reasons`, which `dispatch` records). It stops at a root or at progress: a thread, a pull
 request `jmerge` waits for, a slot, or a gate the Chef already has. `tell` sends one
-`waiting-on-user` event for each root, and again each hour the root still stands. It rewrites
-`stall.json`, which records when each root was first seen and last sent. `tell` returns the roots
-that stand now, and `waiting` lists them with everything else that waits on the user.
+`waiting-on-user` event for each root, and sends it again each hour while the root is still open. It
+rewrites `stall.json`, which records when jbus first saw each root and when it last sent it. `tell`
+returns the roots that are still open, and `waiting` lists them with everything else that waits on
+the user.
 
-`guarded` handles what waits on a crew: a pull request that changes a guarded path, which `jmerge`
-keeps on a `wait` line that wakes nobody. Where the line says the head has no proven safety fact,
-and the head is a fix pushed after the last review, `guarded` asks its crew for the one scoped
-review that proves it, once per head. When the wait still says the same of the same head after
-`PASSES` passes, `guarded` sends one `stall` event, for the chat. `guarded.json` counts the passes.
+`guarded` handles what waits on a crew. That is a pull request that changes a guarded path, which
+`jmerge` keeps on a `wait` line that wakes nobody. The line may say that the head has no proven
+safety fact, while the head is a fix pushed after the last review. Then `guarded` asks the crew for
+the one scoped review that proves the fix, once per head. When the line still says the same of the
+same head after `PASSES` passes, `guarded` sends one `stall` event, for the chat. `guarded.json`
+counts the passes.
 
-`unclosed` handles a leftover its home did not close: a row that ended with something left, whose
-home jbus told of it (`leftover`) `leftover.CLOSE_MINUTES` ago or more. `unclosed` sends one `stall`
-event for the row, which names the home's thread, and from then on the row is on the list of what
-waits on the user.
+`unclosed` handles a leftover that its home did not close. That is a row that ended with something
+left, where jbus told the row's home of it (`leftover`) `leftover.CLOSE_MINUTES` ago or more.
+`unclosed` sends one `stall` event for the row, which names the home's thread. From then on the row
+is on the list of what waits on the user.
 
 `hung` handles a turn that hangs: a thread that is out and has written nothing for too long
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
@@ -77,10 +79,11 @@ Roots = dict[str, tuple[str, list[str]]]
 
 def hand_merge(run: Pass, number: int, url: str, why: str) -> str:
     """Return what the user does about a held pull request: the command that merges it by hand, with
-    the fact by which its review proved it safe.
+    the safety fact its review proved.
 
     `hand_merge` asks `jmerge` what an accept would do, with `--check`, which merges nothing. Where
-    `jmerge` would refuse, there is no command to give, and the line says what is short.
+    `jmerge` would refuse, there is no command to give, and the line says what the pull request
+    lacks.
     """
     held = f"hand-merge #{number} {url}: {why}"
     ran = run.run("jmerge", "--accept", str(number), "--check")
@@ -159,8 +162,8 @@ def config(run: Pass, client: Client | None, rows: list[queue.Row] | None) -> Ro
 
 
 def done(run: Pass, world: World | None, rows: list[queue.Row] | None, key: str) -> bool:
-    """Say whether a root no longer stands because the user did the thing, from facts that need no
-    row judged."""
+    """Say whether the user has done the thing a root asks for, so that the root is closed. `done`
+    uses only facts that need no row judged."""
     kind, _, slug = key.partition(":")
     if key.startswith("#"):
         return world is not None and key not in {f"#{p['number']}" for p in world.open.values()}
@@ -179,15 +182,15 @@ def tell(
     rows: list[queue.Row] | None,
     pulls: list[str],
 ) -> list[waiting.Item]:
-    """Send each root that is due, say which ones cleared, and rewrite `stall.json`. Return the
-    roots that stand, each `{"key", "line", "since", "unblocks"}`.
+    """Send each root that is due, say which roots cleared, and rewrite `stall.json`. Return the
+    roots that are still open, each `{"key", "line", "since", "unblocks"}`.
 
-    `tell` also raises a root that is due on the desk, and prints it when the webhook is not set or
+    `tell` also raises each due root on the desk. It prints the root when the webhook is not set or
     its last POST failed. A pass judges no row when it could not ask T3 Code or GitHub, could not
-    read the queue, or ran with dispatch off. Such a pass keeps the roots it had as they were,
-    neither sent nor cleared, except one that is plainly `done`. It keeps in the same way a held
-    pull request that is still open and that `jmerge` said nothing of in this pass, because `jmerge`
-    did not run or the home merges.
+    read the queue, or ran with dispatch off. Such a pass keeps the roots it had as they were, and
+    neither sends nor clears them, except a root that is plainly `done`. `tell` also keeps the root
+    of a held pull request as it was when the pull request is still open and `jmerge` said nothing
+    of it in this pass. Either `jmerge` did not run, or the home merges.
     """
     name = run.project.name
     user = run.user
@@ -235,7 +238,7 @@ def tell(
 
 
 def reviewed(brief: str) -> str:
-    """Return the head that the last review that ran saw, as the crew skill's "A second pass" reads
+    """Return the head that the last review to run saw, as the crew skill's "A second pass" reads
     it."""
     ran = [body for heading, body in mirror.sections(brief) if heading == "## Review"]
     heads = [mirror.field(body, "Head").split() for body in ran if _RAN.search(body)]
@@ -243,11 +246,11 @@ def reviewed(brief: str) -> str:
 
 
 def launched_for(brief: str, head: str) -> bool:
-    """Say whether the crew already launched the scoped review of this head: a `Scoped reviewer:`
-    line that ends `of <head>`, as the crew skill's "A second pass" reads it. A line that names
-    another head is no launch for this one. Neither is a line that names no head, as a rebase's did
-    before its ask named one, nor the line of a session that had no launch tool,
-    `Scoped reviewer: none, ...`."""
+    """Say whether the crew already launched the scoped review of this head. The sign is a
+    `Scoped reviewer:` line that ends `of <head>`, as the crew skill's "A second pass" reads it. A
+    line that names another head is no launch for this head. Neither is a line that names no head,
+    as a rebase's line did before its ask named one. Neither is the line a session writes when it
+    had no launch tool, `Scoped reviewer: none, ...`."""
     return any(not words[2].startswith("none") for words in _reviewers(brief, head))
 
 
@@ -258,16 +261,18 @@ def _reviewers(brief: str, head: str) -> list[list[str]]:
 
 
 def prove(run: Pass, client: Client, world: World, number: int, slug: str, short: str) -> None:
-    """Ask the crew of a done brief for the scoped review of a fix no review has proved.
+    """Ask the crew of a done brief for the scoped review of a fix that no review has proved.
 
-    `prove` asks nothing where the review is of the commit `jmerge` names, since that review's proof
-    is unproven or failed, and another review of nothing does not change it. That wait is a stall.
-    It asks nothing either where the crew wrote a `Scoped reviewer:` line for the head, including
-    one that says it had no launch tool: the crew has told its home, and has nothing more to do.
+    `prove` asks nothing when the review is of the commit `jmerge` names. That review's proof is
+    unproven or failed, and a second review of the same commit would not change it. Such a wait is a
+    stall. `prove` also asks nothing when the crew wrote a `Scoped reviewer:` line for the head,
+    including a line that says it had no launch tool. That crew has told its home and has nothing
+    more to do.
 
-    The commit `jmerge` names is the head, or, for a rebase that changed the patch, the commit
-    before it, which `jmerge` compared the head with and found no proof at: a fix that no review
-    proved, rebased since. Either way, `prove` asks for a review of the head.
+    The commit `jmerge` names is the head. For a rebase that changed the patch, it is the commit
+    before the head instead: `jmerge` compared the head with that commit and found no proof there,
+    so the fix was rebased after no review proved it. Either way, `prove` asks for a review of the
+    head.
     """
     head = world.open[slug].get("headRefOid", "")
     named = _UNPROVEN.search(short)
@@ -299,12 +304,14 @@ def _brief(run: Pass, slug: str) -> str:
 
 
 def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
-    """Ask for the proof a guarded pull request is short of, and say when a guarded wait lasts.
+    """Ask for the proof that a guarded pull request lacks, and say when a guarded wait lasts too
+    long.
 
-    `guarded` counts each pass in which `jmerge` says the same of the same head. The `PASSES`th pass
-    sends one `stall` event, which names the pull request, the head and its crew's thread. A scoped
-    reviewer the crew launched for the head starts the count again, once, and the event then comes
-    at the `REVIEWING`th pass and says so, since a review lasts longer than `PASSES` passes.
+    `guarded` counts each pass in which `jmerge` says the same of the same head. At the `PASSES`th
+    pass it sends one `stall` event, which names the pull request, the head and the crew's thread.
+    When the crew launches a scoped reviewer for the head, the count starts again, once. The event
+    then comes at the `REVIEWING`th pass and says so, since a review takes longer than `PASSES`
+    passes.
     """
     by_number = {pull["number"]: slug for slug, pull in world.open.items()}
     was: dict[str, Any] = read_json(run.state / "guarded.json", {})
@@ -337,9 +344,9 @@ def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
 
 
 def unclosed(run: Pass, world: World, rows: list[queue.Row]) -> None:
-    """Say each leftover that jbus told its home of and the home did not close in time, once for the
-    row. The event names the home's thread and what the Result leaves. A row that is the user's for
-    another reason (`Record.why`) is on the list with that reason, and is no stall."""
+    """Report each leftover that jbus told its home of and that the home did not close in time, once
+    per row. The event names the home's thread and what the Result leaves. A row that is the user's
+    for another reason (`Record.why`) is on the list with that reason, and is no stall."""
     held = leftover.read(run.state)
     for slug, _ in leftover.ended(run, world, rows):
         record = held.get(slug)
@@ -354,8 +361,8 @@ def unclosed(run: Pass, world: World, rows: list[queue.Row]) -> None:
 
 
 def _calls(run: Pass) -> dict[tuple[str, str], dict[str, Any]]:
-    """Return each `hung` call of `hung.jsonl` that no later line gives the end of, by its thread
-    and its run."""
+    """Return each `hung` call in `hung.jsonl` whose end no later line records, by its thread and
+    its run."""
     try:
         lines = (run.state / HUNG).read_text(errors="replace").splitlines()
     except OSError:
@@ -377,19 +384,19 @@ def _calls(run: Pass) -> dict[tuple[str, str], dict[str, Any]]:
 
 
 def watched(run: Pass) -> frozenset[str]:
-    """Return the threads a `hung` call is still open for. A pass reads each one, to say what became
-    of the call."""
+    """Return the threads that a `hung` call is still open for. A pass reads each of them to say
+    what became of the call."""
     return frozenset(thread for thread, _ in _calls(run))
 
 
 def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> str:
-    """Return what became of a `hung` call, or nothing while the call stands or the pass cannot
-    tell.
+    """Return what became of a `hung` call, or nothing while the call is still open or the pass
+    cannot tell.
 
-    `now` is its thread as this pass has it, or None for a thread T3 Code no longer lists as out.
-    The run's own status tells an interrupt from an end, and a run that is neither active nor among
-    the runs read has ended. A run that is still under way wrote again when its thread wrote an item
-    after the call. A message queued to the thread is no write (`threads.out`).
+    `now` is the call's thread as this pass has it, or None when T3 Code no longer lists the thread
+    as out. The run's own status tells an interrupt from an end. A run that is neither active nor
+    among the runs read has ended. A run that is still under way wrote again if its thread wrote an
+    item after the call. A message queued to the thread does not count as a write (`threads.out`).
     """
     if now is None:
         return ENDED
@@ -406,19 +413,19 @@ def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> st
 
 
 def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
-    """Say each thread that turned `hung`, once for that thread and that run, and keep the record
-    that a count of false alarms is made from.
+    """Report each thread that turned `hung`, once for that thread and that run, and keep the record
+    that false alarms are counted from.
 
-    `out` is what `threads.out` gave. The event is loud, and its line gives the thread's title, how
-    long it has written nothing and how many runs wait behind it. Each call is one line of
-    `hung.jsonl`: the thread, its role, the run, the time, the minutes silent and the runs queued
-    behind. The first pass that can tell what became of a call adds one more line,
+    `out` is what `threads.out` gave. The event is loud. Its line gives the thread's title, how long
+    the thread has written nothing, and how many runs wait behind it. Each call is one line of
+    `hung.jsonl`, with the thread, its role, the run, the time, the minutes silent and the runs
+    queued behind. The first pass that can tell what became of a call adds one more line,
     `{"at", "thread", "run", "became"}`.
 
     `hung` writes a call's line before it sends the event, so every alarm has its record. A pass
-    that dies between the two writes the line again and then sends. When `hung` cannot write a line,
-    it says so and sends nothing, and the next pass tries again. `hung` says nothing of a thread
-    with no active run that a read named, since there is no run to say it of.
+    that dies between the two writes the line again and then sends the event. When `hung` cannot
+    write a line, it says so and sends nothing, and the next pass tries again. `hung` does not
+    report a thread that a read gave no active run, since there is no run to report.
     """
     if out is None:
         return
@@ -445,7 +452,7 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
 
 
 def _keep(run: Pass, line: dict[str, Any]) -> bool:
-    """Add one line to `hung.jsonl`. When the line cannot be written, `_keep` says so and the pass
+    """Add one line to `hung.jsonl`. When `_keep` cannot write the line, it says so, and the pass
     goes on."""
     try:
         handle = os.open(run.state / HUNG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
@@ -460,7 +467,7 @@ def _keep(run: Pass, line: dict[str, Any]) -> bool:
 
 
 def _tell(half: Half) -> None:
-    """Tell what waits on the user, and keep the roots for `waiting.keep`."""
+    """Tell what waits on the user, and store the roots for `waiting.keep`."""
     half.roots = tell(half.run, half.client, half.seen.world, half.table, half.users)
 
 

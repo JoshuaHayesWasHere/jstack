@@ -1,16 +1,16 @@
 """The queue table has one row per brief, in `queue.json` under the project's state directory.
 
-A row has two kinds of column, and each kind has one writer. Only the verbs here write the
-Chef's columns: `add`, `approve`, `hold` and `remove`. Only a pass writes the derived columns,
-using what T3 Code and GitHub say (`derive`), and no verb takes one. Two derived columns are a
-pair: `why` is the reason a row waits, and `since` is when that reason first held. jbus also
-keeps each change of a row's status as one line of `transitions.jsonl` beside the table, and
-only ever appends to that file.
+A row has two kinds of column, and each kind has one writer. Only the verbs here write the Chef's
+columns: `add`, `approve`, `hold` and `remove`. Only a pass writes the derived columns, using what
+T3 Code and GitHub say (`derive`), and no verb takes one. Two derived columns are a pair: `why` is
+the reason a row waits, and `since` is when that reason first held. jbus also keeps each change of a
+row's status as one line of `transitions.jsonl` beside the table, and only ever appends to that
+file.
 
 When a row is first queued, `add` refuses a brief that a launch would refuse
-(`jbriefs.parse.faults`), so the user is never asked for a go on a brief that cannot launch. A
-row with a go is grandfathered: a lint added since does not refuse its brief, at an `add` or at
-a launch, and only a fault that an edit brings does. `show` names the grandfathered rows
+(`jbriefs.parse.faults`), so nobody asks the user for a go on a brief that cannot launch. A
+row with a go is grandfathered: a lint added after the go does not refuse its brief at an `add`
+or at a launch. Only a fault that an edit brings refuses it. `show` names the grandfathered rows
 (`grandfathered`).
 
 jbus keeps the brief a row was added with beside the table, in `briefs/<slug>.md`, and
@@ -19,30 +19,30 @@ a brief whose title, Task, Done when, Where, Do not touch and Size are what they
 else changed, and not for one whose goal or scope changed. `approve` also takes the sha of the
 brief the user was shown, and refuses when the stored brief is another.
 
-An approval rests on words of the user's that something else holds, and `approve` names them:
-a word that `jbus word` kept, the answer that closed a question, a message of a T3 Code
-thread, or a pick the user sent with a Lavish page (`PAGE`), which jbus reads in Lavish's own
-state file. `approve` takes no name and no time. The row's `approval` is the record
-(`Approval`). It holds the basis and its reference, the words, when and where the user said
-them, whether jbus read them out of T3 Code or Lavish, and who ran the command and when, which
-jbus writes. `approved` holds the line that says so, and every reader asks it whether the row
-has a go. An older row holds only a typed string there, and still has its go (`approval`).
+An approval is based on the user's words, which another store holds, and `approve` names them: a
+word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, or a
+pick the user sent with a Lavish page (`PAGE`), which jbus reads in Lavish's own state file.
+`approve` takes no name and no time. The row's `approval` is the record (`Approval`). It holds the
+basis and its reference, the words, when and where the user said them, whether jbus read them out of
+T3 Code or Lavish, and who ran the command and when, which jbus writes. `approved` holds the line
+that says so, and every reader checks that column to know whether the row has a go. An older row
+holds only a typed string there, and still has its go (`approval`).
 
-One more basis is not the user's word for the row: a home approves a follow-up by a standing
-rule (`RULE`), and names the parent row that the user did give their word for (`follows`). The
-words kept are the rule's, as the home's `standing.md` had it then (`rule`). The parent's own
-approval is by one of the other bases or the typed string, so a chain is one step long
-(`_parent`), and the row's line says the user did not speak of it. A `hold` of the parent, or a
-`remove` of a parent that did not merge, also takes back the go of its queued follow-ups.
+One more basis is not the user's word for the row: a home approves a follow-up by a standing rule
+(`RULE`), and names the parent row that the user did give their word for (`follows`). The words jbus
+keeps are the rule's text, as the home's `standing.md` had it then (`rule`). The parent's own
+approval is by one of the other bases or the typed string, so a chain is one step long (`_parent`),
+and the row's line says the user did not speak of it. A `hold` of the parent, or a `remove` of a
+parent that did not merge, also takes back the go of its queued follow-ups.
 
 `brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the
 brief's head, which say whom the brief is sent to and not what it asks for: a launch writes
 `Thread:` in, and a brief queued again under another home is the same brief. jbus stores the
-brief whole, those lines included, and a launch sends it without them (`body`). A row approved
-before the fingerprint holds its go for the text it was given on. That text is its
-`brief_sha`, or, for a row approved before the sha left the two lines out, the sha256 of the
-whole text. `approved_text` still takes both, and an `add` of such a row turns the second into
-the `brief_sha` of the text it was approved with.
+brief whole, those lines included, and a launch sends it without them (`body`). A row that the
+user approved before jbus had the fingerprint keeps its go only for the text of that approval.
+jbus matches that text by its `brief_sha`, or, for a row approved before the sha left the two
+lines out, by the sha256 of the whole text. `approved_text` still accepts both, and an `add` of
+such a row replaces the second with the `brief_sha` of the text the user approved.
 
 `remove` takes a row out for good. The slug then goes into `removed.json` beside the table,
 with who said so and when, and a pass reads that file to decide that a slug is gone: it sends
@@ -54,14 +54,13 @@ line of `transitions.jsonl`, and the stored brief moves to
 `removed.json` that does not parse is `Unparsable`, as the table is: nothing launches and no
 verb writes until someone mends it.
 
-`hold` sets `held` and `approve` clears it; a row that was never approved has none.
-`merge_after` is the slugs of rows whose pull requests merge before this row's. `add` writes it
-anew with `depends`, taken off `--merge-after`, and refuses an order that jmerge could never
-keep (`_merge_after`). `jmerge` reads it and `held` (`jmerge.rows`). jmerge leaves unmerged the
-pull request of a row that `hold` took the go back for, until the user approves the row again,
-just as no pass launches such a row. A row named in `merge_after` that is not `merged` or `done`
-keeps the pull requests that name it from merging. `depends` gates a launch and says nothing of
-a merge.
+`hold` sets `held` and `approve` clears it; a row that was never approved has none. `merge_after` is
+the slugs of rows whose pull requests merge before this row's. `add` writes it again, along with
+`depends`, using the value of `--merge-after`, and refuses an order that jmerge could never keep
+(`_merge_after`). `jmerge` reads it and `held` (`jmerge.rows`). When `hold` has taken back a row's
+go, jmerge does not merge the row's pull request until the user approves the row again, just as no
+pass launches such a row. A row named in `merge_after` that is not `merged` or `done` keeps the pull
+requests that name it from merging. `depends` gates a launch and says nothing of a merge.
 
 `entry` is the Chef's column that only `add` writes: the slug of the plan entry the row is work
 for, where that is not the row's own slug. An entry is often several briefs, and `jbus plan`
@@ -187,8 +186,8 @@ def removed_slugs(state: Path) -> frozenset[str]:
 
 
 def clock() -> datetime:
-    """Return the time an approval runs at, which a removal's line of `transitions.jsonl` also
-    carries."""
+    """Return the time an approval runs at, and the time jbus writes on a removal's line of
+    `transitions.jsonl`."""
     return datetime.now(UTC)
 
 
@@ -208,7 +207,7 @@ def who(ran_by: dict[str, str]) -> str:
 
 @dataclass(frozen=True)
 class Said:
-    """Words of the user's as the store that keeps them has them: when and where the user said
+    """The user's words as the store that keeps them records them: when and where the user said
     them, and whether jbus read the words and the time in T3 Code or Lavish (`checked`) or
     someone typed them. `ref` is the `<thread id>/<message id>` or `<session key>/<entry id>`
     jbus read them in, or nothing."""
@@ -222,8 +221,8 @@ class Said:
 
 @dataclass(frozen=True)
 class Approval:
-    """The record of a row's go. `basis` is one of `BASES`, and `ref` names the record of it: a
-    word's id, a question's number, `<thread id>/<message id>`, or, for `PAGE`,
+    """The record of a row's go. `basis` is one of `BASES`, and `ref` names the record of that
+    basis: a word's id, a question's number, `<thread id>/<message id>`, or, for `PAGE`,
     `<session key>/<entry id>`, whose `said_in` is the page's file. `ran_by` is `runner` and
     `ran_at` is the clock, both as jbus found them: no option gives either.
 
@@ -283,7 +282,7 @@ def approval(row: Row) -> str:
 
 
 def held(made: Approval) -> dict[str, Any]:
-    """Return the record in the form a row holds it, with `follows` only where the approval
+    """Return the record in the form a row stores it, with `follows` only where the approval
     has a parent."""
     return {name: value for name, value in asdict(made).items() if name != "follows" or value}
 
@@ -340,8 +339,8 @@ def body(text: str) -> str:
 
 
 def brief_sha(text: str) -> str:
-    """Return the sha256 that jbus approves, shows and launches a brief by: the sha256 of its
-    `body`."""
+    """Return the sha256 of the brief's `body`. jbus uses it to approve, show and launch the
+    brief."""
     return sha(body(text))
 
 
@@ -354,10 +353,10 @@ def fingerprint(text: str) -> meaning.Meaning:
 def approved_text(row: Row, text: str) -> bool:
     """Return whether `text` is a brief the row's go holds for.
 
-    A go recorded with a fingerprint holds for every brief that means the same
-    (`meaning.same`), whatever its wording. An older go holds for the text it was given on:
-    its row's `brief_sha`, or, for a row approved before the sha left the two lines out, the
-    sha256 of the whole text, line for line.
+    A go recorded with a fingerprint holds for every brief that means the same (`meaning.same`),
+    whatever its wording. An older go holds only for the text the user approved: its row's
+    `brief_sha`, or, for a row approved before the sha left the two lines out, the sha256 of the
+    whole text, line for line.
     """
     kept = record(row)
     if kept and kept.scope:
@@ -528,7 +527,7 @@ class Hold:
 
 @dataclass(frozen=True)
 class Remove:
-    """The verb that carries the user's word that the row goes for good."""
+    """The verb that removes a row for good, on the user's word."""
 
     slug: str
     by: str
@@ -542,13 +541,13 @@ Verb = Add | Approve | Hold | Remove
 class Asks:
     """What a `remove` and an `approve` ask of the world outside the table.
 
-    `out` says in one line what of a slug is out, or nothing. It may take seconds, so jbus
-    calls it before it locks the table. jbus calls `launched` with the table locked, and it
-    says whether a launch of the slug is under way or happened since jbus called `out`.
-    `told` gets each removal's line of `transitions.jsonl`, once `removed.json` names the
-    slug. `said` gets an approval's basis and reference, and returns the user's words they
-    name or the text of the standing rule, or refuses. It may ask T3 Code, so jbus also calls
-    it before it locks the table.
+    `out` describes in one line the work of a slug that is out, or returns nothing. It may take
+    seconds, so jbus calls it before it locks the table. jbus calls `launched` with the table
+    locked, and it says whether a launch of the slug is under way or happened since jbus called
+    `out`. `told` gets each removal's line of `transitions.jsonl`, once `removed.json` names the
+    slug. `said` gets an approval's basis and reference, and returns the user's words they name or
+    the text of the standing rule, or refuses. It may ask T3 Code, so jbus also calls it before it
+    locks the table.
     """
 
     out: Callable[[str], str]
@@ -608,8 +607,8 @@ class _Batch:
 
 
 def _went(batch: _Batch, slug: str) -> Row | None:
-    """Return the row of a removed slug as it was when it went, as this batch holds it or as
-    the last line of `transitions.jsonl` that removed it has it."""
+    """Return the row of a removed slug as it was when it went: the copy in this batch, or
+    else the copy in the last line of `transitions.jsonl` that removed it."""
     try:
         lines = transitions_path(batch.state).read_text().splitlines()
     except OSError:
@@ -686,8 +685,8 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
 
 
 def _merge_after(batch: _Batch, verb: Add) -> None:
-    """Refuse an order jmerge could not keep. That is a row that merges after itself, after a
-    slug that was removed or that has no row in the table, or after a row that in turn merges
+    """Refuse an order jmerge could not keep. Such an order has a row merge after itself, after
+    a slug that was removed or that has no row in the table, or after a row that in turn merges
     after it or depends on it, which would leave both waiting for ever. This check does not
     refuse a loop of `depends` alone: the stall check names it. Rows of the batch count as
     they are when the verb runs."""
@@ -733,8 +732,9 @@ def _new_faults(row: Row | None, was: str | None, text: str) -> list[str]:
     """Return the faults `add` refuses `text` for (`jbriefs.parse.faults`).
 
     A lint runs when a row is first queued. A row whose go holds for `text` is already
-    approved, so it is grandfathered. A fault that its stored brief `was` already had, which
-    a lint added since found, does not refuse it, and only a fault the edit brought does.
+    approved, so it is grandfathered. If its stored brief `was` already had a fault that a
+    newer lint found, that fault does not refuse the row. Only a fault the edit brought
+    refuses it.
     """
     faults = briefs.faults(body(text))
     if row and row.get("approved") and was is not None and approved_text(row, text):
@@ -954,8 +954,8 @@ def _run(
     """Run every verb or none. A verb numbered 0 was typed alone, and its refusal is in its
     own words.
 
-    `user` is whom jbus checks a `remove` against, and whose zone it writes an approval's
-    time in: `add` and `hold` read no settings. `asks` is what a `remove` and an `approve`
+    `user` is the user jbus checks a `remove` against, and jbus writes an approval's time in
+    that user's zone: `add` and `hold` read no settings. `asks` is what a `remove` and an `approve`
     ask, and a batch with either needs it.
 
     A removal is done once `removed.json` names its slug, and after that `load` gives no row

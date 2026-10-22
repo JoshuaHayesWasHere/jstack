@@ -1,10 +1,9 @@
 """This module decides what the relay pages when Sous Chef is silent, and how a page reads.
 
-The relay keeps a record of what blocks (`Watch`), built from each body on the `blocking`
-route. When a `reminder` or a `refresh` lists an item that is still open `PAGE_MINUTES` (45)
-after it began to block, the relay pages it once (`judge`). A page is one line (`page_line`).
-For a body that Sous Chef did not take, the relay pages its first item or event
-(`unheard_line`).
+The relay keeps a record of what blocks (`Watch`), and updates it from each body on the `blocking`
+route. When a `reminder` or a `refresh` lists an item that is still open `PAGE_MINUTES` (45) after
+it began to block, the relay pages it once (`judge`). A page is one line (`page_line`). For a body
+that Sous Chef did not take, the relay pages its first item or event (`unheard_line`).
 """
 
 from __future__ import annotations
@@ -39,7 +38,7 @@ def when(value: Any) -> datetime | None:
 
 def page_line(project: str, line: str, minutes: float, event: str = "") -> str:
     """Return a page: the project, the line, how long it has blocked, and the event id when
-    one is given. The page cuts out a URL that carries a key, as a query or as a user."""
+    one is given. `page_line` cuts out a URL that carries a key, as a query or as a user."""
     said = f"{project}: {SECRET_URL.sub('<url>', line)}, blocking {int(minutes)} min"
     return f"{said}, event {event}" if event else said
 
@@ -47,7 +46,7 @@ def page_line(project: str, line: str, minutes: float, event: str = "") -> str:
 def unheard_line(id: str, body: Body) -> str | None:
     """Return the page for a body on the `blocking` route that Sous Chef did not take. The
     page names the body's first item or event and says how many more there are. A body that
-    names nothing is an all-clear, and gets None."""
+    names nothing is an all-clear, and `unheard_line` returns None for it."""
     at = when(body.get("at"))
     named = []
     for one in [*(body.get("items") or []), *(body.get("events") or [])]:
@@ -65,12 +64,12 @@ def unheard_line(id: str, body: Body) -> str | None:
 
 @dataclass(frozen=True)
 class Watch:
-    """What the relay knows of what blocks.
+    """The relay's record of what blocks.
 
     `items` holds each item by its page id. A page id is a hash of the item's project, its
     key and the time it began to block, so an item that closes and opens again gets a new
-    id. `seen` holds the page ids marked seen, and `ids` holds the page ids each event id
-    carried, for `/ack`."""
+    id. `seen` holds the page ids marked as seen. `ids` holds, for `/ack`, the page ids that
+    came with each event id."""
 
     items: dict[str, Body] = field(default_factory=dict)
     seen: frozenset[str] = frozenset()
@@ -99,12 +98,12 @@ def page_id(project: str, key: str, opened: str) -> str:
 
 
 def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str]]]:
-    """Read what a body says of what blocks, and return the new `Watch` with the pages the
+    """Update the record of what blocks from a body. Return the new `Watch` and the pages the
     body makes, each `(page id, line)`.
 
-    `judge` keeps the items of an `events`, `reminder` or `refresh` body under the event id
-    that carried them. A `refresh` lists every open item of its project, so an item of that
-    project which it does not list has closed, and `judge` drops it. An item makes a page
+    `judge` keeps the items of an `events`, `reminder` or `refresh` body under the body's
+    event id. A `refresh` lists every open item of its project, so an item of that
+    project that the refresh does not list has closed, and `judge` drops it. An item makes a page
     when a `reminder` or `refresh` lists it `PAGE_MINUTES` or more after it began to block
     (the body's `at` against the item's `opened`) and nobody has marked it seen. The pager's
     route sends each page id once."""

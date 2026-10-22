@@ -6,16 +6,16 @@ thread, so each pass of `jbus poll` resumes it, in `wake`:
 
 - `wake` drops a waiter whose thread is gone, settled, archived or ended (`dead`). A thread
   that ended its turn to wait has the status `completed`, and counts as alive.
-- `wake` drops a woken wait whose thread jbus told long ago and which did nothing since.
+- `wake` drops a woken waiter that jbus told long ago and that has done nothing since.
 - For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
   `waiters.HOLDS`: jbus has told it, and it has not taken the slot yet.
 - A wake is one `t3_thread_send` in mode queue, keyed by the wait, so a retry sends the same
-  message. jbus records the wait as woken only after T3 Code took the message, so it wakes a
-  wait once and tries again a message that got no answer.
+  message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
+  each wait once, and sends again a message that got no answer.
 
-The file is the machine's, not a project's. A pass of any project wakes any waiter, and once
-one pass records a wake, the other passes see it. A thread that takes a slot leaves the file
+The file belongs to the machine, not to a project. A pass of any project wakes any waiter, and once
+one pass records a wake, the other passes read it there. A thread that takes a slot leaves the file
 (`jgauge.slot.take`).
 """
 
@@ -45,7 +45,7 @@ MESSAGE = (
 def dead(run: Pass, client: Client, waiter: Waiter) -> bool:
     """Say whether the waiter's thread cannot be woken: it is gone, settled or archived, or it
     ended with a failure, an interrupt or a cancel. When T3 Code does not answer about the
-    thread, `dead` says it can still be woken."""
+    thread, `dead` returns False."""
     try:
         read = client.call("t3_thread_read", {"threadId": waiter.thread, "limit": 1})
     except T3Refused as error:

@@ -1,5 +1,5 @@
-"""jbus relays to a crew what GitHub shows under the repo owner's login on its pull request,
-and nothing posted by anybody else.
+"""When the repo owner's login posts on a crew's pull request, jbus relays that text to the
+crew. It relays nothing that anybody else posts.
 
 A comment or a review on a pull request is text from GitHub, and on a public repo anybody
 may write one. The owner's login proves nothing about who wrote it: reviewer bots post under
@@ -7,9 +7,9 @@ the user's account. So a relayed remark is never the user's word. The message na
 the kind of remark, the login and the link, and says it is reviewer or bot output. The
 user's word reaches a crew only from `jbus word` or in the crew's own thread.
 
-For each open pull request of a slug jbus launched, `tell` reads the three lists of remarks
-GitHub keeps. It sends the slug's crew each remark whose author is the repo's owner, one
-message each. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
+For each open pull request of a slug jbus launched, `tell` reads GitHub's three lists of
+remarks. It sends the slug's crew each remark whose author is the repo's owner, one message
+each. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
 and writes the owner nowhere in the tree. When GitHub gives no answer, jbus relays nothing.
 
 jbus counts a remark by anybody else and reads it no further. It does not keep or log the
@@ -22,8 +22,8 @@ A crew is the thread on a brief's `Thread:` line, whoever launched it.
 A remark's key, `remark|<slug>|#<number>|<kind> <id> <when>`, is its retry key at T3 Code
 and its mark in `sent.json`, so jbus relays each remark once. When its author edits a
 comment, jbus relays the comment again, since `<when>` is when it last changed. jbus relays a
-review as its author submitted it. It leaves out a review not yet submitted, and does not see
-a later edit of a review's words. jbus reads each list to its last page.
+review as its author submitted it. It leaves out a review not yet submitted, and does not
+relay a later edit of a review's words. jbus reads each list to its last page.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ class Remark:
     @property
     def empty(self) -> bool:
         """True for a review that says nothing yet: one its author has not submitted, or one
-        with no words that only holds line comments, which have their own list."""
+        with no words that only has line comments, which have their own list."""
         if self.kind != "review":
             return False
         return self.state == "PENDING" or (not self.body.strip() and self.state == "COMMENTED")
@@ -145,7 +145,7 @@ def message(remark: Remark, owner: str, number: int) -> str:
 
 
 def tell(run: Pass, client: Client, world: World) -> None:
-    """Send each crew what the owner wrote on its open pull request, once for a remark."""
+    """Send each crew what the owner wrote on its open pull request, once for each remark."""
     crews = []
     for slug, pull in world.open.items():
         try:

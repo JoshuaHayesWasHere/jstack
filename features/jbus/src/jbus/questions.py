@@ -5,15 +5,15 @@ closes it, and nothing else does either.
 `Question`:
 
 - `number`: the record's own number, unique among the questions of the project and never used
-  twice. `next` only grows. When a question is asked, jbus numbers it above every gate that a
-  `gates.md` of the home has at that moment. A home numbers its own gates without looking here,
-  so a gate it makes later can have a question's number;
+  twice. `next` only grows. When a thread asks a question, jbus numbers it above every gate in
+  the home's `gates.md` files at that moment. A home numbers its own gates without looking
+  here, so a gate it makes later can have a question's number;
 - `slug`: the brief or request that asked;
-- `thread`: the asker's thread when it asked, taken from the `Thread:` line of that brief or
-  request, or from the gate's own `Asked by:` line where the brief has none yet;
+- `thread`: the thread that asked, at the time it asked, taken from the `Thread:` line of that
+  brief or request, or from the gate's own `Asked by:` line where the brief has none yet;
 - `question` and `default`: the one line the question asks, and what the thread did in place
   of an answer;
-- `built_on` and `undo`: what rests on the default, and how to take it back;
+- `built_on` and `undo`: what the thread built on the default, and how to take it back;
 - `context`: what the user needs to know to answer, from the gate's `Context:` line, or
   nothing;
 - `options`: every option the thread weighed, in the order of its `Option:` lines. Each is an
@@ -24,27 +24,30 @@ closes it, and nothing else does either.
   default that is irreversible or slow to revert, and the fail-safe that its `Fail-safe:` line
   names. Both are empty for a gate whose thread acted on its default at once, and for a record
   written before gates had them;
-- `proposed`: when a pass asked the thread of a question with no options to pipe them, or
-  found that T3 Code no longer lists that thread. It is empty for a question never asked so;
+- `proposed`: the time a pass asked the thread of a question with no options to pipe the
+  options, or found that T3 Code no longer lists that thread. It is empty until a pass does
+  either;
 - `asked_at`: when `jbus gate` took the question;
 - `answer`: empty while the question is open. Once it is closed, it is an `Answer`.
-  `closed_by` is `jbus answer`, a home's `gates.md`, or `silence`. The user's `words`, `by`
-  and `at` follow, then `where` the command ran, and `keeps` for an answer that is the
-  default. `told` is when jbus sent a differing answer to the asker. For an answer given as
+  `closed_by` is `jbus answer`, a home's `gates.md`, or `silence`. `words`, `by` and `at` are
+  the user's words, who gave them and when. `where` is where the command ran, and `keeps`
+  marks an answer that is the default. `told` is when jbus sent a differing answer to the
+  asker. For an answer given as
   `--message`, `ref` is the `<thread id>/<message id>` jbus read from T3 Code, `said_in` is
   that thread's title, and `checked` is true. For an answer typed with `--by` and `--at`,
-  those three are empty and false. An answer that a home closed in its file has the file's
-  `Status:` line as its `words`, the file as `where`, and no `by` and no `at`, since jbus knows
-  neither. An answer closed by silence has the words `default`, `by` jbus, `at` the pass that
-  closed it, `where` "no answer in 2 hours", and `keeps`: it is not the user's word.
+  those three are empty and false. When a home closed the question in its file, the answer
+  has the file's `Status:` line as its `words`, the file as `where`, and no `by` and no `at`,
+  since jbus knows neither. When silence closed the question, the answer has the words
+  `default`, `by` jbus, `at` the pass that closed it, `where` "no answer in 2 hours", and
+  `keeps`: it is not the user's word.
 
 A gate is act-unless-stopped: the thread acts on its default at once, and the question is the
 user's chance to stop it. A record stays open until `jbus answer` closes it, and it closes
-once: `jbus answer` refuses a second answer and puts the first one in the refusal. One thing
-more closes a record. A pass that finds it open for 2 hours (`QUIET`) with no `Holds:` line
-closes it by silence, with its default (`silent`). An answer from the user still replaces that
-close, as the one answer the record has, and jbus carries one that differs as it carries any
-other.
+once: `jbus answer` refuses a second answer and puts the first one in the refusal. A pass
+also closes a record by silence, with its default, when the record has been open for 2 hours
+(`QUIET`) and has no `Holds:` line (`silent`). If the user answers after that, their answer
+replaces the close by silence as the record's one answer, and jbus carries an answer that
+differs as it carries any other.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
 question waits for the user. Its `Holds:` line names the case, one of `HOLDS`, and its
@@ -57,42 +60,39 @@ case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 refuses a first line that is not `## Gate <n>: ` with the question (or `## Gate <number>: `
 for a gate that a home's `gates.md` numbered), more than one `## ` line, a missing
 `Status: open` line, and a line of the template's head that is missing or still holds its
-placeholder.
-jbus reads the labels from the template, the one copy, so a skill pipes the gate and checks
-none of this itself.
+placeholder. jbus reads the labels from the template, the one copy, so a skill pipes the gate
+and checks none of this itself.
 
 While homes still keep a `gates.md`, a pass also closes a record when it finds the same gate
-in such a file with `Status: answered` (`closed_in_files`): that home took the answer and
-carried it.
+in such a file with `Status: answered` (`closed_in_files`), because that home took the
+answer and carried it to the thread itself.
 
 Every verb that would write the file refuses a file that does not parse, or one that holds
 something that is not a record (`Unparsable`). If a verb wrote such a file back, it would lose
-the questions and hand their numbers out again. A pass says so in a gate, keeps the questions
-its list had, and reports no answered gate until it can read the file.
+the questions and hand their numbers out again. A pass raises a gate about the file, keeps
+the questions its list had, and reports no answered gate until it can read the file.
 
-When the same slug asks the same question again, it is the same record (`mirror.gate_key`),
-open or closed. If the record is still open, it takes the new default, undo and built-on
-lines, its context and its options, because a thread parks the same gate again at a later
-head.
+When the same slug asks the same question again, it is the same record (`mirror.gate_key`), open or
+closed. If the record is still open, jbus replaces its default, undo and built-on lines, its context
+and its options with the new ones, because a thread parks the same gate again at a later head.
 
-A gate proposes two options or more: one of them is the default the thread took, and it is
-the one the thread recommends (`_proposed`).
-`jbus gate` refuses a gate that does not, and says `not sent` with the whole form of an
-`Option:` line, so a thread whose skill is older than options can mend its lines from the
-refusal alone. A question that is open with no options was asked before that rule. A pass
-asks its thread, once, to pipe the same gate again with options (`propose`). It asks the
-thread on the `Thread:` line of the slug's brief or request, and nobody where there is no
+A gate proposes two options or more: one of them is the default the thread took, and it is the one
+the thread recommends (`_proposed`). `jbus gate` refuses a gate that breaks this rule, and says
+`not sent` with the whole form of an `Option:` line, so a thread whose skill is older than options
+can mend its lines from the refusal alone. A question that is open with no options was asked before
+that rule. A pass asks its thread, once, to pipe the same gate again with options (`propose`). It
+asks the thread on the `Thread:` line of the slug's brief or request, and nobody where there is no
 such line or T3 Code no longer lists the thread.
 
-jbus sends nothing for an answer that keeps the default, except for a gate that holds: its
-thread waits, so jbus carries that answer as a go-ahead (`GO`). jbus carries an answer that
-differs (`carry`) as one queued message to the thread on the `Thread:` line of the slug's
-brief or request, with the words and the undo line, under the retry key
-`answer|<slug>|<number>`. The message is a `note`, a quiet event, so no answer starts a POST.
-The view sends an answer given on its page at once, and the pass sends every answer that is
-still owed (`tell`). An answer that T3 Code refuses was not carried: that is a `gate`, once,
-and the pass sends the answer again until it goes. `thread` records who asked, and jbus never
-sends to it: jbus sends only to a thread that a brief or a request names (`t3`).
+jbus sends nothing for an answer that keeps the default, except for a gate that holds: its thread
+waits, so jbus carries that answer as a go-ahead (`GO`). jbus carries an answer that differs
+(`carry`) as one queued message to the thread on the `Thread:` line of the slug's brief or request,
+with the words and the undo line, under the retry key `answer|<slug>|<number>`. The message is a
+`note`, a quiet event, so no answer starts a POST. The view sends an answer given on its page at
+once, and the pass sends every answer that jbus has not sent yet (`tell`). When T3 Code refuses an
+answer, the answer was not carried: jbus raises a `gate` about it, once, and the pass sends the
+answer again until it goes. `thread` records who asked, and jbus never sends to it: jbus sends only
+to a thread that a brief or a request names (`t3`).
 """
 
 from __future__ import annotations
@@ -229,8 +229,8 @@ class Question:
 
     @property
     def key(self) -> str:
-        """Return the key that names the question however it arrived, piped or read from a
-        file."""
+        """Return the key that names the question, whether the question arrived piped or was
+        read from a file."""
         return mirror.gate_key(self.slug, self.question)
 
 
@@ -247,8 +247,8 @@ def _locked(state: Path) -> Iterator[None]:
 
 
 def _kept(state: Path) -> tuple[int, list[Question]]:
-    """Return the counter and every record. A missing file means no record, and any other
-    file that this module did not write raises `Unparsable`."""
+    """Return the counter and every record. A missing file means no record. For any other
+    file that this module did not write, raise `Unparsable`."""
     file = path(state)
     if not file.exists():
         return 1, []
@@ -287,8 +287,8 @@ def read(state: Path) -> list[Question]:
 
 
 def _floor(home: Path) -> int:
-    """Return one past the highest number a gate has in the home's `gates.md` or in a scoped
-    home's."""
+    """Return one more than the highest gate number in the home's `gates.md` or in a scoped
+    home's `gates.md`."""
     numbers = (number for _, number, *_ in mirror.home_gates(home) if number.isdigit())
     return max([0, *map(int, numbers)]) + 1
 
@@ -315,9 +315,9 @@ def _proposed(lines: str) -> tuple[Option, ...]:
 
     The user picks among what the thread weighed, so a gate has two options or more, each
     under a name of its own. One of them is the default the thread took, and at most one is
-    the thread's pick. A name that ends in parentheses is a mark the thread misspelled. Kept
-    as a name, it would make an option with no mark. The default the thread took is the one
-    it recommends, because a pass may close the question with that default by silence.
+    the thread's pick. A name that ends in parentheses is a mark the thread misspelled. If
+    jbus kept such a name, the option would have no mark. The default the thread took is the
+    one it recommends, because a pass may close the question by silence, with that default.
     """
     read, unread = mirror.options(lines)
     found = tuple(
@@ -362,9 +362,9 @@ def _proposed(lines: str) -> tuple[Option, ...]:
 
 
 def _held(lines: str) -> tuple[str, str]:
-    """Return the case that a gate's `Holds:` line names and the fail-safe of its
-    `Fail-safe:` line, or `Refused` with what is wrong with them. Both are empty for a gate
-    that acts at once."""
+    """Return the case that a gate's `Holds:` line names and the fail-safe that its
+    `Fail-safe:` line names, or `Refused` with what is wrong with those lines. For a gate that
+    acts at once, both are empty."""
     said = {
         name: [
             line[len(name) + 1 :].strip()
@@ -404,7 +404,7 @@ def _labels() -> list[str]:
 
 
 def _filled(said: str) -> bool:
-    """Return whether a label's text, as `mirror.field` keeps it, is more than its
+    """Return whether a label's text, as `mirror.field` reads it, is more than its
     placeholder."""
     return bool(said.strip()) and not said.strip().startswith("<")
 
@@ -438,8 +438,9 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
 
     `ask` refuses lines that are not one filled-in gate of the template (`_shaped`). Lines
     with no `Default:` line come from a thread that waits, and no record would say what an
-    answer undoes. It also refuses lines that do not propose two options with the default
-    among them as the recommended one (`_proposed`), and a wrong `Holds:` line (`_held`).
+    answer undoes. It also refuses lines that do not propose two options, one of them the
+    default and the recommended one (`_proposed`), and lines with a wrong `Holds:` line
+    (`_held`).
     """
     _shaped(lines)
     asked, default = mirror.question(lines), mirror.field(lines, "Default")
@@ -488,9 +489,9 @@ def answer(
     the first in the refusal, except after a close by silence: that close is not the user's
     answer, and theirs replaces it.
 
-    `keeps` says the answer is the default. Only the one who heard the answer knows that:
-    words such as "yes" do not say it. `heard` is the message jbus read the words and the time
-    from, for an answer given as `--message`.
+    `keeps` says the answer is the default. Only the person who heard the answer knows
+    whether it is, because words such as "yes" do not say it. For an answer given as
+    `--message`, `heard` is the T3 Code message in which jbus read the words and the time.
     """
     if by != user.user:
         raise Refused(f"refused: only {user.user} answers a question, not {by}")
@@ -519,8 +520,8 @@ def basis(state: Path, ref: str) -> queue.Said:
     """Return the answer that closed the question of that number, as the basis of an
     approval.
 
-    A question that is open, or one a home closed in its own file, holds no words of the
-    user's with a time, so `basis` refuses it.
+    A question that is open, or one that a home closed in its own file, has no words from the
+    user with a time, so `basis` refuses it.
     """
     found = [one for one in read(state) if str(one.number) == ref]
     if not found:
@@ -546,11 +547,12 @@ def _told(state: Path, number: int, how: str) -> None:
 
 
 def closed_in_files(run: Pass) -> None:
-    """Close each open question whose gate a `gates.md` of the home has as answered.
+    """Close each open question when a `gates.md` of the home marks its gate as answered.
 
-    Until the skills read jbus, a home that takes an answer in its own thread writes it in
-    its `gates.md` and carries it itself. So this closes the record with the words of that
-    `Status:` line, and jbus sends nothing. Those words replace a close by silence.
+    Until the skills read jbus, a home that takes an answer in its own thread writes the
+    answer in its `gates.md` and carries the answer to the thread itself. So this function
+    closes the record with the words of that `Status:` line, and jbus sends nothing. Those
+    words replace a close by silence.
     """
     answered = {
         key: (mirror.field(body, "Status"), file)
@@ -579,8 +581,9 @@ def _open(one: Question) -> bool:
 
 def silent(run: Pass) -> None:
     """Close by silence, with its default, each open question that has no `Holds:` line and
-    has been open for 2 hours or more (`QUIET`). Its thread acted on the default when it
-    asked, so jbus sends nothing. A quiet `note` event says so, once for the question."""
+    has been open for 2 hours or more (`QUIET`). The thread acted on the default when it asked
+    the question, so jbus sends nothing. jbus writes one quiet `note` event for each question
+    it closes."""
     if not path(run.state).exists():
         return
     at = run.now.astimezone(UTC).isoformat(timespec="seconds")
@@ -614,9 +617,10 @@ def _quiet(one: Question, now: datetime) -> bool:
 
 
 def _state(one: Question) -> str:
-    """Return what the line of a waiting question adds: that its default holds for the
-    answer, with the fail-safe, or that the thread acted on it already. The line of a link's
-    conflict, which asks its home, says neither."""
+    """Return the words that the line of a waiting question adds: that its default holds
+    until the user answers, with the fail-safe, or that the thread already acted on the
+    default. The line of a link's conflict says neither, because that question asks the
+    home."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
     if not one.question.endswith(LINK):
@@ -625,9 +629,9 @@ def _state(one: Question) -> str:
 
 
 def item(one: Question) -> dict[str, Any]:
-    """Return an open question in the shape the list of what waits on the user gives a gate:
-    `acted` where its thread acted on the default at once, and the case and fail-safe of a
-    gate that holds."""
+    """Return an open question as a gate item for the list of what waits on the user. The
+    item has `acted` where the thread acted on the default at once, and the case and the
+    fail-safe of a gate that holds."""
     return {
         "kind": "gate",
         "key": f"gate:q{one.number}",
@@ -646,7 +650,7 @@ def item(one: Question) -> dict[str, Any]:
 
 
 def listed(item: dict[str, Any]) -> bool:
-    """Return whether an item of the list of what waits on the user is a question of this
+    """Return whether an item on the list of what waits on the user is a question from this
     file."""
     return item.get("source") == SOURCE
 
@@ -654,8 +658,9 @@ def listed(item: dict[str, Any]) -> bool:
 @dataclass(frozen=True)
 class Carried:
     """The outcome of sending one answer to its asker. `told` says the answer went, and
-    `thread` is the thread it had to go to, where it had one. `error` is what T3 Code said
-    when it did not take the answer, and `refused` says that T3 Code answered and refused."""
+    `thread` is the thread the answer was for, if it had one. `error` is what T3 Code said
+    when it did not take the answer, and `refused` says that T3 Code answered and refused the
+    answer."""
 
     message: str = ""
     thread: str = ""
@@ -665,15 +670,17 @@ class Carried:
 
 
 def carry(run: Pass, client: Client, one: Question) -> Carried:
-    """Send the thread that asked one answer that differs from its default, or one that keeps
-    the default of a gate that holds. That thread waits for the answer: to go ahead (`GO`),
-    or, for one that differs, not to take the default (`HELD`).
+    """Send one answer to the thread that asked the question. The answer either differs from
+    the default, or keeps the default of a gate that holds. The thread waits for it as the
+    word to go ahead (`GO`) or, when the answer differs, as the word not to take the default
+    (`HELD`).
 
     The answer goes as one queued message to the thread on the `Thread:` line of the slug's
     brief or request, under the retry key `answer|<slug>|<number>`. The pass and the view
-    both send through here, so neither sends again an answer that one of them sent. An
-    answer that went gets the mark `told` on its record and a quiet event. One that did not
-    go gets no mark and no event here: the caller reports it. An answer for a slug that was
+    both send answers through this function, so neither of them sends an answer a second
+    time. When the answer goes, this function marks its record `told` and writes a quiet
+    event. When it does not go, this function writes no mark and no event, and the caller
+    reports the failure. An answer for a slug that was
     removed from the queue goes to nobody.
     """
     number, slug = one.number, one.slug
@@ -698,13 +705,13 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
 
 
 def tell(run: Pass, client: Client) -> None:
-    """Send the thread that asked, once, each answer that differs from its default and each
-    that keeps the default of a gate that holds (`carry`).
+    """Send each answer that differs from its default, and each answer that keeps the default
+    of a gate that holds, once to the thread that asked (`carry`).
 
-    For a slug with no `Thread:` line to send to, a quiet event reports the answer, once. An
-    answer that T3 Code refuses reached nobody, so it becomes a gate, once. jbus tries both
-    again on each pass until they go. An answer for a slug that was removed from the queue goes
-    to nobody.
+    When the slug has no `Thread:` line, jbus writes a quiet event about the answer, once.
+    When T3 Code refuses an answer, the answer reached nobody, so jbus raises a gate about it,
+    once. jbus tries both again on each pass until they go. An answer for a slug that was
+    removed from the queue goes to nobody.
     """
     gone = run.removed
     for one in load(run.state):
@@ -754,18 +761,18 @@ def _proposed_at(run: Pass, number: int) -> None:
 
 
 def propose(run: Pass, client: Client) -> None:
-    """Ask the thread of each open question that has no options to pipe its gate again with
-    options, once for each question.
+    """For each open question with no options, ask its thread once to pipe the gate again,
+    with options.
 
     A question has none when it was asked before gates had to propose them. The message goes
     where an answer goes, to the thread on the `Thread:` line of the slug's brief or request.
-    A slug with no such line, and a thread T3 Code no longer lists, get no message: a quiet
-    event says so, once, and the question stays open as it is. When T3 Code did not answer a
-    list or a send, jbus tries it again on the next pass.
+    jbus sends no message for a slug with no such line, or to a thread that T3 Code no longer
+    lists. It writes a quiet event instead, once, and the question stays open as it is. When
+    T3 Code did not answer a list or a send, jbus tries it again on the next pass.
 
-    The question's record keeps that the thread was asked (`proposed`). The keys of what was
-    sent do not keep it, because a snapshot forgets those keys for a slug whose pull request
-    merged long ago, and the question may still be open then.
+    jbus records on the question that it asked the thread (`proposed`). It does not record
+    this among the keys of what it sent, because a snapshot drops those keys for a slug whose
+    pull request merged long ago, while the question may still be open.
     """
     gone = run.removed
     owed = []
@@ -810,9 +817,9 @@ def propose(run: Pass, client: Client) -> None:
 def _gate(args: argparse.Namespace, config: Config) -> int:
     """`jbus gate`: keep a thread's question for the user as a record with a number.
 
-    The same question from the same slug is the same record, so jbus queues it once, and for
-    one that was answered since, `jbus gate` prints that answer. The event's text is the
-    lines as the thread sent them, and a home parks a gate from that text.
+    The same question from the same slug is the same record, so jbus queues it once. If the
+    user has answered it since, `jbus gate` prints that answer. The event's text is the lines
+    as the thread sent them, and a home parks a gate from that text.
     """
     project = verbs.here(config, args.project)
     run = Pass(config, project, datetime.now(UTC))

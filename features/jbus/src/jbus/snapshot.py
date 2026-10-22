@@ -55,8 +55,8 @@ def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:
 
 
 def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = None) -> str:
-    """Snapshot the tree, and return one line that says what was done. Raise `Failed` when
-    the snapshot could not be taken.
+    """Snapshot the tree, and return one line that says what `take` did. Raise `Failed` when
+    `take` cannot finish the snapshot.
 
     A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push. So the
     runs of the homes and the timer wait for each other and never share an index. A run that
@@ -123,8 +123,8 @@ def snapshot(
     why: str | None = None,
 ) -> int:
     """Take a snapshot of `config.home_dir`. A snapshot that succeeds ends a streak of failed
-    ones. It exits 0 even when jbus could not tell a project of the recovery, because the
-    snapshot is the job the unit runs."""
+    ones. `snapshot` returns 0 even when jbus could not tell a project that snapshots
+    recovered, because the unit runs the snapshot, not the telling."""
     now = now or datetime.now(UTC)
     try:
         say(take(config.home_dir, now, config.user, why))
