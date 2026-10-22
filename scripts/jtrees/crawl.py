@@ -26,10 +26,10 @@ PRINCIPLE = "principle-"
 SKILL = "SKILL.md"
 
 # The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
-# points a user or a harness looks for where they are, each a link into a feature's folder but
-# install.sh (INFRA); and the shared files the generator writes or a later unit deletes
-# (SHARED-DELETE). Kept here and not in a manifest, since a feature owns its folder and nothing
-# else. Each row outside lint-borders.py's LAYOUT is a path that may stay outside it.
+# points a user or a harness looks for where they are (INFRA); and the shared files the
+# generator writes or a later unit deletes (SHARED-DELETE). Kept here and not in a manifest,
+# since a feature owns its folder and nothing else. Each row outside lint-borders.py's LAYOUT is
+# a path that may stay outside it.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
         ".github/**",
