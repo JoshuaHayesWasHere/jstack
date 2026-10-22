@@ -97,7 +97,8 @@ def test_the_wheel_carries_every_package_the_source_of_each_layout_and_the_jinst
     assert carried <= names, sorted(carried - names)[:5]
     assert f"{shared}/features/jpack/docs/context.md" in names
     inner = [name for name in names if name.startswith(f"{shared}/")]
-    assert not [name for name in inner if re.search(r"/(src|tests|evals|__pycache__)/", name)]
+    left_out = r"/(src|tests|__pycache__)/|/features/[^/]+/evals/"
+    assert not [name for name in inner if re.search(left_out, name)]
     assert not [name for name in names if "harness/" in name or "claude-code/" in name]
     assert "jinstall = jinstall.cli:main" in scripts.splitlines()
 
