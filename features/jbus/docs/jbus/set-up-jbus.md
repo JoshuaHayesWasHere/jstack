@@ -23,6 +23,7 @@ missing optional jbus sign-in /home/you/.config/jbus/t3.json -> jbus t3 login
 The config it wrote has the T3 Code server and no project, and it launches nothing:
 
 ```toml
+# Written once by install.sh --setup. Edit it: setup never writes over it.
 server = "http://127.0.0.1:3773"
 dispatch = false
 ```
