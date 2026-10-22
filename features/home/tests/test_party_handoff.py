@@ -16,7 +16,6 @@ import pytest
 
 from test_home_thread import FENCED, TYPED, block, git, paths
 from test_tool_calls import CALLS, errors
-from testing.layouts import assembled
 from testing.paths import REPO
 
 DESK = "mcp:the-desk-home"
@@ -44,7 +43,7 @@ class Party:
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
+        (self.user / ".claude" / "skills").symlink_to(REPO / "features" / "home" / "skills")
         self.root = self.user / ".local" / "state" / "home"
         self.own = self.folder("desk", DESK)
         (self.own / "log").mkdir()
@@ -164,7 +163,7 @@ def test_a_partys_handoff_keeps_the_old_page_writes_the_new_one_and_starts_its_n
         DESK,
         f"{party.own}/handoff.md",
         f"{party.own}/RESTART.md",
-        str((assembled() / "skills/handoff/SKILL.md").resolve()),
+        str(REPO / "features/home/skills/handoff/SKILL.md"),
         "with desk in place of <party>",
     ):
         assert named in told
