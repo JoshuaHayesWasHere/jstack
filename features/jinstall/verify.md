@@ -34,6 +34,8 @@ Tests: none
 - `install-layouts` assembles one layout for each harness, whose skill files link to their files in the checkout, with `templates/` and `playbooks/` beside `skills/`.
 - `install-points-here` points each skill link and hook command into its own harness's layout, and each unit into the checkout's `templates/`.
 - `install-from-a-wheel` does the same with `jinstall` from a wheel, in a HOME with no checkout, with every layout file a link into the installed wheel.
+- `release-setup-pstack` runs `/setup-pstack`'s block on a release installed by the dist `install.sh`: it runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
+- `repo-git-hooks` links jleak's `pre-push` and `commit-msg` into a scratch repo with `jinstall --repo`, strips an AI trailer from a commit there with no checkout, and leaves a repo's own hook as it is.
 - `install-idempotent` changes nothing on a second run.
 - `install-stale-tool` says `stale` of a tool whose editable paths lack a package root pyproject.toml lists, as one built before a package moved, and a run installs it again.
 - `install-follows-a-move` says `stale` of a layout whose skill a pulled merge moved, every link of that skill dangling, and a run in the main checkout, which `jmerge` makes after such a merge, leaves every link resolving.
@@ -86,6 +88,16 @@ From a wheel, in a second sandbox, so that no checkout is above its HOME or its 
 - **Install from it.** Run `record install-skills "$HOME/.local/bin/jinstall"`, then `record install-skills "$HOME/.local/bin/jinstall" --check`. Every line starts with `ok`, and there is no `generated files` line and no `pre-push` line.
 - **See every link resolve into the wheel.** Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`. It prints only `checked`, but for the same two written files.
 
+From a release's own `install.sh`, in a fourth sandbox, as a stranger installs it:
+
+- **Build the assets and serve them.** Run `record release make -s -C "$VERIFY_JSTACK_REPO" dist DIST="$VERIFY_JSTACK_SANDBOX/dist"`, then serve that folder with `python3 -m http.server <a free port> --bind 127.0.0.1` and export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
+- **Install the release.** Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`. Every line is `done` or `already`, but for the `needs you` lines of what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
+- **Run `/setup-pstack`'s block.** Take the one `sh` block of `$HOME/.claude/skills/setup-pstack/SKILL.md` and run it with `$HOME/.local/bin` first on PATH. Its first line is `release: <HOME>/.local/bin/jinstall`, then the setup's lines, `setup: <n> done, <n> already, 4 needs you, exit 1`, and the doctor's last line.
+- **Set a scratch repo up.** Run `git init -q -b main "$HOME/repos/scratch"`, then `jinstall --repo` in it. It prints `ok optional hook <repo>/.git/hooks/pre-push pre-push` and the same for `commit-msg`, and each hook links into `"$UV_TOOL_DIR"/jstack/share/jstack/features/jleak/hooks/`.
+- **Commit an AI trailer.** Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone. git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
+- **See a hook gone.** Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`: each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
+- **Keep a repo's own hook.** In a second scratch repo with a `pre-push` of its own, `jinstall --repo` prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it`, exits 1, and the file is as it was.
+
 From a clone of this checkout at the commit before a merge that moved a skill, in a third sandbox, so that the merge can be pulled as `jmerge` pulls it.
 `jmerge`'s own merge is not reachable from a sandbox (the stand-in `gh` refuses a merge): `features/jmerge/tests/test_jmerge_follow.py` drives the run it makes after one.
 
@@ -97,6 +109,7 @@ From a clone of this checkout at the commit before a merge that moved a skill, i
 
 ## Gotchas
 
+- In a sandbox, put `$HOME/.local/bin` first on PATH before a release's `jinstall` or `/setup-pstack`'s block: `env.sh` puts this checkout's commands first, and the doctor then says `jbriefs is shadowed`.
 - This recipe is safe only because `env.sh` sets HOME to the sandbox and puts the stand-in `systemctl` first on PATH. Run Doctor first. With the real HOME, a plain `install.sh` from a linked worktree is refused, and one from a main checkout installs for real.
 - The stand-in `systemctl` starts nothing: the recipe proves the links and the calls, not that systemd runs a pass.
 - `uv tool install` is the real one. It needs `hatchling` in uv's cache or the network: with neither, the line is `missing hard commands jstack` and the reason is on stderr.
