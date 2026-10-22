@@ -1,9 +1,10 @@
-"""No module under src/, or a feature's src/, grows past `CAP` lines: a long module is a hot
-file, which every change appends to and every rebase fights over. A feature goes in a module of
-its own.
+"""No module under src/, or a feature's src/, grows past `CAP` lines. A long module is one that many
+changes touch: every change appends to it, and every rebase conflicts on it. A
+feature goes in a module of its own.
 
-`OVER` is the modules that were over the cap when it was set, with their length then. One
-that is cut under the cap leaves the list, so the list only shrinks, and none is added.
+`OVER` is the modules that were over the cap when the cap was set, with their length then. When a
+change shortens a module to under the cap, the change must also take the module off the list. So the
+list only shrinks, and no module joins it.
 """
 
 from pathlib import Path
@@ -23,8 +24,8 @@ OVER = {
 
 
 def lengths(*roots: Path) -> dict[str, int]:
-    """The length in lines of each module under `roots`, by its path from its root: every
-    folder of packages when none is given."""
+    """The length in lines of each module under `roots`, keyed by its path from the root it is
+    under. With no `roots`, it measures the modules under each feature's `src/`."""
     return {
         path.relative_to(root).as_posix(): len(path.read_text().splitlines())
         for root in roots or sources()
@@ -33,8 +34,9 @@ def lengths(*roots: Path) -> dict[str, int]:
 
 
 def offences(found: dict[str, int], over: dict[str, int] = OVER) -> list[str]:
-    """What is wrong with the lengths `found`: a module over the cap that is not listed, and
-    a listed module that is under it now, or gone, and leaves the list."""
+    """What is wrong with the lengths `found`. One fault is a module over the cap that is not on the
+    list. The other is a listed module that is now under the cap or no longer exists: that module
+    must come off the list."""
     said = [
         f"{name} has {length} lines, over {CAP}: split it, a feature in a module of its own"
         for name, length in found.items()

@@ -61,7 +61,8 @@ class Call:
 
     @property
     def given(self):
-        """The call as it is sent, placeholders filled. A test reads it, so a break is its own."""
+        """The call as an agent sends it, with its placeholders filled in. A test reads it, so a
+        call that does not parse fails its own test."""
         unknown = sorted(set(PLACEHOLDER.findall(self.written)) - set(FILLED))
         assert not unknown, f"{self.where}: add {unknown} to FILLED in this test"
         try:
@@ -71,9 +72,9 @@ class Call:
 
 
 def read(skill, text):
-    """A skill's fenced blocks as (first line, language, body, lead-in), and the fences it has
-    that this reader would get wrong. The lead-in is the text since the block before. The
-    last one is no block: it is there for the lines that follow the last block."""
+    """A skill's fenced blocks as (first line, language, body, lead-in) tuples, and the fences this
+    reader would misread. A block's lead-in is the text between the block before and this block. The
+    last tuple has no block: its lead-in is the text after the last block."""
     blocks, unread, lead_in, body, opened = [], [], [], [], None
     for number, line in enumerate(text.splitlines(), 1):
         fence = FENCE.match(line)
@@ -93,7 +94,8 @@ def read(skill, text):
 
 
 def calls():
-    """Every JSON call in every skill, in a block or in a line, and every fence not read."""
+    """Every JSON call in every skill, in a block or in a line, and every fence that this reader
+    cannot read."""
     found, unread = [], []
     for skill_md in (folder / "SKILL.md" for folder in SKILLS.values()):
         skill = skill_md.parent.name
@@ -120,7 +122,8 @@ def where(call):
 
 
 def strict(schema):
-    """A tool's schema with unknown keys refused, at every depth: the tools accept them."""
+    """A tool's schema, changed to refuse unknown keys at every depth. The tool itself accepts
+    such keys."""
     schema = copy.deepcopy(schema)
     todo = [schema]
     while todo:
@@ -135,7 +138,8 @@ def strict(schema):
 
 
 def errors(call, given):
-    """What the tool a call is for has against `given`, as messages. None means it takes it."""
+    """The messages of the errors that a validator finds when it checks `given` against the `strict`
+    form of the call's tool schema. An empty list means the tool accepts `given`."""
     schema = strict(SCHEMAS[call.tool])
     Draft202012Validator.check_schema(schema)
     return [error.message for error in Draft202012Validator(schema).iter_errors(given)]

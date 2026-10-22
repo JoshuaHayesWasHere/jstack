@@ -1,10 +1,10 @@
 """The tree the generator reads: each feature, what it holds, and who owns a path.
 
-A feature is `features/<name>/`, and owns every path under its folder and no other. A path it
-declares (a package, a page, a hook) is read from the feature's folder where the file is there
-and from the repo root where it is not. A path under no feature's folder is owned by the repo
-itself (`REPO_OWNERS`), or by nobody; `Tree.owners` gives every owner a path has, so none and
-two are both seen.
+A feature is `features/<name>/`, and owns every path under its folder and no other. The generator
+reads a path the feature declares (a package, a page, a hook) from the feature's folder when the
+file is there, and from the repo root when it is not. A path under no feature's folder has the repo
+itself as its owner (`REPO_OWNERS`), or has no owner. `Tree.owners` gives every owner a path has, so
+a check sees both a path with no owner and a path with two owners.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ KINDS: tuple[Kind, ...] = ("skill", "principle", "playbook", "template")
 
 def pattern(glob: str) -> re.Pattern[str]:
     """A row of `REPO_OWNERS` as a regex over a repo-relative path: `dir/**` is the whole
-    tree, and otherwise `*` and `?` do not cross a `/`. A `**` anywhere else is refused."""
+    tree, and otherwise `*` and `?` do not cross a `/`. It refuses a `**` anywhere else."""
     if "**" in glob.removesuffix("/**"):
         raise ValueError(f"{glob}: ** is only the whole tree, at the end after a /")
     if glob.endswith("/**"):

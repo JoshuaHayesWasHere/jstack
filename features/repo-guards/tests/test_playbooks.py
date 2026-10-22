@@ -28,9 +28,9 @@ def steps(text):
 
 
 def paragraphs(text):
-    """The paragraphs of `text`, each with its line breaks read as spaces: a paragraph written
-    one sentence a line, as `features/writing/scripts/prose_lint.py` asks of a new line, is the
-    same paragraph."""
+    """The paragraphs of `text`, each with its line breaks read as spaces.
+    `features/writing/scripts/prose_lint.py` requires one sentence to a line in new text, and
+    joining the lines makes such a paragraph match the same paragraph wrapped by width."""
     return [" ".join(part.split()) for part in re.split(r"\n\s*\n", text.strip())]
 
 
@@ -40,14 +40,16 @@ def line(label, text):
 
 
 def frame(root):
-    """What every playbook carries as the template at `root` has it: the two standing
-    paragraphs, the label of the list of what is never done, and that of the hand-over line."""
+    """What every playbook must carry, as the template at `root` has it: the two standing
+    paragraphs, the label over the list of what the reader never does, and the hand-over line's
+    label."""
     parts = paragraphs((root / TEMPLATE).read_text())
     return parts[3:5], parts[-3], re.match(r"\*\*[^*]+\*\*", parts[-1]).group()
 
 
 def standing(root, skill):
-    """The two standing paragraphs as a playbook of the role that reads `skill` carries them."""
+    """The two standing paragraphs as they appear in a playbook of the role whose skill is
+    `skill`."""
     return [OPEN.sub(f"skills/{skill}/SKILL.md", part) for part in frame(root)[0]]
 
 
@@ -110,8 +112,8 @@ def problems(path, root):
 
 
 def uncited(root):
-    """The principles at `root`, or in its layout, that no playbook there names, so no thread is
-    sent to read them."""
+    """The principles that no playbook at `root` names, so no playbook sends a thread to read them.
+    It reads the principles at `root` and in its layout."""
     cited = set()
     for path in playbooks(root).values():
         rows = path.read_text().splitlines()
@@ -128,7 +130,8 @@ PRINCIPLES_OF_TESTS_AND_CODE = (
 
 
 def design_problems(text):
-    """What is wrong with the design step of a playbook: one read-only subagent, before code."""
+    """What is wrong with the design step of a playbook, which must launch one read-only
+    subagent before the thread writes any code."""
     bodies = re.findall(r"^\d+\. (.*)$", text, re.M)
     design = [
         n
@@ -165,7 +168,8 @@ def test_every_principle_is_named_by_a_playbook():
 
 @pytest.fixture
 def root(tmp_path):
-    """A repo with the real template, and the files the playbook built below names."""
+    """A repo with the real template and the files that the playbook names, built for the tests
+    below."""
     (tmp_path / TEMPLATE).parent.mkdir(parents=True)
     shutil.copy(REPO / TEMPLATE, tmp_path / TEMPLATE)
     for skill in ROLES.values():

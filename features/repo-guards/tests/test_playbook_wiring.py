@@ -1,10 +1,10 @@
-"""A brief or a scout's request names a playbook, and the thread that takes it opens that
-file; a home opens its own, named in the head of its plan, and an expert the one of the kind
-of ask it has. Each opens it with `jbus playbook <role>`: the step is that call in the crew,
-scout, home and expert skills, lifted from each and run here, through a `uv` that runs the
-verb with the repo the skill lives in as its `$T/..`. Each opens a playbook of its own role
-and refuses another role's. The real `uv` runs the call once under `sh` and once under `zsh`.
-The home's block that lists the playbooks is lifted from the home skill and run against
+"""A brief or a scout's request names a playbook, and the thread that takes it opens that file.
+A home opens its own playbook, named in the head of its plan, and an expert opens the one for its
+kind of ask. Each opens it with `jbus playbook <role>`. That call is a step of the crew, scout, home
+and expert skills. This module takes the call from each skill and runs it through a fake `uv`, which
+runs the verb with the skill's repo as `$T/..`. Each skill's call opens a playbook of its own role
+and refuses a playbook of another role. The real `uv` runs the call once under `sh` and once under
+`zsh`. The module also takes the home skill's block that lists the playbooks, and runs it against
 `playbooks/` and against a directory with a file added."""
 
 import json
@@ -51,9 +51,9 @@ MADE = {
 
 
 def opening(skill):
-    """The skill's block that opens the playbook, and its `T=` line, as an agent reads them.
-    An expert's `T=` line is in the block it runs before every other, which finds its folder:
-    that block whole."""
+    """The skill's block that opens the playbook, and its `T=` line, as an agent reads them. An
+    expert's `T=` line is in the first block the expert runs, the block that finds its folder. For
+    an expert, this returns that whole block."""
     text = as_read(skills()[skill] / "SKILL.md")
     (block,) = [
         found
@@ -67,10 +67,12 @@ def opening(skill):
 
 
 def uv(where):
-    """A `uv` in `where` that runs `uv run --project <repo> jbus ...` as `jbus` does, with
-    `<repo>` as the repo whose `playbooks/` and `principles/` it opens: the first folder from
-    `<repo>` up that has a `pyproject.toml`, as uv finds the project, else `<repo>` where it
-    has a `skills.json`. A layout has neither: uv runs the `jbus` on PATH, this checkout's."""
+    """Write a fake `uv` into `where`. The fake takes the command `uv run --project <repo> jbus ...`
+    and runs jbus's own CLI with the rest of it. jbus then opens the `playbooks/` and `principles/`
+    of the repo that uv would find for `<repo>`. That repo is the first folder from `<repo>` upward
+    that has a `pyproject.toml`, or else `<repo>` itself when it has a `skills.json`. A layout has
+    neither, so for a layout jbus opens the `playbooks/` and `principles/` of this checkout, as the
+    `jbus` on PATH would."""
     where.mkdir(parents=True, exist_ok=True)
     run = (
         "import sys; from pathlib import Path; from jbus import cli, playbook; "
@@ -89,9 +91,9 @@ def uv(where):
 
 
 def written(skill, line):
-    """What the home wrote from the skill's template, with `line` as its `Playbook:` line.
-    For the home itself it is a plan, with the line in its head. An expert has no such line:
-    it is given the name, or the kind of ask."""
+    """What the home wrote from the skill's template, with `line` as its `Playbook:` line. For the
+    home itself it is a plan, with the line at the top of the plan. An expert has no such line: its
+    request gives it the name, or the kind of request."""
     if skill == "home":
         return PLAN.format(f"{line}\n" if line else "")
     if skill == "expert":
@@ -114,12 +116,18 @@ def catalogued(repo):
 
 
 def opened(skill, text, tmp_path, repo=REPO, name="", shell="sh", real=False):
-    """What the block prints for a brief, a request or a plan, run as the user has the
-    skill: a symlink under ~/.claude/skills, used from another repo, by `shell`. `repo` is
-    the repo the skill lives in, and `name` is the name a home is given in place of its
-    plan's. An expert is given `text` as the name, after the block that finds its folder
-    under that user's home, where `home-id` says this thread is the expert. `real` runs the
-    `uv` on the PATH, which runs the verb of this checkout, in place of `uv` above."""
+    """What the block prints for a brief, a request or a plan. `shell` runs the block as the user
+    has the skill: through a symlink under ~/.claude/skills, from another repo. `repo` is the repo
+    that holds the skill.
+
+    A home gets `name` as its name, in place of its plan's name, and an expert gets `text`. For an
+    expert, the block that finds the expert's folder runs first. That folder is under the user's
+    home directory, and its `home-id` says this thread is the expert.
+
+    With `real`, the block uses the real `uv` on the PATH, which runs this checkout's verb, in place
+    of the fake `uv` above.
+
+    """
     if repo != REPO:
         catalogued(repo)
     user = tmp_path / "user"
@@ -364,7 +372,7 @@ ENDED = ["it runs twice", f"the head {merge.REVIEWED} is old", "`git log -1` nam
 
 def result(lines):
     """A Result's lines in the template's order: `lines` are the ones a test gives (`Fixed:`,
-    `Rebase:`), and the template's own `Proof:` and `Finding:` lines are filled in."""
+    `Rebase:`), and this fills in the template's own `Proof:` and `Finding:` lines."""
     given = {line.split()[0]: line for line in lines.splitlines()}
     filled = []
     for line in (TEMPLATES / "result.md").read_text().splitlines():
@@ -498,8 +506,9 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
 def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
     skill, shell, tmp_path
 ):
-    """The skill's call as an agent runs it, by the real `uv`: the copy of the block it
-    replaced put every cited principle on one `==>` line under zsh, which splits no word."""
+    """This runs the skill's call as an agent runs it, with the real `uv`. The skill once held
+    a copy of the block where it now has the call. Under zsh that copy put every cited
+    principle on one `==>` line, because zsh does not split words."""
     name = "authoring-a-skill" if skill == "crew" else "investigation"
     playbook = PLAYBOOK[name].read_text()
     names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
@@ -529,8 +538,8 @@ NUMBERED = re.compile(r"^\d+\. \S.*$", re.M)
 def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_checklist(
     skill, name, tmp_path
 ):
-    """Each numbered step of the playbook is one line under the line that names them, as the
-    playbook has it and numbered 1 to the last."""
+    """Each numbered step of the playbook prints as one line under the line that names the
+    steps, worded as the playbook has it and numbered from 1 to the last."""
     steps = [step[0] for step in NUMBERED.finditer(PLAYBOOK[name].read_text())]
     assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
@@ -554,8 +563,8 @@ def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
 
 def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_layout(tmp_path):
     """`T` is `<layout>/templates` once install.sh links a skill into its harness's layout, so
-    `$T/../<path>` must name a file or folder the layout holds, not one it leaves in the
-    checkout. Each one is tried from a skill linked as install.sh links it."""
+    `$T/../<path>` must name a file or folder inside the layout, not one that exists only in the
+    checkout. The test links a skill as install.sh does, and tries each path from it."""
     reached = sorted(
         {
             found.rstrip("/.")

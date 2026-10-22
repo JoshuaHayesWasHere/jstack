@@ -1,27 +1,30 @@
 """Check what README.md, the docs and the skills say about the tree: `check-jstack-docs.py [root]`.
 
-A stdlib port of pstack's check-pstack-docs.mjs, run by `make check` and `make check-fast`. It
-reads the tree once and holds each page to it:
+This is a stdlib port of pstack's check-pstack-docs.mjs, and `make check` and `make check-fast`
+run it. It reads the tree once and checks each page against it:
 
-- slash commands: `/<name>`, in prose or as the first word of a code span or of a line of a
-  fenced block, or "the `<name>` skill", is a skill under `skills/` or in `EXTERNAL`.
+- slash commands: a `/<name>` in prose, or as the first word of a code span or of a line of a
+  fenced block, is a skill under `skills/` or in `EXTERNAL`. The same holds for
+  "the `<name>` skill".
 - paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`)
-  exists. One with a placeholder, a glob, or a `/` before it is somewhere else and not read.
-  A skill is read from its layout, so it may also name a playbook, a template, a hook or a
-  skill's file where the layout puts it (`playbooks/<p>.md`, `templates/<t>`, `hooks/<h>`,
-  `skills/<n>/<file>`), once a move took it out of there.
-- links and anchors: a relative Markdown link outside code points at a file that exists and, with
-  a `#anchor` into a Markdown file, at a heading of it as GitHub slugs it (fences skipped, `-N`
-  for repeats).
-- counts: "has 39 skills" and the like, in the README or a docs page, is the number of skills,
-  commands, principles or playbooks the tree has. A skill counts things of its own: not read.
+  exists. The script skips a path that holds a placeholder or a glob. It also skips a path with
+  a `/` before it, since such a path points somewhere else. A harness reads a skill from its
+  layout. So a skill may also name a playbook, a template, a hook or a skill's file at the place
+  where the layout puts it (`playbooks/<p>.md`, `templates/<t>`, `hooks/<h>`,
+  `skills/<n>/<file>`), even after a move has put the file somewhere else in the source tree.
+- links and anchors: a relative Markdown link outside code points at a file that exists. A link
+  with a `#anchor` into a Markdown file points at a heading of that file, as GitHub slugs the
+  heading. The script skips fences and adds `-N` to a repeated heading.
+- counts: a count such as "has 39 skills" in the README or a docs page matches the number of
+  skills, commands, principles or playbooks the tree has. A skill counts things of its own, so
+  the script does not read a skill's counts.
 - models: every `claude-<family>-N-N` id in the README or a docs page is in the `## Models` table
   of `features/jroles/docs/jroles.md`.
 - tables: a row of a README table names each command, and a page of the docs links each skill's
   `SKILL.md` and each playbook (the generated catalog of `CATALOG.md` does).
 
 It prints `FAIL <doc>:<line> <why>` for each problem, then `<n> problems`, and exits 1 on any.
-A thing no page lists is reported at `README.md:1`.
+When no page lists a thing, it reports that thing at `README.md:1`.
 """
 
 from __future__ import annotations
@@ -117,7 +120,8 @@ def slug_of(heading: str) -> str:
 
 
 def anchors_of(text: str) -> set[str]:
-    """A Markdown text's anchors: its headings outside fences, repeats numbered, its ids."""
+    """A Markdown text's anchors: its headings outside fences, with a number on each repeat, and its
+    `id` and `name` attribute values."""
     seen: dict[str, int] = {}
     found = set()
     for line in lines_of(text):
@@ -151,15 +155,16 @@ class Tree:
         )
 
     def principle(self, path: str) -> bool:
-        """Whether `path` is `principles/<name>.md` for a principle: the stub each layout
-        holds where the principle is read, which the source tree does not have."""
+        """Whether `path` is `principles/<name>.md` for a principle. Each layout holds a stub
+        there, where a harness reads the principle. The source tree has no such stub."""
         name = path.removeprefix("principles/").removesuffix(".md")
         return path == f"principles/{name}.md" and name in self.principles
 
     def laid(self, path: str) -> bool:
-        """Whether `path` is where each layout puts a playbook, `playbooks/<name>.md`, a
-        template, `templates/<name>`, a hook, `hooks/<file>`, or a file of a skill,
-        `skills/<name>/<file>`, which a move into its feature takes out of the source tree."""
+        """Whether `path` is where each layout puts a playbook (`playbooks/<name>.md`), a
+        template (`templates/<name>`), a hook (`hooks/<file>`) or a file of a skill
+        (`skills/<name>/<file>`). Once such a file moves into its feature, the source tree no
+        longer has it at that path."""
         kind, _, rest = path.partition("/")
         if kind == "playbooks":
             return "/" not in rest and rest.removesuffix(".md") in self.playbooks
@@ -201,8 +206,9 @@ def models_of(page: Path) -> frozenset[str]:
 
 
 def hook_names(root: Path) -> set[str]:
-    """The file name of each hook a feature's `feature.json` declares under `hooks`, which a
-    layout holds as `hooks/<file>`: a git hook is linked into `.git/hooks/` and is not one."""
+    """The file name of each hook that a feature's `feature.json` declares under `hooks`. A layout
+    holds each such hook as `hooks/<file>`. A git hook is not in this set, since the install links
+    it into `.git/hooks/`."""
     return {
         Path(hook["script"]).name
         for manifest in root.glob("features/*/feature.json")
@@ -334,7 +340,8 @@ CHECKS = (links, slash_commands, paths, counts, models)
 
 
 def listing(tree: Tree, docs: list[Doc]) -> list[str]:
-    """What no table of the README or link of the docs lists: each a why for `README.md:1`."""
+    """The reasons the script reports at `README.md:1`. There is one for each thing that neither a
+    README table nor a docs link lists."""
     readme = next(doc for doc in docs if doc.name == "README.md")
     rows = " ".join(line.text for line in readme.lines if line.text.startswith("|"))
     linked = {

@@ -1,20 +1,21 @@
-"""The docs indexes: the regions of README.md, CATALOG.md and the pages under docs/ that the tree
-writes.
+"""The docs indexes: the regions of README.md, CATALOG.md and the pages under docs/ that the
+generator writes from the tree of features.
 
 A region is the text between `<!-- generated: <part> ... -->` and the next
-`<!-- generated: end -->`; the rest of each page is hand-written and is left as it is. The
-parts are:
+`<!-- generated: end -->`. The generator leaves the rest of each page, which is hand-written,
+as it is. The parts are:
 
-- `commands`, in README.md: one row a command, its page and what its feature does.
-- `catalog`, in CATALOG.md: one row a feature, with its skills, principles and playbooks.
-- `hooks`, in CATALOG.md: one row a hook, status line or git hook the install adds.
-- `pages`, in any page `<x>.md`: one line a page of the folder `<x>/` beside it, its first
-  line `# <heading>`.
+- `commands`, in README.md: one row for each command, with its page and what its feature does.
+- `catalog`, in CATALOG.md: one row for each feature, with its skills, principles and playbooks.
+- `hooks`, in CATALOG.md: one row for each hook, status line or git hook the install adds.
+- `pages`, in any page `<x>.md`: one line for each page of the folder `<x>/` beside it, from its
+  first line `# <heading>`.
 
-The first three join every feature, so they live in pages no feature owns: a page a feature
-owns that holds one is refused, and a new hook, skill or playbook changes its own feature and
-the generated root pages alone. A page that must hold a part and has lost its region is
-refused, and so is a part with no maker.
+The first three span every feature, so they belong in pages no feature owns. The generator
+refuses a page that a feature owns when the page holds a region of one of those three parts. So
+a new hook, skill or playbook changes its own feature and the generated root pages alone. The
+generator also refuses a page that must hold a part and has lost its region, and a part with no
+entry in `MAKERS`.
 """
 
 from __future__ import annotations

@@ -111,10 +111,11 @@ def setting(skill):
 
 
 def resolved(skill, tmp_path):
-    """What the skill's `T=` line gives, and where each `$T/<path>.md` it names leads.
+    """What the skill's `T=` line gives, and the file that each `$T/<path>.md` it names resolves to.
 
-    Run as the user has the skill: a symlink under ~/.claude/skills to its folder in the
-    layout the install assembles, used from another repo.
+    The test reads the skill as the user has it, from another repo. It follows a symlink under
+    ~/.claude/skills to the skill's folder in the layout that the install assembles.
+
     """
     text = as_read(skills()[skill] / "SKILL.md")
     named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json))`", text)))
@@ -160,8 +161,8 @@ READS = {
 
 
 def top(path):
-    """A file of a folder under `templates/`, as the folder: the skeleton of a context pack is
-    read as one template."""
+    """A file of a folder under `templates/` gets the folder's name, so the test reads the
+    skeleton of a context pack as one template."""
     if TEMPLATES.resolve() in path.parents:
         return TEMPLATES.resolve() / path.relative_to(TEMPLATES.resolve()).parts[0]
     return path
