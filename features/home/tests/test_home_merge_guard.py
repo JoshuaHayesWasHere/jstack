@@ -37,12 +37,14 @@ def writes(text):
 
 def scanned():
     """Each file of `SCANNED`, but a feature's tests, which set the switch as a user does, and
-    its docs, which say who writes it."""
+    the home's docs, which say who writes it."""
     for top in SCANNED:
         assert (REPO / top).exists(), f"{top} is scanned and is not in the repo"
         for path in sorted([REPO / top, *(REPO / top).rglob("*")]):
             parts = path.relative_to(REPO).parts
-            if parts[:1] == ("features",) and parts[2:3] in (("tests",), ("docs",)):
+            if parts[:1] == ("features",) and parts[2:3] == ("tests",):
+                continue
+            if parts[:3] == ("features", "home", "docs"):
                 continue
             if path.is_file() and "__pycache__" not in path.parts:
                 yield path
