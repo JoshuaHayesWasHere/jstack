@@ -63,12 +63,10 @@ HARD = {
     "`gh`, signed in": ("gh", "gh sign-in"),
 }
 OPTIONAL = {
-    "`jbus`, with its config, its systemd timer and a webhook": (
-        "jbus config",
-        "jbus sign-in",
-        "units",
-    ),
+    "`jbus`, with its config, its sign-in and a webhook": ("jbus config", "jbus sign-in"),
+    "systemd `--user`": ("units",),
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
+    "The backup: a private remote and `gitleaks`": ("state repo",),
     "`lavish-axi`": ("lavish-axi",),
 }
 NO_REQUIREMENT = (
@@ -76,7 +74,6 @@ NO_REQUIREMENT = (
     "roles",
     "patterns",
     "provider inventory",
-    "state repo",
     "ci report",
     "relay",
 )
