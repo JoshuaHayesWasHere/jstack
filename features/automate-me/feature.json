@@ -1,5 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "automate-me",
-  "description": "Turns how you work into a -mode skill agents follow."
+  "description": "Turns how you work into a skill named `<you>-mode`, such as `jay-mode`, that agents follow."
 }

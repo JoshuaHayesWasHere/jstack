@@ -63,12 +63,10 @@ HARD = {
     "`gh`, signed in": ("gh", "gh sign-in"),
 }
 OPTIONAL = {
-    "`jbus`, with its config, its systemd timer and a webhook": (
-        "jbus config",
-        "jbus sign-in",
-        "units",
-    ),
+    "`jbus`, with its config, its sign-in and a webhook": ("jbus config", "jbus sign-in"),
+    "systemd `--user`": ("units",),
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
+    "The backup: a private remote and `gitleaks`": ("state repo",),
     "`lavish-axi`": ("lavish-axi",),
 }
 NO_REQUIREMENT = (
@@ -76,7 +74,6 @@ NO_REQUIREMENT = (
     "roles",
     "patterns",
     "provider inventory",
-    "state repo",
     "ci report",
     "relay",
 )
@@ -421,13 +418,13 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
         "jinstall --doctor",
         "jmerge",
     ]
-    assert blocks(said, "text") == [["/home"]]
+    assert blocks(said, "text") == [["/new-home <path>"]]
     helped = subprocess.run(
         [sys.executable, "-m", "jmerge", "--help"], capture_output=True, text=True, cwd=tmp_path
     )
     assert helped.returncode == 0 and helped.stdout.startswith("usage: jmerge")
-    skill = (REPO / "features" / "home" / "skills" / "home" / "SKILL.md").read_text()
-    assert re.search(r"\A---\n(?:.*\n)*?name: home\n", skill)
+    skill = (REPO / "features" / "home" / "skills" / "new-home" / "SKILL.md").read_text()
+    assert re.search(r"\A---\n(?:.*\n)*?name: new-home\n", skill)
     user = Doctored(tmp_path)
     for line in typed[2:5]:
         code, printed, err = user.run_with_stderr(*line.split()[1:])

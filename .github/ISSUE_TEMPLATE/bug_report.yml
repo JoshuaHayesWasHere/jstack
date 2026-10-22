@@ -1,0 +1,36 @@
+name: Bug report
+description: Something jstack does that it should not, or does not do that it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        To report a vulnerability, use the repo's private reporting instead, as SECURITY.md says.
+        Read each output before you paste it, and take out what you do not want in public.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you saw, and what you expected to see.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: The output of `jinstall --doctor`
+      description: All of it, as it printed. From a checkout, run `sh install.sh --doctor`.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: The jstack version
+      description: The `jstack` line of `uv tool list`, such as `jstack v0.1.0`, or the commit of your checkout.
+    validations:
+      required: true
+  - type: input
+    id: t3
+    attributes:
+      label: The T3 Code version
+      description: What `t3 --version` prints.

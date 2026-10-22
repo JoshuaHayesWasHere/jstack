@@ -14,7 +14,7 @@ Each feature's own, with a link to each file.
 |---|---|---|---|
 | `architect` | Sketches types, signatures and module structure before any code. | [architect](features/architect/SKILL.md) |  |
 | `arena-swarm` | Runs one task as several threads that do not see each other, and judges or merges what they make. | [arena](features/arena-swarm/skills/arena/SKILL.md), [swarm](features/arena-swarm/skills/swarm/SKILL.md) | [arena](features/arena-swarm/skills/arena/playbooks/arena.md), [swarm](features/arena-swarm/skills/swarm/playbooks/swarm.md) |
-| `automate-me` | Turns how you work into a -mode skill agents follow. | [automate-me](features/automate-me/SKILL.md) |  |
+| `automate-me` | Turns how you work into a skill named `<you>-mode`, such as `jay-mode`, that agents follow. | [automate-me](features/automate-me/SKILL.md) |  |
 | `benchmark-checklist` | Vets a measured number before it is reported or acted on. | [benchmark-checklist](features/benchmark-checklist/SKILL.md) |  |
 | `bro` | Restates the last message in plain words, with no jargon. | [bro](features/bro/SKILL.md) |  |
 | `crew` | The crewmate: does the one task of a brief in its own worktree and opens its pull request. | [crew](features/crew/SKILL.md) | [autonomous-run](features/crew/playbooks/autonomous-run.md), [bug-fix](features/crew/playbooks/bug-fix.md), [feature](features/crew/playbooks/feature.md), [hillclimb](features/crew/playbooks/hillclimb.md), [pause-safely](features/crew/playbooks/pause-safely.md), [perf-issue](features/crew/playbooks/perf-issue.md), [prototype](features/crew/playbooks/prototype.md), [refactoring](features/crew/playbooks/refactoring.md), [runtime-forensics](features/crew/playbooks/runtime-forensics.md), [visual-parity](features/crew/playbooks/visual-parity.md) |
