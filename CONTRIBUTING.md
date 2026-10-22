@@ -75,9 +75,9 @@ It runs the lint and the tests above, in that order, and stops at the first that
 	The template gives the body its headings: Why, What changed, Scope, Tradeoffs, Blast radius and Verification.
 
 A maintainer approves the first CI run of a pull request from a new contributor.
-Each pull request then gets one review, by a reviewer thread of jstack's own `pr-review` skill, and its findings come back as comments.
+The maintainer reviews the pull request and leaves the findings as comments on it.
 Push the fixes to the same branch.
-The pull request merges once it is reviewed, its findings are fixed, and its required checks pass.
+The maintainer merges it once the findings are fixed and `check` and `borders` pass.
 
 ## The repo's CI
 
