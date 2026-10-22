@@ -95,7 +95,8 @@ def test_a_request_with_a_crewmates_line_is_refused_and_names_the_line(kitchen, 
         (
             request("alpha").replace(
                 "Questions:\n- What",
-                "Questions:\n- <a question the report must answer, with where to start looking>\n- What",
+                "Questions:\n- <a question the report must answer, with where to start looking>"
+                "\n- What",
             ),
             "Questions: line is the template's own text",
         ),
