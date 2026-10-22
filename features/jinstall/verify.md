@@ -102,7 +102,8 @@ From a release's own `install.sh`, in a fourth sandbox, as a stranger installs i
   Run `git init -q -b main "$HOME/repos/scratch"`, then `jinstall --repo` in it.
   It prints `ok optional hook <repo>/.git/hooks/pre-push pre-push` and the same for `commit-msg`, and each hook links into `"$UV_TOOL_DIR"/jstack/share/jstack/features/jleak/hooks/`.
 - **Commit an AI trailer.**
-  Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone. git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
+  Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone.
+  Then git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
 - **See a hook gone.**
   Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`: each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
 - **Keep a repo's own hook.**
