@@ -310,8 +310,8 @@ def _need(
 
 
 def _approves(waits: dict[str, Any]) -> str:
-    """For a need of the kind `approve`, the slug of the row it asks the user's go for. For any
-    other need, nothing."""
+    """For a need of the kind `approve`, the slug of a row: the need asks the user's go for
+    that row. For any other need, nothing."""
     return (waits["slug"] or waits["key"].rpartition(":")[2]) if waits["kind"] == "approve" else ""
 
 

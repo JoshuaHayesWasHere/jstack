@@ -214,8 +214,8 @@ class Writes:
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
 
     def _steer(self, name: str, body: bytes) -> Answer:
-        """Steer one item through `steer.steer`, or approve it through `steer.approve`. The
-        user of the settings does it, in the view."""
+        """Steer one item through `steer.steer`, or approve it through `steer.approve`. Either
+        call names the user of the settings as the one who acts, and the view as the place."""
         try:
             asked = json.loads(body)
             id, action, seen = asked["item"], asked["action"], asked["seen_event"]

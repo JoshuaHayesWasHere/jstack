@@ -456,11 +456,11 @@ def _whole(state: Path, home: Path, slug: str) -> tuple[str, str]:
 class Held:
     """What `leftover.json` has of a row that ended with something left.
 
-    `note` is the whole `Left:` line. `told` is when jbus told the row's home, as the user
-    reads a time, or nothing while jbus has not told it. `since` is the same time as `told`,
-    in the form the answer's dicts give a time. `his` is why the row is the user's, or nothing
-    while the row is its home's. `busy` is whether a thread was at work on the row in the last
-    pass."""
+    `note` is the whole `Left:` line. `told` is the time when jbus told the row's home,
+    written as the user reads a time. It is nothing while jbus has not told the home. `since`
+    is the same time as `told`, in the form the answer's dicts give a time. `his` is why the
+    row is the user's, or nothing while the row is its home's. `busy` is whether a thread was
+    at work on the row in the last pass."""
 
     note: str
     told: str
@@ -493,7 +493,7 @@ def _leftover(
 
     The work is finished where the row's last Result says `Status: done`, its reason is a
     note, and none of its pull requests is left unmerged. The sentence then says how the work
-    ended, and gives the whole note its crewmate left as the brief has it. It also gives the
+    ended. It also gives the crewmate's whole note, as the brief has it. It also gives the
     two things that end the work. Any other such row is not closed, and its sentence gives
     the note or the reason the row has. Where the view read a `Status:` that is not `done`,
     the sentence also says that the brief does not say the work is finished. A row with a
@@ -1453,9 +1453,9 @@ def stack(
     timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
     project as `/state.json` reads it, and every `Read` shares one `machine`. So the answer
     asks systemd, the room script and the runner units once, however many projects there
-    are. It calls `runs` once for each repo, and `runs` keeps its answer. The machine gives
-    each of its own sources that is not ok under `unwell`, except one that a session
-    writes. No project's row gives those sources.
+    are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
+    machine lists each of its own sources that is not ok, except one that a session writes.
+    No project's row gives those sources.
     """
     found = panels.found() if found is None else found
     keys(found)
