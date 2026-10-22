@@ -490,3 +490,18 @@ def test_a_second_collector_waits_for_the_first_and_then_adds_nothing(tmp_path):
     second.join(30)
     assert (counts["first"].jobs, counts["second"].jobs) == (314, 0)
     assert len(ledger.read(tmp_path / ledger.JOBS)) == 314
+
+
+@pytest.mark.parametrize("value", ['"yes"', "1"])
+def test_a_ci_report_that_is_not_true_or_false_is_refused(kitchen, value):
+    path = kitchen.config_dir / "config.toml"
+    path.write_text(
+        path.read_text().replace('state = "demo"\n', f'state = "demo"\nci_report = {value}\n')
+    )
+
+    code, said = kitchen.main("ci", "--report", "--each")
+
+    assert (code, said.strip()) == (
+        1,
+        "refused: project demo has a ci_report that is not true or false",
+    )
