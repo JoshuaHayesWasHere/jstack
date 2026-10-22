@@ -2,9 +2,9 @@
 as `hold` and merges nothing. The patterns are the ones in
 `features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the tests
 run the command itself against a fake `gh`. The command reads a guarded list's patterns the
-same way, but those patterns hold no pull request. `test_jmerge_guarded` has the gate that
-such pull requests merge under, and the list it reads here, since the shipped
-`features/jmerge/src/jmerge/guarded.txt` is empty."""
+same way, but those patterns hold no pull request. `test_jmerge_guarded` tests the gate that
+such pull requests merge under, and this file reads its guarded list from there, because the
+shipped `features/jmerge/src/jmerge/guarded.txt` is empty."""
 
 import re
 import shutil

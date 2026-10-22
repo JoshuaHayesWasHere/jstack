@@ -6,10 +6,10 @@ The tests run the command as `test_home_merge` runs it, against its fake `gh` an
 origin. Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head,
 and the user's home has a jbus config whose project is this checkout.
 
-The project's state can also hold a pull request back because main is red. While jbus's
-`main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that
-main, the brief `main-red-<sha12>`, merges, and every other pull request waits for a green
-one."""
+The project's state can also hold a pull request back because main is red. jbus's
+`main.json` names a red tip when its `broken` field holds a tip that is not green. While it
+does, only the fix of that main, the brief `main-red-<sha12>`, merges, and every other pull
+request waits until main is green."""
 
 import json
 
@@ -52,7 +52,8 @@ def queue_of(home, rows, more=""):
 
 @pytest.fixture
 def two(merged):
-    """`alpha` and `beta`, both reviewed clean at the pushed head and green."""
+    """Open `alpha` and `beta`, which both have a clean review at the pushed head and a green
+    check."""
     home = merged.home
     (home.tasks / "beta.md").write_text(
         merge.brief(merge.review("clean", merged.head))
@@ -430,8 +431,8 @@ RED_LINE = f"wait 7 {merge.URL}: main is red at cccccccccccc, its fix merges fir
 
 
 def record(red="", green=""):
-    """The record that `mainmoved` keeps of main: the tip, its check, the red tip kept and the
-    last green tip."""
+    """The record that `mainmoved` keeps of main: the tip, the tip's check, the red tip that the
+    record keeps, and the last green tip."""
     if red:
         return {"main": red, "check": "failed", "broken": red, "green": green}
     return {"main": green, "check": "green", "green": green}

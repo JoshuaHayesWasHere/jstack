@@ -15,7 +15,7 @@ WHERE = "`src/alpha/`, a new test file"
 
 
 def brief(slug, thread=True, result="", home="", where=WHERE):
-    """A brief as a home writes it, then what its crewmate added."""
+    """The brief as a home writes it, followed by the lines its crewmate added."""
     return (
         f"# {slug}: a task\n"
         'Task: "do it"\n'
@@ -210,8 +210,8 @@ def test_a_brief_with_no_where_line_is_still_listed(claims):
 
 
 def kept(state):
-    """Every file of the state except the mark that the merge step leaves, because this test
-    runs inside that step."""
+    """Return every file of the state except the mark that the merge step leaves. This test
+    runs inside that step, so the mark is always there."""
     return [path for path in state.rglob("*") if path.is_file() and path.name != "merge-seen"]
 
 

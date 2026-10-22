@@ -2,7 +2,7 @@
 (`jmerge.mainjson`) and the lines that `jmerge` prints (`jmerge.lines`).
 
 1. Each formatter's line parses back to the fields it was given, for every reason that
-   `ready` names, and `merge.step` puts each reason on the step it is declared with.
+   `ready` names, and `merge.step` puts each reason on the step that declares it.
 2. A table of records gives the `Main` that a reader acts on. Every record that the real
    `mainmoved.tell` writes, over every order of events that the red-main model walks, is a
    `Record`.
@@ -31,8 +31,8 @@ GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40
 
 def _filled(template):
     """A reason with each value it names filled in. Each value is a word with no space or
-    comma, as a user, a head or a path is, except the values that a stale check needs, which
-    come from `ready` itself."""
+    comma, as a user, a head or a path is. The values that a stale check needs are the
+    exception, and they come from `ready` itself."""
     filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
     return template.format(**{name: filled.get(name, "x1") for name in fields})

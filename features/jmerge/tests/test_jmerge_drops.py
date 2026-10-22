@@ -56,9 +56,9 @@ def test_an_explained_drop_waits_on_the_scoped_review():
 
 
 def test_a_drop_a_review_of_the_head_said_nothing_of_is_the_users():
-    """A head has its one review, so no later review will add a ruling that this review lacks.
-    That review may be a full review written at the rebased head, or a scoped one that left a
-    file out."""
+    """Each head gets one review. When that review says nothing about a drop, no later review
+    will rule on it, so the drop goes to the user. The review may be a full review written
+    at the rebased head, or a scoped one that left a file out."""
     half = review(drops="Drops: upheld a.py\n")
     assert ready.drops(LOST, REBASE + ACKS + half, HEAD, user=jsettings.DEFAULTS) == (
         "hold",

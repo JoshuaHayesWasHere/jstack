@@ -34,7 +34,7 @@ def review(head, found=(WARNING,), verdict=None):
 
 
 def answered(fixed=FIX):
-    """The first review, answered in one fix round, and the fix pushed."""
+    """Write the first review, answer it in one fix round, and push the fix."""
     return f"Finding F1: fixed, the loop\nFixed: {fixed}\nSecond reviewer: mcp:10 #1\n"
 
 
@@ -86,7 +86,7 @@ def test_a_clean_first_review_or_a_round_that_pushed_nothing_owes_no_second_revi
 
 
 def test_a_first_section_that_did_not_run_is_not_the_first_review():
-    """A reviewer that wrote `Verdict: not run` and ran again at a later head. That later run
+    """The reviewer wrote `Verdict: not run` and then ran again at a later head. That later run
     is the first review, so the fix it asks for still needs a second review."""
     again = brief(result=answered()) + review("c" * 40, (), verdict="not run") + review(HEAD)
     assert ready.short_of(again, FIX) == ready.TWICE_UNWRITTEN.format(head=FIX[:12])

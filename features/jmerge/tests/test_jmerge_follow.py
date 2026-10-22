@@ -29,7 +29,8 @@ class Tooled:
     """A merged pull request whose checkout is a Python project, `demo-tool`, that uv has as an
     editable tool of this checkout. Its main lists the package `src/a`, and the pull
     request's head lists `moved`. A stand-in `uv`, found on the path before the real one,
-    records each `uv tool install` and `uv sync` it is asked for, and runs neither."""
+    records each `uv tool install` and `uv sync` that `jmerge` asks it to run, and runs
+    neither."""
 
     def __init__(self, merged, tmp_path, monkeypatch, moved):
         self.merged, self.stub = merged, merged.home.stub
@@ -105,8 +106,8 @@ LINKED = "[the install](../../install.sh)\n"
 
 class Skilled:
     """A merged pull request whose checkout is the jstack checkout that the machine's install
-    was made from. The `source` of the Claude Code layout links to it, and the layout is what
-    the install assembles from main, except with `stale`, which leaves out the skill's
+    was made from. The `source` of the Claude Code layout links to it. The layout matches
+    what the install assembles from main, but with `stale` set it leaves out the skill's
     `SKILL.md`. Its main has the skill `demo` at `skills/demo/`, and an `install.sh` that
     records each run and changes nothing. With `moved`, the pull request's head moves the
     skill to `features/demo/` and changes `skills.json` as the generator would. For each

@@ -1,8 +1,9 @@
 """`jmerge` itself merges a pull request that changes a guarded path, under a stricter gate than
-any other. The gate asks for a check with a start time, a review finished at the head, a
-rebase where main changed one of its paths since the check started, a `jmerge` that runs the
-rules on main, and the review's one safety fact proven at the head (`test_gate_skills`). A
-pull request that changes a secret path is still the user's, and jbus sends it as a gate.
+any other. The gate asks for five things. The check must have a start time, and the review
+must be finished at the head. When main changed one of the pull request's paths since the
+check started, the pull request must be rebased. `jmerge` must run the rules on main, and the
+review must prove its one safety fact at the head (`test_gate_skills`). A pull request that
+changes a secret path is still the user's, and jbus sends it as a gate.
 
 The tests run the command against the fake `gh` and real origin of `test_home_merge`, from a
 copy of the package that is a git checkout of its own, as the installed one is. The copy's

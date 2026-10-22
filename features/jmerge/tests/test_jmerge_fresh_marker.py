@@ -137,8 +137,9 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
     """A pass that ran still counts after main gains commits that do not touch its tests
-    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not. Its marker names the
-    tree it was taken on, and the new main makes another tree, which has no marker."""
+    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not count then. A skip's
+    marker names the tree that the skip was taken on, and the new main makes another tree,
+    which has no marker."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
     stub = kitchen.home.stub
     (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))
