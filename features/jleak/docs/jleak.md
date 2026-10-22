@@ -87,7 +87,7 @@ A `Co-authored-by:` line that names a person matches neither, and both guards le
 
 `features/jleak/hooks/ai-trailer.sh` is a `PreToolUse` hook on the shell commands of Claude Code and Codex.
 It runs `jleak --trailers`, which needs no private patterns.
-It reads each `git commit` and each `gh pr create`, `gh pr edit` or `gh pr merge` in the command: every word, each here-document, and the file that `-F`, `--file` or `--body-file` names.
+It reads each `git commit` and each `gh pr create`, `gh pr edit` or `gh pr merge` in the command: every word, each here-document, and the message file that `git commit -F` or `gh pr create --body-file` names.
 A message that `cat` writes from a here-document before `git commit -F` reads it is read too.
 A line that matches refuses the command with exit code 2:
 
