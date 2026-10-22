@@ -179,7 +179,8 @@ def main(argv):
             print(f"warn {path.as_posix()}:{at}: rule {number} {name}: {match}")
             count += 1
     if count:
-        print(f"comment_lint.py: {count} warnings in comments and docstrings, which fail nothing")
+        noun = "warning" if count == 1 else "warnings"
+        print(f"comment_lint.py: {count} {noun} in comments and docstrings, which fail nothing")
 
 
 if __name__ == "__main__":
