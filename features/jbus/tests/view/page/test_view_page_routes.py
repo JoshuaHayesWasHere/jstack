@@ -148,8 +148,8 @@ def test_the_arrow_and_the_breadcrumbs_lead_to_real_pages(scene, tmp_path):
 
 def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, tmp_path):
     """On a drawer that a pasted link opened, Esc rewrites the history entry to the page.
-    After going forward again, the back arrow still goes back to that drawer, not to the
-    page. A drawer opened over another puts the focus on its own Close."""
+    After the user goes forward again, the back arrow still goes back to that drawer, not to
+    the page. A drawer opened over another puts the focus on its own Close."""
     said_by_him(scene)
     steps = walked(
         scene,

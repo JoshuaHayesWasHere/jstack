@@ -33,8 +33,8 @@ question only, it also has the name of the `option` picked and the user's own `w
 server closes each number through `questions.answer`, as the user of the settings, at the
 server's clock, in `WHERE`. That function's rules decide who may answer, and they let a
 question be answered once. The server has no copy of them. An answer keeps the default when
-it has no words and its option is the default that was taken, or when it has no option at
-all. The server reads which option is the default from the question's record, never from
+it has no words and its option is the default that the thread took, or when it has no
+option at all. The server reads which option is the default from the question's record, never from
 the page. More than one number is a batch, and a batch only takes defaults. The server
 sends an answer that does not keep the default to the thread that asked, once, in the same
 request (`questions.carry`). Where the user's answer does not reach that thread, the
@@ -278,8 +278,8 @@ class Code:
     the directory of this package. It leaves out the page. A file that is gone counts as
     newer. `panels` is the names of the panels the server loaded. The folders of `beside`'s
     `panels/` that are panels now may differ from those names. When they differ, the directory
-    of the panels counts as newer. That happens, for one, once someone writes the second file of a
-    new folder. It does not look at the `panel.py` of a folder that is not a panel yet.
+    of the panels counts as newer. For example, they differ once someone writes the second
+    file of a new folder. It does not look at the `panel.py` of a folder that is not a panel yet.
     """
 
     def __init__(
