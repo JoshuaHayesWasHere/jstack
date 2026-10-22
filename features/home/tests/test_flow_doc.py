@@ -2,7 +2,7 @@
 
 The page is read with an HTML parser, and each name in a `<code>` element is held against the
 repo itself: a path against the tree, a typed command against `skills/`, a `jmerge` line against
-the command's own parser, a T3 Code tool against the schemas kept in `tests/fixtures/t3/`.
+the command's own parser, a T3 Code tool against the schemas kept in `features/jbus/tests/fixtures/t3/`.
 The page's sentences are not compared with anything.
 """
 
@@ -28,7 +28,7 @@ REPO_TOP_DIRS = (
 )
 DRAWN = {"home", "crew", "scout", "pr-review", "handoff", "grilling"}
 TOOL = re.compile(r"t3_[a-z_]+|[a-z]+_pull_request")
-TOOLS = {path.stem for path in (REPO / "tests" / "fixtures" / "t3").glob("*.json")}
+TOOLS = {path.stem for path in (REPO / "features" / "jbus" / "tests" / "fixtures" / "t3").glob("*.json")}
 
 
 class Page(HTMLParser):
@@ -90,7 +90,7 @@ def missing(page):
                 wrong.append(f"{code}: jmerge does not take that")
         elif TOOL.fullmatch(code):
             if code not in TOOLS:
-                wrong.append(f"{code}: tests/fixtures/t3 has no schema of that tool")
+                wrong.append(f"{code}: features/jbus/tests/fixtures/t3 has no schema of that tool")
     return wrong
 
 

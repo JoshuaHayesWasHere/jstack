@@ -1,5 +1,5 @@
 """A feature declares the step it adds to a pass, and `first_half` and `second_half` run each
-slot's steps by rank. Run as `tests/test_jbus_guarded_ask.py` runs: the real pass, against
+slot's steps by rank. Run as `features/jbus/tests/test_jbus_guarded_ask.py` runs: the real pass, against
 the fakes.
 
 `ORDER` is the order `first_half` called its tellers in before any was a step, written out

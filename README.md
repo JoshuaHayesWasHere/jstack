@@ -87,7 +87,7 @@ These steps take a new machine to one merged pull request.
 	jmerge
 	```
 
-Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
+Nothing merges by itself until you choose who does it. Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
 
@@ -133,7 +133,7 @@ Each command has one page.
 |---|---|
 | [Configuration](docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
 | [Troubleshooting](docs/troubleshooting.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
-| [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
+| [The Chef](features/jbus/docs/chef.md) | Make the agent behind a `jbus` webhook. |
 | [Hooks](features/home/docs/hooks.md) | See what the start hook and the gauge hook do. |
 | [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
 | [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |

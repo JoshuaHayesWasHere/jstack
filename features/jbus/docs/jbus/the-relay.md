@@ -1,6 +1,6 @@
 # The relay
 
-`jbus relay` is a server, not a pass. It listens on `127.0.0.1`, on `RELAY_PORT` (4390; with 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound), and sends each body it is posted on to Sous Chef, the webhook `GROK_WEBHOOK_URL` with the key `GROK_WEBHOOK_KEY`, and pages a second way when Sous Chef is silent. Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads. `sh install.sh` links `templates/jbus-relay.service`, and `systemctl --user enable --now jbus-relay.service` starts it. A hand-made `jbus-relay.service` that differs is not replaced: remove it first, and `install.sh --check` says when it is gone.
+`jbus relay` is a server, not a pass. It listens on `127.0.0.1`, on `RELAY_PORT` (4390; with 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound), and sends each body it is posted on to Sous Chef, the webhook `GROK_WEBHOOK_URL` with the key `GROK_WEBHOOK_KEY`, and pages a second way when Sous Chef is silent. Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads. `sh install.sh` links `features/jbus/units/jbus-relay.service`, and `systemctl --user enable --now jbus-relay.service` starts it. A hand-made `jbus-relay.service` that differs is not replaced: remove it first, and `install.sh --check` says when it is gone.
 
 | Key | What it is |
 |---|---|

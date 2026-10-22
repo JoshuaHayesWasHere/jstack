@@ -1,6 +1,6 @@
 # The view
 
-`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `templates/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it. The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit. When the code on disk is newer than the code the view runs, and starts, the view ends with status 75 (`NEWER_CODE` in `src/jbus/view/__init__.py`): the unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
+`jbus view` is a server, not a pass. It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped. It listens on `127.0.0.1`, on port 4388 or the one `--port` names. `sh install.sh` links `features/jbus/units/jbus-view.service`, and `systemctl --user enable --now jbus-view.service` starts it. The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit. When the code on disk is newer than the code the view runs, and starts, the view ends with status 75 (`NEWER_CODE` in `features/jbus/src/jbus/view/__init__.py`): the unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
 
 | Variable | What it does |
 |---|---|
@@ -14,9 +14,9 @@ Any other method gets 405.
 
 ### The look
 
-The page follows the system's light or dark setting. The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one. Light is a warm canvas, `#FAF7F2`, with white cards. Dark is a calm `#14191A` with `#1C2324` cards. Each colour is one token named for its role, `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`. Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:root` block. Colour means something or is not used: amber (`due`) is what waits on you, red (`missed`) is what broke. A holder is told by its shape and its name, not by a colour, and nothing healthy or merged is drawn green. `tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every ground, a control's border and the focus ring at 3:1.
+The page follows the system's light or dark setting. The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one. Light is a warm canvas, `#FAF7F2`, with white cards. Dark is a calm `#14191A` with `#1C2324` cards. Each colour is one token named for its role, `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`. Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:root` block. Colour means something or is not used: amber (`due`) is what waits on you, red (`missed`) is what broke. A holder is told by its shape and its name, not by a colour, and nothing healthy or merged is drawn green. `features/jbus/tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every ground, a control's border and the focus ring at 3:1.
 
-The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `src/jbus/view/OFL.txt`. The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title. Mono is for slugs and commits.
+The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `features/jbus/src/jbus/view/OFL.txt`. The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title. Mono is for slugs and commits.
 
 ### What the bare link shows
 
@@ -34,7 +34,7 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | Part | What it shows |
 |---|---|
 | Needs you | The same queue, of this project. |
-| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: thread hung or quiet, a check failed, behind another task, not confirmed since a time. The queue as a flow is one click from the heading. |
+| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: thread hung or quiet, a check failed, behind another task, not confirmed since a time. The queue as a flow is one click from the heading. |
 | Merged | The count of today, and a closed list of them. |
 | Health | One line, each part a link to its drawer: "All well" and the time of the last pass, or each thing that is broken. The threads out and the blind spots are here too, and the rows the view cannot place are named. |
 
@@ -101,7 +101,7 @@ A message goes to the item's home in the same request, and where T3 Code does no
 
 ### Add a panel
 
-A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other file names it.
+A panel is one folder, `features/jbus/src/jbus/view/panels/<name>/`, with two files. No other file names it.
 
 1. `panel.py` is its data. `build(read)` gives a dict, `SHAPE` is the keys that dict may leave with, and `SOURCES` names each file it reads and who writes it.
 2. `panel.js` is its drawing: one call, `panel({ drawer: function (arg, data) { ... } })`, that gives the drawer's HTML. Add `card` for a card on the first screen.
@@ -110,4 +110,4 @@ A panel is one folder, `src/jbus/view/panels/<name>/`, with two files. No other 
 
 A panel whose data the server reads itself says so with `reads`, and its drawer's head then says it is read now.
 
-An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `src/jbus/view/panels/__init__.py` lists everything a panel may declare.
+An edit of `panel.js` is live on the next request, and the server restarts itself for `panel.py`. `features/jbus/src/jbus/view/panels/__init__.py` lists everything a panel may declare.

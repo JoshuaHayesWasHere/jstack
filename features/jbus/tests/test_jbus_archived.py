@@ -2,7 +2,7 @@
 
 T3 Code's list of a project's threads leaves archived ones out and cannot be asked for them.
 A row that ended must stay as it ended when its thread drops out of that list, and a row
-that is still at work must be said, not launched again. Run as `tests/test_jbus_queue.py`
+that is still at work must be said, not launched again. Run as `features/jbus/tests/test_jbus_queue.py`
 runs: the real pass, against a faked T3 Code server (whose list leaves archived threads
 out, as T3 Code's does), `gh` and `jmerge`."""
 

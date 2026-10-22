@@ -13,7 +13,7 @@ What this skill cannot drive, so do not report it as verified: a real T3 thread 
 The tests cover the merge against a temporary origin (`features/home/tests/test_home_merge.py`).
 
 Run every command below from the root of this checkout unless it says otherwise.
-Read [`.claude/skills/verify-jstack/features/README.md`](../../../.claude/skills/verify-jstack/features/README.md) before a drive, then the file of the feature you are proving: its page in that folder, or `features/<name>/verify.md` once it has moved.
+Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its page in that folder, or `features/<name>/verify.md` once it has moved.
 
 ## Set up by a stand-in
 
@@ -157,4 +157,4 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 
 When jstack changes, the map in `features/` is what goes stale first: `/maintain-verification-skill` keeps it honest.
 
-Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and `features/README.md` a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `tests/test_select_tests.py` fails on a path the map leaves out.
+Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and the map a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `tests/test_select_tests.py` fails on a path the map leaves out.

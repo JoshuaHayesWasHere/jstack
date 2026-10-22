@@ -103,7 +103,7 @@ def test_the_shipped_list_guards_no_path_so_a_ready_one_merges_with_no_proof(
     (proven_merged.home.tasks / "alpha.md").write_text(
         merge.brief(merge.review("clean", proven_merged.head))
     )
-    files = ["a.txt", SKILL, "src/jbus/merge.py", "features/jmerge/src/jmerge/ready.py"]
+    files = ["a.txt", SKILL, "features/jbus/src/jbus/merge.py", "features/jmerge/src/jmerge/ready.py"]
     proven_merged.home.open_pull_request(proven_merged.head, files=files)
     assert jmerge(proven_merged, shipped, "--check") == [
         f"ready 7 {proven_merged.head} alpha alpha"
@@ -149,7 +149,7 @@ def test_jbus_sends_a_hold_line_and_the_other_lines_as_they_were(tmp_path):
     ]
 
 
-@pytest.mark.parametrize("path", [SKILL, "src/jbus/merge.py"])
+@pytest.mark.parametrize("path", [SKILL, "features/jbus/src/jbus/merge.py"])
 def test_a_guarded_path_with_every_gate_met_is_merged_at_the_head_it_was_judged_at(
     proven_merged, rules, path
 ):

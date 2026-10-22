@@ -41,7 +41,7 @@ Between a handoff and the next start there is no `home-id`, nothing is sent, and
 
 ## Undo an edit to standing.md
 
-A home runs `jbus snapshot --why "<what changed>"` right after each edit to a `standing.md`, so each edit is a commit of its own in `~/.local/state/home`, pushed with the tree ("Back up the homes' state" in `docs/jbus.md`). To undo one, find its commit, write back the file as it was before it, and snapshot again:
+A home runs `jbus snapshot --why "<what changed>"` right after each edit to a `standing.md`, so each edit is a commit of its own in `~/.local/state/home`, pushed with the tree ("Back up the homes' state" in `features/jbus/docs/jbus.md`). To undo one, find its commit, write back the file as it was before it, and snapshot again:
 
 ```sh
 git -C ~/.local/state/home log -p -- <repo>/standing.md

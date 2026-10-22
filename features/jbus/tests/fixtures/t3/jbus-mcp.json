@@ -1,5 +1,5 @@
 {
-  "taken": "2026-10-11, from a signed-in `jbus t3 login` against the local T3 Code server, by tests/fixtures/t3/README.md's build",
+  "taken": "2026-10-11, from a signed-in `jbus t3 login` against the local T3 Code server, by features/jbus/tests/fixtures/t3/README.md's build",
   "mcp_url": "http://127.0.0.1:3773/mcp",
   "authorization_server": {
     "registration_endpoint": "http://127.0.0.1:3773/oauth/mcp/register",

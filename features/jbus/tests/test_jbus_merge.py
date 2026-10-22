@@ -1,6 +1,6 @@
 """`jbus.merge` leaves the merge to a home that merges, asks `jmerge` once a day what a sweep
 would remove and never runs one that removes, and says a `jmerge` that cannot read its
-protected paths once a day. Run as `tests/test_jbus_kitchen.py` runs: the real pass, against
+protected paths once a day. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real pass, against
 the fakes.
 """
 
@@ -367,7 +367,7 @@ def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
     assert (sent["threadId"], sent["mode"]) == (home["threadId"], "queue")
     said = sent["message"]
     assert "alpha" in said and f"`wait: {UNPLACED}`" in said
-    assert "`merge.rules` in src/jbus/merge.py has no rule for it" in said
+    assert "`merge.rules` in features/jbus/src/jbus/merge.py has no rule for it" in said
     assert "Brief the fix" in said
     assert listed(kitchen, "unplaced") == [] and loud(kitchen) == []
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: another reason nobody has printed\n")

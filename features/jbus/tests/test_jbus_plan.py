@@ -1,5 +1,5 @@
 """`jbus plan` counts a plan entry's status from its queue rows when it is read, and `jbus
-queue add --entry` is what ties a row to its entry. Run as `tests/test_jbus_kitchen.py` runs: the
+queue add --entry` is what ties a row to its entry. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the
 real command, against the kitchen's config, state and home directory."""
 
 import json

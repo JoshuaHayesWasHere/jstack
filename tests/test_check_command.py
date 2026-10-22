@@ -367,7 +367,7 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
     tests = selected(copy)
-    assert "features/jdrift/tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
+    assert "features/jdrift/tests/test_drift.py" in tests and "features/jbus/tests/test_jbus.py" not in tests
     assert asked.read_text().splitlines() == [
         *LINT,
         " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),

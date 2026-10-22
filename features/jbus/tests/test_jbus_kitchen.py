@@ -34,7 +34,7 @@ from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
 from testing.paths import REPO
 
-FIXTURE = json.loads((REPO / "tests/fixtures/t3/jbus-mcp.json").read_text())
+FIXTURE = json.loads((REPO / "features/jbus/tests/fixtures/t3/jbus-mcp.json").read_text())
 NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 KEY = "a-key-for-the-test"
 TOKEN = "a-token-for-the-test"

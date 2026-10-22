@@ -277,7 +277,7 @@ def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(co
 def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
     (copy / "docs" / "jbus" / "a-new-page.md").write_text("# A new page\n\nIts words.\n")
     ran = generate(copy, "--check")
-    assert ran.stderr.splitlines()[0] == "stale: docs/jbus.md"
+    assert ran.stderr.splitlines()[0] == "stale: features/jbus/docs/jbus.md"
     generate(copy)
     assert "- [A new page](jbus/a-new-page.md)\n" in (copy / "docs" / "jbus.md").read_text()
 
@@ -345,12 +345,12 @@ def test_every_file_of_the_checkout_has_exactly_one_owner():
 def test_an_owner_is_the_feature_folder_or_one_row_and_two_rows_are_both_seen(copy):
     tree = crawl(copy)
     assert tree.owners("features/jbus/feature.json") == ("jbus",)
-    assert tree.owners("src/jbus/cli.py") == ("jbus",)
+    assert tree.owners("features/jbus/src/jbus/cli.py") == ("jbus",)
     assert tree.owners("features/jbriefs/src/jbriefs/cli.py") == ("jbriefs",)
     assert tree.owners("pyproject.toml") == ("INFRA",)
     assert tree.owners("nowhere/at/all.txt") == ()
-    owns(copy, "bro", "src/jbus/cli.py")
-    assert crawl(copy).owners("src/jbus/cli.py") == ("bro", "jbus")
+    owns(copy, "bro", "features/jbus/src/jbus/cli.py")
+    assert crawl(copy).owners("features/jbus/src/jbus/cli.py") == ("bro", "jbus")
 
 
 def test_the_crawl_raises_every_fault_at_once(copy):

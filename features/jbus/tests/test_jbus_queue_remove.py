@@ -1,5 +1,5 @@
 """`jbus queue remove` takes a row out of the queue for good: the slug is in `removed.json`,
-and no later pass finds anything for it. Run as `tests/test_jbus_queue.py` runs: the real
+and no later pass finds anything for it. Run as `features/jbus/tests/test_jbus_queue.py` runs: the real
 command and the real pass, against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json

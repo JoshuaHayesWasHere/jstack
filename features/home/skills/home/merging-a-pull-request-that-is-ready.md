@@ -4,7 +4,7 @@ A pull request that is reviewed, fixed and green is merged, and the user is told
 
 The home merges nothing itself. One command does all of it, with no model: `jmerge`, from the repo this skill lives in. One runner runs it for a repo, jbus or a home, never both: two runs at once would race, and no lock keeps them apart.
 
-**Who merges** is what `$H/home-thread` says, and this block is the one the three blocks below go by. It is the test jbus makes (`src/jbus/merge.py`), and the one the start of a home makes for its warning:
+**Who merges** is what `$H/home-thread` says, and this block is the one the three blocks below go by. It is the test jbus makes (`features/jbus/src/jbus/merge.py`), and the one the start of a home makes for its warning:
 
 ```sh
 if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then merges=home; else merges=jbus; fi
@@ -115,7 +115,7 @@ Two more things keep a ready pull request from the command, and only the user li
 - it changes no protected path.
   The patterns are in `features/jmerge/src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the two lists themselves, `/features/jmerge/src/jmerge/protected.txt` and `/features/jmerge/src/jmerge/guarded.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
   A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
-  Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `src/jbus/merge.py`.
+  Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
   A `*` matches within one part of a path.
   `jmerge` refuses to run, and merges nothing, while that file, `guarded.txt` or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
   The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it, `--all` and `--land` included.

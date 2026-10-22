@@ -12,8 +12,8 @@ from testing.paths import REPO, skills
 SKILLS = skills()
 SCHEMAS = {
     path.stem: json.loads(path.read_text())
-    for tools in ("t3", "claude")
-    for path in (REPO / "tests/fixtures" / tools).glob("*.json")
+    for tools in ("features/jbus/tests/fixtures/t3", "tests/fixtures/claude")
+    for path in (REPO / tools).glob("*.json")
 }
 FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")
 INLINE = re.compile(r"`(\{[^`\n]*\})`")
@@ -217,7 +217,7 @@ def test_no_fence_in_a_skill_is_one_the_finder_would_skip():
 @pytest.mark.parametrize("call", CALLS, ids=where)
 def test_a_json_block_is_for_a_tool_whose_schema_is_a_fixture(call):
     assert call.tool in SCHEMAS, (
-        f"{call.where}: no schema for {call.tool!r} in tests/fixtures/t3 or claude. "
+        f"{call.where}: no schema for {call.tool!r} in features/jbus/tests/fixtures/t3 or claude. "
         "Name the tool in the text before the block, or add its schema as the README there says."
     )
 

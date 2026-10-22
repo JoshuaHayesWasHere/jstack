@@ -6,7 +6,7 @@ Paths:
 - `/install.sh`
 - `/skills.json`
 - `features/jinstall/src/jinstall/`
-- `src/jbus/*.py`
+- `features/jbus/src/jbus/*.py`
 - `features/jbriefs/src/jbriefs/`
 - `features/jgauge/src/jgauge/`
 - `features/jmerge/src/jmerge/`
@@ -16,14 +16,14 @@ Paths:
 - `features/jroles/src/jroles/`
 - `features/jsettings/`
 - `hooks/`
-- `templates/jbus.service`
-- `templates/jbus.timer`
-- `templates/jbus-failed.service`
-- `templates/jbus-relay.service`
-- `templates/jbus-snapshot.service`
-- `templates/jbus-snapshot.timer`
-- `templates/jbus-snapshot-failed.service`
-- `templates/jbus-view.service`
+- `features/jbus/units/jbus.service`
+- `features/jbus/units/jbus.timer`
+- `features/jbus/units/jbus-failed.service`
+- `features/jbus/units/jbus-relay.service`
+- `features/jbus/units/jbus-snapshot.service`
+- `features/jbus/units/jbus-snapshot.timer`
+- `features/jbus/units/jbus-snapshot-failed.service`
+- `features/jbus/units/jbus-view.service`
 Tests: none
 
 ## Sub-features

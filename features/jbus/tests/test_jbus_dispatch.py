@@ -1,6 +1,6 @@
 """`jbus.dispatch` launches an approved row only on a machine with room, says a spell with no
 room once, and writes the thread it launched or adopted on the one `Thread:` line of the
-brief. Run as `tests/test_jbus_kitchen.py` runs: the real pass, against the fakes.
+brief. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real pass, against the fakes.
 """
 
 import os

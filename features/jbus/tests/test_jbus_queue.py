@@ -1,5 +1,5 @@
 """The queue table has one writer per column, and a pass launches only what was approved,
-once. Run as `tests/test_jbus_kitchen.py` runs: the real command and the real pass, against a faked
+once. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real command and the real pass, against a faked
 T3 Code server, `gh` and `jmerge`."""
 
 import hashlib

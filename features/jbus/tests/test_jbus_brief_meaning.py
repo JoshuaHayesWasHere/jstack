@@ -1,5 +1,5 @@
 """A brief is checked when it is queued, and a go is bound to what the brief asks for, not
-to its wording. Run as `tests/test_jbus_queue.py` runs: the real command and the real pass,
+to its wording. Run as `features/jbus/tests/test_jbus_queue.py` runs: the real command and the real pass,
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
@@ -22,7 +22,7 @@ Done when:
 - `make check` exits 0, in 3 minutes or less
 Proves it: `make check` runs the tests above
 Size: M
-Where: `src/jbus/queue.py`, `src/jbriefs/`
+Where: `features/jbus/src/jbus/queue.py`, `src/jbriefs/`
 Do not touch: `~/.config/`
 Decisions: none yet
 Design: none, the Done when list pins it
@@ -42,7 +42,7 @@ Done when:
     one line per fault
 Proves it: `make check` runs the tests above, and `jbus queue show` lists no re-asked row.
 Size: M
-Where: `src/jbus/queue.py`,   `src/jbriefs/`
+Where: `features/jbus/src/jbus/queue.py`,   `src/jbriefs/`
 Do not touch: `~/.config/`
 Decisions: the user's words are under Task
 Design: none, the Done when list pins it, and a note

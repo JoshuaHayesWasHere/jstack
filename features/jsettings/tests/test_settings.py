@@ -1,6 +1,6 @@
 """The user's name and time zone are settings: `jsettings.load` reads them from one file, every
 command runs on defaults where there is none, and what was written under the old names, on
-disk before the name became a setting, is read as the new ones. Run as `tests/test_jbus.py`
+disk before the name became a setting, is read as the new ones. Run as `features/jbus/tests/test_jbus.py`
 runs: the real command and the real pass, against the fakes."""
 
 import json

@@ -48,7 +48,7 @@ file.
 
 What blocks is a part of this list, and the one function that decides it is `blocking`: an
 item is open and nothing can move without the user. It is the design's Blocking test
-(`docs/jbus.md`, "What blocks"), by these fields:
+(`features/jbus/docs/jbus.md`, "What blocks"), by these fields:
 
 - (a) a `gate` whose `default` is empty, which only a home's `gates.md` can have since `jbus
   gate` refuses a question with none, or whose question or context names one of `PAUSE`.

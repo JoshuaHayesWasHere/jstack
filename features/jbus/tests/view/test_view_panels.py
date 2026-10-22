@@ -127,7 +127,7 @@ def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served
     assert view.POLICY == POLICY
     assert served.ask("/")[1]["Content-Security-Policy"] == POLICY
     was = subprocess.run(
-        ["git", "-C", str(REPO), "show", f"{BEFORE}:src/jbus/view/__init__.py"],
+        ["git", "-C", str(REPO), "show", f"{BEFORE}:features/jbus/src/jbus/view/__init__.py"],
         capture_output=True,
         text=True,
     )

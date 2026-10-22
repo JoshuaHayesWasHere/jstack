@@ -5,7 +5,7 @@ A view's first screen is held to `WORDS`, and every project's to `EVERY`. The sh
 it, the header and the sidebar, is counted apart and held to `SHELL`: the same on every view,
 it grows by one name and one count for each project.
 
-Each test starts the real server over a made-up state directory, as the tests of `tests/view/`
+Each test starts the real server over a made-up state directory, as the tests of `features/jbus/tests/view/`
 do, and puts a small proxy in front of it. The proxy adds a probe to the page: it counts the
 words on the first screen, opens every drawer, and writes what it found into the page, which
 the browser then prints. The proxy can also stop passing requests on, which is how the page
@@ -103,7 +103,7 @@ STOPPED = (124, 137)
 BROWSES = 5
 
 
-FONTS = REPO / "tests" / "fixtures" / "jbus-view" / "fonts.conf"
+FONTS = REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view" / "fonts.conf"
 
 
 DESK, PHONE = (1440, 900), (390, 844)
@@ -183,7 +183,7 @@ FORTY = TODAY | {"blocked": 8, "running": 8, "gate": 2, "result": 2, "review": 3
 FORTY |= {"second": 2, "check": 2, "rebase": 2, "hold": 1}
 
 
-PROBE = (REPO / "tests" / "fixtures" / "jbus-view" / "probe.js").read_text()
+PROBE = (REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view" / "probe.js").read_text()
 
 
 def slugs():

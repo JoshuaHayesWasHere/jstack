@@ -205,12 +205,12 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recov
 def read(name):
     unit = configparser.ConfigParser(interpolation=None, strict=False)
     unit.optionxform = str
-    unit.read(REPO / "templates" / name)
+    unit.read(REPO / "features" / "jbus" / "units" / name)
     return unit
 
 
 def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_up():
-    lines = (REPO / "templates" / "jbus-snapshot.timer").read_text().splitlines()
+    lines = (REPO / "features" / "jbus" / "units" / "jbus-snapshot.timer").read_text().splitlines()
     calendar = [line.split("=", 1)[1] for line in lines if line.startswith("OnCalendar=")]
     assert calendar == ["*-*-* 08:30:00", "*-*-* 17:30:00"]
     timer = read("jbus-snapshot.timer")
@@ -225,7 +225,7 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
     for name in UNITS:
         options = [
             line
-            for line in (REPO / "templates" / name).read_text().splitlines()
+            for line in (REPO / "features" / "jbus" / "units" / name).read_text().splitlines()
             if line.strip() and not line.lstrip().startswith(("#", ";"))
         ]
         assert options and not [line for line in options if "_exec" in line]
@@ -268,7 +268,7 @@ def test_systemd_reads_the_units_with_no_complaint(tmp_path):
     jbus_bin.write_text("#!/bin/sh\n")
     jbus_bin.chmod(0o755)
     ran = subprocess.run(
-        ["systemd-analyze", "--user", "verify", *(str(REPO / "templates" / u) for u in UNITS)],
+        ["systemd-analyze", "--user", "verify", *(str(REPO / "features" / "jbus" / "units" / u) for u in UNITS)],
         capture_output=True,
         text=True,
         env={**os.environ, "HOME": str(tmp_path)},

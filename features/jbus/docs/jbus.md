@@ -17,7 +17,7 @@ One pass, under one lock, does this for every project in the config:
    A `main-red-<sha12>` row that has not launched when main's tip is green again is left as it is, unapproved where it was, and the pass says once, quietly, `retro main-red-<sha12>: main is green again at <sha12>, and its row is left as it is`.
    A queue that refuses it is a condition.
    A red main holds every pull request but the fix's.
-   Its one record is `main.json` beside the queue, which the pass that tells a red pull request that main is green again writes (`src/jbus/mainmoved.py`), whether or not a pull request merged lately: `broken` is the tip whose check failed, kept until a green tip follows, and `green` the last tip whose check passed.
+   Its one record is `main.json` beside the queue, which the pass that tells a red pull request that main is green again writes (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately: `broken` is the tip whose check failed, kept until a green tip follows, and `green` the last tip whose check passed.
    While main's tip is not green, `broken` is the red main.
    A pass that still owes a crew its message keeps the old commit to look at again and writes the green tip as `fixed`, so main reads as green from that pass on.
    A tip whose check has not ended or was cancelled changes neither, so a main stays red until a later tip is green.
@@ -34,7 +34,7 @@ jbus makes no judgment call. What no rule covers is one line, `gate <slug>: <wha
 
 No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty. With a thread id in that file the home merges, and jbus prints `skipped <project>: the home <id> merges`.
 
-<!-- generated: pages by scripts/generate-jstack-trees.py from the headings of docs/jbus/; do not edit, rerun it -->
+<!-- generated: pages by scripts/generate-jstack-trees.py from the headings of features/jbus/docs/jbus/; do not edit, rerun it -->
 - [A scratch home](jbus/a-scratch-home.md)
 - [A thread that left T3 Code's list](jbus/a-thread-that-left-t3-codes-list.md)
 - [Add a project](jbus/add-a-project.md)

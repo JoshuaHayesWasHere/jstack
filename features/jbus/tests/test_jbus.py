@@ -25,7 +25,7 @@ from test_jbus_kitchen import FIXTURE, NOW, REPO
 
 
 def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
-    source = "\n".join(path.read_text() for path in sorted((REPO / "src/jbus").rglob("*.py")))
+    source = "\n".join(path.read_text() for path in sorted((REPO / "features/jbus/src/jbus").rglob("*.py")))
     gauge = REPO / "features/jgauge/src/jgauge"
     counted = "\n".join(path.read_text() for path in sorted(gauge.rglob("*.py")))
     counted += "\n" + (REPO / "features/jbriefs/src/jbriefs/parse.py").read_text()
@@ -61,16 +61,16 @@ def test_a_config_or_a_token_others_can_read_stops_jbus(kitchen, name, mode):
 
 def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
     files = [
-        *(REPO / "src/jbus").rglob("*.py"),
-        REPO / "src/jbus/view/page.html",
+        *(REPO / "features/jbus/src/jbus").rglob("*.py"),
+        REPO / "features/jbus/src/jbus/view/page.html",
         *(REPO / "tests").glob("test_jbus*.py"),
-        REPO / "tests/fixtures/t3/jbus-mcp.json",
-        REPO / "templates/jbus.service",
-        REPO / "templates/jbus.timer",
-        REPO / "templates/jbus-view.service",
+        REPO / "features/jbus/tests/fixtures/t3/jbus-mcp.json",
+        REPO / "features/jbus/units/jbus.service",
+        REPO / "features/jbus/units/jbus.timer",
+        REPO / "features/jbus/units/jbus-view.service",
         REPO / "README.md",
-        REPO / "docs/jbus.md",
-        REPO / "docs/chef.md",
+        REPO / "features/jbus/docs/jbus.md",
+        REPO / "features/jbus/docs/chef.md",
         REPO / "docs/configuration.md",
     ]
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
@@ -91,7 +91,7 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
 
 
 def test_no_page_of_docs_jbus_holds_a_url_a_key_or_a_token():
-    pages = sorted((REPO / "docs/jbus").glob("*.md"))
+    pages = sorted((REPO / "features/jbus/docs/jbus").glob("*.md"))
     assert len(pages) > 10
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
     for path in pages:
@@ -121,7 +121,7 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
     for name in ("jbus.service", "jbus.timer", "jbus-failed.service"):
         units[name] = configparser.ConfigParser(interpolation=None)
         units[name].optionxform = str
-        units[name].read(REPO / "templates" / name)
+        units[name].read(REPO / "features" / "jbus" / "units" / name)
     service, failed = units["jbus.service"], units["jbus-failed.service"]
     for unit, verb in ((service, "poll"), (failed, "alarm")):
         command = shlex.split(unit["Service"]["ExecStart"])
@@ -137,7 +137,7 @@ def test_a_fresh_check_ends_before_jbus_stops_jmerge_and_jmerge_before_systemd_s
     the unit's. A check that outran a later one was killed before it recorded (03:26 ET)."""
     service = configparser.ConfigParser(interpolation=None)
     service.optionxform = str
-    service.read(REPO / "templates" / "jbus.service")
+    service.read(REPO / "features" / "jbus" / "units" / "jbus.service")
     started = service["Service"]["TimeoutStartSec"]
     assert re.fullmatch(r"\d+min", started)
     assert cli.Fresh.TIMEOUT < wake.JMERGE_TIMEOUT < int(started.removesuffix("min")) * 60

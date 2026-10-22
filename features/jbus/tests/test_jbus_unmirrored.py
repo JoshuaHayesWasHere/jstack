@@ -1,6 +1,6 @@
 """Before jbus puts a thread on a mirror instance, by a launch or by a failover move, it asks
 `jroles mirror --check` of it, runs the mirror once on drift, and passes over an instance
-that is still not mirrored for that pass. Run as `tests/test_jbus_failover.py` runs, with a
+that is still not mirrored for that pass. Run as `features/jbus/tests/test_jbus_failover.py` runs, with a
 `jroles` on the kitchen's PATH that answers as the test sets it."""
 
 import json

@@ -1,5 +1,5 @@
 """A comment on a pull request reaches its crew only when the repo's owner wrote it. Run as
-`tests/test_jbus_main_moved.py` runs: the real pass, against the fakes, with a `gh` that
+`features/jbus/tests/test_jbus_main_moved.py` runs: the real pass, against the fakes, with a `gh` that
 answers who owns the repo and what was written on the pull request."""
 
 import json

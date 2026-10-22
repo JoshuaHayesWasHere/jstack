@@ -1,7 +1,7 @@
 """What waits on the user: a pass follows each approved row that cannot move to its root, sends
 one `waiting-on-user` event per root per hour, and keeps the roots in the list that `jbus
-queue show` prints (`tests/test_jbus_digest.py` has the list's other kinds). Run as
-`tests/test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
+queue show` prints (`features/jbus/tests/test_jbus_digest.py` has the list's other kinds). Run as
+`features/jbus/tests/test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
 server, `gh`, `jmerge` and webhook."""
 
 import json
@@ -333,7 +333,7 @@ def test_a_webhook_whose_last_post_failed_has_each_root_in_the_journal_each_hour
     assert kitchen.webhook.posts == [] and waits(kitchen) == [MERGE, MERGE]
 
 
-GUARDED = f"guarded (touches src/jbus/alert.py), no proven safety fact at {HEAD[:12]}"
+GUARDED = f"guarded (touches features/jbus/src/jbus/alert.py), no proven safety fact at {HEAD[:12]}"
 STALLED = (
     f"stall alpha: #286 {URL} has waited 10 passes at {HEAD[:12]}, {GUARDED}; "
     "its crew's thread is mcp:crew"

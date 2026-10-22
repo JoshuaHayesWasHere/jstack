@@ -1,7 +1,7 @@
 """`jbus ci` keeps CI's jobs and counts the nine targets of the plan from them.
 
 The numbers are checked against a recording of GitHub's Actions API for jstack, 2026-10-14 to
-2026-10-17 (`tests/fixtures/ci/jstack`, replayed by `ci_replay`), through the collector as
+2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, replayed by `ci_replay`), through the collector as
 `jbus ci` runs it, and equal the figures the plan was written from: where one does not, the
 test says by how much and why.
 """
@@ -364,7 +364,7 @@ def test_a_week_with_a_target_missed_alerts_once_and_a_week_without_alerts_nobod
 def unit(name):
     read = configparser.ConfigParser(interpolation=None)
     read.optionxform = str
-    read.read(CHECKOUT / "templates" / name)
+    read.read(CHECKOUT / "features" / "jbus" / "units" / name)
     return read
 
 

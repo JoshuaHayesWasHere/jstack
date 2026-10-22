@@ -293,7 +293,7 @@ def test_the_server_ends_with_the_status_its_unit_starts_again_when_its_code_cha
 
     unit = configparser.ConfigParser(interpolation=None, strict=False)
     unit.optionxform = str
-    unit.read(REPO / "templates" / "jbus-view.service")
+    unit.read(REPO / "features" / "jbus" / "units" / "jbus-view.service")
     process.start()
     assert process.code()["stale"] is False
     (process.src / "jbus" / "view" / "state.py").touch()
@@ -359,7 +359,7 @@ def test_the_unit_restarts_on_failure_and_depends_on_no_unit_of_jbus():
     import configparser
 
     unit = configparser.ConfigParser(interpolation=None, strict=False)
-    unit.read(REPO / "templates" / "jbus-view.service")
+    unit.read(REPO / "features" / "jbus" / "units" / "jbus-view.service")
     assert unit["Service"]["Restart"] == "always"
     assert unit["Service"]["ExecStart"] == "%h/.local/bin/jbus view"
     assert unit["Install"]["WantedBy"] == "default.target"

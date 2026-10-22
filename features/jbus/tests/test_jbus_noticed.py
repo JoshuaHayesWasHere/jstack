@@ -1,6 +1,6 @@
 """`jbus noticed`: each `Noticed` line of the briefs and the scout requests is one record in
 `noticed.json`, found by a pass and marked once, taken or dropped, by a home. Run as
-`tests/test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
+`features/jbus/tests/test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
 server, `gh` and `jmerge`."""
 
 import json

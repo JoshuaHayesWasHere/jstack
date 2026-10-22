@@ -2,7 +2,7 @@
 per head. A check that ran and failed is one message, a conflict before the review is
 another, a conflict after the review is the rebase message, a green pull request that owes
 the home a line is told it passed, and a green pull request with nothing owed is told
-nothing. Run as `tests/test_jbus_main_moved.py` runs: the real pass,
+nothing. Run as `features/jbus/tests/test_jbus_main_moved.py` runs: the real pass,
 against the fakes."""
 
 from datetime import timedelta

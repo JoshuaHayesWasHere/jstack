@@ -1,10 +1,10 @@
-"""`python -m jbus.pages [--check]`: the event table of `docs/jbus/`, from the code.
+"""`python -m jbus.pages [--check]`: the event table of `features/jbus/docs/jbus/`, from the code.
 
 Run in this repo's root, it writes the built part of one page: the text between
 `<!-- built: events -->` and the `<!-- built: end -->` after it, in
-`docs/jbus/events-and-the-webhook.md`, the table of the kinds of event, one row a level, its
+`features/jbus/docs/jbus/events-and-the-webhook.md`, the table of the kinds of event, one row a level, its
 kinds sorted, read off `wake.LOUDNESS`. The rest of the page is hand-written and is left as it
-is. A second run changes nothing. The index of `docs/jbus.md` is written from the tree by
+is. A second run changes nothing. The index of `features/jbus/docs/jbus.md` is written from the tree by
 `scripts/generate-jstack-trees.py`, which needs no import of jbus.
 
 With `--check` it writes nothing, says whether a committed page is behind the tree, and exits
@@ -20,7 +20,7 @@ from pathlib import Path
 
 from jbus import LEVELS, wake
 
-EVENTS_PAGE = "docs/jbus/events-and-the-webhook.md"
+EVENTS_PAGE = "features/jbus/docs/jbus/events-and-the-webhook.md"
 RUN = "uv run python -m jbus.pages"
 BUILT = re.compile(
     r"(?P<begin><!-- built: (?P<part>\w+) -->\n)(?P<body>.*?)(?P<end><!-- built: end -->)", re.S

@@ -1,5 +1,5 @@
 """The one state of each piece of work: `work.judge` over every set of facts there is, and
-each ending a pass can meet, run as `tests/test_jbus_queue.py` runs, against a faked T3 Code,
+each ending a pass can meet, run as `features/jbus/tests/test_jbus_queue.py` runs, against a faked T3 Code,
 `gh` and `jmerge`, with `work.json` read back."""
 
 import json

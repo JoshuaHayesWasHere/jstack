@@ -45,7 +45,7 @@ def count(asked: str | None) -> int:
         raise BadCount(str(error)) from error
 ```
 
-`jbus.load` (`src/jbus/__init__.py`), which keeps the live key:
+`jbus.load` (`features/jbus/src/jbus/__init__.py`), which keeps the live key:
 
 ```python
 cap = sizes.resolve(sizes.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path)

@@ -1,6 +1,6 @@
 """`jbus queue add` warns of a brief whose `Done when:` asks for a bare `make check` while the
 repo's notes name another check command: the home skill's rule for a check line, run. Run as
-`tests/test_jbus_kitchen.py` runs: the real command against a faked T3 Code server."""
+`features/jbus/tests/test_jbus_kitchen.py` runs: the real command against a faked T3 Code server."""
 
 import pytest
 

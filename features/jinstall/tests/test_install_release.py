@@ -331,7 +331,7 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     parts = [*release_parts(home, source), units]
     assert checked.stdout.splitlines() == lines_of("ok", parts, home)
     assert os.readlink(home / ".config/systemd/user/jbus.timer") == str(
-        source / "templates/jbus.timer"
+        source / "features/jbus/units/jbus.timer"
     )
     for harness in HARNESSES:
         for link in (home / harness.root).iterdir():

@@ -1,6 +1,6 @@
 # What blocks
 
-Of what waits on you, an item blocks when it is open and nothing can move without you. One function decides it, `waiting.blocking` in `src/jbus/waiting.py`, and the second target, the reminder and the refresh all read it:
+Of what waits on you, an item blocks when it is open and nothing can move without you. One function decides it, `waiting.blocking` in `features/jbus/src/jbus/waiting.py`, and the second target, the reminder and the refresh all read it:
 
 | Case | What blocks | From |
 |---|---|---|
@@ -11,7 +11,7 @@ Of what waits on you, an item blocks when it is open and nothing can move withou
 
 A gate with a default whose thread still writes does not block, nor does a row jbus put at `gate`, nor a leftover its home has.
 
-Two timers sit beside `CLOSE_MINUTES` in `src/jbus/leftover.py`. An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second: jbus keeps the key of each item it reminded of in `~/.local/state/jbus/<project>/blocking.json`, a question by its number (`gate:q<n>`), a hold by its pull request (`#<n>`) and anything else by its kind and slug. An item that closes before then gets none. Every `REFRESH_MINUTES` (60), on the pass that begins the hour, jbus posts every open item, oldest first, whether or not anything changed: an empty list is the all-clear. The first pass after the second target is set posts no opening body for what blocks already. A gate's context counts for the always-pause words as its question does, and a slug's thread is at work when any of its threads is, a crewmate beside its reviewer included.
+Two timers sit beside `CLOSE_MINUTES` in `features/jbus/src/jbus/leftover.py`. An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second: jbus keeps the key of each item it reminded of in `~/.local/state/jbus/<project>/blocking.json`, a question by its number (`gate:q<n>`), a hold by its pull request (`#<n>`) and anything else by its kind and slug. An item that closes before then gets none. Every `REFRESH_MINUTES` (60), on the pass that begins the hour, jbus posts every open item, oldest first, whether or not anything changed: an empty list is the all-clear. The first pass after the second target is set posts no opening body for what blocks already. A gate's context counts for the always-pause words as its question does, and a slug's thread is at work when any of its threads is, a crewmate beside its reviewer included.
 
 These go to the second target, `blocking_url` and `blocking_key` at the top of the config ([Configuration](../configuration.md)). It is a route of its own, with its outbox, gap, last error, failure streak and status in `blocking/` inside the project's state, so one that is down holds back no other webhook. It is posted no event, and nothing quiet. With no such pair nothing more is posted. Every body has a top-level `kind`, which jbus-relay routes on:
 

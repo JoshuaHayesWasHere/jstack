@@ -1,4 +1,4 @@
-"""The built part of `docs/jbus/`, and the length of every docs page.
+"""The built part of `features/jbus/docs/jbus/`, and the length of every docs page.
 
 `LONG` names each page over the cap, by its path under docs/, until it is split: the list only
 shrinks."""

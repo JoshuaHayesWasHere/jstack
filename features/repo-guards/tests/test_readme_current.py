@@ -107,7 +107,7 @@ WAS = (
 )
 IS = (
     "The key is used to sign each POST, in POSTs no longer than 100 KB.",
-    "Trimmed copies are in `tests/fixtures/projects/-tmp-pipeline-check/`.",
+    "Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-pipeline-check/`.",
     "CI is a pipeline of one job, as of the workflow file.",
 )
 
@@ -120,7 +120,7 @@ def where(name):
 
 
 def page(name):
-    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`: beside
+    """A page, and after it the pages of its folder, as `features/jbus/docs/jbus/` is to `features/jbus/docs/jbus.md`: beside
     it, or in the `docs/` of a feature its pages moved into."""
     found = where(name)
     stem = Path(name).stem
@@ -162,7 +162,7 @@ def test_the_pages_name_what_the_code_has_and_nothing_it_dropped():
 def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_have():
     said = page("jbus.md")
     timer = configparser.ConfigParser(interpolation=None)
-    timer.read(REPO / "templates/jbus.timer")
+    timer.read(REPO / "features/jbus/units/jbus.timer")
     assert f"(`OnUnitActiveSec={timer['Timer']['OnUnitActiveSec']}`)" in said
     assert f"after {alert.AFTER} failures in a row" in said
     assert f"`Authorization: Bearer` and `{wake.HEADER}`" in said

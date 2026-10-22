@@ -1,5 +1,5 @@
 """A rebase that changed the content of a reviewed patch gets one scoped review, which jbus
-asks its crew to launch, once per head. Run as `tests/test_jbus_unlock.py` runs: the real
+asks its crew to launch, once per head. Run as `features/jbus/tests/test_jbus_unlock.py` runs: the real
 pass, against the fakes, with the line `jmerge` prints for such a pull request."""
 
 from datetime import timedelta

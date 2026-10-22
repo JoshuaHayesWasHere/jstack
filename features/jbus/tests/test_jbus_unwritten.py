@@ -2,7 +2,7 @@
 its home is told what to do, once, as a leftover's is, and the row drops out of `stale` when
 it is handled. It waits on the user only where it has no home or the home did not close it.
 
-Run as `tests/test_jbus_leftover.py` runs: the real pass, against a faked T3 Code server,
+Run as `features/jbus/tests/test_jbus_leftover.py` runs: the real pass, against a faked T3 Code server,
 `gh` and `jmerge`, over briefs that are made up."""
 
 from datetime import timedelta

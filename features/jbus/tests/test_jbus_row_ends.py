@@ -1,6 +1,6 @@
 """A row whose thread ended says how: `done`, `left` and why, or `merged` with what is left.
 
-Run as `tests/test_jbus_queue.py` runs: the real pass, against a faked T3 Code server, `gh`
+Run as `features/jbus/tests/test_jbus_queue.py` runs: the real pass, against a faked T3 Code server, `gh`
 and `jmerge`, over briefs that are made up."""
 
 import json

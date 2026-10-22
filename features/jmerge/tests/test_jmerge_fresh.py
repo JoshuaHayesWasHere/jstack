@@ -283,7 +283,7 @@ SELECTED = {
     "pyproject.toml": "[project]\nname = 'demo'\n",
     "Makefile": "check:\n",
     "scripts/select_tests.py": SELECTOR.read_text(),
-    ".claude/skills/verify-jstack/features/README.md": "Cross-cutting:\n",
+    "features/verify-jstack/project-skill/map.md": "Cross-cutting:\n",
     "src/demo/__init__.py": "",
     "src/demo/one.py": LINES,
     "src/demo/two.py": LINES,
@@ -354,7 +354,7 @@ def test_a_test_every_change_selects_is_one_in_common(selected):
     """A test that reads the whole tree can fail on the two changes together."""
     kitchen, checked = selected
     whole = {
-        ".claude/skills/verify-jstack/features/README.md": "Cross-cutting: `tests/test_whole.py`\n"
+        "features/verify-jstack/project-skill/map.md": "Cross-cutting: `tests/test_whole.py`\n"
     }
     write(kitchen.home.main, whole)
     git(kitchen.home.main, "commit", "-q", "-m", "a whole-tree test")

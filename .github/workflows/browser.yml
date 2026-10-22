@@ -6,7 +6,7 @@ name: browser
 # by hand. Never on a pull request, and never on a push to main.
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
-# brief for the fix, `browser-red-<date>` (src/jbus/watch.py).
+# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py).
 on:
   schedule:
     - cron: '0 7 * * *'

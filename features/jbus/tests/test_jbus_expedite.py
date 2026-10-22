@@ -1,6 +1,6 @@
 """A pull request short of something its crew can fix: jbus tells the crew what to do, once
 per reason and head, and the desk hears only when that did not work. Run as
-`tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
+`features/jbus/tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
 `jmerge` prints, over commits that are really there."""
 
 import os

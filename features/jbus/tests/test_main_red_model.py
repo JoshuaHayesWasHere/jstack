@@ -1,4 +1,4 @@
-"""The exhaustive check of main.json's red-main contract (`tests/main_red_model.py`): every
+"""The exhaustive check of main.json's red-main contract (`features/jbus/tests/main_red_model.py`): every
 order of events within its bounds, with the real `mainmoved.tell` and `rows.red`.
 
 Each property is walked in the world where it must hold, and fails there with its trace.

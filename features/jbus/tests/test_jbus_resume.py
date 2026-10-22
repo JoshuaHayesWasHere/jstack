@@ -1,5 +1,5 @@
 """A crew thread that ended with no Result is told to carry on: one queued message for each
-ended run, at most two for a thread, and then a gate. Run as `tests/test_jbus_queue.py`
+ended run, at most two for a thread, and then a gate. Run as `features/jbus/tests/test_jbus_queue.py`
 runs: the real pass, against the fakes."""
 
 from datetime import timedelta

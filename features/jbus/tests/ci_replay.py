@@ -1,6 +1,6 @@
 """A recording of GitHub's Actions API for jstack, answered as `jbus.ci.collect.Gh`.
 
-The files of `tests/fixtures/ci/jstack` are the answers of the API for 2026-10-14 to
+The files of `features/jbus/tests/fixtures/ci/jstack` are the answers of the API for 2026-10-14 to
 2026-10-17, trimmed (see the README there). `annotations` are the ones a test gives a job.
 """
 

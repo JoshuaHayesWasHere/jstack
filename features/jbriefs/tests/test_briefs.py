@@ -702,7 +702,7 @@ def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other
 SKILLS_REAL = (
     "`principles/` (renames only), every file that names a principle, `templates/brief.md`, "
     "`skills/home/SKILL.md` (only where it says how a brief is written), the brief lint in "
-    "`src/jbus/` or `src/jbriefs/`, `src/jmerge/ready.py` if the gate goes there, the new map "
+    "`features/jbus/src/jbus/` or `src/jbriefs/`, `src/jmerge/ready.py` if the gate goes there, the new map "
     "file, their tests, `docs/`"
 )
 WHERES = {
@@ -712,7 +712,7 @@ WHERES = {
             "principles",
             "templates/brief.md",
             "skills/home/SKILL.md",
-            "src/jbus",
+            "features/jbus/src/jbus",
             "src/jbriefs",
             "src/jmerge/ready.py",
             "docs",
@@ -720,8 +720,8 @@ WHERES = {
     ),
     "a directory with the names of its files in parentheses": (
         "tests/ (conftest.py, test_gate_skills.py), pyproject.toml, "
-        "src/jbus/view/__init__.py:368 (one line)",
-        ("tests", "pyproject.toml", "src/jbus/view/__init__.py"),
+        "features/jbus/src/jbus/view/__init__.py:368 (one line)",
+        ("tests", "pyproject.toml", "features/jbus/src/jbus/view/__init__.py"),
     ),
     "a path with a line range, and words that are no path": (
         "`src/a.py:10-20`, the eval's run directory this branch adds under `evals/skill-cut/`",
@@ -739,16 +739,16 @@ WHERES = {
             "src/jmerge/claims.py",
             "src/jmerge/cli.py",
             "docs/flow.html",
-            "docs/jbus.md",
+            "features/jbus/docs/jbus.md",
             "tests/test_a.py",
             "tests/test_b1.py",
             "tests/test_b2.py",
         ),
     ),
     "bare paths after prose in their item": (
-        "the pull request's own files, plus templates/jbus-ci.service and what #88 added, "
+        "the pull request's own files, plus features/jbus/units/jbus-ci.service and what #88 added, "
         "whichever files `jleak --all` names: mostly tests/, some of src/, the Makefile",
-        ("templates/jbus-ci.service", "tests", "src"),
+        ("features/jbus/units/jbus-ci.service", "tests", "src"),
     ),
     "none of these is a path in the repo": (
         "wherever it takes, `make check`, `/etc/hosts`, `../outside.py`, `~/x`",

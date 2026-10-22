@@ -67,7 +67,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "skills.json",
         "docs/configuration.md",
         "docs/troubleshooting.md",
-        "tests/fixtures/README.md",
+        "features/jgauge/tests/fixtures/README.md",
         ".claude/skills/verify-jstack/features/README.md",
         ".cursor/skills/verify-jstack",
     ),
