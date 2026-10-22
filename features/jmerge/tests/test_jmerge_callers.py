@@ -1,9 +1,9 @@
 """`jmerge` judges a pull request's passing check against what main changed since the check
 started. A change to main counts when it touches the pull request's files or CI's files
-(`features/jmerge/tests/test_jmerge_fresh.py`). Since pstack #613, a change to main also
-counts when it adds a caller of those files, or of something they depend on, in a file that
-the pull request does not change. Such a pull request waits for a fresh check, which runs the
-repo's command on the head merged over today's main, and merges on a pass.
+(`features/jmerge/tests/test_jmerge_fresh.py`). Since pstack #613, a change to main also counts
+when it adds a caller of those files, or of something they depend on, in a file that the pull
+request does not change. Such a pull request waits for a fresh check. The check runs the repo's
+command on the head merged over today's main, and the pull request merges when the check passes.
 
 The tests run the command against a real origin, as
 `features/jmerge/tests/test_jmerge_fresh.py` does."""

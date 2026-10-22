@@ -176,7 +176,7 @@ class Proof:
 
     @property
     def why(self) -> str:
-        """Why the proof does not hold, in one line, or an empty string when it holds."""
+        """Why the proof does not hold, as one line. It is an empty string when it holds."""
         return f"brief's Proves it: line {self.fault} {_PROVES}" if self.fault else ""
 
 
@@ -273,8 +273,8 @@ def playbook_named(text: str) -> str:
 
 
 def playbook(text: str) -> str:
-    """Why a brief's `Playbook:` line names no playbook, in one line, or an empty string when it
-    names one.
+    """Why a brief's `Playbook:` line names no playbook, as one line. It is an empty string when
+    it names one.
 
     The name is the line's first word, as `jbus playbook` reads it. It must be a crewmate's
     file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
@@ -302,7 +302,7 @@ _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
 
 
 def designed(text: str) -> str:
-    """Why a brief has no design call, in one line, or an empty string when it has one.
+    """Why a brief has no design call, as one line. It is an empty string when it has one.
 
     The first `Design:` line of its head gives the call: the path of the design the brief
     was written from, a file with its extension, or `none, <why>`. A `none` with no reason
@@ -365,8 +365,8 @@ _CHOICES = ("Pull request", "Review")
 
 
 def _filled(text: str, label: str) -> str:
-    """Why the brief's `<label>:` field is not filled in, in one line, or an empty string when
-    it is.
+    """Why the brief's `<label>:` field is not filled in, as one line. It is an empty string
+    when it is.
 
     A field is not filled in when its first line, or an item of a list under it, is still
     the template's whole placeholder (`<...>`, without its quote or list marker). A field of
@@ -391,8 +391,8 @@ def _filled(text: str, label: str) -> str:
 
 
 def proven(text: str) -> str:
-    """Why a brief's `Proves it:` line proves nothing, in one line, or an empty string when it
-    proves something.
+    """Why a brief's `Proves it:` line proves nothing, as one line. It is an empty string when
+    it proves something.
 
     A brief with no such line gets nothing here. A brief that reaches a launch with no such
     line was written before the template asked for the line, and `faults` reports that the
@@ -414,8 +414,8 @@ def check_command(notes: str) -> str:
 
 
 def check_asked(text: str, notes: str) -> str:
-    """Why a brief's `Done when:` asks for the wrong check, in one line, or an empty string when
-    it does not.
+    """Why a brief's `Done when:` asks for the wrong check, as one line. It is an empty string
+    when it does not.
 
     The notes name the repo's check command on a `Check command:` line. When that command is
     not a bare `make check`, a `Done when:` item that asks for a bare `make check` sends a
@@ -548,8 +548,8 @@ def covers(patterns: tuple[str, ...], path: str) -> bool:
 
 
 def wheres(text: str) -> str:
-    """Why a brief's `Where:` line names no path, in one line that quotes the `Where:` line, or
-    an empty string when it names one.
+    """Why a brief's `Where:` line names no path, as one line. It quotes the `Where:` line. It
+    is an empty string when it names one.
 
     `_filled` handles a brief with no line, or with the template's own text.
     """

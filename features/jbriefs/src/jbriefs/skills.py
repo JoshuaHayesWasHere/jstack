@@ -22,10 +22,10 @@ playbook. Any other spelling is no name: a path, a `/` in front, or a capital le
 skill that jstack did not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`)
 is no name either.
 
-`skills.json` also lists every playbook and template, and `where(kind, name)` is the one
-way the runtime finds any of these files. No module reads a path of the checkout from its
-own place in it. A release has no checkout. Its wheel carries the source tree, `skills.json`
-included, beside the packages' environment, and `root()` is that tree.
+`skills.json` also lists every playbook and template, and `where(kind, name)` is the one way the
+runtime finds any of these files. No module reads a path of the checkout from its own place in
+it. A release has no checkout. Its wheel installs the source tree beside the packages'
+environment, with `skills.json` in the tree, and `root()` is that tree.
 
 `features/skill-library/templates/skill-artifacts.md` says what each name leaves under
 `Skills run:` in a Result: one item, `- <name>: <the artifact>`, with its further lines
@@ -220,9 +220,9 @@ _NAMES = "(name a skill or principle that skills.json lists, without its path, o
 
 
 def unknown(text: str) -> str:
-    """Why a brief's `Skills:` line names something that is no skill or principle, in one line
-    that names it, or an empty string when every name resolves. A brief with no `Skills:`
-    line names no skill, and passes."""
+    """Why a brief's `Skills:` line names something that is no skill or principle. The answer
+    is one line that names the bad name, or an empty string when every name resolves. A brief
+    with no `Skills:` line names no skill, and passes."""
     line = _head(text)
     if line is None or _none(line):
         return ""
