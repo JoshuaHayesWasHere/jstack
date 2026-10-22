@@ -113,8 +113,8 @@ class Mover:
 
     @property
     def name(self) -> str:
-        """Return the name its lines use for it: the slug for a crew, `home`, or the role and
-        the slug."""
+        """Return the name the thread has in the ledger's lines: the slug for a crew, `home`
+        for a home, or the role and the slug for any other."""
         if self.role == "crew":
             return self.slug
         return "home" if self.role == "home" else f"{MAP_ROLE[self.role]} {self.slug}"
@@ -360,14 +360,14 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """Work out how a cap moves the thread, against the ledger as it is with the cap in it,
-    and return that move. `plan` reads and chooses, and writes nothing. It returns None for a
+    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap
+    added, chooses the move, and writes nothing. It returns None for a
     thread whose configuration names no model.
 
-    A replay sets `fill`. With it, where the ledger has a window running for the capped
-    instance that resets later, the cap fills that window. Without it, the ledger's rule that the
-    later reset wins would keep that window over a cap moved to now. A real cap carries that
-    window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
+    A replay sets `fill`. Then, when the ledger has a window running for the capped instance
+    and that window resets later, the cap fills that window. Without `fill`, a cap moved to now
+    would lose to that window, because the ledger keeps the later reset. A real cap carries
+    that window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
     mirrored (`dispatch.mirrored_choice`), and that check may run the mirror."""
     cap, ran = found
     configuration = client.call("t3_thread_configuration", {"threadId": thread["threadId"]})

@@ -336,8 +336,8 @@ def sound(
 
 
 def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]) -> None:
-    """Record that a unit outside the pass succeeded: end its streak, and tell each project
-    that it recovered when the streak had alerted."""
+    """Record that a unit outside the pass succeeded: end its streak. If the streak had
+    alerted, tell each project that the unit recovered."""
     line = ok(config.state_dir, key, user=config.user)
     if not line:
         return

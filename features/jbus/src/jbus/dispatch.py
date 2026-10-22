@@ -522,10 +522,10 @@ class Turns:
         return NOTHING
 
     def rest(self, *, cap: bool) -> None:
-        """Once the pass makes no more launches, read each row left to find why it waits.
+        """Once the pass makes no more launches, read each remaining row to find why it waits.
 
         For the rows ahead of the first row that waits for a slot, the pass still sends the
-        gates due to them, whether or not a slot is free. `cap` means the slots ran out.
+        gates those rows are owed, whether or not a slot is free. `cap` means the slots ran out.
         Then the pass names each row that waits, with the time it began to wait for a slot:
         its `since`, or now for a new wait.
         """

@@ -80,8 +80,8 @@ COLUMNS = (
 
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:
-    """Read a `since` as it is typed or put in an address: a time as ISO 8601 writes it, a day
-    alone included. Return None when none is given. A time with no zone is in the user's zone, and a
+    """Read a `since` as the user types it or puts it in an address: an ISO 8601 time, or a
+    day alone. Return None when none is given. A time with no zone is in the user's zone, and a
     string that is not a time raises a `ValueError`."""
     return user.local(datetime.fromisoformat(given)) if given else None
 
@@ -240,8 +240,8 @@ def _digest(args: argparse.Namespace, config: Config) -> int:
 def _events(args: argparse.Namespace, config: Config) -> int:
     """Print the project's event log, one JSON object per line, oldest first. It writes nothing.
 
-    `--since` is a time as ISO 8601 writes it, a day alone included: one with no zone is in the
-    user's zone.
+    `--since` is an ISO 8601 time, or a day alone. A time with no zone is in the user's
+    zone.
     """
     start = _start(args.since, config)
     project = verbs.project(config, args.project)

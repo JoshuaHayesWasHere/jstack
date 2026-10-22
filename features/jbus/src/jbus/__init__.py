@@ -201,8 +201,9 @@ class Config:
 
 
 def old_names() -> dict[str, str]:
-    """Return each name that changed, with the name it has now: `WAS`, and each of `NAMED_AFTER`
-    as jbus wrote it with the user's name from the settings. A name that is a level now, as
+    """Return each name that changed, with the name it has now. The old names are those of
+    `WAS`, and each name of `NAMED_AFTER` spelled with the user's name from the settings, as
+    jbus wrote it then. A name that is a level now, as
     `user` is with the default settings, is not an old name. This function reads the settings
     file, so a caller with many names to read calls it once and passes the map to the two
     functions below."""

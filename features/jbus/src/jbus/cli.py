@@ -136,7 +136,7 @@ def steps(half: Half, slot: str) -> None:
 def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
     """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
-    This function lists the fixed steps of the pass, and runs each slot's steps in its place.
+    This function lists the fixed steps of the pass, and runs the steps of each slot there.
     """
     name = run.project.name
     half = Half(run, client)
@@ -177,9 +177,9 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
 
 
 def second_half(half: Half, client: t3.Client | None) -> None:
-    """Run a project's pass after the launches: build the table, list what waits, and wake.
+    """Run a project's pass after the launches: build the table, list what waits, send the wake.
 
-    This function lists the fixed steps of the pass, and runs each slot's steps in its place.
+    This function lists the fixed steps of the pass, and runs the steps of each slot there.
     """
     run, rows, world = half.run, half.rows, half.seen.world
     half.derived = world is not None and client is not None and rows is not None
