@@ -3,8 +3,9 @@ that harness does not have.
 
 `LEAVES_OUT` holds one table for each harness. When `layout` assembles a harness's layout, it
 flags each term of that harness's table that a skill's text names. The layout's README lists
-those terms, so a reader of that harness sees which steps name something it lacks.
-Claude Code leaves out nothing a skill names: the skills are written for it. Codex and Cursor
+those terms, so a reader who uses that harness sees which steps name something that the
+harness lacks. Claude Code leaves out nothing a skill names, because jstack writes its skills
+for Claude Code. Codex and Cursor
 have none of Claude Code's own tools, its home folder or its settings file.
 """
 
@@ -31,6 +32,6 @@ LEAVES_OUT: dict[str, dict[str, re.Pattern[str]]] = {
 
 
 def used(text: str, harness: str) -> set[str]:
-    """The terms of `harness`'s table that `text` names, which are what `text` asks for and
-    the harness leaves out."""
+    """The terms of `harness`'s table that `text` names, which are the terms that `text`
+    names and the harness leaves out."""
     return {term for term, pattern in LEAVES_OUT[harness].items() if pattern.search(text)}

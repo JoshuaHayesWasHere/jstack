@@ -4,9 +4,9 @@ A kind writes only through Machine, so this file can enforce these rules:
 - The install puts each directory or JSON file it creates into the record before the file
   exists. A folder inside a harness's layout is the exception: the layout's own drop removes
   it.
-- Machine writes a JSON file where its symlink points, by a rename, and never over a change
-  made after it read the file. One install or uninstall runs at a time for a HOME, because
-  `alone` holds a lock on it.
+- Machine writes a JSON file by a rename, at the path its symlink points to. It never writes
+  over a change that another process made after Machine read the file. One install or uninstall
+  runs at a time for a HOME, because `alone` holds a lock on it.
 - Machine runs systemctl only when the user manager reads this HOME.
 - Machine runs uv with nothing forced, so uv never replaces a program that is not its own.
 - Machine writes a file that `--setup` seeds once, with the digest of its bytes in a record,
@@ -77,8 +77,8 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Machine:
-    """`account` is the account's home directory by its passwd entry. Compared with `home`,
-    it tells the user's real HOME from a sandbox's or a test's.
+    """`account` is the account's home directory by its passwd entry. The install compares it
+    with `home` to tell the user's real HOME from a sandbox's or a test's.
 
     `checkout` is the git checkout that jstack's install runs from, or None for a release. A
     release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`)."""
@@ -100,8 +100,8 @@ class Machine:
 
     @classmethod
     def here(cls, checkout: Path | None, release: Path | None = None) -> "Machine":
-        """The real machine. It takes HOME and PATH from the environment, and `run` goes
-        through subprocess."""
+        """The real machine. It takes HOME and PATH from the environment, and `run` calls
+        subprocess."""
         env = dict(os.environ)
 
         def run(args: Sequence[str]) -> Ran:
@@ -241,8 +241,8 @@ class Machine:
 
     def _note(self, path: Path | None) -> None:
         """Put `path` into the record. This method makes the missing levels above the record
-        and records them too, since the record cannot hold them before it exists. With `path`
-        None, it makes only the record's directory."""
+        and records them too, since the record cannot hold them before it exists. When `path`
+        is None, it makes only the record's directory."""
         record = self._record()
         above = [level for level in _levels(record.parent.parent) if not level.exists()]
         record.parent.mkdir(parents=True, exist_ok=True)
@@ -298,10 +298,10 @@ class Machine:
         return JsonObject(path, real, value, True, seen)
 
     def write_object(self, was: JsonObject, value: dict) -> None:
-        """Write `value` at `was.real`, with a two-space indent and the keys in the order
-        read. A file that did not exist goes into the record first. A value equal to the one
-        read writes nothing. The method raises Moved when the bytes on disk are no longer
-        `was.seen`."""
+        """Write `value` at `was.real`, with a two-space indent and the keys in the order read.
+        A file that did not exist goes into the record first. When `value` equals the value
+        read, the method writes nothing. The method raises Moved when the bytes on disk are no
+        longer `was.seen`."""
         if value == was.value:
             return
         now = self.read_object(was.path)
@@ -337,7 +337,7 @@ class Machine:
 
     def seed(self, path: Path, text: str, mode: int) -> None:
         """Write a file that is not there, and record the digest of what it wrote. The file
-        has `mode` from the moment it is created, before its first byte. The method refuses any
+        has `mode` before the method writes its first byte. The method refuses any
         path that is there, even a link to nothing, so it never writes over a file of the
         user's."""
         if path.is_symlink() or path.exists():
@@ -353,8 +353,8 @@ class Machine:
     def unseed(self, path: Path) -> bool | None:
         """Remove a seeded file while its bytes are the ones `seed` wrote. Return True when
         it removed the file, False when it kept the file, and None when no seeded file is
-        there. The method drops a file that is gone from the record, and keeps the entry of a
-        file that stays."""
+        there. When the file is gone, the method removes its entry from the record. When the
+        method keeps the file, it keeps the entry."""
         seeded = self._seeded()
         if path not in seeded:
             return None
@@ -403,11 +403,11 @@ class Machine:
         """The last step of uninstall, over the record
         (${XDG_STATE_HOME:-~/.local/state}/jstack/created, one path on each line).
 
-        Deepest first, it removes each recorded directory that is empty and each recorded
-        JSON file that holds `{}`, and takes its line out. It keeps one that holds anything
-        else, with its line. When the only lines left are those of the levels above the
-        record, it removes the record and its directory, then each of those levels that is
-        empty."""
+        Deepest first, it removes each recorded directory that is empty and each recorded JSON
+        file that holds `{}`, and takes its line out. It keeps each directory or file that holds
+        anything else, and keeps its line. When the only lines left are those of the levels
+        above the record, it removes the record and its directory, then each of those levels
+        that is empty."""
         record = self._record()
         if not record.is_file():
             return Dropped()
@@ -440,8 +440,8 @@ def same_bytes(one: Path, other: Path) -> bool:
 
 @contextmanager
 def _beside(path: Path) -> Iterator[Path]:
-    """A name beside `path` that is this process's own. This context renames the file
-    over `path` when the block ends, and removes it when the block raises."""
+    """A temporary path beside `path`, named with this process's ID. This context renames the
+    file over `path` when the block ends, and removes it when the block raises."""
     next_to = path.with_name(f"{path.name}.{os.getpid()}.new")
     try:
         yield next_to

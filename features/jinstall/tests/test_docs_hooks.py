@@ -1,10 +1,10 @@
 """The hook entries `jinstall.needs` installs are the ones the features declare.
 
-The tests read every `features/<name>/feature.json` with the generator's own crawl. Each
-hook, status line and git hook found there must be one `HookGroup`, `StatusLine` or `GitHook`
-of `needs()`, and `needs()` must have no other. A hook that is in one and not the other fails
-the test. The install reads the hooks from `skills.json`, so this also checks the generated
-file against the manifests.
+The tests read every `features/<name>/feature.json` with the generator's own crawl. Each hook,
+status line and git hook that the crawl finds there must be one `HookGroup`, `StatusLine` or
+`GitHook` of `needs()`, and `needs()` must have no other. A hook that is in the manifests and
+not in `needs()`, or in `needs()` and not in the manifests, fails the test. The install reads
+the hooks from `skills.json`, so this also checks the generated file against the manifests.
 
 The tests also pin the hooks that `needs()` hard-coded before it read them: `needs()` still
 builds each one, in the same order.
@@ -26,7 +26,7 @@ HOOKED = (HookGroup, StatusLine, GitHook)
 
 
 def declared(machine):
-    """Each hook kind the features' manifests ask the install for."""
+    """Each hook kind that the features' manifests declare for the install."""
     files = {one.name: machine.home / one.hooks for one in HARNESSES if one.hooks}
     found = []
     for feature in crawl(REPO).features:
@@ -106,8 +106,9 @@ def hard_coded(machine):
 
 def test_the_install_still_builds_each_hook_need_it_hard_coded_and_in_the_same_order():
     """`needs()` now builds, from the manifests, each need that it once hard-coded. In each
-    file, the groups of each event keep their order, which is the order a fresh install writes them in.
-    `needs()` also builds a hook added since then, and the manifests test checks that one."""
+    file, the groups of each event keep their order, which is the order a fresh install writes
+    them in. `needs()` also builds a hook added since then, and the manifests test checks that
+    one."""
     machine = Machine.here(REPO)
     hooked = (HookGroup, StatusLine, GitHook)
     expected = hard_coded(machine)

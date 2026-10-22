@@ -5,11 +5,12 @@
 is what `install.sh` runs in a checkout. `jinstall [<verb>]` (`cli`) is the command a release
 installs.
 
-Install and --check are one function, and their one branch is whether it calls `put` between
-two probes. So they cannot print different lines for one machine, and a second install is a
-check. The doctor probes the same kinds and prints through the same `say`, so it gives --check's
-answer for every part that both print. --setup walks the same list once, in order. It seeds each
-config that is not there, puts each due Carried need, and says what is left for the user.
+Install and --check are one function, which branches once: install calls `put` between two
+probes, and --check does not. So they cannot print different lines for one machine, and a second
+install is a check. The doctor probes the same kinds and prints through the same `say`, so it
+gives --check's answer for every part that both print. --setup walks the same list once, in
+order. It seeds each config that is not there, puts each due Carried need, and says what is left
+for the user.
 """
 
 import sys
@@ -35,7 +36,7 @@ class Verb(Enum):
 
 @dataclass(frozen=True)
 class Report:
-    """What a verb leaves: the lines for stdout, a note for stderr, and the exit code."""
+    """What a verb returns: the lines for stdout, a note for stderr, and the exit code."""
 
     lines: tuple[str, ...]
     note: str
@@ -51,8 +52,8 @@ def say(need: Need, found: Found) -> str:
 
 def refused(machine: Machine, verb: str) -> Report | None:
     """The refusal for a linked worktree under the account's own HOME, or None for any other
-    checkout. The install writes nothing from such a worktree, because its links would point
-    every live skill at the worktree."""
+    checkout. The install writes nothing from such a worktree, because the install's links would
+    point every live skill at the worktree."""
     if not machine.in_a_worktree_of_the_account():
         return None
     why = f"install.sh: {machine.checkout} is a linked worktree, and HOME is your own: "
@@ -60,14 +61,14 @@ def refused(machine: Machine, verb: str) -> Report | None:
 
 
 def install(machine: Machine, write: bool) -> Report:
-    """Probe each due Carried need, and with `write`, put it and probe it again when the
-    answer is missing or a replaceable old. Each line is the last probe's, and the exit code
-    is 1 when a line is not ok.
+    """Probe each due Carried need. With `write`, put the need and probe it again when the
+    probe answers missing, or answers an old that is replaceable. Each line gives the answer
+    of the last probe, and the exit code is 1 when a line is not ok.
 
-    The loop catches a put that fails, adds its reason to `note`, and goes on, and the second
-    probe says what is true. With `write`, the function refuses a linked worktree under the
-    account's own HOME before it probes anything, since its links would move every live skill
-    to it."""
+    When a put fails, the loop catches the failure, adds its reason to `note`, and goes on.
+    The second probe then reports the actual state. With `write`, the function refuses a
+    linked worktree under the account's own HOME before it probes anything, since the
+    install's links would point every live skill at that worktree."""
     if write and (refusal := refused(machine, "install")):
         return refusal
     lines, notes, code = [], [], 0
@@ -91,12 +92,12 @@ def install(machine: Machine, write: bool) -> Report:
 def setup(machine: Machine) -> Report:
     """Walk every need once, in order, and print one line for each. The line is `done <name>`
     for what this run wrote, `already <name>` for what was there, and
-    `needs you <name> -> <command>` for what is the user's to do.
+    `needs you <name> -> <command>` for each step that is left for the user.
 
     Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
     the install puts it. The jbus config comes before the units in the list, so a run that
     seeds it links the units too. A second run writes nothing. The exit code is 1 while a hard
-    need is the user's."""
+    need is left for the user."""
     if refusal := refused(machine, "set up"):
         return refusal
     lines, notes, code = [], [], 0
@@ -150,7 +151,8 @@ def uninstall(machine: Machine) -> Report:
 
 
 def doctor(machine: Machine) -> Report:
-    """Probe every need that is only probed and every due Carried need, and write nothing.
+    """Probe every need that the install only probes, and every due Carried need, and write
+    nothing.
     The last line is `doctor: ok` or `doctor: not ok, <n> hard`. The exit code is 1 only when
     a hard need is not ok: an optional need never changes it."""
     lines, hard = [], 0

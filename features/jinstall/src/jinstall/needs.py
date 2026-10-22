@@ -3,7 +3,7 @@ except the hooks: each feature declares its own, and the install reads them from
 skills.json.
 
 To add a need, add one entry to `needs()`, and make no other edit. The doctor then prints it,
-and `--setup` says whether it is done, already there, or the user's to do. When its kind is
+and `--setup` says whether it is done, already there, or left for the user to do. When its kind is
 Carried, the install also puts, checks and removes it.
 """
 
@@ -96,7 +96,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     says why. A skills.json that the function cannot read names no skill and no hook, and each
     layout's line says why.
 
-    Only probed:
+    Needs that the install only probes:
       hard      linux                         Linux
       hard      t3                            T3Nightly(T3_FLOOR)
       hard      claude                        Program("claude", package="claude-code")
@@ -294,10 +294,10 @@ def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:
 
 
 def _commands(machine: Machine) -> Commands:
-    """The tool and its commands. A checkout reads them from its pyproject.toml. A release
-    reads the name and the version from its plugin.json, which match the package's, and the
-    commands from what its installed package declares, or none when the package is not
-    installed."""
+    """The tool and its commands. For a checkout, the function reads them from its
+    pyproject.toml. For a release, it reads the name and the version from the release's
+    plugin.json, and they match the package's. It reads the commands from what the installed
+    package declares, and there are none when the package is not installed."""
     if machine.checkout is not None:
         project = tomllib.loads((machine.checkout / "pyproject.toml").read_text())["project"]
         return Commands(project["name"], tuple(project["scripts"]))

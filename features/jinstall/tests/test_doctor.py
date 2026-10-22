@@ -2,7 +2,7 @@
 code.
 
 Each test runs the script under a temporary `HOME`, with a stand-in for each program the doctor
-asks. Three tests are the exception: they give a kind a machine that no argument of the script
+runs. Three tests are the exception: they give a kind a machine that no argument of the script
 can produce."""
 
 import os
@@ -33,7 +33,7 @@ JBUS = 'server = "http://127.0.0.1:1"\n'
 
 
 class Doctored(User):
-    """A HOME with a stand-in for every program the doctor asks. Each stand-in is one line of
+    """A HOME with a stand-in for every program the doctor runs. Each stand-in is one line of
     sh."""
 
     def __init__(self, tmp_path):

@@ -1,7 +1,7 @@
-"""A release: the wheel that `uv build` makes from this checkout, installed as
-`uv tool install` installs it, with no checkout above it. The tests run `jinstall` from it,
-under a HOME of the test's own. It assembles each harness's layout from the source tree that
-the wheel carries, as `install.sh` does from a checkout (`test_install`)."""
+"""A release: the wheel that `uv build` makes from this checkout. The tests install it with
+`uv tool install`, in a directory with no checkout above it, and run its `jinstall` under a
+HOME of the test's own. That `jinstall` assembles each harness's layout from the source tree
+that the wheel carries, as `install.sh` does from a checkout (`test_install`)."""
 
 import functools
 import http.server

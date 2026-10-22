@@ -20,7 +20,7 @@ from jinstall.machine import Dropped, Machine
 
 def ours(machine: Machine) -> bool:
     """Whether this run may write in the checkout it installs from. It may never write in a
-    linked worktree under the account's own HOME, since the install refuses one."""
+    linked worktree under the account's own HOME, since the install refuses to run from one."""
     checkout = machine.checkout
     if checkout is None or machine.in_a_worktree_of_the_account():
         return False
@@ -65,8 +65,8 @@ def stray(path: Path, checkout: Path, declared: frozenset[str]) -> bool:
 @dataclass(frozen=True)
 class StrayProjectLink:
     """A link under the checkout's project roots into the checkout, for a skill no feature
-    declares. `needs()` lists it only when it finds one, and it is old until it is unlinked. Both
-    put and drop unlink it."""
+    declares. `needs()` lists it only when it finds one, and the probe answers old until put or
+    drop unlinks it."""
 
     path: Path
     declared: frozenset[str]

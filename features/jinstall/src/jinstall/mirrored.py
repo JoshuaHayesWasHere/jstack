@@ -1,4 +1,5 @@
-"""The doctor's look at each mirror home: `jroles mirror --check`, read in place.
+"""The doctor's probe of each mirror home, which makes the check that `jroles mirror --check`
+makes, without running the command.
 
 A mirror is an extra Claude home that providers.json declares, and `jroles-mirror.timer` keeps
 it as a mirror of `~/.claude` (`jroles.mirror`). The probe reads it through the same `plan` that
@@ -7,7 +8,7 @@ probes a mirror. The timer, or `jroles mirror` run by hand, repairs it.
 
     ok       every entry is as `jroles mirror` makes it
     missing  the home is not there: the instance has no login yet
-    old      an entry differs: the detail names how many and the first
+    old      an entry differs: the detail names how many entries differ, and the first
 """
 
 from dataclasses import dataclass

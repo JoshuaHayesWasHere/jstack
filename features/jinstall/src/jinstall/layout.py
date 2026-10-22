@@ -14,19 +14,19 @@ A layout holds these entries:
 - the templates;
 - the hooks of that harness as `hooks/<file>`;
 - a README;
-- `source`, a link to the source itself. It is the way back from a skill to the checkout (its
-  `install.sh`, its git) or to the release.
+- `source`, a link to the source itself. An agent follows it from a skill back to the
+  checkout (its `install.sh`, its git) or to the release.
 
-`skills/` and `templates/` are siblings, so a skill finds its templates through its own link,
-`realpath ~/.claude/skills/<name>/../../templates`.
+`skills/` and `templates/` are siblings, so an agent reaches a skill's templates through the
+skill's own link, `realpath ~/.claude/skills/<name>/../../templates`.
 
 Each entry is a symlink to its file in the source. So an edit to the source is live with no
-install, and a new file appears on the next install. The layout would break the relative links
-of some Markdown files, and the assembly writes a rewritten copy of each of those instead
-(`links`). In the copy, a link to a target the layout holds points where the layout puts the
-target, and a link to a target it leaves out becomes the target's GitHub address. The copy is
-stale once its source changes. The README lists the skills, and for each skill the terms it
-names that the harness leaves out (`terms`).
+install, and a new file appears on the next install. Placing some Markdown files in the layout
+would break their relative links, so the assembly writes a rewritten copy of each of those files
+instead (`links`). In the copy, a link to a target that the layout holds points where the layout
+puts the target, and a link to a target that the layout leaves out becomes the target's GitHub
+address. The copy is stale once its source changes. The README lists the skills. For each skill,
+it also lists the terms that the skill names and the harness leaves out (`terms`).
 """
 
 from __future__ import annotations
@@ -76,9 +76,9 @@ Entry = Linked | Written
 
 @dataclass(frozen=True)
 class Assembled:
-    """A layout as the source makes it. It holds each entry by its path in the layout, the
-    terms each skill names that the harness leaves out, and each link that dangles, as a
-    fault."""
+    """A layout as the assembly builds it from the source. It holds each entry by its path in
+    the layout, the terms each skill names that the harness leaves out, and each link that
+    dangles, as a fault."""
 
     entries: dict[str, Entry]
     flagged: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -131,8 +131,8 @@ def skills(source: Path) -> list[str]:
 
 def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
     """Every file of the skill folder `skill`, as source paths, except what `NOT_THE_SKILL`
-    names. That is a feature's other parts, and its playbooks, which the layout puts in
-    playbooks/."""
+    names. `NOT_THE_SKILL` names a feature's other parts and its playbooks, which the layout
+    puts in playbooks/."""
     for path in sorted((source / skill).rglob("*")):
         parts = path.relative_to(source / skill).parts
         if parts[0] in NOT_THE_SKILL or any(p.startswith(".") or p == "__pycache__" for p in parts):
@@ -191,8 +191,8 @@ def _readme(source: Path, harness: Harness, flagged: dict[str, tuple[str, ...]])
 
 
 def assemble(source: Path, harness: Harness) -> Assembled:
-    """`harness`'s layout as the source at `source` makes it. The function is pure, except
-    that it reads the source."""
+    """`harness`'s layout as the assembly builds it from the source at `source`. The function is
+    pure, except that it reads the source."""
     placed, stubs, held = _placed(source, harness)
     base = str(json.loads((source / PLUGIN).read_text(encoding="utf-8"))["repository"])
     entries: dict[str, Entry] = {}
@@ -255,13 +255,13 @@ def stale(assembled: Assembled, at: Path) -> list[str]:
 
 @dataclass(frozen=True)
 class Layout:
-    """One harness's layout, as the source makes it.
+    """One harness's layout, as the assembly builds it from the source.
     ok: every entry is there and nothing else is. The detail counts the skills that name a
       term the harness leaves out.
     missing: the folder is not there.
     old: the detail is `stale: <first path>, and <n> more`, or the first link that dangles,
       `<path> links to <href>, which is not in the tree`.
-    put: write each stale entry by a rename, and remove each stray. The install does not
+    put: write each stale entry by a rename, and remove each stray file. The install does not
       record the folders inside the layout (`Machine.make_dirs`), so drop prunes them.
     drop: remove each entry that is still as the install made it, and keep anything else."""
 

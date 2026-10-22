@@ -1,7 +1,7 @@
-"""`install.sh --setup`: one pass over every need, which takes a HOME that has never had
-jstack to one whose doctor says ok. Each test runs the script under a temporary `HOME`. It
-uses the stand-ins of `test_doctor` for every program the doctor asks, and a `git` that has a
-user name set."""
+"""`install.sh --setup`: one pass over every need. After that pass, a HOME that never had jstack
+passes the doctor with `doctor: ok`. Each test runs the script under a temporary `HOME`. It uses
+the stand-ins of `test_doctor` for every program the doctor runs, and a `git` that has a user
+name set."""
 
 import os
 import re
