@@ -801,6 +801,39 @@ class Repo:
         verb = "are" if several else "is"
         return f"the open pull request{several} {' '.join(map(str, numbers))} {verb} based on it"
 
+    def files_of(self, number: int, jq: str) -> subprocess.CompletedProcess[str]:
+        """What `jq` picks from each file of GitHub's files endpoint for pull request `number`,
+        paged through: https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files"""
+        return subprocess.run(
+            [
+                "gh",
+                "api",
+                "--paginate",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/files",
+                "--jq",
+                jq,
+            ],
+            cwd=self.main,
+            capture_output=True,
+            text=True,
+            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+        )
+
+    def in_full(self, one: ready.PullRequest) -> ready.PullRequest:
+        """`gh pr list` lists at most 100 of a pull request's files, and the files endpoint
+        pages through up to 3000:
+        https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files
+        Where it cannot be read, `one` keeps the files it has, and `ready.needs_the_user`
+        holds it for the user with the counts."""
+        if len(one.files) >= one.changed:
+            return one
+        asked = self.files_of(one.number, ".[] | {filename, status}")
+        try:
+            every = [] if asked.returncode else list(map(json.loads, asked.stdout.splitlines()))
+            return ready.listed_in_full(one, every)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return one
+
     def left(self, one: ready.PullRequest) -> tuple[str, ...] | None:
         """`gh pr list` lists a rename under its new path alone, and only the files endpoint
         gives the file's old path, as `previous_filename`:
@@ -808,20 +841,7 @@ class Repo:
         """
         if not one.renamed:
             return ()
-        asked = subprocess.run(
-            [
-                "gh",
-                "api",
-                "--paginate",
-                f"repos/{{owner}}/{{repo}}/pulls/{one.number}/files",
-                "--jq",
-                ".[] | .previous_filename // empty",
-            ],
-            cwd=self.main,
-            capture_output=True,
-            text=True,
-            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
-        )
+        asked = self.files_of(one.number, ".[] | .previous_filename // empty")
         return None if asked.returncode else tuple(asked.stdout.splitlines())
 
     def moved(self, default: str, since: datetime) -> tuple[str, tuple[str, ...]] | None:
@@ -1768,6 +1788,7 @@ def main(argv: list[str] | None = None) -> int:
     if silent:
         say(f"wait: could not ask GitHub{silent}")
         return 1
+    listed = [repo.in_full(one) for one in listed]
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)

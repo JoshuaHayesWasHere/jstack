@@ -243,7 +243,9 @@ It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merge
 
 **Protected paths** are in `features/jmerge/src/jmerge/protected.txt`: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the files `protected.txt` and `guarded.txt` themselves, and the directories `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
 A pull request that changes one is printed as `hold <number> <url>: needs <user>, touches <first matching path>`.
-So is one whose file list GitHub cut short.
+`jmerge` judges every file a pull request changes.
+`gh pr list` lists at most 100 of them, so for a longer pull request `jmerge` reads the whole list, with each file's change type, from GitHub's files endpoint (`repos/{owner}/{repo}/pulls/<number>/files`), which lists up to 3000.
+A pull request whose whole list cannot be read, past those 3000 or when the read fails, is held as `hold <number> <url>: needs <user>, GitHub listed <listed> of the <changed> files it changes`.
 
 **Guarded paths** are in `features/jmerge/src/jmerge/guarded.txt`, which is empty: no path is guarded, and a ready pull request merges with no proven safety fact at its head.
 A pattern added to it guards that path again, and since the file is protected, the user merges that change.
