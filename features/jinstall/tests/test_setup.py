@@ -57,30 +57,36 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
     ]
     assert said[8:14] == [
         f"done jbus config {user.jbus_config}",
-        f"needs you jbus sign-in {user.token} -> jbus t3 login",
+        f"missing optional jbus sign-in {user.token} -> jbus t3 login",
         f"done config {user.config}",
         f"done roles {user.roles}",
         "already lavish-axi",
-        f"needs you state repo {user.state} -> git init {user.state}"
+        f"missing optional state repo {user.state} -> git init {user.state}"
         f" && git -C {user.state} remote add origin <url>",
     ]
-    assert said[14:16] == [
-        "needs you provider inventory -> run infra's install",
-        f"needs you limits {user.limits} -> jgauge limits",
+    assert said[14:18] == [
+        f"missing optional ci report {user.jbus_config}"
+        f" -> ci_report = true in a [[project]] of {user.jbus_config}",
+        f"missing optional relay {user.relay_env}"
+        f" -> write the relay's keys to {user.relay_env}, as the relay's page says",
+        "missing optional provider inventory -> run infra's install",
+        f"missing optional limits {user.limits} -> jgauge limits",
     ]
     parts = [*user.parts(), f"optional units {user.units}"]
-    assert said[16] == "already generated files are current"
-    assert said[17:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
+    assert said[18] == "already generated files are current"
+    assert said[19:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
 
 def test_it_walks_every_need_the_doctor_lists_once_and_in_order(user):
     said = user.setup()[1]
-    words = ("done ", "already ", "needs you ")
+    words = ("done ", "already ", "needs you ", "missing optional ")
     assert all(line.startswith(words) for line in said)
     heads = [line.split(" -> ")[0] for line in said]
-    named = [head.split(" ", 2 if head.startswith("needs") else 1)[-1] for head in heads]
+    named = [
+        head.split(" ", 2 if head.startswith(("needs", "missing")) else 1)[-1] for head in heads
+    ]
     doctored = [line.split(" -> ")[0].split(" ", 2)[2] for line in user.doctor()[1][:-1]]
     assert named == doctored
 
@@ -122,8 +128,8 @@ def test_a_second_run_says_only_already_and_needs_you_and_writes_nothing(user):
     before, created, seeded = user.snapshot(), user.created.read_bytes(), user.seeded.read_bytes()
     code, said = user.setup()
     assert code == 0
-    assert {line.split(" ")[0] for line in said} == {"already", "needs"}
-    assert line_for(said, "limits") == [f"needs you limits {user.limits} -> jgauge limits"]
+    assert {line.split(" ")[0] for line in said} == {"already", "missing"}
+    assert line_for(said, "limits") == [f"missing optional limits {user.limits} -> jgauge limits"]
     assert user.snapshot() == before
     assert (user.created.read_bytes(), user.seeded.read_bytes()) == (created, seeded)
 
@@ -244,9 +250,12 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     said = done.stdout.splitlines()
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
-    probed, harness, units, left = 16, 1, 1, 4
+    probed, harness, units, left = 18, 1, 1, 6
     count = probed + harness + len(user.parts()) + units - left
-    assert said[-2:] == [f"setup: 0 done, {count} already, 4 needs you, exit 0", "doctor: ok"]
+    assert said[-2:] == [
+        f"setup: 0 done, {count} already, 0 needs you, 6 optional left, exit 0",
+        "doctor: ok",
+    ]
     assert user.snapshot() == before
 
 

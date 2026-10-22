@@ -49,7 +49,8 @@ if [ "$#" -gt 0 ]; then
         $(1) == "done" {done++}
         $(1) == "already" {already++}
         $(1) == "needs" && $(2) == "you" {you++}
-        END {printf "setup: %d done, %d already, %d needs you, exit %d\n", done, already, you, code}'
+        $(1) == "missing" && $(2) == "optional" {optional++}
+        END {printf "setup: %d done, %d already, %d needs you, %d optional left, exit %d\n", done, already, you, optional, code}'
     doctor=$("$@" --doctor 2>&1)
     printf '%s\n' "$doctor" | tail -n 1
 fi
@@ -61,6 +62,7 @@ The setup's lines are:
 - `done <name>`: this run wrote it.
 - `already <name>`: it was there.
 - `needs you <name> -> <command>`: only the user can do it, with the one command that does.
+- `missing optional <name> -> <command>`: a layer the user has not set up, such as the relay or the backup, and the command that sets it up. Nothing is wrong without it.
 - `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout`: nothing was written. The skill is linked from a worktree, which the setup refuses under the account's own HOME.
 
 On `not set up`, the machine has no jstack yet: the skill is linked by the setup itself, so the first run is the user's, by hand, with the release's install line it prints.

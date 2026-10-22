@@ -101,11 +101,14 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         "ok optional lavish-axi",
         f"missing optional state repo {user.state} -> not a git repo",
     ]
-    assert said[14:16] == [
+    assert said[14:18] == [
+        f"missing optional ci report {user.jbus / 'config.toml'}"
+        " -> no jbus config, so no project asks for it",
+        f"missing optional relay {user.relay_env} -> no env file, so the relay is off",
         f"missing optional provider inventory -> {user.providers}",
         f"missing optional limits {user.limits} -> jgauge limits writes it, every 2 min",
     ]
-    assert said[16:-1] == user.every("ok")
+    assert said[18:-1] == user.every("ok")
 
 
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
@@ -128,7 +131,7 @@ def test_the_doctor_writes_nothing_and_gives_checks_answer_for_each_part_both_pr
     assert user.listing() == []
     checked = user.run("--check")[1]
     assert checked == user.every("missing")
-    assert said[16:-1] == checked
+    assert said[18:-1] == checked
 
 
 def test_the_doctor_prints_the_units_once_they_are_due_as_check_does(user):
@@ -323,10 +326,35 @@ def test_the_state_repo_is_ok_with_an_origin_and_missing_with_no_repo_or_no_remo
     assert user.line("state repo") == f"missing {part} -> not a git repo"
     user.state.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(user.state)], check=True)
-    assert user.line("state repo") == f"missing {part} -> no remote"
+    assert user.line("state repo") == f"missing {part} -> no remote, so the backup is off"
     url = "https://github.com/someone/state.git"
     subprocess.run(["git", "-C", str(user.state), "remote", "add", "origin", url], check=True)
+    user.program("gitleaks", "exit 0")
     assert user.line("state repo") == f"ok {part} -> {url}"
+
+
+def test_a_backup_remote_with_no_gitleaks_names_gitleaks_as_the_need(user):
+    user.run()
+    user.state.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(user.state)], check=True)
+    url = "https://github.com/someone/state.git"
+    subprocess.run(["git", "-C", str(user.state), "remote", "add", "origin", url], check=True)
+    user.program("gitleaks", "exit 0")
+    said = user.doctor(path=user.without("gitleaks"))[1]
+    assert line_for(said, "state repo") == [
+        f"old optional state repo {user.state} -> needs gitleaks, which reads each snapshot for"
+        " secrets"
+    ]
+
+
+def test_the_relay_and_the_ci_report_are_ok_once_their_config_is_there(user):
+    user.as_owner()
+    assert user.line("relay") == f"ok optional relay {user.relay_env}"
+    assert user.line("ci report") == f"ok optional ci report {user.jbus / 'config.toml'} -> jstack"
+    user.write(user.relay_env, "RELAY_INBOUND_KEY=a-key\n")
+    (found,) = line_for(user.doctor()[1], "optional relay")
+    assert found.startswith(f"old optional relay {user.relay_env} -> the relay would not start: ")
+    assert "RELAY_WEBHOOK_URL is missing" in found
 
 
 def test_a_jstack_config_the_loader_takes_is_ok_and_one_it_refuses_is_old(user):

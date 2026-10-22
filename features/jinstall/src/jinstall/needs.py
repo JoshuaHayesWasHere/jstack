@@ -19,6 +19,7 @@ from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
     Attribution,
     Carried,
+    CiReport,
     Commands,
     Generated,
     GhSignIn,
@@ -36,6 +37,7 @@ from jinstall.kinds import (
     Program,
     ProviderInstance,
     ProviderInventory,
+    RelayKeys,
     Roles,
     StateRepo,
     StatusLine,
@@ -112,7 +114,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
       optional  lavish-axi                    Program("lavish-axi", hint="npm install -g ...")
-      optional  state repo <path>             StateRepo
+      optional  state repo <path>             StateRepo, the backup
+      optional  ci report <path>              CiReport, of the jbus config
+      optional  relay <path>                  RelayKeys, the relay's env file
       optional  provider inventory            ProviderInventory
       hard      provider <id>                 ProviderInstance, for each declared instance
       hard      skills <home>                 HomeSkills, for each declared Claude home
@@ -146,7 +150,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                                               co-author trailer, in each Claude home's
                                               settings.json (~/.claude and each declared
                                               home) and in each harness's settings file
-      optional  units ~/.config/systemd/user  Units
+      optional  units ~/.config/systemd/user  Units, which enables the ci, relay and
+                                              snapshot units only while the ci report, relay
+                                              and state repo needs above are ok (`OPTED`)
     """
     repo, home = machine.checkout, machine.home
     try:
@@ -160,6 +166,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     config = machine.config_home() / "jstack" / "config.toml"
     roles = config.with_name("roles")
     state = _state_tree(machine)
+    relay = machine.config_home() / "jbus-relay" / "env"
     found = [
         Need("linux", Level.HARD, Linux()),
         Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
@@ -179,6 +186,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
         Need(f"state repo {state}", Level.OPTIONAL, StateRepo(state)),
+        Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
+        Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),
     ]
     inventory = machine.config_home() / "jstack" / "providers.json"
     providers = declared(inventory, home)
@@ -272,11 +281,14 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for file, wanted, made in _attribution(home, providers)
     ]
     names = sorted(templates(machine))
+    opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
+    opted["jbus-snapshot.timer"] = StateRepo(state)
     units = Units(
         machine.config_home() / "systemd" / "user",
         tuple(names),
-        tuple(name for name in names if name.endswith(".timer")),
+        tuple(name for name in names if name.endswith(".timer") and name not in opted),
         jbus,
+        tuple((name, need) for name, need in opted.items() if name in names),
     )
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
