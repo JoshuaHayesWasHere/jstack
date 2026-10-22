@@ -1,19 +1,46 @@
 # jroles
 
-`jroles` picks the model for a role.
+`jroles` picks the model each kind of thread runs on.
+A home, a crewmate, a scout, a reviewer and an expert are roles, and the role map names a model for each role, or says that its thread runs on the model of the thread that launched it.
+A launch asks `jroles` for the model just before it starts the thread.
 
-A launched thread runs on the model of the thread that launched it, unless the role map names one for its role. The map is `${XDG_CONFIG_HOME:-~/.config}/jstack/roles`, one line a role, with `#` for a comment:
+## Set a role's model
+
+1. Open the role map, `${XDG_CONFIG_HOME:-~/.config}/jstack/roles`.
+   Setup wrote it with every role set to `inherit`, so every thread runs on the model of the thread that launched it:
+
+   ```
+   # Written once by install.sh --setup. Edit it: setup never writes over it.
+   crew: inherit
+   scout: inherit
+   review: inherit
+   home: inherit
+   expert: inherit
+   ```
+
+2. Replace `inherit` with a provider and a model on the line of each role you want to set.
+3. Run `jroles <role>` to see what a launch of that role would get.
+   It prints one JSON line for each selection, prints nothing for a role that inherits, and says on stderr why it cannot use a line.
+
+This map is an example, not a default:
 
 ```
-# Two Claude Sonnet 5.5 reviewers on High (the user, 2026-10-20)
-crew: claudeAgent claude-sonnet-5-5
-scout: claudeAgent claude-sonnet-5-5
+# An example: Opus builds, and each pull request gets two reviews, on two providers
+crew: claudeAgent claude-opus-5-5
+scout: claudeAgent claude-haiku-5-5 effort=low
 review: claudeAgent claude-sonnet-5-5 effort=high
-review: claudeAgent claude-sonnet-5-5 effort=high
+review: codex gpt-5-codex
 home: inherit
 ```
 
-A line is `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<level>] [fast=<on|off>]`. The roles are `crew`, `scout`, `review`, `home` and `expert`. The handoff of a party that is no repo's home reads `expert`. An expert's own rollover is the expert skill's and does not go this way. `<provider>` is T3 Code's id for Claude, Codex, Cursor or Grok: `claudeAgent`, `codex`, `cursor` or `grok`. `<role>: inherit` is the same as no line, and so is no file.
+## The role map
+
+A line is `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<level>] [fast=<on|off>]`, and `#` starts a comment.
+The roles are `crew`, `scout`, `review`, `home` and `expert`.
+The handoff of a party that is no repo's home reads `expert`.
+An expert's own rollover is the expert skill's and does not go this way.
+`<provider>` is T3 Code's id for Claude, Codex, Cursor or Grok: `claudeAgent`, `codex`, `cursor` or `grok`.
+`<role>: inherit` is the same as no line, and so is no file.
 
 ## The review list
 
@@ -27,9 +54,6 @@ Once a `Reviewer:` line carries a number, the unnumbered `Reviewer:` lines are a
 A brief none of whose lines carries a number is read as before, by the `By:` texts.
 A scoped pass or a second pass is one reviewer, on the first line, and writes `#1`.
 Any other role named twice refuses the map, and so does `review: inherit` beside another review line.
-
-Since the user's word of 2026-10-20 every review runs as two Claude Sonnet 5.5 threads at `high`, from the main Claude pool, and no review line names Codex or Cursor.
-It replaces, for now, the earlier rule that Claude does the coding and the other providers review.
 A review line that names Claude's built-in instance, or a pool of Claude instances, is placed and moved on a cap like any other Claude thread (see Pools).
 
 ## Models
@@ -46,29 +70,29 @@ The Claude model ids the docs name, each one a `claudeAgent` line may give as `<
 
 ## Effort and fast
 
-Each provider names its effort with its own T3 Code option id, and takes only the levels T3 Code lists for it, up to the ceiling the user's rule gives the role:
+Each provider names its effort with its own T3 Code option id, and `jroles` takes only the levels in this table:
 
 | Provider | Option id | Levels | With no `effort=` |
 | --- | --- | --- | --- |
 | `claudeAgent` | `effort` | `low`, `medium`; `high` too on a `review` line | `medium`, always sent |
 | `codex` | `reasoningEffort` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | the model's default, nothing sent |
 | `cursor` | `reasoning_effort` | `low`, `medium`, `high`, `xhigh` | the model's default, nothing sent |
-| `grok` | none | none: a Grok line names no effort | nothing sent |
+| `grok` | none | none: a Grok line names no effort and no `fast=` | nothing sent |
 
 A Claude line always launches at `medium`, or at the level it names.
-T3 Code launches a model with no effort at that model's own default, which is `high` for Claude Sonnet 5.5 and Claude Opus 5, and no Claude thread here runs above medium unless the user says so.
-The user said so for reviews (2026-10-20): a `review` line may name `high`, and no higher.
-A `crew`, `scout`, `home` or `expert` line takes `low` or `medium` alone.
-T3 Code lists `xhigh` and `max` for Claude too, and a level above a role's ceiling refuses the line's role, and its launch inherits.
+`jroles` always sends a Claude level because T3 Code launches a model with no effort at that model's own default, which is `high` for Claude Sonnet 5.5 and Claude Opus 5.5.
+The Claude levels are capped in `jroles` itself (`PROVIDERS` in `features/jroles/src/jroles/__init__.py`), and a map cannot raise them: a `crew`, `scout`, `home` or `expert` line takes `low` or `medium`, and a `review` line takes `high` too.
+T3 Code lists `xhigh` and `max` for Claude too, and a level above a role's cap refuses the line's role, and its launch inherits.
 A level the provider does not list, such as `effort=turbo` on a Codex line, refuses the role the same way.
 
-`fast=on` or `fast=off` is Cursor's alone, sent as `{"id": "fastMode", "value": true}` or `false`. T3 Code's default for Cursor's Grok 4.7 is on, so a reviewer with Fast off says `fast=off`.
+`fast=on` or `fast=off` is Cursor's alone, sent as `{"id": "fastMode", "value": true}` or `false`.
+T3 Code's default for Cursor's Grok 4.7 model is on, so a Cursor line that wants Fast off says `fast=off`.
 
 One line of a role that is refused refuses every line of that role: half a list of reviewers is a review nobody chose.
 
 ## Running it
 
-Before a launch a thread runs `uv run jroles <role>`.
+Before a launch a thread runs `jroles <role>`.
 For a role the map names, `jroles` prints one JSON line a selection, such as `{"provider": "claudeAgent", "model": "claude-sonnet-5-5", "options": [{"id": "effort", "value": "high"}]}`, and the launch sends it as `modelSelection`.
 For `review` it prints a line for each reviewer, in order, and each is one launch.
 It prints nothing when the launch inherits.
@@ -78,19 +102,20 @@ It does not ask T3 Code whether the model exists.
 
 ## Pools
 
-The instances a line names are the line's pool, in order:
+The instances a line names are the line's pool, in order.
+In this example, `claudeAgent_work` is a second Claude account that `providers.json` declares:
 
 ```
-crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_claude_prime effort=medium
+crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_work effort=medium
 ```
 
 A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`.
-So every launch goes to `claudeAgent` until it nears a usage limit, then to `claudeAgent_claude_prime`, and back to `claudeAgent` once its window has reset.
+So every launch goes to `claudeAgent` until it nears a usage limit, then to `claudeAgent_work`, and back to `claudeAgent` once its window has reset.
 Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](../../jbus/docs/jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)).
 One instance is a pool of one.
 A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
 
-The move goes both ways: a thread capped on `claudeAgent` goes on to `claudeAgent_claude_prime`, and one capped on `claudeAgent_claude_prime` goes back to `claudeAgent` while that one has headroom.
+The move goes both ways: a thread capped on `claudeAgent` goes on to `claudeAgent_work`, and one capped on `claudeAgent_work` goes back to `claudeAgent` while that one has headroom.
 The threads that move are every thread of every project in `~/.config/jbus/config.toml` that failed on a usage limit and is not settled: a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `) by its title, and the homes in a `home-id`, the root home's and each scope's.
 A thread that owes nothing stays where it is: a crew whose task merged or ended clean, a reviewer whose task is over and whose brief's last Review has a verdict (a scoped or second-pass reviewer of a task still out owes its own pass), a scout whose Report is written.
 A thread's pool is the first line of the map that names its instance, its own role's lines first and then every other role's.
@@ -99,7 +124,7 @@ A move happens only on a cap, and it is sticky: a thread stays on the account it
 With both capped the thread is sent nothing: `jbus` says so once, as a `stall`, and the first pass after the first reset sends it on.
 `jbus failover --replay <items.json> --thread <id>` replays a recorded cap on one live thread through the same move, with the reset as far from now as it was from the recording, and keeps the cap out of the ledger; `jbus failover --replay <items.json> --thread <id> --dry-run` prints the move and writes nothing.
 
-For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_claude_prime with headroom`, or `jroles: crew on claudeAgent_claude_prime: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_claude_prime are both capped until ...`) and exits 75: the launch waits for the first reset.
+For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_work with headroom`, or `jroles: crew on claudeAgent_work: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`) and exits 75: the launch waits for the first reset.
 
 A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../jinstall/docs/configuration.md#provider-instances)), and one more id on the role line.
 Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance.
@@ -110,17 +135,17 @@ An id named twice, or an empty one (`claudeAgent,`), refuses the line too.
 
 A usage limit, the five-hour or the weekly one, caps an instance until its window resets.
 The ledger keeps each instance's use of each window: the file `LIMITS` names (`~/.local/state/claude/limits`) for `claudeAgent`, and the file beside it, `<LIMITS>.<instanceId>`, for any other, each with a line for a window, `five_hour <percent used> <reset>` and `seven_day <percent used> <reset>` ([configuration](../../jinstall/docs/configuration.md#the-limits-file)).
-For a new launch an instance has headroom while none of its windows is at the user's `headroom` or over with its reset ahead, 90% by default ([configuration](../../jinstall/docs/configuration.md#jstack)).
+For a new launch an instance has headroom while none of its windows is at your `headroom` or over with its reset ahead, 90% by default ([configuration](../../jinstall/docs/configuration.md#jstack)).
 A thread already running moves off its instance only at a real cap, 100% (`jbus`, "A usage limit").
 Three writers keep the ledger, by one rule (`features/jroles/src/jroles/ledger.py`): two resets under 5 minutes apart are one window, which keeps the larger share, and otherwise the later reset wins.
 A writer floors its reset to the second, and the usage endpoint's moves a second either way between calls, so a lower share of a window never replaces a cap on it.
 `jgauge limits` is the writer ahead of time: every two minutes, from `jgauge-limits.timer`, it reads each Claude account's use from the usage endpoint with that home's own token, or from the answer Claude Code cached in that home's `.claude.json` while it is under 15 minutes old ([jgauge](../../jgauge/docs/jgauge.md)).
 The other two write only when something happens: the status line (`features/jgauge/hooks/limits.sh`), for the account whose `CLAUDE_CONFIG_DIR` it runs under, and `jbus`, at 100% from a turn T3 Code ended on a usage limit.
 A source that fails writes nothing, so the last line stands and a capped account is never read as free.
-`jgauge limits --check` and `install.sh --check` name a file 15 minutes old or more.
+`jgauge limits --check` and `jinstall --check` name a file 15 minutes old or more.
 
 `jgauge room` reads the ledger for the pool of the role it checks for, `jgauge room --role <role>`, the crew's where it names none.
-It waits on the plan only while every instance of a line's pool is full, and the `wait:` names each instance and the first reset: `wait: claudeAgent and claudeAgent_claude_prime are both at or over 90%: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min, claudeAgent_claude_prime's weekly limit is 100% used and resets in 1 d 6 h 0 min; the first resets in 2 h 0 min`.
+It waits on the plan only while every instance of a line's pool is full, and the `wait:` names each instance and the first reset: `wait: claudeAgent and claudeAgent_work are both at or over 90%: claudeAgent's five-hour limit is 100% used and resets in 2 h 0 min, claudeAgent_work's weekly limit is 100% used and resets in 1 d 6 h 0 min; the first resets in 2 h 0 min`.
 An instance full on both windows is named by the one that resets later, since it has no headroom until then.
 While one instance is full and another has room, `jgauge room` prints `go` and a `note:` on stderr that names the full one and the first with room.
 For a role with several lines, `review`, each line is a pool, and one whose instances are all full holds the check.
@@ -128,10 +153,14 @@ A role with no pool reads the file `LIMITS` names, as before, and `jgauge room -
 
 ## Mirrors
 
-A second Claude account runs as an instance of its own, in a home of its own: the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`, such as `~/.claude_prime` for `claudeAgent_claude_prime` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
-A thread on it should know what a thread on `~/.claude` knows, and differ only in its login.
-`jroles mirror` keeps each such home a mirror of `~/.claude`: every Claude instance of `providers.json` whose home is not `~/.claude` is one, and nothing else in jstack names the homes.
-The instance ids and the homes are infra's, in `providers.json`; the code that mirrors them is jstack's.
+`jroles mirror` matters only when you run a second Claude account.
+Each extra account is a `claudeAgent` instance of `~/.config/jstack/providers.json` with a Claude home of its own, its `config.homePath`, such as `~/.claude_work` for an instance `claudeAgent_work` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
+`jroles mirror` makes each such home a mirror of `~/.claude`: it replaces every entry of the extra home, except the login's own files, with a symlink into `~/.claude`.
+So both accounts read and write one memory, one set of transcripts and history, one set of skills and plugins, and one `settings.json` and `CLAUDE.md`, and differ only in the login.
+It also copies the shared keys of `~/.claude.json` into the extra home's `.claude.json`.
+It changes `~/.claude` too: an entry only the extra home has moves into `~/.claude` and is linked back, and the skill use of every home is pooled into `~/.claude.json`.
+The install (`jinstall`) enables `jroles-mirror.timer`, which runs it every 5 minutes.
+With no extra Claude home in `providers.json` it has nothing to mirror and changes nothing.
 
 What is shared is every entry of `~/.claude`, as a symlink in the mirror: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `settings.json`, `CLAUDE.md`, and any entry `~/.claude` gains later, on the next run.
 What is per login stays the mirror's own and is never linked: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.
@@ -158,7 +187,7 @@ A run with nothing to do prints nothing and writes nothing.
 Each mirror is changed under its own lock, `<home>/.jroles-mirror.lock`, and under the main home's, `~/.claude/.jroles-mirror.lock`, so no two runs interleave, on one mirror or on two that would move the same new entry into `~/.claude`.
 A move whose target appeared in `~/.claude` since the plan was read is not made: it prints `kept`, and the next run backs the entry up and merges it.
 A directory is merged before it is moved and again after, so a run that stopped halfway leaves nothing unmerged, and the next run picks up where it stopped.
-A mirror whose home is not there is said on stderr, and the run exits 2: the home is made by the account's first login, which is infra's.
+A mirror whose home is not there is said on stderr, and the run exits 2: the home is made when you first sign in to that account with Claude Code.
 
 `jroles mirror --check` changes nothing, takes no lock, prints `would ...` for each entry that differs and exits 1 if there is one.
 Its line for `.claude.json` names the shared keys whose values differ, `would sync <keys> of ~/.claude.json into <home>/.claude.json`, so an account key that changed is no drift.
@@ -168,8 +197,8 @@ A home that lacks a skill whose last use is older than the timer's longest gap, 
 An entry of `skillUsage` that is not an object of numbers is said on stderr, `<file>: skillUsage <skill> is malformed`, and exits 2: a run then pools nothing until it is mended.
 A mirror with nothing to do prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors that instance alone, and exits 2 for an id that is no mirror.
-`features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and `install.sh` links and enables both with the jbus units.
-`install.sh --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while it differs.
+`features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`, and the install (`jinstall`) links and enables both with the jbus units.
+`jinstall --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while it differs.
 
 Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.
 On drift it runs `jroles mirror --instance <id>` once and checks again.
