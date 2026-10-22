@@ -2,8 +2,9 @@
 of the head that the fix pushed. It merges once the crew has answered the first review's
 findings and pushed its `Fixed:` line, and the second reviewer has written its review. What
 that review finds goes to a cleanup row (`jbus cleanup`) and never holds the merge. The tests
-drive it through `ready.short_of`, the reader that the merge goes by, and through `jmerge`
-itself against a real origin and a fake `gh` (`features/jmerge/tests/test_jmerge_fresh.py`).
+drive it through `ready.short_of`, the function that `jmerge` asks before a merge, and through
+`jmerge` itself against a real origin and a fake `gh`
+(`features/jmerge/tests/test_jmerge_fresh.py`).
 """
 
 import jsettings

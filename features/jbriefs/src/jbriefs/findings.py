@@ -473,7 +473,7 @@ def _same(finding: Finding, one: Raised) -> int | None:
     """How far `one` is from a finding it would merge into, or None when it would merge into
     none. It merges into another reviewer's finding of the same head and place when the
     reviewers raised both findings rather than dismissing them, both have a bucket, and the
-    merged finding holds at most one line from each reviewer."""
+    merged finding contains at most one line from each reviewer."""
     lead = finding.lead
     if lead.legacy or one.legacy or not one.head:
         return None

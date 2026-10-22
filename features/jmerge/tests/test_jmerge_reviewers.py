@@ -1,7 +1,8 @@
 """A brief whose role map lists two reviewers gets a `## Review` section from each, both
 written at the same head, and `jmerge` reads them as one round. The round waits for every
 reviewer that the `Reviewer:` lines name, and its verdict is the worst of its sections. The
-tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
+tests run through `ready.short_of`, the function that `jmerge` asks before a merge, over
+briefs as the
 skills write them."""
 
 from jmerge import ready

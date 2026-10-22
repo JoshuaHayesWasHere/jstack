@@ -1,7 +1,7 @@
 """`jmerge` waits until every blocking finding has its answer, on every path, and not only
 where a `Second pass:` or `Scoped review:` line says that the fix still needs a review. The
-tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
-skills write them.
+tests run through `ready.short_of`, the function that `jmerge` asks before a merge, over
+briefs as the skills write them.
 
 The first three tests use the briefs that the review-determinism-risks scout reproduced.
 Before this change, `short_of` called those briefs ready."""

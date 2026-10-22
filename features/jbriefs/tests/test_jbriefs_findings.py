@@ -247,8 +247,8 @@ def test_a_risk_tag_on_a_line_its_reviewer_wrote_again_holds_nothing():
 
 
 def test_a_numbered_round_says_how_many_sections_count_for_no_reviewer(tmp_path):
-    """Review 1 of #166: a reviewer on the old skill text writes no number, and the wait line
-    then says that its section does not count, instead of only `0 of 2`."""
+    """Review 1 of #166: a reviewer on the old skill text writes no number. The wait line then
+    says that its section does not count, where it used to say only `0 of 2`."""
     head = "a" * 40
     brief = "## Result\nReviewer: mcp:a #1\nReviewer: mcp:b #2\n"
     brief += f"\n## Review\nBy: claudeAgent claude-sonnet-5-5 high\nVerdict: clean\nHead: {head}\n"

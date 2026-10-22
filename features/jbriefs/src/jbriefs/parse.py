@@ -90,7 +90,7 @@ class PullRequest:
 @dataclass(frozen=True)
 class Step:
     """One step that a Result's `Playbook:` line reports. `skip` is the reason the crewmate did
-    not do it, and is empty for a step that was done."""
+    not do it, and is empty for a step that the crewmate did."""
 
     number: int
     skip: str = ""
@@ -231,12 +231,12 @@ def _template(said: str) -> bool:
 
 
 def sized(text: str) -> str:
-    """Why a brief's `Size:` line names no t-shirt size, in one line, or an empty string when it
-    names one.
+    """Why a brief's `Size:` line names no t-shirt size, in one line. It is an empty string
+    when the line names a size.
 
     Step 4 of the feature playbook reads the size to decide on a design read. So this check
-    refuses a brief with no line, which would otherwise count as S, as every brief did
-    before the line existed.
+    refuses a brief with no line. Before the line existed, every brief counted as S, and a
+    brief with no line would still count as S.
     """
     said = _head(text, "Size:")
     if said is None:

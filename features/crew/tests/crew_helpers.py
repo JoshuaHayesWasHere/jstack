@@ -73,7 +73,8 @@ def with_field(line):
 
 
 def reviewed(findings, endings=""):
-    """The brief once a reviewer has written its section and the crewmate its `Finding:` lines."""
+    """The brief once a reviewer has written its section and the crewmate has written its
+    `Finding:` lines."""
     listed = "".join(f"- {finding}\n" for finding in findings) or "none\n"
     review = f"\n## Review\nVerdict: findings\nFindings:\n{listed}Dropped: 0\nSent to: mcp:1\n"
     return BRIEF + endings + review

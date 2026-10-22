@@ -1,7 +1,7 @@
 """A brief whose `Review:` line says `after` merges on its check alone. Its review runs beside
 the merge or after it, and what the review finds goes to a cleanup row, never to a hold. The
-tests drive it through `ready.short_of`, the reader that the merge goes by, and through
-`jmerge` itself against a real origin and a fake `gh`
+tests drive it through `ready.short_of`, the function that `jmerge` asks before a merge, and
+through `jmerge` itself against a real origin and a fake `gh`
 (`features/jmerge/tests/test_jmerge_fresh.py`)."""
 
 import json

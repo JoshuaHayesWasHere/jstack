@@ -797,8 +797,8 @@ def test_a_fresh_check_another_run_is_making_is_not_started_again(kitchen):
 
 def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen, monkeypatch):
     """A jmerge that is stopped leaves its command running. The command holds the lock too, so
-    the next run starts no second command under it. Here a background process of the
-    command keeps running after the check ends."""
+    the next run starts no second command while the first one runs. Here a background
+    process of the command keeps running after the check ends."""
     checked = Checked(kitchen, "sleep 3 > /dev/null 2>&1 &")
     home = kitchen.home
     here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
@@ -871,7 +871,8 @@ def known(kitchen):
 
 
 def recorded(kitchen, number, limit=60.0):
-    """Wait until the fresh check that a run started in the background records what it found."""
+    """Wait until the fresh check records what it found. A run started that check in the
+    background."""
     end = time.monotonic() + limit
     while str(number) not in cli.Fresh(kitchen.home.main, kitchen.home.state).known():
         assert time.monotonic() < end, "the fresh check recorded nothing"
