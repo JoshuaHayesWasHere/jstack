@@ -2,18 +2,18 @@
 
 jstack runs with none of these files. Each one changes a default or switches on an optional layer. This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found.
+`jinstall --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found.
 [Troubleshooting](troubleshooting/the-doctor.md) has each line the doctor prints for a file it does not take.
 
 | File | Sets | Written by |
 |---|---|---|
-| `~/.config/jstack/config.toml` | Your name and time zone | You, or `install.sh --setup` once |
-| `~/.config/jstack/roles` | The model for each role | You, or `install.sh --setup` once |
+| `~/.config/jstack/config.toml` | Your name and time zone | You, or `jinstall --setup` once |
+| `~/.config/jstack/roles` | The model for each role | You, or `jinstall --setup` once |
 | `~/.config/jstack/machine.toml` | The full and short test slots, where the machine's own count is not wanted | You |
-| `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `install.sh --setup` once |
-| `~/.config/jstack/providers.json` | The provider instances this machine runs | infra's install, as a link |
-| `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `install.sh` |
-| `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `features/jgauge/hooks/limits.sh`, `jbus` |
+| `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `jinstall --setup` once |
+| `~/.config/jstack/providers.json` | The provider instances this machine runs | You |
+| `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `jinstall` |
+| `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `jgauge limits`, jgauge's `limits.sh` in the status line, `jbus` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
 | `origin` of the git repo `~/.local/state/home` | Where `jbus snapshot` pushes the homes' state | You |
 
@@ -22,8 +22,8 @@ The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variabl
 ## jstack
 
 `~/.config/jstack/config.toml` says who jstack works for, in which time zone, and how full an account may get before a launch passes it by.
-A plain `install.sh` never creates it.
-`install.sh --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse.
+A plain `jinstall` never creates it.
+`jinstall --setup` writes it once, where there is no file, with `user` from the first word of `git config user.name` and `timezone` from the machine (`$TZ`, else `/etc/localtime`), leaving out a value the loader would refuse.
 With no file, every key has its default.
 
 ```toml
@@ -36,7 +36,7 @@ headroom = 90
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
 | `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take, whose own message `--message` asks for, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
-| `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `install.sh --doctor` |
+| `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `jinstall --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 
@@ -48,7 +48,10 @@ They do not fall back to the defaults.
 ## Roles
 
 `~/.config/jstack/roles` names the model each role's thread is launched on.
-It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment.
+It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<level>] [fast=<on|off>]`, with `#` for a comment.
+A Claude line takes `effort=low` or `effort=medium`, and a `review` line also `effort=high`.
+Only a Cursor line takes `fast=`.
+[jroles](../../jroles/docs/jroles.md) has every provider's levels.
 It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
 The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../../jroles/docs/jroles.md#pools)).
 
@@ -62,11 +65,15 @@ The instances a line names are the role's pool, in order: a launch goes to the f
 
 `inherit` is the model of the thread that launches.
 [jroles](../../jroles/docs/jroles.md) has the providers and an example.
-`install.sh --setup` writes the file once, where there is none, with every role `inherit`.
+`jinstall --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
 
-`~/.config/jbus/config.toml` lists the repos `jbus` looks after. `jbus` does not run without it, and nothing else needs it. `install.sh --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`. The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read. `JBUS_CONFIG_DIR` names another directory for it.
+`~/.config/jbus/config.toml` lists the repos `jbus` looks after.
+`jbus` does not run without it, and nothing else needs it.
+`jinstall --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`.
+The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read.
+`JBUS_CONFIG_DIR` names another directory for it.
 
 ```toml
 server = "http://127.0.0.1:<port>"
@@ -131,43 +138,58 @@ Two more paths change what `jbus` does:
 
 ## Provider instances
 
-`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in its own home. infra's install writes it and links it there. jstack never writes it, and `install.sh --doctor` only reads it. Its shape is T3's own `providerInstances` in `~/.t3/userdata/settings.json`: an object keyed by instance id.
+`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in a home of its own.
+You write the file. jstack never writes it: `jroles`, `jgauge limits` and `jinstall --doctor` only read it.
+With no file, each provider has only its built-in instance, such as `claudeAgent` for Claude, and nothing is wrong.
+On a machine where another tool manages the file, that tool writes it, and jstack reads it the same way.
+
+The file has the shape of T3 Code's own `providerInstances`, in `~/.t3/userdata/settings.json`: one JSON object, keyed by instance id.
+This example declares the built-in Claude instance and a second Claude account in `~/.claude-work`:
 
 ```json
 {
   "claudeAgent": {"driver": "claudeAgent", "enabled": true},
-  "claudeAgent_claude_prime": {"driver": "claudeAgent", "enabled": true, "config": {"homePath": "~/.claude_prime"}},
-  "codex": {"driver": "codex", "enabled": true}
+  "claudeAgent_work": {"driver": "claudeAgent", "enabled": true, "config": {"homePath": "~/.claude-work"}}
 }
 ```
 
-The doctor compares each declared instance with what T3's settings list, and reads those settings only. infra renders them. It prints these lines:
+| Key | Default | What it sets |
+|---|---|---|
+| The instance id | None, required | The name a role line of `~/.config/jstack/roles` gives the instance in its pool ([Roles](#roles)), and the name of its limits file, `limits.<instanceId>`. It is the id T3 Code gives the same instance. |
+| `driver` | None, required | The provider: `claudeAgent`, `codex`, `cursor` or `grok`. A role line names only instances of its own provider. |
+| `enabled` | `true` | Whether T3 Code runs the instance. The doctor checks that T3 says the same. |
+| `config.homePath` | `~/.claude` for a Claude instance | The instance's home. A leading `~` is your home directory, and the path must be absolute after that. Each Claude home is one account, with its own login. |
+
+A file that does not parse, or an instance with no `driver`, is refused, and the doctor's `provider inventory` line says why.
+`jroles` refuses it too, with a `refused:` line that names `providers.json`, and the role inherits the model of the thread that launches it.
+
+Each instance the file declares must also be an instance of T3 Code, with the same id, driver, `enabled` and `homePath`.
+You add it in T3 Code's settings, which T3 keeps in `~/.t3/userdata/settings.json`.
+A new Claude home needs its login once: run `CLAUDE_CONFIG_DIR=~/.claude-work claude` and sign in to that account.
+
+The doctor compares each declared instance with what T3's settings list, and reads those settings only.
+It prints these lines:
 
 | Line | Meaning |
 |---|---|
 | `missing optional provider inventory -> <path>` | There is no inventory, so nothing is declared. The doctor does not fail on it. |
 | `old optional provider inventory -> <why>` | The file is not in T3's shape. The doctor checks no instance. |
 | `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` unlisted when it is declared with no other home. |
-| `missing hard provider <id> -> T3 does not list it` | infra's side has not put the instance into T3's settings yet. |
+| `missing hard provider <id> -> T3 does not list it` | T3's settings do not have the instance yet. |
 | `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
 | `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` for none. |
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
-| `ok hard generated files are current` | `skills.json`, which each layout is assembled from, and the other files `python3 scripts/generate-jstack-trees.py` writes from the checkout are current. |
-| `old hard generated files are current -> stale: <path>` | A skill, playbook, template or hook was added or changed after the generator ran: run it and commit what it writes. The install does not run it, and a skill `skills.json` does not list is in no layout. |
-| `ok hard layout <harness> <folder>` | The layout of Claude Code, Codex or Cursor is as the install assembles it from the checkout. For Codex and Cursor it says how many skills name a tool or path that harness leaves out, which the layout's `README.md` lists. |
-| `old hard layout <harness> <folder> -> stale: <path>` | A file of the layout is missing, differs, or was not made by the install, or a skill was added since: run `install.sh`. |
+
+[The provider instances](troubleshooting/the-provider-instances.md) says what to do for each line.
 
 Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](../../jroles/docs/jroles.md#mirrors)).
-The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
+jstack takes the instance ids and the homes from this file alone, so a second account needs its line here, the same instance in T3 Code, and its login.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
-
-`install.sh` assembles one layout for each harness under `~/.local/share/jstack/harness/` ([The layouts](jinstall.md#the-layouts)), and links every skill of a layout into its harness's root: `~/.claude/skills` for Claude Code, `~/.codex/skills` for Codex, and `~/.agents/skills` for Cursor.
-Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
 
-`install.sh` writes every hook entry, and you write none of them by hand.
+`jinstall` writes every hook entry, and you write none of them by hand.
 [The catalog](../../../CATALOG.md#hooks) lists each hook with the feature that declares it, and [jinstall](jinstall.md#hook-entries) says which file of each harness its entry goes in.
 
 ## The machine's sizes
@@ -187,15 +209,14 @@ test_slots = 3
 | `short_slots` | One for each 8 processors, from 2 to 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
 
 A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.
-The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), where it was before.
-[Limits](../../jgauge/docs/limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
+The crew cap is `max_running` in jbus's config ([jbus](#jbus)).
 
 ## The limits file
 
 The limits files are the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
-`~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
+`~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_work`.
 `jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../../jgauge/docs/jgauge.md)).
-`features/jgauge/hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+jgauge's `limits.sh`, which the status line runs, writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 An account the inventory does not declare writes nothing.
 `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
 All three merge by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
@@ -211,18 +232,19 @@ Each file has these rows, and a window that is not open has none.
 Without the file, `jgauge room` still prints `go` when the machine has room.
 It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
 
-If you have a status line of your own, `install.sh` leaves it alone, and `jgauge limits` still writes the file.
-To have the status line write it too, pipe the status line's input to the script from your own command.
-Save this as your status line script, with the path of your checkout, and print your own line where the last line prints the model:
+If you have a status line of your own, `jinstall` leaves it alone, and `jgauge limits` still writes the file.
+To have the status line write it too, pipe the status line's input to jgauge's `limits.sh` from your own command.
+The install keeps the script in Claude Code's layout, `~/.local/share/jstack/harness/claude-code/hooks/limits.sh`, or under `$XDG_DATA_HOME` when that is set.
+Save this as your status line script, and print your own line where the last line prints the model:
 
 ```sh
 #!/bin/sh
 input=$(cat)
-printf '%s' "$input" | sh '<checkout>/features/jgauge/hooks/limits.sh'
+printf '%s' "$input" | sh "${XDG_DATA_HOME:-$HOME/.local/share}/jstack/harness/claude-code/hooks/limits.sh"
 printf '%s' "$input" | jq -r '.model.display_name'
 ```
 
-`features/jgauge/hooks/limits.sh` prints nothing and exits 0 on any input, so it adds nothing to your line.
+`limits.sh` prints nothing and exits 0 on any input, so it adds nothing to your line.
 
 ## The state tree's remote
 
@@ -236,7 +258,7 @@ git -C ~/.local/state/home remote add origin <url>
 The backup is optional.
 With no `origin` a snapshot keeps its commit and says the backup is off, the install leaves `jbus-snapshot.timer` off, and nothing alerts.
 With an `origin` and gitleaks on the machine, the install enables the timer.
-`install.sh --doctor` prints `ok optional state repo ~/.local/state/home -> <url>`, or `missing` with `not a git repo` or `no remote, so the backup is off`, or `old` with `needs gitleaks`.
+`jinstall --doctor` prints `ok optional state repo ~/.local/state/home -> <url>`, or `missing` with `not a git repo` or `no remote, so the backup is off`, or `old` with `needs gitleaks`.
 
 ## Switches for one repo
 
@@ -254,12 +276,12 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 
 | Variable | Default | Read by |
 |---|---|---|
-| `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `jgauge`, `install.sh` |
+| `XDG_CONFIG_HOME` | `~/.config` | `jmerge`, `jbus`, `jroles`, `jgauge`, `jinstall` |
 | `XDG_CACHE_HOME` | `~/.cache` | `jbriefs`, `jdrift` |
-| `LIMITS` | `~/.local/state/claude/limits` | `features/jgauge/hooks/limits.sh`, `jgauge room`, `jroles`, `jbus`, `install.sh --doctor` |
-| `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `jgauge sizes`, `install.sh` |
+| `LIMITS` | `~/.local/state/claude/limits` | jgauge's `limits.sh`, `jgauge room`, `jroles`, `jbus`, `jinstall --doctor` |
+| `JBUS_CONFIG_DIR` | `~/.config/jbus` | `jbus`, `jgauge sizes`, `jinstall` |
 | `JBUS_STATE_DIR` | `~/.local/state/jbus` | `jbus`, `jgauge sample --report` |
-| `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus`, `install.sh --doctor` |
+| `JBUS_HOME_DIR` | `~/.local/state/home` | `jbus`, `jinstall --doctor` |
 | `TEST_SLOTS` | `test_slots` in `machine.toml`, else derived | `jgauge test-slot`, for one run: `jbus.service` does not see a shell's |
 | `PROC` | `/proc` | `jgauge room`, `jgauge sizes`, `jgauge sample`, `jbus`, for a test |
 | `JGAUGE_LOCKS_DIR` | `~/.local/state/locks` | `jgauge test-slot`, `jbus` |

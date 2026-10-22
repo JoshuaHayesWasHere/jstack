@@ -31,6 +31,7 @@ sh install.sh --setup
 In a checkout that is not installed, run a command as `uv run --project <checkout> <command>`.
 
 [jinstall](features/jinstall/docs/jinstall.md#a-release-and-a-checkout) says what a checkout's install does that a release's does not.
+[The lines of a checkout](features/jinstall/docs/troubleshooting/working-on-jstack.md) has each line that only a checkout's install prints, with what to do.
 
 ## What is in the repo
 
@@ -58,6 +59,8 @@ The Python code is one `uv` project.
 `make check` is the one check command.
 It runs the lint and the tests above, in that order, and stops at the first that fails.
 `make check-fast` runs the lint and only the tests a change reaches.
+
+When a check fails, [A test of `make check` failed on a bound](features/repo-guards/docs/troubleshooting/a-test-of-make-check-failed-on-a-bound.md) and [`make check-fast` stopped before the tests](features/repo-guards/docs/troubleshooting/make-check-fast-stopped-before-the-tests.md) have the common causes.
 
 `features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
@@ -93,6 +96,17 @@ A pull request into `main` needs `check` and `borders` to pass before it merges.
 
 ## Release
 
-`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it.
-A version bump is a pull request.
-[Releasing](features/jinstall/docs/jinstall.md#releasing) has the steps.
+A release is cut from a clean `main` that is `origin/main`, by one command:
+
+```sh
+make release
+```
+
+It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`), then tags it and pushes the tag.
+Where the push fails, it drops the tag again, so the next `make release` starts clean.
+The tag runs `.github/workflows/release.yml`.
+It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make check` and `make dist`.
+It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.
+The release's assets are what `make dist` writes: the wheel, the sdist, and `install.sh` with the version written in.
+
+A version bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, the same version in `plugin.json`, and `make trees`, which copies it into the harness.

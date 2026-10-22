@@ -1,13 +1,13 @@
 # The provider instances
 
-The doctor reads the provider inventory and T3 Code's settings, and writes neither.
-[Configuration](../configuration.md#provider-instances) has the file.
+The doctor reads the provider inventory, `~/.config/jstack/providers.json`, and T3 Code's settings, and writes neither.
+You write the inventory yourself, as [Configuration](../configuration.md#provider-instances) shows.
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing optional provider inventory -> <path>` | No inventory is linked there, so no instance is declared. | Run infra's install, or leave it. |
-| `old optional provider inventory -> <why>` | The file is not in the shape of T3's `providerInstances`. The doctor checks no instance. | Mend the file where infra declares it. |
-| `missing hard provider <id> -> T3 does not list it` | The inventory declares the instance, and T3's settings do not have it. | Run infra's install, which renders T3's settings. |
-| `old hard provider <id> -> <why>` | T3 lists the instance disabled, with another driver or another `homePath`, or its settings cannot be read. | Run infra's install, or mend the inventory. |
+| `missing optional provider inventory -> <path>` | There is no inventory, so no instance is declared, and jstack uses only the built-in instance of each provider. | Nothing, or write the file. |
+| `old optional provider inventory -> <why>` | The file is not in the shape of T3's `providerInstances`. The doctor checks no instance. | Correct what `<why>` names. |
+| `missing hard provider <id> -> T3 does not list it` | The inventory declares the instance, and T3's settings do not have it. | Add the instance in T3 Code with the same id, driver and home, or take it out of the inventory. |
+| `old hard provider <id> -> <why>` | T3 lists the instance disabled, with another driver or another `homePath`, or its settings cannot be read. | Make the instance in T3 Code and the inventory say the same thing. |
 | `missing hard skills <home> -> link it to <path>` | A declared Claude home has no `skills`. | Link `<home>/skills` to `~/.claude/skills`. |
 | `old hard skills <home> -> <path>` | A declared Claude home's `skills` points away from the central jstack skills, or one skill in it does. | Link `<home>/skills` to `~/.claude/skills`. |

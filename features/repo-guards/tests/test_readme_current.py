@@ -566,9 +566,11 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
     tmp_path,
 ):
     (script,) = blocks(section(page("configuration.md"), "The limits file"), "sh")
-    assert sum("<checkout>" in line for line in script) == 1
+    layout = tmp_path / "data" / "jstack" / "harness" / "claude-code" / "hooks"
+    layout.mkdir(parents=True)
+    (layout / "limits.sh").symlink_to(REPO / "features" / "jgauge" / "hooks" / "limits.sh")
     path = tmp_path / "statusline.sh"
-    path.write_text("\n".join(script).replace("<checkout>", str(REPO)) + "\n")
+    path.write_text("\n".join(script) + "\n")
     limits = tmp_path / "limits"
     reset = int(time.time()) + 3600
     given = (
@@ -581,7 +583,7 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
         input=given,
         capture_output=True,
         text=True,
-        env=os.environ | {"LIMITS": str(limits)},
+        env=os.environ | {"LIMITS": str(limits), "XDG_DATA_HOME": str(tmp_path / "data")},
     )
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "Opus\n", "")
     assert limits.read_text() == f"five_hour 23.5 {reset}\nseven_day 41.2 {reset}\n"
