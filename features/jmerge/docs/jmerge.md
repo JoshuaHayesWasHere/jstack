@@ -9,6 +9,8 @@ uv run --project <checkout> jmerge
 ```
 
 For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (a merge commit for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout.
+It writes the squash commit's message itself: the subject is the pull request's title and ` (#<number>)`, and the body lists the branch's commit messages as GitHub's default does, each with every AI co-author trailer line taken out (`jmerge.trailers`), passed as `--subject` and `--body-file -`.
+The landing's merge commit keeps GitHub's subject, and its body is the title.
 It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head.
 It writes no plan: `jbus plan` counts an entry's status from its queue rows.
 It needs `gh` and `git`.
