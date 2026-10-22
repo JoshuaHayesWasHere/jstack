@@ -111,7 +111,7 @@ crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_work effort=medium
 
 A launch goes to the first instance of the pool with headroom in the ledger, and the selection names it as its `instanceId`.
 So every launch goes to `claudeAgent` until it nears a usage limit, then to `claudeAgent_work`, and back to `claudeAgent` once its window has reset.
-Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](../../jbus/docs/jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)).
+Nothing goes round the pool launch by launch: a thread stays on the account it started on, and moves only when a cap stops it (`jbus`, "A usage limit" in [jbus](../../jbus/docs/working-on-jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit)).
 One instance is a pool of one.
 A line that names none has the provider's built-in instance as its pool, and its selection names no instance, as before.
 

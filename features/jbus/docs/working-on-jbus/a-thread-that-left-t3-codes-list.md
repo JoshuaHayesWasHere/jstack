@@ -1,5 +1,7 @@
 # A thread that left T3 Code's list
 
+This page is reference for working on jbus: it says how a pass reads a thread that T3 Code's list leaves out, by the module that does it.
+
 `t3_thread_list` leaves out an archived thread and has no way to ask for one.
 A home that tidies up by archiving a finished thread would take it out of what a pass reads, and the row would read as launched with no thread.
 An archived thread is still the row's thread, and archiving is no signal to launch again.

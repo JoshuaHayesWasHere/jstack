@@ -1,27 +1,152 @@
 # Set up jbus
 
-1. Write the config, `~/.config/jbus/config.toml`, mode 600, as [Configuration](../../../jinstall/docs/configuration.md#jbus) shows. jbus refuses to start when group or others can read it, or the token beside it.
-2. Sign in once with `jbus t3 login`. It registers jbus with the T3 Code server and opens its approval page. Approve it there with a code from `t3 auth pairing create`, with full access, because jbus launches threads. jbus keeps the token in `~/.config/jbus/t3.json`, mode 600. `jbus t3 launch-test` then starts one thread and prints its id.
-3. Run `sh <checkout>/install.sh` again.
-   With the config there, it links every unit of `templates/` into `~/.config/systemd/user/`, reloads systemd and enables `jbus.timer` and `jbus-stale.timer`.
-   It enables the three optional ones only where the machine asks for them: `jbus-snapshot.timer` once the state tree has a remote and gitleaks is there, `jbus-ci.timer` once a project says `ci_report = true`, and `jbus-relay.service` once the relay's env file holds its keys.
-   `jbus.timer` runs a pass every minute (`OnUnitActiveSec=1min`), through `jbus.service` and `jbus-failed.service`.
-   `jbus-stale.timer` looks every 15 minutes for a pass that ended in the last 2 hours, from 2 hours after it starts ([When jbus fails](when-jbus-fails.md)).
-   `jbus-snapshot.timer` backs up the homes' state ([Back up the homes' state](back-up-the-homes-state.md)).
-   `jbus-ci.timer` writes the week's CI report ([Measure the CI](measure-the-ci.md)), and `jbus-relay.service` is [the relay](the-relay.md).
-   Each unit's `Documentation=` names its page of these docs by where its template is (`%Y`), so `systemctl --user show -p Documentation <unit>` leads here.
-   A unit copied in place of the link loses that, and `install.sh --check` reports the copy as old.
+These steps take a machine from a release install to a jbus that launches the work you approve.
+You need T3 Code running on this machine, and `gh` signed in to GitHub.
+The commands are on your `PATH` after the install, as `jinstall` and `jbus`.
 
-[Configuration](../../../jinstall/docs/configuration.md#jbus) has every key of the file and its default.
-`dispatch = false` launches nothing, and `max_running` is how many crewmates may be out at once, derived from the machine when the file does not set it (`jgauge sizes` prints it).
+## 1. Let the setup write the config
 
-jbus does not renew the sign-in. It lasts as long as the token says, or 30 days when the token gives no lifetime. Once it runs out jbus launches nothing, so jbus reminds you, with a `sign-in` event for you, posted once for the machine to the top-level webhook (to the first project's own webhook when there is no top-level pair) and kept in the first project's `jbus events`. The days are counted by the calendar of your zone, to the day the sign-in runs out:
+Run the setup.
+The release's `install.sh` runs it for you, and a second run writes nothing:
 
-- 7 days out or fewer, on the first pass: `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, 7 days left: run jbus t3 login`;
-- from 3 days out, on the first pass of each day, the day it runs out included, the same line with the days left;
-- once it has run out: `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login`;
-- after `jbus t3 login` stores a token that runs out later, once: `sign-in: jbus's T3 sign-in was renewed, and now expires <YYYY-MM-DD HH:MM zone>`, and the count starts over for the new expiry.
+```sh
+jinstall --setup
+```
 
-The expiry jbus saw last, and which of these it has said of it, are in `~/.local/state/jbus/sign-in.json`, so a project added or moved in the config says nothing again. `sign_in_reminder` in `jbus status` names the webhook it goes to and the days still ahead. Apart from the reminder, from `warn_days` days before the sign-in runs out the first pass of each day records a quiet `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login` and raises it on the desktop, and each project's `sign_in` in `jbus status` says the same. After that a pass sends `gate <project>: T3 Code could not be asked` once a day until you run `jbus t3 login` again.
+Among its lines you see these two:
 
-To stop every launch, run `touch ~/.local/state/jbus/stop`. The passes go on, and jbus still merges, reads and sends. To stop the passes, run `systemctl --user disable --now jbus.timer`.
+```text
+done jbus config /home/you/.config/jbus/config.toml
+missing optional jbus sign-in /home/you/.config/jbus/t3.json -> jbus t3 login
+```
+
+The config it wrote has the T3 Code server and no project, and it launches nothing:
+
+```toml
+server = "http://127.0.0.1:3773"
+dispatch = false
+```
+
+The setup also linked jbus's systemd units and turned on `jbus.timer`, so a pass runs every minute from now on.
+With `dispatch = false` and no project, a pass does nothing.
+If T3 Code listens on another address, `jq -r .origin ~/.t3/userdata/server-runtime.json` prints it: put that address in `server`.
+
+## 2. Sign jbus in to T3 Code
+
+Run the sign-in:
+
+```sh
+jbus t3 login
+```
+
+It prints a link to the T3 Code server's approval page and waits for you, 600 seconds at most:
+
+```text
+approve jbus in the browser, with a code from `t3 auth pairing create`:
+http://127.0.0.1:3773/...
+```
+
+1. Run `t3 auth pairing create` in another shell.
+   T3 Code installs `t3` as `~/.t3/bin/t3`.
+2. Open the link, and enter the code that `t3 auth pairing create` printed.
+3. Approve with full access, since jbus launches threads.
+
+The sign-in then prints `signed in: the token is in /home/you/.config/jbus/t3.json`.
+The token lasts as long as T3 Code gave it, and jbus reminds you before it runs out ([The sign-in](the-sign-in.md)).
+
+## 3. Add your first project
+
+A project is one repo that jbus looks after, tied to its T3 Code project.
+Pick one of the two ways.
+
+### With a thread: `/new-home`
+
+In any T3 Code thread, type the command with the repo's path:
+
+```text
+/new-home ~/code/app
+```
+
+The skill finds the repo's T3 Code project, makes one when there is none, and adds the project to jbus's config.
+Its third line says so: `3 jbus project: done, one [[project]] table, ...`.
+
+### From a shell: `jbus project add`
+
+You need the id of the repo's T3 Code project.
+To find it in the app, open a thread in that project and ask it for the project's id: the thread reads it with T3 Code's `t3_project_list` tool.
+The `t3` command has no way to list projects.
+As a fallback from a shell, read T3 Code's own store, which this command does not change, and whose layout T3 Code may change in a later version:
+
+```sh
+sqlite3 -readonly ~/.t3/userdata/statev2.sqlite "select project_id, workspace_root from projection_projects where deleted_at is null"
+```
+
+Each line is a project id and the folder of its repo.
+If your repo is not there, add it to T3 Code first, in the app or with `t3 project add <path>`.
+Then add the project, named for the repo's folder:
+
+```sh
+jbus project add app --checkout ~/code/app --project-id <the id>
+```
+
+It prints one line:
+
+```text
+added: one [[project]] table, the file as it was is /home/you/.config/jbus/config.toml.<time>.bak: the next pass works it, restart no unit
+```
+
+[Add a project](add-a-project.md) lists what it refuses.
+
+### Check the project
+
+Run a test launch:
+
+```sh
+jbus t3 launch-test
+```
+
+It starts one thread, titled `jbus: launch test`, in the project, and prints the thread's id, such as `mcp:3f1c...`.
+The thread runs in a new worktree on a branch `jbus-launch-test-<time>` from `origin/main`, and is told to say hello and stop.
+Archive the thread in T3 Code once it has answered, and delete the branch.
+
+## 4. Turn dispatch on
+
+Edit `~/.config/jbus/config.toml`, and change `dispatch = false` to:
+
+```toml
+dispatch = true
+```
+
+The next pass reads the file, so you restart nothing.
+[Configuration](../../../jinstall/docs/configuration.md#jbus) has every other key of the file.
+
+## 5. Check that it works
+
+Run one pass by hand:
+
+```sh
+jbus poll
+```
+
+Before step 4 it printed `dispatch is off in the config: nothing is launched`, and now it does not.
+On the first pass it may also print a `waiting-on-user` line that asks for `webhook_url`: that is the Chef, which is optional ([The Chef](../chef.md)).
+
+Then read what the last pass left:
+
+```sh
+jbus status
+```
+
+`last_pass` is this minute, `token_expires` is when the sign-in runs out, and the project's `last_error` is empty.
+`systemctl --user list-timers jbus.timer` shows when the timer runs the next pass.
+
+jbus now launches the rows you approve.
+To give it the first one, follow [Approve a row](the-queue.md#approve-a-row).
+Without a Chef, jbus tells you what waits on you on the desktop, with `notify-send`, and in `jbus status`.
+
+## Stop jbus
+
+To stop every launch, run `touch ~/.local/state/jbus/stop`.
+The passes go on, and jbus still merges, reads and sends.
+To stop the passes, run `systemctl --user disable --now jbus.timer`.
+[The units](the-units.md) lists each unit the setup linked.
