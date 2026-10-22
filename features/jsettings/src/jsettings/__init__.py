@@ -52,8 +52,8 @@ class Settings:
     headroom: float = HEADROOM
 
     def local(self, moment: datetime) -> datetime:
-        """The moment in the zone. A moment with no zone of its own is read as a time in this
-        zone."""
+        """The moment in the zone. The method reads a moment with no zone of its own as a
+        time in this zone."""
         if self.zone is None:
             return moment.astimezone()
         return moment.astimezone(self.zone) if moment.tzinfo else moment.replace(tzinfo=self.zone)
@@ -83,9 +83,9 @@ class Settings:
             return None, ""
 
     def form(self, at: str = "") -> str:
-        """The form of an `--at`, with the word that the zone has at the time this `--at`
-        names, or at the current time when it names none. So the word that a refusal asks for
-        is one that `takes` accepts."""
+        """The form of an `--at`, with the zone's word for the time that this `--at` names.
+        When `--at` names no time, the word is the zone's word for now. So a refusal shows a
+        word that `takes` accepts."""
         return f"<YYYY-MM-DD HH:MM {self.word(self._said(at)[0] or datetime.now())}>"
 
     def takes(self, at: str) -> bool:

@@ -1,6 +1,6 @@
 """The user's name and time zone are settings. `jsettings.load` reads them from one file, and
-every command runs on defaults when there is no file. Some files on disk were written under
-the old names, before the name became a setting, and the commands read those names as the new
+every command runs on defaults when there is no file. Older versions wrote some files on disk
+under the old names, before the name became a setting, and the commands read those names as the new
 ones. The tests run as `features/jbus/tests/test_jbus.py` runs, with the real command and the
 real pass against the fakes."""
 

@@ -62,7 +62,7 @@ def path() -> Path:
 
 
 def declared(path: Path, home: Path) -> dict[str, Instance] | str:
-    """The inventory at `path`, or why it cannot be read. A missing file reads as `{}`."""
+    """The inventory at `path`, or why the function cannot read it. A missing file reads as `{}`."""
     try:
         return instances(json.loads(path.read_text()), home)
     except FileNotFoundError:

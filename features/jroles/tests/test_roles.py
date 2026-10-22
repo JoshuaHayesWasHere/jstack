@@ -53,8 +53,8 @@ def test_an_expert_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
 
 
 def test_the_roles_are_the_four_threads_and_an_expert_and_no_other(roles):
-    """A line for a role that no longer exists refuses the map, and `jroles` rejects that
-    role as an argument."""
+    """`jroles` refuses a map with a line for a role that no longer exists, and it rejects
+    that role as an argument."""
     assert ROLES == ("crew", "scout", "review", "home", "expert")
     line = "orchestrator: claudeAgent claude-haiku-5-5"
     assert roles("crew", MAP + line + "\n") == ("", f"bad line 6: {line}\n")
@@ -168,8 +168,8 @@ def test_each_provider_names_its_effort_and_fast_by_its_own_option_id(roles, lin
     ],
 )
 def test_a_level_the_provider_does_not_list_refuses_every_review_line(roles, line, why):
-    """One refused line refuses the whole list, because half a list of reviewers is a review
-    that nobody chose."""
+    """When `jroles` refuses one line, it refuses the whole list, because half a list of
+    reviewers is a review that nobody chose."""
     text = f"review: codex gpt-6-sol effort=xhigh\n{line}\ncrew: grok grok-build\n"
     assert roles("review", text) == ("", f"refused review: {why}\n")
     assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
@@ -389,8 +389,8 @@ def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_noth
 
 
 def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):
-    """An id that the inventory does not declare under the line's provider refuses the line,
-    and one more line in the inventory makes the line valid."""
+    """`jroles` refuses a line with an id that the inventory does not declare under the line's
+    provider, and one more line in the inventory makes the line valid."""
     third = "claudeAgent_claude_third"
     (pooled.config / "roles").write_text(
         f"crew: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME},{third}\n"

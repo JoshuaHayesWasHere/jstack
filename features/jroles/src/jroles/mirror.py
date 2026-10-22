@@ -7,7 +7,7 @@ the skills, the settings and the instructions of the main home, `~/.claude`, and
 login of its own. So each entry of `~/.claude` is a symlink in the mirror, except the entries
 bound to a login or to one process (`KEEP`). `<home>/.claude.json` stays the mirror's own file.
 Its account keys (`ACCOUNT_KEYS`) are the mirror's, and every other key is the main file's.
-`projects` is merged project by project, and the main file wins where the two differ.
+The run merges `projects` project by project, and the main file wins where the two differ.
 
 `plan` reads a mirror and returns what differs, one `Step` for each entry, and does nothing
 else. So `--check` and a run read the mirror the same way. A run applies the steps under a
@@ -23,13 +23,13 @@ lock in the mirror, and a run with nothing to do writes nothing. These are infra
 - `dangling`: the run removes a link into `~/.claude` whose entry is gone.
 - `json`: the run gives `.claude.json` the main file's keys, as above.
 
-`skillUsage` is not taken from the main file. All the accounts are one user, so the run pools
-it. For each skill, the pool takes the highest of every home's numbers, field by field, which
-gives the highest count and the latest time. A run writes the pool into `~/.claude.json` and
-into each mirror. `--check` compares each home with the pool. A home that is behind only by
-use since the last sync (`PERIOD`, the timer's longest gap) is `pooling`, which is not drift.
-A home fails when it lacks a skill whose last use is older than that, or when its skillUsage
-is not objects of numbers.
+The run does not copy `skillUsage` from the main file. All the accounts are one user, so the run
+pools it. For each skill, the pool takes the highest of every home's numbers, field by field,
+which gives the highest count and the latest time. A run writes the pool into `~/.claude.json`
+and into each mirror. `--check` compares each home with the pool. A home that is behind only by
+use since the last sync (`PERIOD`, the timer's longest gap) is `pooling`, which is not drift. A
+home fails when it lacks a skill whose last use is older than that, or when its skillUsage is
+not objects of numbers.
 
 Each step is safe to repeat and to stop halfway. The run merges before the move and again
 after it, so a run that stopped between the two leaves nothing unmerged. Every other step finds
@@ -206,7 +206,7 @@ def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, .
 
 
 def _deep(kept: object, over: object) -> object:
-    """`kept * over`, merged as jq merges two values: objects key by key, and `over` wins
+    """`kept * over`, the merge jq makes of two values: objects key by key, and `over` wins
     for any other value."""
     if not (isinstance(kept, dict) and isinstance(over, dict)):
         return over
@@ -232,7 +232,7 @@ def _number(value: object) -> bool:
 def usage_of(path: Path, found: dict) -> dict:
     """The skillUsage of `found`, the file at `path`, or an empty one when it has none. The
     function refuses, and names the skill, when an entry is not an object of numbers, since
-    its fields could not be pooled."""
+    `pooled` could not pool its fields."""
     usage = found.get(USAGE, {})
     if not isinstance(usage, dict):
         raise Refused(f"jroles mirror: {path}: {USAGE} is not a JSON object")
@@ -285,10 +285,12 @@ def lags(path: Path, usage: dict, pool: dict, now: float) -> tuple[list[str], li
 def shared(
     main: Main, mirror: Mirror, usage: dict | None = None
 ) -> tuple[dict, tuple[str, ...]] | None:
-    """The mirror's `.claude.json` with the main file's shared keys and with its skillUsage
-    pooled with `usage`, and the shared keys whose values that changes. It is None when the
-    file already matches, or when either file is not there, since a home with no
-    `.claude.json` has no login to keep."""
+    """The mirror's `.claude.json` as it should be, and the shared keys whose values change.
+
+    The new file has the main file's shared keys, and the function pools `usage` into its
+    skillUsage.
+    The function returns None when the file already matches, or when either file is not
+    there, since a home with no `.claude.json` has no login to keep."""
     target = mirror.home / JSON
     ours, theirs = _read(target), _read(main.config)
     if ours is None or theirs is None:

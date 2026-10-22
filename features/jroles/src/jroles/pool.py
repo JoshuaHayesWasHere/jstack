@@ -11,9 +11,9 @@ rotates through the pool. When every instance is full, the choice has no instanc
 when the first of them resets.
 
 To grow the pool, add a line to the provider inventory (`~/.config/jstack/providers.json`, T3
-Code's `providerInstances`) and one more id to the role line. An id that the inventory does not
-declare under the line's provider refuses the line, so a Claude pool never names a Codex or a
-Cursor instance. When there is no inventory, `jroles` takes the line as it is written.
+Code's `providerInstances`) and one more id to the role line. `jroles` refuses a line with an id
+that the inventory does not declare under the line's provider, so a Claude pool never names a
+Codex or a Cursor instance. When there is no inventory, `jroles` takes the line as it is written.
 """
 
 from __future__ import annotations
@@ -161,8 +161,8 @@ def routes(role: str, now: datetime) -> tuple[Route, ...]:
 
 
 def headroom(role: str) -> float:
-    """The share at which a new launch of `role` counts an instance full, the user's
-    `headroom`. The function refuses settings that it cannot use."""
+    """The user's `headroom`, which is the share at which jroles counts an instance full for a
+    new launch of `role`. The function refuses settings that it cannot use."""
     try:
         return jsettings.load().headroom
     except jsettings.Invalid as error:

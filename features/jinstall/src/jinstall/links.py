@@ -1,13 +1,13 @@
 """The relative links of a Markdown file that a harness's layout places somewhere else.
 
-A link is read from where its file sits in the source, and its target falls in one of three
-cases. When the layout holds the target, the link is rewritten to run from the file's place in
-the layout to the target's place there. When the target is a source file or folder that the
-layout leaves out, the link becomes its GitHub address. Any other link dangles, and that is a
-fault.
+This module reads a link from where its file sits in the source, and the link's target falls
+in one of three cases. When the layout holds the target, the module rewrites the link to run
+from the file's place in the layout to the target's place there. When the target is a source
+file or folder that the layout leaves out, the link becomes its GitHub address. Any other link
+dangles, and that is a fault.
 
 A link inside fenced or inline code is not a link, but a link whose text is code is one. An
-address with a scheme, or an anchor alone, is left as it is.
+address with a scheme, or an anchor alone, stays as it is.
 """
 
 from __future__ import annotations

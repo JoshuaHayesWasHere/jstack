@@ -131,8 +131,8 @@ def setup(machine: Machine) -> Report:
 def uninstall(machine: Machine) -> Report:
     """Drop every Carried and Seeded need, due or not, in reverse order, then run
     `machine.sweep()`. The lines are `removed <piece>` and `kept <piece> -> <why>`, and there is
-    none for what is absent. The exit code is 1 only when a piece of this checkout's could not
-    be removed. A second run prints nothing."""
+    none for what is absent. The exit code is 1 only when uninstall could not remove a piece
+    that belongs to this checkout. A second run prints nothing."""
     lines, notes, code = [], [], 0
     kinds = [
         need.kind for need in reversed(needs(machine)) if isinstance(need.kind, (Carried, Seeded))
@@ -165,8 +165,8 @@ def doctor(machine: Machine) -> Report:
 
 
 def parse(argv: Sequence[str]) -> tuple[Machine, Verb]:
-    """The machine and the verb of `<checkout> [verb]`. Any other arguments print the usage
-    line on stderr and raise SystemExit(2)."""
+    """The machine and the verb of `<checkout> [verb]`. For any other arguments, the function
+    prints the usage line on stderr and raises SystemExit(2)."""
     verbs = {verb.value: verb for verb in Verb if verb is not Verb.INSTALL}
     if len(argv) not in (1, 2) or (argv[1:] and argv[1] not in verbs):
         print(USAGE, file=sys.stderr)

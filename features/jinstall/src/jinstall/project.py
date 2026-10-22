@@ -5,9 +5,9 @@ skills.json. The install links each one into the checkout's `.claude/skills/<nam
 `.cursor/skills/<name>`, the folders where Claude Code and Cursor read a repo's skills
 (`Harness.project`). git tracks neither folder: the install makes them.
 
-These needs are listed only when there is a checkout, since a release has none. Like a git hook,
-they are due only when HOME is the account's own or holds the checkout, so a run under a
-sandbox's or a test's HOME leaves a checkout outside that HOME as it is.
+`needs()` lists these needs only when there is a checkout, since a release has none. Like a
+git hook, they are due only when HOME is the account's own or holds the checkout, so a run
+under a sandbox's or a test's HOME leaves a checkout outside that HOME as it is.
 """
 
 import os
@@ -65,7 +65,7 @@ def stray(path: Path, checkout: Path, declared: frozenset[str]) -> bool:
 @dataclass(frozen=True)
 class StrayProjectLink:
     """A link under the checkout's project roots into the checkout, for a skill no feature
-    declares. It is listed only when one is found, and it is old until it is unlinked. Both
+    declares. `needs()` lists it only when it finds one, and it is old until it is unlinked. Both
     put and drop unlink it."""
 
     path: Path

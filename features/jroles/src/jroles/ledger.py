@@ -128,7 +128,8 @@ def _text(file: Path) -> str:
 
 
 def read(instances: Iterable[str], base: Path | None = None) -> dict[tuple[str, str], Record]:
-    """The ledger of `instances`. A file that is missing or cannot be read caps nothing."""
+    """The ledger of `instances`. A file that is missing, or that the function cannot read,
+    caps nothing."""
     ledger: dict[tuple[str, str], Record] = {}
     for instance in instances:
         ledger.update(parse(instance, _text(file_of(instance, base))))

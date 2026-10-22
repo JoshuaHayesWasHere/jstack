@@ -117,7 +117,7 @@ class Seeded(Kind, Protocol):
     mode: int
 
     def text(self, machine: Machine) -> str:
-        """The bytes to write. They are read from the machine, and the loader accepts every
+        """The bytes to write. The kind reads them from the machine, and the loader accepts every
         value in them."""
         ...
 
@@ -173,7 +173,7 @@ def dead(path: Path, machine: Machine) -> bool:
 class Generated:
     """The files the generator writes from the checkout's features, `skills.json` among them.
     The install assembles each layout from `skills.json`, so a skill that is not in it is in
-    no layout. This need is listed only with a checkout, since a release uses what its wheel
+    no layout. `needs()` lists this need only with a checkout, since a release uses what its wheel
     carries.
     ok: the generator's --check passes.
     old: the detail is what the check named first, or why it could not run.
@@ -233,8 +233,8 @@ class Link:
 @dataclass(frozen=True)
 class GoneLink:
     """A link under a skills root to a skill that the source no longer has. It points into a
-    layout's `skills/`, or to where links pointed before the layouts. It is listed only when
-    one is found, and it is old until it is unlinked. Both put and drop unlink it."""
+    layout's `skills/`, or to where links pointed before the layouts. `needs()` lists it only
+    when it finds one, and it is old until it is unlinked. Both put and drop unlink it."""
 
     path: Path
 
@@ -325,7 +325,7 @@ class HookGroup:
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
-        """The event's groups, or None when `value` is not shaped as a hooks file."""
+        """The event's groups, or None when `value` does not have the shape of a hooks file."""
         hooks = value.get("hooks", {})
         groups = hooks.get(self.event, []) if isinstance(hooks, dict) else None
         shaped = isinstance(groups, list) and all(
@@ -412,14 +412,15 @@ class GitHook:
     <checkout>/<script>. The worktrees of a repo run the hooks of its main checkout, so the
     one link covers every branch that this machine sends to a remote.
 
-    This need is listed only with a checkout, since a release has no repo of its own.
+    `needs()` lists this need only with a checkout, since a release has no repo of its own.
     due: `.git` is a directory, and HOME is the account's own or holds the checkout. A
       directory `.git` means the main checkout, since a worktree's hooks are not its own. A
       run under another HOME, a sandbox's or a test's, leaves a checkout outside that HOME as
       it is.
     old: the path is a link to anywhere else.
     foreign: `not a link`, which is a hook of the user's own, or
-      `core.hooksPath is set, so git runs no hook of .git/hooks`. No put repairs either.
+      `core.hooksPath is set, so git runs no hook of .git/hooks`. A put repairs neither
+      case.
     drop: unlink the path only when it points at the script."""
 
     name: str
@@ -515,7 +516,7 @@ class StatusLine:
         return {"type": "command", "command": f"sh {quoted(script)}"}
 
     def _there(self, machine: Machine) -> tuple[bool, object]:
-        """Whether the file can be read as an object, and its `statusLine`, or None when the
+        """Whether the method can read the file as an object, and its `statusLine`, or None when the
         key is absent."""
         was = machine.read_object(self.file)
         return isinstance(was, JsonObject), was.value.get("statusLine") if isinstance(
@@ -570,11 +571,12 @@ class Commands:
     With a checkout:
     ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
       and typing each name runs that file or the one in <checkout>/.venv/bin.
-    old: `lacks jdrift jroles` (installed before they were added); `tool jgauge, from before
-      the rename`; `an install of <other path>`; or `stale: its editable paths lack <root>`.
+    old: `lacks jdrift jroles` (an install from before the repo added them);
+      `tool jgauge, from before the rename`; `an install of <other path>`; or
+      `stale: its editable paths lack <root>`.
       The last one names a package root that pyproject.toml lists
       (`[tool.hatch.build.targets.wheel].packages`) and the install's `.pth` does not, since
-      the package moved after the install was built.
+      the package moved after uv built the install.
     foreign, since no put repairs it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
     missing: there is no tool of either name.
     foreign: a tool of either name that is not an editable install of a checkout (a release,
@@ -854,7 +856,7 @@ def _numbers(text: str) -> tuple[int, ...]:
 class Program:
     """A program on PATH.
     missing: the program is not there, and the detail is `hint`.
-    old: its version is below `floor`, or the version cannot be read. With `floor` None there
+    old: its version is below `floor`, or the probe cannot read the version. With `floor` None there
       is no old, and the probe does not run the program."""
 
     command: str
@@ -1020,7 +1022,7 @@ class Limits:
     """One instance's file of the ledger. `jgauge room` and `jroles` read it, and
     `jgauge-limits.timer` rewrites it every two minutes.
     missing: there is no file, since nothing has read that account yet.
-    old: the file cannot be read, or its last write was 15 minutes ago or more, so the reader
+    old: the probe cannot read the file, or its last write was 15 minutes ago or more, so the reader
       has stopped."""
 
     path: Path

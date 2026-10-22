@@ -207,7 +207,7 @@ def _files(kind: str, root: Path) -> list[Path]:
 
 
 def cards(root: Path) -> list[Card]:
-    """Every card that the tree asks for, in the order its tile shows it."""
+    """A card for each card line in the tree, in the order its tile shows it."""
     found = [_card(kind, path, root) for kind in KINDS for path in _files(kind, root)]
     return sorted(found, key=lambda card: (card.place, card.name))
 

@@ -37,9 +37,10 @@ class Ran:
 
 @dataclass(frozen=True)
 class JsonObject:
-    """A JSON file parsed at the boundary: one object, or no file yet (`existed` False).
-    `real` is where a write lands, so a symlink into a dotfiles repo stays a symlink.
-    `seen` holds the bytes read, which `Machine.write_object` compares before it writes."""
+    """A JSON file that the machine parses as it reads it: one object, or no file yet, when
+    `existed` is False. `real` is the path that a write goes to, so a symlink into a dotfiles
+    repo stays a symlink. `seen` holds the bytes read, which `Machine.write_object` compares
+    before it writes."""
 
     path: Path
     real: Path
@@ -79,7 +80,7 @@ class Machine:
     """`account` is the account's home directory by its passwd entry. Compared with `home`,
     it tells the user's real HOME from a sandbox's or a test's.
 
-    `checkout` is the git checkout that jstack is installed from, or None for a release. A
+    `checkout` is the git checkout that jstack's install runs from, or None for a release. A
     release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`)."""
 
     checkout: Path | None
@@ -172,7 +173,7 @@ class Machine:
 
     def tool_paths(self, tool: str) -> frozenset[Path]:
         """The directories that the `.pth` files of uv's tool `tool` put on its path. An
-        editable install lists one for each package root it was built with. uv does not
+        editable install lists one for each package root that uv built it with. uv does not
         rebuild it when the checkout moves a package. A line that runs code (`import ...`) is
         not a path."""
         found: set[Path] = set()

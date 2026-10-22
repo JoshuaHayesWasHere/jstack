@@ -1,5 +1,5 @@
-"""The one list of what a machine needs to run jstack. Every need is written here, once, except
-the hooks: each feature declares its own, and the install reads them from the source's
+"""The one list of what a machine needs to run jstack. This module names every need, once,
+except the hooks: each feature declares its own, and the install reads them from the source's
 skills.json.
 
 To add a need, add one entry to `needs()`, and make no other edit. The doctor then prints it,
@@ -92,9 +92,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     names the instances and the Claude homes to probe.
 
     A release has no checkout, so its list has neither the generated line nor the git hook.
-    An inventory that cannot be read names no instance or home, and its own line says why. A
-    skills.json that cannot be read names no skill and no hook, and each layout's line says
-    why.
+    An inventory that the function cannot read names no instance or home, and its own line
+    says why. A skills.json that the function cannot read names no skill and no hook, and each
+    layout's line says why.
 
     Only probed:
       hard      linux                         Linux

@@ -87,7 +87,7 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Selection:
-    """What `t3_thread_launch` takes as `modelSelection`, read from one line of the map."""
+    """What `t3_thread_launch` takes as `modelSelection`, built from one line of the map."""
 
     provider: str
     model: str
@@ -102,9 +102,9 @@ class Selection:
 
     def as_json(self, instance: str | None = None) -> dict[str, object]:
         """The selection on `instance`, or on the first instance of the pool when the caller
-        gives none. A line that names no instance launches on the provider's own instance, and
-        the selection names no instance either. Each option carries the id that the provider
-        gives it."""
+        gives none. When the line names no instance, the thread launches on the provider's
+        own instance, and the selection names no instance either. Each option carries the id
+        that the provider gives it."""
         given: dict[str, object] = {"provider": self.provider, "model": self.model}
         if self.pool:
             given["instanceId"] = instance or self.pool[0]
@@ -123,9 +123,10 @@ def read_map(text: str, role: str) -> tuple[Selection, ...]:
     """The selections that the map gives `role`, in order, or none when the role has no line
     or has `inherit`.
 
-    A line that does not fit the map's format refuses the whole map, whichever role it is for,
-    because a half-read map would launch a thread on a model that nobody chose. For the same
-    reason, a refused line refuses every line of its role."""
+    The function refuses the whole map when one line does not fit the map's format, whichever
+    role the line is for, because a half-read map would launch a thread on a model that nobody
+    chose. For the same reason, when it refuses one line of a role, it refuses every line of
+    that role."""
     lines: dict[str, list[tuple[str, ...]]] = {}
     bad = []
     for number, line in enumerate(text.splitlines(), 1):

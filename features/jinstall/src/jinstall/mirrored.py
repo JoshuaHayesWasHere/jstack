@@ -19,7 +19,7 @@ from jroles import Refused, mirror
 
 
 def declared(inventory: Path, home: Path) -> tuple[mirror.Mirror, ...]:
-    """The mirrors the inventory declares, or none when the inventory cannot be read. The
+    """The mirrors the inventory declares, or none when the function cannot read the inventory. The
     inventory's own line says why."""
     try:
         return mirror.mirrors(inventory.read_text(), home)
