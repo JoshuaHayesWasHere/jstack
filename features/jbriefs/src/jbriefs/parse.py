@@ -252,8 +252,8 @@ def sized(text: str) -> str:
 
 
 def crewmates(name: str) -> bool:
-    """Whether a brief may name `playbooks/<name>.md`. Its `Run by:` line must say a crewmate
-    runs it, and it must not be the playbook that is never picked for a brief."""
+    """Whether a brief may name `playbooks/<name>.md`. Its `Run by:` line must say that a
+    crewmate runs it, and it must not be the one playbook that no brief may name."""
     try:
         text = skills.where("playbook", name).read_text()
     except (LookupError, OSError):
@@ -573,8 +573,8 @@ def faults(text: str) -> list[str]:
     filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their own checks.
     Those checks report a missing line, and for `Skills` the check reports instead that a
     brief with no line names no skill. A brief with no fault is complete. The check runs when
-    a row is first queued and not again at a launch, so a brief that already has a go is
-    grandfathered (`jbus.queue`).
+    a row is first queued and not again at a launch, so a brief that already has a go
+    launches without it (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

@@ -33,9 +33,9 @@ fixed typo passes. So a typo, a change of formatting, punctuation or case, and l
 another order keep the go. A line added, removed or changed in a field of `MEANING`, or a
 changed path, number or value, needs a new approval.
 
-An approval recorded before the title and Task were read has neither in its fingerprint
-(`LEGACY`), and holds for any title and Task. The comparison skips the fields it recorded
-that are no longer part of the meaning.
+An approval recorded before this module read the title and Task has neither in its fingerprint
+(`LEGACY`), and holds for any title and Task. The comparison skips the fields it recorded that
+are no longer part of the meaning.
 
 Its limit is that it compares words, not meaning. A reword that swaps one content word for
 another ("must" for "may", "all" for "any") needs a new approval, by design, because a check

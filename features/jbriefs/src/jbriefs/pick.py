@@ -244,7 +244,7 @@ def tipped(text: str, found: dict[str, Skill]) -> list[tuple[str, str]]:
 def named(text: str) -> list[str]:
     """Each name that the text gives as `/name` or as `skills/<name>`, once, in order. A path
     such as `/tmp/x` or `~/.local/state/home` names nothing. A lone `/tmp` reads as a name,
-    and is printed as unknown with the rest."""
+    and `jbriefs pick` prints it as unknown with the rest."""
     seen: dict[str, None] = {}
     for found in sorted(
         [*_SLASH.finditer(text), *_DIRECTORY.finditer(text)], key=lambda m: m.start()

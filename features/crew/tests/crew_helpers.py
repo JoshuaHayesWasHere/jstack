@@ -250,8 +250,8 @@ class PullRequest:
 
 def covers(main, brief, head):
     """How `jmerge` judges a head that the brief does not mention: which commit its review
-    covers, and whether that review carries over to the head. A range-diff decides, which
-    `jmerge` runs in the main checkout after the checkout has fetched."""
+    covers, and whether that review carries over to the head. `jmerge` decides with a
+    range-diff, which it runs in the main checkout after the checkout has fetched."""
     assert ready.short_of(brief, head) == ""
     covered = ready.to_range_diff(ready.rebase_of(brief, head), brief, head)
     git(main, "fetch", "-q", "origin")

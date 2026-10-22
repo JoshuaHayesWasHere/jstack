@@ -766,8 +766,8 @@ class Repo:
         return branch, "" if branch else asked_why(asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
-        """GitHub retargets an open pull request whose base branch is deleted after that
-        branch's own pull request merged, so deleting the branch would change a stack's
+        """When a pull request merges and its branch is deleted, GitHub retargets every open pull
+        request whose base was that branch. So deleting the branch would change a stack's
         order:
         https://github.blog/changelog/2020-05-19-pull-request-retargeting/
         """

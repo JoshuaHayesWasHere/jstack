@@ -328,9 +328,9 @@ def test_a_commit_on_one_side_alone_is_said_and_a_line_that_cannot_be_read_is_co
 
 
 class Rebased:
-    """The ready pull request of `test_home_merge`, on a file of thirty lines. It was reviewed
-    clean at one head, then rebased over a change to that file that main took after the
-    review."""
+    """The ready pull request of `test_home_merge`, on a file of thirty lines. A review found it
+    clean at one head, and then its crewmate rebased it over a change to that file that main
+    took after the review."""
 
     def __init__(self, proven_merged, theirs, resolved=None, files=(FILE,)):
         self.proven_merged, self.files = proven_merged, files
@@ -541,8 +541,8 @@ def test_a_review_of_the_rebased_head_ends_the_wait_and_its_findings_are_still_t
 def test_a_covered_commit_that_cannot_be_had_waits_and_is_never_merged(
     proven_merged, rules, line, gone
 ):
-    """Here the covered commit is `None`, the head's tree, an object that git has but cannot
-    read as a commit."""
+    """When `gone` is `None`, the covered commit is the head's tree, an object that git has but
+    cannot read as a commit."""
     rebased = Rebased(proven_merged, {8: "theirs 8"})
     gone = gone or merge.git(proven_merged.tree, "rev-parse", "HEAD^{tree}")
     verdict = "findings" if line else "clean"
@@ -591,8 +591,8 @@ def test_the_lines_a_rebase_dropped_are_counted_from_the_commit_the_review_cover
 
 
 def pushed_after(rebased, review_of):
-    """A push for a failed check on top of the rebased head, and a `Fixed:` line that the crew
-    set to it, in a brief whose review with findings saw `review_of`."""
+    """The crew pushes a fix for a failed check on top of the rebased head and sets the brief's
+    `Fixed:` line to that push. The brief's review, which had findings, saw `review_of`."""
     tree = rebased.proven_merged.tree
     pushed = commit(tree, "what the check asked for", {15: "what the check asked for"})
     merge.git(tree, "push", "-q", "origin", "alpha")
@@ -755,9 +755,9 @@ TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
 
 def test_a_rebase_after_one_an_older_brief_told_of_is_compared_with_a_commit_a_review_covers():
-    """The brief moved its `Fixed:` line to the head of a rebase that no review saw. So
-    `jmerge` compares from the commit before that head, not from the head itself. A review
-    of that head makes it one to compare from."""
+    """The crew's `Fixed:` line names the head of a rebase that no review saw. So `jmerge`
+    compares from the commit before that head, not from the head itself. Once a review sees
+    that head, `jmerge` compares from it."""
     result = TOLD + FIXED.format(FIRST)
     text = merge.brief(merge.review("findings", REVIEWED), result)
     assert ready.rebase_of(text, FIRST) == ready.Rebase("changed", (FILE,), BEFORE, FIRST)
@@ -791,9 +791,9 @@ def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_
 
 
 class CiFix:
-    """The ready pull request of `test_home_merge`, on a file of thirty lines. It was reviewed
-    clean at one head, then pushed to again for a failed check, with the line the crew
-    writes of it."""
+    """The ready pull request of `test_home_merge`, on a file of thirty lines. A review found it
+    clean at one head. Then its crewmate pushed to it again for a failed check, and wrote the
+    line that the crew writes about such a push."""
 
     def __init__(
         self,

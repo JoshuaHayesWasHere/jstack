@@ -15,12 +15,12 @@ check has not ended, or was cancelled, changes neither.
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
 (`jbus.dispatch`), and while `red` is set `jmerge` merges no pull request but the fix's
 (`jmerge.rows`). The fix is the brief `main-red-<sha12>` that `jbus.watch` files ahead of
-every row, so a slug that starts with `FIX` is a fix. A file that is missing or cannot be
-read means nothing is known, and `jmerge` then merges as it did before. A pass of `tell`
-that has not yet sent its message keeps the record's commit, so that the next pass looks at
-it again, and adds `fixed`, the green tip (`owed`). So a main that turns green while T3 Code
-cannot be reached is green here at once. A pass whose message `rebase.held` kept back does
-the same. Older records, written before the file kept `broken`, name a failed tip only by
+every row, so a slug that starts with `FIX` is a fix. A file that is missing or cannot be read
+means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has
+not yet sent its message, it keeps the record's commit so that the next pass looks at that
+commit again. It also adds `fixed`, the green tip (`owed`). So a main that turns green while
+T3 Code cannot be reached is green here at once. A pass whose message `rebase.held` kept back
+does the same. Older records, written before the file kept `broken`, name a failed tip only by
 its `check`, and that tip is red too.
 """
 
@@ -101,7 +101,7 @@ def typed(raw: object) -> Record | None:
     """A record as its writer reads it back, with each key of the right type and no other key.
 
     `typed` drops each key of the wrong type and keeps the rest, so an unreadable `held`
-    does not also lose the red tip. None where the value is no record at all."""
+    does not also lose the red tip. It returns None where the value is not a record at all."""
     if not isinstance(raw, dict):
         return None
     kept = {key: raw[key] for key in _TEXTS if isinstance(raw.get(key), str)}

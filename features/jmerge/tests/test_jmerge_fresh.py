@@ -1,8 +1,8 @@
 """`jmerge` merges a pull request only when its passing check still applies to today's main.
 When a pull request's check started before main changed one of its files, or a file that CI
-reads, the pull request waits for a fresh check. Where the repo asks for it, that check is
-the repo's own command on the head merged over today's main, and otherwise it is a rebase.
-A rebase that dropped a line waits for its crew to say why
+reads, the pull request waits for a fresh check. Where the repo asks for it, that check is the
+repo's own command on the head merged over today's main, and otherwise it is a rebase. When a
+rebase drops a line, the pull request waits until its crew says why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after
 its merge.
 
@@ -724,8 +724,9 @@ def test_a_head_that_fails_over_todays_main_waits_and_is_not_checked_twice(kitch
 def test_a_command_that_runs_over_its_time_is_stopped_and_queued_again_not_failed(
     kitchen, monkeypatch
 ):
-    """The limit counts the wait for a test slot too, so a run over it says nothing of the
-    tree. The pull request waits for a fresh check, which `jmerge` starts again."""
+    """The limit counts the wait for a test slot too, so a run that goes over the limit shows
+    nothing about the tree. The pull request waits for a fresh check, which `jmerge` starts
+    again."""
     checked = Checked(kitchen, "sleep 30")
     home = kitchen.home
     fresh = cli.Fresh(home.main, home.state, timeout=0.5)
@@ -848,8 +849,8 @@ def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(ki
 
 def settled(kitchen, before=None, limit=60.0):
     """Wait until the fresh check that a run started in the background ends. The check ends
-    when it records something newer than what `fresh.json` had `before`, and then releases
-    `fresh.lock`, which it holds until its marker is pushed."""
+    when it records something newer than what `fresh.json` had `before`. It then releases
+    `fresh.lock`, which it holds until it pushes its marker."""
     fresh = cli.Fresh(kitchen.home.main, kitchen.home.state)
     end = time.monotonic() + limit
     while fresh.known() == (before or {}):
@@ -1029,8 +1030,8 @@ def test_the_check_is_a_transient_user_unit_with_the_runs_environment(kitchen, m
 def test_where_systemd_cannot_start_a_unit_the_check_is_a_process_of_its_own(
     kitchen, no_user_units, monkeypatch
 ):
-    """That is, when the check runs outside a systemd unit. Inside a unit, such as a pass, a
-    plain process would end with the unit."""
+    """This test covers a check that runs outside a systemd unit. Inside a unit, such as a
+    pass, a plain process would end when the unit ends."""
     (no_user_units / "systemd-run").write_text("#!/bin/sh\necho no user manager >&2\nexit 1\n")
     checked = Checked(kitchen, f"sleep 1; {BOTH}")
     monkeypatch.setenv("INVOCATION_ID", "the pass's own")

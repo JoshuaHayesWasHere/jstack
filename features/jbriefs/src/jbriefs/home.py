@@ -1,5 +1,5 @@
-"""Whose a brief or a scout's request is, and which thread its home is now. This module is the
-one rule.
+"""Which home a brief or a scout's request belongs to, and which thread that home is now. This
+module is the one copy of that rule.
 
 A repo's state directory holds the root home's files, and a directory beside them for each
 scoped home. A scope is such a directory whose `home-id` holds an id or whose `handoff.md`

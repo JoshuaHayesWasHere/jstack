@@ -88,9 +88,9 @@ def reinstalled(tool: str, main: object) -> str:
 
 
 def not_reinstalled(tool: str, why: str) -> str:
-    """The note of a merge that moved a package of the tool, after which the tool could not be
-    installed again. Every command of the tool may fail on an import until the tool is
-    installed again."""
+    """The note of a merge that moved a package of the tool, after which `jmerge` could not
+    install the tool again. Every command of the tool may fail on an import until someone
+    installs it again."""
     return NOT_REINSTALLED.format(tool=tool, why=why)
 
 

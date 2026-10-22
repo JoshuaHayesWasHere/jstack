@@ -126,9 +126,9 @@ def test_the_review_is_launched_when_the_pull_request_opens_and_not_on_a_green_w
 
 
 def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
-    """The JSON calls of "Stay on the pull request", read as `test_tool_calls.py` reads every
-    skill's calls. There is the link, which T3 Code takes, and no watch, because jbus wakes
-    the crewmate."""
+    """The test reads the JSON calls of "Stay on the pull request" as `test_tool_calls.py` reads
+    every skill's calls. The calls include the link, which T3 Code takes, and no watch,
+    because jbus wakes the crewmate."""
     blocks, unread = tools.read("crew", sections()["Stay on the pull request"])
     called = []
     for _, language, body, lead_in in blocks:

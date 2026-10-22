@@ -97,9 +97,9 @@ def ended(tmp_path):
 
 
 def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
-    """A check that takes longer than one call. Each call waits its whole limit and says to
-    call again, a second call joins the check that the first started, and the last call gets
-    its exit code."""
+    """The test runs a check that takes longer than one call. Each call waits its whole limit
+    and says to call again, a second call joins the check that the first started, and the
+    last call gets its exit code."""
     runs, go = tmp_path / "runs", tmp_path / "go"
     command = f"echo ran >> {runs}; {held_open(go)}; echo all passed"
 
@@ -174,7 +174,7 @@ def slot_script(text, home):
 
 def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     """The full run is the crewmate's, and the block that read the brief and the notes is gone.
-    The two blocks that take a slot each run their command, with a slot free."""
+    The two blocks that take a slot each run their command when a slot is free."""
     blocks = FENCED.findall(sections()["Do the task"])
     assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
     assert len([text for text in blocks if "jgauge test-slot" in text]) == 2
@@ -190,8 +190,8 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
     """When every slot is taken, the blocks register the thread in the file, and the thread's
     turn ends with the one line. jbus wakes the thread later because the file lists it. The
-    lanes are the 4 full and 3 short slots that 24 processors and 62 GiB give, whatever
-    `TEST_SLOTS` the machine sets."""
+    lanes are the 4 full and 3 short slots that a machine with 24 processors and 62 GiB
+    gets, whatever `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))

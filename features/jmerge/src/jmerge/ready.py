@@ -460,11 +460,10 @@ def _first_head(said: Said) -> str:
 
 
 def second_review(text: str) -> tuple[str, ...]:
-    """The heads of a `twice` brief's second review: each head that a section ran at, other
-    than the head of the first review. That is the head that the fix pushed. None for
-    another mode.
-    `jbus cleanup` files the second review's findings as a cleanup row, and nobody answers
-    them."""
+    """The heads of a `twice` brief's second review, or none for a brief in another mode. They
+    are the heads that a section ran at, other than the head of the first review, which are
+    the heads that the fix pushed. `jbus cleanup` files the second review's findings as a
+    cleanup row, and nobody answers them."""
     said = said_of(text)
     if said.mode != TWICE:
         return ()
@@ -474,10 +473,10 @@ def second_review(text: str) -> tuple[str, ...]:
 
 
 def _twice(said: Said, text: str) -> str:
-    """What a `twice` brief still lacks. It needs the first review, its findings answered in one
-    fix round, and the fix pushed, then a second review of a later head. A clean first
-    review, or a round that declined every finding and pushed nothing, needs no second
-    review, because nothing changed after the first review."""
+    """What a `twice` brief still lacks. It needs the first review, then one fix round in which
+    the crew answers that review's findings and pushes the fix, then a second review of a
+    later head. A clean first review, or a round that declined every finding and pushed
+    nothing, needs no second review, because nothing changed after the first review."""
     if not said.written:
         return NO_REVIEW
     first = _first_head(said)
@@ -579,8 +578,9 @@ def short_of(text: str, head: str) -> str:
 
 def _scoped_since(said: Said) -> bool:
     """Whether a scoped pass that ran is written after the last `Scoped review:` line. That
-    line names the review that the brief needs. When nothing was pushed, the pass may be of
-    the head that the review saw, and the brief needs the pass only to rule on its declines."""
+    line names the review that the brief needs. When the crew pushed nothing, the pass may be
+    of the head that the review saw, and the brief needs the pass only to rule on its
+    declines."""
     return any(one.scoped and one.ran and one.line > said.asked_at for one in said.triage.sections)
 
 
@@ -603,10 +603,10 @@ def unruled(said: Said) -> str:
 
 
 def declines(text: str, *, user: Settings) -> tuple[str, str]:
-    """`hold` and the reason where the scoped pass did not uphold the decline of a finding on
-    one of `findings.RISKS`, review-triage's categories, and two empty strings otherwise. Only
-    such a decline is the user's to decide. A decline on none of them waits for the crew and
-    its home (`unruled`)."""
+    """`hold` and the reason when the scoped pass did not uphold the crew's decline of a
+    finding on one of `findings.RISKS`, which are review-triage's categories. Otherwise it
+    returns two empty strings. Only such a decline is the user's to decide. A decline on none
+    of them waits for the crew and its home (`unruled`)."""
     if asks_no_ruling(text):
         return "", ""
     named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)

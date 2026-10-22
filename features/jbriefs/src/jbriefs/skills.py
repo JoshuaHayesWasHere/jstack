@@ -13,14 +13,14 @@ directory name of the skill or the principle: `architect`, `principle-model-the-
 Any reader outside this repo (another provider, another machine) also takes the set from
 this file.
 
-The names are pstack's, so a name in a brief resolves the same way in Grok Bot, which
-pstack drives, and in T3, which jstack drives. Three kinds of alias resolve. An entry's
-`pstack_name`, where pstack's name for it differs, resolves to that entry. A principle's
-name from before it took pstack's prefix, `model-the-domain`, resolves to that principle. A
-pstack skill that jstack keeps as a playbook, one that its feature marks `nameable`,
-resolves to that playbook. Any other spelling is no name: a path, a `/` in front, or a
-capital letter. Neither is a pstack skill that jstack did not take (`poteto-mode`, and the
-`Not taken:` line of `THIRD_PARTY.md`).
+The names are pstack's, so a name in a brief resolves the same way in Grok Bot, which pstack
+drives, and in T3, which jstack drives. Three kinds of alias resolve. An entry's
+`pstack_name`, where pstack's name for it differs, resolves to that entry. A principle's name
+from before it took pstack's prefix, `model-the-domain`, resolves to that principle. A pstack
+skill that jstack keeps as a playbook, one that its feature marks `nameable`, resolves to that
+playbook. Any other spelling is no name: a path, a `/` in front, or a capital letter. A pstack
+skill that jstack did not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`)
+is no name either.
 
 `skills.json` also lists every playbook and template, and `where(kind, name)` is the one
 way the runtime finds any of these files. No module reads a path of the checkout from its
@@ -105,7 +105,7 @@ def packaged() -> Path | None:
     """The source tree that a release's wheel installs under the environment this code runs
     in, `PACKAGED`. That is the wheel's shared data, which scripts/jtrees/outputs/pyproject.py
     writes into pyproject.toml. Its `skills.json` gives each path from the tree itself, as
-    in a checkout. None where the tree is not there."""
+    in a checkout. It is None where the tree is not there."""
     copy = Path(sys.prefix) / PACKAGED
     return copy if (copy / CATALOG).is_file() else None
 
@@ -328,7 +328,7 @@ def missing(text: str) -> tuple[str, ...]:
 
 def shown(text: str) -> str:
     """What the reviewer reads of the artifacts: the artifact of each named skill, as `run`
-    reads it, or a line that it has none. Nothing where the brief names no skill."""
+    reads it, or a line that it has none. It returns nothing where the brief names no skill."""
     have = run(text)
     out = []
     for one in named(text):

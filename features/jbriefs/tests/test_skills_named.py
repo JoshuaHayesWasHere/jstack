@@ -1,6 +1,7 @@
-"""A brief's `Skills:` line. The one resolver resolves each name. The queue and the launch
-refuse a name that is no skill or principle, and the merge waits until the Result has an
-artifact for each name. The names are pstack's, and the old principle names still resolve."""
+"""These tests cover a brief's `Skills:` line. The one resolver resolves each name. The
+queue and the launch refuse a name that is no skill or principle, and the merge waits until
+the Result has an artifact for each name. The names are pstack's, and the old principle
+names still resolve."""
 
 import hashlib
 import json
@@ -289,8 +290,8 @@ def test_an_artifact_may_hold_a_line_that_looks_like_a_field_and_the_next_item_s
 
 
 def test_a_name_that_resolves_to_nothing_owes_no_artifact_at_the_merge():
-    """The queue refuses such a name and the launch gates it, so the merge does not say it
-    again."""
+    """The queue refuses such a name and the launch gates it, so `jmerge` does not report it
+    again at the merge."""
     text = merge.brief("", "Skills run:\n- architect: A or B\n", "Skills: architect, then\n")
     assert skills.missing(text) == ()
 

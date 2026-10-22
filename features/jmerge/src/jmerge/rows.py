@@ -91,8 +91,8 @@ def red(main: mainjson.Main, slug: str) -> str:
 def base_red(base: str, runs: list[dict], slug: str) -> str:
     """The red hold of a pull request into an integration branch. It holds when a check of the
     branch's tip ended without passing on its latest run, as GitHub's check runs list them.
-    A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`). A fix of a red
-    main is not held, just as `red` does not hold it."""
+    A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`). This hold does
+    not apply to a fix of a red main, just as `red` does not hold such a fix."""
     latest: dict[str, dict] = {}
     for one in sorted(runs, key=lambda run: str(run.get("started_at") or "")):
         latest[str(one.get("name"))] = one

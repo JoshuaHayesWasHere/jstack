@@ -29,25 +29,25 @@ is in such a replaced section keeps its id and counts for nothing (`Finding.supe
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from before
-the ids answered. Such answers go, in order, to the findings with no bucket and no answer by
-id, as the crew's count matched them. Only an **Act on** finding blocks a merge. A finding
-from before the buckets blocks too, as every finding did then, and so does a finding on one
-of `RISKS`, whatever its bucket. A decline of a blocking finding counts only when its reason
-cites a `path:line`, a command in backticks, or a gate that the Result names
-(`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier finding.
-A decline of a finding on one of `RISKS` counts only on a gate, which asks the user with the
+the ids answered. `triage` gives such answers, in order, to the findings that have no bucket
+and no answer by id, as the crew's count matched them. Only an **Act on** finding blocks a
+merge. A finding from before the buckets blocks too, as every finding did then, and so does a
+finding on one of `RISKS`, whatever its bucket. A decline of a blocking finding counts only
+when its reason cites a `path:line`, a command in backticks, or a gate that the Result names
+(`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier finding. A
+decline of a finding on one of `RISKS` counts only on a gate, which asks the user with the
 default "fix it". Severity is a field and decides nothing.
 
-The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the
-crew declined by id. It writes `Declines: upheld F2, F4`, and
-`Declines: not upheld F3: <the disproof>` for each decline it does not uphold (`Ruling`).
-The last ruling of an id is the one that counts. A decline that the pass did not uphold
-stays overruled until the crew answers the finding `fixed`, and a decline written again
-after the ruling is still not upheld (`Finding.state`). A scoped section that its reviewer
-wrote again at the same head rules on nothing, because the section that took its place says
-all that pass says. So a scoped pass rules on every blocking decline, those with an earlier
-ruling included. A scoped section is a pass of its own: at the head of the first review it
-takes the place of no section but another scoped one by the same reviewer.
+The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
+declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
+disproof>` for each decline it does not uphold (`Ruling`). The last ruling of an id is the one
+that counts. A decline that the pass did not uphold stays overruled until the crew answers the
+finding `fixed`, and a decline written again after the ruling is still not upheld
+(`Finding.state`). A scoped section that its reviewer wrote again at the same head rules on
+nothing, because the section that took its place says all that pass says. So a scoped pass
+rules on every blocking decline, those with an earlier ruling included. A scoped section is a
+pass of its own. At the head of the first review, the only section it replaces is an earlier
+scoped section by the same reviewer.
 
 `jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its second
 pass (`jbriefs --findings --left` and `--rounds`), and jbus's ask (`expedite`) read the brief
@@ -470,9 +470,9 @@ def _near(one: Raised, other: Raised) -> int | None:
 
 def _same(finding: Finding, one: Raised) -> int | None:
     """How far `one` is from a finding it would merge into, or None when it would merge into
-    none. It merges into another reviewer's finding of the same head and place when both
-    were raised, both have a bucket, and the merged finding holds at most one line from each
-    reviewer."""
+    none. It merges into another reviewer's finding of the same head and place when the
+    reviewers raised both findings rather than dismissing them, both have a bucket, and the
+    merged finding holds at most one line from each reviewer."""
     lead = finding.lead
     if lead.legacy or one.legacy or not one.head:
         return None
@@ -543,8 +543,8 @@ def _judge(findings: list[Finding], text: str) -> None:
 
 
 def triage(text: str) -> Triage:
-    """The brief's findings, merged, given their ids, set beside their contradictions, and
-    answered."""
+    """The brief's findings after `triage` merges them, gives each its id, sets each beside the
+    dismissals that contradict it, and attaches each one's answer."""
     sections = _sections(text)
     stale = _superseded(sections)
     findings: list[Finding] = []
