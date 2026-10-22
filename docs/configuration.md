@@ -162,7 +162,9 @@ Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines fo
 
 ## Hook entries
 
-`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them. You write none of them by hand. [Hooks](../features/home/docs/hooks.md) shows each entry and says what its script does.
+`install.sh` writes these entries, each with the path of its own checkout, and `install.sh --uninstall` removes them.
+You write none of them by hand.
+[Hooks](../features/home/docs/hooks.md) shows each entry and says what its script does.
 
 | File | Key | Runs | Read by |
 |---|---|---|---|
@@ -249,7 +251,8 @@ With no `origin` a snapshot keeps its commit and fails, and the failure alerts o
 
 ## Switches for one repo
 
-These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout. [State](../features/home/docs/state.md) lists the other files there, which the threads write.
+These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout.
+[State](../features/home/docs/state.md) lists the other files there, which the threads write.
 
 | File | Default | Holds | What it switches | Read by |
 |---|---|---|---|---|

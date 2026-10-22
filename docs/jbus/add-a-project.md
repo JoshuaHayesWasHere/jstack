@@ -2,7 +2,9 @@
 
 `jbus project add <name> --checkout <path> --project-id <id>` adds one `[[project]]` table at the end of the config, for a repo jbus does not look after yet. You do not edit the file by hand for it, and `/new-home <repo>` runs the command as its third step.
 
-Every repo with a home is a project. `/new-home <repo>` adds it as its third step, and a home's start adds it when the config has no table for its repo ("On the bus" in `features/home/skills/home/SKILL.md`): the home finds the repo's T3 Code project by its checkout and runs the same block as `/new-home`, so the two add a repo the same way. Neither ever writes `home-thread`, whatever a home's rules say, so a repo they add is one jbus merges for, unless the user has put an id in that switch by hand.
+Every repo with a home is a project.
+`/new-home <repo>` adds it as its third step, and a home's start adds it when the config has no table for its repo ("On the bus" in `features/home/skills/home/SKILL.md`): the home finds the repo's T3 Code project by its checkout and runs the same block as `/new-home`, so the two add a repo the same way.
+Neither ever writes `home-thread`, whatever a home's rules say, so a repo they add is one jbus merges for, unless the user has put an id in that switch by hand.
 
 A home that was never added is named. Each folder under `~/.local/state/home` with a `home-id` and no project of the config is a home not on the bus. A party's folder, `_<name>`, as an expert's is, is no repo's home and is not named, and a folder that is a link to a project's home is that home. The pass says `homes not on the bus: <names>` in the journal when the list changes, `jbus status` prints it as `homes_off_bus`, and the view's machine row shows a Homes item with the count, and the names in its tip, while there is one. jbus adds none of them: `jbus project add`, or the home's next start, does.
 

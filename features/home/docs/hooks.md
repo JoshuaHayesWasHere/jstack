@@ -21,7 +21,10 @@ Each hook below is a feature's, as its `features/<name>/feature.json` declares i
 
 ## The start hook
 
-`features/home/hooks/home-start.sh` is a `SessionStart` hook. It makes a new T3 Code thread the repo's home without anyone typing `/home`. It prints `features/home/templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply. It prints nothing unless all of these hold:
+`features/home/hooks/home-start.sh` is a `SessionStart` hook.
+It makes a new T3 Code thread the repo's home without anyone typing `/home`.
+It prints `features/home/templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply.
+It prints nothing unless all of these hold:
 
 - the session is new, not a resume, a `/clear` or a compaction;
 - it runs inside T3 Code, where `T3_CODE_MCP_AUTHORIZATION` or `T3_MCP_BEARER_TOKEN` is set;
@@ -92,7 +95,10 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
 
 ## The gauge hook
 
-`features/home/hooks/home-gauge.sh` is a `PostToolUse` hook and a `PreToolUse` hook. After a tool call it tells a home how full its context is, once the count reaches the home's limit. Before a tool call it refuses the call, once the count reaches the home's ceiling. The count is what `jgauge context` prints for the session's transcript: the input side of its last call.
+`features/home/hooks/home-gauge.sh` is a `PostToolUse` hook and a `PreToolUse` hook.
+After a tool call it tells a home how full its context is, once the count reaches the home's limit.
+Before a tool call it refuses the call, once the count reaches the home's ceiling.
+The count is what `jgauge context` prints for the session's transcript: the input side of its last call.
 
 At the limit, and after every tool call from then on, the agent gets one line:
 
@@ -185,4 +191,5 @@ The script prints nothing and exits 0 on any input, so the status line it leaves
 }
 ```
 
-A status line of your own is left as it is. [Configuration](../../../docs/configuration.md#the-limits-file) shows how to call the script from it.
+A status line of your own is left as it is.
+[Configuration](../../../docs/configuration.md#the-limits-file) shows how to call the script from it.
