@@ -323,7 +323,7 @@ HANDOFF = [
     ("Read", {"file_path": "handoff.md"}),
     ("Write", {"file_path": "handoff.md", "content": "x"}),
     ("Edit", {"file_path": "review-speed/plan.md", "old_string": "a", "new_string": "b"}),
-    ("Read", {"file_path": "hydra/../demo/./plan.md"}),
+    ("Read", {"file_path": "attic/../demo/./plan.md"}),
     ("Read", {"checkout": "templates/handoff.md"}),
     ("Read", {"checkout": "templates/handoff-seed.md"}),
     ("Read", {"checkout": "templates/../skills/home/SKILL.md"}),

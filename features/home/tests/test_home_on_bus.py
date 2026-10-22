@@ -159,7 +159,7 @@ def homes(kitchen):
     (root / "handed").mkdir()
     (root / "handed" / "home-id").write_text("\n")
     (kitchen.home / "home-id").write_text("mcp:demo\n")
-    (root / "hydra").symlink_to(kitchen.home)
+    (root / "attic").symlink_to(kitchen.home)
     (root / "README.md").write_text("not a home\n")
     return root
 

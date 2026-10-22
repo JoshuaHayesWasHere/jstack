@@ -90,8 +90,8 @@ def task(served, slug):
 
 
 def test_the_folder_is_the_working_directory_with_each_character_not_a_letter_or_digit_a_dash():
-    named = usage.folder(Path("/home/me/.t3/worktrees/hydra/jv_usage.2"))
-    assert named == usage.PROJECTS / "-home-me--t3-worktrees-hydra-jv-usage-2"
+    named = usage.folder(Path("/home/me/.t3/worktrees/attic/jv_usage.2"))
+    assert named == usage.PROJECTS / "-home-me--t3-worktrees-attic-jv-usage-2"
 
 
 def test_a_tasks_figures_are_what_jgauge_session_prints_for_its_transcript(place, served):

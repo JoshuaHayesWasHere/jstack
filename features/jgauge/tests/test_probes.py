@@ -10,7 +10,7 @@ from pathlib import Path
 
 from jgauge import session
 
-FIXTURES = Path(__file__).parent / "fixtures" / "projects" / "-tmp-pipeline-check"
+FIXTURES = Path(__file__).parent / "fixtures" / "projects" / "-tmp-jstack-check"
 SMOKE = "a59133d5-44b2-40ea-bca3-6eef6f94ba6f"
 NESTED = "4aa8337b-ff06-40a6-b509-eb8dbc273077"
 SMOKE_SCOUT = "aa8a78fae39e2eb67"

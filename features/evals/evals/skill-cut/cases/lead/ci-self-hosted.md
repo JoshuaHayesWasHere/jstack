@@ -52,7 +52,11 @@ Read the changed code the way a tech lead would, and answer these about it:
 ### 1. [warning] The `runs-on` expression cannot keep a stranger's pull request off this machine
 **Location**: `.github/workflows/check.yml:18-20` (same comment at `.github/workflows/pstack-drift.yml:44-46`)
 **Finding**: The comment states "A public one never does: a stranger's pull request must not run here", but the expression only governs pull requests that leave the line alone.
-**Evidence**: For a `pull_request` event GitHub evaluates the workflow file from the pull request's own merge commit. Once the repo is public, a fork PR can rewrite line 20 to `runs-on: [self-hosted, hydra]`. The runner is still registered to the repo, and it runs as a systemd user service with access to the real home directory. The only gate left is the fork-approval setting, which is not in this diff. This is a rule in prose where the real control sits elsewhere.
+**Evidence**: For a `pull_request` event GitHub evaluates the workflow file from the pull request's own merge commit.
+Once the repo is public, a fork PR can rewrite line 20 to `runs-on: [self-hosted, attic]`.
+The runner is still registered to the repo, and it runs as a systemd user service with access to the real home directory.
+The only gate left is the fork-approval setting, which is not in this diff.
+This is a rule in prose where the real control sits elsewhere.
 **Suggestion**: Reword the comment to claim only what the line does (the repo's own jobs stop using the runner once public). Removing the runner's registration before going public is the real control; that is outside the "Where" line, so it is noted for later.
 
 ### A2
@@ -67,7 +71,8 @@ Read the changed code the way a tech lead would, and answer these about it:
 
 ### 3. [warning] The drift job leaves a clone in the real `~/.cache`, which breaks "leaves nothing behind"
 **Location**: `.github/workflows/pstack-drift.yml:46` (damage is in `src/pdrift/cli.py:64-77`, unchanged)
-**Finding**: Moving this job to the self-hosted runner makes `make pstack-drift` write its cache clone to `~/.cache/hydra/cursor-plugins` in the user's real home. That is outside the job's workspace and survives every run.
+**Finding**: Moving this job to the self-hosted runner makes `make pstack-drift` write its cache clone to `~/.cache/attic/cursor-plugins` in the user's real home.
+That is outside the job's workspace and survives every run.
 **Evidence**: `cache()` uses `XDG_CACHE_HOME` or `Path.home() / ".cache"`. `fetch()` reuses the clone whenever `.git` exists. `actions/checkout`'s clean only covers the workspace. A run killed mid-clone (the job has `timeout-minutes: 10`) leaves a partial `.git`, and every later run takes the reuse branch. The same directory is shared with the user's own local `make pstack-drift`.
 **Suggestion**: Set `XDG_CACHE_HOME: ${{ runner.temp }}` (or a workspace path) as `env` on the job or step. This stays inside the "Where" files.
 
@@ -99,7 +104,8 @@ Read the changed code the way a tech lead would, and answer these about it:
 
 ### 7. [nit] "Done when" line 3 cannot be confirmed from the diff
 **Location**: no file; this is about what the change as a whole has to show
-**Finding**: The passing `check` run on `the user-hydra` with its URL belongs in the Result. Nothing in the diff evidences it, and I ran nothing.
+**Finding**: The passing `check` run on `the user-attic` with its URL belongs in the Result.
+Nothing in the diff evidences it, and I ran nothing.
 **Evidence**: That run would also only cover the `pull_request` event (see finding 2).
 
 ### B1
@@ -115,7 +121,11 @@ Read the changed code the way a tech lead would, and answer these about it:
 ### 2. [warning] The "public repo never uses this runner" rule lives in a file a pull request can rewrite
 **Location**: `.github/workflows/check.yml:18-20` (same comment and expression at `.github/workflows/pstack-drift.yml:15-17`)
 **Finding**: The comment states "A public one never does: a stranger's pull request must not run here", but the only thing enforcing it is the `runs-on` expression in the workflow file itself.
-**Evidence**: On `pull_request`, GitHub runs the workflow as it appears in the pull request's head. Once the repo is public, a fork's pull request can replace line 20 with `runs-on: [self-hosted, hydra]`. The runner is still registered to the repo, so the job lands on this machine as the user's systemd user service. The only remaining gate is the repo's fork-approval setting. This is a rule in prose and convention where structure is needed.
+**Evidence**: On `pull_request`, GitHub runs the workflow as it appears in the pull request's head.
+Once the repo is public, a fork's pull request can replace line 20 with `runs-on: [self-hosted, attic]`.
+The runner is still registered to the repo, so the job lands on this machine as the user's systemd user service.
+The only remaining gate is the repo's fork-approval setting.
+This is a rule in prose and convention where structure is needed.
 **Suggestion**: The real guard is outside the "Where" line, so it is noted for later: remove the runner's registration before the repo's visibility changes. Within this pull request, reword the comment so it does not claim "never".
 
 ### B3
@@ -144,5 +154,5 @@ Read the changed code the way a tech lead would, and answer these about it:
 ### B6
 
 ### 6. [nit] Two "Done when" lines have no evidence in the diff (no file: about what the change lacks)
-**Finding**: Line 3 (the `check` run passes and its log shows `the user-hydra`, with the run's URL) and line 4 (a job leaves nothing behind) are not shown by any changed line.
+**Finding**: Line 3 (the `check` run passes and its log shows `the user-attic`, with the run's URL) and line 4 (a job leaves nothing behind) are not shown by any changed line.
 **Evidence**: Line 4 holds only through defaults the diff does not state or test: `actions/checkout`'s clean, and `uv sync` placing `.venv` in the workspace unless the runner's unit sets `UV_PROJECT_ENVIRONMENT`. The uv cache and any uv-managed Python live in the service user's home and persist across jobs. Line 3 can only be confirmed from the run itself, which I did not open.

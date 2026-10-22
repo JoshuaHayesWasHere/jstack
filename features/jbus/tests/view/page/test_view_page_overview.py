@@ -190,22 +190,22 @@ def test_a_link_to_no_project_draws_the_machine_with_its_own_word_on_jbus(scene,
     drew before."""
     stacked(scene)
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
-    seen = look(scene, tmp_path, route="#/hydra")
+    seen = look(scene, tmp_path, route="#/attic")
     assert seen["errors"] == []
     assert seen["header"]["machine"]["text"] == "jbus stopped"
 
 
 def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(scene, tmp_path):
     stacked(scene)
-    seen = look(scene, tmp_path, route="#/hydra")
+    seen = look(scene, tmp_path, route="#/attic")
     assert seen["errors"] == [] and "gone" not in seen["body"]
     assert seen["stack"]["none"] == (
-        "No project named hydra jbus looks after no project of that name: a retired project "
+        "No project named attic jbus looks after no project of that name: a retired project "
         "is not shown. Every project"
     )
     assert seen["first"] == []
     seen = look(scene, tmp_path, route="#/")
-    assert "hydra" not in json.dumps(seen["stack"])
+    assert "attic" not in json.dumps(seen["stack"])
     seen = look(scene, tmp_path, route="#/%E0")
     assert seen["errors"] == [] and seen["stack"]["none"].startswith("No project named %E0 ")
 

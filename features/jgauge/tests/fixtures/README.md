@@ -1,6 +1,6 @@
 # Fixtures
 
-`projects/-tmp-pipeline-check/` holds trimmed copies of two real sessions, recorded on 2026-10-09 with Claude Code 2.1.296.
+`projects/-tmp-jstack-check/` holds trimmed copies of two real sessions, recorded on 2026-10-09 with Claude Code 2.1.296.
 They are the two probe sessions behind `features/jgauge/docs/meter-findings.md`.
 The tests in `features/jgauge/tests/test_probes.py` hold `jgauge session` to a recount made by hand from the untrimmed files.
 
@@ -13,6 +13,7 @@ The tests in `features/jgauge/tests/test_probes.py` hold `jgauge session` to a r
 Their counts are small on purpose, so the expected sums can be checked by eye.
 `msg_p1` and `msg_b1` each sit on more than one line.
 
-For the `-tmp-pipeline-check` sessions, what was kept: every `user` and `assistant` line, in order, with its `type`, `uuid`, `timestamp`, `sessionId`, `agentId`, `version`, the message's `id`, `model`, `stop_reason`, the four token counts of `usage`, and the tool calls. The Agent result lines keep the counts of `toolUseResult` and the harness's `<usage>` text, which `jgauge` does not read: a subagent's last call has no finished line here, so its output is counted as a floor.
+For the `-tmp-jstack-check` sessions, what was kept: every `user` and `assistant` line, in order, with its `type`, `uuid`, `timestamp`, `sessionId`, `agentId`, `version`, the message's `id`, `model`, `stop_reason`, the four token counts of `usage`, and the tool calls.
+The Agent result lines keep the counts of `toolUseResult` and the harness's `<usage>` text, which `jgauge` does not read: a subagent's last call has no finished line here, so its output is counted as a floor.
 
 What was dropped: every other line type (attachments, queue operations, titles, cost state), thinking signatures, long texts, the builder's report (replaced by a short placeholder, so its reply size here is not the real one), the subagents' meta files, and every other field.

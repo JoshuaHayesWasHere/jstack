@@ -1,6 +1,6 @@
 {
   "tests-parallel": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/339",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 2,
@@ -20,7 +20,7 @@
     }
   },
   "cs-stubs-in-process": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/403",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 1,
@@ -40,7 +40,7 @@
     }
   },
   "check-workers-share": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/363",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 1,
@@ -60,7 +60,7 @@
     }
   },
   "cs-runner-workers": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/400",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 0,
@@ -80,7 +80,7 @@
     }
   },
   "rs-parallel-reviews": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/pipeline/pull/22",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 2,
@@ -100,7 +100,7 @@
     }
   },
   "rs-load-limit": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/pipeline/pull/26",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 2,
@@ -120,7 +120,7 @@
     }
   },
   "hj-home-gauge": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/391",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 3,
@@ -140,7 +140,7 @@
     }
   },
   "jv-usage": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/427",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 5,
@@ -160,7 +160,7 @@
     }
   },
   "jstack-leak-zero": {
-    "pull_request": "https://github.com/JoshuaHayesWasHere/hydra/pull/380",
+    "pull_request": "",
     "merged": true,
     "status": "done",
     "findings_error_or_warning": 7,

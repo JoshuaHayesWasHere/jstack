@@ -92,15 +92,13 @@ NAMED = (
 )
 GONE = ("X-Jbus-Key", "every three minutes", "holds a file")
 HISTORY = re.compile(
-    r"`pipeline`|/pipeline\b|jstack-v1|first jstack|cutover|"
+    r"jstack-v1|first jstack|cutover|"
     r"\b(was|were) called\b|\bmoved (here|from)\b",
     re.I,
 )
 WAS = (
     "This repo was called jstack Two for a week.",
     "The skills were called commands.",
-    "A note that says `pipeline` means this.",
-    "Its content came from someone/pipeline.",
     "It is kept at the tag `jstack-v1`.",
     "Before that, this repo held the first jstack.",
     "Since the cutover the links follow this checkout.",
@@ -111,7 +109,7 @@ WAS = (
 )
 IS = (
     "The key is used to sign each POST, in POSTs no longer than 100 KB.",
-    "Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-pipeline-check/`.",
+    "Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-jstack-check/`.",
     "CI is a pipeline of one job, as of the workflow file.",
 )
 
