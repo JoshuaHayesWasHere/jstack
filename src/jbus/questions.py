@@ -51,9 +51,9 @@ the question waits for the user. Its `Holds:` line names the case, one of `HOLDS
 closed by silence. A `Holds:` line with no filled `Fail-safe:` line is refused, and so is an
 unknown case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 
-Lines that are not one gate of `templates/gates.md`, filled in, are refused with `not sent`
-and what they lack (`_shaped`): a first line that is not `## Gate <n>: ` and the question,
-or `## Gate <number>: ` for a gate a home's `gates.md` numbered, more than one `## ` line,
+Lines that are not one gate of `features/home/templates/gates.md`, filled in, are refused with
+`not sent` and what they lack (`_shaped`): a first line that is not `## Gate <n>: ` and the
+question, or `## Gate <number>: ` for a gate a home's `gates.md` numbered, more than one `## ` line,
 no `Status: open` line, and a line of the template's head that is missing or left as its
 placeholder. The labels are read from the template, the one copy, so a skill pipes the gate
 and checks none of this itself.

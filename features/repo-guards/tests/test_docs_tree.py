@@ -224,11 +224,16 @@ def test_a_skill_names_a_moved_template_or_hook_where_the_layout_puts_it(small):
     make(
         small,
         {
+            "features/home/feature.json": (
+                '{"hooks": [{"event": "SessionStart", "script": "hooks/moved.sh"}],'
+                ' "gitHooks": [{"name": "pre-push", "script": "hooks/pre-push.sh"}]}'
+            ),
             "features/home/templates/moved.md": "# Moved\n",
             "features/home/hooks/moved.sh": "#!/bin/sh\n",
+            "features/home/hooks/pre-push.sh": "#!/bin/sh\n",
             "skills/beta/SKILL.md": (
                 "# Beta\n\n`templates/moved.md` `hooks/moved.sh`\n"
-                "`templates/gone.md` `hooks/gone.sh`\n"
+                "`templates/gone.md` `hooks/gone.sh` `hooks/pre-push.sh`\n"
             ),
             "docs/a.md": "`templates/moved.md` `hooks/moved.sh`\n",
         },
@@ -238,6 +243,7 @@ def test_a_skill_names_a_moved_template_or_hook_where_the_layout_puts_it(small):
         "FAIL docs/a.md:1 hooks/moved.sh is named and the tree has no such path",
         "FAIL skills/beta/SKILL.md:4 templates/gone.md is named and the tree has no such path",
         "FAIL skills/beta/SKILL.md:4 hooks/gone.sh is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 hooks/pre-push.sh is named and the tree has no such path",
     ]
 
 

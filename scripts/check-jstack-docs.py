@@ -26,6 +26,7 @@ A thing no page lists is reported at `README.md:1`.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import tomllib
@@ -162,8 +163,10 @@ class Tree:
         kind, _, rest = path.partition("/")
         if kind == "playbooks":
             return "/" not in rest and rest.removesuffix(".md") in self.playbooks
-        if kind in ("templates", "hooks"):
-            return any(self.root.glob(f"features/*/{kind}/{rest}"))
+        if kind == "templates":
+            return any(self.root.glob(f"features/*/templates/{rest}"))
+        if kind == "hooks":
+            return rest in hook_names(self.root)
         name, _, file = rest.partition("/")
         return (
             kind == "skills"
@@ -195,6 +198,16 @@ def models_of(page: Path) -> frozenset[str]:
         elif inside and line.text.startswith("|"):
             found |= set(MODEL.findall(line.text.split("|")[1]))
     return frozenset(found)
+
+
+def hook_names(root: Path) -> set[str]:
+    """The file name of each hook a feature's `feature.json` declares under `hooks`, which a
+    layout holds as `hooks/<file>`: a git hook is linked into `.git/hooks/` and is not one."""
+    return {
+        Path(hook["script"]).name
+        for manifest in root.glob("features/*/feature.json")
+        for hook in json.loads(manifest.read_text()).get("hooks", ())
+    }
 
 
 def skill_files(root: Path) -> list[Path]:
