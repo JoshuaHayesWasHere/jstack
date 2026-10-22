@@ -75,7 +75,7 @@ class GitHook:
         return machine.source / self.script
 
     def _ask(self, machine: Machine) -> str:
-        return f'run sh {quoted(self._target(machine))} "$@" from it'
+        return f'to run jstack\'s as well, add sh {quoted(self._target(machine))} "$@" to it'
 
     def _runs_it(self, machine: Machine, own: Path) -> bool:
         try:

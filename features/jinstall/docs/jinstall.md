@@ -106,8 +106,10 @@ A hook of the repo's own is never written over: a file, a link to anything but j
 Its line says `old` and names the file, with the line that runs jstack's hook from it:
 
 ```text
-old optional hook /home/you/repos/app/.git/hooks/pre-push pre-push -> a hook of the repo's own, which the install does not write over: run sh '/home/you/.local/share/uv/tools/jstack/share/jstack/features/jleak/hooks/pre-push.sh' "$@" from it
+old optional hook /home/you/repos/app/.git/hooks/pre-push pre-push -> a hook of the repo's own, which the install does not write over: to run jstack's as well, add sh '/home/you/.local/share/uv/tools/jstack/share/jstack/features/jleak/hooks/pre-push.sh' "$@" to it
 ```
+
+`--setup` says `missing optional` for the same hook, since the repo runs without jstack's hook and nothing is owed: add the line only if you want jstack's hook to run there.
 
 Once your hook runs that script, the line says `ok` with `chained from the repo's own hook`, and `--uninstall` leaves your hook as it is.
 git gives `pre-push` the refs it pushes on standard input, so a `pre-push` hook of your own that reads them hands them on:

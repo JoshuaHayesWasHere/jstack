@@ -109,7 +109,8 @@ def setup(machine: Machine) -> Report:
     for what this run wrote, `already <name>` for what was there, and
     `needs you <name> -> <command>` for each step that is left for the user. An optional
     need that is missing is a layer the user has not set up, and its line is the doctor's,
-    `missing optional <name> -> <command>`.
+    `missing optional <name> -> <command>`. A repo's own git hook (`yours`) gets that line too:
+    the repo runs without jstack's hook, and no step of the user's is owed.
 
     Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
     the install puts it. The jbus config comes before the units in the list, so a run that
@@ -143,7 +144,7 @@ def setup(machine: Machine) -> Report:
         ask = kind.ask(machine) if isinstance(kind, Asks) else found.detail
         code |= need.level is Level.HARD
         layer = need.level is Level.OPTIONAL and found.state is State.MISSING
-        said = "missing optional" if layer else "needs you"
+        said = "missing optional" if layer or yours(need, found) else "needs you"
         lines.append(f"{said} {need.name} -> {ask or found.state.value}")
     return Report(tuple(lines), "\n".join(notes), code)
 

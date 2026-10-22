@@ -95,11 +95,27 @@ def test_a_repos_own_hook_is_never_written_over_and_its_line_names_the_file(user
     assert code == 1
     assert lines == [
         f"old {part(repo, 'pre-push')} -> a hook of the repo's own, which the install does not "
-        f"write over: run sh '{script}' \"$@\" from it",
+        f"write over: to run jstack's as well, add sh '{script}' \"$@\" to it",
         f"ok {part(repo, 'commit-msg')}",
     ]
     assert own.read_text() == "#!/bin/sh\nexit 0\n"
     assert not own.is_symlink()
+
+
+def test_setup_names_a_repos_own_hook_as_an_optional_layer_and_asks_nothing(user):
+    repo = scratch(user)
+    hook(repo, "pre-push").write_text("#!/bin/sh\nexit 0\n")
+    said(user, "--repo", str(repo))
+
+    _, lines, _ = said(user, "--setup")
+
+    script = HOOKS["pre-push"]
+    assert hook_lines(lines, repo) == [
+        f"missing optional hook {hook(repo, 'pre-push')} pre-push -> a hook of the repo's own,"
+        f" which the install does not write over: to run jstack's as well, add sh '{script}'"
+        ' "$@" to it',
+        f"already hook {hook(repo, 'commit-msg')} commit-msg",
+    ]
 
 
 def test_an_own_hook_that_runs_the_script_is_ok_and_uninstall_leaves_it(user):
