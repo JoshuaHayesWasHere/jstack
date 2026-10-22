@@ -178,9 +178,9 @@ def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_r
 
 
 def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path, monkeypatch):
-    """systemd, the room script and the runner units are asked once for an answer of
-    `/stack.json`, with three projects as with one, and the runs of GitHub once for each
-    repo, then kept: a second answer within the minute asks GitHub nothing."""
+    """For an answer of `/stack.json`, the server asks systemd, the room script and the
+    runner units once, with three projects as with one. It asks GitHub for the runs once
+    for each repo, then keeps them: a second answer within the minute asks GitHub nothing."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     calls = scene.root / "machine.calls"

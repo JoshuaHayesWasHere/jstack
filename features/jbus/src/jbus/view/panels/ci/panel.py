@@ -1,14 +1,15 @@
-"""The nine targets of CI, each with its value now, the target it is held to, how it was
-counted, and its series by day with a mark at the merge of each change that was to move it.
+"""The nine targets of CI, each with its value now, the target it is held to, how jbus counted
+it, and its series by day. The series has a mark at the merge of each change that was meant to
+move the target.
 
-Everything is read from `ci.jsonl` and `ci-prs.jsonl` of the project's state, which
-`jbus ci` writes (`jbus.ci`), and the numbers are the ones `jbus ci` prints: the same
-functions count them, over the last `DAYS` days, and over each day of them for the series.
-The marks are the merges `merge.log` records: the three levers of the plan in this
-project's home, and the change of the runner's CPUs in the home of the project that owns it.
+The panel reads everything from `ci.jsonl` and `ci-prs.jsonl` of the project's state, which
+`jbus ci` writes (`jbus.ci`). The numbers are the ones `jbus ci` prints, because the same
+functions count them: over the last `DAYS` days, and over each of those days for the series. The
+marks are the merges that `merge.log` records: the three levers of the plan in this project's
+home, and the change of the runner's CPUs in the home of the project that owns the runner.
 
-Asked for when the drawer opens, at `/panel/ci.json`; the card on the first screen says
-nothing the ledger holds.
+The page asks for this panel when its drawer opens, at `/panel/ci.json`. The card on the first
+screen says nothing that the ledger holds.
 """
 
 from __future__ import annotations
@@ -63,7 +64,7 @@ def blind(read: Read) -> list[Spot]:
 
 
 def marks(read: Read) -> list[dict[str, Any]]:
-    """The merge of each change of `MARKS` that `merge.log` says landed."""
+    """The merge of each change of `MARKS` that `merge.log` records as merged."""
     found = []
     homes: dict[str | None, dict[str, tuple[int, str]]] = {
         None: state._landed(read.log or [], read.user)

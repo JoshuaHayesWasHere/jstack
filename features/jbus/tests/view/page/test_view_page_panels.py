@@ -30,7 +30,7 @@ def unreached(seen, names):
 
 
 def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_server(scene):
-    """Nothing but its one font, from its own server."""
+    """The page loads nothing but its one font, from its own server."""
     served = Served(scene)
     try:
         _, headers, page = served.ask("/")
@@ -107,7 +107,7 @@ def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scen
 def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_lines(
     scene, tmp_path
 ):
-    """Two folders are added to a copy of the package, and no other file of it is edited
+    """The test adds two folders to a copy of the package and edits no other file of it
     (`test_view_panels.py` compares the trees). `sample` adds a line to the task drawer that
     opens it, and a count beside the Needs you queue. Nothing opens `lost`, and the drawer of
     `thrown` throws."""
@@ -179,8 +179,9 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
 
 
 def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_path, monkeypatch):
-    """The task drawer's Usage line is filled by an ask of its own. A transcript that is not
-    there is said, and an ask the server does not answer is said too, never left waiting."""
+    """The task drawer fills its Usage line with a request of its own. The line says when a
+    transcript is not there, and says so too when the server does not answer the request,
+    rather than wait."""
     monkeypatch.setattr(usage, "PROJECTS", tmp_path / "projects")
     monkeypatch.setattr(usage, "_kept", {})
     served = Served(scene)

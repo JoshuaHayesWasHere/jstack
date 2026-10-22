@@ -1,17 +1,17 @@
-"""What the threads cost: for each task, the transcripts of its worktree, and for each home,
-the one session it runs as, each as `jgauge session` counts it.
+"""What the threads cost, each as `jgauge session` counts it: for each task, the transcripts of
+its worktree, and for each home, the one session it runs as.
 
-Each session's transcript is kept as `<session>.jsonl` in a folder of `KEPT`, named for the
-working directory with each character that is not a letter or a digit as `-`. A task's
-crewmate, and the reviewers launched into its worktree, work in
-`~/.t3/worktrees/<project>/<slug>`, so that folder holds every thread of the task. A home
-works in the project's main checkout, beside other threads, so a home is the session of
-that folder that starts within `JOINED` of its thread.
+Each session's transcript is `<session>.jsonl` in a folder of `KEPT`. The folder's name is the
+working directory with each character that is not a letter or a digit as `-`. A task's crewmate,
+and the reviewers launched into its worktree, work in `~/.t3/worktrees/<project>/<slug>`, so that
+folder holds every thread of the task. A home works in the project's main checkout, beside other
+threads, so the panel takes as a home's session the session of that folder that starts within
+`JOINED` of the home's thread.
 
-The sum is `jgauge.session.of_transcript`, the one `jgauge session` prints. A transcript is
-read only when this panel is asked for, and what it gave is kept by the size and the mtime
-of each of its files, so a second ask reads none that did not change. The answer is numbers
-and times only: no text of a transcript is copied into it.
+The sum is `jgauge.session.of_transcript`, the sum that `jgauge session` prints. The panel reads
+a transcript only when the page asks for this panel. It keeps what a transcript gave by the size
+and the mtime of each of its files, so a second ask reads no file that did not change. The answer
+is numbers and times only: the panel copies no text of a transcript into it.
 """
 
 from __future__ import annotations
@@ -52,9 +52,9 @@ _lock = threading.Lock()
 
 
 def _projects(read: Read) -> dict[str, Any]:
-    """The age of what the panel last read: the mtime of the newest transcript it counted,
-    as it keeps it, so the first screen reads no transcript. None before its first ask.
-    A folder that is not there is read too: each task and home then says it is not known."""
+    """The age of what the panel last read: the mtime of the newest transcript it counted, as the
+    panel kept it, so the first screen reads no transcript. It is None before the first ask. A
+    folder that is not there counts as read too: each task and home then says it is not known."""
     with _lock:
         stamps = [stamp for key, _ in _kept.values() for _, _, stamp in key]
     newest = iso(datetime.fromtimestamp(max(stamps) / 1e9, UTC)) if stamps else None
@@ -75,7 +75,7 @@ def _short(path: Path) -> str:
 
 
 def _files(path: Path) -> tuple:
-    """What a session's sum is kept by: each of its files, with its size and mtime."""
+    """The key the panel keeps a session's sum by: each of its files, with its size and mtime."""
     found = [path, *sorted((path.with_suffix("") / "subagents").rglob("agent-*.jsonl"))]
     stats = []
     for one in found:
@@ -124,7 +124,7 @@ def _sessions(where: Path) -> list[Path]:
 
 
 def _unit(where: Path, paths: list[Path]) -> dict[str, Any]:
-    """The figures of the sessions given, summed, each session's own, or why they are not
+    """The summed figures of the given sessions with each session's own, or why they are not
     known."""
     counts = [counted(path) for path in paths]
     read = [one for one in counts if one]
@@ -168,7 +168,7 @@ def checkout(name: str) -> Path | None:
 
 
 def started(path: Path) -> datetime | None:
-    """When a session started: the time of the first of its first lines that has one."""
+    """When a session started: the time on the first of its opening lines that has a time."""
     try:
         with path.open() as lines:
             for _ in range(20):
@@ -187,8 +187,9 @@ def started(path: Path) -> datetime | None:
 
 
 def _homes(read: Read) -> list[dict[str, Any]]:
-    """Each home the last pass listed, with the session of the main checkout that started
-    nearest its thread, from a minute before it to `JOINED` after. A session is one home's."""
+    """Each home that the last pass listed, with the session of the main checkout that started
+    nearest the home's thread, from a minute before the thread to `JOINED` after it. A session
+    belongs to one home only."""
     homes = sorted(
         (one for one in read.out or [] if one["role"] == "home"),
         key=lambda one: one["created"] or "",
@@ -219,14 +220,14 @@ def _homes(read: Read) -> list[dict[str, Any]]:
 
 
 def gauge() -> Path:
-    """The `home-gauge.sh` the panel reads: `GAUGE` under the checkout, else under the copy
-    a release carries."""
+    """The `home-gauge.sh` that the panel reads: `GAUGE` under the checkout, or else under the
+    copy that a release carries."""
     return skills.root() / GAUGE
 
 
 def limit(read: Read) -> dict[str, Any]:
-    """The context a home is held to, read where `home-gauge.sh` reads it: the two lines of
-    the home's `limit` file, and where one is not a number, the default of the hook."""
+    """The context a home is held to, read from where `home-gauge.sh` reads it: the two lines of
+    the home's `limit` file, or the hook's default for a line that is not a number."""
     try:
         hook = gauge()
         script = hook.read_text()

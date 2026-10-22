@@ -1,6 +1,6 @@
-"""One thread, followed to what it works on: `thread:<role>:<slug>`. It is drawn from the
-threads the threads panel gives the first screen, a scout's request with them, so it gives
-no key of its own and reads no source of its own."""
+"""One thread, followed to what it works on: `thread:<role>:<slug>`. The page draws it from the
+threads that the threads panel gives the first screen, each scout's thread with its request, so
+this panel gives no key of its own and reads no source of its own."""
 
 from __future__ import annotations
 

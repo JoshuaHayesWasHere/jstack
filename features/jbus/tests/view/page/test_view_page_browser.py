@@ -1,4 +1,4 @@
-"""The browser the page's tests open: its lock, its bound, and every process it started."""
+"""The browser the page's tests open: its lock, its time limit, and every process it started."""
 
 import fcntl
 import os
@@ -86,8 +86,8 @@ def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
     own_home, tmp_path, monkeypatch
 ):
     """A browser that hangs, and a process it started that would outlive it, are both gone
-    once the launch's bound is up: a hang costs the test that bound and no more, and leaves
-    nothing behind."""
+    once the launch's time limit is up. A hang costs the test that much time and no more,
+    and leaves no process behind."""
     child = hanging(tmp_path, monkeypatch)
     monkeypatch.setattr("view.page.browser.LAUNCH", 2)
     started = time.monotonic()
@@ -134,8 +134,8 @@ def test_a_browser_stopped_from_outside_leaves_no_process_it_started(
 
 
 def hanging(tmp_path, monkeypatch, first=""):
-    """A browser that never finishes, and starts a process that would outlive it: the file
-    that holds that process's id. `first` is shell it runs before."""
+    """A browser that never finishes, and starts a process that would outlive it. It gives
+    back the file that holds that process's id. `first` is shell the browser runs before."""
     child = tmp_path / "child"
     hangs = tmp_path / "chromium"
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")

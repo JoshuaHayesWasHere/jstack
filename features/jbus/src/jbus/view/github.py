@@ -1,18 +1,20 @@
-"""What the server asks GitHub: two things, read-only, through `gh api`, and each kept a while.
+"""What the server asks GitHub. It asks two things, read-only, through `gh api`, and keeps
+each answer a while.
 
-`runs` is the repo's last `RUNS` workflow runs, for the Checks card, kept `RUNS_KEPT`
-seconds. `pull` is one pull request and the check runs of its head, asked when its task's
-drawer opens, kept `PULL_KEPT` seconds. Every call is `gh api <path>` with a path under
-`repos/<owner>/<name>/` and nothing more: no method, no field, no body, so it cannot write.
-The token stays inside `gh`. From an answer only named fields are taken: never a title, a
-body, a diff or a log.
+`runs` asks for the repo's last `RUNS` workflow runs, for the Checks card, and keeps them
+`RUNS_KEPT` seconds. `pull` asks for one pull request and the check runs of its head when its
+task's drawer opens, and keeps them `PULL_KEPT` seconds. Every call is `gh api <path>` with a
+path under `repos/<owner>/<name>/` and nothing more: no method, no field and no body, so a
+call cannot write. The token stays inside `gh`. The server takes only named fields from an
+answer, never a title, a body, a diff or a log.
 
-An answer that did not come is kept as long as one that did, so a GitHub that is down is
-not asked on every request.
+The server keeps a missing answer as long as one that came, so it does not ask GitHub on
+every request while GitHub is down.
 
-No request waits on GitHub for more than `PATIENCE` seconds. `gh` is run in a thread of its
-own, one at a time for each question, and a request that is still waiting then takes the
-answer there was before, or `WAITING` where there was none: the next request has the answer.
+No request waits on GitHub for more than `PATIENCE` seconds. The server runs `gh` in a
+thread of its own, one at a time for each question. A request still waiting after that time
+takes the answer there was before, or `WAITING` where there was none, and the next request
+gets the new answer.
 """
 
 from __future__ import annotations
@@ -51,7 +53,7 @@ def _state(one: dict[str, Any]) -> str:
 
 
 class GitHub:
-    """The two questions, and their answers for as long as each is kept."""
+    """The two questions, and the answer to each for the time this class keeps it."""
 
     def __init__(self, clock: Callable[[], datetime]) -> None:
         self.clock = clock
@@ -67,8 +69,8 @@ class GitHub:
         ask: Callable[[], dict[str, Any]],
         none: dict[str, Any],
     ) -> dict[str, Any]:
-        """The kept answer, or a new one once the old is `seconds` old. The lock is held
-        only to read and write what is kept, never while `gh` runs."""
+        """The kept answer, or a new one once the old one is `seconds` old. The method holds
+        the lock only to read and write the kept answers, never while `gh` runs."""
 
         def fetch(done: threading.Event) -> None:
             try:
@@ -122,8 +124,8 @@ class GitHub:
         return self._held(("runs", repo, 0), RUNS_KEPT, ask, {"runs": [], "at": None})
 
     def pull(self, repo: str, slug: str, number: int | None) -> dict[str, Any]:
-        """`{"slug", "pull", "checks"}` of a task, with `at` and `error` where GitHub was
-        asked: the pull request's state and the check runs of its head."""
+        """`{"slug", "pull", "checks"}` of a task: the pull request's state and the check runs
+        of its head. It has `at` and `error` too where the server asked GitHub."""
         if number is None:
             return {"slug": slug, "pull": None, "checks": []}
         if not repo:

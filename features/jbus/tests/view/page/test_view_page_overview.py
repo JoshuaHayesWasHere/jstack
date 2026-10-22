@@ -37,8 +37,9 @@ MIDDLE = (900, 900)
 
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
-    """The screen is a desk's, as high as the Needs you queue, `NEEDS`, here with the four rows
-    of the scene: In progress, with a row for each of the 28 open tasks, starts below it."""
+    """The screen is a desk's, as high as the Needs you queue, `NEEDS`, which here has the
+    four rows of the scene. In progress, with a row for each of the 28 open tasks, starts
+    below it."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     screen = (DESK[0], DESK[1] + NEEDS)
@@ -67,8 +68,8 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
     """The machine as one word, one Needs you queue across the projects, oldest first, and a
     row for each project: a name, a dot, what is broken, and two counts. The page asks
-    `/stack.json` and nothing
-    else, once a poll, and a poll that changed nothing draws nothing again."""
+    `/stack.json` and nothing else, once a poll, and a poll that changed nothing draws
+    nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
     assert clean(seen) == set()
@@ -154,8 +155,8 @@ def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
 
 def test_a_project_page_asks_one_thing_each_poll_and_every_project_once_a_minute(scene, tmp_path):
     """The page asks every 5 s, one request a poll. The switcher names every project, so a
-    project's page asks `/stack.json` too: beside its first read, and then once a minute in
-    place of its own `/state.json`."""
+    project's page asks `/stack.json` too: once beside its first read, and then once a
+    minute in place of its own `/state.json`."""
     stacked(scene)
     seen = look(scene, tmp_path, at=63000, budget=70000)
     asked = [one.partition("?")[0] for one in seen["asked"]]
@@ -184,8 +185,8 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
 
 
 def test_a_link_to_no_project_draws_the_machine_with_its_own_word_on_jbus(scene, tmp_path):
-    """No project's read is in hand there, so the machine is the one /stack.json read, and
-    whether jbus passes is its word, whatever the page drew before."""
+    """The page has no project's read there, so the one /stack.json read is all it knows of
+    the machine. Whether jbus passes is what that read says, whatever the page drew before."""
     stacked(scene)
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
     seen = look(scene, tmp_path, route="#/hydra")

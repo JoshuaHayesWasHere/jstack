@@ -1,9 +1,9 @@
-"""The repo's checks: its last workflow runs on GitHub, asked by the server, how many
-commits of main `checks.json` has as green, and the runner units of this machine.
+"""The repo's checks: its last workflow runs on GitHub, which the server asks for, how many
+commits of main `checks.json` records as green, and the runner units of this machine.
 
-The runners are what `systemctl --user list-units 'actions-runner-*'` lists, asked by the
-server on each request and read-only, each with the state systemd gives it. A runner that is
-not active is a fact the card says, not a blind spot: the view knows it is stopped.
+The runners are the units that `systemctl --user list-units 'actions-runner-*'` lists. The server
+asks for them on each request, read-only, and each has the state systemd gives it. The card says
+when a runner is not active, and that is not a blind spot: the view knows the runner is stopped.
 """
 
 from __future__ import annotations
@@ -44,15 +44,15 @@ def runs(read: Read) -> dict[str, Any]:
 
 
 def _github(read: Read) -> dict[str, Any]:
-    """GitHub's answer is renewed each minute, so it is stale only when the server kept an
-    answer while a slow `gh` had not come back."""
+    """The server renews GitHub's answer each minute, so the answer is stale only when the server
+    kept an old answer while a slow `gh` had not returned."""
     asked = read.once(runs)
     return {"at": asked.get("at"), "read": not asked.get("error"), "fresh": GITHUB_FRESH}
 
 
 def runners(read: Read) -> list[dict[str, str]] | None:
-    """Each runner unit systemd lists, loaded or not, active or not, or None where it did
-    not answer."""
+    """Each runner unit that systemd lists, loaded or not and active or not, or None where
+    systemd did not answer."""
     try:
         asked = subprocess.run(
             ["systemctl", "--user", "list-units", RUNNERS, "--all", "--output=json", "--no-pager"],
@@ -78,9 +78,10 @@ def runners(read: Read) -> list[dict[str, str]] | None:
 
 def tally(runs: list[dict[str, Any]]) -> dict[str, list[int]]:
     """Which runs run now, which wait for a runner, and which failed, each by its place in
-    `runs`: a branch once, while the newest run of one of its workflows failed, by the
-    oldest of those runs. The runs are oldest first, as `github.GitHub.runs` gives them.
-    It is the one rule: the card and its drawer draw these, and the overview counts them."""
+    `runs`. A branch is among the failed once, while the newest run of one of its workflows
+    failed, and its place is that of the oldest of those runs. The runs are oldest first, as
+    `github.GitHub.runs` gives them. This is the one rule: the card and its drawer draw these
+    lists, and the overview counts them."""
     newest = {(one.get("branch"), one.get("name")): at for at, one in enumerate(runs)}
     failed: dict[Any, int] = {}
     for at in sorted(newest.values()):

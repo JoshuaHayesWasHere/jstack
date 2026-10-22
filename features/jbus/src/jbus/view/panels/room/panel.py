@@ -1,9 +1,10 @@
-"""The machine and the plan: its load, CPU pressure, memory, memory pressure, the file slots
-of `/tmp` and the plan's limits, and the one answer `jgauge room` gives of them.
+"""The machine and the plan: the machine's load, CPU pressure, memory, memory pressure and file
+slots of `/tmp`, the plan's limits, and the one answer that `jgauge room` gives of them.
 
-The limits file is written by a session's status line, so it is old whenever no session ran:
-it says its age, and is no fault of jbus. A limit in it whose reset time has passed is from
-a window that is over: its use is not known, and is never given as a number.
+A session's status line writes the limits file, so the file is old whenever no session ran. The
+panel says its age, and an old file is no fault of jbus. A limit in it whose reset time has
+passed is from a window that is over: its use is not known, and the panel never gives it as a
+number.
 """
 
 from __future__ import annotations
@@ -47,8 +48,8 @@ NOT_KEPT = (
 
 
 def room_limits(user: jsettings.Settings) -> dict[str, float]:
-    """The limits `jgauge room` holds a launch to, read from its script, and the plan's from the
-    user's headroom, which `jgauge room` hands it."""
+    """The limits that `jgauge room` holds a launch to, read from its script, and the plan's
+    limits, read from the user's headroom, which `jgauge room` passes to it."""
     script = ROOM.read_text()
     names = {
         "load": "LOAD",
@@ -64,7 +65,7 @@ def room_limits(user: jsettings.Settings) -> dict[str, float]:
 
 
 def limits_path() -> Path:
-    """Where the plan's limits are written, as `jgauge room` finds it."""
+    """The path of the plan's limits file, as `jgauge room` finds it."""
     named = os.environ.get("LIMITS")
     below = re.search(r"LIMITS=\$\{LIMITS:-\$HOME/([^}]+)\}", ROOM.read_text())[1]
     return Path(named) if named else Path.home() / below
@@ -78,8 +79,8 @@ def _number_in(path: Path, pattern: str) -> float | None:
 def _plan(limits: Path, now: datetime, user: jsettings.Settings) -> dict[str, Any]:
     """The plan's limits as the limits file has them, each with when the file was written.
 
-    A limit whose reset time has passed is of a window that is over: its `used` is None,
-    and it says when the file was last written."""
+    A limit whose reset time has passed belongs to a window that is over: its `used` is None, and
+    it says when the status line last wrote the file."""
     written = _mtime(limits)
     plan: dict[str, Any] = {}
     for line in _lines(limits) or []:

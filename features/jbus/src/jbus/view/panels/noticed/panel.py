@@ -1,12 +1,12 @@
-"""What the threads noticed: each record of `noticed.json`, newest first, with its task, when
-a pass first found it, its mark and what took it or why it was dropped. Each poll of the first
-screen has every new record and the newest `MARKED` of the marked ones, and the count of the
-older marked ones, which `jbus noticed --all` prints: a first pass marks hundreds. The wait
-band counts the new ones and opens this panel, and says nothing where there is none.
+"""What the threads noticed: each record of `noticed.json`, newest first. Each record has its
+task, when a pass first found it, its mark, and what took it or why it was dropped. Each poll of
+the first screen gets every new record, the newest `MARKED` of the marked ones, and the count of
+the older marked ones, which `jbus noticed --all` prints: a first pass marks hundreds. The wait
+band counts the new records and opens this panel, and says nothing where there is none.
 
-It reads `noticed.json`, which a pass writes and `jbus noticed take|drop` marks, and writes
-nothing. Where the file is not there yet there is no record, and one that does not parse is a
-source that could not be read.
+The panel reads `noticed.json`, which a pass writes and `jbus noticed take|drop` marks, and
+writes nothing. Where the file does not exist yet there is no record. A file that does not parse
+is a source that could not be read.
 """
 
 from __future__ import annotations

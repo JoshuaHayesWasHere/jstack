@@ -1,12 +1,12 @@
-"""The user's words, as jbus keeps them: each question he answered, each word `jbus word`
-sent down, and each approval of a row with what it rests on. One list, newest first, of
-three kinds of entry, each with the key the page opens it by. An approval with no record
-has no time, and those come last, by slug.
+"""The user's words, as jbus keeps them: each question the user answered, each word that
+`jbus word` sent, and each approval of a row with what the approval is based on. The panel gives
+one list, newest first, of three kinds of entry, each with the key that the page opens it by. An
+approval with no record has no time, and such approvals come last, by slug.
 
-It reads `questions.json`, `words.json` and the queue, and writes none of them. A question
-that is answered is on no waiting list (`waiting.gates`): this is the one place it is
-listed. An approval is the record `queue.approve` writes, or for a row approved before
-that record was kept, the string it holds then, said to be no record.
+The panel reads `questions.json`, `words.json` and the queue, and writes none of them. An
+answered question is on no waiting list (`waiting.gates`), so this panel is the one place that
+lists it. An approval is the record that `queue.approve` writes. For a row approved before jbus
+kept that record, the approval is the string the row held then, marked as no record.
 """
 
 from __future__ import annotations
@@ -110,7 +110,8 @@ _RESTS = {"word": "word", "answer": "question"}
 
 
 def _approval(row: queue.Row, read: Read) -> dict[str, Any] | None:
-    """The row's approval, by its record, or with no record the string the row holds."""
+    """The row's approval from its record, or, where there is no record, the string the row
+    holds."""
     slug, made = text(row.get("slug"), 80), queue.record(row)
     entry = {"kind": "approval", "key": f"approval:{slug}", "slug": slug}
     if made is None:

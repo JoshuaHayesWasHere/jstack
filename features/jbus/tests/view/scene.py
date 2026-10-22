@@ -115,7 +115,8 @@ WORK = ("value", "who", "facts", "confirmed")
 
 
 def value_of(one):
-    """The value a pass that wrote this row would have judged it, where a test names none."""
+    """The value a pass would have judged this row to have when it wrote it, where a test
+    names none."""
     status, why = one.get("status", "queued"), one.get("why", "")
     if status == "queued":
         if not one.get("approved") or why.startswith("brief changed"):
@@ -338,7 +339,7 @@ class Scene:
 
     def passed(self, seconds_ago, running=False, threads=(), rows=None):
         """The last pass ended this long ago: `pass.json`, and the status file beside it.
-        It saw these threads out, and this of each row."""
+        That pass saw these threads out, and saw each row as given here."""
         ended = ago(seconds=seconds_ago)
         record = {
             "started": iso(ended - timedelta(seconds=21)).replace("+00:00", "Z"),
@@ -483,7 +484,7 @@ def free_port(host="127.0.0.1"):
 
 
 class Served:
-    """The server, open on a free port, and what it answers."""
+    """The server, running on a free port, and what it answers."""
 
     def __init__(self, scene, host=None, names=(), retry=60.0, port=None, origins=()):
         self.port = port or free_port()
@@ -528,11 +529,11 @@ def tasks(state):
 
 
 def stacked(scene):
-    """Beside `demo`, two projects of the state directory, made up small: `pantry`, with
-    one task running, one at a gate and one merged today, a gate it asks and a noticed line,
-    in a repo of its own, and `larder`, whose queue is empty. Beside them a directory with
-    no queue, which is no project, and a retired project, which jbus no longer looks after
-    and the view never reads."""
+    """Beside `demo`, two small made-up projects of the state directory. `pantry` has one
+    task running, one at a gate and one merged today, a gate it asks and a noticed line, in
+    a repo of its own. `larder` has an empty queue. Beside them are a directory with no
+    queue, which is no project, and a retired project, which jbus no longer looks after and
+    the view never reads."""
     pantry, larder = scene.state_dir / "pantry", scene.state_dir / "larder"
     for made in (pantry, larder, scene.home_dir / "pantry", scene.home_dir / "larder"):
         made.mkdir()
@@ -645,8 +646,8 @@ def kinds(scene):
     """One row of most values, as the last pass judged it: a row of every status a row has,
     and a pull request on every step. `fig-pip` is a row that is wrong, queued while the pass
     judged it merged, and `fig-stem` waits behind it. `fig-pod` and `fig-tree` are finished
-    and leave nothing. The page's first screen holds the scene to its word budget, so
-    `quiet`, `closed` and `unknown` have scenes of their own."""
+    and leave nothing. The tests hold the page's first screen to its word budget for this
+    scene, so `quiet`, `closed` and `unknown` have scenes of their own."""
     pulls = [
         row(
             f"fig-{step}",
@@ -790,7 +791,7 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 class Process:
     """The real server as a process of its own, `jbus view` over a copy of the packages it
     runs, with the check every 0.2 s where the server has it every `view.CHECK` seconds. It
-    copies each folder the packages sit in (`testing.paths.sources`), and `src` is the copy that
+    copies each folder the packages are in (`testing.paths.sources`), and `src` is the copy that
     holds `jbus`."""
 
     def __init__(self, scene):

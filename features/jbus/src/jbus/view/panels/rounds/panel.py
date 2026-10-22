@@ -1,11 +1,11 @@
-"""The rounds of each task: its brief's `## Review` sections in order, each with its verdict,
-its head and its count of findings, whether a second or a scoped pass was needed, and how
-many times the crewmate was woken and the branch rebased.
+"""The rounds of each task: its brief's `## Review` sections in order, each with its verdict, its
+head and its count of findings, whether the task needed a second or a scoped pass, and how many
+times the crewmate was woken and the branch was rebased.
 
-The sections are read by `jmerge`'s own reader (`ready.said_of`), the one the merge goes by.
-A section keeps no time of its own: a round has one only where the event log has a `review`
-event of the slug whose section names the same head, and none where it has not. A brief
-that cannot be read says so, and has no count at all: it is never a task of no review.
+`jmerge`'s own reader (`ready.said_of`), the one the merge goes by, reads the sections. A section
+has no time of its own. A round has a time only where the event log has a `review` event of the
+slug whose section names the same head. A brief that cannot be read says so, and has no count at
+all: the panel never shows it as a task with no review.
 """
 
 from __future__ import annotations

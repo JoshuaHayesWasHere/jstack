@@ -1,7 +1,7 @@
-"""Every thread the last pass saw that is not settled, a crew's, a scout's, a reviewer's, a
-home's or any other, each with its liveness, or null where the pass left no list: that is
-a blind spot, never a count of none. A scout's says what its request says of its work,
-which the server reads from the home's `scouts/` itself."""
+"""Every thread that the last pass saw and that is not settled, whether a crew's, a scout's, a
+reviewer's, a home's or any other, each with its liveness. The list is null where the pass left
+none: that is a blind spot, never a count of none. A scout's thread says what its request says of
+its work, and the server reads that request from the home's `scouts/` itself."""
 
 from __future__ import annotations
 
