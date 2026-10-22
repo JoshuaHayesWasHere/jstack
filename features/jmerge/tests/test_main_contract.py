@@ -166,9 +166,9 @@ def _sources():
 
 
 def _keys(tree):
-    """Each key that a record is written with, in a dict display or in a subscript assigned
-    to. The type checker already limits reads of a `Record` to its keys, so this does not
-    count reads."""
+    """Each key that the code writes into a record, either in a dict literal or by assigning
+    to a subscript. The type checker already limits reads of a `Record` to its keys, so this
+    does not count reads."""
     for node in ast.walk(tree):
         if isinstance(node, ast.Dict):
             yield from node.keys

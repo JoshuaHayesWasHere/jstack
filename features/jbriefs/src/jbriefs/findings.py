@@ -151,8 +151,8 @@ _SEAT = re.compile(r"\s#(\d+)$")
 
 @dataclass(frozen=True)
 class Legacy:
-    """A brief in which no `Reviewer:` line has a number, which this module reads the way it
-    read briefs before the numbers. `named` holds the lines that name a thread. The round
+    """A brief in which no `Reviewer:` line has a number. This module reads it as it read every
+    brief before reviewers had numbers. `named` holds the lines that name a thread. The round
     waits for them only where more than one is named, and counts them against the distinct
     `By:` texts of the sections."""
 

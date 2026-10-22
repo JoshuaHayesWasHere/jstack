@@ -219,7 +219,8 @@ _NAMES = "(name a skill or principle that skills.json lists, without its path, o
 
 def unknown(text: str) -> str:
     """One line on why a brief's `Skills:` line names something that is no skill or principle,
-    naming it, or nothing. A brief with no line names none, and passes."""
+    or nothing. The line names the bad name. A brief with no `Skills:` line names no skill,
+    and passes."""
     line = _head(text)
     if line is None or _none(line):
         return ""
@@ -313,9 +314,9 @@ def hollow(artifact: str) -> bool:
 
 
 def missing(text: str) -> tuple[str, ...]:
-    """The names on the brief's `Skills:` line that its Results leave with no artifact, an
-    empty one or a placeholder, spelled as the brief spells them and in the line's order. The
-    match goes by canonical name, so `build-the-lever` in the brief and
+    """The names on the brief's `Skills:` line for which its Results give no artifact, or only
+    an empty one or a placeholder. It returns the names as the brief spells them, in the
+    line's order. The match goes by canonical name, so `build-the-lever` in the brief and
     `principle-build-the-lever` under `Skills run:` are one name. The queue and the launch
     refuse a name that resolves to no file (`unknown`), so this function asks no artifact
     for it."""
@@ -345,8 +346,8 @@ def shown(text: str) -> str:
 
 def load(text: str) -> str:
     """What the crew and scout skills print at their start: each named file in full, under a
-    line that names them, then the artifact that a Result must give for each. Nothing where
-    no skill is named."""
+    line that names them, then the artifact that a Result must give for each. It prints
+    nothing when the brief names no skill."""
     names = named(text)
     if not names:
         return ""

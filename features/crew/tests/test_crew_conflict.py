@@ -186,8 +186,8 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
 def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path):
     """When main has taken a migration's number, the crewmate rebases by running the block with
     `stale`, as the `renumber` message of `expedite` says to. GitHub reports no conflict. The
-    block counts each such rebase after the `Fixed:` line, so it holds the third and `jmerge`
-    waits."""
+    block counts each such rebase after the `Fixed:` line, so it stops at the third rebase,
+    and `jmerge` waits."""
     pr = PullRequest(tmp_path, "MERGEABLE", "0005_other.up.sql")
     asked(pr, "MERGEABLE")
     state = tmp_path / "home"

@@ -75,8 +75,8 @@ def test_with_no_home_the_findings_go_to_the_thread_line_as_they_do_with_one(kit
 def test_findings_with_no_thread_line_and_no_home_are_written_not_sent_and_jbus_parks_them(
     kitchen,
 ):
-    """The reviewer writes the `Sent to:` line that the pr-review skill gives for no home, and
-    the next pass of jbus reads it."""
+    """When there is no home, the pr-review skill tells the reviewer to write a `Sent to:` line.
+    The reviewer writes it, and the next pass of jbus reads it."""
     from jbus import threads
 
     review = (

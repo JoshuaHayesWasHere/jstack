@@ -300,9 +300,9 @@ SELECTED = {
 
 @pytest.fixture
 def selected(tmp_path):
-    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed on
-    a main from before main changed the module `src/demo/two.py`, which
-    `testing/tests/test_two.py` imports. No test file is one that every change selects."""
+    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
+    before main changed the module `src/demo/two.py`. The test `testing/tests/test_two.py`
+    imports that module. No test file is one that every change selects."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
@@ -341,8 +341,9 @@ def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests
 
 
 def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
-    """In main's checkout `two.py` imports nothing. Over the head, `testing/tests/test_two.py`
-    also imports `one.py`, so the pull request's tests run main's change to `one.py`."""
+    """In main's checkout `two.py` imports nothing. In the pull request's head, `two.py`
+    imports `one.py`, so `testing/tests/test_two.py` also runs `one.py` there. The tests of
+    the pull request therefore run main's change to `one.py`."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
