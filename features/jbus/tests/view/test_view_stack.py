@@ -101,7 +101,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert (shown["open"], shown["merged"]) == (9, len(demo["merged"]))
     assert shown["health"]["bus"] == {"outbox": 2, "failed_wakes": 0, "last_error": ""}
     assert shown["health"]["threads"] == 0
-    assert "hydra" not in json.dumps(stack)
+    assert "attic" not in json.dumps(stack)
 
 
 def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path, monkeypatch):
@@ -252,9 +252,9 @@ def test_a_retired_project_is_never_read_and_a_link_to_it_finds_nothing(tmp_path
     (retired / "queue.json").chmod(0)
     served = Served(scene)
     try:
-        assert "hydra" not in served.ask("/stack.json")[2]
-        assert served.ask("/state.json?project=hydra")[0] == 404
-        assert served.ask("/state.json?project=../jbus-retired/hydra")[0] == 404
+        assert "attic" not in served.ask("/stack.json")[2]
+        assert served.ask("/state.json?project=attic")[0] == 404
+        assert served.ask("/state.json?project=../jbus-retired/attic")[0] == 404
     finally:
         served.close()
         (retired / "queue.json").chmod(0o644)
@@ -267,7 +267,7 @@ def test_an_answer_names_its_project_and_goes_to_that_projects_state_alone(tmp_p
     pantry = scene.state_dir / "pantry"
     served = Served(scene)
     try:
-        for path in ("/answer", "/answer?project=", "/answer?project=hydra"):
+        for path in ("/answer", "/answer?project=", "/answer?project=attic"):
             assert served.write({"numbers": [number]}, path=path)[0] == 404
         assert kept(scene.state)[number].answer is None
         assert served.write({"numbers": [number]}, path="/answer?project=pantry")[0] == 409

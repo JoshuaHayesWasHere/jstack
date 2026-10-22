@@ -541,7 +541,7 @@ def stacked(scene):
     for made in (pantry, larder, scene.home_dir / "pantry", scene.home_dir / "larder"):
         made.mkdir()
     (scene.state_dir / "launches").mkdir()
-    retired = scene.root / "jbus-retired" / "hydra"
+    retired = scene.root / "jbus-retired" / "attic"
     retired.mkdir(parents=True)
     (retired / "queue.json").write_text(json.dumps([row("old-pot", "running")]))
     rows = [
