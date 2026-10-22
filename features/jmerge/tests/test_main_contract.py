@@ -1,15 +1,15 @@
-"""The contract between `jmerge` and `jbus`, held from both sides: `main.json`'s record
-(`jmerge.mainjson`) and the lines `jmerge` prints (`jmerge.lines`).
+"""The contract between `jmerge` and `jbus`, checked from both sides: the record of `main.json`
+(`jmerge.mainjson`) and the lines that `jmerge` prints (`jmerge.lines`).
 
-1. Each formatter's line parses back to the fields it was given, for every reason `ready`
-   names, and `merge.step` puts each reason on the step it is declared with.
-2. A table of records gives the `Main` a reader acts on, and every record the real
-   `mainmoved.tell` writes, over every order of events the red-main model walks, is a
+1. Each formatter's line parses back to the fields it was given, for every reason that
+   `ready` names, and `merge.step` puts each reason on the step it is declared with.
+2. A table of records gives the `Main` that a reader acts on. Every record that the real
+   `mainmoved.tell` writes, over every order of events that the red-main model walks, is a
    `Record`.
 3. A real `jmerge` that could not ask GitHub prints a line that is about no pull request,
-   and a jbus pass says it as a `jmerge` that did not run.
-4. No second copy: the file's name and its keys are written only in `mainjson.py`, and the
-   pattern of a line only in `lines.py`.
+   and a jbus pass reports it as a `jmerge` that did not run.
+4. No second copy exists: only `mainjson.py` writes the file's name and its keys, and only
+   `lines.py` writes the pattern of a line.
 """
 
 import ast
@@ -30,8 +30,9 @@ GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40
 
 
 def _filled(template):
-    """A reason with each value it names filled in: a word with no space or comma, as a
-    user, a head or a path is, but for what a stale check needs, which is `ready`'s own."""
+    """A reason with each value it names filled in. Each value is a word with no space or
+    comma, as a user, a head or a path is, except what a stale check needs, which is
+    `ready`'s own."""
     filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
     return template.format(**{name: filled.get(name, "x1") for name in fields})
@@ -126,8 +127,8 @@ def test_record_writes_only_what_it_is_given_and_reads_back_as_the_same_main():
 
 
 def test_every_record_the_real_tell_writes_over_the_model_is_a_record():
-    """Every order of events the red-main model walks, with the real `tell`: each write of
-    `main.json` is a `Record`, and none is written another way."""
+    """Over every order of events that the red-main model walks, the real `tell` writes
+    `main.json` only as a `Record`, and writes it no other way."""
     written = []
 
     def spy(path, value):
@@ -165,8 +166,8 @@ def _sources():
 
 
 def _keys(tree):
-    """Each key a record is written with: in a dict display, or a subscript assigned to.
-    A read of a `Record` is held to its keys by the type, so it is not counted here."""
+    """Each key that a record is written with, in a dict display or in a subscript assigned
+    to. The type holds a read of a `Record` to its keys, so this does not count reads."""
     for node in ast.walk(tree):
         if isinstance(node, ast.Dict):
             yield from node.keys

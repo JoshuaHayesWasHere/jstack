@@ -1,10 +1,10 @@
-"""A review carries over a rebase that changed no content, and a rebase that did waits for
-one scoped review. The verdict is `git range-diff`'s, read in real repos: a branch reviewed
-at one head, a default branch that moved, and the branch rebased onto it.
+"""A review carries over a rebase that changed no content, and a rebase that changed content
+waits for one scoped review. `git range-diff` gives the verdict, read in real repos: a
+branch reviewed at one head, a default branch that moved, and the branch rebased onto it.
 
-`jmerge` is then run as `features/jmerge/tests/test_jmerge_guarded.py` runs it, against
-`test_home_merge`'s fake `gh` and real origin, for a pull request that changes a guarded path
-and one that does not: the rule is the same for both."""
+The tests then run `jmerge` as `features/jmerge/tests/test_jmerge_guarded.py` runs it,
+against the fake `gh` and real origin of `test_home_merge`. They run it for a pull request
+that changes a guarded path and for one that does not, because the rule is the same for both."""
 
 import subprocess
 from datetime import date
@@ -41,7 +41,7 @@ TASK = {10: "the task 10", 11: "the task 11", 12: "the task 12", 20: "the task 2
 
 class Branch:
     """An origin whose main has a file of thirty lines, a checkout of it, and a branch that
-    changes four of those lines in one commit: the head a review saw."""
+    changes four of those lines in one commit, which is the head a review saw."""
 
     def __init__(self, tmp_path, commits=(TASK,)):
         self.origin = tmp_path / "branch-origin.git"
@@ -217,7 +217,7 @@ def test_a_file_named_as_git_names_a_part_of_a_commit_is_read_as_any_other(tmp_p
 
 def conflict(tmp_path, path, start, task, theirs, resolved):
     """A branch that writes `task` to a file, a main that writes `theirs` to it after the
-    review, and a rebase resolved by hand to `resolved`. The answer is the verdict."""
+    review, and a rebase resolved by hand to `resolved`. It returns the verdict."""
     main = tmp_path / "bytes"
     main.mkdir()
     merge.git(main, "init", "-q", "-b", "main")
@@ -327,8 +327,9 @@ def test_a_commit_on_one_side_alone_is_said_and_a_line_that_cannot_be_read_is_co
 
 
 class Rebased:
-    """`test_home_merge`'s ready pull request, on a file of thirty lines: reviewed clean at
-    one head, then rebased over a change to that file that main took after the review."""
+    """The ready pull request of `test_home_merge`, on a file of thirty lines. It was reviewed
+    clean at one head, then rebased over a change to that file that main took after the
+    review."""
 
     def __init__(self, proven_merged, theirs, resolved=None, files=(FILE,)):
         self.proven_merged, self.files = proven_merged, files
@@ -356,8 +357,8 @@ class Rebased:
         self.brief(guarded.proven("clean", self.before))
 
     def brief(self, review, more="", did=f"changed in {FILE}"):
-        """The brief with the `Rebase:` line a crewmate wrote before the review followed the
-        patch, or with none where `did` is None."""
+        """The brief with the `Rebase:` line that a crewmate wrote before the review followed the
+        patch, or with no such line where `did` is None."""
         line = f"Rebase: patch {did}, before {self.before}, head {self.head}\n" if did else ""
         (self.proven_merged.home.tasks / "alpha.md").write_text(merge.brief(review, line + more))
 
@@ -476,8 +477,8 @@ UNSAID = {
 
 
 def unsaid(rebased, case=tuple(UNSAID)[-1], more="", then=""):
-    """The brief as a crewmate leaves it now: no `Rebase:` line, and a `Fixed:` line that
-    names the commit it named before the rebase. `then` is a review written since."""
+    """The brief as a crewmate leaves it now: no `Rebase:` line, and a `Fixed:` line that names
+    the commit it named before the rebase. `then` is a review written since."""
     verdict, fixed = UNSAID[case]
     review = guarded.proven(verdict, rebased.before if verdict == "clean" else rebased.base)
     rebased.brief(review + then, fixed.format(rebased.before) + more, did=None)
@@ -539,7 +540,7 @@ def test_a_review_of_the_rebased_head_ends_the_wait_and_its_findings_are_still_t
 def test_a_covered_commit_that_cannot_be_had_waits_and_is_never_merged(
     proven_merged, rules, line, gone
 ):
-    """`None` is a commit git has and cannot read as one: the tree of the head."""
+    """`None` is a commit that git has and cannot read as a commit: the tree of the head."""
     rebased = Rebased(proven_merged, {8: "theirs 8"})
     gone = gone or merge.git(proven_merged.tree, "rev-parse", "HEAD^{tree}")
     verdict = "findings" if line else "clean"
@@ -588,7 +589,7 @@ def test_the_lines_a_rebase_dropped_are_counted_from_the_commit_the_review_cover
 
 
 def pushed_after(rebased, review_of):
-    """A push for a failed check on top of the rebased head, and a `Fixed:` line the crew
+    """A push for a failed check on top of the rebased head, and a `Fixed:` line that the crew
     set to it, in a brief whose review with findings saw `review_of`."""
     tree = rebased.proven_merged.tree
     pushed = commit(tree, "what the check asked for", {15: "what the check asked for"})
@@ -601,7 +602,7 @@ def pushed_after(rebased, review_of):
 def test_a_fixed_line_moved_past_a_rebase_no_review_saw_does_not_stand_for_that_review(
     proven_merged, rules
 ):
-    """The fix does not sit on the head the review saw, so a rebase came between them."""
+    """The fix is not on top of the head the review saw, so a rebase came between them."""
     rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
     pushed = pushed_after(rebased, rebased.before)
     assert guarded.jmerge(proven_merged, rules) == [rebased.waits().replace(rebased.head, pushed)]
@@ -648,9 +649,10 @@ def mains(path):
 
 
 class Shaped:
-    """Winnifred #154's shape: two directories of many files, a pull request that adds a line
-    to each, a main that added one to each since, and a rebase that kept every line of both
-    but for what `edits` does to main's lines after it, a line edited in place or one gone."""
+    """The shape of Winnifred #154: two directories of many files, a pull request that adds a
+    line to each, and a main that added one to each since. The rebase kept every line of
+    both, except what `edits` does to main's lines after it, a line edited in place or one
+    removed."""
 
     def __init__(self, proven_merged, edits):
         main, tree = proven_merged.home.main, proven_merged.tree
@@ -682,8 +684,8 @@ class Shaped:
         self.proven_merged = proven_merged
 
     def brief(self, told, more=""):
-        """The brief with #154's `Rebase:` line, which names directories in free text, or
-        with no `Rebase:` line."""
+        """The brief with the `Rebase:` line of #154, which names directories in free text, or with
+        no `Rebase:` line."""
         line = (
             "Rebase: patch changed in api/pkg/store (exports now a typed read in main's audit "
             f"trail, #146), client activity, before {self.before}, head {self.head}\n"
@@ -751,8 +753,9 @@ TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
 
 def test_a_rebase_after_one_an_older_brief_told_of_is_compared_with_a_commit_a_review_covers():
-    """The line moved `Fixed:` to the head of a rebase no review saw, so that head is not one
-    to compare from: the commit before it is. A review of that head makes it one."""
+    """The line moved `Fixed:` to the head of a rebase that no review saw, so `jmerge` does not
+    compare from that head but from the commit before it. A review of that head makes it one
+    to compare from."""
     result = TOLD + FIXED.format(FIRST)
     text = merge.brief(merge.review("findings", REVIEWED), result)
     assert ready.rebase_of(text, FIRST) == ready.Rebase("changed", (FILE,), BEFORE, FIRST)
@@ -786,8 +789,9 @@ def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_
 
 
 class CiFix:
-    """`test_home_merge`'s ready pull request, on a file of thirty lines: reviewed clean at
-    one head, then pushed to again for a failed check, with the line the crew writes of it."""
+    """The ready pull request of `test_home_merge`, on a file of thirty lines. It was reviewed
+    clean at one head, then pushed to again for a failed check, with the line the crew
+    writes of it."""
 
     def __init__(
         self,
@@ -834,7 +838,7 @@ class CiFix:
 def test_a_ci_fix_on_a_guarded_path_carries_the_proof_with_the_review_or_waits(
     proven_merged, rules
 ):
-    """The proof is asked for at the commit the review saw, which the push left as it was."""
+    """`jmerge` asks for the proof at the commit the review saw, which the push left as it was."""
     fix = CiFix(proven_merged, {}, files=PATHS["a guarded path"])
     fix.brief(merge.review("clean", fix.before), "CI fix: {head}, after the review of {before}")
     short = f"no proven safety fact at {fix.before[:12]} (blast-radius, review step 5)"
@@ -889,7 +893,7 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
 def test_a_push_no_review_saw_and_no_line_names_waits_for_a_scoped_review(
     proven_merged, rules, line
 ):
-    """It is no rebase: the head adds a commit to the ones the review saw."""
+    """It is no rebase, because the head adds a commit to the ones the review saw."""
     fix = CiFix(proven_merged, {15: "what the check asked for"}, line=line)
     assert guarded.jmerge(proven_merged, rules) == [fix.waits()]
     assert guarded.merges(proven_merged) == []
