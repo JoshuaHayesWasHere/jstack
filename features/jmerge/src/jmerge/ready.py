@@ -51,7 +51,7 @@ def reasons() -> dict[str, Reason]:
 
 
 OTHER_HOME = Reason("", "another home's")
-REQUIRED = "check"
+REQUIRED = ("check", "borders")
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
 DRAFT = Reason("", "draft")
@@ -132,7 +132,7 @@ CONTENT_CHANGED = Reason(
     "second",
     "the rebase changed the content after its review; scoped review of {command}",
 )
-NOT_PASSED = Reason("check", f"{REQUIRED} has not passed")
+NOT_PASSED = Reason("check", "{check} has not passed")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
@@ -201,7 +201,7 @@ class PullRequest:
     head: str
     base: str
     mergeable: str
-    passed: bool
+    waiting: tuple[str, ...]
     files: tuple[str, ...]
     renamed: bool
     changed: int
@@ -218,7 +218,7 @@ def _at(text: str | None) -> datetime | None:
     return at if at.tzinfo is not None and at.year > 1 else None
 
 
-def latest(rollup: list[dict], name: str | None = REQUIRED) -> list[dict]:
+def latest(rollup: list[dict], name: str | None) -> list[dict]:
     named = [one for one in rollup if (one.get("name") or one.get("context")) == name]
     end = datetime.max.replace(tzinfo=UTC)
 
@@ -229,8 +229,8 @@ def latest(rollup: list[dict], name: str | None = REQUIRED) -> list[dict]:
     return [one for one in named if when(one) == last]
 
 
-def passed(rollup: list[dict]) -> bool:
-    runs = latest(rollup)
+def passed(rollup: list[dict], name: str) -> bool:
+    runs = latest(rollup, name)
     return bool(runs) and all(
         one.get("state") == "SUCCESS"
         or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
@@ -238,8 +238,13 @@ def passed(rollup: list[dict]) -> bool:
     )
 
 
+def waiting(rollup: list[dict]) -> tuple[str, ...]:
+    """The required checks whose latest run has not passed, in REQUIRED's order."""
+    return tuple(name for name in REQUIRED if not passed(rollup, name))
+
+
 def started(rollup: list[dict]) -> datetime | None:
-    runs = latest(rollup)
+    runs = latest(rollup, REQUIRED[0])
     return _at(runs[0].get("startedAt")) if runs else None
 
 
@@ -252,7 +257,7 @@ def pull_request(listed: dict) -> PullRequest:
         head=listed["headRefOid"],
         base=listed.get("baseRefName") or "",
         mergeable=listed.get("mergeable") or "",
-        passed=passed(listed.get("statusCheckRollup") or []),
+        waiting=waiting(listed.get("statusCheckRollup") or []),
         files=tuple(one["path"] for one in listed["files"]),
         renamed=any(one.get("changeType") == "RENAMED" for one in listed["files"]),
         changed=listed["changedFiles"],
@@ -842,8 +847,8 @@ def short_on_content(verdict: Verdict | None) -> str:
 
 
 def short_on_github(one: PullRequest) -> str:
-    if not one.passed:
-        return NOT_PASSED
+    if one.waiting:
+        return NOT_PASSED.format(check=one.waiting[0])
     if one.mergeable == "MERGEABLE":
         return ""
     if one.mergeable == "CONFLICTING":

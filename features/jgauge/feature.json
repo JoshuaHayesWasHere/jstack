@@ -19,8 +19,5 @@
   ],
   "statusLine": {
     "script": "hooks/limits.sh"
-  },
-  "owns": [
-    "tests/fixtures/claude/**"
-  ]
+  }
 }

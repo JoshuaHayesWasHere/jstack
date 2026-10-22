@@ -7,8 +7,8 @@ runs before `uv sync`.
 
 A changed module, of `src/` or a feature's `features/<name>/src/`, of the tests or of `testing/`,
 selects the test files that import it, directly or through any chain of modules: a test file
-that imports a module that imports it is selected too. The tests are in `tests/` and in each
-feature's own, `features/<name>/tests/`.
+that imports a module that imports it is selected too. The tests are in `testing/tests/` and in
+each feature's own, `features/<name>/tests/`.
 A test file may be in a folder of one, as `features/jbus/tests/view/test_view_bus.py`, and is taken
 to import the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
 selected itself. A module that calls `importlib.import_module` is taken to import every module
@@ -68,11 +68,12 @@ ROOT = Path(__file__).resolve().parent.parent
 MAP = ".claude/skills/verify-jstack/features"
 CROSS = "features/verify-jstack/project-skill/map.md"
 PAGE = "verify.md"
-TESTS = re.compile(r"(features/[^/]+/)?tests/")
+TESTS = re.compile(r"((features/[^/]+|testing)/)?tests/")
 SOURCE = re.compile(r"(features/[^/]+/)?src/")
 TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
 FIXTURES = re.compile(TESTS.pattern + "fixtures/")
 SHARED = "testing/"
+SHARED_TESTS = "testing/tests"
 EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 LABEL = re.compile(r"[A-Z][\w-]*:")
@@ -146,23 +147,30 @@ def owns(patterns, path):
 
 
 def of_tests(path):
-    """Whether a path is the tests' own: under `tests/`, a feature's `tests/`, or `testing/`."""
+    """Whether a path is the tests' own: under `testing/tests/`, a feature's `tests/`, or
+    `testing/`."""
     return bool(TESTS.match(path)) or path.startswith(SHARED)
+
+
+def plumbing(path):
+    """Whether a path is of `testing/`, the package every test loads, and not of the repo's own
+    tests under it."""
+    return path.startswith(SHARED) and not TESTS.match(path)
 
 
 @cache
 def modules():
     """Every module of `src/` and of each feature's `src/`, of each folder of tests and of
     `testing/`, by its dotted name:
-    the file it is, from the root. Each folder of tests, `tests/` and each feature's own, is on
-    pytest's path, so its modules are named from it: a module in a folder below it as
+    the file it is, from the root. Each folder of tests, `testing/tests/` and each feature's
+    own, is on pytest's path, so its modules are named from it: a module in a folder below it as
     `view.scene`, such a folder being a package, so its `conftest.py` is not taken for a root's.
-    `testing/` is a package at the root, so its modules are `testing.<name>`. The fixtures'
-    folders hold none."""
+    `testing/` is a package at the root, so its modules are `testing.<name>`, but for its
+    `tests/`, a folder of tests named from itself. The fixtures' folders hold none."""
     roots = [
         ROOT / "src",
         *sorted(ROOT.glob("features/*/src")),
-        ROOT / "tests",
+        ROOT / SHARED_TESTS,
         *sorted(ROOT.glob("features/*/tests")),
         ROOT,
     ]
@@ -171,6 +179,8 @@ def modules():
         files = (root / SHARED).rglob("*.py") if root == ROOT else root.rglob("*.py")
         for path in sorted(files):
             named = path.relative_to(ROOT).as_posix()
+            if root == ROOT and not plumbing(named):
+                continue
             parts = list(path.relative_to(root).with_suffix("").parts)
             if parts[-1] == "__init__":
                 parts.pop()
@@ -417,7 +427,7 @@ def conftest():
     for plugin in plugins():
         tree = ast.parse((ROOT / modules()[plugin]).read_text())
         bound = modules_named(tree)
-        whole = modules()[plugin].startswith(SHARED)
+        whole = plumbing(modules()[plugin])
         for node in tree.body:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 continue
@@ -440,7 +450,7 @@ def shared():
         if one not in found and of_tests(modules()[one]):
             found.add(one)
             todo += edges()[one]
-    whole = {modules()[one] for one in plugins() if modules()[one].startswith(SHARED)}
+    whole = {modules()[one] for one in plugins() if plumbing(modules()[one])}
     return {modules()[one] for one in found} | whole | set(EVERYTHING)
 
 

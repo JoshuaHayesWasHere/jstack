@@ -203,20 +203,21 @@ def git(root, *args):
     )
 
 
-def unmoved(root, name):
-    """A feature whose package, command, page, hook, skill and test sit at the repo root, as a
-    feature's do before its move: its manifest owns them there."""
+def added(root, name):
+    """A feature with a package, a command, a page, a hook, a skill and a test, each in
+    features/<name>/."""
+    folder = root / "features" / name
     files = {
         f"src/{name}/__init__.py": "",
         f"src/{name}/cli.py": "def main():\n    return 0\n",
         f"docs/{name}.md": f"# {name}\n",
         f"hooks/{name}-start.sh": "#!/bin/sh\n",
-        f"skills/{name}/SKILL.md": f"---\nname: {name}\ndescription: Do {name}.\n---\n\n# {name}\n",
+        "SKILL.md": f"---\nname: {name}\ndescription: Do {name}.\n---\n\n# {name}\n",
         f"tests/test_{name}.py": "",
     }
     for path, text in files.items():
-        (root / path).parent.mkdir(parents=True, exist_ok=True)
-        (root / path).write_text(text)
+        (folder / path).parent.mkdir(parents=True, exist_ok=True)
+        (folder / path).write_text(text)
     manifest = {
         "$schema": "../../schemas/feature.schema.json",
         "name": name,
@@ -227,44 +228,23 @@ def unmoved(root, name):
         "hooks": [
             {"event": "SessionStart", "script": f"hooks/{name}-start.sh", "harnesses": ["codex"]}
         ],
-        "owns": [f"src/{name}/**", f"docs/{name}.md", f"hooks/{name}-start.sh"]
-        + [f"skills/{name}/**", f"tests/test_{name}.py"],
     }
-    (root / "features" / name).mkdir(parents=True)
-    (root / "features" / name / "feature.json").write_text(json.dumps(manifest))
-
-
-def move(root, name):
-    """Move the feature's files into features/<name>/, drop its owns rows, and regenerate."""
-    folder = f"features/{name}"
-    for old, new in {
-        f"src/{name}": f"{folder}/src/{name}",
-        f"docs/{name}.md": f"{folder}/docs/{name}.md",
-        f"hooks/{name}-start.sh": f"{folder}/hooks/{name}-start.sh",
-        f"skills/{name}/SKILL.md": f"{folder}/SKILL.md",
-        f"tests/test_{name}.py": f"{folder}/tests/test_{name}.py",
-    }.items():
-        (root / new).parent.mkdir(parents=True, exist_ok=True)
-        assert git(root, "mv", old, new).returncode == 0
-    manifest = root / folder / "feature.json"
-    manifest.write_text(json.dumps(json.loads(manifest.read_text()) | {"owns": []}))
+    (folder / "feature.json").write_text(json.dumps(manifest))
     assert generate(root).returncode == 0
 
 
-def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(copy):
-    """foo and qux move on two branches, while bar stays where it is, as some feature does until
-    the last move, so the root folders they leave are not emptied by the merge."""
-    for name in ("foo", "qux", "bar"):
-        unmoved(copy, name)
+def test_two_features_added_on_two_branches_from_one_base_merge_with_no_conflict(copy):
+    """foo and qux are added on two branches, so each writes its own entries into the same
+    generated arrays and tables, one entry a line."""
     assert generate(copy).returncode == 0
     assert git(copy, "init", "-q", "-b", "main").returncode == 0
     assert git(copy, "add", "-A").returncode == 0
     assert git(copy, "commit", "-qm", "base").returncode == 0
     for name in ("foo", "qux"):
         assert git(copy, "checkout", "-qb", name, "main").returncode == 0
-        move(copy, name)
+        added(copy, name)
         assert git(copy, "add", "-A").returncode == 0
-        assert git(copy, "commit", "-qm", f"move {name}").returncode == 0
+        assert git(copy, "commit", "-qm", f"add {name}").returncode == 0
     changed = git(copy, "diff", "--name-only", "main", "foo").stdout.split()
     assert {"README.md", "CATALOG.md", "pyproject.toml", "skills.json"} <= set(changed)
     merged = git(copy, "merge-tree", "--write-tree", "--name-only", "foo", "qux")
@@ -305,12 +285,24 @@ def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
                         "$schema": "../../schemas/feature.schema.json",
                         "name": "bro",
                         "description": "x",
-                        "owns": [],
                         "extra": 1,
                     }
                 )
             ),
             "features/bro/feature.json: /: has extra, which the schema does not allow",
+        ),
+        (
+            lambda root: (root / "features" / "bro" / "feature.json").write_text(
+                json.dumps(
+                    {
+                        "$schema": "../../schemas/feature.schema.json",
+                        "name": "bro",
+                        "description": "x",
+                        "owns": ["install.sh"],
+                    }
+                )
+            ),
+            "features/bro/feature.json: /: has owns, which the schema does not allow",
         ),
         (
             lambda root: (root / "plugin.json").write_text(
@@ -335,27 +327,19 @@ def test_a_tree_that_breaks_a_rule_is_refused_with_its_fault_and_nothing_is_writ
     assert (copy / "skills.json").read_bytes() == before
 
 
-def owns(root, name, *rows):
-    """Give the feature `name` a manifest whose `owns` is `rows`."""
-    manifest = {"$schema": "../../schemas/feature.schema.json", "name": name}
-    manifest |= {"description": "x", "owns": list(rows)}
-    (root / "features" / name / "feature.json").write_text(json.dumps(manifest))
-
-
 def test_every_file_of_the_checkout_has_exactly_one_owner():
     unowned, twice = borders(crawl(REPO), tracked(REPO))
     assert (unowned, twice) == ([], {})
 
 
-def test_an_owner_is_the_feature_folder_or_one_row_and_two_rows_are_both_seen(copy):
+def test_an_owner_is_the_feature_folder_or_a_repo_row(copy):
     tree = crawl(copy)
     assert tree.owners("features/jbus/feature.json") == ("jbus",)
     assert tree.owners("features/jbus/src/jbus/cli.py") == ("jbus",)
     assert tree.owners("features/jbriefs/src/jbriefs/cli.py") == ("jbriefs",)
     assert tree.owners("pyproject.toml") == ("INFRA",)
+    assert tree.owners("install.sh") == ("INFRA",)
     assert tree.owners("nowhere/at/all.txt") == ()
-    owns(copy, "bro", "features/jbus/src/jbus/cli.py")
-    assert crawl(copy).owners("features/jbus/src/jbus/cli.py") == ("bro", "jbus")
 
 
 def test_the_crawl_raises_every_fault_at_once(copy):
@@ -367,18 +351,6 @@ def test_the_crawl_raises_every_fault_at_once(copy):
         "features/bro/feature.json",
         "features/tdd/feature.json",
     }
-
-
-def test_a_feature_row_that_claims_another_features_folder_is_a_second_owner(copy):
-    owns(copy, "bro", "features/jbus/**")
-    assert crawl(copy).owners("features/jbus/feature.json") == ("bro", "jbus")
-
-
-def test_an_owns_row_with_a_double_star_inside_it_is_refused(copy):
-    owns(copy, "bro", "skills/**/SKILL.md")
-    ran = generate(copy, "--check")
-    assert ran.returncode == 2
-    assert "features/bro/feature.json: owns skills/**/SKILL.md: ** is only" in ran.stderr
 
 
 def test_a_principle_skill_does_not_make_the_skills_after_it_principles(copy):

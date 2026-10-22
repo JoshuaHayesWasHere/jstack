@@ -16,7 +16,7 @@ The constraints that shape the answer:
 - `jbus.service` (no shell profile) and every desk or agent shell reach the same slot count, or callers lock different ranges of `test-slot.<n>.lock`.
 - The live key `max_running` in jbus's config keeps working.
 - A bad local value refuses in one line, and a fact that cannot be read falls back to a safe value.
-- The worker-budget test in `tests/test_check_command.py` pins `slot.DEFAULT == 3` against 3 runners of quota 4, while the machine has 7 full and 2 fast runners inside infra's slice of 20 CPUs at CPUWeight 50.
+- The worker-budget test in `testing/tests/test_check_command.py` pins `slot.DEFAULT == 3` against 3 runners of quota 4, while the machine has 7 full and 2 fast runners inside infra's slice of 20 CPUs at CPUWeight 50.
 
 ## Usage (caller's view)
 

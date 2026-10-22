@@ -12,7 +12,7 @@ from testing.paths import REPO, skills
 SKILLS = skills()
 SCHEMAS = {
     path.stem: json.loads(path.read_text())
-    for tools in ("features/jbus/tests/fixtures/t3", "tests/fixtures/claude")
+    for tools in ("features/jbus/tests/fixtures/t3", "testing/tests/fixtures/claude")
     for path in (REPO / tools).glob("*.json")
 }
 FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")

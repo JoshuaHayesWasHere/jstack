@@ -1,8 +1,8 @@
-"""Warn where the tree leaves the feature layout: a tracked path with no owner or two, a path a
-diff adds outside the layout, and a diff that touches two features with no `cross-cutting`
-label. Each warning is a line GitHub reads as an annotation. It exits 0 with warnings, and 1
-with them under --hard; 2 when the tree or the base cannot be read. Standard library only,
-since CI runs it with no uv sync."""
+"""Warn where the tree leaves the feature layout: a tracked path with no owner or two, a tracked
+path outside the layout and the root's own files, and a diff that touches two features with no
+`cross-cutting` label. Each warning is a line GitHub reads as an annotation. It exits 0 with
+warnings, and 1 with them under --hard, as CI runs it; 2 when the tree or the base cannot be
+read. Standard library only, since CI runs it with no uv sync."""
 
 from __future__ import annotations
 
@@ -12,26 +12,16 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from jtrees.crawl import Invalid, borders, crawl, tracked
+from jtrees.crawl import REPO_OWNERS, Invalid, borders, crawl, tracked
 from jtrees.model import Tree
 
-# Where a new path may go: a feature, the harness copies, the schemas, the repo's scripts, the
-# shared test plumbing, and CI.
+# Where a path may be: a feature, the schemas, the repo's scripts, the shared test plumbing and
+# its tests, and CI.
 LAYOUT = ("features/", "schemas/", "scripts/", "testing/", ".github/")
-# The repo-root files that stay at the root.
-INFRA_ROOT = (
-    ".gitignore",
-    "LICENSE",
-    "SECURITY.md",
-    "THIRD_PARTY.md",
-    "Makefile",
-    "pyproject.toml",
-    "conftest.py",
-    "uv.lock",
-    "plugin.json",
-    "README.md",
-    "CATALOG.md",
-    "skills.json",
+# The paths outside the layout that stay there: each the repo owns (crawl.py's REPO_OWNERS),
+# the root's own files and the entry points a harness or a user looks for where they are.
+INFRA_ROOT = tuple(
+    row for rows in REPO_OWNERS.values() for row in rows if not row.startswith(LAYOUT)
 )
 CROSS = "cross-cutting"
 
@@ -49,15 +39,15 @@ def ownership(tree: Tree, paths: list[str]) -> dict[str, list[str]]:
     return found
 
 
-def outside(added: list[str]) -> dict[str, list[str]]:
-    """Each added path outside the layout and the root's own files, and why."""
+def outside(paths: list[str]) -> dict[str, list[str]]:
+    """Each path outside the layout and the root's own files, and why."""
     found = {}
-    for path in added:
+    for path in paths:
         if path in INFRA_ROOT or path.startswith(LAYOUT):
             continue
         top, _, rest = path.partition("/")
         where = f"under {top}/" if rest else "at the root"
-        found[path] = [f"a new file {where}, outside {', '.join(LAYOUT)} and the root's own files"]
+        found[path] = [f"a file {where}, outside {', '.join(LAYOUT)} and the root's own files"]
     return found
 
 
@@ -86,9 +76,8 @@ def annotation(path: str, why: str) -> str:
     return f"::warning file={escape(path, True)}::{escape(why, False)}"
 
 
-def diff(root: Path, base: str, only_added: bool) -> list[str]:
+def diff(root: Path, base: str) -> list[str]:
     command = ["git", "-C", str(root), "diff", "--name-only", "--no-renames", "-z"]
-    command += ["--diff-filter=A"] if only_added else []
     listed = subprocess.run([*command, f"{base}...HEAD"], capture_output=True, text=True)
     if listed.returncode != 0:
         raise Refused(f"lint-borders: git cannot diff from {base}: {listed.stderr.strip()}")
@@ -111,14 +100,15 @@ def main(argv: list[str]) -> int:
     except Invalid as invalid:
         print("\n".join(f"lint-borders: {fault}" for fault in invalid.faults), file=sys.stderr)
         return 2
-    found = ownership(tree, tracked(root))
+    paths = tracked(root)
+    found = ownership(tree, paths)
+    for path, whys in outside(paths).items():
+        found[path] = found.get(path, []) + whys
     lines = []
     try:
         if args.base:
-            for path, whys in outside(diff(root, args.base, only_added=True)).items():
-                found[path] = found.get(path, []) + whys
             labels = {one.strip() for one in args.labels.split(",")}
-            crossing = features(tree, diff(root, args.base, only_added=False), labels)
+            crossing = features(tree, diff(root, args.base), labels)
             lines += [annotation(*crossing)] if crossing else []
     except Refused as refused:
         print(refused, file=sys.stderr)

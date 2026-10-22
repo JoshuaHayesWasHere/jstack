@@ -33,7 +33,7 @@ SWEPT = (
     "features/*/hooks/*.sh",
     "scripts/*.sh",
     "install.sh",
-    "tests/**/*.py",
+    "testing/tests/**/*.py",
     "features/*/tests/**/*.py",
     "testing/*.py",
     "conftest.py",

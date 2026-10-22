@@ -10,8 +10,5 @@
   },
   "docs": [
     "docs/jbriefs.md"
-  ],
-  "owns": [
-    "tests/fixtures/skills/**"
   ]
 }

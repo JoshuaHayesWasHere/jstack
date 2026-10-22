@@ -28,6 +28,8 @@ SHARE = "share/jstack"
 # The folders skills link into that hold no item: the layout points such a link at GitHub, and
 # the release must hold the target to tell it from a link that dangles.
 LINKED = ("docs",)
+# The repo's own tests and the helpers several features' tests import by their bare names.
+SHARED_TESTS = "testing/tests"
 
 
 def _list(key: str, values: list[str]) -> str:
@@ -44,7 +46,7 @@ def _python(tree: Tree) -> list[str]:
 def _tests(tree: Tree) -> list[str]:
     """The test folders, which pytest collects and also puts on its path: a test imports a
     module of another folder's tests by its bare name."""
-    found = ["tests"] if (tree.root / "tests").is_dir() else []
+    found = [SHARED_TESTS] if (tree.root / SHARED_TESTS).is_dir() else []
     found += sorted(
         path.relative_to(tree.root).as_posix() for path in tree.root.glob(f"{FEATURES}/*/tests")
     )

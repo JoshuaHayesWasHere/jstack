@@ -94,9 +94,9 @@ def test_jmerge_merges_an_after_pull_request_once_its_check_passed(tmp_path):
 def test_a_review_that_lands_while_it_is_open_leaves_its_reasons_as_they_were(tmp_path):
     kitchen = Kitchen(tmp_path, {"a.txt": LINES})
     head = kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
-    kitchen.pulls["alpha"]["statusCheckRollup"] = [merge.FAILED]
+    kitchen.pulls["alpha"]["statusCheckRollup"] = merge.rollup([merge.FAILED])
     (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
     after(kitchen, "alpha")
     before = kitchen.run("--check")
     after(kitchen, "alpha", review(head=head))
-    assert kitchen.run("--check") == before == [f"wait 7 {url(7)}: {ready.NOT_PASSED}"]
+    assert kitchen.run("--check") == before == [f"wait 7 {url(7)}: {merge.NOT_PASSED}"]

@@ -28,7 +28,7 @@ README = """\
 # A map
 
 Cross-cutting:
-- `tests/test_tree.py`
+- `testing/tests/test_tree.py`
 """
 ALPHA = """\
 # Alpha
@@ -39,7 +39,7 @@ Paths:
 - `src/alpha/`
 - `docs/alpha.md`
 Tests:
-- `tests/test_glob.py`
+- `testing/tests/test_glob.py`
 """
 BETA = """\
 # Beta
@@ -60,15 +60,17 @@ FILES = {
     "src/beta/plug.py": "P = 1\n",
     "src/gamma/__init__.py": "",
     "src/gamma/g.py": "G = 1\n",
-    "tests/test_runs_gamma.py": "import subprocess\n\nsubprocess.run(['python', '-m', 'gamma'])\n",
-    "tests/helper_data.py": "ROWS = 1\n",
-    "tests/test_reads_helper.py": "H = Path('tests') / 'helper_data.py'\n",
+    "testing/tests/test_runs_gamma.py": (
+        "import subprocess\n\nsubprocess.run(['python', '-m', 'gamma'])\n"
+    ),
+    "testing/tests/helper_data.py": "ROWS = 1\n",
+    "testing/tests/test_reads_helper.py": "H = Path('testing') / 'tests' / 'helper_data.py'\n",
     "docs/alpha.md": "# alpha\n",
     "skills/one/SKILL.md": "one\n",
     "skills/two/SKILL.md": "two\n",
-    "tests/fixtures/shapes/a.json": "{}\n",
-    "tests/fixtures/shapes/b.json": "{}\n",
-    "tests/fixtures/orphan/x.json": "{}\n",
+    "testing/tests/fixtures/shapes/a.json": "{}\n",
+    "testing/tests/fixtures/shapes/b.json": "{}\n",
+    "testing/tests/fixtures/orphan/x.json": "{}\n",
     "README.md": "#\n",
     "conftest.py": 'pytest_plugins = ["testing.fixtures", "test_shared"]\n',
     "testing/__init__.py": "",
@@ -76,30 +78,32 @@ FILES = {
         "import pytest\n\nimport daemons\nfrom test_kit import Kit\n\n"
         "tidy = daemons.tidy\n\n\n@pytest.fixture\ndef kit():\n    return Kit()\n"
     ),
-    "tests/test_shared.py": (
+    "testing/tests/test_shared.py": (
         "import pytest\n\n\n@pytest.fixture\ndef shared():\n    pass\n\n\n"
         "def test_shared():\n    pass\n"
     ),
-    "tests/test_own_shared.py": (
+    "testing/tests/test_own_shared.py": (
         "import pytest\n\n\n@pytest.fixture\ndef shared():\n    pass\n\n\n"
         "def test_it(shared):\n    pass\n"
     ),
-    "tests/daemons.py": "def tidy():\n    pass\n",
-    "tests/test_kit.py": "class Kit:\n    pass\n",
-    "tests/test_uses_kit.py": "def test_it(kit):\n    pass\n",
-    "tests/test_tree.py": "def test_tree():\n    pass\n",
-    "tests/test_alpha.py": "from alpha import a\n",
-    "tests/test_beta.py": "import beta.b\n",
-    "tests/helper.py": "import alpha.util\n",
-    "tests/test_helped.py": "from helper import HELP\n",
-    "tests/test_glob.py": "def test_glob():\n    pass\n",
-    "tests/test_doc.py": "from pathlib import Path\n\nDOC = Path('docs') / 'alpha.md'\n",
-    "tests/test_one.py": "from pathlib import Path\n\nS = Path('skills') / 'one' / 'SKILL.md'\n",
-    "tests/test_two.py": "SKILL = 'skills/two/SKILL.md'\n",
-    "tests/test_shapes.py": "S = Path('tests') / 'fixtures' / 'shapes'\n",
-    "tests/test_helper.py": "HELP = 1\n",
-    "tests/test_user.py": "def use():\n    from test_helper import HELP\n",
-    "tests/test_user_of_user.py": "import test_user\n",
+    "testing/tests/daemons.py": "def tidy():\n    pass\n",
+    "testing/tests/test_kit.py": "class Kit:\n    pass\n",
+    "testing/tests/test_uses_kit.py": "def test_it(kit):\n    pass\n",
+    "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
+    "testing/tests/test_alpha.py": "from alpha import a\n",
+    "testing/tests/test_beta.py": "import beta.b\n",
+    "testing/tests/helper.py": "import alpha.util\n",
+    "testing/tests/test_helped.py": "from helper import HELP\n",
+    "testing/tests/test_glob.py": "def test_glob():\n    pass\n",
+    "testing/tests/test_doc.py": "from pathlib import Path\n\nDOC = Path('docs') / 'alpha.md'\n",
+    "testing/tests/test_one.py": (
+        "from pathlib import Path\n\nS = Path('skills') / 'one' / 'SKILL.md'\n"
+    ),
+    "testing/tests/test_two.py": "SKILL = 'skills/two/SKILL.md'\n",
+    "testing/tests/test_shapes.py": "S = Path('testing') / 'tests' / 'fixtures' / 'shapes'\n",
+    "testing/tests/test_helper.py": "HELP = 1\n",
+    "testing/tests/test_user.py": "def use():\n    from test_helper import HELP\n",
+    "testing/tests/test_user_of_user.py": "import test_user\n",
 }
 
 
@@ -184,10 +188,10 @@ def test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_cha
     head = repo.change(["src/alpha/util.py"])
 
     assert repo.selected(head) == [
-        "tests/test_alpha.py",
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_alpha.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -197,7 +201,9 @@ MOVED = {
     "features/delta/src/delta/util.py": "U = 1\n",
     "features/delta/src/delta/rows.txt": "rows\n",
     "features/delta/tests/test_delta.py": "from delta import d\n",
-    "tests/test_runs_delta.py": "import subprocess\n\nsubprocess.run(['python', '-m', 'delta'])\n",
+    "testing/tests/test_runs_delta.py": (
+        "import subprocess\n\nsubprocess.run(['python', '-m', 'delta'])\n"
+    ),
 }
 
 
@@ -212,36 +218,38 @@ def test_a_change_in_a_feature_src_selects_its_importers_and_the_tests_that_run_
 
     selected = repo.selected(head)
 
-    assert {"features/delta/tests/test_delta.py", "tests/test_runs_delta.py"} <= set(selected)
-    assert "tests/test_alpha.py" not in selected
+    assert {"features/delta/tests/test_delta.py", "testing/tests/test_runs_delta.py"} <= set(
+        selected
+    )
+    assert "testing/tests/test_alpha.py" not in selected
 
 
 def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_name(repo):
     head = repo.change(["src/beta/plug.py"])
 
-    assert repo.selected(head) == ["tests/test_beta.py", "tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_beta.py", "testing/tests/test_tree.py"]
 
 
 def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_change_to_it(repo):
     head = repo.change(["src/gamma/g.py"])
 
-    assert repo.selected(head) == ["tests/test_runs_gamma.py", "tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_runs_gamma.py", "testing/tests/test_tree.py"]
 
 
 def test_a_changed_test_module_selects_the_tests_that_spell_its_path(repo):
-    head = repo.change(["tests/helper_data.py"])
+    head = repo.change(["testing/tests/helper_data.py"])
 
-    assert "tests/test_reads_helper.py" in repo.selected(head)
+    assert "testing/tests/test_reads_helper.py" in repo.selected(head)
 
 
 def test_a_file_in_a_package_that_is_no_module_selects_the_tests_of_the_modules_beside_it(repo):
     head = repo.change(["src/alpha/notes.txt"])
 
     assert repo.selected(head) == [
-        "tests/test_alpha.py",
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_alpha.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -249,44 +257,44 @@ def test_a_doc_selects_the_tests_that_name_it_and_the_tests_its_feature_lists(re
     head = repo.change(["docs/alpha.md"])
 
     assert repo.selected(head) == [
-        "tests/test_doc.py",
-        "tests/test_glob.py",
-        "tests/test_tree.py",
+        "testing/tests/test_doc.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_tree.py",
     ]
 
 
 def test_a_skill_selects_the_tests_that_name_its_directory_and_not_the_other_skills(repo):
     assert repo.selected(repo.change(["skills/one/SKILL.md"])) == [
-        "tests/test_one.py",
-        "tests/test_tree.py",
+        "testing/tests/test_one.py",
+        "testing/tests/test_tree.py",
     ]
     repo.base = repo.commit_head()
     assert repo.selected(repo.change(["skills/two/SKILL.md"])) == [
-        "tests/test_tree.py",
-        "tests/test_two.py",
+        "testing/tests/test_tree.py",
+        "testing/tests/test_two.py",
     ]
 
 
 def test_a_file_no_feature_owns_and_no_test_names_selects_the_cross_cutting_alone(repo):
     head = repo.change(["README.md"])
 
-    assert repo.selected(head) == ["tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_tree.py"]
 
 
 def test_a_star_stays_within_one_part_of_the_path(repo):
     head = repo.change(["docs/other/alpha.md"])
 
-    assert repo.selected(head) == ["tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_tree.py"]
 
 
 def test_an_edit_to_a_feature_file_selects_that_features_tests_and_not_all(repo):
     head = repo.change([f"{select.MAP}/alpha.md"])
 
     assert repo.selected(head) == [
-        "tests/test_alpha.py",
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_alpha.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -301,9 +309,9 @@ def test_a_page_in_its_features_folder_selects_its_tests_for_a_path_it_owns(page
     head = paged.change(["docs/alpha.md"])
 
     assert paged.selected(head) == [
-        "tests/test_doc.py",
-        "tests/test_glob.py",
-        "tests/test_tree.py",
+        "testing/tests/test_doc.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -311,10 +319,10 @@ def test_an_edit_to_a_page_in_its_features_folder_selects_that_features_tests(pa
     head = paged.change(["features/alpha/verify.md"])
 
     assert paged.selected(head) == [
-        "tests/test_alpha.py",
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_alpha.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -332,7 +340,7 @@ def test_a_feature_with_a_page_in_both_places_selects_all(tmp_path):
 def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
     head = repo.change([select.CROSS])
 
-    assert repo.selected(head) == ["tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_tree.py"]
 
 
 @pytest.mark.parametrize(
@@ -345,18 +353,18 @@ def test_a_path_every_test_rests_on_selects_all(repo, path):
 
 
 def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
-    head = repo.change(["tests/daemons.py"], text="# changed\n")
+    head = repo.change(["testing/tests/daemons.py"], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
 
 
 def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fixture(repo):
-    head = repo.change(["tests/test_kit.py"], text="# changed\n")
+    head = repo.change(["testing/tests/test_kit.py"], text="# changed\n")
 
     assert repo.selected(head) == [
-        "tests/test_kit.py",
-        "tests/test_tree.py",
-        "tests/test_uses_kit.py",
+        "testing/tests/test_kit.py",
+        "testing/tests/test_tree.py",
+        "testing/tests/test_uses_kit.py",
     ]
 
 
@@ -369,7 +377,7 @@ FEATURE = {
 
 @pytest.mark.parametrize(
     "path",
-    ["src/alpha/util.py", "tests/helper.py", "tests/test_shared.py", *FEATURE],
+    ["src/alpha/util.py", "testing/tests/helper.py", "testing/tests/test_shared.py", *FEATURE],
 )
 def test_a_test_in_a_features_own_folder_is_selected_like_one_of_tests(repo, path):
     write(repo.root, FEATURE)
@@ -383,52 +391,55 @@ def test_a_test_module_named_as_a_plugin_selects_the_tests_that_ask_for_its_fixt
     write(repo.root, FEATURE)
     repo.base = repo.commit()
 
-    assert repo.selected(repo.change(["tests/test_shared.py"])) == [
+    assert repo.selected(repo.change(["testing/tests/test_shared.py"])) == [
         "features/x/tests/test_feature.py",
-        "tests/test_shared.py",
-        "tests/test_tree.py",
+        "testing/tests/test_shared.py",
+        "testing/tests/test_tree.py",
     ]
 
 
 def test_a_fixture_selects_the_tests_that_name_it(repo):
-    head = repo.change(["tests/fixtures/shapes/a.json"])
+    head = repo.change(["testing/tests/fixtures/shapes/a.json"])
 
-    assert repo.selected(head) == ["tests/test_shapes.py", "tests/test_tree.py"]
+    assert repo.selected(head) == ["testing/tests/test_shapes.py", "testing/tests/test_tree.py"]
 
 
 def test_a_fixture_no_test_names_selects_all(repo):
-    head = repo.change(["tests/fixtures/orphan/x.json"])
+    head = repo.change(["testing/tests/fixtures/orphan/x.json"])
 
     assert repo.selected(head) == ["all"]
 
 
 def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_deep(repo):
-    head = repo.change(["tests/test_helper.py"])
+    head = repo.change(["testing/tests/test_helper.py"])
 
     assert repo.selected(head) == [
-        "tests/test_helper.py",
-        "tests/test_tree.py",
-        "tests/test_user.py",
-        "tests/test_user_of_user.py",
+        "testing/tests/test_helper.py",
+        "testing/tests/test_tree.py",
+        "testing/tests/test_user.py",
+        "testing/tests/test_user_of_user.py",
     ]
 
 
 NESTED = {
-    "tests/area/__init__.py": "",
-    "tests/area/scene.py": "import alpha.util\n",
-    "tests/area/conftest.py": "import pytest\n\n\n@pytest.fixture\ndef spot():\n    pass\n",
-    "tests/area/test_area_one.py": "from area.scene import S\n",
-    "tests/area/test_area_two.py": "def test_two(spot):\n    pass\n",
+    "testing/tests/area/__init__.py": "",
+    "testing/tests/area/scene.py": "import alpha.util\n",
+    "testing/tests/area/conftest.py": "import pytest\n\n\n@pytest.fixture\ndef spot():\n    pass\n",
+    "testing/tests/area/test_area_one.py": "from area.scene import S\n",
+    "testing/tests/area/test_area_two.py": "def test_two(spot):\n    pass\n",
 }
 
 
 @pytest.mark.parametrize(
     ("path", "chosen"),
     [
-        ("src/alpha/util.py", {"tests/area/test_area_one.py"}),
-        ("tests/area/scene.py", {"tests/area/test_area_one.py"}),
-        ("tests/area/conftest.py", {"tests/area/test_area_one.py", "tests/area/test_area_two.py"}),
-        ("tests/area/test_area_two.py", {"tests/area/test_area_two.py"}),
+        ("src/alpha/util.py", {"testing/tests/area/test_area_one.py"}),
+        ("testing/tests/area/scene.py", {"testing/tests/area/test_area_one.py"}),
+        (
+            "testing/tests/area/conftest.py",
+            {"testing/tests/area/test_area_one.py", "testing/tests/area/test_area_two.py"},
+        ),
+        ("testing/tests/area/test_area_two.py", {"testing/tests/area/test_area_two.py"}),
     ],
 )
 def test_a_test_file_in_a_folder_of_tests_is_selected_by_its_imports_and_its_folders_conftest(
@@ -439,14 +450,14 @@ def test_a_test_file_in_a_folder_of_tests_is_selected_by_its_imports_and_its_fol
 
     selected = repo.selected(repo.change([path]))
 
-    assert {one for one in selected if one.startswith("tests/area/")} == chosen
+    assert {one for one in selected if one.startswith("testing/tests/area/")} == chosen
 
 
 def test_the_summary_counts_a_test_file_in_a_folder_of_tests(repo, tmp_path):
     write(repo.root, NESTED)
     repo.base = repo.commit()
     head = repo.change(["pyproject.toml"])
-    flat = len(list((repo.root / "tests").glob("test_*.py")))
+    flat = len(list((repo.root / "testing" / "tests").glob("test_*.py")))
 
     _, lines = summary(repo, head, tmp_path)
 
@@ -454,12 +465,12 @@ def test_the_summary_counts_a_test_file_in_a_folder_of_tests(repo, tmp_path):
 
 
 def test_a_deleted_test_is_not_named(repo):
-    head = repo.change(["src/alpha/util.py"], gone=["tests/test_alpha.py"])
+    head = repo.change(["src/alpha/util.py"], gone=["testing/tests/test_alpha.py"])
 
     assert repo.selected(head) == [
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -467,21 +478,22 @@ def test_a_moved_module_selects_the_tests_that_imported_it_from_where_it_was(rep
     head = repo.change(moved=[("src/alpha/a.py", "lib/a.py")])
 
     assert repo.selected(head) == [
-        "tests/test_alpha.py",
-        "tests/test_glob.py",
-        "tests/test_helped.py",
-        "tests/test_tree.py",
+        "testing/tests/test_alpha.py",
+        "testing/tests/test_glob.py",
+        "testing/tests/test_helped.py",
+        "testing/tests/test_tree.py",
     ]
 
 
 def test_the_same_commits_give_the_same_lines(repo):
-    head = repo.change(["src/alpha/a.py", "tests/test_helper.py", "src/beta/b.py"])
+    head = repo.change(["src/alpha/a.py", "testing/tests/test_helper.py", "src/beta/b.py"])
 
     assert repo.run(repo.base, head).stdout == repo.run(repo.base, head).stdout
 
 
 @pytest.mark.parametrize(
-    "path", ["src/alpha/a.py", "src/jbriefs/skills.py", "tests/test_helper.py", "docs/alpha.md"]
+    "path",
+    ["src/alpha/a.py", "src/jbriefs/skills.py", "testing/tests/test_helper.py", "docs/alpha.md"],
 )
 def test_a_bare_python_selects_what_the_venv_selects(repo, path):
     head = repo.change([path])
@@ -549,7 +561,7 @@ def whole(tmp_path):
     shutil.copy2(REPO / select.CROSS, repo.put(select.CROSS))
     for page in REPO.glob(f"features/*/{select.PAGE}"):
         shutil.copy2(page, repo.put(page.relative_to(REPO).as_posix()))
-    tests = [*(REPO / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]
+    tests = [*(REPO / "testing" / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]
     for test in [*tests, *(REPO / "testing").rglob("*.py")]:
         named = test.relative_to(REPO).as_posix()
         if test.is_file() and (select.FIXTURES.match(named) or test.suffix == ".py"):
@@ -598,7 +610,7 @@ def summary(repo, head, tmp_path):
 
 def test_the_selection_is_added_to_the_job_summary_as_a_line_a_collector_can_read(repo, tmp_path):
     head = repo.change(["src/alpha/util.py", "docs/alpha.md"])
-    total = len(list((repo.root / "tests").glob("test_*.py")))
+    total = len(list((repo.root / "testing" / "tests").glob("test_*.py")))
 
     printed, lines = summary(repo, head, tmp_path)
 
@@ -622,7 +634,7 @@ def test_the_selection_is_added_to_the_job_summary_as_a_line_a_collector_can_rea
 
 def test_an_all_says_which_path_forced_it(repo, tmp_path):
     head = repo.change(["pyproject.toml"])
-    total = len(list((repo.root / "tests").glob("test_*.py")))
+    total = len(list((repo.root / "testing" / "tests").glob("test_*.py")))
 
     printed, lines = summary(repo, head, tmp_path)
 
@@ -749,7 +761,7 @@ def test_every_test_file_is_run_by_a_change_to_something_or_is_cross_cutting():
         run |= set(tests) - {"all"}
     left = [
         test
-        for test in tracked("tests/", "features/")
+        for test in tracked("testing/tests/", "features/")
         if select.TEST.fullmatch(test) and test not in run and not select.opens_browser(test)
     ]
     assert left == []
@@ -793,7 +805,7 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
             sys.executable,
             "-c",
             ORACLE,
-            str(REPO / "tests"),
+            str(REPO / "testing" / "tests"),
             *map(str, sorted(REPO.glob("features/*/tests"))),
             *map(str, sources()),
         ],
@@ -821,35 +833,37 @@ BROWSER_TEST = (
 
 
 def test_a_test_module_marked_browser_is_not_selected_by_a_change_that_reaches_it(repo):
-    write(repo.root, {"tests/test_alpha.py": BROWSER_MODULE + "from alpha import a\n"})
+    write(repo.root, {"testing/tests/test_alpha.py": BROWSER_MODULE + "from alpha import a\n"})
     repo.base = repo.commit()
 
     head = repo.change(["src/alpha/a.py"])
-    assert "tests/test_alpha.py" not in repo.selected(head)
+    assert "testing/tests/test_alpha.py" not in repo.selected(head)
     repo.base = repo.commit_head()
-    assert "tests/test_alpha.py" not in repo.selected(repo.change(["tests/test_alpha.py"]))
+    assert "testing/tests/test_alpha.py" not in repo.selected(
+        repo.change(["testing/tests/test_alpha.py"])
+    )
 
 
 def test_a_test_module_that_imports_a_browser_module_is_still_selected(repo):
-    write(repo.root, {"tests/test_helper.py": BROWSER_MODULE + "HELP = 1\n"})
+    write(repo.root, {"testing/tests/test_helper.py": BROWSER_MODULE + "HELP = 1\n"})
     repo.base = repo.commit()
 
-    selected = repo.selected(repo.change(["tests/test_helper.py"]))
-    assert "tests/test_helper.py" not in selected
-    assert "tests/test_user.py" in selected
+    selected = repo.selected(repo.change(["testing/tests/test_helper.py"]))
+    assert "testing/tests/test_helper.py" not in selected
+    assert "testing/tests/test_user.py" in selected
 
 
 def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_test_out(repo):
-    write(repo.root, {"tests/test_beta.py": BROWSER_TEST})
+    write(repo.root, {"testing/tests/test_beta.py": BROWSER_TEST})
     repo.base = repo.commit()
 
-    assert "tests/test_beta.py" in repo.selected(repo.change(["src/beta/b.py"]))
+    assert "testing/tests/test_beta.py" in repo.selected(repo.change(["src/beta/b.py"]))
 
 
 SMALL = {
     "conftest.py": "",
-    "tests/test_tree.py": "def test_tree():\n    pass\n",
-    **{f"tests/test_{name}.py": "def test_it():\n    pass\n" for name in "abcd"},
+    "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
+    **{f"testing/tests/test_{name}.py": "def test_it():\n    pass\n" for name in "abcd"},
 }
 
 
@@ -866,7 +880,9 @@ def outputs(repo, head, tmp_path):
 def test_a_selection_of_four_fifths_of_the_test_files_or_more_is_the_whole_suite(tmp_path):
     """Five test files: three changed and the cross-cutting one are four of them, 80%."""
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change(["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"])
+    head = repo.change(
+        ["testing/tests/test_a.py", "testing/tests/test_b.py", "testing/tests/test_c.py"]
+    )
 
     printed, line, given = outputs(repo, head, tmp_path)
 
@@ -882,11 +898,15 @@ def test_a_selection_of_four_fifths_of_the_test_files_or_more_is_the_whole_suite
 
 def test_a_selection_under_four_fifths_runs_only_what_it_selected(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change(["tests/test_a.py", "tests/test_b.py"])
+    head = repo.change(["testing/tests/test_a.py", "testing/tests/test_b.py"])
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert printed == ["tests/test_a.py", "tests/test_b.py", "tests/test_tree.py"]
+    assert printed == [
+        "testing/tests/test_a.py",
+        "testing/tests/test_b.py",
+        "testing/tests/test_tree.py",
+    ]
     assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
     assert given == {"selection": "some"}
 

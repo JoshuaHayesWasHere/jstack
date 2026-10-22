@@ -119,7 +119,7 @@ class Kitchen:
             "headRefOid": head,
             "baseRefName": "main",
             "mergeable": "MERGEABLE",
-            "statusCheckRollup": list(checks),
+            "statusCheckRollup": merge.rollup(checks),
             "files": [merge.file(path, renamed and path == list(files)[-1]) for path in files],
             "changedFiles": len(files),
             "isDraft": False,
@@ -138,7 +138,7 @@ class Kitchen:
         (self.home.stub / "list.json").write_text(json.dumps(list(self.pulls.values())))
 
     def checked(self, slug, *checks):
-        self.pulls[slug]["statusCheckRollup"] = list(checks)
+        self.pulls[slug]["statusCheckRollup"] = merge.rollup(checks)
         self.brief(slug, self.pulls[slug]["headRefOid"])
 
     def on_main(self, files, rename=None):
@@ -169,7 +169,7 @@ class Kitchen:
             raise AssertionError("the rebase met no conflict")
         git(tree, "push", "-q", "--force-with-lease", "origin", slug)
         head = git(tree, "rev-parse", "HEAD")
-        self.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": [AFTER]}
+        self.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": merge.rollup([AFTER])}
         line = f"Rebase: patch changed in {' '.join(resolved)}, before {before or was}, head {head}"
         self.brief(slug, was, f"{line}\n")
         return head
@@ -288,16 +288,16 @@ SELECTED = {
     "src/demo/one.py": LINES,
     "src/demo/two.py": LINES,
     "conftest.py": "",
-    "tests/test_one.py": "import demo.one\n",
-    "tests/test_two.py": "import demo.two\n",
-    "tests/test_whole.py": "",
+    "testing/tests/test_one.py": "import demo.one\n",
+    "testing/tests/test_two.py": "import demo.two\n",
+    "testing/tests/test_whole.py": "",
 }
 
 
 @pytest.fixture
 def selected(tmp_path):
     """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
-    over the main that changed its module: `src/demo/two.py`, which `tests/test_two.py`
+    over the main that changed its module: `src/demo/two.py`, which `testing/tests/test_two.py`
     imports. No test file is one every change selects."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py")
@@ -323,7 +323,7 @@ def test_a_pass_over_an_older_main_stands_when_main_moved_only_off_its_tests(sel
 @pytest.mark.parametrize(
     "theirs",
     [
-        pytest.param({"tests/test_two.py": "import demo.two\nimport os\n"}, id="its-tests"),
+        pytest.param({"testing/tests/test_two.py": "import demo.two\nimport os\n"}, id="its-tests"),
         pytest.param({"pyproject.toml": "[project]\nname = 'other'\n"}, id="all"),
     ],
 )
@@ -337,7 +337,7 @@ def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests
 
 
 def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
-    """Main's checkout has `two.py` import nothing: over the head, `tests/test_two.py`
+    """Main's checkout has `two.py` import nothing: over the head, `testing/tests/test_two.py`
     reaches `one.py` too, so main's change to it meets the pull request's tests."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
@@ -353,9 +353,8 @@ def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_p
 def test_a_test_every_change_selects_is_one_in_common(selected):
     """A test that reads the whole tree can fail on the two changes together."""
     kitchen, checked = selected
-    whole = {
-        "features/verify-jstack/project-skill/map.md": "Cross-cutting: `tests/test_whole.py`\n"
-    }
+    map_file = "features/verify-jstack/project-skill/map.md"
+    whole = {map_file: "Cross-cutting: `testing/tests/test_whole.py`\n"}
     write(kitchen.home.main, whole)
     git(kitchen.home.main, "commit", "-q", "-m", "a whole-tree test")
     git(kitchen.home.main, "push", "-q")
@@ -523,7 +522,7 @@ def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
     notes.rebase(
         "two", {"n.txt": "one\ntwo\nthree\ntheirs\n"}, {"n.txt": "one\ntwo\nthree\nours\n"}
     )
-    notes.pulls["two"]["statusCheckRollup"] = [STARTED]
+    notes.pulls["two"]["statusCheckRollup"] = merge.rollup([STARTED])
     (notes.home.stub / "list.json").write_text(json.dumps(list(notes.pulls.values())))
     notes.on_main({"n.txt": "zero\none\ntwo\nthree\ntheirs\n"})
     held = f"wait 7 {url(7)}: the rebase dropped 1 of main's lines in n.txt {unsaid(notes)}"

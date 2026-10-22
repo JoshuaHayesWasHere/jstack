@@ -17,7 +17,7 @@ permissions:
 env:
   # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
   # each job. check.yml, browser.yml, pstack-drift.yml and release.yml name the same one
-  # (tests/test_workflows.py).
+  # (testing/tests/test_workflows.py).
   UV_VERSION: "0.13.2"
 
 jobs:
@@ -59,5 +59,5 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         # Quoted whole: unquoted, the `: ` in the notes is a YAML error, and GitHub fails the
-        # file on every push (tests/test_workflows.py).
+        # file on every push (testing/tests/test_workflows.py).
         run: 'gh release create "$TAG" dist/* --verify-tag --title "jstack $TAG" --notes "Install: curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | sh"'

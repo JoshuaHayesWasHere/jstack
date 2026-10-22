@@ -16,8 +16,8 @@ from testing.paths import REPO, skills
 
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SHIPPED = sorted([*SKILLS, *REPO.glob(".cursor/skills/*/SKILL.md")])
-NAMED_TREE = REPO / "tests" / "fixtures" / "skills" / "named-tree"
-NO_KEY = REPO / "tests" / "fixtures" / "skills" / "no-key" / "SKILL.md"
+NAMED_TREE = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
+NO_KEY = REPO / "testing" / "tests" / "fixtures" / "skills" / "no-key" / "SKILL.md"
 KEY = "disable-model-invocation"
 
 
@@ -75,12 +75,12 @@ def test_lint_a_skill_loads_only_when_typed(path):
 
 
 def holds_this_test(root):
-    """Puts this file in `root/tests`, with `testing/` and a `pyproject.toml`: `REPO` is then
-    `root`, and the copy's tests read its tree and not this checkout's."""
+    """Puts this file in `root/tests`, with `testing/` but for its tests and a `pyproject.toml`:
+    `REPO` is then `root`, and the copy's tests read its tree and not this checkout's."""
     (root / "tests").mkdir()
     shutil.copy(__file__, root / "tests")
     shutil.copytree(
-        REPO / "testing", root / "testing", ignore=shutil.ignore_patterns("__pycache__")
+        REPO / "testing", root / "testing", ignore=shutil.ignore_patterns("__pycache__", "tests")
     )
     if not (root / "pyproject.toml").exists():
         (root / "pyproject.toml").write_text("")
