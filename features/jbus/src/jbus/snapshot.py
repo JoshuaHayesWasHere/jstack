@@ -5,8 +5,9 @@ everything (`git add -A`). When something is staged, gitleaks reads it. If gitle
 secret, the snapshot unstages everything and commits nothing. Otherwise it commits
 `snapshot <YYYY-MM-DD HH:MM ET>`, in the user's zone, followed by `: <why>` when `--why` says what
 changed. Then it pushes to `origin`, whether or not it committed, so the next run retries a push
-that failed. When the tree has no `origin`, the snapshot keeps its commit and fails: a snapshot kept
-on this machine alone is no backup.
+that failed. The backup is opt-in: a tree with no `origin` keeps its commit, which an edit can be
+undone to, and the snapshot succeeds and says the backup is off. The install enables the timer
+only once the tree has an origin and gitleaks is on the machine.
 
 `jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30. A home runs it with `--why` right
 after each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
@@ -91,7 +92,7 @@ def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) 
         _commit(tree, f"snapshot {user.stamp(now)}" + (f": {why}" if why else ""))
     done = "committed" if staged else "nothing changed"
     if _git(tree, "remote", "get-url", "origin").returncode:
-        raise Failed(f"no remote: {tree} has no origin to push to")
+        return f"snapshot: {done}, not pushed: {tree} has no origin, so the backup is off"
     _must(_git(tree, "push", "-q", "origin", "HEAD"), "git push")
     return f"snapshot: {done}, pushed"
 
