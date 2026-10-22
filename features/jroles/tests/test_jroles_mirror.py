@@ -1,7 +1,7 @@
-"""`jroles mirror` keeps each extra Claude home that providers.json declares as a mirror of
-`~/.claude`, except for its login. The tests run the command in a throwaway HOME with a fake
-`~/.claude` and two mirror homes. A second account has used one of them for a while, and the
-other is new."""
+"""For each extra Claude home that providers.json declares, `jroles mirror` keeps that home a
+mirror of `~/.claude`, except for its login. The tests run the command in a throwaway HOME with
+a fake `~/.claude` and two mirror homes. A second account has used one of them for a while, and
+the other is new."""
 
 import json
 import os
@@ -247,9 +247,9 @@ def test_a_run_that_stopped_after_the_move_merges_what_the_backup_holds(home, ca
 def test_a_move_whose_name_main_took_meanwhile_is_not_nested_and_the_next_run_merges_it(
     home, capsys
 ):
-    """Two runs on two mirrors planned the same move. The second run finds the name in
-    `~/.claude` and leaves its own entry, and the run after it backs the entry up and merges
-    it."""
+    """Two runs on two mirrors planned the same move. The second run finds the name already in
+    `~/.claude` and leaves its own entry where it is. The run after that backs up the entry and
+    merges it."""
     from jroles import mirror as module
 
     main, third = home / ".claude", home / ".claude_third"
@@ -348,7 +348,7 @@ def ms(minutes_ago=0):
 
 
 def test_skill_use_in_each_home_is_pooled_into_every_home(home, capsys):
-    """Two accounts each used a skill that the others did not. After a run, every home has
+    """Two accounts each used a skill that the other did not. After a run, every home records
     the use of every skill."""
     main = home / ".claude.json"
     prime, third = home / ".claude_prime" / ".claude.json", home / ".claude_third" / ".claude.json"
@@ -460,7 +460,7 @@ def test_pooling_into_claude_json_keeps_its_mode(home, capsys):
 
 def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys):
     """A run does not create an absent `~/.claude.json`, so `--check` names nothing to pool
-    into one."""
+    into a `~/.claude.json` that does not exist."""
     (home / ".claude.json").unlink()
     used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(90)}})
     code, _, err = mirror(capsys)

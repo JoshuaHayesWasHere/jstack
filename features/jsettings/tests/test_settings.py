@@ -1,6 +1,6 @@
 """The user's name and time zone are settings. `jsettings.load` reads them from one file, and
-every command runs on defaults when there is no file. Older versions wrote some files on disk
-under the old names, before the name became a setting, and the commands read those names as the new
+every command runs on defaults when there is no file. Before the user's name became a setting, older
+versions wrote some files on disk under old names. The commands read those old names as the new
 ones. The tests run as `features/jbus/tests/test_jbus.py` runs, with the real command and the
 real pass against the fakes."""
 
@@ -31,7 +31,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def word(moment):
-    """The word that the machine's own zone prints after this time."""
+    """The abbreviation that the machine's own zone gives this time."""
     return moment.astimezone().tzname()
 
 
@@ -68,8 +68,8 @@ def test_a_zone_with_no_label_is_worded_as_the_zone_prints_it(jstack_config):
 
 
 def test_a_zone_is_read_on_a_machine_with_no_time_zone_database(jstack_config):
-    """An empty PYTHONTZPATH stands for a machine with no /usr/share/zoneinfo. Python then
-    has only the zones that the project brings."""
+    """An empty PYTHONTZPATH imitates a machine with no /usr/share/zoneinfo. Python then has
+    only the zones in the project's own packages."""
     jstack_config.write_text('timezone = "America/New_York"\n')
     ran = subprocess.run(
         [sys.executable, "-c", "import jsettings; print(jsettings.load().zone)"],

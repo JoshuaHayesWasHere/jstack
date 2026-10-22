@@ -1,4 +1,4 @@
-"""The ledger: how much of each usage window of each provider instance is used, and when each
+"""The ledger: how much of each usage window each provider instance has used, and when each
 window resets.
 
 The ledger is one file for each instance, with a line for each window, as `room.sh` reads it:
@@ -8,28 +8,29 @@ The ledger is one file for each instance, with a line for each window, as `room.
 
 The window is `five_hour` or `seven_day`, the share is the percent used, and the reset is a
 Unix time. The built-in instance, `claudeAgent`, has the file that `LIMITS` names, or
-`~/.local/state/claude/limits` when `LIMITS` is unset. Every other instance has the file beside
-it, `<LIMITS>.<instanceId>`.
+`~/.local/state/claude/limits` when `LIMITS` is unset. Every other instance has the file
+`<LIMITS>.<instanceId>`, beside the built-in instance's file.
 
 Three writers keep the files, and `room.sh` and `jroles` read them:
-- `jgauge limits` writes ahead of time, every two minutes, from each Claude account's own usage
-  (`jgauge.limits`).
+- `jgauge limits` writes every two minutes, before any turn hits a limit, from each Claude
+  account's own usage (`jgauge.limits`).
 - `features/jgauge/hooks/limits.sh` writes from what Claude Code gives a status line. It writes
   for the instance whose home is its `CLAUDE_CONFIG_DIR`.
 - `jbus` writes when T3 Code ended a turn on a usage limit. It writes 100 until the reset that
-  the failure names (`cap_of`).
+  the failure message names (`cap_of`).
 
-`merge` is the one rule every writer follows. For one instance and one window, two resets less
-than `SAME` apart are one window, which keeps the larger share and the later reset. Otherwise
-the later reset wins. A writer floors its reset to the second, and the usage endpoint's reset
-moves by a second either way from call to call. So one window can come as 1792531799 from one
-writer and 1792531800 from another, and a lower share of that window never replaces a cap.
+`merge` is the one rule every writer follows. For one instance and one window, `merge` treats
+two resets less than `SAME` apart as one window, and keeps the larger share and the later
+reset. Otherwise it keeps the record with the later reset. A writer floors its reset to the
+second, and the usage endpoint's reset moves by a second either way from call to call. So one
+writer can write a window's reset as 1792531799 and another as 1792531800, and a lower share
+of that window never replaces a cap.
 Under this rule, merging the same failure or the same reading twice changes nothing, and the
 next window replaces a window that has reset.
 
-For a move off a running thread, an instance is full at `FULL`, a real cap. A new launch counts
-the instance full earlier, at the user's `headroom` (`jsettings`), so new launches go to
-another instance before this one reaches the cap.
+For a move off a running thread, an instance is full at `FULL`, a real cap. For a new launch,
+jroles counts the instance full earlier, at the user's `headroom` (`jsettings`), so new
+launches go to another instance before this one reaches the cap.
 """
 
 from __future__ import annotations
@@ -86,8 +87,8 @@ BUILT_IN = "claudeAgent"
 
 
 def path() -> Path:
-    """The built-in instance's file, which `LIMITS` names, found as `room.sh` and
-    `features/jgauge/hooks/limits.sh` find it."""
+    """The built-in instance's file, which `LIMITS` names. The function finds it the same way
+    that `room.sh` and `features/jgauge/hooks/limits.sh` find it."""
     named = os.environ.get("LIMITS")
     return Path(named) if named else Path.home() / ".local" / "state" / "claude" / "limits"
 
@@ -128,8 +129,8 @@ def _text(file: Path) -> str:
 
 
 def read(instances: Iterable[str], base: Path | None = None) -> dict[tuple[str, str], Record]:
-    """The ledger of `instances`. A file that is missing, or that the function cannot read,
-    caps nothing."""
+    """The ledger of `instances`. When an instance's file is missing, or the function cannot
+    read it, the ledger counts that instance as capped in no window."""
     ledger: dict[tuple[str, str], Record] = {}
     for instance in instances:
         ledger.update(parse(instance, _text(file_of(instance, base))))
@@ -155,7 +156,7 @@ def write(record: Record, base: Path | None = None) -> bool:
 def capped_until(
     ledger: Ledger, instance: str, now: datetime, full: float = FULL
 ) -> datetime | None:
-    """The time when every window of `instance` that is used to `full` or more will have
+    """The time when every window that `instance` has used to `full` or more will have
     reset, or None while the instance has headroom."""
     resets = [
         record.resets
@@ -167,8 +168,8 @@ def capped_until(
 
 @dataclass(frozen=True)
 class Cap:
-    """A usage limit that a failed turn ended on: its window, its reset, and the line that
-    gave them, for the carry-on message to quote."""
+    """A usage limit that a failed turn ended on: its window, its reset, and the line they came
+    from, which the carry-on message quotes."""
 
     window: str
     resets: datetime
@@ -179,15 +180,16 @@ class Cap:
 
 
 def cap_of(items: Iterable[Mapping[str, object]], now: datetime) -> Cap | None:
-    """The usage limit a run's items report, or None for a run that hit none.
+    """The usage limit that a run's items name, or None for a run that hit none.
 
     T3 Code ends such a run with a `system_notice` whose itemId ends `:<window>:<reset>`. The
     function reads that itemId first, after it undoes the percent-encoding, since T3 Code
     writes the colons of the provider's own id as `%3A`. When no item has such an itemId, the
     function reads the text, such as `You've hit your weekly
-    limit · resets Oct 18, 4pm (America/New_York)`. `weekly` means the seven-day window and
-    any other word the five-hour one, and the reset is in the zone the text names. When the
-    function cannot read the reset in the text, the limit holds for `BLIND` from `now`."""
+    limit · resets Oct 18, 4pm (America/New_York)`. `weekly` means the seven-day window, and
+    any other word means the five-hour window. The reset is in the zone that the text names.
+    When the function cannot read the reset in the text, it sets the reset to `BLIND` after
+    `now`."""
     items = list(items)
     noted = (_ITEM.search(urllib.parse.unquote(str(item.get("itemId") or ""))) for item in items)
     said = next(

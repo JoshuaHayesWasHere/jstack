@@ -1,13 +1,13 @@
 """The one entry point, `jdrift [--diff] [--strict] [--upstream URL]`, which `make pstack-drift`
 runs.
 
-Run in this repo, it reads the pin and the map from the pstack section of `THIRD_PARTY.md`, and
-updates a cache clone of the upstream to its `main`. It prints one line for each upstream path
-that the map names: `same`, `changed` with the commits that changed it, or `gone`. It then
-prints one `own` line for each file on the `jstack's own:` line, which has no upstream and so
-never drifts. Last, it prints one `new` line for each upstream skill or playbook that the map
-does not name and `Not taken:` does not list. It changes nothing in this repo. No model reads
-anything, and it uses no token.
+When you run `jdrift` in this repo, it reads the pin and the map from the pstack section of
+`THIRD_PARTY.md`, and updates a cache clone of the upstream to its `main`. It prints one line
+for each upstream path that the map names: `same`, `changed` with the commits that changed it,
+or `gone`. It then prints one `own` line for each file on the `jstack's own:` line. Such a file
+has no upstream, so it never drifts. Last, it prints one `new` line for each upstream skill or
+playbook that the map does not name and `Not taken:` does not list. It changes nothing in this
+repo. jdrift calls no model and uses no tokens.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def cache() -> Path:
 
 def fetch(url: str) -> Path:
     """The cache clone, with `origin/main` at the upstream's `main`. git fetches the blobs
-    only when a diff needs them."""
+    only when jdrift diffs a file and has to read them."""
     clone = cache()
     if (clone / ".git").is_dir():
         _out(clone, "remote", "set-url", "origin", url)

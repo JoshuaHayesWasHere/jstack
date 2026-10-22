@@ -1,5 +1,5 @@
-"""`jroles <role>` prints, from the role map, the model selection that a launch of that role
-takes. The tests run it as a thread runs it, against a map in a temporary config directory.
+"""`jroles <role>` reads the role map and prints the model selection that a launch of that
+role takes. The tests run it as a thread runs it, against a map in a temporary config directory.
 They put what it prints into the skills' own launch blocks and check it against the tool's
 schema."""
 
@@ -168,8 +168,8 @@ def test_each_provider_names_its_effort_and_fast_by_its_own_option_id(roles, lin
     ],
 )
 def test_a_level_the_provider_does_not_list_refuses_every_review_line(roles, line, why):
-    """When `jroles` refuses one line, it refuses the whole list, because half a list of
-    reviewers is a review that nobody chose."""
+    """When `jroles` refuses one line, it refuses the whole list, because a launch of only some
+    of the reviewers would run a review that nobody chose."""
     text = f"review: codex gpt-6-sol effort=xhigh\n{line}\ncrew: grok grok-build\n"
     assert roles("review", text) == ("", f"refused review: {why}\n")
     assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
@@ -239,7 +239,7 @@ def test_what_it_prints_is_a_model_selection_the_launch_tool_takes(roles, role, 
     ],
 )
 def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, line, effort):
-    """T3 Code launches a model that has no effort option at the model's own default, which
+    """When a selection has no effort option, T3 Code launches the model at its own default, which
     is high for Claude Sonnet 5.5. The selection always names an effort, so the role map
     never raises a thread's effort."""
     selection = json.loads(roles("scout", line + "\n").out)
@@ -249,8 +249,8 @@ def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, lin
 @pytest.mark.parametrize("role", ["crew", "scout", "home", "expert"])
 @pytest.mark.parametrize("level", ["high", "xhigh", "max", "ultracode", "ultrathink", ""])
 def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, role, level):
-    """Only the review line may run a Claude thread above medium, because the user allowed it
-    for that line."""
+    """Only the review line may launch a Claude thread above medium effort, because the user
+    allowed it for that line."""
     text = f"{role}: claudeAgent claude-opus-5-5 effort={level}\nreview: grok grok-build\n"
     assert roles(role, text) == ("", f"refused {role}: effort={level} is not low or medium\n")
     assert roles("review", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
@@ -370,7 +370,8 @@ def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
 
 
 def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_nothing(pooled):
-    """Half a list of reviewers is a review that nobody chose, so every line waits for the
+    """A launch of only some of the reviewers would run a review that nobody chose, so jroles
+    holds every line of the role until the
     reset."""
     (pooled.config / "roles").write_text(
         "review: codex gpt-6-sol codex effort=xhigh\n"
@@ -430,9 +431,9 @@ def test_a_pool_that_names_an_instance_twice_or_none_is_refused(roles, pool):
 
 
 def test_a_launch_passes_an_instance_by_at_the_headroom_and_a_move_waits_for_the_cap(pooled):
-    """`jgauge limits` wrote claudeAgent at 90% of its five-hour window. A new crew launch
-    goes to prime, and a running thread stays, since failover's choice counts only 100 as
-    full. Under 90, new launches go to claudeAgent again."""
+    """`jgauge limits` wrote that claudeAgent has used 90% of its five-hour window. A new crew
+    launch goes to prime, and a running thread stays, since failover counts an instance full
+    only at 100. When claudeAgent's use falls under 90%, new launches go to claudeAgent again."""
     from datetime import UTC, datetime
 
     from jroles import ledger, pool

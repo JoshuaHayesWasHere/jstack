@@ -2,18 +2,19 @@
 
 A role line names its pool in order (`crew: claudeAgent claude-opus-5-5
 claudeAgent,claudeAgent_claude_prime`). `choose` takes the first instance of the pool with
-headroom in the ledger (`jroles.ledger`). An instance is out only while one of its windows is
-full and has not reset. A new launch counts a window full at the user's `headroom`
-(`jsettings`, 90 by default). A move off a running thread (`jbus.failover`) counts it full only
-at a real cap, 100. So every launch goes to the first account until that account nears its
+headroom in the ledger (`jroles.ledger`). It skips an instance only while one of its windows is
+full and has not reset. For a new launch, jroles counts a window full at the user's `headroom`
+(`jsettings`, 90 by default). For a move off a running thread (`jbus.failover`), jbus counts it
+full only at a real cap, 100. So every launch goes to the first account until that account nears its
 cap, and a thread stays on the account it started on until that account is capped. No launch
-rotates through the pool. When every instance is full, the choice has no instance, and it says
-when the first of them resets.
+rotates through the pool. When every instance is full, the choice names no instance, and gives
+the time when the first instance resets.
 
 To grow the pool, add a line to the provider inventory (`~/.config/jstack/providers.json`, T3
 Code's `providerInstances`) and one more id to the role line. `jroles` refuses a line with an id
 that the inventory does not declare under the line's provider, so a Claude pool never names a
-Codex or a Cursor instance. When there is no inventory, `jroles` takes the line as it is written.
+Codex or a Cursor instance. When there is no inventory, `jroles` takes the line as the user
+wrote it.
 """
 
 from __future__ import annotations
@@ -34,8 +35,9 @@ WAIT = 75
 @dataclass(frozen=True)
 class Choice:
     """Where a launch or a move goes, and why it is not the pool's first instance. `instance`
-    is None while every instance is capped or passed over. `until` is then the first reset, or
-    None when no instance is capped. `passed` holds each instance that `skip` passed over."""
+    is None while every instance is capped or named by `skip`. `until` is then the first
+    reset, or None when no instance is capped. `passed` holds each instance that `choose`
+    skipped because `skip` named it."""
 
     instance: str | None
     why: str
@@ -51,9 +53,9 @@ def choose(
     full: float = ledger.FULL,
 ) -> Choice:
     """The first instance of `pool` with headroom in `kept`, which means none of its windows
-    is used to `full` or more. The function passes over each instance that `skip` names, for
-    the reason `skip` gives (`jbus` skips an instance that is not mirrored). When `skip` passes
-    over every instance, there is no instance and no reset to wait for."""
+    is used to `full` or more. The function skips each instance that `skip` names, for the
+    reason `skip` gives (`jbus` skips an instance that is not mirrored). When `skip` names
+    every instance, there is no instance and no reset to wait for."""
     skip = skip or {}
     capped, passed = [], tuple(instance for instance in pool if instance in skip)
     told = [skip[instance] for instance in passed]
@@ -111,7 +113,8 @@ def check(role: str, selection: Selection, drivers: dict[str, str] | None) -> No
 
 @dataclass(frozen=True)
 class Route:
-    """A role's selection, and the instance of its pool that the ledger leaves it."""
+    """A role's selection, and the instance of its pool that `choose` picked from the
+    ledger."""
 
     selection: Selection
     choice: Choice

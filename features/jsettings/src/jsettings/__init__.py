@@ -1,18 +1,18 @@
 """jsettings: who jstack works for, in which time zone, and how full an account may get before
-a launch passes it by. Every command reads these settings the same way.
+a new launch goes to another account. Every command reads these settings the same way.
 
-The settings live in one file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the
+The settings are in one file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the
 role map. It has four keys, and each is optional:
 
-- `user`: the one name that accepts a hold and approves a launch, and the name the commands
-  print for whoever that is. The default is `user`.
+- `user`: the name of the one person who accepts a hold and approves a launch. The commands
+  print this name for that person. The default is `user`.
 - `timezone`: an IANA name, such as `America/New_York`, for every time that a command prints or
   reads. The default is the machine's own zone.
-- `timezone_label`: the word after such a time. The default is what the zone prints for that
-  time.
-- `headroom`: the share of a usage window, in percent, at which a new launch counts a provider
-  instance as full and goes to the next instance of its pool. The default is 90. A move off a
-  running thread still waits for a real cap, 100.
+- `timezone_label`: the word after such a time. The default is the zone's abbreviation for
+  that time.
+- `headroom`: the share of a usage window, in percent, at which jroles counts a provider
+  instance as full for a new launch, and sends the launch to the next instance of its pool. The
+  default is 90. A move off a running thread still waits for a real cap, 100.
 
 With no file, every key has its default, and nothing in this module writes the file. `load` is
 the one reader. It returns the `Settings`, or raises `Invalid` with the one line that says why
@@ -43,8 +43,8 @@ class Invalid(ValueError):
 
 @dataclass(frozen=True)
 class Settings:
-    """`zone` is None for the machine's own zone, and `label` is empty when the word is what
-    the zone prints."""
+    """`zone` is None for the machine's own zone, and `label` is empty when the word is the
+    zone's own abbreviation."""
 
     user: str = "user"
     zone: ZoneInfo | None = None
@@ -59,7 +59,7 @@ class Settings:
         return moment.astimezone(self.zone) if moment.tzinfo else moment.replace(tzinfo=self.zone)
 
     def word(self, moment: datetime) -> str:
-        """The word after a time: the label, or what the zone prints for that moment."""
+        """The word after a time: the label, or the zone's abbreviation for that moment."""
         return self.label or self.local(moment).tzname() or "UTC"
 
     def day(self, moment: datetime) -> str:
@@ -84,15 +84,15 @@ class Settings:
 
     def form(self, at: str = "") -> str:
         """The form of an `--at`, with the zone's word for the time that this `--at` names.
-        When `--at` names no time, the word is the zone's word for now. So a refusal shows a
-        word that `takes` accepts."""
+        When `--at` names no time, the word is the zone's word for now. So the refusal message
+        shows a word that `takes` accepts."""
         return f"<YYYY-MM-DD HH:MM {self.word(self._said(at)[0] or datetime.now())}>"
 
     def takes(self, at: str) -> bool:
-        """Whether `--at` is a time as `stamp` writes it, with the word that the zone has at
-        that time.
+        """Whether `--at` is a time as `stamp` writes it, with the zone's word for that time.
 
-        An hour that the clocks go through twice has two words, and `takes` accepts either.
+        An hour that occurs twice when the clocks go back has two words, and `takes` accepts
+        either.
         """
         said, word = self._said(at)
         if said is None:

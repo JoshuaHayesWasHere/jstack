@@ -964,9 +964,9 @@ class JbusConfig:
     old: the loader refuses the file, as it refuses one that group or others can read. The
       install never writes over the file, since it holds a key.
     Setup seeds it with mode 600, no project and no key. The seed sets `server` to the server
-    that the T3 sign-in beside it names, or else to T3 Code's own address. It sets `dispatch =
-    false`, so jbus launches nothing until the user turns dispatch on. `jbus t3 login` reads the
-    server from this file, so this need comes first."""
+    that the T3 sign-in beside it names, or else to T3 Code's own address. It sets
+    `dispatch = false`, so jbus launches nothing until the user turns dispatch on.
+    `jbus t3 login` reads the server from this file, so this need comes first."""
 
     path: Path
     mode: int = 0o600
