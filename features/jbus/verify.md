@@ -148,7 +148,8 @@ A gate wakes the Chef:
 - A POST goes at most once in five minutes. After the first `woke` line, a recipe that needs a second POST waits five minutes or starts in a new sandbox. Do not edit `wake.json` to get past it.
 - `jbus gate` and `jbus done` speak for the project whose repo the shell is in. `env.sh` leaves the shell in the demo checkout: from any other directory they print `refused: no project for this repo`.
 - The gate's one line is its `## Gate <n>:` heading. The same question for the same slug is the same gate, whatever the other lines say.
-- The stand-in's webhook always answers 200. A webhook that is down (`failed_wakes`, the desk notification after twelve in a row) is not driven here: `features/jbus/tests/test_jbus_wake.py` covers it.
+- The stand-in's webhook always answers 200.
+  A webhook that is down (`failed_wakes`, the desk notification after twelve in a row) is not driven here: `features/jbus/tests/test_jbus_wake.py` covers it.
 - `wake.jsonl` keeps whether the key matched, never the key. `"key": false` is a POST with no key or a wrong one.
 - The outbox may hold more than the events you piped: a pass adds its own (`queue demo: the table changed`). Assert on the event you sent, not on a count, once a queue row exists.
 

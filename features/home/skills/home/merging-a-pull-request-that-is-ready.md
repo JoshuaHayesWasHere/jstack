@@ -4,7 +4,8 @@ A pull request that is reviewed, fixed and green is merged, and the user is told
 
 The home merges nothing itself. One command does all of it, with no model: `jmerge`, from the repo this skill lives in. One runner runs it for a repo, jbus or a home, never both: two runs at once would race, and no lock keeps them apart.
 
-**Who merges** is what `$H/home-thread` says, and this block is the one the three blocks below go by. It is the test jbus makes (`features/jbus/src/jbus/merge.py`), and the one the start of a home makes for its warning:
+**Who merges** is what `$H/home-thread` says, and this block is the one the three blocks below go by.
+It is the test jbus makes (`features/jbus/src/jbus/merge.py`), and the one the start of a home makes for its warning:
 
 ```sh
 if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then merges=home; else merges=jbus; fi

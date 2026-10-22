@@ -1,7 +1,8 @@
 # A recording of jstack's Actions API
 
 What GitHub answered for `JoshuaHayesWasHere/jstack` between 2026-10-14 and 2026-10-17 22:15 UTC,
-trimmed to the fields `jbus ci` reads. `features/jbus/tests/ci_replay.py` serves it as `jbus.ci.collect.Gh`, and
+trimmed to the fields `jbus ci` reads.
+`features/jbus/tests/ci_replay.py` serves it as `jbus.ci.collect.Gh`, and
 `features/jbus/tests/test_jbus_ci.py` counts the nine targets from it and checks them against the figures the
 CI plan (`scouts/ci-cd-deep-plan.md`) was written from.
 

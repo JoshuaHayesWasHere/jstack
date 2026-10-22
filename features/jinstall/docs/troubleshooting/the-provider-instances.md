@@ -1,6 +1,7 @@
 # The provider instances
 
-The doctor reads the provider inventory and T3 Code's settings, and writes neither. [Configuration](../configuration.md#provider-instances) has the file.
+The doctor reads the provider inventory and T3 Code's settings, and writes neither.
+[Configuration](../configuration.md#provider-instances) has the file.
 
 | Line | Meaning | Do this |
 |---|---|---|

@@ -25,7 +25,10 @@ Each is counted over the period, from job-level rows only: a job counts once and
 | flaky tests | under 3 | tests that failed two branches with no runner fault and no red main to blame |
 | /tmp inode peak | under 80% | the highest `tmp_inode_pct` a job wrote. It shows no data until a job writes one. |
 
-The numbers reproduce the plan's from a recording of the Actions API (`features/jbus/tests/fixtures/ci/jstack`): queue 26.6 against 9.67 minutes, 42.9% wasted, 7 of 35 reds the pull request's own, 29 force-pushes over 62 merged pull requests, time-to-green 33 minutes (8.6 hosted), main red 43 and 174 minutes on 10-16 and 10-17. Two differ, and the page says by how much. The rule finds 22 staleness-only rebases of 38 where the plan counted 21, which it read by hand from one more look-back. It finds 2 flaky tests where the plan named 9 by hand.
+The numbers reproduce the plan's from a recording of the Actions API (`features/jbus/tests/fixtures/ci/jstack`): queue 26.6 against 9.67 minutes, 42.9% wasted, 7 of 35 reds the pull request's own, 29 force-pushes over 62 merged pull requests, time-to-green 33 minutes (8.6 hosted), main red 43 and 174 minutes on 10-16 and 10-17.
+Two differ, and the page says by how much.
+The rule finds 22 staleness-only rebases of 38 where the plan counted 21, which it read by hand from one more look-back.
+It finds 2 flaky tests where the plan named 9 by hand.
 
 ### The week's report
 

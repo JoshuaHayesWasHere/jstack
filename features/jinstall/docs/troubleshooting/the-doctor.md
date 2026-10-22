@@ -8,7 +8,9 @@ sh install.sh --doctor
 
 Each line is `<state> <level> <name>[ -> <detail>]`. The state is `ok`, `missing` or `old`. The level is `hard` or `optional`. `sh install.sh --check` prints the same lines for the parts the install puts, and the entries below serve both.
 
-`sh install.sh --setup` walks the same needs once, in order, and mends what it can. It prints `done <name>` for what it wrote, `already <name>` for what was there, and `needs you <name> -> <command>` for what only you can do: run that command, then `--setup` again. [Setup](setup.md) has its lines.
+`sh install.sh --setup` walks the same needs once, in order, and mends what it can.
+It prints `done <name>` for what it wrote, `already <name>` for what was there, and `needs you <name> -> <command>` for what only you can do: run that command, then `--setup` again.
+[Setup](setup.md) has its lines.
 
 Find your line in the tables, on this page and on the pages below.
 A word in angle brackets stands for a value on your machine.
