@@ -129,7 +129,8 @@ def test_a_waiter_that_waits_again_after_its_wake_is_woken_again_in_its_place(ki
     kitchen.poll()
     slots.hold("short", 1)
     (was,) = [one for one in waiters.read(slot.locks_dir()) if one.thread == first]
-    again = waiters.register(slot.locks_dir(), first, "short", 3, ["uv", "run", "pytest"], NOW)
+    lane = LANES["short"].slots
+    again = waiters.register(slot.locks_dir(), first, "short", lane, ["uv", "run", "pytest"], NOW)
     assert again.since == was.since and again.id != was.id and not again.woken
     slots.free("short")
     kitchen.poll(NOW + timedelta(minutes=1))

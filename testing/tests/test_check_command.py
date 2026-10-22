@@ -1,7 +1,8 @@
 """`make check` runs the tests on a number of workers that it counts from the processors the run
 may use: its cgroup's CPU quota where one is set, else the machine's. A desk takes a quarter of
-them, and a runner of this machine takes one and a half for each processor of its quota. The
-count is never under two. Each worker takes the next test when it finishes one, and the run
+them. A runner of GitHub's own, where every jstack CI job runs, takes one for each, and a
+self-hosted runner takes one and a half for each processor of its quota. The count is never under
+two. Each worker takes the next test when it finishes one, and the run
 prints the 25 slowest tests. A test that passes leaves no directory under `/tmp`. A test that
 fails keeps its own.
 
@@ -21,14 +22,8 @@ files that `scripts/select_tests.py` names for the diff from that commit to the 
 script says `all`, it runs `make check`. This module runs it in a copy of the repo, against a `uv`
 that only records what it was asked.
 
-The machine's budget is one sum, counted in workers. It is the test slots times a desk's workers,
-plus the runners times a runner's workers, and it is at most one and a half for each of the
-machine's 24 processors. This module works the sum out from the slot default and from what `make`
-prints: three slots of six workers and three runners of six workers, 36 in all. A worker uses 0.51
-of a core on average, so 36 workers keep about 18 of the 24 cores busy. A measurement on 2026-10-19
-found 440 to 473 seconds of CPU for each run, at 6 workers and at 8. The runners are three, each
-with a quota of 4 CPUs. No file of the repo counts them: their systemd units and config files are
-the machine's.
+A desk's share is also the test slots' count: every slot at once runs at most one desk worker
+for each of the machine's processors. CI is not in that budget, since it runs on GitHub's machines.
 """
 
 import os

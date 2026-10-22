@@ -501,7 +501,10 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
     assert "\n".join(said).count(PRINCIPLES["first-rule"].strip()) == 1
 
 
-@pytest.mark.parametrize("shell", ["sh", "zsh"])
+@pytest.mark.parametrize(
+    "shell",
+    ["sh", pytest.param("zsh", marks=pytest.mark.skipif(not shutil.which("zsh"), reason="no zsh"))],
+)
 @pytest.mark.parametrize("skill", READERS)
 def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
     skill, shell, tmp_path

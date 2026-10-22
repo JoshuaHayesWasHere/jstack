@@ -6,6 +6,7 @@ This page shows how jstack's own CI, `.github/workflows/check.yml`, gives both, 
 
 ## The jobs
 
+Both jobs run on GitHub's hosted runner, `ubuntu-24.04`, and never on the machine that runs `jmerge`.
 A pull request's job, `check`, runs `make check-fast BASE=HEAD^1`, the lint and the tests its change reaches.
 Where that selection is 80% of the test files or more, or the change touches something every test rests on, it runs the whole suite.
 A pass of the whole suite uploads the artifact `green-tree-<tree>` for the tree it checked out, GitHub's merge of the head over main.
