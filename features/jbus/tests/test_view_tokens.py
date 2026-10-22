@@ -1,9 +1,10 @@
-"""The view's colour tokens meet WCAG 2.2 AA in both themes, read out of `page.html` itself.
+"""The view's colour tokens meet WCAG 2.2 AA in both themes. The tests read the tokens out of
+`page.html` itself.
 
-Each token of the page's `:root` is `light-dark(<light>, <dark>)`. Text meets 4.5:1 on every
-ground it is set on, a control's border and the focus ring meet 3:1 (SC 1.4.11), and the text
-of the brand button meets 4.5:1 on it, as does the canvas set as text on ink and on due (a
-count, the stopped banner). The table of every pair is printed, `-s` shows it.
+Each token of the page's `:root` is `light-dark(<light>, <dark>)`. Text meets 4.5:1 on every ground
+it is set on. A control's border and the focus ring meet 3:1 (SC 1.4.11). The text of the brand
+button meets 4.5:1 on the button, as does the canvas token set as text on the ink and due tokens (a
+count, the stopped banner). The test prints the table of every pair, and `-s` shows it.
 """
 
 import re
@@ -32,7 +33,7 @@ _ROOT = re.compile(r"^\s*:root\s*\{(.*?)\}", re.S | re.M)
 
 
 def tokens(page: str) -> dict[str, dict[str, str]]:
-    """The tokens of the page's first `:root` block, by theme."""
+    """Return the tokens of the page's first `:root` block, by theme."""
     block = _ROOT.search(page)
     found = _TOKEN.findall(block[1]) if block else []
     return {theme: {name: pair[at] for name, *pair in found} for at, theme in enumerate(THEMES)}
@@ -53,8 +54,8 @@ def ratio(one: str, other: str) -> float:
 
 
 def measured(page: str) -> list[tuple[str, str, str, float | None, float]]:
-    """Every pair in both themes: the theme, the two tokens, the ratio (None where a token is
-    missing) and what it needs."""
+    """Return every pair in both themes: the theme, the two tokens, the ratio (None where a token
+    is missing) and what it needs."""
     sets = tokens(page)
     return [
         (
@@ -82,8 +83,8 @@ def test_every_token_pair_meets_its_contrast_in_both_themes():
 
 
 def test_a_border_under_three_to_one_fails():
-    """The check is not one that passes on anything: the light line of the page before these
-    tokens, #d4d4d8, fails on every ground."""
+    """The check does not pass on anything: the light line of the page before these tokens,
+    #d4d4d8, fails on every ground."""
     page = re.sub(
         r"--line: light-dark\(#[0-9A-Fa-f]{6}", "--line: light-dark(#d4d4d8", PAGE.read_text()
     )

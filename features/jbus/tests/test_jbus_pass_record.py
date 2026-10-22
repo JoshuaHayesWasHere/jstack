@@ -1,8 +1,8 @@
 """`pass.json` says when the last pass started and ended, and what it saw of each open row.
 
-It is written when a pass starts and again when it ends, so a pass that hangs or dies is
-one with a start and no end. Every test runs the real pass or the real command against
-the faked T3 Code server, `gh` and `jmerge` of `test_jbus_kitchen`. Nothing reaches the network.
+A pass writes it when it starts and again when it ends, so a pass that hangs or dies is one with a
+start and no end. Every test runs the real pass or the real command against the faked T3 Code
+server, `gh` and `jmerge` of `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import fcntl
@@ -91,7 +91,8 @@ WHOLE = {
 
 
 def took(kitchen, *seconds):
-    """Each pass that follows takes this long by the clock the record measures with."""
+    """Make each pass that follows take the next figure of `seconds`, as `record.clock` measures
+    it."""
     ticks = iter([at for long in seconds for at in (100.0, 100.0 + long)])
     kitchen.monkeypatch.setattr(record, "clock", lambda: next(ticks))
 
@@ -101,7 +102,8 @@ def written(kitchen):
 
 
 def three_rows(kitchen):
-    """A row with a thread and an open pull request, one with neither, and one merged."""
+    """Make three rows: one with a thread and an open pull request, one with neither, and one
+    merged."""
     for slug in ("alpha", "beta", "gamma"):
         text = complete(slug)
         assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
@@ -127,7 +129,7 @@ def test_jbus_status_prints_the_record_beside_the_status_file(kitchen):
 
 
 def test_a_pass_stopped_halfway_leaves_a_start_with_no_end(kitchen):
-    """The pass is the real command, killed while its `jmerge` runs."""
+    """The pass is the real command, and the test kills it while its `jmerge` runs."""
     three_rows(kitchen)
     took(kitchen, 19)
     kitchen.poll()
@@ -268,7 +270,7 @@ def test_a_record_that_is_not_one_or_names_a_project_the_config_dropped_is_not_c
 
 
 def test_a_pass_whose_end_cannot_be_written_is_said_and_keeps_its_start_with_no_end(kitchen):
-    """The write is blocked once the pass is under way, after its start was written."""
+    """The test blocks the write once the pass is under way, after the pass wrote its start."""
     kitchen.t3.on_list = lambda: (kitchen.state_dir / "pass.json.tmp").mkdir(exist_ok=True)
     said = kitchen.poll()
     assert [line.split(":")[0] for line in said if line.startswith("pass record")] == [

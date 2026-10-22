@@ -1,8 +1,9 @@
-"""What waits on the user: a pass follows each approved row that cannot move to its root, sends
-one `waiting-on-user` event per root per hour, and keeps the roots in the list that `jbus
-queue show` prints (`features/jbus/tests/test_jbus_digest.py` has the list's other kinds). Run as
-`test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
-server, `gh`, `jmerge` and webhook."""
+"""These tests cover what waits on the user. For each approved row that cannot move, a pass
+follows the row back to its root. It sends one `waiting-on-user` event per root per hour, and
+keeps the roots in the list that `jbus queue show` prints.
+(`features/jbus/tests/test_jbus_digest.py` has the list's other kinds.) Like `test_jbus.py`, the
+tests run the real command and the real pass against a faked T3 Code server, `gh`, `jmerge` and
+webhook."""
 
 import json
 import shlex
@@ -56,8 +57,8 @@ def shown(kitchen):
 
 
 def held(kitchen, accept=ACCEPTED):
-    """20:31, 2026-10-11: four approved rows behind a pull request only the user may merge,
-    while another slug's crew is running."""
+    """Set up the scene of 20:31 on 2026-10-11: four approved rows wait behind a pull request
+    that only the user may merge, while another slug's crew is running."""
     kitchen.config(max_running=6)
     kitchen.brief("ps-agnostic", RESULT)
     kitchen.set("accept.txt", accept)
@@ -91,7 +92,7 @@ MOVED = f"its hold was at {'d' * 12}, and its head is {HEAD[:12]}"
     ],
 )
 def test_a_held_pull_request_that_accept_would_refuse_gets_no_command(kitchen, said, short):
-    """The line says what is short instead: there is nothing for the user to run yet."""
+    """The line says what is short instead, since there is nothing for the user to run yet."""
     held(kitchen, said)
     kitchen.poll()
     assert waits(kitchen) == [

@@ -1,5 +1,5 @@
-"""The Usage panel: what `jgauge session` counts, for a task's worktree and for each home,
-read only when the panel is asked for."""
+"""The Usage panel shows what `jgauge session` counts, for a task's worktree and for each home.
+The view reads it only when somebody asks for the panel."""
 
 import json
 import subprocess
@@ -20,7 +20,7 @@ JGAUGE = Path(sys.executable).with_name("jgauge")
 
 
 def turn(key, at, fresh, read, written, out_tokens, said=SECRET):
-    """One call as Claude Code writes it, with text that is no figure."""
+    """Return one call as Claude Code writes it, with text that is no figure."""
     return {
         "type": "assistant",
         "timestamp": iso(at).replace("+00:00", "Z"),
@@ -41,8 +41,8 @@ def turn(key, at, fresh, read, written, out_tokens, said=SECRET):
 
 
 def transcript(path, calls, start=NOW, pad=0):
-    """A made-up transcript: a user's line with the secret, then `calls` calls a minute
-    apart, and `pad` more bytes of the user's text."""
+    """Write a made-up transcript: a user's line with the secret, then `calls` calls a minute
+    apart, then `pad` more bytes of the user's text."""
     path.parent.mkdir(parents=True, exist_ok=True)
     said = {
         "type": "user",
@@ -189,8 +189,8 @@ def test_the_answer_is_numbers_and_times_and_no_text_of_a_transcript(place, scen
 
 
 def home(place, scene, started=NOW - timedelta(hours=1)):
-    """A home thread the pass saw, created an hour ago, and its checkout, named by the
-    `.git` file of a worktree T3 made of it."""
+    """Make a home thread, created an hour ago, that the pass saw. Also make its checkout, and a
+    worktree that T3 made of the checkout, whose `.git` file names the checkout."""
     checkout = place / "repos" / "demo"
     made = place / "worktrees" / "demo" / "jam-jar"
     made.mkdir(parents=True, exist_ok=True)

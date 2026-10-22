@@ -1,10 +1,10 @@
-"""A thread a home archived, or one T3 Code no longer has, is still its row's thread.
+"""A thread that a home archived, or one that T3 Code no longer has, is still its row's thread.
 
-T3 Code's list of a project's threads leaves archived ones out and cannot be asked for them.
-A row that ended must stay as it ended when its thread drops out of that list, and a row
-that is still at work must be said, not launched again. Run as `test_jbus_queue.py`
-runs: the real pass, against a faked T3 Code server (whose list leaves archived threads
-out, as T3 Code's does), `gh` and `jmerge`."""
+T3 Code's list of a project's threads leaves archived threads out, and nobody can ask it for
+them. A row that ended must stay as it ended when its thread drops out of that list. jbus must
+report a row that is still at work, and not launch it again. Like `test_jbus_queue.py`, the tests
+run the real pass against a faked T3 Code server, `gh` and `jmerge`. The fake server's list
+leaves archived threads out, as T3 Code's does."""
 
 import json
 from datetime import timedelta
@@ -37,7 +37,8 @@ def judged(kitchen, key="alpha"):
 
 
 def launched(kitchen, slug="alpha", more=""):
-    """A row that was approved and launched, whose thread then ended and wrote `more`."""
+    """Make a row that the user approved and jbus launched. Its thread then ended and wrote
+    `more`. Return the thread."""
     add(kitchen, slug)
     kitchen.poll()
     (thread,) = kitchen.t3.threads
@@ -117,8 +118,8 @@ def test_a_finished_row_whose_thread_is_gone_launches_nothing_and_takes_no_slot(
 
 
 def test_a_finished_row_with_no_item_is_given_none_when_its_thread_is_archived(kitchen):
-    """Item w4's case: the finished row's go was used by its launch, and must not approve
-    an item minted for it after."""
+    """Item w4's case: the launch of the finished row used up its go, so jbus must not take that
+    go as approval of an item that jbus later created for the row."""
     thread = launched(kitchen, more=result())
     kitchen.poll(NOW + timedelta(minutes=3))
     (kitchen.state / item.NAME).unlink()

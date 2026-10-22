@@ -1,7 +1,9 @@
-"""`jbus project add` adds one project's table to the config, and the next pass works it.
+"""`jbus project add` adds one project's table to the config, and the next pass works on that
+project.
 
 Every test runs the real command on the made-up config of `test_jbus_kitchen`, and reads the file,
-its mode and the copy kept of it. The pass is the real one, against the faked T3 Code server.
+its mode and the copy that jbus keeps of it. The pass is the real one, against the faked T3 Code
+server.
 """
 
 import json
@@ -16,7 +18,7 @@ NEW = "p-added"
 
 @pytest.fixture
 def added(kitchen):
-    """A second repo the config does not have, with an origin."""
+    """Make a second repo that the config does not have, with an origin."""
     checkout = kitchen.root / "added"
     kitchen.repo(checkout, kitchen.root / "added-origin.git")
     return checkout

@@ -1,8 +1,9 @@
-"""An approval names the words of the user's it rests on, and jbus writes who ran it and when.
+"""An approval names the user's words that it is based on, and jbus writes who ran `queue approve`
+and when.
 
-`queue approve` takes a word `jbus word` kept, the answer that closed a question, or a
-message jbus reads from T3 Code itself, and no name and no time. Every test runs the real
-command and the real pass against the faked T3 Code server of `test_jbus_kitchen`.
+`queue approve` takes a word that `jbus word` kept, the answer that closed a question, or a message
+that jbus reads from T3 Code itself. It takes no name and no time. Every test runs the real command
+and the real pass against the faked T3 Code server of `test_jbus_kitchen`.
 """
 
 import json
@@ -29,14 +30,14 @@ def go(kitchen, slug, *basis):
 
 
 def cell(kitchen, slug):
-    """The `approved` cell `queue show` prints for the row."""
+    """Return the `approved` cell that `queue show` prints for the row."""
     lines = kitchen.main("queue", "show", "--all")[1].splitlines()
     (found,) = [line for line in lines if line.startswith(f"| {slug} |")]
     return found.split(" | ")[4]
 
 
 def viewed(kitchen):
-    """The view's state, read with the config's zone, as `jbus view` reads it."""
+    """Return the view's state, read with the config's zone, as `jbus view` reads it."""
     sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
     return view_state.build(sources, "demo", NOW, lambda _: {})
 

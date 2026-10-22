@@ -1,6 +1,6 @@
-"""A row of the queue says why it waits and since when, and each change of its status is
-kept. Run as `test_jbus_queue.py` runs: the real command and the real pass, in a
-temporary state directory, against a faked T3 Code server, `gh` and `jmerge`."""
+"""A row of the queue says why it waits and since when, and jbus keeps each change of its status.
+Like `test_jbus_queue.py`, the tests run the real command and the real pass in a temporary state
+directory, against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
 from datetime import timedelta
@@ -139,9 +139,10 @@ def test_a_row_not_launched_says_which_of_the_reasons_stopped_it(kitchen):
 
 
 def test_in_a_full_pass_a_row_says_no_slot_only_where_a_slot_is_all_that_stops_it(kitchen):
-    """`other` holds the one slot. `alpha` is the first row a slot stops, so the rows after
-    it are read with no gate sent: of those, `gamma` and `delta` wait for a slot. `gamma`'s
-    brief has no `Design:` line, which a launch no longer asks for: its go stands."""
+    """`other` holds the one slot, so `alpha` is the first row that cannot launch for want of a
+    slot. The pass reads the rows after `alpha` without sending a gate for any of them. Of those,
+    `gamma` and `delta` wait for a slot. `gamma`'s brief has no `Design:` line, which a launch no
+    longer asks for, so its go is still valid."""
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)

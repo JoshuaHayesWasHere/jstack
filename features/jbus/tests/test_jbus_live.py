@@ -1,8 +1,8 @@
-"""Every thread that is out is in `pass.json` with its liveness, and a hung turn is said once.
+"""Every thread that is out is in `pass.json` with its liveness, and jbus reports a hung turn once.
 
-`live.judge` is walked over every combination of what it is given. The rest runs the real
-pass against the faked T3 Code server, `gh` and `jmerge` of `test_jbus_kitchen`. Nothing reaches
-the network.
+Some tests walk `live.judge` over every combination of what it is given. The rest run the real pass
+against the faked T3 Code server, `gh` and `jmerge` of `test_jbus_kitchen`. Nothing reaches the
+network.
 """
 
 import itertools
@@ -39,7 +39,8 @@ def test_the_thresholds_are_ten_and_twenty_minutes_each_a_named_constant():
 
 
 def test_every_combination_of_what_judge_is_given_keeps_what_the_rule_promises():
-    """What must hold of every combination, stated and not worked out a second time."""
+    """The test states outright what must hold of every combination, and does not work it out a
+    second time."""
     turning = ("preparing", "queued", "starting", "running")
     walked, words = 0, set()
     for status, silent, queued, pending, page in itertools.product(
@@ -100,7 +101,8 @@ def reads(kitchen):
 
 
 def run(at, status="running", minutes=30):
-    """One run of a thread as T3 Code lists it, asked for this many minutes ago."""
+    """Return one run of a thread as T3 Code lists it, with its `requestedAt` this many minutes
+    ago."""
     asked = iso(NOW - timedelta(minutes=minutes))
     began = None if status == "queued" else asked
     return {"runId": f"run-{at}", "ordinal": at, "status": status} | {
@@ -111,7 +113,8 @@ def run(at, status="running", minutes=30):
 
 
 def hanging(kitchen, slug="alpha", minutes=25, queued=2, **more):
-    """A crew whose turn has written nothing for so long, with runs queued behind it."""
+    """Make a crew whose turn has written nothing for that many minutes, with runs queued behind
+    it."""
     runs = [run(1), *(run(2 + at, "queued", 5) for at in range(queued))]
     made = {"activeRunId": "run-1", "latestRunId": f"run-{len(runs)}", "runs": runs}
     made["itemCount"] = 40
@@ -232,8 +235,9 @@ def test_a_thread_that_cannot_be_read_is_judged_by_what_the_list_gave(kitchen):
 
 
 def test_a_read_lost_on_one_pass_and_made_on_the_next_is_still_one_stall(kitchen):
-    """The list names a thread's newest run, a queued one here, so only a read names the
-    run that hangs: a thread that could not be read is quiet at most, and is not said."""
+    """The list names only a thread's newest run, here a queued one, so jbus learns which run
+    hangs only by reading the thread. jbus treats a thread it could not read as quiet at most,
+    and does not report it."""
     kitchen.quiet()
     thread = hanging(kitchen)
     kitchen.t3.lose_read = True
@@ -328,9 +332,9 @@ def test_a_thread_that_turns_hung_is_one_loud_event_for_that_thread_and_that_run
 
 
 def test_a_message_queued_to_a_silent_thread_is_no_write(kitchen):
-    """T3 Code moves a thread's `updatedAt` when a message is queued to it, and not its count
-    of items: measured on 2026-10-13, on a thread whose turn ran one long command. The
-    message here is a real send to the faked server, which does the same."""
+    """T3 Code moves a thread's `updatedAt` when a message is queued to it, and does not move its
+    count of items. A measurement on 2026-10-13 found this, on a thread whose turn ran one long
+    command. The message here is a real send to the faked server, which does the same."""
     thread = hanging(kitchen, minutes=8, queued=0)
     kitchen.poll()
     assert (written(kitchen)[0]["live"], kitchen.lines("stall")) == ("moving", [])
@@ -458,8 +462,8 @@ def test_a_row_launched_in_this_pass_is_not_gone_and_is_once_its_thread_is(kitch
 
 @pytest.mark.parametrize(("items", "silent"), [(41, 0), (40, 0)])
 def test_a_turn_just_started_on_a_thread_that_ended_long_ago_is_not_hung(kitchen, items, silent):
-    """A queued message starts a turn and does not move the count of items, so the silence
-    of the turn before would be carried into it: it is counted from the run's start."""
+    """A queued message starts a turn and does not move the count of items, so the silence of the
+    turn before would carry into the new turn. So jbus counts the silence from the run's start."""
     old = run(1, "completed", 90)
     made = {"itemCount": 40, "activeRunId": None, "latestRunId": "run-1", "runs": [old]}
     thread = kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=60), **made)

@@ -1,9 +1,9 @@
-"""Only an escalation starts a POST: a new question, a hold or an approval that is the
-user's, an alert, a stall. Each line of it names the project. Everything else a pass finds
-is quiet: it is in the log, and is never posted.
+"""Only an escalation starts a POST: a new question, a hold or an approval that is the user's, an
+alert, or a stall. Each line of the POST names the project. Everything else a pass finds is quiet:
+it is in the log, and jbus never posts it.
 
-Every test runs the real pass or the real command against the faked T3 Code server and
-webhook of `test_jbus_kitchen`. Nothing reaches the network.
+Every test runs the real pass or the real command against the faked T3 Code server and webhook of
+`test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import hashlib
@@ -50,7 +50,7 @@ def box(kitchen):
 
 
 def logged(kitchen):
-    """Each event of the log as its line, its level, and whether a POST took it."""
+    """Return each event of the log as its line, its level, and whether a POST took it."""
     return [(one["line"], one["loud"], one["posted"] is not None) for one in box(kitchen).log()]
 
 
@@ -191,7 +191,7 @@ def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(k
 
 
 def unread(kitchen, *, loud='["user", "chef"]'):
-    """Write the key nothing reads into the config: `loud` on the project."""
+    """Write the key that nothing reads, `loud` on the project, into the config."""
     path = kitchen.config_dir / "config.toml"
     named = 'name = "demo"\n'
     kitchen.write(path, path.read_text().replace(named, f"{named}loud = {loud}\n"))
@@ -288,9 +288,9 @@ _LISTED = re.compile(r"^[+] gate \d+: (.+)$")
 
 
 def gained(line, asked):
-    """The item of the list that a logged line tells the user of, as `waiting` would have
-    it now: a hold, an approval, or a gate, which is a question jbus holds where a thread
-    piped it (`asked`). Nothing for any other line."""
+    """Return the list item that a logged line tells the user about, as `waiting` would have it
+    now. The item is a hold, an approval or a gate. A gate is a question that jbus holds where a
+    thread piped it (`asked`). For any other line, return None."""
     held, approval, listed = _HELD.search(line), _APPROVAL.search(line), _LISTED.search(line)
     if held or approval:
         key = f"#{held[1]}" if held else f"approve:{approval[1]}"
@@ -302,14 +302,14 @@ def gained(line, asked):
 
 
 def starts(record, told):
-    """Whether the rule of now would start a POST for an event logged under the rule before.
+    """Return whether the rule of now would start a POST for an event logged under the rule before.
 
-    A `gate` was three things then. It is a question now only where its line is what its
-    text asks, and `told` keeps what was asked. A hold or an approval was told as a gate,
-    as a root, again each hour, and as a change of the list: each such line is read as the
-    item the list gains, once for its key, and `waiting.asks` says whether that item
-    starts a POST. Any other gate was a condition of jbus's own. Every other kind is read
-    off `wake.LOUDNESS`.
+    A `gate` meant three things then. Now a `gate` is a question only where its line reads `gate
+    <slug>: <question>` and that question is the one its text asks, and `told` keeps what was asked.
+    Back then, jbus sent a hold or an approval four ways: as a gate, as a root, again each hour, and
+    as a change of the list. So this reads each such line as the item the list gains, once for its
+    key, and `waiting.asks` says whether that item starts a POST. Any other gate was a condition of
+    jbus's own. This looks up every other kind in `wake.LOUDNESS`.
     """
     kind, line = jbus.current_kind(record["event"], jbus.old_names()), record["line"]
     asked = mirror.question(record.get("text", ""))
@@ -327,7 +327,7 @@ def starts(record, told):
 
 
 def replay(records):
-    """The POSTs of a log, and how many of them the rule of now would have started."""
+    """Return the POSTs of a log, and how many of them the rule of now would have started."""
     waiting, told, posts, started = {}, set(), 0, 0
     for record in records:
         if "posted" not in record:
@@ -340,8 +340,8 @@ def replay(records):
 
 
 def was(kind, slug, line, text="", loud="chef"):
-    """An event as the log had it before, when `user` and `waiting-on-user` had the names
-    `jbus.old_names` gives."""
+    """Return an event as the log had it before, when `user` and `waiting-on-user` had the names
+    that `jbus.old_names` gives."""
     made = {"event": kind, "slug": slug, "line": line, "text": text, "loud": loud}
     name = hashlib.sha256(json.dumps(made, sort_keys=True).encode()).hexdigest()[:16]
     return {"at": NOW.isoformat(), "id": name, **made}
@@ -391,9 +391,9 @@ MADE_UP = [
 
 @pytest.mark.usefixtures("named_user")
 def test_a_made_up_log_of_eighteen_posts_replays_as_eight():
-    """Nine start none: two that asked nothing, the merge alone, a hold told again for a new
-    head and again an hour on, a list of gates already asked, a list that only lost an item,
-    and four conditions of jbus's own."""
+    """Nine of the old POSTs would start no POST under the rule of now: two that asked nothing,
+    the merge alone, a hold that jbus told again for a new head and again an hour on, a list of
+    gates already asked, a list that only lost an item, and four conditions of jbus's own."""
     records = [record for posted in MADE_UP for record in posted]
     assert replay(records) == (18, 8)
     told = set()
@@ -514,7 +514,8 @@ def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kit
 
 
 def test_a_webhook_that_does_not_answer_in_time_keeps_the_outbox_for_the_next_allowed_pass(kitchen):
-    """The webhook sleeps past the timeout, as one that sleeps 10 s does past the 8 s."""
+    """The test shrinks the timeout and has the webhook sleep past it, the way a webhook that
+    sleeps 10 s runs past the real timeout of 8 s."""
     assert wake.TIMEOUT == 8
     kitchen.monkeypatch.setattr(wake, "TIMEOUT", 0.2)
     kitchen.webhook.sleep = 0.6
@@ -578,7 +579,7 @@ def test_a_snapshot_is_cut_at_thirty_two_thousand_characters(kitchen):
 
 
 def fail(kitchen, passes, start=0):
-    """Passes five minutes apart, each with one POST the webhook does not take."""
+    """Run passes five minutes apart, each with one POST that the webhook does not take."""
     said = []
     for number in range(start, start + passes):
         said += kitchen.poll(NOW + timedelta(minutes=5 * number))
@@ -637,7 +638,8 @@ def test_three_failed_posts_in_a_row_are_one_notification_and_the_next_run_one_m
 
 
 def test_the_count_that_tells_is_three_whatever_the_config_says(kitchen):
-    """`wake_alert` is still read, and no longer decides: the threshold is `alert.AFTER`."""
+    """jbus still reads `wake_alert`, but no longer uses it to decide anything. The threshold is
+    `alert.AFTER`."""
     kitchen.config(wake_alert=1)
     assert (jbus.load().wake_alert, alert.AFTER) == (1, 3)
     kitchen.main("gate", "alpha", stdin=ASK)

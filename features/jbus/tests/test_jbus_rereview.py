@@ -1,6 +1,6 @@
-"""A rebase that changed the content of a reviewed patch gets one scoped review, which jbus
-asks its crew to launch, once per head. Run as `test_jbus_unlock.py` runs: the real
-pass, against the fakes, with the line `jmerge` prints for such a pull request."""
+"""A rebase that changed the content of a reviewed patch gets one scoped review, which jbus asks
+its crew to launch, once per head. Like `test_jbus_unlock.py`, the tests run the real pass
+against the fakes, with the line `jmerge` prints for such a pull request."""
 
 from datetime import timedelta
 
@@ -27,15 +27,15 @@ def waits(head):
 
 
 def out(kitchen, head="c" * 40, reason=None, word="wait"):
-    """Alpha's pull request #7 at `head`, and what `jmerge` prints about it."""
+    """Open alpha's pull request #7 at `head`, and set what `jmerge` prints about it."""
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "headRefOid": head}])
     kitchen.set("jmerge.txt", f"{word} 7 {URL}: {reason or waits(head)}\n")
 
 
 @pytest.fixture
 def launched(kitchen):
-    """Alpha, launched by a pass, so it has a launch record and its `Thread:` line, with
-    its thread's turn ended: one at work is told nothing."""
+    """Alpha is a row that a pass launched, so it has a launch record and its `Thread:` line. Its
+    thread's turn has ended, since jbus tells nothing to a thread that is at work."""
     add(kitchen, "alpha")
     assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
     kitchen.t3.threads[0]["status"] = "completed"
@@ -182,7 +182,7 @@ def test_the_line_jbus_reads_is_the_line_jmerge_prints():
 
 
 def unsaid(head):
-    """What `jmerge` prints after the url for a drop with no line at this head."""
+    """Return what `jmerge` prints after the url for a drop with no line at this head."""
     return ready.drops((ready.Drop("a.py", 2, 1),), "", head, user=jsettings.DEFAULTS)[1]
 
 

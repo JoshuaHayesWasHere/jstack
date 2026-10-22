@@ -1,64 +1,62 @@
-"""An exhaustive check of main.json's red-main contract: every order of merges, check
-answers, T3 Code answers and jbus passes within the bounds below, walked breadth first, with
-the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.rows.red` as jmerge's read.
+"""This module is an exhaustive check of main.json's red-main contract. It walks every order of
+merges, check answers, T3 Code answers and jbus passes within the bounds below, breadth first. The
+model runs the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.rows.red` as jmerge's
+read.
 
-The two properties, from the rule "Main is not red" in `features/jmerge/docs/jmerge.md`, checked
-on the record after every pass:
+The model checks two properties on the record after every pass. Both come from the rule "Main is not
+red" in `features/jmerge/docs/jmerge.md`:
 
-- **S1, no merge onto a known red main.** When the newest tip whose check has settled
-  (`mainjson.SETTLED`: `green` or `failed`) failed, `rows.red` is not empty for a slug
-  that is not a fix.
-  The harm when it breaks: jmerge merges pull requests onto a main whose check failed, so
-  each one lands on a red base and the red spreads.
-- **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that
-  landed after it has a `green` check.
-  The harm when it breaks: jmerge holds every pull request as "main is red" after main
-  was fixed, and the queue stops until somebody looks.
+- **S1, no merge onto a known red main.** Take the newest tip whose check has settled
+  (`mainjson.SETTLED`: `green` or `failed`). If that check failed, `rows.red` is not empty for a
+  slug that is not a fix. The harm when it breaks: jmerge merges pull requests onto a main whose
+  check failed, so each one lands on a base whose check failed, and so does every merge after it.
+- **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that landed after
+  it has a `green` check. The harm when it breaks: jmerge holds every pull request as "main is red"
+  after a fix has made main green, and the queue stops until somebody looks.
 
-The bounds: at most `TIPS` tips on main (the first, M0, is green and there from the start),
-at most `EVENTS` events, and zero or one open red pull request that jbus launched (`alpha`).
+The model has at most `TIPS` tips on main, at most `EVENTS` events, and zero or one open red pull
+request that jbus launched (`alpha`). The first tip, M0, is green and is there from the start.
 
-What one step is, in the code:
+Each kind of step matches the code as follows:
 
-- **pass**: one run of `tell`, under the pass lock (`features/jbus/src/jbus/cli.py:215-219`), so no
-  two passes overlap and a pass is one indivisible step. In a pass, jmerge reads `main.json`
-  before `tell` writes it (`features/jbus/src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs
-  later in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:229-237`): a merge in a
-  pass is the event `lands, jmerge merges` followed by the event `pass`, and reads the record the
-  last pass wrote, as a merge between passes does.
-- **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`.
-  It may fall between any two passes, and it sees a whole record, never a half-written
-  one: `write_json` writes a temporary file and `os.replace`s it
-  (`features/jbus/src/jbus/__init__.py:434-444`). It is allowed only where
+- **pass**: one run of `tell` under the pass lock (`features/jbus/src/jbus/cli.py:215-219`). No two
+  passes overlap, so a pass is one indivisible step. In a pass, jmerge reads `main.json` before
+  `tell` writes it: `features/jbus/src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs later,
+  in the `after-expedite` slot (`features/jbus/src/jbus/mainmoved.py:229-237`). So the model writes
+  a merge in a pass as the event `lands, jmerge merges` followed by the event `pass`. That merge
+  reads the record the last pass wrote, as a merge between passes does.
+- **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`. This event
+  may come between any two passes. The merge always reads a whole record, never a half-written one,
+  because `write_json` writes a temporary file and `os.replace`s it
+  (`features/jbus/src/jbus/__init__.py:434-444`). The model allows it only where
   `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py:84-87`).
-- **lands, another merge**: a merge that does not ask `rows.red`: the fix `main-red-<sha12>`,
-  a merge by hand, or `--accept`. Always allowed.
-- **settles**: a pending tip's check ends, as `watch._check` answers
+- **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
+  `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
+- **settles**: a pending tip's check ends with one of the answers of `watch._check`
   (`features/jbus/src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
-  `again` (`features/jbus/src/jbus/mainmoved.py:77-86`), so the last two reach `tell` through
-  `checks.json`, where watch's retro writes them (`_check(..., again=True)`). A tip whose
-  check never ends is a tip no `settles` event reaches: it stays `pending`.
-- **rerun passes**: the newest tip's check failed, and a rerun of it on the same tip, with
-  no new commit, passes: that tip's check is `green` from then on.
-- T3 Code's answer to a send is a choice of the pass: it answers, it loses the send
-  (`T3Error`, `features/jbus/src/jbus/mainmoved.py:201-204`) or it refuses it (`T3Refused`,
-  196-200).
+  `again` (`features/jbus/src/jbus/mainmoved.py:77-86`). So the last two answers reach `tell` only
+  through `checks.json`, where watch's retro writes them (`_check(..., again=True)`). No `settles`
+  event reaches a tip whose check never ends, and that tip stays `pending`.
+- **rerun passes**: the newest tip's check failed, and a rerun of that check on the same tip passes
+  with no new commit. From then on, that tip's check is `green`.
+- Each pass also chooses T3 Code's answer to a send. T3 Code answers it, loses it (`T3Error`,
+  `features/jbus/src/jbus/mainmoved.py:201-204`) or refuses it (`T3Refused`, 196-200).
 
-What is stubbed, and only this: `mainmoved.main_check` returns the tip's check from the
-model (it would ask GitHub), GitHub's list of main's commits is the model's tips, each the
-first parent of the next, `dispatch.launched` says `alpha` was launched, `dispatch.thread_of`
-gives its thread, and `rebase.held` holds back no message (the crew's turn has ended).
-`Pass`, `Client` and `World` are fakes with only what `tell` reads; `sent.json` and
-`main.json` are real files in a temporary state directory, written by the real code.
+The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
+model, where the real one would ask GitHub. GitHub's list of main's commits is the model's tips,
+each the first parent of the next. `dispatch.launched` says that jbus launched `alpha`, and
+`dispatch.thread_of` gives its thread. `rebase.held` holds back no message, because the crew's turn
+has ended. `Pass`, `Client` and `World` are fakes with only what `tell` reads. `sent.json` and
+`main.json` are real files in a temporary state directory, and the real code writes them.
 
-Not covered: a message `rebase.held` keeps back (`held` in `main.json`), a pull request that
-conflicts or that GitHub has not judged, more than one open pull request, a red pull request
-with no thread (a gate), a remote that cannot be read, `checks.json`'s cache, and more tips
-or events than the bounds. A pass covers the model within the bounds, not the whole system.
+The model does not cover a message `rebase.held` keeps back (`held` in `main.json`), a pull request
+that conflicts or that GitHub has not judged, more than one open pull request, a red pull request
+with no thread (a gate), a remote that cannot be read, `checks.json`'s cache, or more tips or events
+than the bounds allow. A walk that passes proves the model within the bounds, not the whole system.
 
-Run it as `uv run pytest features/jbus/tests/test_main_red_model.py -q`, or `--runxfail` to print
-the traces of the findings; `uv run python features/jbus/tests/main_red_model.py` prints every
+Run it as `uv run pytest features/jbus/tests/test_main_red_model.py -q`, or add `--runxfail` to
+print the traces of the findings. `uv run python features/jbus/tests/main_red_model.py` prints every
 trace.
 """
 
@@ -100,7 +98,7 @@ def sha(tip: int) -> str:
 
 
 def name(text: str) -> str:
-    """A record or a line with each tip's commit written as its name, `M<n>`."""
+    """Return a record or a line with each tip's commit written as its name, `M<n>`."""
     for tip in range(TIPS):
         text = text.replace(sha(tip), f"M{tip}").replace(sha(tip)[: mainjson.SHA], f"M{tip}")
     return text
@@ -108,8 +106,9 @@ def name(text: str) -> str:
 
 @dataclass(frozen=True)
 class Options:
-    """Which environments are walked. `one_at_a_time` lands a tip only once the last tip's
-    check has settled and a pass has run since; `lost_sends` lets T3 Code lose a send."""
+    """`Options` says which environments the walk covers. With `one_at_a_time`, a tip lands only
+    once the last tip's check has settled and a pass has run since. `lost_sends` lets T3 Code
+    lose a send."""
 
     one_at_a_time: bool = False
     lost_sends: bool = True
@@ -117,10 +116,11 @@ class Options:
 
 @dataclass(frozen=True)
 class State:
-    """The world between two steps: each tip's check, the two files `tell` keeps, whether
-    the red pull request is open, and whether a pass has run since the newest tip settled.
-    `looked` is set by a pass whether or not it still owes a send, so with `one_at_a_time` a
-    tip may land after a pass that lost one; only `one_at_a_time` reads it."""
+    """`State` is the model's state between two steps. It holds each tip's check, the two files
+    `tell` keeps, whether the red pull request is open, and whether a pass has run since the
+    newest tip settled. A pass sets `looked` even when it still owes a send because T3 Code lost
+    one. So with `one_at_a_time`, a tip may land after such a pass. Only `one_at_a_time` reads
+    `looked`."""
 
     checks: tuple[str, ...]
     record: str
@@ -149,7 +149,7 @@ class Asked:
 
 @dataclass
 class FakePass:
-    """What `tell` reads of a `jbus.wake.Pass`, over the model's state directory."""
+    """`FakePass` has what `tell` reads of a `jbus.wake.Pass`, over the model's state directory."""
 
     state: Path
     checks: dict[str, str]
@@ -203,7 +203,7 @@ def red_pull() -> dict[str, Any]:
 
 @contextmanager
 def stubbed() -> Iterator[None]:
-    """The four stubs, and nothing else: GitHub's answer, the launch record, the brief's
+    """Put in the four stubs and nothing else: GitHub's answer, the launch record, the brief's
     thread, and a crew whose turn has ended."""
     with (
         mock.patch.object(mainmoved, "main_check", lambda run, at, again=False: run.checks[at]),
@@ -215,7 +215,8 @@ def stubbed() -> Iterator[None]:
 
 
 class Files:
-    """The model's state directory: `main.json` and `sent.json` as a state has them."""
+    """`Files` is the model's state directory, with `main.json` and `sent.json` as a state has
+    them."""
 
     def __init__(self, root: Path) -> None:
         self.state = root
@@ -229,12 +230,14 @@ class Files:
         (self.state / "sent.json").write_text(state.sent)
 
     def red(self, state: State) -> str:
-        """jmerge's read: `rows.red(mainjson.read(state), slug)` for a slug that is no fix."""
+        """Return jmerge's read, `rows.red(mainjson.read(state), slug)`, for a slug that is no
+        fix."""
         self.put(state)
         return rows.red(mainjson.read(self.state), MERGED)
 
     def tell(self, state: State, answer: str) -> tuple[State, bool]:
-        """One pass: the real `tell` over the state's files. It also says whether a send went."""
+        """Run one pass, the real `tell` over the state's files. Also return whether a send went
+        out."""
         self.put(state)
         checks = {sha(tip): check for tip, check in enumerate(state.checks)}
         run = FakePass(self.state, checks, sha(len(state.checks) - 1))
@@ -249,13 +252,13 @@ class Files:
 
 
 def s1(state: State, files: Files) -> bool:
-    """S1 on a state a pass left."""
+    """Return whether S1 holds on the state that a pass leaves."""
     settled = [check for check in state.checks if check in mainjson.SETTLED]
     return not settled or settled[-1] != "failed" or files.red(state) != ""
 
 
 def s2(state: State, files: Files) -> bool:
-    """S2 on a state a pass left."""
+    """Return whether S2 holds on the state that a pass leaves."""
     if not files.red(state):
         return True
     red = mainjson.read(files.state).red
@@ -268,8 +271,8 @@ PROPERTIES = {"S1": s1, "S2": s2}
 
 @dataclass(frozen=True)
 class Step:
-    """One event: its sort, its words in a trace, the state after it, and whether it was a
-    pass, after which the properties are checked."""
+    """A `Step` is one event. It has its sort, its words in a trace, the state after it, and
+    whether it was a pass. The walk checks the properties after each pass."""
 
     kind: str
     line: str
@@ -278,7 +281,7 @@ class Step:
 
 
 def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
-    """Each event the state allows."""
+    """Yield each event that the state allows."""
     landed = len(state.checks)
     ready = not options.one_at_a_time or (state.checks[-1] != "pending" and state.looked)
     if landed < TIPS and ready:
@@ -318,8 +321,8 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
 
 @dataclass
 class Found:
-    """What a walk found: the states it reached, and for each property the states that break
-    it with the shortest trace to the first of them."""
+    """`Found` is what a walk found: the states it reached and, for each property, the states
+    that break that property, with the shortest trace to the first of those states."""
 
     options: Options
     states: int = 0
@@ -343,7 +346,7 @@ def start(pull: bool) -> State:
 
 @cache
 def walk(options: Options) -> Found:
-    """Every state within the bounds, breadth first, each state once."""
+    """Return every state within the bounds, reached breadth first, each state once."""
     began = time.monotonic()
     found = Found(options)
     with tempfile.TemporaryDirectory() as root, stubbed():
@@ -380,8 +383,8 @@ def walk(options: Options) -> Found:
 
 
 def trace(parents: dict[str, tuple[str | None, str]], key: str | None) -> list[str]:
-    """The lines from a start to the state `key`: each state keeps its parent and the line of
-    the step to it, and a start keeps no parent and its own start line."""
+    """Return the lines from a start to the state `key`. Each state keeps its parent and the line
+    of the step to it. A start keeps no parent, and keeps its own start line instead."""
     lines = []
     while key is not None:
         key, line = parents[key]

@@ -1,9 +1,11 @@
-"""The kitchen every jbus test runs in: one project with jbus set up for it, against a T3
-Code server, a `gh`, a `jmerge`, a `notify-send` and a webhook that are faked. The server and
-the webhook listen on a local port, the three commands are functions here, and scripts on
-PATH for another process. Nothing reaches the network. The tests here are of the fakes: each
-says the same called here and started as a command. The last is of the repo each kitchen copies
-from its worker's template: a kitchen pushes to its own origin and the template stays as built.
+"""This module is the kitchen that every jbus test runs in: one project with jbus set up for it,
+against fakes of a T3 Code server, `gh`, `jmerge`, `notify-send` and a webhook. The server and the
+webhook listen on a local port. The three commands are functions here, and scripts on PATH for
+another process. Nothing reaches the network.
+
+The tests here test the fakes: each fake says the same whether this module calls it or a process
+starts it as a command. The last test is of the repo that each kitchen copies from its worker's
+template: a kitchen pushes to its own origin, and the template stays as the build left it.
 """
 
 import base64
@@ -55,7 +57,7 @@ def iso(moment):
 
 
 class Server:
-    """A local HTTP server on a free port, answering with `self.answer`."""
+    """`Server` is a local HTTP server on a free port, and it answers with `self.answer`."""
 
     def __init__(self):
         owner = self
@@ -110,7 +112,7 @@ class Webhook(Server):
 
 
 class T3(Server):
-    """T3 Code's MCP endpoint and its sign-in, with the eight tools jbus calls."""
+    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
@@ -147,8 +149,8 @@ class T3(Server):
         return made
 
     def says(self, thread, message, text, **more):
-        """A message of a thread, as T3 Code gives one read by its id: the user's own, typed
-        in the app, unless `more` says another."""
+        """Store a message of a thread as T3 Code returns it when jbus asks for that message by
+        its id. It is the user's own message, typed in the app, unless `more` says otherwise."""
         self.said[thread, message] = {
             "itemId": f"turn-item:message:{urllib.parse.quote(message, safe='')}",
             "messageId": message,
@@ -162,8 +164,8 @@ class T3(Server):
         }
 
     def write(self, now):
-        """A thread made with no `idle` is at work: while a turn of it is under way, it
-        wrote a minute ago."""
+        """A thread made with no `idle` is at work. While one of its turns runs, its last write
+        was a minute ago."""
         for thread in self.threads:
             if thread["threadId"] in self.at_work and thread["status"] in live.TURNING:
                 thread["updatedAt"] = max(thread["updatedAt"], iso(now - timedelta(minutes=1)))
@@ -316,23 +318,27 @@ class T3(Server):
 
 
 def fake_gh(stub, args, cwd):
-    """The `gh` of a kitchen, asked `args` in `cwd`: its exit code, stdout and stderr.
+    """Run the `gh` of a kitchen with `args` in `cwd`, and return its exit code, stdout and stderr.
 
-    `gh-down` is a GitHub that does not answer, and `gh-down-<checkout>` one that does not
-    for that one project; `gh-view-down` is one that does not answer a `pr view`. The file
-    holds what `gh` says on stderr; `gh-code` is its exit code (1 with none) and `gh-out` what
-    it prints. A list is a window: a pull request marked `old` has fallen out of
-    it, and `pr view` still finds it by its number, or ends as the real command does for one
-    it cannot resolve. `head-now.json` is a head pushed since the list was given: only a
-    view shows it. `run rerun` starts a run again and says nothing, or with `gh-no-rerun`
-    fails. `api` gives a commit's check runs, its runs for a push, who owns the repo (with no
-    `repo.json`, GitHub does not say), the commits, and a pull request's comments, line
-    comments and reviews by the end of the path: asked for every page (`--paginate
-    --slurp`), a list of pages, here two. A job is its own in `jobs.json`, by its id, and
-    one step at the first attempt where it has none there, and its log is its own in
-    `logs.json`, by its id, or not found. A commit asked for by its sha lists the files it
-    changed, from `commit-files.json`. The runs of the browser workflow are `browser-runs.json`,
-    and a run's jobs are its own in `run-jobs.json`, by the run's id, or fail where it is null.
+    `gh-down` is a GitHub that does not answer, and `gh-down-<checkout>` is one that does not answer
+    for that one project. `gh-view-down` is one that does not answer a `pr view`. Each of these
+    files holds what `gh` says on stderr. `gh-code` is its exit code (1 when there is none), and
+    `gh-out` is what it prints.
+
+    A list gives only a window of recent pull requests. A pull request marked `old` is outside that
+    window, and `pr view` still finds it by its number, or ends as the real command does for a
+    number it cannot resolve. `head-now.json` is a head pushed since the list was given, and only a
+    view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
+    there.
+
+    `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
+    push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
+    request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
+    gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
+    first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
+    not found. A commit asked for by its sha lists the files it changed, from `commit-files.json`.
+    The runs of the browser workflow are in `browser-runs.json`. A run's jobs come from
+    `run-jobs.json` by the run's id, and the call fails where that entry is null.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -419,12 +425,12 @@ def fake_gh(stub, args, cwd):
 
 
 def fake_jmerge(stub, args, cwd):
-    """The `jmerge` of a kitchen, asked `args`: its exit code, stdout and stderr.
+    """Run the `jmerge` of a kitchen with `args`, and return its exit code, stdout and stderr.
 
-    `jmerge-dies` ends it as a `SystemExit` with a message ends the real command: the line
-    on stderr, exit 1. `jmerge-says` ends it as the real command ends when it cannot ask
-    GitHub: the line on stdout, exit 1. An accept of a held pull request does nothing where
-    the test wrote no `accept.txt`.
+    `jmerge-dies` ends it the way a `SystemExit` with a message ends the real command: the line on
+    stderr, and exit 1. `jmerge-says` ends it the way the real command ends when it cannot ask
+    GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
+    test wrote no `accept.txt`.
     """
     with open(stub / "jmerge.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -449,7 +455,7 @@ def fake_jmerge(stub, args, cwd):
 
 
 def fake_notify(stub, args, cwd):
-    """The `notify-send` of a kitchen: it keeps what it was asked to show."""
+    """Run the `notify-send` of a kitchen, which keeps what it was asked to show."""
     with open(stub / "notify.log", "a") as log:
         log.write(" | ".join(args) + "\n")
     return 0, "", ""
@@ -476,7 +482,8 @@ sys.exit(code)
 
 
 def on_path(name):
-    """The file a command's first word starts, found the way the system finds it."""
+    """Return the file that a command's first word names, found on PATH the way the system finds
+    it."""
     if os.sep in name:
         return name
     for part in os.environ.get("PATH", "").split(os.pathsep):
@@ -486,7 +493,8 @@ def on_path(name):
 
 
 class Side:
-    """A second project of a kitchen: its own checkout, state, `projectId` and webhook."""
+    """`Side` is a second project of a kitchen, with its own checkout, state, `projectId` and
+    webhook."""
 
     def __init__(self, kitchen, name):
         self.name, self.project, self.webhook = name, f"{name}-project-id", Webhook()
@@ -496,7 +504,8 @@ class Side:
 
 
 class Kitchen:
-    """One project with jbus set up for it: config, state, a main checkout, and the fakes.
+    """`Kitchen` is one project with jbus set up for it: config, state, a main checkout, and the
+    fakes.
 
     `second` adds another project to the same config, T3 Code server, `gh` and `jmerge`.
 
@@ -559,15 +568,15 @@ class Kitchen:
         self.machine()
 
     def run(self, command, **how):
-        """`subprocess.run` while the kitchen is there: one of its fakes is answered here.
+        """This function takes the place of `subprocess.run` while the kitchen exists, and answers a
+        call to one of the kitchen's fakes itself.
 
-        Starting a Python for each `gh` and `jmerge` of a pass was most of a test's time, so
-        a command that PATH resolves to a fake as the kitchen wrote it is that fake's function,
-        called. Anything else starts a process as before: `git`, a command that is missing,
-        a fake a test wrote over or took off PATH, and a call that passes its own `env`,
-        asks for `check`, or does not capture what is printed. A fake called here is not held
-        to `timeout`, and one that ends on an exception ends as a Python does: the traceback
-        on stderr, exit 1.
+        Starting a Python for each `gh` and `jmerge` of a pass took most of a test's time. So when
+        PATH resolves a command to a fake as the kitchen wrote it, this calls that fake's function.
+        Anything else starts a process as before: `git`, a command that is missing, a fake that a
+        test wrote over or took off PATH, and a call that passes its own `env`, asks for `check`, or
+        does not capture what is printed. A fake called here ignores `timeout`. One that ends on an
+        exception ends as a Python does: the traceback on stderr, and exit 1.
         """
         fake = None
         if isinstance(command, (list, tuple)) and how.get("capture_output"):
@@ -587,7 +596,8 @@ class Kitchen:
         return subprocess.CompletedProcess(command, code, out, err)
 
     def machine(self, plan=FRESH, **readings):
-        """The machine and the plan `jgauge room` reads: idle and under its limits, or as told."""
+        """Write the machine and the plan that `jgauge room` reads: idle and under its limits, or
+        as told."""
         env = machine(self.root / "machine", **{**IDLE, **readings}, plan=plan)
         self.monkeypatch.setenv("PROC", env["PROC"])
         self.monkeypatch.setenv("LIMITS", env["LIMITS"])
@@ -595,16 +605,18 @@ class Kitchen:
         return env["LIMITS"]
 
     def repo(self, checkout, origin):
-        """A main checkout on `main`, with an origin that has that branch as its default.
+        """Make a main checkout on `main`, with an origin that has that branch as its default.
 
         It is a copy of the worker's template.
         """
         repo_template.copied(repo_template.templated(), checkout, origin)
 
     def second(self, name="other"):
-        """Add a project to the config, after the ones it has. The answer is where it is.
+        """Add a project to the config, after the projects it has, and return where the new project
+        is.
 
-        It writes the config with nothing else given, so `config` comes after it.
+        It writes the config with no other key given, so a test that needs other keys calls `config`
+        after it.
         """
         side = Side(self, name)
         (side.home / "tasks").mkdir(parents=True)
@@ -624,7 +636,8 @@ class Kitchen:
         path.chmod(mode)
 
     def signed_in(self, ago, **token):
-        """The token as `jbus t3 login` stores it, obtained `ago` before the tests' now."""
+        """Store the token as `jbus t3 login` stores it, with `obtained_at` set `ago` before the
+        tests' now."""
         stored = {
             "server": self.t3.url,
             "token": {"access_token": TOKEN, **token},
@@ -633,7 +646,7 @@ class Kitchen:
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
     def config(self, url=None, **top):
-        """Write the config. A top-level key given as None is left out of the file."""
+        """Write the config. A top-level key given as None stays out of the file."""
         top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
@@ -680,7 +693,7 @@ class Kitchen:
         return path
 
     def lavish(self, **sessions):
-        """What Lavish keeps of its sessions: each one's key, with its page and its status."""
+        """Write what Lavish keeps of its sessions: each one's key, with its page and its status."""
         kept = {
             key: {"key": key, "file": str(file), "status": status, "pending_prompts": queued}
             for key, (file, status, *more) in sessions.items()
@@ -690,8 +703,8 @@ class Kitchen:
         (self.root / "lavish" / "state.json").write_text(json.dumps({"sessions": kept}))
 
     def word(self, project="demo"):
-        """The id of a word of the user's that the project keeps, typed and sent long ago: what
-        a test's approval rests on."""
+        """Return the id of a word of the user's that the project keeps. The user typed and sent
+        the word long ago, and a test bases its approval on it."""
         state = self.state_dir / project
         if not any(one.id == SAID for one in word.load(state)):
             kept = word.Word(SAID, "go", "user", SAID_AT, iso(NOW), "mcp:a-home", iso(NOW))
@@ -724,8 +737,8 @@ class Kitchen:
         return json.loads((self.state_dir / "status.json").read_text())
 
     def events(self, kind=None):
-        """Every event the project queued, oldest first, as the log has it: a quiet one is
-        nowhere else."""
+        """Return every event the project queued, oldest first, as the log has it. A quiet event
+        is in the log and nowhere else."""
         every = wake.Box(self.state, jbus.load().project("demo")).log()
         return [e for e in every if kind is None or e["event"] == kind]
 
@@ -733,13 +746,14 @@ class Kitchen:
         return [event["line"] for event in self.events(kind)]
 
     def forget(self):
-        """Empty the outbox, the log and what the webhook got: what `events` gives starts here."""
+        """Empty the outbox, the log and what the webhook got, so that `events` gives only what
+        comes after."""
         jbus.write_json(self.state / "outbox.json", [])
         (self.state / wake.LOG).unlink(missing_ok=True)
         self.webhook.posts.clear()
 
     def quiet(self):
-        """A first pass, which records what is already so, and no event kept of it."""
+        """Run a first pass, which records what is already so, and keep no event of it."""
         self.poll(NOW - timedelta(hours=1))
         self.forget()
 
@@ -794,7 +808,8 @@ class Kitchen:
     ],
 )
 def test_a_fake_says_the_same_called_here_and_started_as_a_command(kitchen, command, files):
-    """Of stderr the last line is compared: a traceback names the file it came from."""
+    """The test compares only the last line of stderr, since a traceback names the file it came
+    from."""
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.set("merged.json", [kitchen.merged("alpha", 6, "a" * 40)])
     for name, text in files.items():
@@ -854,7 +869,8 @@ def test_a_fake_uses_only_the_names_its_script_imports(fake):
 
 
 def test_a_fake_a_test_wrote_over_or_took_off_path_is_started_as_a_command(kitchen):
-    """Off PATH, the name is whatever the machine has: the kitchen hands it on."""
+    """When a test wrote over a fake or took it off PATH, the name is whatever command the
+    machine has, and the kitchen starts that command."""
     (kitchen.stub / "gh").write_text("#!/bin/sh\necho its own\n")
     assert subprocess.run(["gh"], capture_output=True, text=True).stdout == "its own\n"
     (kitchen.stub / "jmerge").unlink()
@@ -872,8 +888,8 @@ OPTIONS = (
 
 
 def asking(question="which one?", default="the first"):
-    """A gate of `features/home/templates/gates.md` filled in, asking `question`, with the two
-    `OPTIONS`."""
+    """Return a gate of `features/home/templates/gates.md`, filled in, that asks `question` and
+    has the two `OPTIONS`."""
     return (
         f"## Gate <n>: {question}\nStatus: open\nAsked by: alpha, thread mcp:a-thread\n"
         f"Default: {default}\nBuilt on it: nothing\nUndo: pick the other\n" + OPTIONS
@@ -884,7 +900,7 @@ ASK = asking()
 
 
 def complete(slug, more=""):
-    """A brief with every field `jbus queue add` asks for, and `more` under them."""
+    """Return a brief with every field that `jbus queue add` asks for, and `more` under them."""
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- it is done\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
@@ -893,7 +909,7 @@ def complete(slug, more=""):
 
 
 def bound(kitchen, slug, project="demo"):
-    """What an approval record holds of the brief stored now: its sha and its fingerprint."""
+    """Return what an approval record holds of the brief stored now: its sha and its fingerprint."""
     text = (kitchen.state_dir / project / "briefs" / f"{slug}.md").read_text()
     made = jbus.queue.fingerprint(text)
     return {
@@ -904,7 +920,7 @@ def bound(kitchen, slug, project="demo"):
 
 
 def approved(kitchen, slug, priority=1):
-    """A row of the queue with its brief, and the user's go for it."""
+    """Add a row of the queue with its brief, and the user's go for it."""
     text = complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", str(priority), stdin=text)[0] == 0
     assert go(kitchen, slug)[0] == 0
@@ -941,8 +957,8 @@ def said(cwd, *args):
 def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
     tmp_path, monkeypatch
 ):
-    """Two kitchens push a commit each and see only their own. The template's origin is at the
-    commit it was built with, after every test this worker ran before this one, and after this.
+    """Two kitchens push a commit each, and each sees only its own. After this test, and after every
+    earlier test this worker ran, the template's origin stays at the commit the build made.
     """
     kitchen_template = repo_template.templated()
     assert said(kitchen_template.origin, "rev-parse", "main") == kitchen_template.main
@@ -973,8 +989,8 @@ def test_each_kitchen_pushes_to_its_own_origin_and_the_template_stays_as_built(
 
 
 def test_building_the_template_starts_no_background_maintenance(tmp_path, monkeypatch):
-    """git's auto maintenance runs detached after a commit or a push, and wrote and removed
-    `objects/maintenance.lock` while the build copied the checkout: main's run 39629845242.
+    """git's auto maintenance runs detached after a commit or a push. In main's run 39629845242, it
+    wrote and removed `objects/maintenance.lock` while the build copied the checkout.
     """
     trace = tmp_path / "trace"
     monkeypatch.setenv("GIT_TRACE2", str(trace))
@@ -996,7 +1012,7 @@ def test_a_lock_file_left_in_the_template_is_not_copied(tmp_path):
 
 
 def queued(kitchen, slug, text=None):
-    """A row of the queue, approved, as the Chef adds one."""
+    """Add a row of the queue, approved, as the Chef adds one."""
     text = text or complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
     sha = jbus.queue.brief_sha(text)[:12]

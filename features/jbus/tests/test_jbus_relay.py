@@ -1,4 +1,4 @@
-"""`jbus relay`, run as the unit runs it, against a fake Sous Chef webhook, a fake Home
+"""The tests run `jbus relay` as the unit runs it, against a fake Sous Chef webhook, a fake Home
 Assistant for the fallback pager, and a fake `notify-send`, all on 127.0.0.1."""
 
 from __future__ import annotations
@@ -39,10 +39,10 @@ MARKS = itertools.count(1)
 
 
 class Webhook:
-    """A webhook that records each POST it takes. `answer` is the status it gives, `delay`
-    how long it waits first, and `hold` how long it waits between taking a POST and answering
-    it. `arrived` counts the POSTs that reached it, before the delay, and `tried` keeps the
-    body of every POST, answered 200 or not."""
+    """`Webhook` records each POST it takes. `answer` is the status it gives, `delay` is how long
+    it waits first, and `hold` is how long it waits between taking a POST and answering it.
+    `arrived` counts the POSTs that reached it, before the delay. `tried` keeps the body of every
+    POST, whether the webhook answered 200 or not."""
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
@@ -98,8 +98,9 @@ def hooks():
 
 
 class Relay:
-    """The relay on a port it picks: `up` reads the port from its line `relay: listening on`,
-    and from then on keeps each line it says, for `said` and `stop`."""
+    """`Relay` runs the relay on a port it picks. `up` reads the port from the relay's line
+    `relay: listening on`, and from then on keeps each line the relay says, for `said` and
+    `stop`."""
 
     def __init__(self, env: dict[str, str], state) -> None:
         self.port, self.state = 0, state
@@ -140,12 +141,13 @@ class Relay:
         return self
 
     def said(self) -> str:
-        """What the relay has said so far, as far as it has been read."""
+        """Return what the relay has said so far, as far as the test has read it."""
         return "".join(self.lines)
 
     def heard(self) -> str:
-        """Everything the relay said up to now. It says the lines of a POST before it answers
-        it, so once the line of an ack it answers last is read, so is each line before it."""
+        """Return everything the relay said up to now. The relay says the lines of a POST before
+        it answers the POST. The relay answers the ack last, so once this has read the ack's
+        line, it has also read every line before it."""
         mark = f"mark-{next(MARKS)}"
         assert self.ack(mark) == 404
         until(lambda: f"named event {mark}," in self.said())
@@ -475,7 +477,7 @@ def test_a_4xx_not_about_the_target_is_kept_aside_and_the_next_goes(relay, hooks
 
 
 def at(minutes: float) -> str:
-    """A time `minutes` after the item began to block, as jbus writes it."""
+    """Return a time `minutes` after the item began to block, as jbus writes it."""
     return (OPENED + timedelta(minutes=minutes)).isoformat()
 
 
@@ -497,7 +499,8 @@ def item(key: str = "gate:q33", line: str = "gate 33: tea or coffee?") -> dict:
 
 
 def second(kind: str, minutes: float, *items: dict) -> dict:
-    """A body jbus posts its second target, `minutes` after the items began to block."""
+    """Return a body that jbus posts to its second target, `minutes` after the items began to
+    block."""
     return {
         "kind": kind,
         "project": "jstack",
@@ -568,8 +571,9 @@ def test_an_item_open_at_45_minutes_pages_once_and_not_twice(relay, hooks):
 
 
 def test_the_page_is_sent_once_also_after_a_restart(hooks, tmp_path):
-    """A page is spooled before the relay answers 202, and leaves the spool once it is sent:
-    a relay stopped with it still spooled sends it again when it starts."""
+    """The relay spools a page before it answers 202, and the page leaves the spool once the
+    relay sends it. A relay that stops while the page is still spooled sends it again when it
+    starts."""
     _, _, pager = hooks
     pager.hold = 0.5
     first = Relay(env_for(hooks), tmp_path / "state").up()
@@ -681,8 +685,9 @@ LEAVES = Path(__file__).with_name("relay_leaves.py")
 
 
 def alive(pid: int) -> list[str]:
-    """What `ps` lists of the relay and of everything in its process group or session: the
-    processes that are not zombies, since a zombie is gone and waits only for its reaper."""
+    """Return what `ps` lists of the relay and of everything in its process group or session.
+    These are the processes that are not zombies, since a zombie is gone and waits only for its
+    reaper."""
     listed = subprocess.run(
         ["ps", "-eo", "pid=,pgid=,sid=,stat=,args="], capture_output=True, text=True, check=True
     ).stdout
@@ -694,8 +699,8 @@ def alive(pid: int) -> list[str]:
 
 
 def run_leaves(tmp_path, how: str, *more: str) -> subprocess.Popen:
-    """Start the test of `relay_leaves.py` in a pytest of its own, which writes the relay's pid
-    to a file once the relay listens."""
+    """Start the test of `relay_leaves.py` in a pytest of its own. That test writes the relay's
+    pid to a file once the relay listens."""
     env = {**os.environ, "LEAVES_PIDFILE": str(tmp_path / "pid"), "LEAVES_HOW": how}
     return daemons.start(
         [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-q", str(LEAVES), *more],
@@ -714,7 +719,7 @@ def relay_pid(tmp_path) -> int:
 
 
 def put_away(pid: int) -> None:
-    """Whatever a red run left, so that a failure here leaves nothing either."""
+    """Clean up whatever a red run left, so that a failure here leaves nothing behind either."""
     for line in alive(pid):
         with contextlib.suppress(ProcessLookupError):
             os.kill(int(line.split()[0]), signal.SIGKILL)
@@ -826,8 +831,8 @@ def test_a_failing_route_stays_failing_from_when_it_began_across_a_restart(hooks
 
 
 def test_a_body_refused_for_good_keeps_the_failure_of_the_bodies_behind_it(tmp_path, monkeypatch):
-    """A final 4xx ends a route's failure only when nothing waits behind it: a body still
-    failing behind it keeps the time the failure began."""
+    """A final 4xx ends a route's failure only when nothing waits behind the refused body. A body
+    behind it that still fails keeps the time the failure began."""
     from jbus import relay as relaying
 
     answers = {"first": relaying.Failed("HTTP 503"), "second": relaying.Failed("HTTP 503")}
@@ -861,10 +866,10 @@ def env_for_lane() -> dict[str, str]:
 
 
 def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch):
-    """A beat that read the routes while one still failed, and is held before it writes,
-    cannot write over the beat that read them after the route recovered: the file left is
-    the newer one. The older beat is held inside its read, where a beat that read outside
-    the write lock would let the newer one write first."""
+    """Beat A reads the routes while one still fails, and the test holds A before it writes. Beat
+    B reads the routes after the route recovers. A cannot write over B, so the file left is B's.
+    The test holds A inside its read, since a beat that read outside the write lock would let B
+    write first."""
     import threading
 
     from jbus import relay as relaying

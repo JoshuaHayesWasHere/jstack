@@ -1,7 +1,7 @@
-"""A message that names a head goes only while that is still the pull request's head and
-its crew's thread is not at work, and one conflict is one message. Run as
-`test_jbus_guarded_ask.py` runs: the real pass, against the fakes, over commits that
-are really there."""
+"""A message that names a head goes out only while that head is still the pull request's head and
+its crew's thread is not at work. jbus sends one message for one conflict. Like
+`test_jbus_guarded_ask.py`, the tests run the real pass against the fakes, over commits that are
+really there."""
 
 from datetime import timedelta
 
@@ -34,8 +34,8 @@ def marks(kitchen, kind):
 
 
 class Due:
-    """Alpha, launched by a pass, whose thread ended its turn with pull request #7 open, and
-    main moved since. `at` makes one message of the kind due about a head."""
+    """Alpha is a row that a pass launched. Its thread ended its turn with pull request #7 open,
+    and main moved since. `at` makes one message of that kind due for a head."""
 
     def __init__(self, kitchen, kind):
         self.kitchen, self.kind = kitchen, kind
@@ -76,7 +76,8 @@ def test_a_head_the_pull_request_left_since_the_list_is_told_nothing(kitchen, ki
 
 
 def held_while(kitchen, kind, status):
-    """One pass with the thread in this status and the message due, then two with it ended."""
+    """Run one pass with the thread in this status and the message due, then two passes with the
+    thread ended."""
     due = Due(kitchen, kind)
     due.at(due.head)
     due.thread["status"] = status
@@ -101,7 +102,8 @@ def test_a_thread_that_starts_or_waits_on_a_request_is_at_work_too(kitchen, stat
 
 
 def stale(kitchen, state="SUCCESS", mergeable="CONFLICTING", says=CONFLICT):
-    """A pull request `jmerge` calls stale, in conflict or red, in a pass in which main moved."""
+    """Make a pull request that `jmerge` calls stale, in conflict or red, in a pass in which main
+    moved."""
     due = Due(kitchen, "rebase")
     opened = {**pull(kitchen, "alpha", 7, state, mergeable), "headRefOid": due.head}
     kitchen.set("open.json", [opened])
@@ -147,8 +149,8 @@ def test_a_pass_tells_a_stale_head_main_moved_under_by_the_rebase_message_alone(
 
 
 def test_a_thread_another_message_of_the_pass_started_is_at_work(kitchen):
-    """T3 Code lists the thread as ended when the pass starts, and as running once a message
-    of the pass went to it: the status is asked again at the send."""
+    """T3 Code lists the thread as ended when the pass starts, and as running once a message of
+    the pass went to it. So jbus asks the status again at the send."""
     due = Due(kitchen, "rebase")
     due.at(due.head)
     asked = []
@@ -181,8 +183,9 @@ def test_a_github_that_does_not_give_the_head_again_holds_the_message_back(kitch
 
 
 def test_a_message_held_back_holds_up_no_other_pull_request(kitchen):
-    """Alpha is red and at work when main moves, and beta is green. Beta turns red later,
-    for its own reasons: it was not red at the move, and is told of its failed check alone."""
+    """Alpha is red and at work when main moves, and beta is green. Beta turns red later, for its
+    own reasons. Beta was not red at the move, so jbus tells beta's crew only of beta's failed
+    check."""
     kitchen.config(max_running=2)
     due = Due(kitchen, "mainmoved")
     kitchen.set("jmerge.txt", "")
@@ -225,7 +228,8 @@ def test_what_a_pull_request_is_short_of_is_not_said_of_a_head_it_left(kitchen):
 
 
 def running(kitchen, text=""):
-    """Alpha's crew at work in a turn, with its pull request #7 open."""
+    """Put alpha's crew at work in a turn, with its pull request #7 open, and return the thread's
+    id."""
     thread = kitchen.t3.thread("alpha", "running")
     kitchen.brief("alpha", f"Thread: {thread['threadId']}\n{text}")
     kitchen.set("open.json", [pull(kitchen, "alpha", 7)])

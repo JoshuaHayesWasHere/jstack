@@ -1,6 +1,6 @@
-"""The one state of each piece of work: `work.judge` over every set of facts there is, and
-each ending a pass can meet, run as `features/jbus/tests/test_jbus_queue.py` runs, against a faked
-T3 Code, `gh` and `jmerge`, with `work.json` read back."""
+"""Each piece of work has one state. The tests run `work.judge` over every set of facts there is,
+and run each ending that a pass can meet as `features/jbus/tests/test_jbus_queue.py` runs,
+against a faked T3 Code, `gh` and `jmerge`, with `work.json` read back."""
 
 import json
 import time
@@ -24,7 +24,7 @@ def result(left="none", status="done", branch="alpha   Pull request: none"):
 
 
 def judged(kitchen, key="alpha"):
-    """The line of `work.json` for a key, as the last pass wrote it."""
+    """Return the line of `work.json` for a key, as the last pass wrote it."""
     kept = json.loads((kitchen.state / work.NAME).read_text())
     return {one["key"]: one for one in kept["work"]}[key]
 

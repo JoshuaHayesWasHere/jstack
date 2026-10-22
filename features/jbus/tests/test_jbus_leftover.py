@@ -1,9 +1,9 @@
-"""A task that ended with something left is sent to its home to close, and waits on the user
-only where it has no home or the home did not close it.
+"""When a task ends with something left, jbus sends it to the task's home to close. The task
+waits on the user only where it has no home or the home did not close it.
 
-Run as `test_jbus_row_ends.py` runs: the real pass, against a faked T3 Code server,
-`gh` and `jmerge`, over briefs that are made up. The view is the real server over what
-those passes left, asked over HTTP."""
+Like `test_jbus_row_ends.py`, the tests run the real pass against a faked T3 Code server, `gh`
+and `jmerge`, over briefs that are made up. The view is the real server, reading what those
+passes left, and the tests ask it over HTTP."""
 
 import json
 import re
@@ -29,7 +29,7 @@ ASK = (
 
 
 def home(kitchen, scope="", **more):
-    """A home that runs: its thread, as T3 Code lists it, and its `home-id`."""
+    """Start a home: make its thread, as T3 Code lists it, and write its `home-id`."""
     thread = kitchen.t3.thread("demo", "completed", title=f"home: demo {scope}".strip(), **more)
     where = kitchen.home / scope
     where.mkdir(exist_ok=True)
@@ -38,7 +38,7 @@ def home(kitchen, scope="", **more):
 
 
 def ended(kitchen, slug="alpha", left="the docs", head=""):
-    """A row whose thread ended with a Result that leaves something, and no pull request."""
+    """Make a row whose thread ended with a Result that leaves something, and no pull request."""
     add(kitchen, slug)
     kitchen.brief(slug, head + result(left))
     return kitchen.t3.thread(slug, "completed")
@@ -60,7 +60,7 @@ def later(minutes):
 
 
 class Page:
-    """The view over a kitchen, as `Served` opens one."""
+    """`Page` is the view over a kitchen, as `Served` opens one."""
 
     def __init__(self, kitchen, now=NOW):
         self.kitchen, self.now = kitchen, now

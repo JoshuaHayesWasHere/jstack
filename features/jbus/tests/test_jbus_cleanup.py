@@ -1,8 +1,8 @@
-"""A `Review: after` brief's review hands its findings to one cleanup row. The pr-review
-skill's block is run as the reviewer runs it, parsed out of
-`features/pr-review/after-the-review.md`: `jbus cleanup <brief>`, piped into
-`jbus queue add cleanup-<slug>`. `uv run --project ... jbus` is the real command from this
-checkout, over a made-up config and state, and `gh` gives the merge commit, or nothing."""
+"""The reviewer of a `Review: after` brief puts the review's findings into one cleanup row. The
+tests parse the pr-review skill's block out of `features/pr-review/after-the-review.md` and run
+it as the reviewer does: `jbus cleanup <brief>`, piped into `jbus queue add cleanup-<slug>`. `uv
+run --project ... jbus` is the real command from this checkout, over a made-up config and state.
+`gh` gives the merge commit, or nothing."""
 
 import os
 import subprocess
@@ -29,8 +29,9 @@ CONFIG = (
 
 
 class Reviewer:
-    """The reviewer's machine: the home's brief, jbus's config and state, a `uv` that runs
-    this checkout's `jbus`, and a `gh` that says the pull request merged, or is open."""
+    """`Reviewer` is the reviewer's machine. It has the home's brief, jbus's config and state, a
+    `uv` that runs this checkout's `jbus`, and a `gh` that says the pull request merged, or is
+    open."""
 
     def __init__(self, tmp_path):
         self.home = tmp_path / "home"
@@ -68,7 +69,8 @@ class Reviewer:
         )
 
     def run(self):
-        """The skill's block, with the block at the top that gives H and T."""
+        """Run the skill's block after two lines that set the paths H and T, as the block at the
+        top of the skill does, and return what the block prints."""
         (body,) = [one for one in blocks(SKILL.read_text(), "sh") if "jbus cleanup" in one]
         top = f'H="{self.home}/.local/state/home/demo"\nT="{REPO}/features/crew/templates"\n'
         env = {
@@ -145,8 +147,8 @@ SECOND = (
 
 
 def twice(reviewer, second=None):
-    """A `twice` brief: its first review answered at the head the fix pushed, and the second
-    review of that head, when `second` lists its findings."""
+    """Write a `twice` brief. The crew answered its first review at the head where it pushed its
+    fix. When `second` lists findings, the brief also has the second review of that head."""
     text = (
         '# alpha: a task\nTask: "do it"\nPull request: open one when done\nReview: twice\n\n'
         f"## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n"

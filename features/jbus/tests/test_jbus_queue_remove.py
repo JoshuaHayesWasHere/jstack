@@ -1,6 +1,6 @@
-"""`jbus queue remove` takes a row out of the queue for good: the slug is in `removed.json`,
-and no later pass finds anything for it. Run as `test_jbus_queue.py` runs: the real
-command and the real pass, against a faked T3 Code server, `gh` and `jmerge`."""
+"""`jbus queue remove` takes a row out of the queue for good: the slug is in `removed.json`, and
+no later pass finds anything for it. Like `test_jbus_queue.py`, the tests run the real command
+and the real pass against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
 from datetime import timedelta
@@ -37,7 +37,7 @@ def aside(kitchen, slug, text):
 
 
 def about(kitchen, slug):
-    """Every event of the slug, and every other one whose line names it."""
+    """Return every event of the slug, and every other event whose line names it."""
     return [one["line"] for one in kitchen.events() if slug in (one["slug"], *one["line"].split())]
 
 
@@ -75,7 +75,8 @@ def test_remove_takes_the_row_out_logs_it_and_moves_the_stored_brief_aside(kitch
 
 
 def ended(kitchen, removed):
-    """A row whose thread ended with no Result, and the pass after it was removed or not."""
+    """Make a row whose thread ended with no Result, and run the pass that follows, whether or
+    not the test removed the row first."""
     kitchen.quiet()
     add(kitchen, "alpha", approve=False)
     kitchen.brief("alpha")
@@ -386,7 +387,7 @@ def test_findings_of_a_pull_request_opened_later_reach_its_crew_once(kitchen):
 
 
 def asked(kitchen, words="red?"):
-    """A question alpha piped to `jbus gate`, with its thread in the home's brief."""
+    """Pipe a question from alpha to `jbus gate`, with its thread in the home's brief."""
     kitchen.brief("alpha", "Thread: mcp:a-crew\n")
     asks = GATE.format(n="<n>", asked=words, status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=asks) == (0, "queued: question 1\n")

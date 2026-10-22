@@ -1,10 +1,11 @@
-"""`jbus health` and the health step of every `jbus poll`: each check driven with fake senses and
-the ledger on a clock the test moves, through the real pass against the kitchen's fakes.
+"""These tests cover `jbus health` and the health step of every `jbus poll`. They drive each
+check with fake senses and the ledger, on a clock the test moves, through the real pass against
+the kitchen's fakes.
 
-What is held: one page when an incident starts, none while it holds, one when it clears, and
-each page names its number, what it counts and its limit. For the quota, the capped instance
-is skipped by launches, no launch starts with the whole pool capped, and launches go back on
-their own at the reset, with one line that says so."""
+The tests hold the checks to these rules. A check sends one page when an incident starts, none
+while it lasts, and one when it clears. Each page names its number, what it counts and its limit.
+For the quota, launches skip the capped instance, no launch starts with the whole pool capped,
+and at the reset jbus starts launches again by itself, with one line that says so."""
 
 import json
 from datetime import timedelta
@@ -24,8 +25,8 @@ TIMED_OUT = "jbus.service: Failed with result 'timeout'."
 
 
 class Senses(health.Senses):
-    """The machine as a test sets it: the mounts, the journal of `jbus.service`, and each
-    unit's properties. A journal of None is one that could not be read."""
+    """`Senses` is the machine as a test sets it: the mounts, the journal of `jbus.service`, and
+    each unit's properties. A journal of None is a journal that could not be read."""
 
     def __init__(self):
         self.disks = {"/home": (20 * GIB, 80 * GIB, 0, 0)}
@@ -52,7 +53,7 @@ def senses(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def quiet_plan(kitchen):
-    """The kitchen's plan is on the real clock: these tests write the ledger themselves."""
+    """The kitchen's plan runs on the real clock, so these tests write the ledger themselves."""
     kitchen.machine(plan=None)
 
 
@@ -119,8 +120,8 @@ def test_a_pass_systemd_stopped_at_its_timeout_is_paged_and_clears_after_the_win
 def test_a_jmerge_the_pass_stopped_at_its_timeout_is_read_from_the_line_the_pass_says(
     kitchen, senses, monkeypatch
 ):
-    """The line is the one a real pass says when `jmerge` outlasts its timeout, so the check
-    reads the wording the pass writes to the journal, not a copy of it."""
+    """The line is the one a real pass says when `jmerge` runs past its timeout. So the check
+    reads the wording that the pass writes to the journal, not a copy of it."""
     jmerge = kitchen.stub / "jmerge"
     jmerge.write_text("#!/bin/sh\nsleep 5\n")
     monkeypatch.setattr(merge, "JMERGE_TIMEOUT", 0.2)
@@ -157,9 +158,10 @@ def test_an_incident_whose_mount_is_gone_ends_with_no_page(kitchen, senses):
 
 @pytest.fixture
 def relay(kitchen, senses, monkeypatch, tmp_path):
-    """The config posts to the relay: the project's webhook is at the `RELAY_PORT` of the
-    relay's env file, which is where the unit has it and not in jbus's environment. The relay
-    is up, beat at NOW and heard a body then, with a silence of 90 minutes."""
+    """The config points jbus's posts at the relay. The project's webhook is at the `RELAY_PORT`
+    that the relay's env file sets for the unit. jbus's environment does not set it. The relay is
+    up. Its heartbeat file records a beat at NOW and a body received at NOW, and it alerts after
+    90 minutes of silence."""
     port = kitchen.webhook.url.rsplit(":", 1)[1].split("/")[0]
     for name in ("RELAY_PORT", "RELAY_STATE"):
         monkeypatch.delenv(name, raising=False)

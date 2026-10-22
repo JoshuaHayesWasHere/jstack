@@ -1,6 +1,6 @@
-"""The queue table has one writer per column, and a pass launches only what was approved,
-once. Run as `test_jbus_kitchen.py` runs: the real command and the real pass, against a faked
-T3 Code server, `gh` and `jmerge`."""
+"""Each column of the queue table has one writer, and a pass launches only what the user
+approved, once. Like `test_jbus_kitchen.py`, the tests run the real command and the real pass
+against a faked T3 Code server, `gh` and `jmerge`."""
 
 import hashlib
 import json
@@ -39,7 +39,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def brief(slug, more=""):
-    """A brief with every field `queue add` asks for, and `more` under them."""
+    """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
         f'# {slug}: a task\nHome: mcp:a-home\nTask: "do {slug}"\nDone when:\n- it is done\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
@@ -49,7 +49,7 @@ def brief(slug, more=""):
 
 
 def widened(slug, line="One more line."):
-    """The brief with a `Done when:` item more: a change to what it asks for."""
+    """Return the brief with one more `Done when:` item, which changes what it asks for."""
     return brief(slug).replace("- it is done\n", f"- it is done\n- {line}\n")
 
 
@@ -58,7 +58,7 @@ def sha12(text):
 
 
 def go(kitchen, slug, sha=None, project="demo"):
-    """The user's go for the brief that is stored now, or for the one whose sha is given."""
+    """Give the user's go for the brief that is stored now, or for the one whose sha is given."""
     sha = sha or sha12((kitchen.state_dir / project / "briefs" / f"{slug}.md").read_text())
     argv = ["--project", project, "queue", "approve", slug]
     return kitchen.main(*argv, "--word", kitchen.word(project), "--sha", sha)
@@ -75,8 +75,9 @@ def add(kitchen, slug, priority=1, depends="", approve=True, text=None, project=
 
 
 def queued_before(kitchen, slug, text, priority=1, depends="", approve=True):
-    """A row queued before `jbus queue add` checked a brief: its stored brief is `text`, which
-    `add` would refuse now, and where `approve`, its go is for that text, as a go was then."""
+    """Queue a row the way rows were queued before `jbus queue add` checked a brief. Its stored
+    brief is `text`, which `add` would refuse now. Where `approve` is set, its go is for that
+    text, as a go was then."""
     add(kitchen, slug, priority=priority, depends=depends, approve=approve)
     queue.brief_path(kitchen.state, slug).write_text(text)
     path = kitchen.state / "queue.json"
@@ -286,7 +287,7 @@ def approves(slug, sha):
 
 
 def stored(kitchen):
-    """Everything a queue verb writes: the table and the briefs beside it."""
+    """Return everything a queue verb writes: the table and the briefs beside it."""
     files = [kitchen.state / "queue.json", *sorted((kitchen.state / "briefs").glob("*.md"))]
     return {path.name: path.read_text() for path in files if path.exists()}
 
@@ -393,7 +394,7 @@ def test_a_batch_with_no_verb_is_refused(kitchen):
 
 
 def scene(kitchen, status):
-    """What T3 Code and GitHub say that gives a row this status. The answer is its columns."""
+    """Make what T3 Code and GitHub say to give a row this status, and return the row's columns."""
     t3 = kitchen.t3
     if status == "queued":
         return {}
@@ -470,13 +471,13 @@ def test_a_changed_table_is_one_queue_event_and_a_quiet_pass_sends_none(kitchen)
 
 
 def twenty(kitchen):
-    """A queue of 20 rows."""
+    """Add a queue of 20 rows."""
     for number in range(1, 21):
         add(kitchen, f"row-{number:02}", priority=number, approve=False)
 
 
 def table(kitchen):
-    """The whole table, every row of it."""
+    """Return the whole table, every row of it."""
     return queue.render(list(rows(kitchen).values()))
 
 
@@ -616,7 +617,7 @@ def test_an_approved_row_whose_slug_has_a_settled_thread_is_a_gate(kitchen):
 
 
 def test_a_server_error_on_a_launch_keeps_the_intent_and_is_looked_up(kitchen):
-    """After a 5xx nobody knows whether the thread was made, so nothing is called again."""
+    """After a 5xx, nobody knows whether T3 Code made the thread, so jbus calls nothing again."""
     add(kitchen, "alpha")
     kitchen.t3.status = 503
     kitchen.poll()
@@ -662,8 +663,8 @@ def test_a_row_waits_silently_until_everything_it_depends_on_is_merged(kitchen):
 
 
 def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen):
-    """A train merges into its integration branch, not main: GitHub lists that merge with
-    every other, and the row that depends on it is launched as after any merge."""
+    """A train merges into its integration branch, not main. GitHub lists that merge with every
+    other merge, and jbus launches the row that depends on it as it does after any merge."""
     add(kitchen, "beta", depends="alpha")
     kitchen.brief("alpha", RESULT)
     into_train = {**kitchen.merged("alpha", 7, "a" * 40), "baseRefName": "migration"}
@@ -696,7 +697,8 @@ def test_a_claims_check_that_did_not_run_stops_no_launch_and_is_no_gate(kitchen)
 
 
 def test_a_dependency_merged_long_ago_is_asked_for_by_name_and_stays_merged(kitchen):
-    """The merged list is a window of a hundred: a slug outside it is not unmerged."""
+    """The merged list is a window of a hundred pull requests, so jbus does not take a slug
+    outside the window as unmerged."""
     add(kitchen, "alpha", approve=False)
     add(kitchen, "gamma", depends="alpha,beta")
     old = [
@@ -767,7 +769,8 @@ def test_dispatch_off_a_stop_file_or_the_limit_reached_launch_nothing(kitchen, o
 def test_a_config_with_no_max_running_runs_the_crew_cap_the_machine_derives(
     kitchen, monkeypatch, tmp_path, written, cap
 ):
-    """12 processors and 32 GiB derive a crew a processor: `max_running` in `jgauge.sizes`."""
+    """On a machine with 12 processors and 32 GiB, `jgauge.sizes` derives `max_running` as one
+    crew for each processor."""
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 12, 32)))
     kitchen.config(max_running=written)
     assert jbus.load(kitchen.config_dir).max_running == cap
@@ -880,7 +883,7 @@ def test_a_branch_already_there_with_no_launch_record_is_a_gate(kitchen, ref):
 
 
 def test_a_branch_pushed_since_the_last_fetch_is_a_gate(kitchen):
-    """The remote is asked, not the copy of its branches the main checkout last fetched."""
+    """jbus asks the remote, not the copy of its branches that the main checkout last fetched."""
     add(kitchen, "alpha")
     kitchen.git("push", "-q", "origin", "HEAD:refs/heads/alpha")
     kitchen.git("update-ref", "-d", "refs/remotes/origin/alpha")
@@ -911,7 +914,7 @@ def test_a_key_with_a_thread_is_never_launched_again(kitchen):
 
 
 def reasons(kitchen, now=NOW):
-    """One pass, and what it recorded on `Pass.reasons`."""
+    """Run one pass, and return what it recorded on `Pass.reasons`."""
     seen, second_half = {}, cli.second_half
 
     def kept(half, client):
@@ -977,7 +980,8 @@ def test_any_other_gate_has_no_reason_but_the_gate_and_holds_no_other_row(kitche
 
 
 def two(kitchen, a=0, b=0, **top):
-    """A second project, and `a` and `b` approved rows in the two: a1, a2, and b1, b2."""
+    """Add a second project, and approve `a` rows and `b` rows in the two projects: a1, a2, and
+    b1, b2."""
     other = kitchen.second()
     kitchen.config(**top)
     for project, letter, count in (("demo", "a", a), ("other", "b", b)):
@@ -991,7 +995,7 @@ def launches(kitchen):
 
 
 def sent(other, kind="condition"):
-    """The lines of the second project's events of a kind, as its log has them."""
+    """Return the lines of the second project's events of a kind, as its log has them."""
     every = wake.Box(other.state, jbus.load().project(other.name)).log()
     return [event["line"] for event in every if event["event"] == kind]
 
@@ -1149,7 +1153,8 @@ def test_dispatch_off_sends_no_gate_whether_or_not_the_crews_out_are_known(kitch
 
 
 def readdressed(slug, home="mcp:another-home", thread=""):
-    """The brief as a new home queues it again: another `Home:` line, a `Thread:` line added."""
+    """Return the brief as a new home queues it again, with another `Home:` line and a `Thread:`
+    line added."""
     text = brief(slug).replace("Home: mcp:a-home\n", f"Home: {home}\n")
     return text.replace("Where:", f"Thread: {thread}\nWhere:") if thread else text
 
@@ -1164,7 +1169,8 @@ def readdressed(slug, home="mcp:another-home", thread=""):
     ids=["home", "thread", "both"],
 )
 def test_a_brief_queued_again_with_another_home_or_thread_line_is_still_approved(kitchen, again):
-    """A new home rewrites `Home:` in every brief it takes over: that is not another brief."""
+    """A new home rewrites `Home:` in every brief it takes over, and that does not make another
+    brief."""
     add(kitchen, "alpha")
     approved = rows(kitchen)["alpha"]["brief_sha"]
     add(kitchen, "alpha", approve=False, text=again)
@@ -1203,7 +1209,8 @@ def test_a_change_to_the_goal_or_the_scope_still_voids_the_approval(kitchen, aga
 def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_is_the_same(
     kitchen,
 ):
-    """A row approved before the sha left the two lines out holds the sha of every line."""
+    """The sha once covered every line of the brief, the `Home:` and `Thread:` lines included. A
+    row that the user approved in that time holds the sha of the whole text."""
     kitchen.config(max_running=6)
     for slug in ("alpha", "beta", "gamma"):
         add(kitchen, slug)
@@ -1222,7 +1229,8 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
 
 
 def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
-    """What follows `Home:` or `Thread:` is not hashed, so it is not sent and not written."""
+    """jbus does not hash what follows `Home:` or `Thread:`, so jbus neither sends nor writes
+    that text."""
     add(kitchen, "alpha")
     unsaid = readdressed("alpha", home="mcp:a-home and more", thread="mcp:a-thread and also this")
     add(kitchen, "alpha", approve=False, text=unsaid)
@@ -1245,7 +1253,7 @@ def test_a_brief_on_disk_with_another_thread_line_is_launched_and_gets_the_launc
 
 
 def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_shows(kitchen):
-    """One function says which lines count, so the command a list prints is never refused."""
+    """One function says which lines count, so jbus never refuses the command that a list prints."""
     text = readdressed("alpha", thread="mcp:a-thread")
     shown = queue.brief_sha(brief("alpha"))[:12]
     added = f"add alpha --priority 1\n--- brief alpha\n{text}--- end\n"
