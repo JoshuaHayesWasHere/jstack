@@ -56,6 +56,8 @@ The feature's own docs say what its script does and show the entry the install w
 | `PostToolUse` | [features/home/hooks/home-gauge.sh](features/home/hooks/home-gauge.sh) | claude-code | `home` |
 | the status line | [features/jgauge/hooks/limits.sh](features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](features/jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
+| `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/ai-trailer.sh](features/jleak/hooks/ai-trailer.sh) | claude-code, codex | `jleak` |
 | git `pre-push` | [features/jleak/hooks/pre-push.sh](features/jleak/hooks/pre-push.sh) | git | `jleak` |
+| git `commit-msg` | [features/jleak/hooks/commit-msg.sh](features/jleak/hooks/commit-msg.sh) | git | `jleak` |
 | `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
 <!-- generated: end -->

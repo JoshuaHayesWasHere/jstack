@@ -761,6 +761,28 @@
   ],
   "hooks": [
     {
+      "name": "ai-trailer.sh",
+      "path": "features/jleak/hooks/ai-trailer.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "home-gauge.sh",
       "path": "features/home/hooks/home-gauge.sh",
       "harnesses": [
@@ -842,6 +864,10 @@
     {
       "name": "pre-push",
       "path": "features/jleak/hooks/pre-push.sh"
+    },
+    {
+      "name": "commit-msg",
+      "path": "features/jleak/hooks/commit-msg.sh"
     }
   ],
   "projectSkills": [

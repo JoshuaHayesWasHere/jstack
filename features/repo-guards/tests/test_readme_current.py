@@ -374,7 +374,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     for need in listed.needs(Machine.here(REPO)):
         name = " ".join(word for word in need.name.split() if not word.startswith("/"))
         declared = isinstance(need.kind, (ProviderInstance, HomeSkills))
-        if not name.startswith(("hook", "commands")) and name and not declared:
+        if not name.startswith(("hook", "commands", "attribution")) and name and not declared:
             found[name] = need
     for name in ("git", "jq"):
         kind = found[name].kind

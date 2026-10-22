@@ -74,3 +74,37 @@ It runs `jleak --command` and refuses, with exit code 2:
 It reads the command as the shell would, so a word in a commit message or in another program's arguments is not taken for a push or a body file. It refuses a body that is piped in, since it cannot read one. It does not see a body that the command builds from a variable, or a command inside a quoted string.
 
 The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is this checkout's alone. A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
+
+## AI trailers
+
+No commit and no pull request says an AI wrote it.
+`jleak.trailers` (`features/jleak/src/jleak/trailers.py`) names the lines that would, and both guards below read it:
+
+- `ai-co-author`: a `Co-authored-by:` trailer that names Claude, Codex, OpenAI, Cursor or Copilot, or an `@anthropic.com` address, in any case.
+- `generated-with-claude-code`: the "Generated with Claude Code" line.
+
+A `Co-authored-by:` line that names a person matches neither, and both guards leave it.
+
+`features/jleak/hooks/ai-trailer.sh` is a `PreToolUse` hook on the shell commands of Claude Code and Codex.
+It runs `jleak --trailers`, which needs no private patterns.
+It reads each `git commit` and each `gh pr create`, `gh pr edit` or `gh pr merge` in the command: every word, each here-document, and the message file that `git commit -F` or `gh pr create --body-file` names.
+A message that `cat` writes from a here-document before `git commit -F` reads it is read too.
+A line that matches refuses the command with exit code 2:
+
+```text
+command:3: ai-co-author
+jleak: 1 AI trailer, so the command is refused: drop the line and commit again
+```
+
+It does not read a message file that is not there yet, or one piped in: the next hook takes the trailer out of those.
+
+`features/jleak/hooks/commit-msg.sh` is git's `commit-msg` hook, for Cursor and every other tool that the first hook does not see.
+It runs `jleak --commit-msg`, which takes each such line out of the message, and the blank lines that are then left at its end.
+It prints one line that names what it took out, and leaves a message with no such line exactly as it was:
+
+```text
+jleak: took out of the commit message: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+It never stops a commit, even when it cannot clean the message.
+`sh install.sh` links it at `.git/hooks/commit-msg` of the main checkout, beside `pre-push`, and the repo's worktrees run it too.

@@ -45,7 +45,7 @@ A second run writes nothing.
 | The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
 | Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
 | The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
-| Also checked | nothing more | the generated files are current (`generated files are current`), and the `pre-push` hook of a main checkout |
+| Also checked | nothing more | the generated files are current (`generated files are current`), and the git hooks of a main checkout |
 
 A release's `--uninstall` keeps the tool it runs from: `uv tool uninstall jstack` removes it after.
 A new release replaces its source in place, so the layouts' links stay where they are.
@@ -83,6 +83,22 @@ Cursor gets no hook entry.
 The status line is Claude Code's, a `statusLine` in `~/.claude/settings.json`: the install writes it when the key is absent, replaces one that runs the same script from another layout, and leaves a status line of your own as it is.
 A git hook is no settings entry: the install links `.git/hooks/<name>` of the main checkout to its script, and the repo's worktrees run it too.
 The install leaves every other key of those files as it was.
+
+## AI co-author trailers
+
+The install turns off each harness's own AI co-author trailer, and touches no other key of the file it writes:
+
+| Harness | File | Keys |
+|---|---|---|
+| Claude Code | `settings.json` of `~/.claude` and of each Claude home that `~/.config/jstack/providers.json` declares | `"attribution": {"commit": "", "pr": ""}` and the older `"includeCoAuthoredBy": false` |
+| Cursor | `~/.cursor/cli-config.json`, once Cursor's CLI has made it | `"attribution": {"attributeCommitsToAgent": false, "attributePRsToAgent": false}` |
+| Codex | none | codex-cli 0.163.0 ignores `commit_attribution` as an unrecognized setting: its trailer is a flag of the account's workspace |
+
+A declared home whose `settings.json` is a link to `~/.claude/settings.json`, as `jroles mirror` makes it, shares that one file, and its hook entries with it.
+A declared home with no `settings.json` yet gets none, since `jroles mirror` links it.
+`--check` prints `attribution <file>` as `missing`, or as `old` with the first key that differs.
+`--uninstall` takes out only a key that still holds the install's value.
+A setting alone does not stop an agent that types the trailer into its own commit, so jleak's [AI trailer guards](../../jleak/docs/jleak.md#ai-trailers) refuse the command and clean the message.
 
 ## Releasing
 

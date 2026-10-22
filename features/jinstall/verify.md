@@ -1,6 +1,7 @@
 # Installing jstack
 
 `install.sh` puts every part jstack carries onto a machine: a layout for each harness under `~/.local/share/jstack/harness/` (Claude Code, Codex and Cursor), a link for each skill in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills` into its own harness's layout, the start hook and the tips hook in `~/.claude/settings.json`, the start hook in `~/.codex/hooks.json`, the six commands as the `uv` tool `jstack`, the limits writer as `statusLine`, and, once jbus has a config, the jbus units and the timer. It prints one line for each part, `<state> <level> <name>[ -> <detail>]`, where the state is `ok`, `missing` or `old` and the level is `hard` or `optional`. With `--check` it prints the same lines and writes nothing. With `--uninstall` it takes away what names this checkout and prints `removed <piece>` or `kept <piece> -> <why>`.
+It also puts the AI trailer hook in `~/.codex/hooks.json`, and the keys that turn off each harness's AI co-author trailer.
 
 Paths:
 - `/install.sh`

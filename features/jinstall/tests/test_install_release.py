@@ -143,6 +143,7 @@ def release_parts(home, source):
         *hook_parts(home, source),
         "hard commands jstack",
         f"optional statusline {settings}",
+        f"hard attribution {settings}",
     ]
 
 

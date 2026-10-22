@@ -60,7 +60,10 @@ FEATURES = [
     GOOD
     | {
         "statusLine": {"script": "hooks/limits.sh"},
-        "gitHooks": [{"name": "pre-push", "script": "hooks/p.sh"}],
+        "gitHooks": [
+            {"name": "pre-push", "script": "hooks/p.sh"},
+            {"name": "commit-msg", "script": "hooks/m.sh"},
+        ],
     },
     GOOD
     | {"upstream": [{"from": "pstack/skills/x/SKILL.md", "to": "SKILL.md", "source": "adapted"}]},
