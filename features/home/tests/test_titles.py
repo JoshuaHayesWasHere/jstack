@@ -21,9 +21,9 @@ def blocks(language):
 
 
 def given():
-    """Every JSON block of the home skill, as sent. A launch's twin, the copy that differs only by
-    the model selection, is not valid JSON until the test puts the line `jroles` printed in place
-    of its one placeholder."""
+    """Every JSON block of the home skill, as sent. Each launch has a twin: a copy of it that
+    differs only by the model selection. The twin is not valid JSON until the test puts the line
+    that `jroles` printed in place of its one placeholder."""
     return [json.loads(block.replace("<model selection>", SELECTION)) for block in blocks("json")]
 
 

@@ -44,8 +44,8 @@ def fault(repo: Path, cited: Citation) -> str:
 
 
 def faults(pack: Path, repo: Path) -> list[str]:
-    """One line for each citation that `fault` finds wrong, and one for each source pinned to a
-    commit that cites no line. The lines go note by note."""
+    """One line for each citation that `fault` finds wrong, and one for each source that names a
+    commit but cites no line. The lines are grouped by note."""
     found = []
     for name, text in notes(pack).items():
         for item in uncited(text):

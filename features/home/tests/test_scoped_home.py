@@ -368,8 +368,8 @@ def two_homes_work(homes):
 
 
 def read_before_the_note(homes, *paths, own=None):
-    """Mark the briefs at `paths` as ones a start showed to the home before, by writing them
-    to its `read-seen`."""
+    """Mark the briefs at `paths` as already shown to the home at an earlier start. The function
+    writes them to the home's `read-seen`."""
     with ((own or homes.home_dir) / "read-seen").open("a") as seen:
         for path in paths:
             seen.write(f"{path}: ## Result\n")

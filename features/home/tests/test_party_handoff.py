@@ -1,8 +1,8 @@
 """A party's home is the home of a desk or of an expert. Its folder is `_<name>` under the state
 root, and the folder holds its thread id in a `home-id`. It is no repo's home. So `/handoff` finds
 it by that id, writes its page and starts its next thread, and does nothing else. `/home` starts
-nothing there. Each test takes every block from the skill that gives it and runs it in a temporary
-state root laid out like a party's."""
+nothing there. Each test takes the blocks it needs from the skill that has them. It runs those
+blocks in a temporary state root laid out like a party's."""
 
 import json
 import os

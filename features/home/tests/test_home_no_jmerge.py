@@ -111,8 +111,8 @@ class Repo:
             (self.state / "home-thread").write_text(held)
 
     def sh(self, *texts, me=ME):
-        """Fill in each placeholder in quotes, and run the blocks in one call, as a home
-        would."""
+        """Replace each placeholder with `me` in single quotes, and run the blocks in one call, as
+        a home would."""
         script = FILLED.sub(f"'{me}'", "\n".join(texts))
         ran = subprocess.run(
             ["sh", "-c", script],
