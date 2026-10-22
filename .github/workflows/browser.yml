@@ -27,9 +27,11 @@ env:
 
 jobs:
   browser:
-    # GitHub's hosted runner, as in check.yml.
+    # GitHub's hosted runner, as in check.yml. The 94 browser tests run one at a time, and
+    # the job took 4 and 6 minutes on two runs of 2026-10-22: 15 leaves room for a slow
+    # runner, and a hung run still stops.
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       # The stable Google Chrome that GitHub's image installs. A Chromium snapshot's virtual
       # time now and then never starts, and the browser tests then wait out their bound.

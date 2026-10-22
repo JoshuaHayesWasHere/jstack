@@ -44,7 +44,8 @@ jobs:
     # with a change to this file. GitHub still refreshes the image about weekly, so the
     # versions of what the suite finds there (Google Chrome, git, gh, jq) move with it.
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # A change the whole suite rests on runs all of it, as `full` does, so the cap is full's.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,7 +111,9 @@ jobs:
   # real browser are not in it: browser.yml runs them, nightly and on a release.
   full:
     if: github.event_name != 'pull_request'
-    # GitHub's hosted runner, as the check's.
+    # GitHub's hosted runner, as the check's. The job took 9 and 15 minutes on two runs of
+    # 2026-10-22, the same suite on runners of the same image: 30 leaves room for a slow one,
+    # and a hung run still stops.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -152,7 +155,7 @@ jobs:
       # and of this runner's cgroup. GitHub's hosted runner sets no CPU quota, so its quota
       # reads `none`.
       - name: suite summary
-        if: steps.suite.outcome == 'success' || steps.suite.outcome == 'failure'
+        if: "!cancelled() && (steps.suite.outcome == 'success' || steps.suite.outcome == 'failure')"
         continue-on-error: true
         env:
           JUNIT: ${{ runner.temp }}/junit.xml

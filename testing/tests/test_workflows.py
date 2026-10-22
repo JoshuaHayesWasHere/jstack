@@ -117,8 +117,10 @@ def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_an
 def worked(expression, values):
     """What an expression gives with these values for the names in it, worked out here.
 
-    It reads `&&`, `||`, `==`, `!=` and a string in single quotes, as `picked` does.
+    It reads `&&`, `||`, `==`, `!=`, a string in single quotes, and `!cancelled()`, which is true:
+    the run it works out is one nobody cancelled.
     """
+    expression = expression.replace("!cancelled()", "True")
     for name in sorted(values, key=len, reverse=True):
         expression = expression.replace(name, repr(values[name]))
     return eval(expression.replace("&&", " and ").replace("||", " or "), {"__builtins__": {}})
@@ -373,14 +375,13 @@ def cap(text, job):
     return None
 
 
-# Each job's cap in minutes, set from a measured run on GitHub's hosted runner.
 CAPS = {
     ("borders.yml", "borders"): "5",
-    ("browser.yml", "browser"): "30",
-    ("check.yml", "check"): "20",
+    ("browser.yml", "browser"): "15",
+    ("check.yml", "check"): "30",
     ("check.yml", "full"): "30",
-    ("pstack-drift.yml", "drift"): "10",
-    ("release.yml", "release"): "25",
+    ("pstack-drift.yml", "drift"): "5",
+    ("release.yml", "release"): "30",
 }
 
 
@@ -995,7 +996,6 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
     assert found[-1] == {"name": "make check-browser", "run": "make check-browser"}
     for job in ("check", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
-    assert cap(BROWSER.read_text(), "browser") == "30"
 
 
 PIN = "${{ env.UV_VERSION }}"
