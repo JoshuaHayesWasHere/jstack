@@ -166,6 +166,7 @@ TARGETS = {"webhook": ("RELAY_WEBHOOK_URL", "RELAY_WEBHOOK_KEY")}
 OLDER = {"RELAY_WEBHOOK_URL": "GROK_WEBHOOK_URL", "RELAY_WEBHOOK_KEY": "GROK_WEBHOOK_KEY"}
 """The older name of each of the webhook's keys, which the relay reads when the neutral one is
 not set, so an env file written before the neutral names still starts it."""
+VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 PAGER = ("PAGER_HA_URL", "PAGER_HA_TOKEN", "PAGER_HA_SERVICE")
 ROUTES = (
     Route("everything", "webhook", everything),
@@ -203,16 +204,17 @@ def _unusable(env: Mapping[str, str], key: str) -> str | None:
 
 def env_file(path: Path) -> dict[str, str]:
     """Read the relay's env file as systemd's `EnvironmentFile=` reads it: one `KEY=value` a
-    line, an `export ` before the key and quotes around the value left out. A file that cannot
-    be read is empty."""
+    line, with quotes around the value left out. systemd skips a line whose key is not a
+    variable name, such as `export KEY=value`, so this does too. A file that cannot be read is
+    empty."""
     try:
         lines = path.read_text().splitlines()
     except (OSError, UnicodeDecodeError):
         return {}
     found = {}
     for line in lines:
-        key, equals, value = line.strip().removeprefix("export ").partition("=")
-        if equals and key.strip() and not key.startswith("#"):
+        key, equals, value = line.strip().partition("=")
+        if equals and VARIABLE.fullmatch(key.strip()):
             found[key.strip()] = value.strip().strip("'\"")
     return found
 
