@@ -84,7 +84,7 @@ class Fake:
             "title": given["title"],
             "status": "running",
             "settled": False,
-            "branch": given["workspaceStrategy"]["branch"],
+            "branch": given["workspaceStrategy"].get("branch"),
             "createdAt": now(),
             "updatedAt": now(),
         }

@@ -2,7 +2,7 @@
 
 `jbus poll` is one pass over every project: it reads the queue, the briefs, T3 Code and GitHub, launches what is approved and has room, tells each thread what it must act on, runs `jmerge`, and writes what it saw to the state directory.
 Every other `jbus` verb reads or writes that state, and `jbus view` is a local web page over it.
-This page has three journeys: a queue row from add to launch, a gate that wakes the Chef, and a red main that files the brief for its fix.
+This page has four journeys: a queue row from add to launch, a scout's request from add to launch, a gate that wakes the Chef, and a red main that files the brief for its fix.
 The pass as a whole and the view have no recipe yet: their tests are the ones that import the `jbus` package, which `scripts/select_tests.py` follows through the imports, and the view's page is driven in a headless browser with axe (`features/jbus/tests/fixtures/jbus-view/axe-run.js`).
 
 Paths:
@@ -34,6 +34,13 @@ A queue row, from add to launch (`queue-row`):
 - `queue-thread-line` writes `Thread: <id>` into the brief the crewmate reads.
 - `queue-derived` refuses a command that tries to write a derived column.
 
+A scout's request, from add to launch (`scout-path`):
+
+- `scout-add` stores a request in the template's shape in the home's `scouts/`, and refuses one with a crewmate's line, naming the line.
+- `scout-approve` records the user's go for the request's sha, on a word `jbus word` kept.
+- `scout-launch` launches one `scout: <slug>` thread on the next pass, in the project's own checkout, with no branch.
+- `scout-show` prints each request's state, its thread and what its last Report says.
+
 A gate wakes the Chef (`gate-wake`):
 
 - `gate-queue` queues a gate from stdin and prints `queued`.
@@ -57,6 +64,7 @@ A red main files the brief for its fix (`main-red`):
 - Run `jbus queue hold <slug>`.
 - Run `jbus queue show` to read the table.
 - Run `jbus poll`, which the systemd timer runs on the live machine, for one pass.
+- Run `jbus scout add <slug>` with the request on stdin, `jbus scout approve <slug> --sha <12 characters> --word <id>`, and `jbus scout show`.
 - Run `jbus gate <slug>` with the gate's lines on stdin, from the project's repo.
 - Run `jbus done <slug>` with the result's lines on stdin.
 - Run `jbus poll` for one pass.
@@ -88,6 +96,32 @@ Preconditions:
 - **Check the brief.** Run `record queue-row cat "$HOME/.local/state/home/demo/tasks/alpha.md"`. It is the brief that was piped in, with the line `Thread: mcp:sandbox-thread-1` added.
 - **Pass again.** Run `record queue-row jbus poll`. Nothing is launched: `t3/calls.jsonl` still has one `t3_thread_launch`.
 - **Proof.** Copy `t3/calls.jsonl`, `gh/calls.log`, the brief and `$JBUS_STATE_DIR/demo/queue.json` into `$VERIFY_JSTACK_EVIDENCE`, as the skill's Evidence section shows.
+
+### A scout's request, from add to launch
+
+Preconditions:
+
+- A new sandbox, `env.sh` sourced, `doctor: ok`.
+- No `jbus poll` has run in it.
+
+- **Write the request**: write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none` and `Out of bounds: read-only. <what it must not do>`.
+- **Add it**: run `record scout-path jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
+  It prints `added alpha: request <12 characters>, waits for a go`, and the request is in `$HOME/.local/state/home/demo/scouts/alpha.md`.
+- **Try a crewmate's line**: pipe in a request with a `Task:` line, as `printf '# beta: x\nTask: "do it"\n' | record scout-path jbus --project demo scout add beta`.
+  It exits 1 and names `a Task: line, which only a crewmate's brief has`, and no `scouts/beta.md` is written.
+- **Keep a word, and approve**: run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `record scout-path jbus --project demo scout approve alpha --sha <the 12 characters> --word <the id>`.
+  It prints `approved alpha: request <12 characters>, your word, ...`.
+- **Pass**: run `record scout-path jbus poll`.
+  It prints `launched scout alpha: mcp:sandbox-thread-1`.
+- **Check the launch itself**: run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
+  There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "root"}`, and `t3/threads.json` gives its thread the branch `null`.
+- **Check the repo**: run `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format='%(refname)'`.
+  It lists `main` and the origin's refs, and no branch more.
+- **Pass again, and read the table**: run `record scout-path jbus poll`, then `record scout-path jbus --project demo scout show`.
+  Nothing more is launched, and the row reads `| alpha | launched | none | mcp:sandbox-thread-1 | ...`.
+- **Write a Report**: append `## Report` with `Status: done` to the request, then run `record scout-path jbus --project demo scout show`.
+  The row's report reads `reported`.
+- **Proof**: copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/scouts.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ### A gate wakes the Chef
 

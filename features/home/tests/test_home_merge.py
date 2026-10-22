@@ -107,9 +107,12 @@ case "$1 $2" in
         cat "$STUB/default" 2> /dev/null || echo main ;;
     "api --paginate")
         [ "$3 $4" = "repos/{owner}/{repo}/pulls/7/files --jq" ] || exit 64
-        [ "$5" = ".[] | .previous_filename // empty" ] || exit 64
         echo "$GH_REPO" > "$STUB/asked-about"
-        cat "$STUB/left" ;;
+        case "$5" in
+            ".[] | .previous_filename // empty") cat "$STUB/left" ;;
+            ".[] | {filename, status}") cat "$STUB/every" ;;
+            *) exit 64 ;;
+        esac ;;
     "api repos/"*"/check-runs")
         cat "$STUB/main-check-runs.json" ;;
     "pr merge")

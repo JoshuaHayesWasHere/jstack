@@ -81,15 +81,18 @@ def thread_of(brief: str) -> str:
     return ""
 
 
-def write_thread(run: Pass, slug: str, thread: str, *, replace: bool = True) -> None:
-    """Put `Thread: <id>` in the head of `tasks/<slug>.md`, as the home skill's step 3 does.
+def write_thread(
+    run: Pass, slug: str, thread: str, *, replace: bool = True, kind: str = "tasks"
+) -> None:
+    """Put `Thread: <id>` in the head of `tasks/<slug>.md`, as the home skill's step 3 does, or
+    of `scouts/<slug>.md` with `kind` `scouts`.
 
     The line replaces an earlier `Thread:` line, so a brief never has two. Where the brief has
     none, the line goes above the first `## `, so it is above any Result that a fast crewmate
     has already written. Without `replace`, the function leaves a brief that already has a
     `Thread:` line as it is, whatever thread that line names.
     """
-    path, line = run.home / "tasks" / f"{slug}.md", f"Thread: {thread}"
+    path, line = run.home / kind / f"{slug}.md", f"Thread: {thread}"
     try:
         lines = path.read_text().splitlines()
     except (OSError, ValueError):
@@ -300,15 +303,19 @@ def mirrored_choice(
         skip[at] = f"{at} is not mirrored"
 
 
-def room(run: Pass, instance: str | None) -> tuple[str, list[str]]:
+def room(
+    run: Pass, instance: str | None, *, role: str = "crew", light: bool = False
+) -> tuple[str, list[str]]:
     """Return why a launch has no room, or nothing when it has room, together with the
     notes that `jgauge room` gave. `jgauge room` reads the plan's limits for `instance`, the
     instance the launch goes to. When the launch names no instance and takes the default, it
-    reads the limits of the built-in one.
+    reads the limits of `role`'s pool. `light` skips the load and the CPU pressure, for a
+    thread that adds almost no CPU, such as a scout's.
 
     A check that did not run, or that said neither `go` nor `wait: `, also counts as no room.
     """
-    ran = run.run("jgauge", "room", *(("--instance", instance) if instance else ()))
+    asked = ("--instance", instance) if instance else ("--role", role) if role != "crew" else ()
+    ran = run.run("jgauge", "room", *asked, *(("--light",) if light else ()))
     said = ran.stdout.strip()
     if ran.returncode == 0 and said == "go":
         noted = (line.partition("note: ") for line in ran.stderr.splitlines())

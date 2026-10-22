@@ -276,6 +276,19 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
     )
 
 
+def listed_in_full(one: PullRequest, every: list[dict]) -> PullRequest:
+    """`one` with the files of GitHub's files endpoint, which pages through up to 3000 of them,
+    where `gh pr list` lists the first 100. Its `status` is the change type in lower case."""
+    if len(every) <= len(one.files):
+        return one
+    return replace(
+        one,
+        files=tuple(file["filename"] for file in every),
+        renamed=any(file.get("status") == "renamed" for file in every),
+        added=tuple(file["filename"] for file in every if file.get("status") == "added"),
+    )
+
+
 def _fields(line: str) -> list[str]:
     return line.split()
 
