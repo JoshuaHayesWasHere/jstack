@@ -1,4 +1,4 @@
-"""The crew skill's base for a pull request and "A link that moved"."""
+"""The crew skill's base for a pull request, and its "A link that moved"."""
 
 import os
 import subprocess
@@ -11,8 +11,8 @@ from jmerge import ready
 
 
 def base_of(tmp_path, brief, knows_default=True):
-    """What the block that prints a pull request's base says for a brief, in a clone of a
-    repo whose default branch is `main`."""
+    """What the block that prints a pull request's base says for a brief, in a clone of a repo
+    whose default branch is `main`."""
     origin, work = tmp_path / "origin.git", tmp_path / "work"
     git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
     git(tmp_path, "init", "-q", "-b", "main", str(work))

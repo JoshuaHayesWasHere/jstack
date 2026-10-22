@@ -1,11 +1,13 @@
-"""The checkout's own skills: each skill of this repo's own that a feature declares
-(`projectSkills`, which the generator lists in skills.json), linked into the checkout's
-`.claude/skills/<name>` and `.cursor/skills/<name>`, where Claude Code and Cursor read a repo's
-skills (`Harness.project`). git tracks neither folder: the install makes them.
+"""The checkout's own skills.
 
-Listed only with a checkout, a release has none, and due only when HOME is the account's own or
-holds the checkout, as a git hook is: a run under a sandbox's or a test's HOME leaves a
-checkout outside it as it is.
+A feature declares the repo's own skills in `projectSkills`, which the generator lists in
+skills.json. The install links each one into the checkout's `.claude/skills/<name>` and
+`.cursor/skills/<name>`, the folders where Claude Code and Cursor read a repo's skills
+(`Harness.project`). git tracks neither folder: the install makes them.
+
+`needs()` lists these needs only when there is a checkout, since a release has none. Like a
+git hook, they are due only when HOME is the account's own or holds the checkout, so a run
+under a sandbox's or a test's HOME leaves a checkout outside that HOME as it is.
 """
 
 import os
@@ -17,8 +19,8 @@ from jinstall.machine import Dropped, Machine
 
 
 def ours(machine: Machine) -> bool:
-    """Whether this run may write in the checkout it installs from: never a linked worktree
-    under the account's own HOME, which the install refuses."""
+    """Whether this run may write in the checkout it installs from. It may never write in a
+    linked worktree under the account's own HOME, since the install refuses to run from one."""
     checkout = machine.checkout
     if checkout is None or machine.in_a_worktree_of_the_account():
         return False
@@ -28,7 +30,7 @@ def ours(machine: Machine) -> bool:
 @dataclass(frozen=True)
 class ProjectLink:
     """A link from `<checkout>/<root>/<name>` to the folder of a declared project skill.
-    ok, old, foreign and drop as `Link`'s."""
+    Its states ok, old and foreign, and its drop, are the same as `Link`'s."""
 
     path: Path
     target: Path
@@ -50,8 +52,9 @@ class ProjectLink:
 
 
 def stray(path: Path, checkout: Path, declared: frozenset[str]) -> bool:
-    """Whether `path`, under a project root of `checkout`, is a link into the checkout by a
-    name no feature declares: what the install made for a skill whose declaration is gone."""
+    """Whether `path`, under a project root of `checkout`, is a link into the checkout with a
+    name that no feature declares. The install made such a link for a skill whose declaration
+    is now gone."""
     return (
         path.is_symlink()
         and path.name not in declared
@@ -62,7 +65,8 @@ def stray(path: Path, checkout: Path, declared: frozenset[str]) -> bool:
 @dataclass(frozen=True)
 class StrayProjectLink:
     """A link under the checkout's project roots into the checkout, for a skill no feature
-    declares. Listed only when found, old until it is unlinked. put and drop unlink it."""
+    declares. `needs()` lists it only when it finds one, and the probe answers old until put or
+    drop unlinks it."""
 
     path: Path
     declared: frozenset[str]

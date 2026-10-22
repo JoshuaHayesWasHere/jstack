@@ -1,6 +1,6 @@
-"""`jbus plan` counts a plan entry's status from its queue rows when it is read, and `jbus
-queue add --entry` is what ties a row to its entry. Run as `test_jbus_kitchen.py` runs: the
-real command, against the kitchen's config, state and home directory."""
+"""`jbus plan` counts a plan entry's status from its queue rows when it reads the plan, and `jbus
+queue add --entry` is what ties a row to its entry. Like `test_jbus_kitchen.py`, the tests run
+the real command against the kitchen's config, state and home directory."""
 
 import json
 
@@ -186,8 +186,8 @@ def test_a_scoped_homes_plan_is_read_by_its_scope(kitchen):
 
 
 def test_a_plan_of_seventeen_entries_prints_under_2500_characters(kitchen):
-    """The live plan's shape: long one-lines, typed lines of a thousand characters, and one
-    entry of seven rows."""
+    """The plan has the live plan's shape: long one-lines, typed lines of a thousand characters,
+    and one entry of seven rows."""
     parts = ["# demo: plan\n\nA paragraph that opens the plan.\n"]
     for number in range(17):
         slug = f"an-entry-of-the-plan-{number:02}"
@@ -239,7 +239,8 @@ def test_a_finished_row_with_something_left_is_not_counted_as_finished():
 
 
 def test_a_plan_asked_for_in_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_path):
-    """The home skill is every repo's: a home elsewhere is not shown this project's plan."""
+    """Every repo has the same home skill, so jbus does not show this project's plan to a home in
+    another repo."""
     other = tmp_path / "another-repo"
     kitchen.git("init", "-q", str(other), cwd=tmp_path)
     kitchen.monkeypatch.chdir(other)

@@ -1,7 +1,7 @@
-"""What a test of a skill's shell blocks shares: each block lifted out of the skill as an agent
-reads it, run under a home directory and in a repository of the test's own, and the skill linked
-where a user has it. The tests of each skill's own feature import these by the module's bare
-name."""
+"""Helpers that the tests of a skill's shell blocks share. They lift each block out of the skill
+in the form an agent reads, and run it under a home directory and in a repository that each
+test makes. They also link the skill into the place where a user's install puts it. The tests
+of each skill's own feature import these by the module's bare name."""
 
 import os
 import re
@@ -22,14 +22,15 @@ FROM_ROOT = re.compile(r"`((?:playbooks|principles|skills)/[^`<>*\s]+\.md)`")
 
 
 def blocks(text, language):
-    """The body of every fenced block of `language` in a skill, indent taken off, in order."""
+    """The body of every fenced block of `language` in a skill, in order, with the indent taken
+    off."""
     found = re.findall(rf"^([ \t]*)```{language}\n(.*?)^\1```$", text, re.M | re.S)
     return [textwrap.dedent(body) for _, body in found]
 
 
 def block(skill, marker):
-    """The one `sh` block of the skill named `skill`, as an agent reads it, that has `marker`
-    in it."""
+    """The one `sh` block that has `marker` in it, in the skill named `skill`. The function
+    reads the skill as an agent reads it."""
     (found,) = [b for b in blocks(as_read(SKILLS[skill] / "SKILL.md"), "sh") if marker in b]
     return found
 
@@ -74,15 +75,17 @@ def transcripts(home, directory):
 
 
 def linked(home, name, to=None):
-    """A skill where a user has it: a link from `~/.claude/skills` into the harness copy."""
+    """Link a skill from `~/.claude/skills` into the harness copy, the same link that a user's
+    install makes."""
     link = home / ".claude" / "skills" / name
     link.parent.mkdir(parents=True, exist_ok=True)
     link.symlink_to(to or COPY / "skills" / name)
 
 
 def prints_the_root_and_names_only_files_under_it(name, repo, home):
-    """A skill that names files outside its own directory, linked where a user has it: its
-    block prints the repo's root, and every file it names from there is under it."""
+    """Check a skill that names files outside its own directory, by paths from the repo's
+    root. The test links the skill the way a user's install does. The skill's block then prints
+    that root, and every file the skill names is under the root."""
     linked(home, name)
     (root,) = run(block(name, "no root:"), repo, home)
     assert root == str(COPY)
@@ -96,7 +99,8 @@ def prints_the_root_and_names_only_files_under_it(name, repo, home):
 
 
 def says_it_is_no_link_into_the_repo(name, repo, home):
-    """The same skill with no link, and then a folder in its place: its block says so."""
+    """Check the same skill with no link, and then with a folder in the link's place. Each
+    time, its block says that the skill is no link into the repo."""
     said = f"no root: ~/.claude/skills/{name} is not a link into the repo this skill lives in"
     assert run(block(name, "no root:"), repo, home) == [said]
     (home / ".claude" / "skills" / name).mkdir(parents=True)

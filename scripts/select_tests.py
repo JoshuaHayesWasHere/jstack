@@ -1,58 +1,65 @@
 """Which test files a change needs: `select_tests.py <base> <head>`.
 
-It reads what changed with `git diff --name-only --no-renames <base> <head>` and prints, one per
-line and sorted, the test files to run, or `all`. It reads the imports of the tree checked out
-here, so the same two commits give the same lines. It needs only the standard library, so it
-runs before `uv sync`.
+It reads what changed with `git diff --name-only --no-renames <base> <head>`. It prints the
+test files to run, sorted and one per line, or it prints `all`. It reads the imports of the
+tree checked out here, so the same two commits give the same lines. It needs only the standard
+library, so it runs before `uv sync`.
 
-A changed module, of `src/` or a feature's `features/<name>/src/`, of the tests or of `testing/`,
-selects the test files that import it, directly or through any chain of modules: a test file
-that imports a module that imports it is selected too. The tests are in `testing/tests/` and in
-each feature's own, `features/<name>/tests/`.
-A test file may be in a folder of one, as `features/jbus/tests/view/test_view_bus.py`, and is taken
-to import the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
-selected itself. A module that calls `importlib.import_module` is taken to import every module
-under its directory. A test with a string that is the name of a package of a `src/` is taken to
-run it in a process of its own, and to import every module of it. A file in a package that is
-no module (a page, a pattern list) is read as a change to the modules of a `src/` whose strings
-name it, and with none to the modules beside it.
+A changed module selects the test files that import it, directly or through any chain of modules. So
+the script also selects a test file that imports a module that imports the changed module. The
+module may be in `src/`, a feature's `features/<name>/src/`, the tests or `testing/`. The tests are
+in `testing/tests/` and in each feature's own folder of tests, `features/<name>/tests/`. A test file
+may sit in a folder below one of those, as `features/jbus/tests/view/test_view_bus.py` does. The
+script counts such a file as importing the `conftest.py` of each folder it is in below that
+`tests/`. A changed test file selects itself. The script counts a module that calls
+`importlib.import_module` as importing every module under its directory.
+
+A test may hold a string that is the name of a package of a `src/`. The script counts such a
+test as running that package in a process of its own, so the test imports every module of the
+package. A file in a package may be no module, such as a page or a pattern list. The script
+reads a change to such a file as a change to the modules of a `src/` whose strings name it.
+When no module names it, the change counts for the modules beside it.
 
 A changed file that is no module (a doc, a skill, a hook) selects the test files that spell its
-path, in the file or in a test module it imports: the parts of a path in a string or a `/`
-chain, from its file name up the directories until no other tracked file ends alike, as `crew`
-and `SKILL.md` for `features/crew/SKILL.md`. A fixture selects the tests that spell it or the
-nearest directory above it, and `all` where none does. The map of verify-jstack's features,
-with each `features/<name>/verify.md`, adds to this: a feature file names the paths a feature
-owns (`Paths:`, in jmerge's pattern syntax) and the tests that read them in a way no string
-shows (`Tests:`), and a changed path
-selects the `Tests:` of each feature that owns it. An edit to a feature file selects that
-feature's tests: its `Tests:` and every test file that imports a module it owns. The map's
-page, `CROSS`, lists the test files that read the whole tree (`Cross-cutting:`), which every change
-runs.
+path, in the test file itself or in a test module it imports. A test spells a path with the parts of
+a string or of a chain of `/` joins. The parts start at the file name and go up through the
+directories until no other tracked file has the same ending: `crew` and `SKILL.md` spell
+`features/crew/SKILL.md`. A changed fixture selects the tests that spell it or the nearest directory
+above it. When no test spells either, the fixture selects `all`.
 
-It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more: such
-a run costs about what the whole suite does, and run whole it leaves the tree's marker. And
-it prints `all` when a changed path is one every test rests on: `pyproject.toml`, `uv.lock`,
-the root `conftest.py`, a plugin it names in `pytest_plugins` from `testing/` (as
-`testing/jstack_fixtures.py`) and the modules that one uses at its top level, or a module any
-plugin uses in an autouse fixture. A test module named there is loaded for its fixtures. A
-module only other fixtures use
-selects the tests that ask for those fixtures, directly or through fixtures that use them, and
-a plugin's own module is one its fixtures use. A test file the change deleted is not
-printed. A test module that marks itself `browser` is never printed: it runs in the browser
-job.
+The map of verify-jstack's features, with each `features/<name>/verify.md`, adds more
+selections. A feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
+syntax). It also names the tests that read those paths in a way no string shows (`Tests:`). A
+changed path selects the `Tests:` of each feature that owns it. An edit to a feature file
+selects that feature's tests: its `Tests:` and every test file that imports a module it owns.
+The map's page, `CROSS`, lists the test files that read the whole tree (`Cross-cutting:`), and
+every change runs them.
 
-With `$GITHUB_STEP_SUMMARY` set it adds one line to that file: `check-fast selection=<all|some>
+It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more. Such a
+run costs about what the whole suite does, and a whole run leaves the tree's marker. It also
+prints `all` when a changed path is one that every test depends on. Those paths are
+`pyproject.toml`, `uv.lock` and the root `conftest.py`. They also include each plugin of
+`testing/` that the root `conftest.py` names in `pytest_plugins` (as
+`testing/jstack_fixtures.py`), with the modules that plugin uses at its top level. And they
+include each module that a plugin uses in an autouse fixture.
+
+When `pytest_plugins` names a test module, pytest loads that module for its fixtures. A module
+that only other fixtures use selects the tests that ask for those fixtures, directly or
+through fixtures that use them. A plugin's own module counts as one its fixtures use. The
+script does not print a test file the change deleted. It never prints a test module that marks
+itself `browser`, because that module runs in the browser job.
+
+With `$GITHUB_STEP_SUMMARY` set, it adds one line to that file: `check-fast selection=<all|some>
 files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n>
-forced-by=<path>`: the keys are always these, in this order, each cause's count is the files
-it selected on its own (they overlap), and `forced-by` is `-` unless the path it names made
-the selection `all`, or `share` where its size did. A collector reads that line. With
-`$GITHUB_OUTPUT` set it gives the step the output `selection`, `all` or `some`: the check
-workflow leaves the tree's marker on a pass of `all`.
+forced-by=<path>`. The keys are always these, in this order. Each cause's count is the number of
+files it selected on its own, so the counts overlap. `forced-by` names the path that made the
+selection `all`. It is `share` when the selection's size made it `all`, and `-` otherwise. A
+collector reads that line. With `$GITHUB_OUTPUT` set, it gives the step the output `selection`,
+`all` or `some`: the check workflow leaves the tree's marker on a pass of `all`.
 
-The diff is two-dot, so for a pull request `<base>` is where it left main (`git merge-base`)
-or the parent of its merge commit: a base main has moved past adds main's own changes, which
-selects more and never less.
+The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
+merge-base`) or the parent of its merge commit. A base that main has moved past adds main's own
+changes to the diff, which selects more tests and never fewer.
 """
 
 import ast
@@ -82,13 +89,14 @@ WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 
 
 class Unread(Exception):
-    """A file the selection rests on could not be read, so no path is known to be outside."""
+    """The script could not read a file the selection depends on, so it cannot tell that any
+    path is outside the selection."""
 
 
 @cache
 def ready():
-    """jmerge's reading of a list of paths, from this checkout's packages: `src/` and each
-    feature's `src/`, as `install.sh` puts them on the path."""
+    """jmerge's reader of a list of paths, imported from this checkout's packages: `src/` and
+    each feature's `src/`, as `install.sh` puts them on the path."""
     try:
         folders = [ROOT / "src", *sorted(ROOT.glob("features/*/src"))]
         sys.path[:0] = [str(folder) for folder in folders]
@@ -99,10 +107,10 @@ def ready():
 
 
 def listed(text, label):
-    """The entries under the first line of `text` that starts with `label`: one backticked entry
-    on each `- ` line after it, up to a blank line, the next `<Label>:` line or the end. A label
-    line that holds an entry, or any other line before the list ends, is a map no line per entry
-    keeps apart."""
+    """The entries under the first line of `text` that starts with `label`: one backticked entry on
+    each `- ` line after it, up to a blank line, the next `<Label>:` line or the end. This raises
+    `Unread` if the label line holds an entry, or if a line in the list is not one backticked entry
+    after `- `."""
     lines = text.splitlines()
     for at, line in enumerate(lines):
         if line.startswith(f"{label}:"):
@@ -160,13 +168,14 @@ def plumbing(path):
 
 @cache
 def modules():
-    """Every module of `src/` and of each feature's `src/`, of each folder of tests and of
-    `testing/`, by its dotted name:
-    the file it is, from the root. Each folder of tests, `testing/tests/` and each feature's
-    own, is on pytest's path, so its modules are named from it: a module in a folder below it as
-    `view.scene`, such a folder being a package, so its `conftest.py` is not taken for a root's.
-    `testing/` is a package at the root, so its modules are `testing.<name>`, but for its
-    `tests/`, a folder of tests named from itself. The fixtures' folders hold none."""
+    """Every module of `src/`, of each feature's `src/`, of each folder of tests and of
+    `testing/`, by its dotted name, with the path of its file from the root. pytest's `pythonpath`
+    lists each folder of tests: `testing/tests/` and each feature's own `tests/`. So the modules in
+    a folder of tests take their names from that folder. A module in a folder below it gets a name
+    such as `view.scene`. Such a folder is a package, so pytest does not mistake its `conftest.py`
+    for the `conftest.py` of a root. `testing/` is a package at the root, so its modules are
+    `testing.<name>`. Its `tests/` is the exception: it is a folder of tests, so its modules take
+    their names from that folder. The fixtures' folders hold no module."""
     roots = [
         ROOT / "src",
         *sorted(ROOT.glob("features/*/src")),
@@ -231,7 +240,7 @@ def parents(name):
 
 @cache
 def sources():
-    """Each module, read."""
+    """Each module, with what `read` finds in its source."""
     found = {}
     for name, path in modules().items():
         try:
@@ -243,8 +252,9 @@ def sources():
 
 @cache
 def edges():
-    """Each module, with the modules it imports. A test that spells the name of a package of
-    a `src/` is taken to run it in a process of its own, so it imports every module of it."""
+    """Each module, with the modules it imports. A test may spell the name of a package in a `src/`
+    folder. The script then counts the test as running that package in a process of its own, and so
+    as importing every module of the package."""
     known = modules()
     packages = {}
     for path in known.values():
@@ -334,8 +344,8 @@ def called(path):
 
 @cache
 def spelled_by():
-    """Each run of parts, one after the other, in a path a test file spells, with the test
-    files that spell it: `inside` for every test file at once, read once."""
+    """The test files that spell each run of consecutive parts of a spelled path. It gives the
+    result of `inside` for every test file at once, and reads each file once."""
     found = {}
     for name, path in modules().items():
         if TEST.fullmatch(path):
@@ -352,7 +362,8 @@ def readers(path):
 
 
 def fixture_readers(path):
-    """The test files that name a fixture, or the nearest directory above it that one names."""
+    """The test files that name a fixture, or that name the nearest directory above the
+    fixture."""
     folder = FIXTURES.match(path)[0]
     parts = path.removeprefix(folder).split("/")
     for end in range(len(parts), 0, -1):
@@ -370,8 +381,9 @@ def feature_tests(name):
 
 
 def users(path):
-    """The modules of a `src/` that use a file that is no module: the ones whose strings name
-    it, or with none the modules in its directory."""
+    """The modules of a `src/` that use a file that is not a Python module. They are the modules
+    whose strings name the file. When no module's strings name it, they are the modules in the
+    file's directory."""
     parts = called(path)
     named = {
         name
@@ -407,7 +419,8 @@ def plugins():
 
 
 def used(node, bound):
-    """The modules of `bound`, a name to the module it is bound to, that a node uses."""
+    """The modules that a node uses, from `bound`, which maps each name to the module it is
+    bound to."""
     return {
         bound[one.id] for one in ast.walk(node) if isinstance(one, ast.Name) and one.id in bound
     }
@@ -415,14 +428,15 @@ def used(node, bound):
 
 @cache
 def conftest():
-    """What the plugins of the root `conftest.py` make of the tests' modules: `(global,
-    fixtures)`. The first is the modules every test loads: each plugin of `testing/`, as
-    `testing.jstack_fixtures`, with the modules its top level uses, and each other plugin with
-    an autouse fixture, with the modules that fixture uses. Any other plugin, a test module the
-    tests of other features import, is loaded for its fixtures, and those alone reach a test
-    that does not import it. The second is each other fixture, with the modules it uses, a test
-    module's plugin among them, and the fixtures it asks for, so a change to a module reaches
-    the tests that ask for a fixture that uses it."""
+    """Which of the tests' modules the plugins of the root `conftest.py` load, as `(global,
+    fixtures)`. The first is the set of modules every test loads. It holds each plugin of `testing/`
+    (such as `testing.jstack_fixtures`) with the modules its top level uses. It also holds each
+    other plugin that has an autouse fixture, with the modules that fixture uses. Any other plugin
+    is a test module that the tests of other features import. pytest loads it for its fixtures, and
+    a test that does not import it gets only those fixtures from it. The second maps each other
+    fixture to the modules it uses and to the fixtures it asks for. If the fixture's plugin is a
+    test module, the fixture's modules include that test module. So a change to a module selects
+    every test that asks for a fixture that uses the module."""
     everyone, fixtures = set(), {}
     for plugin in plugins():
         tree = ast.parse((ROOT / modules()[plugin]).read_text())
@@ -473,8 +487,9 @@ def own(name):
 
 
 def asking(module):
-    """The test files that ask for a fixture of a plugin that uses `module`, or uses a module
-    that imports it, or asks for one that does, and have no fixture of that name of their own."""
+    """The test files that ask for a plugin's fixture that reaches `module`. The fixture
+    reaches it when it uses `module`, uses a module that imports `module`, or asks for another
+    fixture that reaches it. This leaves out a test file with its own fixture of that name."""
     reaching = importers([module])
     fixtures = conftest()[1]
     hit = {name for name, (used, _) in fixtures.items() if used & reaching}
@@ -539,8 +554,9 @@ def total():
 
 
 def whole(tests, why):
-    """The selection as it is run: `all` where it is `WHOLE` of the test files or more, which
-    costs about what the whole suite does and, run whole, leaves the tree's marker."""
+    """The selection as the check runs it: `all` when it holds `WHOLE` of the test files or
+    more. Such a selection costs about what the whole suite does, and running the whole suite
+    leaves the tree's marker."""
     if tests != ["all"] and len(tests) >= WHOLE * total():
         return ["all"], {**why, "forced-by": "share"}
     return tests, why

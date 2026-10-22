@@ -1,11 +1,13 @@
-"""The provider inventory, `${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json`: the provider
-instances this machine runs, in T3 Code's `providerInstances` shape. infra's install links it;
-jstack only reads it, here, for `jinstall` and `jgauge limits` alike.
+"""The provider inventory, `${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json`, which lists
+the provider instances this machine runs, in T3 Code's `providerInstances` shape. infra's
+install links the file. jstack only reads it, in this module, for both `jinstall` and
+`jgauge limits`.
 
-`claude_instances` is the rule `features/jgauge/hooks/limits.sh` keeps from a Claude home to the
-instance whose ledger file it writes: the first declared Claude instance whose
-`config.homePath` is that home (`~/.claude` where it names none), and the built-in
-`claudeAgent` for `~/.claude` where no declared instance is there.
+`claude_instances` follows the same rule that `features/jgauge/hooks/limits.sh` follows to map a
+Claude home to the instance whose ledger file the hook writes. A home maps to the first declared
+Claude instance whose `config.homePath` is that home, and an instance that names no homePath has
+`~/.claude` as its home. When no declared instance has `~/.claude`, that home maps to the
+built-in `claudeAgent`.
 """
 
 from __future__ import annotations
@@ -21,8 +23,8 @@ BUILT_IN = "claudeAgent"
 @dataclass(frozen=True)
 class Instance:
     """One provider instance as the inventory declares it, in T3's own `providerInstances`
-    shape: `{driver, enabled, config: {homePath?}}`. `home` is the homePath with `~` expanded
-    and no trailing `/`, None for none."""
+    shape, `{driver, enabled, config: {homePath?}}`. `home` is the homePath after the function
+    expands `~` and strips the trailing `/`, or None when the instance has no homePath."""
 
     driver: str
     enabled: bool
@@ -30,8 +32,9 @@ class Instance:
 
 
 def instances(value: object, home: Path) -> dict[str, Instance] | str:
-    """The instances of a `providerInstances` object, or why it is not one. A homePath that
-    is not absolute once `~` is expanded is refused: T3 would read it from its own cwd."""
+    """The instances of a `providerInstances` object, or why it is not one. The function
+    refuses a homePath that is not absolute after it expands `~`, since T3 would read such a
+    path relative to its own cwd."""
     if not isinstance(value, dict):
         return "it is not an object of provider instances"
     found = {}
@@ -59,7 +62,8 @@ def path() -> Path:
 
 
 def declared(path: Path, home: Path) -> dict[str, Instance] | str:
-    """The inventory at `path`, or why it cannot be taken. A missing file is `{}`."""
+    """The inventory at `path`, or why the function cannot read it. The function reads a
+    missing file as `{}`."""
     try:
         return instances(json.loads(path.read_text()), home)
     except FileNotFoundError:
@@ -69,8 +73,8 @@ def declared(path: Path, home: Path) -> dict[str, Instance] | str:
 
 
 def claude_instances(declared: dict[str, Instance], home: Path) -> dict[str, Path]:
-    """Each Claude home and the instance it is read as, by the rule of the module: the instance
-    to its home, one instance a home."""
+    """Each Claude instance mapped to its home, by the rule in the module's docstring, with
+    one instance for each home."""
     found: dict[Path, str] = {}
     for name, each in declared.items():
         if each.driver == BUILT_IN:

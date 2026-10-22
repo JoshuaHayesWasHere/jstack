@@ -1,6 +1,6 @@
-"""Work items: one closed set of states, one table of moves, an append-only log folded by it,
-and a pass that moves an item only when its row's state changes. The verbs are run as
-`jbus` runs them, and the pass as `test_jbus_kitchen.py` runs it."""
+"""Work items have one closed set of states, one table of moves, and an append-only log that the
+code folds by that table. A pass moves an item only when its row's state changes. The tests run
+the verbs as `jbus` runs them, and the pass as `test_jbus_kitchen.py` runs it."""
 
 import json
 from datetime import timedelta
@@ -39,7 +39,7 @@ REACH = {
 
 
 def reach(box, state):
-    """A new item, brought to `state` by the verbs written out above."""
+    """Make a new item, bring it to `state` by the verbs written out above, and return its name."""
     name = put(box, Verb.PROPOSE, title="a task")["item"]
     for verb in REACH[state]:
         put(box, verb, name)

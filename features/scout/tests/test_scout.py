@@ -51,7 +51,8 @@ class Scene:
         git(self.main, "worktree", "add", "-q", str(self.worktree))
 
     def run(self, block, checkout):
-        """Run one of the skill's blocks as a scout does: in one call with the block at the top."""
+        """Run one of the skill's blocks as a scout does: in one call, after the block at the
+        top."""
         (paths,) = given()
         ran = subprocess.run(
             ["sh", "-c", f"{paths}\nS={SLUG}\n{block}"],
@@ -68,7 +69,8 @@ class Scene:
         return self.run(block, checkout).splitlines()
 
     def end(self, checkout):
-        """The end check's two lists: the lines there at the start, and the lines new since."""
+        """The end check's two lists: the lines that were there at the start, and the lines added
+        since then."""
         lists = []
         for line in self.run(given("End")[0], checkout).splitlines():
             if line.endswith(":"):

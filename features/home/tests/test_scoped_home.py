@@ -1,7 +1,7 @@
-"""A scoped home: `/home <scope>` starts a home beside the repo's root home, with its handoff,
-plan, log and `home-id` in a directory of its own under the repo's, and the notes,
-briefs, requests and pages shared. Every block here is lifted from the home skill and run in
-a temporary repo that has both homes."""
+"""A scoped home: `/home <scope>` starts a home beside the repo's root home. Its handoff, plan, log
+and `home-id` are in a directory of its own under the repo's state directory. It shares the notes,
+briefs, requests and pages with the root home. Each test takes every block from the home skill and
+runs it in a temporary repo that has both homes."""
 
 import os
 import re
@@ -234,7 +234,7 @@ def test_a_scoped_home_writes_the_thread_line_in_the_shared_directory(homes, kin
 
 
 def of_this_home():
-    """Every block of the home skill that names `$M`, but the one that sets it and step 3 of
+    """Every block of the home skill that names `$M`, except the one that sets it and step 3 of
     the start, which sets its own."""
     setting = (block("home", 'echo "no home:'), about_the_home_id("home"))
     named = [text for text in blocks("home") if re.search(r"\$\{?M\b", text)]
@@ -368,7 +368,8 @@ def two_homes_work(homes):
 
 
 def read_before_the_note(homes, *paths, own=None):
-    """A start showed these to the home before: they are in its `read-seen`."""
+    """Mark the briefs at `paths` as already shown to the home at an earlier start. The function
+    writes them to the home's `read-seen`."""
     with ((own or homes.home_dir) / "read-seen").open("a") as seen:
         for path in paths:
             seen.write(f"{path}: ## Result\n")
@@ -456,7 +457,7 @@ def test_a_heading_is_shown_until_it_is_marked_and_a_start_cut_before_shows_it_a
 def test_a_start_reads_the_plan_as_jbus_counts_it_and_whole_only_where_jbus_gives_none(
     homes, monkeypatch, code
 ):
-    """The block of step 4 runs the real verb's words: `plan`, and `--scope` for a scope."""
+    """The block of step 4 runs the real verb with its words: `plan`, and `--scope` for a scope."""
     stub = homes.user / "bin"
     stub.mkdir()
     (stub / "jbus").write_text(f'#!/bin/sh\necho "jbus $*"\nexit {code}\n')
@@ -495,7 +496,8 @@ def test_a_block_run_without_the_block_it_is_run_after_says_so_and_does_nothing(
 def test_a_direct_launch_adds_the_briefs_row_only_where_jbus_has_a_plan_for_this_repo(
     homes, monkeypatch, answers
 ):
-    """`jbus queue add` with no project takes the config's only one, whatever the repo."""
+    """`jbus queue add` with no project takes the one project in the config, whatever the
+    repo."""
     stub = homes.user / "bin"
     stub.mkdir()
     called = homes.user / "called"

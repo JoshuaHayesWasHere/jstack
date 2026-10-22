@@ -1,7 +1,7 @@
 """A row whose thread ended says how: `done`, `left` and why, or `merged` with what is left.
 
-Run as `test_jbus_queue.py` runs: the real pass, against a faked T3 Code server, `gh`
-and `jmerge`, over briefs that are made up."""
+Like `test_jbus_queue.py`, the tests run the real pass against a faked T3 Code server, `gh` and
+`jmerge`, over briefs that are made up."""
 
 import json
 from datetime import timedelta
@@ -23,7 +23,8 @@ def result(left="none", status="done", pull="none"):
 
 
 def sends(kitchen):
-    """Each message a pass sent a thread: the fake keeps one per request id, so count the calls."""
+    """Return each message that a pass sent a thread. The fake keeps one message per request id,
+    so this counts the calls."""
     return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
 
@@ -33,8 +34,8 @@ def listed(kitchen, kind="left"):
 
 
 def line(slug, why):
-    """A leftover's line on the list. One whose Result has a `Left:` line says why it is the
-    user's: these rows have no home to tell."""
+    """Return a leftover's line on the list. For a leftover whose Result has a `Left:` line, the
+    line says why the row is the user's, since these rows have no home to tell."""
     return f"left {slug}: {why}" + (f"; {leftover.NO_HOME}" if why.startswith("left: ") else "")
 
 
@@ -373,7 +374,7 @@ def test_a_merge_that_fell_out_of_the_list_is_asked_for_by_the_address_the_brief
 
 
 def scene(kitchen):
-    """Four rows that ended: done, with work left, merged with work left, and merged."""
+    """Make four rows that ended: done, with work left, merged with work left, and merged."""
     for slug in ("done", "left", "after", "merged"):
         add(kitchen, slug)
         kitchen.t3.thread(slug, "completed", settled=True)

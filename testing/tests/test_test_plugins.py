@@ -1,9 +1,9 @@
-"""The root `conftest.py` loads what every test shares as pytest plugins: the isolation of
-`testing/jstack_fixtures.py`, and the test modules other tests import. So a test in a feature's
-own folder, `features/<name>/tests`, gets the same autouse fixtures as one in `tests/`, and
-imports a helper of `tests/` by its bare name. Here a test is copied into such a folder of a
-copy of the checkout and run there, by a pytest of its own started as a command, so the folder
-it starts in is not on its path."""
+"""The root `conftest.py` loads what every test shares, and it loads it as pytest plugins: the
+isolating fixtures of `testing/jstack_fixtures.py`, and the test modules other tests import. So a
+test in a feature's own folder, `features/<name>/tests`, gets the same autouse fixtures as one in
+`tests/`, and imports a helper of `tests/` by its bare name. Here the test copies a test into such a
+folder in a copy of the checkout. A separate pytest, started as a command, runs the copied test
+there. In that run, the folder pytest starts in is not on its path."""
 
 import os
 import shutil

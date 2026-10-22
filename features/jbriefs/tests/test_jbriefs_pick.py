@@ -1,6 +1,6 @@
-"""`jbriefs pick` names the role, the playbook and the skills for a brief, a request or a
-question, from the tree; the poteto-help skill's block runs it and prints the same lines; and
-its tips are the ones `hooks/skill-tips.sh` gives for the same words."""
+"""`jbriefs pick` reads the tree and names the role, the playbook and the skills for a brief, a
+request or a question. The block of the poteto-help skill runs it and prints the same lines,
+and its tips are the ones that `hooks/skill-tips.sh` gives for the same words."""
 
 import json
 import os
@@ -199,8 +199,8 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
 
 
 def hook_tip(tmp_path, prompt):
-    """The skill the installed `hooks/skill-tips.sh` tips for a prompt, in a fresh session, or
-    None."""
+    """The skill that the installed `hooks/skill-tips.sh` tips for a prompt in a fresh session,
+    or None."""
     outside = tmp_path / "outside"
     outside.mkdir(exist_ok=True)
     event = {"session_id": f"s{abs(hash(prompt))}", "cwd": str(outside), "prompt": prompt}

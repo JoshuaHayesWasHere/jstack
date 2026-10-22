@@ -1,5 +1,5 @@
-"""`jbus poll` holds a lock: a pass that finds it held prints `busy` and runs nothing, so two
-passes at once run `jmerge` once. Run as `test_jbus_kitchen.py` runs: the real pass,
+"""`jbus poll` takes a lock. A pass that finds the lock taken prints `busy` and runs nothing, so two
+passes at once run `jmerge` only once. Like `test_jbus_kitchen.py`, the tests run the real pass
 against the fakes.
 """
 

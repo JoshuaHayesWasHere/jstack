@@ -1,6 +1,6 @@
-"""`jbus.merge` leaves the merge to a home that merges, asks `jmerge` once a day what a sweep
-would remove and never runs one that removes, and says a `jmerge` that cannot read its
-protected paths once a day. Run as `test_jbus_kitchen.py` runs: the real pass, against
+"""`jbus.merge` leaves the merge to a home that merges. Once a day it asks `jmerge` what a sweep
+would remove, and it never runs a sweep that removes. Once a day it also reports a `jmerge` that
+cannot read its protected paths. Like `test_jbus_kitchen.py`, the tests run the real pass against
 the fakes.
 """
 
@@ -135,8 +135,9 @@ def test_a_sweep_owed_at_midnight_keeps_its_day_and_the_next_day_sweeps_once(kit
 
 @pytest.mark.parametrize("home", ["", "mcp:the-home"])
 def test_jbus_never_runs_a_sweep_that_removes(kitchen, home):
-    """Over three days, with the home off and with it on, every call of `jmerge` that
-    sweeps has `--check`: the first of each day, which does not run, and the one after."""
+    """Over three days, with the home off and with it on, every sweep call that jbus makes to
+    `jmerge` has `--check`. That holds for the first call of each day, which only checks, and for
+    the call after it."""
     (kitchen.home / "home-thread").write_text(f"{home}\n")
     kitchen.set("sweep.txt", "\n".join(REMOVABLE) + "\n")
     for day in range(3):
@@ -188,25 +189,26 @@ WORDS |= {"REVIEW", "NONE", "AFTER", "TWICE"}
 
 
 def _filled(template):
-    """A reason with each value it names filled in: a word with no space or comma, as a
-    user, a head or a path is, but for what a stale check needs, which is `ready`'s own."""
+    """Return a reason with each value it names filled in. A value is a word with no space or
+    comma, like a user, a head or a path. The one exception is the value that a stale check
+    needs, which comes from `ready` itself."""
     filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
     return template.format(**{name: filled.get(name, "x1") for name in fields})
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
-    """Every reason `jmerge.ready` holds by name is on the step it is declared with
-    (`STEPS`). One that stops matching its own pattern, or that an earlier rule takes for
-    another step, fails here, and so does a constant that is no `Reason` and no word.
-    `WORDS` are what `ready` names that is no reason: the check's name, the rules' path, the
-    section that has the lists' grammar, the words of a note and of a local check's result,
-    and the four review modes a brief's `Review:` line says.
+    """Every reason that `jmerge.ready` holds by name is on the step it is declared with
+    (`STEPS`). The test fails on a reason that stops matching its own pattern, on one that an
+    earlier rule takes for another step, and on a constant that is no `Reason` and no word.
+    `WORDS` are the strings that `ready` names but that are not reasons: the check's name, the
+    rules' path, the section that has the lists' grammar, the words of a note and of a local
+    check's result, and the four review modes a brief's `Review:` line says.
 
-    Two reasons are on no step, and the view shows them as Unknown and tells no home:
-    `OTHER_HOME` is a pull request of another home, which that home's own view places, and
-    `DRAFT` is one its author has not said is done, which no rule of a merge's steps is
-    about."""
+    Two reasons are on no step, and the view shows them as Unknown and tells no home.
+    `OTHER_HOME` is a pull request of another home, which that home's own view places. `DRAFT` is
+    a pull request whose author has not said it is done, and no rule of a merge's steps is about
+    that."""
     named = {
         name
         for name, value in vars(ready).items()
@@ -219,8 +221,8 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
 
 
 def test_a_reason_declared_in_ready_is_placed_on_its_step_with_no_other_edit(monkeypatch):
-    """A new reason is one declaration in `ready`: `merge.step` places it on the step it
-    names, and a reason no declaration names is on none."""
+    """A new reason is one declaration in `ready`. `merge.step` places it on the step it names,
+    and a reason that no declaration names is on no step."""
     said = "wait: its frobnicator {name} is not wound"
     assert merge.step(said.format(name="x1")) == ""
     monkeypatch.setattr(ready, "NOT_WOUND", ready.Reason("findings", said[6:]), raising=False)
@@ -238,7 +240,8 @@ def test_a_reason_declared_in_ready_is_placed_on_its_step_with_no_other_edit(mon
     ],
 )
 def test_a_wait_on_skills_artifacts_is_on_the_crew_s_result_step_whatever_it_lists(names):
-    """Winnifred #150 and #151: the one rule places the wait whatever skills it names."""
+    """Winnifred #150 and #151: the one rule places the wait on its step whatever skills the wait
+    names."""
     said = f"wait: {ready.SKILLS_UNRUN.format(names=names)}"
     assert merge.step(said) == "result"
 
@@ -247,9 +250,10 @@ BARE = {"", "wait", "hold", ", ", " and ", ".."}
 
 
 def _returned(function):
-    """Every string literal a function of `ready.py` returns or formats as a reason: in what
-    it returns, in what it formats or joins there, and in what it assigned to a name it
-    returns. A literal that is the argument of any other call is read, not returned."""
+    """Return every string literal that a function of `ready.py` returns or formats as a reason.
+    That covers what the function returns, what it formats or joins there, and what it assigned
+    to a name that it returns. A literal passed as the argument of any other call is an input
+    that the function reads, so this leaves it out."""
     assigned = {}
     for node in ast.walk(function):
         if isinstance(node, ast.Assign | ast.AugAssign | ast.AnnAssign) and node.value:
@@ -294,10 +298,10 @@ def _returned(function):
 
 
 def test_every_reason_ready_returns_is_one_of_its_constants():
-    """A reason written inline in a function of `ready.py` is one no test of the steps sees:
-    each string literal a function returns or formats is a constant of the module. `BARE`
-    is what a reason may be built with besides: the empty string, the word of a line, and
-    what joins the pieces of one."""
+    """No test of the steps sees a reason written inline in a function of `ready.py`. So each
+    string literal that a function returns or formats must be a constant of the module. Besides
+    the constants, a reason may be built from `BARE`: the empty string, the word of a line, and
+    what joins the pieces of a reason."""
     tree = ast.parse(Path(ready.__file__).read_text())
     constants = {
         value for name, value in vars(ready).items() if name.isupper() and isinstance(value, str)
@@ -347,8 +351,8 @@ UNPLACED = "a reason nobody has printed before"
 
 
 def unplaced(kitchen, reason=UNPLACED, number=9):
-    """Alpha, whose pull request (#9 unless named) is open and on no step: `jmerge` says a
-    reason no rule names. Its home has a thread."""
+    """Make alpha, whose pull request (#9 unless named) is open and on no step, because `jmerge`
+    says a reason that no rule names. Its home has a thread."""
     thread = kitchen.t3.thread("demo", "completed", title="home: demo")
     (kitchen.home / "home-id").write_text(thread["threadId"] + "\n")
     add(kitchen, "alpha")
@@ -383,9 +387,9 @@ def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
     ],
 )
 def test_a_merge_github_refused_is_on_the_check_step_and_not_unknown(kitchen, said):
-    """context-packs #56, 2026-10-20: GitHub refused the merge call, with a 502 and then
-    with a merge already in progress, and the next run looks again. The view placed the
-    pull request in the Unknown lane and told its home, since no rule named the reason."""
+    """context-packs #56, 2026-10-20: GitHub refused the merge call twice, first with a 502 and
+    then with a merge already in progress, and the next run looks again. The view placed the pull
+    request in the Unknown lane and told its home, since no rule named the reason."""
     unplaced(kitchen, said, number=56)
     kitchen.poll()
     sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())

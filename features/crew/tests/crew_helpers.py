@@ -1,5 +1,5 @@
-"""What the tests of the crew skill share: its sections, the `sh` block under a heading,
-and the pull requests and briefs they run the blocks over."""
+"""What the tests of the crew skill share: its sections, the `sh` block under a heading, and
+the pull requests and briefs that the tests run the blocks over."""
 
 import json
 import os
@@ -31,7 +31,7 @@ def sections():
 
 
 def block(heading, about):
-    """The one `sh` block under a heading that has a word in it, as an agent reads it."""
+    """The one `sh` block under the heading that contains `word`, as an agent reads it."""
     (found,) = [text for text in FENCED.findall(sections()[heading]) if about in text]
     return textwrap.dedent(found)
 
@@ -50,7 +50,8 @@ Branch: alpha   Pull request: https://example.test/pull/1
 
 
 def said(tmp_path, heading, about, brief, notes=None, cwd=None):
-    """What one of the skill's blocks prints for a brief, and for the repo's notes if any."""
+    """What one of the skill's blocks prints for a brief, and for the repo's notes if there are
+    any."""
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     if notes is not None:
@@ -72,7 +73,8 @@ def with_field(line):
 
 
 def reviewed(findings, endings=""):
-    """The brief once a reviewer wrote its section, and the crewmate its `Finding:` lines."""
+    """The brief once a reviewer has written its section and the crewmate has written its
+    `Finding:` lines."""
     listed = "".join(f"- {finding}\n" for finding in findings) or "none\n"
     review = f"\n## Review\nVerdict: findings\nFindings:\n{listed}Dropped: 0\nSent to: mcp:1\n"
     return BRIEF + endings + review
@@ -82,7 +84,8 @@ TWO = ["warning a.py:3 it runs twice", "info b.py the file as a whole"]
 
 
 class Fix:
-    """A crewmate's worktree at the head a review saw, then at the head its fix pushed."""
+    """A crewmate's worktree at the head that a review saw, then at the head that the crewmate
+    pushed with its fix."""
 
     def __init__(
         self,
@@ -154,7 +157,7 @@ GUARDED = "skills/crew/SKILL.md"
 
 
 def held_open(go):
-    """A check that runs until the test touches `go`, and a minute at most, so a test that
+    """A check that runs until the test touches `go`, for a minute at most, so a test that
     fails before the touch leaves no detached check behind it."""
     return f"n=0; while ! [ -f {go} ] && [ $n -lt 600 ]; do sleep 0.1; n=$((n + 1)); done"
 
@@ -247,9 +250,9 @@ class PullRequest:
 
 
 def covers(main, brief, head):
-    """What `jmerge` makes of a head the brief says nothing of: the commit its review covers,
-    and whether the review carries over to the head, by the range-diff run in the main
-    checkout once it has fetched."""
+    """How `jmerge` judges a head that the brief does not mention: which commit its review
+    covers, and whether that review carries over to the head. `jmerge` decides with a
+    range-diff, which it runs in the main checkout after the checkout has fetched."""
     assert ready.short_of(brief, head) == ""
     covered = ready.to_range_diff(ready.rebase_of(brief, head), brief, head)
     git(main, "fetch", "-q", "origin")
@@ -257,7 +260,8 @@ def covers(main, brief, head):
 
 
 def run(conclusion, job=None):
-    """A check run as `gh pr view --json statusCheckRollup` lists it, with its job if it has one."""
+    """One run of a check, as `gh pr view --json statusCheckRollup` lists the run, with its job
+    if the run has one."""
     one = {"__typename": "CheckRun", "status": "COMPLETED", "conclusion": conclusion}
     if job:
         one["detailsUrl"] = f"https://github.com/someone/repo/actions/runs/5/job/{job}"
@@ -324,7 +328,8 @@ ROLLUPS = {
 
 
 def stub_gh(stub, head, rollup, state="OPEN"):
-    """A stub `gh` that says this of the pull request, or fails when there is no rollup."""
+    """A stub `gh` that prints this rollup for the pull request, or fails when there is no
+    rollup."""
     stub.mkdir()
     (stub / "gh").write_text(GH)
     (stub / "gh").chmod(0o755)
@@ -350,7 +355,8 @@ class Failed(PullRequest):
         self.push()
 
     def push(self, checks=None):
-        """GitHub has the head this worktree is at, and its failed check is job 2 of run 5."""
+        """GitHub has the head that this worktree is at, and the pull request's failed check is
+        job 2 of run 5."""
         view = {
             "headRefOid": self.head(),
             "baseRefName": "main",
@@ -359,7 +365,8 @@ class Failed(PullRequest):
         (self.stub / "view.json").write_text(json.dumps(view))
 
     def says(self, here):
-        """What the block prints, told what the check command did in this worktree."""
+        """What the block prints when the test tells it what the check command did in this
+        worktree."""
         text = block("Stay on the pull request", "run rerun").replace("<slug>", "alpha")
         text, filled = re.subn(
             r"^here='<[^>]*>'$", f"here='{here}'" if here else r"\g<0>", text, flags=re.M
@@ -387,8 +394,8 @@ class Failed(PullRequest):
 
 
 class Link(PullRequest):
-    """The second link of a stack: its worktree started from the branch of the link under it,
-    which has since been squash-merged, and that branch is kept on the remote."""
+    """The second link of a stack. Its worktree started from the branch of the link under it.
+    That link's branch has since been squash-merged, and the remote still keeps the branch."""
 
     def __init__(self, tmp_path, base, edits="mine.txt", under_moved=False):
         self.stub = tmp_path / "stub"
@@ -462,8 +469,9 @@ STOPPED = "the rebase stopped: resolve these, then git rebase --continue"
 
 
 def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"):
-    """What a block of "Stay on the pull request" prints in a crewmate's worktree, with the
-    slug filled in, the home's state beside it, and `stale` given where the test gives it."""
+    """What a block of "Stay on the pull request" prints in a crewmate's worktree. The test
+    fills in the slug, puts the home's state beside the worktree, and passes `stale` where
+    the test gives it."""
     state = state or pr.stub.parent / "home"
     (state / "tasks").mkdir(parents=True, exist_ok=True)
     if brief is not None:
@@ -478,6 +486,6 @@ def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"
 
 
 def asked(pr, mergeable):
-    """GitHub's answer about the pull request, with the head it has there."""
+    """GitHub's answer about the pull request, with the head that GitHub has for it."""
     view = {"baseRefName": "main", "mergeable": mergeable, "headRefOid": pr.head()}
     (pr.stub / "view.json").write_text(json.dumps(view))

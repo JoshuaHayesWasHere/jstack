@@ -1,6 +1,7 @@
-"""A brief's `Skills:` line: each name resolved by the one resolver, refused at the queue and
-at the launch when it is no skill or principle, and held at the merge until the Result has
-an artifact for it. The names are pstack's, and the old principle names still resolve."""
+"""These tests cover a brief's `Skills:` line. The one resolver resolves each name. The
+queue and the launch refuse a name that is no skill or principle, and the merge waits until
+the Result has an artifact for each name. The names are pstack's, and the old principle
+names still resolve."""
 
 import hashlib
 import json
@@ -77,8 +78,8 @@ def test_a_result_missing_an_artifact_waits_and_names_the_skill(home, case):
     ],
 )
 def test_a_principle_s_bare_and_prefixed_names_are_one_name_at_the_merge(home, named, ran):
-    """Winnifred's briefs write `build-the-lever`: the brief's spelling and the Result's
-    need not agree, and the wait names the skill as the brief wrote it."""
+    """Winnifred's briefs write `build-the-lever`. The brief's spelling and the Result's need
+    not agree, and the wait names the skill as the brief wrote it."""
     line = f"Skills: {named}\n"
     (home.tasks / "alpha.md").write_text(
         merge.brief(merge.review("clean"), f"Skills run:\n- {ran}: one script, run twice\n", line)
@@ -137,8 +138,8 @@ def test_an_unknown_skill_name_is_refused_at_queue_time_and_nothing_is_queued(ki
 
 
 def test_a_row_queued_before_with_an_unknown_name_is_grandfathered_and_launches(kitchen):
-    """A lint runs when a row is first queued: a row with a go is not gated for a name a
-    later check does not know."""
+    """A lint runs only when a row is first queued. So when a row already has a go and names a
+    skill that a later check does not know, the launch does not gate that row."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", brief("alpha", UNKNOWN))
     add(kitchen, "beta", priority=2)
@@ -164,7 +165,7 @@ def test_a_name_in_any_other_spelling_is_a_fault(line, fault):
 
 
 def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tmp_path):
-    """The block the crew skill runs at its start, run as written, over a brief."""
+    """The block that the crew skill runs at its start, run as written over a brief."""
     task = tmp_path / "alpha.md"
     task.write_text(brief("alpha", NAMED))
     text = (REPO / "features" / "crew" / "SKILL.md").read_text()
@@ -186,7 +187,7 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
 
 
 def pinned():
-    """The skill names of pstack at the pin, and the commit they are of."""
+    """The skill names of pstack at the pin, and the commit they come from."""
     lines = (
         (REPO / "features" / "jdrift" / "tests" / "fixtures" / "pstack-names.txt")
         .read_text()
@@ -212,11 +213,11 @@ def test_the_names_are_of_the_pin_third_party_names():
 
 
 def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_take():
-    """A name in a Grok Bot brief reads the same in T3: each of pstack's resolves to a file
-    here, by its own name or an alias, unless jstack did not take that skill. `poteto-mode` is
-    pstack's own way of running, which jstack's home and playbooks stand in for, and the rest
-    are on the `Not taken:` line, but for one jstack wrote a skill of its own for under the
-    same name, `poteto-help`."""
+    """A name in a Grok Bot brief reads the same in T3. Each of pstack's names resolves to a
+    file here, by its own name or an alias, unless jstack did not take that skill.
+    `poteto-mode` is pstack's own way of running, which jstack's home and playbooks replace.
+    The rest are on the `Not taken:` line, except one for which jstack wrote a skill of its
+    own under the same name, `poteto-help`."""
     _, names = pinned()
     refused = {name for name in names if skills.resolve(name).path is None}
     own = {name for name in names if name in skill_folders()}
@@ -243,8 +244,9 @@ def test_every_principle_has_pstacks_name_and_its_old_name_still_resolves():
 
 def test_no_principle_lost_a_line_in_the_rename():
     """Each principle, reached by its old name through the resolver, is the file it was at
-    c228ac6, but for its frontmatter, its links to the others, which name their new files, and
-    a paragraph or list item a move put one sentence a line, which reads as the same one."""
+    c228ac6, with three exceptions. Its frontmatter differs, and its links to the others name
+    their new files. A move also rewrote some paragraphs and list items to one sentence per
+    line, and such a paragraph reads as the same text."""
     lines = (FIXTURES / "principles-before-rename.txt").read_text().splitlines()
     before = dict(line.split() for line in lines if not line.startswith("#"))
     assert len(before) == 25
@@ -288,7 +290,8 @@ def test_an_artifact_may_hold_a_line_that_looks_like_a_field_and_the_next_item_s
 
 
 def test_a_name_that_resolves_to_nothing_owes_no_artifact_at_the_merge():
-    """The queue refuses it and the launch gates it: the merge does not say it again."""
+    """The queue refuses such a name and the launch gates it, so `jmerge` does not report it
+    again at the merge."""
     text = merge.brief("", "Skills run:\n- architect: A or B\n", "Skills: architect, then\n")
     assert skills.missing(text) == ()
 
@@ -316,8 +319,9 @@ def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_prin
 def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonical_name(
     monkeypatch,
 ):
-    """The list is skills.json, not the directories: a skill whose file is there but which the
-    file leaves out is refused, and pstack's name for an item resolves to jstack's."""
+    """The list is skills.json, not the directories. The resolver refuses a skill whose file is
+    there but which skills.json leaves out, and resolves pstack's name for an item to
+    jstack's."""
     item = {"name": "sharpen", "kind": "skill", "path": "features/sharpen/SKILL.md"}
     alias = item | {"pstack_name": "deeper"}
     monkeypatch.setattr(skills, "_listed", lambda: ({"sharpen": alias}, {"deeper": alias}))
@@ -352,8 +356,8 @@ def test_the_source_modules_are_every_module_the_wheel_ships():
 
 
 def test_no_module_reads_a_file_of_the_checkout_from_its_own_place_in_it():
-    """The one `parents[2]` left is the view's own source root, which bounds the modules it
-    watches for a newer copy, and reads no file."""
+    """The one `parents[2]` left is the view's own source root. It bounds the modules that the
+    view watches for a newer copy, and the view reads no file through it."""
     found = {
         str(path.relative_to(REPO))
         for path in source_modules()

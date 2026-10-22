@@ -1,17 +1,19 @@
-"""The last two things done to an answer before it leaves: cut it to a shape, and clean it.
+"""The last two steps of an answer before the server sends it: cut it to a shape, and clean it.
 
-`keep` cuts a value to a shape, a fixed list of keys: a key the shape does not name is
-left out, whatever a file holds under it. `clean` then goes through every string that is
+`keep` cuts a value to a shape, a fixed list of keys. It leaves out each key the shape does
+not name, whatever value a file has under it. `clean` then goes through every string that is
 left. A URL stays only when it is a pull request or a workflow run of one of the repos
-given, and any other becomes `LINK`. What has the shape of a token becomes `jbus.REDACTED`:
-a shape counts only where it starts a word, so `task-...` is no `sk-` key. So does what
-follows a word such as `key=`, and what follows one such as `Authorization:` when it is
-one run of 16 or more characters a key is written in, which a word of prose is not.
+given, and `clean` turns any other URL into `LINK`. Text with the shape of a token becomes
+`jbus.REDACTED`. A token's shape counts only where it starts a word, so `task-...` is no
+`sk-` key. The text after a word such as `key=` becomes `jbus.REDACTED` too. So does the
+text after a word such as `Authorization:`, when that text is one run of 16 or more of the
+characters a key is written in. A word of prose is never such a run.
 
-Neither knows a secret: to read, the server reads no config, so it cannot take a webhook's
-key out by name as `jbus.redact` does. What keeps a key out is that no file that holds one
-is read, and that an answer has only the keys of its shape. The one write that loads the
-config takes its secrets out by name before this module sees what it says.
+Neither function knows a secret. A read loads no config, so the server cannot take a
+webhook's key out by name as `jbus.redact` does. Two things keep a key out of an answer:
+the server reads no file that holds one, and an answer has only the keys of its shape. The
+one write that loads the config takes the config's secrets out by name from what that write
+returns, before this module sees it.
 """
 
 from __future__ import annotations
@@ -44,7 +46,7 @@ Shape = Any
 
 
 def allowed(repos: tuple[str, ...]) -> re.Pattern[str]:
-    """What a URL must be, whole, to stay: a pull request or a run of one of the repos."""
+    """The pattern a whole URL must match to stay: a pull request or a run of one of the repos."""
     named = "|".join(re.escape(repo) for repo in repos if repo) or "(?!)"
     kinds = r"pull/\d+|actions/runs/\d+(?:/job/\d+)?"
     return re.compile(rf"https://{re.escape(HOST)}/(?:{named})/(?:{kinds})")
@@ -80,9 +82,10 @@ def clean(value: Any, repos: tuple[str, ...]) -> Any:
 def keep(value: Any, shape: Shape) -> Any:
     """The value cut to the shape.
 
-    A shape is `None` for a value with no dict or list in it, a dict of each key to keep
-    with its own shape, where the key `ANY` stands for every key, or a list of one shape
-    for each item. A value that is not what its shape says is `None`.
+    A shape has one of three forms. It is `None` for a value with no dict or list in it. It
+    is a dict of each key to keep, with that key's own shape, where the key `ANY` stands for
+    every key. It is a list of one shape, which each item takes. A value that does not match
+    its shape becomes `None`.
     """
     if shape is None:
         return value if isinstance(value, str | int | float | bool) else None

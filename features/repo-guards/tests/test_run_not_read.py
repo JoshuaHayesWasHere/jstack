@@ -1,24 +1,25 @@
 """A test that reads a skill's words and runs nothing fails here.
 
 The rule is the user's (2026-10-10): "we need to ensure the test do not only nmath the skills
-wording and execute nothign". A test that reads a file under `skills/`, `playbooks/`,
-`principles/` or `templates/`, asserts with words of its own, and runs nothing passes on any
-behaviour and fails on a rewording. The lint reads every test module with `ast` and follows
-what a test calls: a helper of its own module, a test module it imports, a fixture it asks
-for. A test runs something when that reaches `subprocess` (the shared block runner does), a
-package the wheel ships (`packages` in `pyproject.toml`), or `jsonschema` (a JSON call of a
-skill checked against the tool's schema).
+wording and execute nothign". Some tests read a file under `skills/`, `playbooks/`,
+`principles/` or `templates/`, assert with words of their own, and run nothing. Such a test
+passes on any behaviour and fails on a rewording. The lint reads every test module with `ast`
+and follows what a test calls: a helper of its own module, a test module it imports, a fixture
+it asks for. A test runs something when the code it calls reaches one of three things:
+`subprocess`, which the shared block runner reaches; a package the wheel ships (`packages` in
+`pyproject.toml`); or `jsonschema`, which checks a JSON call of a skill against the tool's
+schema.
 
 Such tests are common, so the lint fails only on a test function added or changed against the
-merge-base with `origin/main`. An exception is a comment on the test's own `def` line, with its
-reason and the user's word: `# words only: <reason> (the user, <when>: "<their words>")`.
+merge-base with `origin/main`. A comment on the test's own `def` line, with its reason and the
+user's word, exempts the test: `# words only: <reason> (the user, <when>: "<their words>")`.
 
-A lint over every file that asserts a property and no words of its own, as
-`test_templates.py` does, is not a wording test: it has no phrase to match.
+A lint that runs over every file and asserts a property, with no words of its own, is not a
+wording test: it has no phrase to match. `test_templates.py` is such a lint.
 
-The tests of the lint give it modules to read: one in the shape of the five tests that
-`tasks/crew-stays-on-pr.md` flagged, which only found phrases in the crew skill, and others
-that run the block they read.
+The tests of the lint give it modules to read. One module has the shape of the five tests that
+`tasks/crew-stays-on-pr.md` flagged, which only found phrases in the crew skill. The other
+modules run the block they read.
 """
 
 import ast
@@ -227,10 +228,10 @@ class Lint:
 
 
 def phrases(module, test):
-    """The words a test brings to match: the string literals of its body, of the values its
-    decorators give it (a parametrize list, but not its argument names), and of each literal
-    the module binds to a name that either reads. A path, a file name, a keyword's value and a
-    part of an f-string are no words."""
+    """The words this lint matches a test against. They are string literals from three places: the
+    test's body, the values its decorators give it (a parametrize list, but not its argument names),
+    and each literal the module binds to a name that the body or a decorator reads. A path, a file
+    name, a keyword's value and a part of an f-string do not count as words."""
     body = test.body
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
         body = body[1:]
@@ -298,10 +299,10 @@ def git(*args, repo=REPO):
 
 
 def base(repo=REPO):
-    """The commit the branch is compared with, or None: `make check-fast BASE=<ref>` names it,
-    as for a branch of an integration branch, and a desk with no `BASE` has `origin/main`. CI's
-    checkout of a pull request is its merge commit, alone: its first parent is the base, fetched
-    here."""
+    """The commit the lint compares the branch with, or None. It is the merge-base of the head with
+    a base ref. A branch off an integration branch names that ref with `make check-fast BASE=<ref>`,
+    and with no `BASE` the ref is `origin/main`. CI checks out a pull request as its merge commit
+    alone, so there the base is that commit's first parent, which this fetches."""
     try:
         return git("merge-base", "HEAD", os.environ.get("BASE") or "origin/main", repo=repo)
     except subprocess.CalledProcessError:
@@ -341,9 +342,13 @@ def module_of(path, roots):
 
 
 def moved_from(since, repo):
-    """Each test of every test file of the test paths at the commit, by its name: a test in a
-    file that is new since then is unchanged where one of its name had the same code there, so
-    a test moved to another file or another test path is not counted as added."""
+    """Each test of every test file in the test paths at the commit, keyed by its name.
+
+    The lint uses it for a test in a file that is new since the commit. Such a test counts as
+    unchanged when a test of the same name had the same code at the commit. So a test moved to
+    another file or to another test path does not count as added.
+
+    """
     roots = collected(repo)
     listed = git("ls-tree", "-r", "--name-only", since, "--", *roots, repo=repo).splitlines()
     found = {}
@@ -355,8 +360,9 @@ def moved_from(since, repo):
 
 
 def renames(since, repo):
-    """{new path: path at the commit} for each file git finds renamed since then, over the whole
-    tree: a move out of a test path the commit had but the worktree no longer lists is one too."""
+    """A map from new path to path at the commit, for each file that git finds renamed since then
+    anywhere in the tree. A file moved out of a test path also counts as renamed, when the commit
+    had that test path and the worktree no longer lists it."""
     found = {}
     for line in git("diff", "--name-status", "--find-renames", since, repo=repo).splitlines():
         status, *names = line.split("\t")
@@ -366,8 +372,9 @@ def renames(since, repo):
 
 
 def changed_tests(since, repo=REPO):
-    """{module: test names} added or changed since the commit, the worktree's own edits in, but
-    this module's: its strings are the modules its tests hand the lint, not words they match."""
+    """The tests added or changed since the commit, as a dict from a module to its test names. It
+    counts the worktree's own edits. It skips this module, whose strings name the modules its tests
+    give the lint to read, not words those tests match."""
     roots = collected(repo)
     paths = git("diff", "--name-only", since, "--", *roots, repo=repo).splitlines()
     paths += git("ls-files", "--others", "--exclude-standard", "--", *roots, repo=repo).splitlines()

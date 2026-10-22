@@ -1,18 +1,22 @@
-"""The kinds of need, and what each one's answer rests on.
+"""The kinds of need, and what each kind reads to answer its probe.
 
-A Kind is only probed: the doctor says what it found, and the install never writes it. One
-that `Asks` gives `--setup` the one command the user runs to mend it. The configs are read
-through `jbus.load`, `jsettings.load` and `jroles.read_map`, the loaders the commands use, so
-the doctor cannot disagree with them about what is valid. A Seeded kind is a config `--setup`
-writes once, where there is no file, and `--uninstall` removes while it is still what was
-written (`Machine.seed`). A Carried kind is also put and dropped, and every Carried kind writes
-the path of a harness's layout (`Machine.layout`, assembled from a checkout or a release by
-`jinstall.layout`) into what it puts, which gives the one ownership rule: a piece is this
-install's when the piece itself says so.
+The install only probes a Kind: the doctor prints what the probe found, and the install never
+writes the part. A kind that `Asks` gives `--setup` the one command that the user runs to
+repair what the probe found. The kinds
+read the configs through `jbus.load`, `jsettings.load` and `jroles.read_map`, the loaders the
+commands use, so the doctor cannot disagree with the commands about what is valid.
+
+A Seeded kind is a config that `--setup` writes once, where there is no file. `--uninstall`
+removes it while it is still what `--setup` wrote (`Machine.seed`).
+
+The install also puts and drops a Carried kind. Every Carried kind writes the path of a
+harness's layout into what it puts (`Machine.layout`, which `jinstall.layout` assembles from a
+checkout or a release). That gives the one ownership rule: a piece belongs to this install when
+the piece itself names this install's layout.
 
     ok       exactly what this checkout puts is there, or the program meets its floor
     missing  nothing is there
-    old      something is there and it is not that: `detail` says what
+    old      something is there and differs from what this checkout puts: `detail` names how
 """
 
 import copy
@@ -48,9 +52,9 @@ class State(Enum):
 
 @dataclass(frozen=True)
 class Found:
-    """One probe's answer, built only by the four constructors. `replaceable` is False only
-    for `foreign`: something that is not jstack's is where the part goes, and neither install
-    nor uninstall touches it."""
+    """One probe's answer, which only the four constructors build. `replaceable` is False
+    only for `foreign`, where something that is not jstack's sits where the part goes. Neither
+    the install nor the uninstall changes that thing."""
 
     state: State
     detail: str = ""
@@ -75,47 +79,53 @@ class Found:
 
 class Kind(Protocol):
     def probe(self, machine: Machine) -> Found:
-        """Read-only. Never raises: a probe that cannot tell answers old with the reason."""
+        """Read the machine and write nothing. A probe never raises: when it cannot tell, it
+        answers old with the reason."""
         ...
 
 
 @runtime_checkable
 class Carried(Kind, Protocol):
     def due(self, machine: Machine) -> bool:
-        """Whether this machine asks for the part: read from the machine, never from a flag.
-        A part that is not due is not listed and not put. --uninstall drops it all the same."""
+        """Whether this machine needs the part. The answer comes from the machine, never
+        from a flag. The install neither lists nor puts a part that is not due, and
+        --uninstall drops it all the same."""
         ...
 
     def put(self, machine: Machine) -> None:
-        """Make the probe answer ok. Called only on missing or on a replaceable old.
-        Safe to run twice and safe to stop halfway."""
+        """Make the probe answer ok. The install calls it only when the probe answers missing,
+        or answers an old that is replaceable. It is safe to run twice and safe to stop
+        halfway."""
         ...
 
     def drop(self, machine: Machine) -> Dropped:
-        """Remove each piece that is this checkout's and leave every other."""
+        """Remove each piece that is this checkout's, and leave every other piece."""
         ...
 
 
 @runtime_checkable
 class Asks(Kind, Protocol):
     def ask(self, machine: Machine) -> str:
-        """The one command that mends what the probe found, for `--setup` to print."""
+        """The one command that repairs what the probe found, for `--setup` to print."""
         ...
 
 
 @runtime_checkable
 class Seeded(Kind, Protocol):
-    """A config `--setup` writes, once, at `path` with `mode`, only where probe says missing."""
+    """A config that `--setup` writes once, at `path` with `mode`, and only where the probe
+    says missing."""
 
     path: Path
     mode: int
 
     def text(self, machine: Machine) -> str:
-        """What is written: read from the machine, every value one its loader takes."""
+        """The bytes to write. The kind reads them from the machine, and the loader accepts every
+        value in them."""
         ...
 
     def drop(self, machine: Machine) -> Dropped:
-        """Remove the file while it is what `--setup` wrote, else keep it, with why."""
+        """Remove the file while it is what `--setup` wrote. Otherwise keep it, and say
+        why."""
         ...
 
 
@@ -132,7 +142,8 @@ SEEDED = "# Written once by install.sh --setup. Edit it: setup never writes over
 
 
 def get(machine: Machine, package: str, command: str) -> str:
-    """How to get a program: `yay -S <package>` on Arch (pacman on PATH), else its name."""
+    """How to get a program. On Arch, where pacman is on PATH, it is `yay -S <package>`, and
+    elsewhere it is the program's name."""
     return f"yay -S {package}" if machine.which("pacman") else command
 
 
@@ -147,10 +158,10 @@ BEFORE = ("harness/jstack/claude-code", "claude-code", ".")
 
 
 def dead(path: Path, machine: Machine) -> bool:
-    """Whether `path` is a link into a layout's `skills/`, or into the `skills/` of a place
-    links went before the layouts, at a skill that is not there. Those places are `BEFORE`,
-    under the source: a checkout's committed copy, the copy a release's wheel carried, and the
-    checkout itself."""
+    """Whether `path` is a link to a missing skill. The link points into a layout's `skills/`,
+    or into the `skills/` of a place where links pointed before the layouts existed. `BEFORE`
+    lists those places under the source: a checkout's committed copy, the copy a release's wheel
+    carried, and the checkout itself."""
     layouts = [machine.layout(harness.name) for harness in HARNESSES]
     folders = (*layouts, *(machine.source / before for before in BEFORE))
     return (
@@ -162,12 +173,15 @@ def dead(path: Path, machine: Machine) -> bool:
 
 @dataclass(frozen=True)
 class Generated:
-    """The files the generator writes from the checkout's features, `skills.json` among them,
-    which is what each layout is assembled from: a skill that is not in it is in no layout.
-    Listed only with a checkout: a release's is what its wheel carries.
-    ok: the generator's --check passes. old: what it named first, or why it could not run.
-    put writes nothing in the checkout: an install leaves its files as git has them, and
-    the user runs the generator. drop removes nothing."""
+    """The files the generator writes from the checkout's features, `skills.json` among them.
+    The install assembles each layout from `skills.json`, so a skill that is not in it is in
+    no layout. `needs()` lists this need only with a checkout, since a release uses what its wheel
+    carries.
+    ok: the generator's --check passes.
+    old: the detail is what the check named first, or why it could not run.
+    put writes nothing in the checkout. An install leaves the checkout's files as git has
+      them, and the user runs the generator.
+    drop removes nothing."""
 
     def probe(self, machine: Machine) -> Found:
         ran = machine.run([sys.executable, "-I", str(machine.checkout / GENERATE), "--check"])
@@ -191,9 +205,10 @@ class Generated:
 
 @dataclass(frozen=True)
 class Link:
-    """A symlink into a layout: a skill for an agent.
-    old: a link to anywhere else. foreign: `not a link`.
-    drop: unlink only when it points at `target`."""
+    """A symlink into a layout, which gives an agent a skill.
+    old: the path is a link to anywhere else.
+    foreign: `not a link`.
+    drop: unlink the path only when it points at `target`."""
 
     path: Path
     target: Path
@@ -219,9 +234,9 @@ class Link:
 
 @dataclass(frozen=True)
 class GoneLink:
-    """A link under a skills root that points into a layout's `skills/`, or where links went
-    before the layouts, at a skill the source no longer has. Listed only when found, old until
-    it is unlinked. put and drop unlink it."""
+    """A link under a skills root to a skill that the source no longer has. It points into a
+    layout's `skills/`, or to where links pointed before the layouts. `needs()` lists it only
+    when it finds one, and the probe answers old until put or drop unlinks it."""
 
     path: Path
 
@@ -248,13 +263,14 @@ class GoneLink:
 
 
 def quoted(path: Path) -> str:
-    """One shell word, always in single quotes, so the text put is the same on every machine."""
+    """One shell word, always in single quotes, so the install puts the same text on every
+    machine."""
     return "'" + str(path).replace("'", "'\\''") + "'"
 
 
 def rewrite(machine: Machine, file: Path, change: Callable[[dict], bool]) -> bool:
-    """Read `file`, let `change` edit a copy of its object, and write it when `change` says
-    it did something. A file that moved under the write is read again, once."""
+    """Read `file`, let `change` edit a copy of its object, and write the copy when `change`
+    returns True. When the file changes before the write, read it again, once."""
     for attempt in (1, 2):
         was = machine.read_object(file)
         if not isinstance(was, JsonObject):
@@ -277,19 +293,23 @@ class HookGroup:
     """One group in `.hooks[event]` of ~/.claude/settings.json or ~/.codex/hooks.json:
         {"matcher": <matcher>, "hooks": [{"type": "command",
           "command": "sh '<layout>/<script>' 2>/dev/null || true", "timeout": 5}]}
-    with no `matcher` key when `matcher` is None. With `refuses` the command is
-    "sh '<layout>/<script>'" and nothing after it: the hook's exit code and what it writes
-    to stderr are how it refuses a tool call, so neither is thrown away, and its timeout is
-    30: it starts Python, and a hook that ran out of time has refused nothing.
+    with no `matcher` key when `matcher` is None.
 
-    ok: that group is there, and no other command of the event names `/<script>`.
+    With `refuses`, the command is "sh '<layout>/<script>'" with nothing after it. Such a hook
+    refuses a tool call through its exit code and what it writes to stderr, so the command
+    discards neither. Its timeout is 30 rather than 5, because it starts Python, and a hook that
+    ran out of time has refused nothing.
+
     `<layout>` is the layout of `harness`, the harness whose agent reads the file.
-
-    old: a command names `/<script>` and is not that (another layout or copy, or the README's
-      hand-written `"$HOME/..."` form). put takes each such command out and adds the group.
-    foreign: the file is not one JSON object with a hooks object: `not a hooks file`.
-    drop: take out only the command that is exactly this layout's, then each of the group,
-      `hooks[event]` and `hooks` that it leaves empty. No other key is touched."""
+    ok: that group is there, and no other command of the event names `/<script>`.
+    old: a command names `/<script>` and differs from that one (another layout or copy, or
+      the README's hand-written `"$HOME/..."` form). put takes each such command out and adds
+      the group.
+    foreign: the file is not one JSON object with a hooks object, and the detail is
+      `not a hooks file`.
+    drop: take out only the command that is exactly this layout's. Then take out the group
+      if the removal leaves it empty, and do the same for `hooks[event]`, then for `hooks`.
+      Touch no other key."""
 
     file: Path
     event: str
@@ -308,7 +328,7 @@ class HookGroup:
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
-        """The event's groups, or None when `value` is not shaped as a hooks file."""
+        """The event's groups, or None when `value` does not have the shape of a hooks file."""
         hooks = value.get("hooks", {})
         groups = hooks.get(self.event, []) if isinstance(hooks, dict) else None
         shaped = isinstance(groups, list) and all(
@@ -391,17 +411,20 @@ class HookGroup:
 
 @dataclass(frozen=True)
 class GitHook:
-    """A hook of the checkout's own repo: a link from <checkout>/.git/hooks/<name> to
+    """A hook of the checkout's own repo, a link from <checkout>/.git/hooks/<name> to
     <checkout>/<script>. The worktrees of a repo run the hooks of its main checkout, so the
-    one link covers every branch that is pushed from this machine.
+    one link covers every branch that this machine sends to a remote.
 
-    Listed only with a checkout: a release has no repo of its own.
-    due: when `.git` is a directory (the main checkout, not a worktree, whose hooks are not
-      its own), and HOME is the account's own or holds the checkout. A run under another
-      HOME, a sandbox or a test, leaves a checkout that is outside that HOME as it is.
-    old: a link to anywhere else. foreign: `not a link`, a hook of the user's own, and
-      `core.hooksPath is set, so git runs no hook of .git/hooks`, which no put mends.
-    drop: unlink only when it points at the script."""
+    `needs()` lists this need only with a checkout, since a release has no repo of its own.
+    due: `.git` is a directory, and HOME is the account's own or holds the checkout. A
+      directory `.git` means the main checkout, since a linked worktree runs the hooks of its
+      main checkout. When a sandbox or a test runs the install under another HOME, the run
+      leaves a checkout outside that HOME as it is.
+    old: the path is a link to anywhere else.
+    foreign: the path is a hook of the user's own, and the detail is `not a link`. Or git
+      runs no hook from the folder, and the detail is
+      `core.hooksPath is set, so git runs no hook of .git/hooks`. A put repairs neither case.
+    drop: unlink the path only when it points at the script."""
 
     name: str
     script: str
@@ -434,14 +457,16 @@ class GitHook:
 
 @dataclass(frozen=True)
 class Patterns:
-    """The private patterns `jleak` reads, ${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml,
-    read by jleak's own loader. The install makes the file once, as `jleak.example` gives it
-    for this HOME, and never writes it again: what the user adds to it is theirs.
+    """The private patterns that `jleak` reads, at
+    ${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml, through jleak's own loader. The install
+    makes the file once, as `jleak.example` gives it for this HOME, and never writes it again.
+    What the user adds to it is theirs.
 
-    missing: no file. Both hooks refuse until it is there.
-    foreign: the loader refuses it, with the loader's reason. It is not written over.
-    drop: remove it only while it is still what the install made. A file that was edited is
-      kept, with why."""
+    missing: there is no file, and both hooks refuse until it is there.
+    foreign: the loader refuses the file, with the loader's reason. The install does not write
+      over it.
+    drop: remove the file only while it is still what the install made. Keep a file that the
+      user edited, and say why."""
 
     path: Path
 
@@ -483,7 +508,8 @@ class StatusLine:
     {"type": "command", "command": "sh '<layout>/hooks/limits.sh'"}, in Claude Code's layout.
     due: only when the key is absent or its command names `/hooks/limits.sh`. A status line
       of the user's own is not due and gets no line.
-    old: limits.sh of another layout or copy. drop: delete the key only when it is exactly ours."""
+    old: the command runs limits.sh of another layout or copy.
+    drop: delete the key only when it is exactly the install's."""
 
     file: Path
     script: str = "hooks/limits.sh"
@@ -493,7 +519,8 @@ class StatusLine:
         return {"type": "command", "command": f"sh {quoted(script)}"}
 
     def _there(self, machine: Machine) -> tuple[bool, object]:
-        """Whether the file can be read as an object, and its `statusLine`, None when absent."""
+        """Two values: whether the method can read the file as an object, and the file's
+        `statusLine`, which is None when the key is absent."""
         was = machine.read_object(self.file)
         return isinstance(was, JsonObject), was.value.get("statusLine") if isinstance(
             was, JsonObject
@@ -539,35 +566,39 @@ class StatusLine:
 
 @dataclass(frozen=True)
 class Commands:
-    """The commands on PATH. `tool` and `names` come from pyproject.toml (`[project].name`
-    and the keys of `[project.scripts]`) in a checkout, and from the release's plugin.json and
-    the installed package's entry points in a release, whose `version` is the plugin's. `was` is the
-    tool's name before the rename.
+    """The commands on PATH. In a checkout, `tool` and `names` come from pyproject.toml
+    (`[project].name` and the keys of `[project.scripts]`). In a release, they come from the
+    release's plugin.json and the installed package's entry points, and `version` is the
+    plugin's. `was` is the tool's name before the rename.
 
     With a checkout:
     ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
       and typing each name runs that file or the one in <checkout>/.venv/bin.
-    old: `lacks jdrift jroles` (installed before they were added); `tool jgauge, from before
-      the rename`; `an install of <other path>`; `stale: its editable paths lack <root>`, a
-      package root pyproject.toml lists (`[tool.hatch.build.targets.wheel].packages`) that the
-      install's `.pth` does not, since the package moved after it was built.
-    foreign, since no put mends it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
-    missing: no tool of either name.
-    foreign: a tool of either name that is no editable install of a checkout (a release, or
-      from an index or a git url). It is not put over and not dropped.
-    put: `uv tool uninstall <was>` when its source is this checkout, then
-      `uv tool install --editable <checkout> --reinstall`. Never --force.
-    drop: `uv tool uninstall` of `tool`, and of `was`, each only when its source is this
-      checkout. Else kept, with the path it is an install of.
+    old: `lacks jdrift jroles` (an install from before the repo added them);
+      `tool jgauge, from before the rename`; `an install of <other path>`; or
+      `stale: its editable paths lack <root>`.
+      The last one names a package root that pyproject.toml lists
+      (`[tool.hatch.build.targets.wheel].packages`) and the install's `.pth` lacks. The
+      package moved after uv built the install.
+    foreign, since no put repairs it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
+    missing: there is no tool of either name.
+    foreign: a tool of either name that is not an editable install of a checkout (a release,
+      or a tool from an index or a git url). The install neither puts over it nor drops it.
+    put: run `uv tool uninstall <was>` when its source is this checkout, then
+      `uv tool install --editable <checkout> --reinstall`. Never use --force.
+    drop: run `uv tool uninstall` on `tool`, and on `was`, each only when its source is this
+      checkout. Otherwise keep it, and name the path it is an install of.
 
-    With no checkout, a release, which is this tool's own: the jinstall that runs is one of
-    its commands, so nothing is installed or removed here.
-    ok: uv has the tool, not as an editable install, its version is the plugin's, and each name
-      is in `machine.tool_bin()` and is what typing it runs.
-    old: `tool jstack is 0.1.0, and its plugin is 0.2.0`, `lacks jinstall`, an editable install;
-      foreign: shadowed, or not on PATH. missing: uv has no such tool (a jinstall run by hand).
-    put: refused, with the command that installs a release. drop: kept, with the command that
-      removes it."""
+    With no checkout, the tool is a release. The jinstall that runs is one of the release's
+    commands, so this need installs and removes nothing.
+    ok: uv has the tool as an install that is not editable, its version is the plugin's, and each
+      name is in `machine.tool_bin()` and is what typing the name runs.
+    old: `tool jstack is 0.1.0, and its plugin is 0.2.0`, `lacks jinstall`, or an editable
+      install.
+    foreign: a name is shadowed, or not on PATH.
+    missing: uv has no such tool, as when someone ran jinstall by hand.
+    put: refuse, and give the command that installs a release.
+    drop: keep the tool, and give the command that removes it."""
 
     tool: str
     names: tuple[str, ...]
@@ -580,7 +611,7 @@ class Commands:
         return f"lacks {' '.join(lacking)}" if lacking else ""
 
     def _stale(self, machine: Machine, checkout: Path) -> list[str]:
-        """Each package root of the checkout's pyproject.toml the tool's paths lack."""
+        """Each package root in the checkout's pyproject.toml that the tool's paths lack."""
         try:
             wheel = tomllib.loads((checkout / "pyproject.toml").read_text())["tool"]["hatch"]
             listed = wheel["build"]["targets"]["wheel"]["packages"]
@@ -591,7 +622,9 @@ class Commands:
         return [str(root) for root in roots if root not in paths]
 
     def _typed(self, machine: Machine, *also: Path) -> Found:
-        """ok when typing each name runs the file in `tool_bin()`, or one of `also`."""
+        """The probe answers ok when typing each name runs the file in `tool_bin()` or in one
+        of `also`. Otherwise it answers foreign: the name is not on PATH, or another file
+        shadows it."""
         for name in self.names:
             typed = machine.which(name)
             if typed is None:
@@ -675,12 +708,13 @@ class Commands:
 
 UNIT_FOLDERS = ("templates", "features/*/units")
 """Where the source keeps the units the install links: its `templates/`, and the `units/` of
-each feature that has moved there."""
+each feature whose units have moved there."""
 
 
 def unit_templates(source: Path) -> dict[str, Path]:
     """Each unit under `source`, by name: every *.service and *.timer of `UNIT_FOLDERS`.
-    Raises ValueError for a name two folders hold, so neither shadows the other."""
+    The function raises ValueError for a name that two folders hold, so neither unit shadows
+    the other."""
     found: dict[str, Path] = {}
     for folder in UNIT_FOLDERS:
         for path in sorted(source.glob(f"{folder}/*")):
@@ -694,34 +728,40 @@ def unit_templates(source: Path) -> dict[str, Path]:
 
 
 def templates(machine: Machine) -> dict[str, Path]:
-    """Each unit the install links, by name, in the source, a checkout's or a release's."""
+    """Each unit the install links, by name, in the source, which is a checkout's or a
+    release's."""
     return unit_templates(machine.source)
 
 
 @dataclass(frozen=True)
 class Units:
-    """The jbus units: a link from ~/.config/systemd/user/<name> to its template for each of
-    `names` (every unit `templates(machine)` finds), and each of `timers` enabled. The template
-    is the checkout's, where links went before the copy and where systemd's own links under
-    `timers.target.wants` still point, else the release's.
+    """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
+    install links ~/.config/systemd/user/<name> to its template, and it enables each of
+    `timers`. The template is the checkout's, or else the release's. The checkout's template is
+    the file that the links pointed at before the release's copy, and that systemd's own links under
+    `timers.target.wants` still point at.
 
-    due: when jbus is set up (its config is there), or a unit of this checkout's is there.
-    ok: every link points at its template, ~/.local/bin/jbus is there (the units run it),
-      and, when the manager reads this HOME, each timer is enabled and no reload is due.
-      With a manager that reads another HOME (a sandbox) the links alone decide. Under the
-      account's own HOME a manager that does not answer is old: nothing enabled the timer.
+    due: jbus is set up (its config is there), or a unit of this checkout's is there.
+    ok: every link points at its template, and ~/.local/bin/jbus is there, since the units run
+      it. When the manager reads this HOME, each timer is also enabled and no reload is due.
+      With a manager that reads another HOME (a sandbox), the probe checks only the links. Under
+      the account's own HOME, a manager that does not answer makes the need old, since nothing
+      enabled the timer.
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
-      `jbus.timer is not enabled`, `needs daemon-reload`. A regular
-      file whose bytes equal its template is a copy made by hand from the README: replaceable.
-    foreign: a file that differs from its template: `jbus.service -> not a link, differs`.
-      Also what no put mends: `no ~/.local/bin/jbus`, and a manager that did not answer.
-    put: refused with no ~/.local/bin/jbus, so no timer is started on a missing program.
-      Else make `timers.target.wants` through the machine, link, daemon-reload, enable --now.
-    drop: disable --now each timer whose link is ours, unlink each link that points at its
-      template, daemon-reload. systemd's disable unlinks a linked unit by itself, and the
-      links it left are unlinked here.
-    Each systemctl step is `machine.systemctl`, so with a manager that reads another HOME
-    only the links are made, checked and removed."""
+      `jbus.timer is not enabled`, `needs daemon-reload`. A regular file whose bytes equal
+      its template is a copy that someone made by hand from the README, and the install may
+      replace it.
+    foreign: a file that differs from its template, `jbus.service -> not a link, differs`.
+      The need is also foreign for two cases that no put repairs: `no ~/.local/bin/jbus`,
+      and a manager that did not answer.
+    put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
+      Otherwise make `timers.target.wants` through the machine, link each unit to its
+      template, run daemon-reload, and run enable --now.
+    drop: run disable --now on each timer whose link is the install's, unlink each link that
+      points at its template, and run daemon-reload. systemd's disable unlinks a linked unit
+      by itself, and drop unlinks the links that it leaves.
+    Each systemctl step goes through `machine.systemctl`. So with a manager that reads
+    another HOME, the need only makes, checks and removes the links."""
 
     directory: Path
     names: tuple[str, ...]
@@ -820,8 +860,10 @@ def _numbers(text: str) -> tuple[int, ...]:
 
 @dataclass(frozen=True)
 class Program:
-    """A program on PATH. missing: not there (detail: `hint`). old: its version is below
-    `floor`, or cannot be read. With `floor` None there is no old and the program is not run."""
+    """A program on PATH.
+    missing: the program is not there, and the detail is `hint`.
+    old: its version is below `floor`, or the probe cannot read the version. When `floor` is
+      None, the probe never answers old and does not run the program."""
 
     command: str
     version: tuple[str, ...] = ("--version",)
@@ -830,8 +872,8 @@ class Program:
     package: str = ""
 
     def ask(self, machine: Machine) -> str:
-        """The hint where there is one, else the Arch package, which is the command's name
-        unless `package` says otherwise."""
+        """The hint where there is one, or else the Arch package. The package is the
+        command's name unless `package` names another."""
         return self.hint or get(machine, self.package or self.command, self.command)
 
     def probe(self, machine: Machine) -> Found:
@@ -849,10 +891,13 @@ class Program:
 
 @dataclass(frozen=True)
 class T3Nightly:
-    """T3 Code, asked through the `t3` command the app writes into ~/.t3/bin, else the one on
-    PATH. missing: neither is there. old: the stable build, a command that does not answer,
-    or a nightly before `floor`, the oldest nightly with every MCP tool jstack calls. `floor`
-    is None until that build is written down, and old then means only `not the nightly build`."""
+    """T3 Code, which the probe asks through the `t3` command that the app writes into
+    ~/.t3/bin, or else through the one on PATH.
+    missing: neither command is there.
+    old: the stable build, a command that does not answer, or a nightly before `floor`.
+      `floor` is the oldest nightly with every MCP tool that jstack calls. It is None until
+      someone writes that build down. While it is None, old means only
+      `not the nightly build`."""
 
     floor: str | None
     hint: str = "the nightly build (on Arch: t3code-nightly-bin)"
@@ -878,8 +923,8 @@ class T3Nightly:
 
 @dataclass(frozen=True)
 class GhSignIn:
-    """missing: `gh auth token` exits non-zero. No network call, and what it prints is not
-    read. Never old."""
+    """missing: `gh auth token` exits non-zero. The probe makes no network call and does not
+    read what the command prints. It never answers old."""
 
     def ask(self, machine: Machine) -> str:
         return "gh auth login"
@@ -892,7 +937,8 @@ class GhSignIn:
 
 @dataclass(frozen=True)
 class Linux:
-    """ok on Linux. missing anywhere else, with the platform as the detail."""
+    """The probe answers ok on Linux. Anywhere else it answers missing, with the platform as
+    the detail."""
 
     platform: str = sys.platform
 
@@ -903,8 +949,9 @@ class Linux:
 
 
 def _said(error: Exception) -> str:
-    """Why jbus does not take a file: its own refusal, in its words. Anything else its code
-    raised is named by its kind alone, since such a message can quote a value of the file."""
+    """Why jbus does not accept a file: jbus's own refusal, in its words. For anything else
+    that its code raised, the reason names only the exception's type, since such a message can
+    quote a value of the file."""
     if isinstance(error, jbus.Refused):
         return str(error).removeprefix("refused: ")
     if isinstance(error, OSError) and error.strerror:
@@ -914,11 +961,13 @@ def _said(error: Exception) -> str:
 
 @dataclass(frozen=True)
 class JbusConfig:
-    """jbus's config.toml, read by jbus's own loader. old: the loader refuses it, as it does
-    one that group or others can read. The install never writes it: it holds a key.
-    Seeded, mode 600, with no project and no key: `server` as the T3 sign-in beside it names
-    it, else T3 Code's own address, and `dispatch = false`, so jbus launches nothing until
-    the user says. `jbus t3 login` reads the server from it, so it comes first."""
+    """jbus's config.toml, which jbus's own loader reads.
+    old: the loader refuses the file, as it refuses one that group or others can read. The
+      install never writes over the file, since it holds a key.
+    Setup seeds it with mode 600, no project and no key. The seed sets `server` to the server
+    that the T3 sign-in beside it names, or else to T3 Code's own address. It sets
+    `dispatch = false`, so jbus launches nothing until the user turns dispatch on.
+    `jbus t3 login` reads the server from this file, so this need comes first."""
 
     path: Path
     mode: int = 0o600
@@ -947,8 +996,10 @@ class JbusConfig:
 
 @dataclass(frozen=True)
 class JbusSignIn:
-    """t3.json beside the config. missing: `run jbus t3 login`. old: readable by others, or
-    past the expiry jbus reads from it, on the day the jstack config's time zone gives it."""
+    """t3.json beside the config.
+    missing: `run jbus t3 login`.
+    old: others can read the file, or its expiry has passed. jbus reads the expiry from the
+      file, and the probe dates it in the jstack config's time zone."""
 
     path: Path
 
@@ -976,15 +1027,16 @@ class JbusSignIn:
 
 @dataclass(frozen=True)
 class Limits:
-    """One instance's file of the ledger, which `jgauge room` and `jroles` read and the
-    `jgauge-limits.timer` keeps fresh, every two minutes.
-    missing: no file, nothing read that account yet.
-    old: it cannot be read, or it was last written 15 min ago or more, so the reader stopped."""
+    """One instance's file of the ledger. `jgauge room` and `jroles` read it, and
+    `jgauge-limits.timer` rewrites it every two minutes.
+    missing: there is no file, since nothing has read that account yet.
+    old: the probe cannot read the file, or its last write was 15 minutes ago or more, so the reader
+      has stopped."""
 
     path: Path
 
     def ask(self, machine: Machine) -> str:
-        """The timer runs it; one run writes every account's file."""
+        """The timer runs the reader, and one run writes every account's file."""
         return "jgauge limits"
 
     def probe(self, machine: Machine) -> Found:
@@ -998,14 +1050,16 @@ class Limits:
 
 @dataclass(frozen=True)
 class StateRepo:
-    """The homes' state tree, which `jbus snapshot` commits and pushes to its `origin`.
-    ok: a git repo whose top is this directory, with an origin, named in the detail with
-    any credentials taken out of it. missing: not a git repo, or no origin to push to."""
+    """The homes' state tree, which `jbus snapshot` commits and sends to its `origin`.
+    ok: the directory is the top of a git repo with an origin. The detail names the origin,
+      with any credentials taken out of it.
+    missing: the directory is not a git repo, or the repo has no origin."""
 
     path: Path
 
     def ask(self, machine: Machine) -> str:
-        """The url is the user's own private repository: the command names where it goes."""
+        """The url is the user's own private repository, so the command says where the
+        snapshots go."""
         add = f"git -C {self.path} remote add origin <url>"
         if self.probe(machine).detail == "not a git repo":
             return f"git init {self.path} && {add}"
@@ -1023,11 +1077,14 @@ class StateRepo:
 
 @dataclass(frozen=True)
 class JstackConfig:
-    """${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml, read by the loader the commands use.
-    The install never creates it. missing: no file, the commands run on their defaults
-    (the detail names each key that has one). old: the loader refuses it.
-    Seeded with `user`, the first word of `git config user.name`, and `timezone`, the
-    machine's own zone. A value the loader would not take is left out, so its default holds."""
+    """${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml, which the commands' own loader
+    reads. The install never creates it.
+    missing: there is no file, so the commands run on their defaults. The detail names each
+      key that has a default.
+    old: the loader refuses the file.
+    Setup seeds it with `user`, the first word of `git config user.name`, and `timezone`, the
+    machine's own zone. The seed leaves out a value that the loader would not accept, so that
+    key keeps its default."""
 
     path: Path
     mode: int = 0o644
@@ -1062,9 +1119,11 @@ class JstackConfig:
 
 @dataclass(frozen=True)
 class Roles:
-    """${XDG_CONFIG_HOME:-~/.config}/jstack/roles, the role map `jroles` reads.
-    missing: no file, every role inherits. old: `jroles.read_map` refuses it, with its lines.
-    Seeded with every role `inherit`, which names no effort: nothing is seeded above medium."""
+    """${XDG_CONFIG_HOME:-~/.config}/jstack/roles, the role map that `jroles` reads.
+    missing: there is no file, so every role inherits.
+    old: `jroles.read_map` refuses the file, and the detail gives its lines.
+    Setup seeds it with every role set to `inherit`, which names no effort, so the seed sets
+    nothing above medium."""
 
     path: Path
     mode: int = 0o644
@@ -1090,16 +1149,19 @@ class Roles:
 
 
 def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:
-    """The home of each declared Claude instance, `~/.claude` for none, each once."""
+    """The home of each declared Claude instance, once each. An instance that names no home
+    has `~/.claude`."""
     homes = [each.home or home / ".claude" for each in declared.values() if each.driver == BUILT_IN]
     return list(dict.fromkeys(homes))
 
 
 @dataclass(frozen=True)
 class ProviderInventory:
-    """${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json, the provider instances this
-    machine should run, in T3's `providerInstances` shape. infra's install links it there;
-    jstack only reads it. missing: no file, so nothing is declared. old: not that shape."""
+    """${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json, the provider instances that this
+    machine should run, in T3's `providerInstances` shape. infra's install links the file
+    there, and jstack only reads it.
+    missing: there is no file, so the machine declares no instance.
+    old: the file does not have that shape."""
 
     path: Path
 
@@ -1118,10 +1180,11 @@ class ProviderInventory:
 
 @dataclass(frozen=True)
 class ProviderInstance:
-    """One declared instance against T3's own settings, which are only read.
-    ok: T3 lists it with the declared driver, enabled and homePath, or it is T3's built-in
-    `claudeAgent`, declared with no other home and not listed. missing: T3 does not list it.
-    old: T3 lists it otherwise, or its settings cannot be read."""
+    """One declared instance, compared with T3's own settings, which the probe only reads.
+    ok: T3 lists the instance with the declared driver, enabled and homePath. Or it is T3's
+      built-in `claudeAgent`, declared with no other home, and T3 does not list it.
+    missing: T3 does not list the instance.
+    old: T3 lists it otherwise, or the probe cannot read T3's settings."""
 
     name: str
     instance: Instance
@@ -1168,10 +1231,13 @@ def _short(path: Path | None, machine: Machine) -> str:
 
 @dataclass(frozen=True)
 class HomeSkills:
-    """A Claude home's `skills`, which must be the central jstack skills: the same directory
-    as `central` (~/.claude/skills), or entries each of which resolves into `skills`, the
-    copy's. Hidden entries are the agent's own and are not counted. missing: no skills
-    there. old: where a linked `skills` points, else the first entry that points elsewhere."""
+    """A Claude home's `skills`, which must be the central jstack skills. Either it is the
+    same directory as `central` (~/.claude/skills), or each of its entries resolves into
+    the folder that the field `skills` names. Hidden entries are the agent's own, and the
+    probe does not count them.
+    missing: the home has no skills.
+    old: the detail is where a linked `skills` points, or else the first entry that points
+      elsewhere."""
 
     home: Path
     central: Path

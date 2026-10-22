@@ -1,7 +1,7 @@
 """`jinstall [--check | --uninstall | --doctor | --setup]`: the verbs of `install.sh`, as the
-command a release installs. It acts for the checkout it runs from, where one is above it (an
-editable install), and else for the source tree the release's wheel installed, from which it
-assembles each harness's layout as `install.sh` does."""
+command a release installs. When it runs from inside a checkout (an editable install), it acts
+for that checkout. Otherwise it acts for the source tree that the release's wheel installed, and
+it assembles each harness's layout from that tree as `install.sh` does."""
 
 import argparse
 import sys

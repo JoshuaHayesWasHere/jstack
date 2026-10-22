@@ -1,20 +1,21 @@
-"""`jbus view`: one small server that shows the bus as the line, and takes two writes, the
-user's answer to a question and the user's steer of a work item.
+"""`jbus view`: one small server that shows the bus as the line. It takes two writes: the
+user's answer to a question, and the user's steer of a work item.
 
 It is one process on the standard library's `http.server`, on one port, `PORT`. It always
-listens on `127.0.0.1`, and on the address in `JBUS_VIEW_HOST` too when that is set: an
-address of this machine, as its tailnet one, never every address. With that address down
-it serves `127.0.0.1` and tries the address again every `RETRY` seconds.
+listens on `127.0.0.1`. When `JBUS_VIEW_HOST` is set, it listens on that address too: an
+address of this machine, such as its tailnet one, never every address. While that address is
+down, the server serves `127.0.0.1` and tries the address again every `RETRY` seconds.
 
 The routes that read are `routes()`, all `GET`:
 
-- `/`: the page, which asks the server and nobody else. It is `page.html` beside this
-  file with the script of each panel in it, `panels/<name>/panel.js`, joined on every
-  request (`page`). A bare link to it shows every project at once, from `/stack.json`, and
-  `#/<project>` one project, from `/state.json`;
-- `/stack.json`: the machine once, and a summary of each project (`state.stack`). The
-  machine's checks run once for it, however many projects there are, and the runs of
-  GitHub are asked for each repo at once;
+- `/`: the page, which sends its requests to the server and nobody else. On every request
+  the server joins `page.html`, beside this file, with the script of each panel,
+  `panels/<name>/panel.js` (`page`). A bare link to the page shows every project at once,
+  from `/stack.json`, and `#/<project>` shows one project, from `/state.json`;
+- `/stack.json`: the machine's state, given once, and a summary of each project
+  (`state.stack`). The
+  server runs the machine's checks once for it, however many projects there are, and asks
+  GitHub for the runs of every repo at once;
 - `/state.json?project=<project>`: the state of one project (`state.Read.answer`): the
   frame, and what each panel of the first screen builds;
 - `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
@@ -23,69 +24,88 @@ The routes that read are `routes()`, all `GET`:
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
-The two writes are `WRITES`, `POST /answer` and `POST /steer`, each of the one project
-`?project=` names: a write that names none, or one the state directory does not have, is
-404. The body of `/answer` is JSON: `numbers`, the questions to close, and for one question
-alone the `option` picked, by its name, and the user's own `words`. Each number is closed
-through `questions.answer`, by the user of the settings, at the server's clock, in `WHERE`:
-who may answer and that a question is answered once are that function's rules, and the
-server has no copy of them. An answer keeps the default when it has no words and its option
-is the default that was taken, or none: so says the record, never the page. More than one
-number is a batch, and a batch only takes defaults. An answer that does not keep the default
-is sent in the same request (`questions.carry`), once, to the thread that asked. Where it
-does not go, the record is closed all the same, the answer says why, and the next pass sends
-it. What comes back is `closed` and `refused`, each a list by number with one sentence,
-`say`: a question answered before is refused with its `first` answer. The status is 200
-where a question closed and 409 where none did.
+The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
+that `?project=` names. A write that names no project, or one the state directory does not
+have, gets 404.
 
-The body of `STEER`, `POST /steer`, is JSON: the `item`, by its id, the `action`, one of
-`jbus.item.Steer`, the user's `words`, which are a redirect's new brief, the `seen_event`,
-the item's last line as the page showed it, and `confirm`, which a hold takes. The server
-decides nothing of it: it calls `jbus.steer.steer`, by the user of the settings, in the
-view, on the basis of these words said in the view at the server's clock, and that
-function's rules are the only ones. A steer whose `seen_event` is not the item's last line
-is refused with the line that came after it, so a second POST of the same steer is 409 and
-is not written. Any other refusal is 409 too, but a hold with no `confirm`, which is 400,
-and an item the project does not have, which is 404. A message and a redirect have words. A message
-is sent to the home in the same request (`jbus.steer.deliver`), as the command sends it, and
-where it does not go, the line is recorded all the same, the answer says why, and the next
-pass sends it. What comes back is `at`, the `item`, one sentence, `say`, and the item's
-`state` and `last_event` as the record has them after the write, or after the refusal.
+The body of `/answer` is JSON. Its `numbers` are the questions to close. When it closes one
+question only, it also has the name of the `option` picked and the user's own `words`. The
+server closes each number through `questions.answer`, as the user of the settings, at the
+server's clock, in `WHERE`. That function's rules decide who may answer, and they let a
+question be answered once. The server has no copy of them. An answer keeps the default when
+it has no words and its option is the default that the thread took, or when it has no
+option at all. The server reads which option is the default from the question's record, never from
+the page. More than one number is a batch, and a batch only takes defaults. The server
+sends an answer that does not keep the default to the thread that asked, once, in the same
+request (`questions.carry`). Where the user's answer does not reach that thread, the
+server closes the record all the same. The server's reply says why, and the next pass sends
+the user's answer. The server returns `closed` and
+`refused`. Each is a list with one entry for each number, and each entry has one sentence,
+`say`. It refuses a question that was
+answered before, and gives that question's `first` answer. The status is 200 where a
+question closed and 409 where none did.
 
-Anything else is 404, another method 405, and a request whose `Host` header is not one of
-the server's own names is 403: the two addresses, `localhost`, and each name in
-`JBUS_VIEW_NAMES`, at the server's port, and the host of each origin in `JBUS_VIEW_ORIGINS`,
-with the scheme's default port or none. That is a proxy's origin, as
-`https://<host name>`, for a proxy that passes the `Host` header on: an origin
-that is not `http://` or `https://`, a host and an optional port is refused at the start
-(`origin`). Either write is 403 too unless its `Origin` header is the server's own address, the
-one its `Host` header names, `http://<Host>`, or for the host of an origin that origin
-exactly: only the server's own page writes. No answer has a CORS header, and none may be
-stored. There is no sign-in: who reaches the port is who may answer and steer, as any shell of
-this machine may with `jbus answer` and `jbus item steer`.
+The body of `STEER`, `POST /steer`, is JSON with five fields:
 
-To read, it reads no config of jbus and no secret. `reader` is the `Config` the digest is
-built with: its config directory is `os.devnull`, under which there is no file, and its
-projects are the ones the state directory names. The one file of settings it reads is
-jstack's own (`jsettings`): the user's time zone, which a time with no zone is in, and the
-user's name, which an answer and a steer are given by. Only a write that has an answer or
-a message to send loads
-jbus's config and the stored sign-in to T3 Code, as a pass does, and neither is in any
-answer: what T3 Code said has the config's secrets taken out (`jbus.redact`). A slug in an
-address must be a slug of the queue. What an answer may hold is in `jbus.view.clean`.
+- `item`, the item's id;
+- `action`, one of `jbus.item.Steer`;
+- `words`, the user's words, which are a redirect's new brief;
+- `seen_event`, the item's last line as the page showed it;
+- `confirm`, which a hold needs.
 
-It runs the code that is on disk, and says which code it runs (`Code`). Every `CHECK`
-seconds it looks at the files it runs: the modules it has loaded from its own checkout, and
-the files beside this one, but for the page and the panels' scripts, which are read on
-every request. Where one is
-newer than the server's start it tries the code on disk, `python -c STARTS` as a child:
-the module `jbus view` starts through, which loads this package too, and every panel
-(`state.keys`), so a panel that does not load, or gives a key another gives, is code that
-does not start. The server loads the panels once, when it starts (`App`), and a folder
-that becomes a panel or stops being one since is code on disk that is newer. Where that
-starts it ends with `NEWER_CODE`, for the unit to start it again. Where it does not, the server
-keeps serving, `/state.json` says so, and the trial is run again at each check: what it
-says rests on more than the files that are newer, as a module nobody has loaded yet.
+The server decides none of it, and calls `jbus.steer.steer`. It passes the user of the settings
+as the one who steers, and the view as the place of the steer. The basis of the steer is these
+words, said in the view, at the server's clock. The rules of `jbus.steer.steer` are the only
+ones. The server refuses a steer whose `seen_event` is not the item's last line, and returns the
+line that came after it. So a second POST of the same steer gets 409, and the server writes
+nothing. Any other refusal is 409 too, with two exceptions: a hold with no `confirm` is 400, and
+an item the project does not have is 404. A message and a redirect have words. The server sends
+a message to the home in the same request (`jbus.steer.deliver`), as the command sends it. Where
+the message does not reach the home, the server records the line all the same. The server's
+reply says why, and the next pass sends the message. The server returns `at`, the `item`, one
+sentence, `say`, and the item's `state` and `last_event`. Those two are what the record has
+after the write, or after the refusal.
+
+Any other path is 404, and any other method is 405. A request whose `Host` header is not one
+of the server's own names is 403. The server's own names are these, each at the server's
+port: its two addresses, `localhost`, and each name in `JBUS_VIEW_NAMES`. The host of each
+origin in `JBUS_VIEW_ORIGINS` is one too, with the scheme's default port or no port. Such
+an origin, as `https://<host name>`, belongs to a proxy that passes the `Host` header on.
+At the start, the server refuses an origin unless it is `http://` or `https://` followed by
+a host and an optional port (`origin`). Either write is 403 too unless its `Origin` header
+is the server's own address. For one of the server's names, the own address is
+`http://<Host>`, with the name that the `Host` header gives. For the host of an origin, the
+own address is exactly that origin. So
+only the server's own page can write. No answer has a CORS header. The server sends each
+answer with `no-store`, so no browser or proxy may store it. There is no sign-in. Anyone
+who reaches the port may answer and steer, as any shell of this machine may with
+`jbus answer` and `jbus item steer`.
+
+To read, the server reads no config of jbus and no secret. `reader` is the `Config` the
+server builds the digest with. Its config directory is `os.devnull`, which has no file
+under it. Its projects are the ones the state directory names. The one file of settings
+the server reads is jstack's own (`jsettings`). From it the server takes two things. The
+first is the user's time zone, which the server gives to a time that has no zone. The
+second is the user's name, which the server gives each answer and steer. Only a write that
+has an answer or a message to send loads jbus's config and the stored sign-in to T3 Code,
+as a pass does. Neither is in any answer: the server takes the config's secrets out of what
+T3 Code said (`jbus.redact`). A slug in an address must be a slug of the queue.
+`jbus.view.clean` says what an answer may contain.
+
+The server runs the code that is on disk, and says which code it runs (`Code`). Every
+`CHECK` seconds it looks at the files it runs: the modules it has loaded from its own
+checkout, and the files beside this one. It skips the page and the panels' scripts, since it
+reads those on every request. Where one file is newer than the server's start, the server
+tries the code on disk with `python -c STARTS` as a child process. The child imports the
+module that `jbus view` starts through. That module loads this package too, and every
+panel (`state.keys`). So a panel that does not load counts as code that does not start, and
+so does a panel that gives a key another panel gives. The server loads the panels once,
+when it starts (`App`). A folder that has become a panel since then, or stopped being one,
+counts as newer code on disk. Where the new code starts, the server ends with `NEWER_CODE`,
+so that the unit starts it again. Where it does not start, the server keeps serving, and
+`/state.json` says so. The server then runs the trial again at each check, because its
+result can change for a reason other than the newer files, such as a module nobody has
+loaded yet.
 """
 
 from __future__ import annotations
@@ -229,11 +249,11 @@ def routes(found: tuple[panels.Panel, ...] | None = None) -> tuple[str, ...]:
 
 
 def page(found: tuple[panels.Panel, ...]) -> bytes:
-    """The page, one document: `page.html` with each panel's script where `MARK` is.
+    """The page, one document: `page.html` with each panel's script in place of `MARK`.
 
-    Each script runs in a function of its own, which is given `panel`: the one call that
-    says what the panel draws. The folder's name is the panel's, and whether it is on the
-    first screen is what its `panel.py` says, so a script names neither.
+    Each script runs in a function of its own, which gets `panel` as its argument: the one
+    call that says what the panel draws. The panel's name is its folder's name, and its
+    `panel.py` says whether the panel is on the first screen, so a script names neither.
     """
     scripts = ""
     for panel in found:
@@ -251,15 +271,15 @@ def _loaded() -> list[str]:
 
 
 class Code:
-    """Which code answers: when the server started, and what on disk is newer than that.
+    """Which code serves requests: when the server started, and what on disk is newer than that.
 
-    The files it looks at are the ones the server runs and reads once: each module it has
-    loaded from under `root`, its checkout, and each file in `beside`, the directory of
-    this package, but for the page. One that is gone counts as newer. `panels` is the names
-    of the panels the server loaded: where the folders of `beside`'s `panels/` that are
-    panels now are not those, as once the second file of a new folder is written, the
-    directory of the panels counts as newer. A `panel.py` of a folder that is no panel yet
-    is not.
+    It looks at the files that the server runs and reads only once. Those are each module the server
+    has loaded from under `root`, which is its checkout, and each file in `beside`, which is
+    the directory of this package. It leaves out the page. A file that is gone counts as
+    newer. `panels` is the names of the panels the server loaded. The folders of `beside`'s
+    `panels/` that are panels now may differ from those names. When they differ, the directory
+    of the panels counts as newer. For example, they differ once someone writes the second
+    file of a new folder. It does not look at the `panel.py` of a folder that is not a panel yet.
     """
 
     def __init__(
@@ -274,7 +294,8 @@ class Code:
         self.error = ""
 
     def newer(self) -> frozenset[tuple[Path, int]]:
-        """Each file the server runs that is newer on disk than its start, with its time."""
+        """Each file the server runs whose copy on disk is newer than the server's start, with
+        the file's time."""
         files = {Path(file) for file in self.loaded()}
         files = {file for file in files if file.is_relative_to(self.root)}
         try:
@@ -297,8 +318,9 @@ class Code:
         return {"started": self.started, "stale": bool(self.newer()), "error": self.error}
 
     def _trial(self) -> str:
-        """Why the code on disk does not start, or nothing where it does: one import of what
-        `jbus view` starts through, by a child of this interpreter, which writes nothing."""
+        """Why the code on disk does not start, or nothing where it starts. To try it, a child of
+        this interpreter imports the module that `jbus view` starts through. The child writes
+        nothing."""
         try:
             tried = subprocess.run(
                 [sys.executable, "-c", STARTS],
@@ -316,8 +338,8 @@ class Code:
         return (tried.stderr.strip().splitlines() or [f"exit status {tried.returncode}"])[-1]
 
     def due(self) -> bool:
-        """Whether the server is to end now: a file it runs is newer, and the code on disk
-        starts. While a file is newer the code is tried at every check."""
+        """Whether the server should end now: a file it runs is newer, and the code on disk
+        starts. While a file is newer, the server tries the code at every check."""
         newer = bool(self.newer())
         why = self._trial() if newer else ""
         self.error = f"the code on disk does not start: {why}" if why else ""
@@ -325,11 +347,12 @@ class Code:
 
 
 class App(Writes):
-    """What the server answers to a `GET` and to its two writes, whatever door it came in by.
+    """What the server answers to a `GET` and to its two writes, on either address.
 
-    The panels are the folders there are when it starts, each loaded once, and a key two of
-    them give stops the start. Only a panel's script is read again on every request.
-    `config` loads jbus's config. It is called only by a write that has an answer to send."""
+    The app's panels are the panel folders that exist when it starts. It loads each of them
+    once. When two panels give the same key, the app does not start. The app reads only a
+    panel's script again on every request.
+    `config` loads jbus's config, and only a write that has an answer to send calls it."""
 
     def __init__(
         self,
@@ -346,14 +369,15 @@ class App(Writes):
         self.github = GitHub(self.clock)
 
     def _project(self, query: dict[str, list[str]]) -> str | None:
-        """The project an address names with `?project=`, or None where it names none, or one
-        the state directory does not have."""
+        """The project an address names with `?project=`, or None where it names no project,
+        or names one the state directory does not have."""
         asked = query.get("project", [""])[-1]
         return asked if asked and asked in state.projects(self.sources) else None
 
     def _stack(self) -> dict[str, Any]:
-        """What `/stack.json` holds. The runs of each repo are asked at once, each in a thread
-        of its own, so no repo waits on another's `gh`: the summaries then take what is kept."""
+        """What `/stack.json` contains. The server asks for the runs of every repo at once, each
+        in a thread of its own, so no repo waits on another's `gh`. The summaries then use the
+        kept answers."""
         names = state.projects(self.sources)
         repos = sorted({state.repo(self.sources, name) for name in names} - {""})
         with ThreadPoolExecutor(max_workers=max(1, len(repos))) as pool:
@@ -429,10 +453,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(answer.body)
 
     def _own(self) -> frozenset[str]:
-        """The origins the server's own page has under the `Host` header, none where it is
-        not the server's: `http://<Host>` for one of its names at its port, and each origin
-        of `JBUS_VIEW_ORIGINS` that is `<scheme>://<Host>`, the scheme's default port in the
-        Host or not."""
+        """The origins the server's own page has under the `Host` header, or none where that
+        header is not one of the server's. For one of the server's names at its port, the
+        origin is `http://<Host>`. Each origin of `JBUS_VIEW_ORIGINS` that is
+        `<scheme>://<Host>` is one too, whether or not the Host has the scheme's default
+        port."""
         host = self.headers.get("Host", "").lower()
         name, _, port = host.rpartition(":")
         named = port == str(self.server.server_port) and name.strip("[]") in self.server.names
@@ -510,9 +535,10 @@ class Door6(Door):
 
 
 class Doors:
-    """The server's one or two listeners, on one port, and the thread that tries again.
+    """The server's one or two listeners, on one port, and the thread that tries the second
+    address again.
 
-    `serve` looks every `check` seconds whether the code on disk is newer, and ends."""
+    Every `check` seconds `serve` looks whether the code on disk is newer, and ends if so."""
 
     def __init__(
         self,
@@ -557,7 +583,8 @@ class Doors:
                 return
 
     def open(self) -> None:
-        """Open `127.0.0.1`, which must open, and the second address when there is one."""
+        """Open `127.0.0.1`, and the second address when there is one. Opening `127.0.0.1` must
+        succeed."""
         if self.host is not None:
             try:
                 everywhere = ipaddress.ip_address(self.host).is_unspecified
@@ -592,8 +619,9 @@ class Doors:
             self._open.clear()
 
     def serve(self) -> int:
-        """Open the doors and serve until the process is stopped, or until the code on disk
-        is newer than the code that serves and starts: then it ends with `NEWER_CODE`."""
+        """Open the listeners and serve until something stops the process. The server also ends
+        when the code on disk is newer than the running code and a trial of that code starts.
+        It then ends with `NEWER_CODE`."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)
@@ -610,7 +638,7 @@ class Doors:
 
 def origin(text: str) -> str:
     """One origin of `JBUS_VIEW_ORIGINS`, as a browser sends it: `http://` or `https://`, a
-    host, and a port only where it is not the scheme's default. Anything else is refused."""
+    host, and a port only where it is not the scheme's default. It refuses anything else."""
     found = _ORIGIN.fullmatch(text.lower())
     port = int(found[3] or DEFAULT[found[1]]) if found else 0
     if not 0 < port < 65536:
@@ -620,7 +648,7 @@ def origin(text: str) -> str:
 
 
 def doors(port: int = PORT) -> Doors:
-    """The server as the environment asks for it: `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and
+    """The server the environment sets up: `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and
     `JBUS_VIEW_ORIGINS`, over the state directories `jbus` itself uses."""
     home = Path.home()
     try:

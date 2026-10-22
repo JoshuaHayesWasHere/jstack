@@ -1,12 +1,12 @@
-"""A thread whose last turn failed on a usage limit goes on, once, on the next instance of its
-role's pool with headroom, with its model and options, and the limit is in the ledger for the
-instance the run was on. Run as `test_jbus_resume.py` runs: the real pass against the
+"""A thread whose last turn failed on a usage limit goes on once, on the next instance of its
+role's pool that has headroom, with its model and options. The ledger records the limit for the
+instance the run was on. Like `test_jbus_resume.py`, the tests run the real pass against the
 fakes, with a clock the test moves.
 
-The replays are the caps of 2026-10-16 and 2026-10-17. On the 16th at 22:15 ET a home failed
-on claudeAgent's weekly limit, which reset on the 18th at 4pm ET. It was moved to
-claudeAgent_claude_prime by hand the next day at about 15:39 ET, and prime hit its five-hour
-window about 9 minutes later."""
+The replays are the caps of 2026-10-16 and 2026-10-17. On the 16th at 22:15 ET, a home failed on
+claudeAgent's weekly limit, which reset on the 18th at 4pm ET. The next day at about 15:39 ET,
+somebody moved it by hand to claudeAgent_claude_prime, and prime hit its five-hour window about 9
+minutes later."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -32,8 +32,8 @@ AFTER = WEEKLY_RESET + timedelta(minutes=1)
 
 @pytest.fixture(autouse=True)
 def pools(jstack_config, request):
-    """The role map gives the crew and the home one pool, claudeAgent first. The kitchen's
-    plan is on the real clock, and these tests on the replayed one: they start with no plan."""
+    """The role map gives the crew and the home one pool, claudeAgent first. The kitchen's plan
+    runs on the real clock and these tests on the replayed one, so they start with no plan."""
     if "kitchen" in request.fixturenames:
         request.getfixturevalue("kitchen").machine(plan=None)
     roles = jstack_config.parent / "roles"
@@ -44,9 +44,9 @@ def pools(jstack_config, request):
 
 
 def failed_on(thread, text, run="run-1", ran_on="claudeAgent", notice=None, at=None, **more):
-    """The thread's last turn ended on `text`, as T3 Code shows one: an assistant message with
-    the limit, the error, and, where `notice` gives its window and reset, the system notice
-    whose itemId carries them."""
+    """End the thread's last turn on `text`, as T3 Code shows such a turn. That turn is an
+    assistant message with the limit and the error. Where `notice` gives a window and a reset,
+    the turn also has the system notice whose itemId carries them."""
     items = [
         {"runId": run, "itemId": f"{run}:1", "type": "assistant_message", "text": text},
         {"runId": run, "itemId": f"{run}:2", "type": "error", "text": "Usage limit reached"},
@@ -102,7 +102,7 @@ def test_the_16th_weekly_failure_moves_the_thread_once_to_prime_with_its_model(k
 
 
 def test_the_itemid_is_read_before_the_text(kitchen):
-    """The notice's window and reset win over what the text says."""
+    """The window and reset of the notice take precedence over what the text says."""
     thread = crew(kitchen)
     other = datetime(2026, 10, 19, 4, 0, tzinfo=UTC)
     failed_on(thread, WEEKLY, notice=("five_hour", other))
@@ -167,7 +167,7 @@ def test_a_thread_already_on_the_chosen_instance_is_not_moved_again(kitchen):
 
 
 def test_a_limit_failure_is_no_carry_on_of_the_resume_path(kitchen):
-    """The two carry-ons of a thread are for a thread that ended, not for a capped one."""
+    """The two carry-ons of a thread are for a thread that ended, not for one that hit a cap."""
     thread = crew(kitchen)
     failed_on(thread, WEEKLY)
     kitchen.poll(FAILED_16TH)
@@ -181,7 +181,8 @@ def test_a_limit_failure_is_no_carry_on_of_the_resume_path(kitchen):
 
 
 def test_after_the_reset_the_next_cap_goes_to_the_first_instance_again(kitchen):
-    """Sticky, not round: a thread moves only on a cap, and then to the first with headroom."""
+    """The move is sticky, not round robin: a thread moves only on a cap, and then to the first
+    instance with headroom."""
     thread = crew(kitchen)
     failed_on(thread, WEEKLY)
     kitchen.poll(FAILED_16TH)
@@ -209,8 +210,9 @@ WHO = ("crew", "home", "scoped home")
 
 
 def mover(kitchen, who):
-    """A thread failover reads, and the name its lines give it: a crew a brief names, the
-    root home's thread in `home-id`, or a scoped home's in `<scope>/home-id`."""
+    """Return a thread that failover reads, and the name that failover's lines give the thread: a
+    crew that a brief names, the root home's thread in `home-id`, or a scoped home's thread in
+    `<scope>/home-id`."""
     if who == "crew":
         return crew(kitchen), "alpha"
     home = kitchen.t3.thread("home", "failed", title="home: demo")
@@ -243,7 +245,8 @@ def test_a_capped_thread_moves_to_the_other_instance_either_way(kitchen, who, ra
 def test_with_both_capped_a_thread_stalls_once_and_carries_on_at_the_first_reset(
     kitchen, who, ran_on, other
 ):
-    """The other instance resets first: the thread waits for it, said once, then moves there."""
+    """The other instance resets first. jbus says once that the thread waits for it, then moves
+    the thread there."""
     first = SESSION_RESET - timedelta(hours=2)
     ledger.write(ledger.Record(other, "five_hour", 100, int(first.timestamp())))
     thread, name = mover(kitchen, who)
@@ -275,8 +278,9 @@ def test_a_thread_no_brief_and_no_home_names_is_left_alone(kitchen):
 
 
 def test_a_thread_on_an_instance_outside_its_pool_is_never_moved_into_it(kitchen, pools):
-    """Codex and Cursor take no Claude work, and a Claude thread goes to no other provider:
-    an instance the pool does not name is a pool of one, and waits for its own reset."""
+    """Codex and Cursor take no Claude work, and a Claude thread goes to no other provider. An
+    instance that the pool does not name is a pool of one, and its thread waits for its own
+    reset."""
     thread = crew(kitchen)
     thread["selection"] = {"instanceId": "cursor", "model": "grok-4.7"}
     failed_on(thread, WEEKLY, ran_on="cursor")
@@ -399,10 +403,10 @@ CLAUDE_POOL = (
 
 
 def tonight(kitchen, on="claudeAgent"):
-    """The 12 threads of project jstack that got tonight's cap, as T3 Code recorded them at
-    04:13:31Z to 04:15:27Z, each failed on its latest run, which ran on `on`. The fixture is
-    the 15 `system_notice` items of `~/.t3/userdata/statev2.sqlite` whose itemId ends
-    `:five_hour:1792470600`, with each one's thread title and run."""
+    """Make the 12 threads of project jstack that hit tonight's usage cap, as T3 Code recorded
+    them from 04:13:31Z to 04:15:27Z. Each failed on its latest run, which ran on `on`. The
+    fixture is the 15 `system_notice` items of `~/.t3/userdata/statev2.sqlite` whose itemId ends
+    `:five_hour:1792470600`, with each item's thread title and run."""
     made = {}
     for at, recorded in TONIGHT["threads"].items():
         runs = [{**run, "providerInstanceId": on} for run in recorded["runs"]]
@@ -427,9 +431,9 @@ def tonight(kitchen, on="claudeAgent"):
 def test_tonights_caps_move_all_twelve_threads_to_the_other_account_once(
     kitchen, pools, ran_on, other
 ):
-    """9 crews and 3 scoped reviewers whose `review` lines name Codex and Cursor: each one is
-    on the crew's Claude pool, moves to the other account with its model and options, and is
-    told to carry on once."""
+    """The threads are 9 crews and 3 scoped reviewers whose `review` lines name Codex and Cursor.
+    Each thread is on the crew's Claude pool, moves to the other account with its model and
+    options, and gets one message to carry on."""
     pools.write_text(CLAUDE_POOL)
     made = tonight(kitchen, on=ran_on)
     assert sorted(t["title"].split(":")[0] for t in made.values()) == ["crew"] * 9 + ["review"] * 3
@@ -572,7 +576,7 @@ def test_the_replay_moves_a_live_thread_once_and_leaves_the_ledger_alone(kitchen
 
 
 def test_the_replay_moves_the_recorded_reset_to_now(kitchen):
-    """`resets in 17m` at 04:15:27Z is as many minutes after the replay."""
+    """The text `resets in 17m` at 04:15:27Z becomes a reset 17 minutes after the replay."""
     thread = scratch(kitchen)
     before = datetime.now(UTC)
     code, out = replayed(kitchen, "--thread", thread["threadId"], "--dry-run")
@@ -606,9 +610,9 @@ def test_the_replay_refuses_a_thread_that_is_no_role_of_the_project(kitchen):
 
 
 def test_the_replay_fills_the_window_the_ledger_has_running(kitchen):
-    """The status line keeps claudeAgent's five-hour window at 42% with a reset later than the
-    recording's moved to now: the cap fills that window, as a real cap would, and the thread
-    moves."""
+    """The status line keeps claudeAgent's five-hour window at 42%. Its reset is later than the
+    recording's reset, which the replay moves to now. The cap fills that window, as a real cap
+    would, and the thread moves."""
     running = datetime.now(UTC) + timedelta(hours=4)
     ledger.write(ledger.Record("claudeAgent", "five_hour", 42, int(running.timestamp())))
     thread = scratch(kitchen)
@@ -622,8 +626,8 @@ def test_the_replay_fills_the_window_the_ledger_has_running(kitchen):
 def test_a_scoped_or_second_reviewer_of_a_task_still_out_moves_though_a_verdict_is_written(
     kitchen, title
 ):
-    """Such a reviewer is launched because the brief has a verdict: it owes its own pass
-    until the task is over."""
+    """jbus launches such a reviewer because the brief has a verdict, and the reviewer owes its
+    own pass until the task is over."""
     kitchen.brief("alpha", REVIEWED)
     thread = kitchen.t3.thread("alpha", "failed", title=title)
     failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))

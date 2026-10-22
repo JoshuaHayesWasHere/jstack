@@ -1,6 +1,6 @@
-"""What a finished thread left is listed and removed by one command, `jmerge --sweep`, which
-the home skill tells a home to run at its start. The line is lifted from the skill and run, in
-a temporary repo with a real `git worktree` for every line of both lists."""
+"""One command, `jmerge --sweep`, lists and removes what a finished thread left, and the home
+skill tells a home to run it at its start. The test copies the line out of the skill and runs
+it in a temporary repo, with a real `git worktree` for every line of both lists."""
 
 import json
 import os
@@ -51,13 +51,14 @@ class Scene:
         self.pulls = 0
 
     def tree(self, branch, at=None):
-        """A worktree where T3 Code makes one, on a new branch of its name."""
+        """Make a worktree in the directory where T3 Code makes its worktrees, on a new branch
+        named after the worktree."""
         at = at or self.trees / branch
         git(self.main, "worktree", "add", "-q", "-b", branch, str(at))
         return at
 
     def work(self, tree, push=True):
-        """A commit in a worktree, pushed or not. Gives the commit."""
+        """A commit in a worktree, pushed or not. It returns the commit."""
         branch = git(tree, "rev-parse", "--abbrev-ref", "HEAD")
         with (tree / f"{branch.replace('/', '-')}.txt").open("a") as file:
             file.write(f"the work of {branch}\n")
@@ -68,8 +69,8 @@ class Scene:
         return git(tree, "rev-parse", "HEAD")
 
     def pull_request(self, head, state, base="main"):
-        """A pull request as GitHub gives it and keeps it, under `refs/pull`. A merged one is
-        a squash on the origin's main."""
+        """A pull request as GitHub gives it and keeps it, under `refs/pull`. A merged pull
+        request is a squash on the origin's main."""
         self.pulls += 1
         listed = {"state": state, "headRefOid": head, "baseRefName": base}
         (self.home.stub / f"pull-{self.pulls}.json").write_text(json.dumps(listed))
@@ -105,8 +106,8 @@ class Scene:
         return tree
 
     def mirrored(self, branch):
-        """A second remote, a bare repo beside the origin, with the branch in it. It has the
-        name of the remote the sweep once read."""
+        """A second remote, a bare repo beside the origin, with the branch in it. It has the name
+        of the remote that the sweep once read."""
         if not self.mirror.exists():
             git(self.main, "init", "-q", "--bare", "-b", "main", str(self.mirror))
             git(self.main, "remote", "add", OLD_GATE, str(self.mirror))
@@ -142,7 +143,7 @@ class Scene:
         return held
 
     def without(self, held, *branches):
-        """What `everything` gave, less the worktrees and the refs of these branches."""
+        """What `everything` gave, without the worktrees and the refs of these branches."""
         left = {}
         for key, value in held.items():
             gone = any(
@@ -658,9 +659,9 @@ def test_an_origin_that_cannot_be_read_is_a_job_not_done(scene):
 
 
 def settles(tmp_path, report):
-    """Run the block of the scout skill's End that says whether the scout settles itself. The
-    scout's tests are imported here and not at the top: this module is a plugin every test
-    loads, and a feature's own `tests/` may sit in a tree with no scout."""
+    """Run the block of the scout skill's End that says whether the scout settles itself. This
+    function imports the scout's tests here, not at the top, because this module is a plugin
+    that every test loads, and a feature's own `tests/` may sit in a tree with no scout."""
     import test_scout as scout
 
     (block,) = [block for block in scout.given("End") if "settle" in block]

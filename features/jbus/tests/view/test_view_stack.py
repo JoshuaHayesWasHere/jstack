@@ -105,8 +105,8 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
 
 
 def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path, monkeypatch):
-    """The homes the last pass found with no project are on the machine, as names, and a name
-    that is no string is left out."""
+    """The machine lists, as names, the homes the last pass found with no project. It leaves
+    out a name that is no string."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
@@ -125,8 +125,8 @@ def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path,
 
 
 def test_a_scratch_home_is_on_the_machine_with_its_thread_and_has_no_lane(tmp_path, monkeypatch):
-    """A scratch home is on the machine row with its home thread, and the words jbus keeps
-    for it give it no project's lane: it has no queue."""
+    """A scratch home is on the machine row with its home thread. It has no queue, so the
+    words that jbus keeps for it place it in no project's lane."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
@@ -149,8 +149,8 @@ def test_a_scratch_home_is_on_the_machine_with_its_thread_and_has_no_lane(tmp_pa
 def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_row(
     tmp_path, monkeypatch
 ):
-    """The room check does not run and `status.json` cannot be read: the machine says both,
-    each project's page still lists them, and no row of the overview counts them."""
+    """The room check does not run, and the view cannot read `status.json`. The machine says
+    both. Each project's page still lists them, and no row of the overview counts them."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     room = scene.bin / "room.sh"
@@ -178,9 +178,9 @@ def test_a_fault_of_the_machine_is_said_once_on_the_machine_and_on_no_projects_r
 
 
 def test_the_stack_runs_the_machines_checks_once_however_many_projects(tmp_path, monkeypatch):
-    """systemd, the room script and the runner units are asked once for an answer of
-    `/stack.json`, with three projects as with one, and the runs of GitHub once for each
-    repo, then kept: a second answer within the minute asks GitHub nothing."""
+    """For an answer of `/stack.json`, the server asks systemd, the room script and the
+    runner units once, with three projects as with one. It asks GitHub for the runs once
+    for each repo, then keeps them: a second answer within the minute asks GitHub nothing."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     calls = scene.root / "machine.calls"

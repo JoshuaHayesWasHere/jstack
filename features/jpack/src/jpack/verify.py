@@ -1,10 +1,10 @@
-"""The check with no model that a pack's citations say what the notes claim.
+"""This module checks, with no model, that a pack's citations say what the notes claim.
 
-For each citation it reads the subject repo at the cited commit: the commit is there, the
-path is in it, the file has the cited lines, and the quote that follows the citation is on
-them, with white space read as one space. A citation that quotes nothing is a fault, since
-the line alone proves nothing the note claims. Whoever wrote the notes, a scout or a crewmate,
-this is the outside check on them: it can say no.
+For each citation it reads the subject repo at the cited commit, and checks that the commit is
+there, the path is in it, the file has the cited lines, and the quote that follows the citation is
+on those lines. It reads each run of white space as one space. A citation that quotes nothing is a
+fault, since the line alone proves nothing the note claims. A scout or a crewmate writes the notes.
+This check is separate from the writer, so it can fail a note the writer got wrong.
 """
 
 from __future__ import annotations
@@ -44,8 +44,8 @@ def fault(repo: Path, cited: Citation) -> str:
 
 
 def faults(pack: Path, repo: Path) -> list[str]:
-    """One line per citation that does not hold, and per source pinned to a commit that cites
-    no line, note by note."""
+    """One line for each citation that `fault` finds wrong, and one for each source that names a
+    commit but cites no line. The function groups the lines by note."""
     found = []
     for name, text in notes(pack).items():
         for item in uncited(text):

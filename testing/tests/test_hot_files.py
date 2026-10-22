@@ -1,9 +1,11 @@
-"""`scripts/hot_files.py` prints, for a date range, the merged pull requests per file, the
-pairs of them open at once per file, and the rebases that dropped lines per file.
+"""`scripts/hot_files.py` prints, for each file in a date range, the merged pull requests that
+touched it, the pairs of them that were open at once, and the rebases that dropped lines in it.
 
-The script is run as a user runs it, against a fake `gh` on `PATH` that answers from fixed
-pull requests and writes down what it was asked, and a temporary home with a `merge.log` and
-two briefs. The home skill's weekly block is run too, with the same fake `gh`."""
+The test runs the script as a user runs it, with a temporary home that holds a `merge.log` and two
+briefs. A fake `gh` on `PATH` answers from fixed pull requests and writes down what it was asked.
+The test also runs the home skill's weekly block, with the same fake `gh`.
+
+"""
 
 import json
 import os
@@ -93,19 +95,21 @@ Rebase: patch changed in a.md, before {SHA["e"]}, head {SHA["f"]}
 
 
 def kitchen(tmp_path, pulls=PULLS):
-    """The fake `gh` and the home. The environment to run in, and the home.
+    """Set up the fake `gh` and the home, and return the environment to run in and the home.
 
-    a.md is open in #1 (1st to 3rd), #2 (2nd to 4th), #4 (3rd noon to 5th noon) and #3 (5th
-    to 6th): #1 and #2, #2 and #4, #4 and #3 overlap, three pairs. #1 ends before #4 starts,
-    and #1 and #3 never meet. #4 lists 100 files, gh's cap.
+    a.md is open in four pull requests: #1 from the 1st to the 3rd, #2 from the 2nd to the
+    4th, #4 from noon on the 3rd to noon on the 5th, and #3 from the 5th to the 6th. So three
+    pairs overlap: #1 and #2, #2 and #4, and #4 and #3. #1 ends before #4 starts, and #1 and
+    #3 are never open together. #4 lists 100 files, which is gh's cap.
 
-    The merge.log drops lines for #1 at two heads, one logged twice, and for #2 in a hold line
-    with no head, the shape jmerge logged before its holds named the review. A drop before the
-    range and one of another repo do not count.
+    The merge.log records dropped lines for #1 at two heads, and logs one of those twice. It also
+    records dropped lines for #2, in a hold line with no head: jmerge wrote hold lines in that form
+    before they named the review. A drop before the range and a drop in another repo do not count.
 
-    One brief is of #3, merged in the range: four rebases changed its patch, one of them
-    written twice. One names a file by the name its path ends with, after an "and", as briefs
-    do; one names no file. The other brief is of #7, which did not merge in the range.
+    One brief is of #3, which merged in the range. Four rebases changed its patch, and the brief
+    lists one of them twice. One of those lines names a file only by the last part of its path,
+    after an "and", as briefs do. Another line names no file. The other brief is of #7, which did
+    not merge in the range.
     """
     stub = tmp_path / "stub"
     stub.mkdir()
@@ -140,7 +144,8 @@ def run(env, *args, cwd=None):
 
 
 def tables(printed):
-    """Each table's title and its rows, the numbers as ints and the file last."""
+    """Each table's title and its rows, with the numbers as ints and the file as the last
+    item."""
     found = []
     for part in printed.strip().split("\n\n"):
         title, *rows = part.splitlines()
@@ -235,7 +240,8 @@ def test_with_no_home_the_third_table_says_so(tmp_path):
 
 
 def weekly(home):
-    """The home skill's weekly block, with `$H` the home and `$T` the home feature's templates."""
+    """The home skill's weekly block, with `$H` set to the home and `$T` set to the home feature's
+    templates."""
     (found,) = [text for text in FENCED.findall(as_read(SKILL)) if "hot_files.py" in text]
     return f'H="{home}"\nT="{REPO / "features" / "home" / "templates"}"\n' + textwrap.dedent(found)
 

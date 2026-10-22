@@ -1,4 +1,5 @@
-"""Write what jstack generates from features/, or with --check name what is stale."""
+"""Write what jstack generates from features/, or with --check write nothing and name what is
+stale."""
 
 import sys
 from pathlib import Path

@@ -1,10 +1,12 @@
-"""`python -m jdrift.explained [--check]`: the cards of
-`features/jdrift/docs/jstack-explained.html`, from the tree.
+"""`python -m jdrift.explained [--check]` builds the cards of
+`features/jdrift/docs/jstack-explained.html` from the files in the tree.
 
-Run in this repo's root, it reads one card line from each skill's `SKILL.md`, each playbook
-and each principle's `SKILL.md`, and writes the page's built parts from them: the text between each
-`<!-- built: <kind> <cards or links>, <tile> -->` and the `<!-- built: end -->` after it. The rest
-of the page is hand-written and is left as it is. A second run changes nothing.
+When you run it in this repo's root, the command reads one card line from each skill's
+`SKILL.md`, each playbook, and each principle's `SKILL.md`. From those lines it writes the
+page's built parts, which are the text between each
+`<!-- built: <kind> <cards or links>, <tile> -->` and the `<!-- built: end -->` after it. A
+person writes the rest of the page by hand, and the command leaves it as it is. A second run
+changes nothing.
 
 A card line names its tile, its place in that tile, and its words:
 
@@ -12,13 +14,15 @@ A card line names its tile, its place in that tile, and its words:
     playbook   <!-- card: <tile> | <place> | <what it is for> -->
     principle  <!-- card: <tile> | <place> | <the rule> | <who leans on it> -->
 
-A skill's line is a key of its front matter, in double quotes. Words in backticks are set as
-code. `<who>` is a list of chips, `op: the operator; plain: a step of `feature``, which a playbook
-may add as a fourth field. A principle's last field is a list too, with no kinds. A skill or a
-playbook may end with one more field, `look: scout`, for a card in a role's colour.
+A skill's line is a key of its front matter, in double quotes. The page shows words in
+backticks as code. `<who>` is a list of chips, such as
+`op: the operator; plain: a step of `feature``. A playbook may add `<who>` as a fourth field.
+A principle's last field is a list too, but its items have no `op:` or `plain:` kind. A skill
+or a playbook may end with one more field, `look: scout`, for a card in a role's colour.
 
-With `--check` it writes nothing, says whether the committed page is behind the tree, and exits
-1 when it is. No task edits the page: the docs sweep runs this, last.
+With `--check`, it writes nothing, says whether the committed page differs from what the tree
+builds, and exits 1 when it does. No task edits the page: the docs sweep runs this command as
+its last step.
 """
 
 from __future__ import annotations
@@ -66,7 +70,7 @@ class Card:
 
 
 def _set(text: str) -> str:
-    """`text` as the page has it: escaped, with what is in backticks as code."""
+    """`text` as the page shows it: escaped, with the words in backticks as code."""
     return CODE.sub(r"<code>\1</code>", html.escape(text, quote=False))
 
 
@@ -124,7 +128,8 @@ class Kind:
 
 
 def _key(text: str) -> str | None:
-    """A skill's card: the key `card:` of its front matter, which is one string in double quotes."""
+    """A skill's card, which is the key `card:` of its front matter, one string in double
+    quotes."""
     front = FRONT_MATTER.match(text)
     found = KEY.search(front.group(1)) if front else None
     if not found:
@@ -195,8 +200,8 @@ def _card(kind: str, path: Path, root: Path) -> Card:
 
 
 def _files(kind: str, root: Path) -> list[Path]:
-    """The files of `kind` under `root`: a principle is a skill too, and its card is a
-    principle's."""
+    """The files of `kind` under `root`. A principle is a skill too, so the function leaves
+    the principles out of the skill files, because their cards are principle cards."""
     found = {path for files in KINDS[kind].files for path in root.glob(files)}
     if kind == "skill":
         found -= set(_files("principle", root))
@@ -204,13 +209,14 @@ def _files(kind: str, root: Path) -> list[Path]:
 
 
 def cards(root: Path) -> list[Card]:
-    """Every card the tree asks for, in the order its tile shows it."""
+    """A card for each card line in the tree, sorted by the card's place in its tile, then by
+    name."""
     found = [_card(kind, path, root) for kind in KINDS for path in _files(kind, root)]
     return sorted(found, key=lambda card: (card.place, card.name))
 
 
 def build(root: Path) -> str:
-    """The page at `root` with each built part made again from the tree at `root`."""
+    """The page at `root`, with each built part rebuilt from the tree at `root`."""
     try:
         text = (root / PAGE).read_text(encoding="utf-8")
     except OSError as error:

@@ -1,9 +1,10 @@
-"""One work item, opened at `#/<project>/item/<id>` and steered there. It draws an item of
-the frame's `items`, and adds for each live one where it came from, `source`, and the
-steers it takes, `steers`: the moves `jbus.item`'s `MOVES` has from its state, and a
-redirect only where the queue has its row, which `jbus.steer` refuses else. So the page
-shows only the steers the record would take, and keeps no copy of the rules. The steer is
-the server's `POST /steer`, and an approval by the item's id is one of its actions."""
+"""One work item, which the user opens at `#/<project>/item/<id>` and steers there. It draws an
+item of the frame's `items`. For each live item it adds where the item came from, `source`, and
+the steers the item takes, `steers`. Those are the moves that `jbus.item`'s `MOVES` has from the
+item's state. A redirect is among them only where the queue has the item's row, since
+`jbus.steer` refuses a redirect otherwise. So the page shows only the steers that the record
+would take, and keeps no copy of the rules. The steer is the server's `POST /steer`, and an
+approval by the item's id is one of its actions."""
 
 from __future__ import annotations
 

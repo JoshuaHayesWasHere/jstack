@@ -1,7 +1,9 @@
-"""`install.sh --doctor`: every need of the machine as one line, the last line and the exit
-code. Each test runs the script under a temporary `HOME`, with a stand-in for each program
-the doctor asks, but for the three that give a kind a machine no argument of the script
-reaches."""
+"""`install.sh --doctor`: one line for every need of the machine, the last line, and the exit
+code.
+
+Each test runs the script under a temporary `HOME`, with a stand-in for each program the doctor
+runs. Three tests are the exception: they give a kind a machine that no argument of the script
+can produce."""
 
 import os
 import shlex
@@ -31,7 +33,8 @@ JBUS = 'server = "http://127.0.0.1:1"\n'
 
 
 class Doctored(User):
-    """A HOME with every program the doctor asks as a stand-in, each one line of sh."""
+    """A HOME with a stand-in for every program the doctor runs. Each stand-in is one line of
+    sh."""
 
     def __init__(self, tmp_path):
         super().__init__(tmp_path)
@@ -48,8 +51,8 @@ class Doctored(User):
         self.script(name, f"#!/bin/sh\n{line}\n")
 
     def without(self, name):
-        """A PATH with every stand-in but `name`, and of the machine's own programs only what
-        the script itself runs."""
+        """A PATH with every stand-in except `name`. Of the machine's own programs, it has
+        only those that the script itself runs."""
         (self.stub / name).unlink()
         for own in ("dirname", "python3"):
             found = os.path.realpath(sys.executable) if own == "python3" else shutil.which(own)
@@ -301,7 +304,8 @@ def test_a_jbus_sign_in_is_ok_until_its_token_runs_out(user):
 
 
 def test_a_limits_file_is_ok_while_it_was_read_in_the_last_15_minutes(user):
-    """`jgauge limits` sets the file's time on each read, also an idle account's with no line."""
+    """`jgauge limits` sets the file's time on each read. It does so for an idle account's
+    file too, which has no line."""
     part = f"optional limits {user.limits}"
     user.write(user.limits, "")
     assert user.line("limits") == f"ok {part}"
@@ -372,8 +376,8 @@ def prime(home="~/.claude_prime", **more):
 
 
 def declared(user, listed, inventory=None):
-    """An installed HOME whose inventory declares T3's two instances of today, the built-in
-    Claude one and the second Claude home, and whose T3 settings list `listed`."""
+    """An installed HOME whose inventory declares the two instances T3 has today: the
+    built-in Claude one and the second Claude home. Its T3 settings list `listed`."""
     user.run()
     (user.home / ".claude_prime").mkdir()
     (user.home / ".claude_prime" / "skills").symlink_to(user.home / ".claude" / "skills")

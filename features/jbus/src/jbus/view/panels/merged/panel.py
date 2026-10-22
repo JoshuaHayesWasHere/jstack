@@ -1,5 +1,5 @@
-"""What merged today: each row the queue moved to merged since the start of the user's day,
-and each row `merge.log` has as merged while its row says another thing."""
+"""What merged today: each row that moved to merged in the queue since the start of the user's
+day, and each row that `merge.log` records as merged while the row says another state."""
 
 from __future__ import annotations
 

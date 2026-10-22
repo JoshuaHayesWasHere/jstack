@@ -1,7 +1,9 @@
 """`install.sh`: the layout it assembles for Claude Code, Codex and Cursor, what it puts for
-each, what `--check` says of each part and what `--uninstall` takes away. Every test runs the
-script, under a temporary `HOME` and with stand-ins for `uv` and `systemctl`, but for the three
-that ask the machine a question no argument of the script reaches."""
+each, what `--check` says of each part, and what `--uninstall` takes away.
+
+Every test runs the script under a temporary `HOME`, with stand-ins for `uv` and `systemctl`.
+Three tests are the exception: each gives the code a machine state that no argument of the script
+can produce."""
 
 import fcntl
 import json
@@ -85,7 +87,8 @@ def group(script, home, matcher="startup", refuses=False, harness="claude-code")
 
 
 def layouts(home):
-    """The part of each harness's layout under `home`, by what its line says when it is ok."""
+    """The part of each harness's layout under `home`, keyed by what its line says when it
+    is ok."""
     return {
         f"hard layout {harness.name} {laid(home, harness.name)}": (
             f" -> README.md: {FLAGGED[harness.name]} name what it leaves out"
@@ -97,8 +100,8 @@ def layouts(home):
 
 
 def hook_parts(home, source):
-    """The line of each hook entry the source's skills.json gives, in its order, in the file
-    its harness reads."""
+    """The line of each hook entry that the source's skills.json gives, in its order. Each
+    line names the file that the entry's harness reads."""
     files = {harness.name: home / harness.hooks for harness in HARNESSES if harness.hooks}
     return [
         f"hard hook {files[one['harness']]} {one['event']}"
@@ -143,7 +146,8 @@ esac
 
 
 class User:
-    """One temporary HOME, and beside it what the stand-ins keep: uv's tools and both logs."""
+    """One temporary HOME, and beside it what the stand-ins keep: uv's tools and both
+    logs."""
 
     def __init__(self, tmp_path):
         self.home = tmp_path / "user"
@@ -204,7 +208,7 @@ class User:
         return self.run_with_stderr(*args)[:2]
 
     def only(self, *programs):
-        """A PATH of one new directory that holds `dirname` and the stand-ins named."""
+        """A PATH of one new directory that holds `dirname` and the named stand-ins."""
         narrow = self.stub.parent / "narrow"
         narrow.mkdir(exist_ok=True)
         (narrow / "dirname").symlink_to(shutil.which("dirname"))
@@ -233,7 +237,8 @@ class User:
         return [self.home / root / name for root in ROOTS for name in SKILLS]
 
     def linked(self):
-        """Each skill link, by where it points: its skill in the layout of its root's harness."""
+        """Each skill link, keyed by where it points: its skill in the layout of its root's
+        harness."""
         return {
             self.home / harness.root / name: laid(self.home, harness.name) / "skills" / name
             for harness in HARNESSES
@@ -251,8 +256,8 @@ class User:
         ]
 
     def every(self, state, *more):
-        """Each layout's line and each part's in `state`, under the generated files', which
-        are current in this checkout."""
+        """The line of each layout and of each part in `state`, after the generated files'
+        line. The generated files are current in this checkout."""
         return [GENERATED, *lines_of(state, [*self.parts(), *more], self.home)]
 
     def listing(self):
@@ -275,8 +280,8 @@ class User:
         path.write_text(value if isinstance(value, str) else json.dumps(value))
 
     def tool(self, name, source, names, roots=PACKAGE_ROOTS):
-        """A tool as uv leaves one: its PEP 610 record, the paths its .pth file lists for each
-        root in `roots`, and its commands in the bin directory."""
+        """A tool as uv leaves one. It has its PEP 610 record, a path in its .pth file for
+        each root in `roots`, and its commands in the bin directory."""
         site = self.tools / name / "lib" / "python3" / "site-packages" / f"{name}-0.1.0.dist-info"
         self.write(
             site / "direct_url.json", {"url": f"file://{source}", "dir_info": {"editable": True}}
@@ -1066,8 +1071,8 @@ def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(
 
 
 def checkout_under(user):
-    """A main checkout inside the user's HOME, with this one's installer, hooks, code and the
-    source of its layouts."""
+    """A main checkout inside the user's HOME. It has this checkout's installer, hooks and
+    code, and the source of its layouts."""
     checkout = user.home / "repos" / "jstack"
     checkout.mkdir(parents=True)
     for name in ("install.sh", "pyproject.toml", "skills.json", "plugin.json"):
@@ -1137,8 +1142,9 @@ def test_a_repo_that_points_git_at_other_hooks_is_told_so(tmp_path):
 
 
 def releasing(tmp_path, plugin=None):
-    """A clean main that is origin/main, with this checkout's Makefile, pyproject.toml and
-    plugin.json, the last at `plugin` where given, and a bare origin."""
+    """A clean main that is origin/main, and a bare origin. The main has this checkout's
+    Makefile, pyproject.toml and plugin.json, with the plugin.json at `plugin` when the
+    caller gives one."""
     origin, work = tmp_path / "origin.git", tmp_path / "work"
     git = ["git", "-C", str(work)]
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)

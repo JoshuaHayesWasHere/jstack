@@ -1,8 +1,9 @@
 """jdrift: what changed upstream in pstack since the pin, for the files this repo took from it.
 
-This module is the model: the pstack section of `THIRD_PARTY.md`, read into the pin, the
-upstream paths with the local files each one fed, the upstream skills left out on purpose, and
-the files here that sit beside the ones taken and are jstack's own, with no upstream to compare.
+This module reads the pstack section of `THIRD_PARTY.md` into four parts: the pin, the upstream
+paths with the local files that came from each one, the upstream skills that the repo left out
+on purpose, and jstack's own files. jstack's own files are in the same folders as the files
+this repo took from pstack, but they have no upstream to compare.
 """
 
 from __future__ import annotations
@@ -19,7 +20,8 @@ _LINE = re.compile(r"(\S+) <- (pstack/\S+(?:, pstack/\S+)*)")
 
 
 class Refused(Exception):
-    """jdrift cannot compare. The message is the one line to print."""
+    """jdrift cannot compare this repo with the upstream. The message is the one line to
+    print."""
 
 
 @dataclass(frozen=True)
@@ -31,9 +33,10 @@ class Pinned:
 
 
 def read_section(text: str) -> Pinned:
-    """The pstack section of `THIRD_PARTY.md`: its `Commit:` line, its `Upstream map:` block,
-    one `<local path> <- <upstream path>[, <upstream path>...]` a line, `Not taken:`, and
-    `jstack's own:`, the local paths in backticks that no upstream path fed."""
+    """The pstack section of `THIRD_PARTY.md`. It has its `Commit:` line, and its
+    `Upstream map:` block with one `<local path> <- <upstream path>[, <upstream path>...]` on
+    each line. It also has a `Not taken:` line, and a `jstack's own:` line, which lists in
+    backticks the local paths that come from no upstream path."""
     found = re.search(r"^## pstack\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
     if not found:
         raise Refused(f"{FILE}: no pstack section")

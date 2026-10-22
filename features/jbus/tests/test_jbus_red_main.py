@@ -1,8 +1,13 @@
-"""A red main changes the order: the fix jbus files for it is queued ahead of every row of its
-project and is the next launch there, `main.json` (`mainmoved`'s record) keeps the last tip
-of main that was green and the red tip that is not, `jmerge` reads that file
-(`features/jmerge/tests/test_jmerge_order.py`), and a launched brief names the green sha on a
-`Green main:` line. Run as `test_jbus_watch.py` runs: the real pass, against the fakes.
+"""A red main changes the order of the queue:
+
+- jbus queues the fix it files for the red main ahead of every row of its project, and the fix is
+  the next launch there.
+- `main.json`, the record of `mainmoved`, keeps the last tip of main that was green, and the tip
+  that is red.
+- `jmerge` reads that file (`features/jmerge/tests/test_jmerge_order.py`).
+- A launched brief names the green sha on a `Green main:` line.
+
+Like `test_jbus_watch.py`, the tests run the real pass against the fakes.
 """
 
 import json
@@ -101,8 +106,8 @@ def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
 
 def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitchen):
     """`mainmoved` keeps the red tip as `broken`, and `jmerge` reads the same sha from the same
-    file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, which is no
-    record of which tip is red: no other file of the project's state names a red main."""
+    file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, but that is
+    no record of which tip is red. No other file of the project's state names a red main."""
     checks(kitchen, tip(kitchen), "success")
     kitchen.poll()
     red = move(kitchen, "failure")
@@ -124,8 +129,9 @@ crews = test_jbus_main_moved.launched
 
 
 def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews):
-    """A red crew whose head GitHub has not judged yet is owed its message, so `tell` keeps the
-    old commit to look at again: the red main is still freed for `jmerge` on that pass."""
+    """jbus still owes its message to a red crew whose head GitHub has not judged yet, so `tell`
+    keeps the old commit to look at again. Even so, on that pass `jmerge` no longer reads main as
+    red."""
     red = tip(crews)
     crews.set("open.json", [pull(crews, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
     crews.box = jbus.wake.Box(crews.state, jbus.load().projects[0])

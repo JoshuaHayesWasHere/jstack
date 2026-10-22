@@ -1,4 +1,4 @@
-"""The crew skill's brief from the launch message, and where the findings go."""
+"""The crew skill takes its brief from the launch message, and says where the findings go."""
 
 import hashlib
 import os
@@ -22,7 +22,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(kitchen, tmp_path):
-    """`jbus` puts the brief under the first line of its launch, and step 1 writes that down."""
+    """`jbus` puts the brief under the first line of its launch, and step 1 writes it to disk."""
     brief = BRIEF.split("\n## Result")[0] + (
         "Done when:\n- it is done\nProves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
         "Design: none, a test\nReview: review+test\nPlaybook: feature\n"
@@ -42,8 +42,8 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
 
 
 def where_the_findings_go(home):
-    """What step 4 of the pr-review skill's "After the review" prints, then whom its
-    "Telling the home" finds, for the brief `alpha` in a home's state directory."""
+    """What step 4 of "After the review" in the pr-review skill prints, and then which home the
+    skill's "Telling the home" finds, for the brief `alpha` in a home's state directory."""
     skill = as_read(REPO / "features" / "pr-review" / "SKILL.md")
     printed = []
     for heading, about in (
@@ -75,8 +75,8 @@ def test_with_no_home_the_findings_go_to_the_thread_line_as_they_do_with_one(kit
 def test_findings_with_no_thread_line_and_no_home_are_written_not_sent_and_jbus_parks_them(
     kitchen,
 ):
-    """The reviewer writes the `Sent to:` line the pr-review skill gives for no home, and
-    the next pass of jbus reads it."""
+    """When there is no home, the pr-review skill tells the reviewer to write a `Sent to:` line.
+    The reviewer writes it, and the next pass of jbus reads it."""
     from jbus import threads
 
     review = (

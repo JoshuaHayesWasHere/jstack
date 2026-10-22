@@ -1,35 +1,34 @@
-"""What every test module shares, loaded as a pytest plugin by the root `conftest.py`, so a
-test in a feature's own `tests/` has it too.
+"""What every test module shares. The root `conftest.py` loads it as a pytest plugin, so a test
+in a feature's own `tests/` has it too.
 
-The hourly heartbeat is an event on the first pass of each hour, so it would be one more
-line in every test that pins what a pass sends. It is off everywhere but in
-`test_jbus_alive.py`, which is where it is tested. So are the events of work items, one
-for each line of `items.jsonl`: they are off everywhere but in `test_item.py`, and the lines
-are written all the same.
+jbus sends the hourly heartbeat on the first pass of each hour, so every test that pins what a pass
+sends would need one more line. It is off everywhere but in `test_jbus_alive.py`, which tests it.
+The events of work items, one for each line of `items.jsonl`, are off in the same way everywhere but
+in `test_item.py`. jbus still writes the lines.
 
-Every test runs with a config of jstack's own in a directory of its own, and a jbus state
-directory of its own, never the machine's:
-it names no user, so the name is the default, and it fixes the zone and its label, so a time
-a test pins reads the same on every machine. A test of another config writes one with `user`.
+Every test runs with its own jstack config in a directory of its own, and its own jbus state
+directory, never the machine's. The config names no user, so the name is the default. It fixes the
+time zone and its label, so a time that a test pins reads the same on every machine. A test
+that needs another config writes one with `user`.
 
-No test starts a unit of the machine's user manager: `systemd-run` on PATH is a fake that
-starts the command in a session of its own, as a transient unit would outlive its caller, and
-writes what it was asked to `$SYSTEMD_RUN_CALLS` where that is set.
+No test starts a unit of the machine's user manager. `systemd-run` on PATH is a fake: it starts
+the command in a session of its own, so that the command outlives its caller as a transient
+unit would. Where `$SYSTEMD_RUN_CALLS` is set, the fake writes each call it gets into that file.
 
-No test leaves a daemon running: one starts it with `daemons.start`, and the autouse fixture
-`no_daemons_left` stops it when the test ends, also on a failed assert or a timeout. A pytest
-that is killed takes its daemons with it (`testing/tests/daemons.py` says how).
+No test leaves a daemon running: a test starts a daemon with `daemons.start`, and the autouse
+fixture `no_daemons_left` stops it when the test ends, also on a failed assert or a timeout. When
+pytest is killed, the kernel kills its daemons too (`testing/tests/daemons.py` says how).
 
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
-one project. Its repo, a checkout and its origin, is a copy of one built once for each worker
-in the directory `kitchen_template` gives (`repo_template`), so a kitchen starts no git
-process to make it.
+one project. The kitchen's repo is a checkout and its origin. It is a copy of a repo that
+`repo_template` has built once for each worker, in the directory that `kitchen_template` gives,
+so a kitchen starts no git process to make its repo.
 
-A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`;
-one of a guarded path asks for `rules`, the package with a list that guards five paths, and
-`proven_merged`, a pull request whose review proved the one safety fact at its head, from
-`test_jmerge_guarded`. Both are plugins of the root `conftest.py` too, so every run loads them;
-`test_home_merge` asks `uv cache dir` only when a test needs the cache.
+A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`.
+A test of a guarded path asks for two fixtures from `test_jmerge_guarded`: `rules`, the package
+with a list that guards five paths, and `proven_merged`, a pull request whose review proved the
+one safety fact at its head. Both modules are plugins of the root `conftest.py` too, so every
+run loads them. `test_home_merge` runs `uv cache dir` only when a test needs the cache.
 """
 
 import os
@@ -79,7 +78,7 @@ def no_heartbeat(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_health(request, monkeypatch):
-    """The health step looks at the machine the test runs on: only its own tests have it."""
+    """The health step checks the machine the test runs on, so only `test_jbus_health` runs it."""
     if request.module.__name__ != "test_jbus_health":
         monkeypatch.setattr(health, "watch", lambda config, now, say: [])
 
@@ -92,7 +91,8 @@ def no_item_events(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def jstack_config(tmp_path_factory, monkeypatch):
-    """The path of the config the test runs with. Written again, it is the config from then on."""
+    """The path of the config the test runs with. A test that writes the file again changes
+    the config from then on."""
     home = tmp_path_factory.mktemp("config")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home))
     path = home / "jstack" / "config.toml"
@@ -103,22 +103,27 @@ def jstack_config(tmp_path_factory, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_machine_state(tmp_path_factory, monkeypatch):
-    """`jroles` and `jbus` read the ledger `LIMITS` names: a test never reads the machine's, and
-    a test that sets the variable itself sets it again."""
+    """Point `LIMITS` at a ledger of the test's own. `jroles` and `jbus` read the ledger that
+    `LIMITS` names, so a test never reads the machine's ledger. A test that needs its own `LIMITS`
+    sets the variable again itself."""
     monkeypatch.setenv("LIMITS", str(tmp_path_factory.mktemp("state") / "limits"))
 
 
 @pytest.fixture
 def named_user(jstack_config):
-    """The settings name a user, so a level and a kind of event had that name once."""
+    """Settings that name the user Robin. `OLD_LEVEL` and `OLD_EVENT` are a level and a kind of
+    event that once used that name."""
     jstack_config.write_text(NAMED)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def kitchen_template(tmp_path_factory):
-    """Where this worker builds the repos every kitchen's `repo` and every `Home` copies.
+    """Where this worker builds the repos that each kitchen's `repo` copies. Each `Home` copies them
+    too.
 
-    They are built on the first copy, so a run that asks for none starts no git process.
+    The first test that asks for a copy builds them, so a run that asks for none starts no git
+    process.
+
     """
     repo_template.root = tmp_path_factory.mktemp("kitchen-template")
     yield

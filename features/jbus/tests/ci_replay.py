@@ -1,7 +1,8 @@
-"""A recording of GitHub's Actions API for jstack, answered as `jbus.ci.collect.Gh`.
+"""This module is a fake of `jbus.ci.collect.Gh` that replies from a recording of GitHub's Actions
+API for jstack.
 
-The files of `features/jbus/tests/fixtures/ci/jstack` are the answers of the API for 2026-10-14 to
-2026-10-17, trimmed (see the README there). `annotations` are the ones a test gives a job.
+The files of `features/jbus/tests/fixtures/ci/jstack` are the API's answers for 2026-10-14 to
+2026-10-17, trimmed as the README there says. `annotations` are the annotations a test gives a job.
 """
 
 import json

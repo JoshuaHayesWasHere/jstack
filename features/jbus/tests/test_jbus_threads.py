@@ -1,7 +1,7 @@
-"""`jbus.threads` carries what a thread could not: findings the reviewer could not deliver go
-to the brief's thread once, an open pull request is linked to its thread, and the threads of
-a finished task, and a scout's once its page is done with, are settled once each. Run as
-`test_jbus_kitchen.py` runs: the real pass, against the fakes.
+"""`jbus.threads` delivers what a thread could not deliver itself. Findings that the reviewer could
+not deliver go to the brief's thread once, and jbus links an open pull request to its thread. jbus
+settles each thread of a finished task once, and settles a scout's thread once when its page has
+ended. Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
 import hashlib
@@ -110,8 +110,8 @@ def test_a_review_that_was_delivered_is_clean_or_is_of_no_open_pull_request_is_n
 
 
 def test_the_findings_of_an_after_brief_go_to_its_cleanup_row_and_never_to_the_crew(kitchen):
-    """A `Review: after` pull request merges on its check: its findings are no work for its
-    crew, and a relay would have the crew race the merge with a fix."""
+    """A `Review: after` pull request merges on its check, so its findings are no work for its
+    crew. A relay of them would have the crew push a fix while the pull request merges."""
     kitchen.brief("alpha", "Review: after\nThread: mcp:crew\n" + review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll()
@@ -120,8 +120,9 @@ def test_the_findings_of_an_after_brief_go_to_its_cleanup_row_and_never_to_the_c
 
 
 def test_a_twice_brief_s_second_review_is_never_relayed_and_its_first_is(kitchen):
-    """A `Review: twice` pull request answers its first review and files its second as a
-    cleanup row: a relay of the second would have the crew start a second fix round."""
+    """For a `Review: twice` pull request, the crew answers the first review, and the reviewer
+    files the second review as a cleanup row. A relay of the second would have the crew start a
+    second fix round."""
     first = review().replace("c" * 40, "d" * 40)
     kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first + review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])

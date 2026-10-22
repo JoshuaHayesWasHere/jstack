@@ -1,12 +1,12 @@
-"""jbus keeps every event it sends: `events.jsonl` holds each one with its text, when it
-was sent and when it was posted, and `jbus events` prints the file and writes nothing.
+"""jbus keeps every event it sends. `events.jsonl` holds each event with its text, the time jbus
+sent it and the time jbus posted it. `jbus events` prints the file and writes nothing.
 
-The tests run the real pass and the real command against the faked T3 Code server and
-webhook of `test_jbus_kitchen`, or the real `wake.Box` against the webhook of `test_jbus_wake`.
-The log's clock is the test's, set with `clock.at`. Nothing reaches the network.
+The tests run the real pass and the real command against the faked T3 Code server and webhook of
+`test_jbus_kitchen`, or the real `wake.Box` against the webhook of `test_jbus_wake`. The log uses
+the test's clock, which the test sets with `clock.at`. Nothing reaches the network.
 
-The table of kinds is built from what each module of jbus declares, its `EVENTS`. The tests
-of that import the real `jbus.wake` in a fresh Python, with made-up modules beside jbus's own.
+jbus builds the table of kinds from what each module of jbus declares in its `EVENTS`. The tests of
+the table import the real `jbus.wake` in a fresh Python, with made-up modules beside jbus's own.
 """
 
 import json
@@ -58,7 +58,7 @@ def at(moment):
 
 
 def logged(kitchen):
-    """The file's own lines that are events, as they were written."""
+    """Return the file's own lines that are events, as jbus wrote them."""
     lines = (kitchen.state / "events.jsonl").read_text().splitlines()
     return [one for one in map(json.loads, lines) if "posted" not in one]
 
@@ -70,13 +70,14 @@ def printed(kitchen, *argv):
 
 
 def stray(kitchen, *slugs):
-    """Pull requests with no brief: the next pass records one condition for each that is new."""
+    """Make pull requests that are open and have no brief. The next pass records one condition
+    for each new one."""
     pulls = [kitchen.opened(slug, 10 + place) for place, slug in enumerate(slugs)]
     kitchen.set("open.json", pulls)
 
 
 def poll(kitchen, clock, now):
-    """A pass that starts now, on a clock that reads now."""
+    """Run a pass that starts now, on a clock that reads now."""
     return kitchen.poll(clock.at(now))
 
 
@@ -106,7 +107,8 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events(ki
 
 
 def test_a_gate_queued_while_a_pass_runs_is_posted_after_it_was_sent(kitchen, clock):
-    """The pass began before the gate: both times are the clock's, not the start of the pass."""
+    """The pass began before the gate, and the event's queued time and posted time both come from
+    the clock, not from the start of the pass."""
     queued, posting = NOW + timedelta(seconds=30), NOW + timedelta(seconds=40)
     clock.at(queued)
     assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
@@ -220,7 +222,8 @@ def test_an_event_a_key_keeps_out_is_not_logged(tmp_path, webhook):
 
 
 def test_a_log_that_cannot_be_written_stops_no_event_and_no_post(tmp_path, webhook):
-    """A directory where the log goes: every append fails, and the webhook gets both lists."""
+    """The test puts a directory where the log goes, so every append fails, and the webhook still
+    gets both lists."""
     made = box(tmp_path, webhook)
     (made.state / "events.jsonl").mkdir(parents=True)
     assert made.send("alpha", "gate", "gate alpha: which?", "a" * 70_000, cap=70_000)
@@ -319,7 +322,7 @@ def test_the_table_of_kinds_is_the_one_written_out_here_kind_for_kind():
 
 
 def fresh(tmp_path, run, **modules):
-    """A fresh Python that imports jbus with `modules` beside its own, then runs `run`."""
+    """Run a fresh Python that imports jbus with `modules` beside its own, then runs `run`."""
     for name, source in modules.items():
         (tmp_path / f"{name}.py").write_text(source)
     code = f"import jbus\njbus.__path__.append({str(tmp_path)!r})\n{run}\n"

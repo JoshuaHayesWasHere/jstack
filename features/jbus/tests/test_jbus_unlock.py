@@ -1,6 +1,7 @@
-"""A shared file never stops a launch: an overlap is one event, and the safety is at merge
-time, where a crew whose pull request went stale or conflicts is told to rebase, once per
-head. Run as `test_jbus_queue.py` runs: the real pass, against the fakes."""
+"""A shared file never stops a launch: an overlap is one event, and the check against shared
+files happens at merge time. There, jbus tells a crew to rebase, once per head, when its pull
+request went stale or conflicts. Like `test_jbus_queue.py`, the tests run the real pass against
+the fakes."""
 
 import json
 from datetime import timedelta
@@ -119,8 +120,8 @@ def out(kitchen, head="c" * 40, reason=CHANGED + ": it needs a rebase", word="wa
 
 @pytest.fixture
 def launched(kitchen):
-    """Alpha, launched by a pass, so it has a launch record and its `Thread:` line, with
-    its thread's turn ended: one at work is told nothing."""
+    """Alpha is a row that a pass launched, so it has a launch record and its `Thread:` line. Its
+    thread's turn has ended, since jbus tells nothing to a thread that is at work."""
     add(kitchen, "alpha")
     assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
     kitchen.t3.threads[0]["status"] = "completed"
@@ -302,7 +303,8 @@ def test_a_default_branch_that_is_not_known_sends_no_message_and_is_tried_again(
 
 
 def test_a_thread_line_in_the_approved_copy_alone_is_no_thread_to_tell(kitchen):
-    """A brief pasted from an old task file: its line names a thread that is not this crew's."""
+    """The brief is pasted from an old task file, and its `Thread:` line names a thread that is
+    not this crew's."""
     add(kitchen, "alpha", text=task("alpha", "src/alpha/") + "Thread: mcp:an-old-thread\n")
     kitchen.poll(NOW - timedelta(minutes=30))
     (kitchen.home / "tasks/alpha.md").unlink()

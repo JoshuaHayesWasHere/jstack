@@ -1,9 +1,10 @@
-"""The one list of what a machine needs to run jstack. Written once, here, but the hooks, which
-each feature declares and the install reads from the source's skills.json.
+"""The one list of what a machine needs to run jstack. This module names every need, once,
+except the hooks: each feature declares its own, and the install reads them from the source's
+skills.json.
 
-Adding a need is one entry in `needs()`: the doctor then prints it, `--setup` says whether it
-is done, already there, or the user's to do, and when its kind is Carried the install also
-puts, checks and removes it, with no other edit.
+To add a need, add one entry to `needs()`, and make no other edit. The doctor then prints it,
+and `--setup` says whether it is done, already there, or left for the user to do. When its kind is
+Carried, the install also puts, checks and removes it.
 """
 
 import json
@@ -66,8 +67,8 @@ UV_FLOOR: tuple[int, ...] | None = None
 
 
 class Level(Enum):
-    """HARD: jstack does not run without it, and the doctor exits 1.
-    OPTIONAL: a layer is off without it, and the doctor only says so."""
+    """HARD: jstack does not run without the need, and the doctor exits 1.
+    OPTIONAL: a layer is off without the need, and the doctor only says so."""
 
     HARD = "hard"
     OPTIONAL = "optional"
@@ -75,8 +76,9 @@ class Level(Enum):
 
 @dataclass(frozen=True)
 class Need:
-    """One line. `name` is what is printed after the level: a path for a link, else a word
-    and a path or a program (`hook <file> <Event>`, `commands jstack`, `jq`)."""
+    """One line of the list. `name` is what the line prints after the level. For a link it
+    is a path, and for anything else it is a word and a path, or a program
+    (`hook <file> <Event>`, `commands jstack`, `jq`)."""
 
     name: str
     level: Level
@@ -84,15 +86,17 @@ class Need:
 
 
 def needs(machine: Machine) -> tuple[Need, ...]:
-    """Every need, in the order printed. Nothing is probed here: the list is derived from the
-    source's skills.json, the units (`templates`), the commands (`_commands`), one listing
-    of each skills root for GoneLink, and the provider inventory, which names the instances
-    and the Claude homes to probe. A release has no checkout, and lists neither the generated
-    line nor the git hook. An inventory that cannot be taken
-    names none, and its own line says why. A skills.json that cannot be read names no
-    skill and no hook, and each layout's line says why.
+    """Every need, in the order the lines print. This function probes nothing. It derives the
+    list from the source's skills.json, the units (`templates`), the commands (`_commands`),
+    one listing of each skills root for GoneLink, and the provider inventory. The inventory
+    names the instances and the Claude homes to probe.
 
-    Only probed:
+    A release has no checkout, so its list has neither the generated line nor the git hook.
+    An inventory that the function cannot read names no instance or home, and its own line
+    says why. A skills.json that the function cannot read names no skill and no hook, and each
+    layout's line says why.
+
+    Needs that the install only probes:
       hard      linux                         Linux
       hard      t3                            T3Nightly(T3_FLOOR)
       hard      claude                        Program("claude", package="claude-code")
@@ -113,9 +117,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      skills <home>                 HomeSkills, for each declared Claude home
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
-    Carried, in the order they are put. Uninstall walks them backwards. Every link and hook
-    command points into a harness's layout, assembled from the checkout or the release, but
-    the git hook:
+    Carried, in the order the install puts them, and uninstall walks them in reverse. Every
+    link and hook command except the git hook points into a harness's layout, which the
+    install assembles from the checkout or the release:
       hard      generated files are current   Generated, the generator's --check, in a checkout
       hard      layout <harness> <folder>     Layout, for Claude Code, Codex and Cursor
       hard      ~/.claude/skills/<skill>      Link into Claude Code's layout
@@ -268,8 +272,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
 
 
 def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:
-    """A link for each project skill in each harness's project folder of the checkout, and a
-    stray one for each link there into the checkout that no feature declares."""
+    """The needs of the checkout's project folders. Each project skill gets a link in each
+    harness's project folder. Each link already there that points into the checkout, under a
+    name no feature declares, gets a stray need."""
     roots = [repo / harness.project for harness in HARNESSES if harness.project]
     declared = frozenset(one["name"] for one in local)
     found = [
@@ -289,9 +294,10 @@ def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:
 
 
 def _commands(machine: Machine) -> Commands:
-    """The tool and its commands: a checkout's pyproject.toml; for a release, its
-    plugin.json, whose name and version are the package's, and the commands its installed
-    package declares, none where it is not installed."""
+    """The tool and its commands. For a checkout, the function reads them from its
+    pyproject.toml. For a release, it reads the name and the version from the release's
+    plugin.json, and they match the package's. It reads the commands from what the installed
+    package declares, and there are none when the package is not installed."""
     if machine.checkout is not None:
         project = tomllib.loads((machine.checkout / "pyproject.toml").read_text())["project"]
         return Commands(project["name"], tuple(project["scripts"]))

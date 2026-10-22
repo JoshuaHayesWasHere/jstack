@@ -74,20 +74,21 @@ LAUNCH = "the launch"
 
 @dataclass
 class Half:
-    """What a project's pass has: for its steps, the dispatch, and its second half.
+    """A `Half` is the state of a project's pass that its steps, the dispatch and its second
+    half read.
 
-    It is made when the pass starts and filled in as the spine runs, so a step reads what
-    the spine had by its slot (`verbs.SLOTS`). `held` is the keys of the questions on
-    record, or None where `questions.json` does not parse. `turns` is there when the
-    project may launch: T3 Code and GitHub answered and the queue parses. `blind` is a pass
-    that cannot tell which slugs were removed, since `removed.json` does not parse: it reads
-    no brief, acts on no thread or pull request, and leaves the list of what waits as it
-    was. Its crews out are still counted.
+    `first_half` makes it when the pass starts. The pass fills it in as it runs its fixed steps in
+    order, so a step reads what the fixed steps had set when its slot comes (`verbs.SLOTS`). `held`
+    is the keys of the questions on record, or None where `questions.json` does not parse. `turns`
+    is set when the project may launch: T3 Code and GitHub answered and the queue parses. `blind`
+    marks a pass that cannot tell which slugs were removed, since `removed.json` does not parse.
+    Such a pass reads no brief, acts on no thread or pull request, and leaves the list of what waits
+    as it was. It still counts its crews at work.
 
-    The second half fills in the rest: whether it `derived` the table and `read` every
-    brief, the `states` it judged, the `table` its steps read (derived anew where it was,
-    with what `changed`), what `jmerge` said as the user hears it (`users`), and what
-    `stall.tell` and `waiting.keep` found (`roots`, `listed`).
+    The second half fills in the rest. It records whether it `derived` the table and `read`
+    every brief, the `states` it judged, and the `table` its steps read. When it derived the
+    table anew, it records what `changed`. It keeps what `jmerge` said, worded for the user
+    (`users`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
     run: wake.Pass
@@ -111,16 +112,16 @@ class Half:
     listed: list[waiting.Item] | None = None
 
     def answered(self) -> work.Answered:
-        """Which of T3 Code and GitHub answered the pass. With T3 Code silent GitHub is not
-        asked, and with GitHub silent there is no world."""
+        """Return which of T3 Code and GitHub answered the pass. When T3 Code is silent the
+        pass does not ask GitHub, and when GitHub is silent there is no world."""
         if self.seen.world is not None:
             return work.Answered.BOTH
         return work.Answered.NEITHER if self.seen.out is None else work.Answered.T3
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank, each one whose needs the pass has when it comes: a
-    step of `derive` judges the rows that the steps after it need."""
+    """Run the steps of a slot by rank, each step only when the pass has what that step
+    needs. A step of `derive` judges the rows that the later steps need."""
     for step in RANKED[slot]:
         has = {
             "sight": not half.blind,
@@ -133,9 +134,9 @@ def steps(half: Half, slot: str) -> None:
 
 
 def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
-    """What a project's pass does before any launch: merge, read, ask, and say what it found.
+    """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
-    The spine is written out here, and the steps of each slot run where it is.
+    This function runs the fixed steps of the pass in order, with a call to `steps` per slot.
     """
     name = run.project.name
     half = Half(run, client)
@@ -176,9 +177,9 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
 
 
 def second_half(half: Half, client: t3.Client | None) -> None:
-    """What a project's pass does after the launches: the table, what waits, and the wake.
+    """Run a project's pass after the launches: build the table, list what waits, send the wake.
 
-    The spine is written out here, and the steps of each slot run where it is.
+    This function runs the fixed steps of the pass in order, with a call to `steps` per slot.
     """
     run, rows, world = half.run, half.rows, half.seen.world
     half.derived = world is not None and client is not None and rows is not None
@@ -196,20 +197,19 @@ def second_half(half: Half, client: t3.Client | None) -> None:
 def poll(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """One pass over every project. A second pass that finds the lock held prints `busy`.
+    """Run one pass over every project. A second pass that finds the lock held prints `busy`.
 
-    Every project's first half runs before any launch, so the crews out are counted over
-    all of them, and every project's second half runs after the launches.
+    Every project's first half runs before any launch, so the pass counts the crews at work
+    across all of them. Every project's second half runs after the launches.
 
-    A project that raises is said, kept as its `last_error`, and does not end the pass: the
-    others still run and the status file is still written. The answer is then 1. Nothing
-    is launched in such a pass, since that project's crews out are not known. A pass in
-    which nothing raised ends the `pass` streak that `jbus alarm` counts, and the `stale`
-    streak that `jbus alarm --stale` counts. A record of the
-    pass that cannot be written is said, and the pass does all it does with one.
+    When a project raises, the pass says so and keeps the error as the project's `last_error`. It
+    still runs the other projects and writes the status file, then returns 1. It launches nothing,
+    since it does not know how many crews that project has at work. A pass in which nothing raised
+    ends the `pass` streak that `jbus alarm` counts, and the `stale` streak that
+    `jbus alarm --stale` counts. A pass that cannot write its record says so and runs as usual.
 
-    A config that still has a key nothing reads is said in one line, on each pass until
-    the key is removed. The pass ends by writing the status file (`record.write_status`).
+    When the config still has a key that nothing reads, each pass says so in one line until the
+    user removes the key. The pass ends by writing the status file (`record.write_status`).
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:

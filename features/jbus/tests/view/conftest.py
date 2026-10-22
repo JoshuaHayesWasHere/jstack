@@ -1,4 +1,4 @@
-"""The fixtures the tests of `jbus view` share: a scene, and the server open over it."""
+"""The fixtures the tests of `jbus view` share: a scene, and the server running over it."""
 
 import pytest
 

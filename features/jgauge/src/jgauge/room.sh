@@ -65,8 +65,8 @@ room() (
       for (i = 2; i <= n; i++) all = all (i == n ? " and " : ", ") names[i]
       return all
     }
-    # One instance of the pool, read once: its file, whether a window holds it full, the first
-    # such window in order, the one that holds it longest, and the note a window it lacks gets.
+    # Read one instance of the pool, once: its file, whether a window has it full, the first
+    # such window in order, the one that keeps it full longest, and the note for a window it lacks.
     function plan(instance,    file, row, at, n, name, count, expired, unknown, reason, past) {
       if (instance in read) return
       read[instance] = 1
@@ -113,8 +113,9 @@ room() (
       else if (pressure >= PRESSURE) why = "memory pressure " pressure " is at or over " PRESSURE
       else if (slots !~ /^[0-9]+$/ || taken !~ /^[0-9]+$/) why = "the file slots of " TMPFS " could not be read"
       else if (taken * 100 > slots * SLOTS) why = TMPFS " has " taken " of " slots " file slots used, over " SLOTS "%"
-      # The plan holds a launch only while every instance of a line of the pool is full: a
-      # pool of one says its first full window, a larger pool each instance and the first reset.
+      # Room holds back a launch only while every instance of a line of the pool is full. For a
+      # pool of one, the reason names its first full window; for a larger pool, each instance
+      # and the first reset.
       else for (l = 1; l <= split(pool, lines, " ") && why == ""; l++) {
         members = split(lines[l], member, ",")
         full = 0

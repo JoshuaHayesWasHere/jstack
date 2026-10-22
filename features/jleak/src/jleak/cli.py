@@ -1,27 +1,28 @@
-"""The command.
+"""The `jleak` command has four forms.
 
     jleak [--strict] [--patterns FILE] --all
     jleak [--strict] [--patterns FILE] [--as FIELD] FILE...
     jleak [--strict] [--patterns FILE] --push URL
     jleak [--strict] [--patterns FILE] --command
 
-`--all` checks every tracked file of the repo it is run in. A FILE is checked as it is, and
-`-` is what is piped in, named in a finding as `--as` says. `--push` reads what git gives a
-`pre-push` hook, for the URL the hook is given as its second argument, and `--command`
-what Claude Code gives a `PreToolUse` hook. `--command` reads the private patterns only for a
-command that writes to a pull request: any other command needs none.
+`--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is. It
+reads `-` as what is piped in, and a finding names that text by the FIELD that `--as` gives.
+`--push` reads what git gives a `pre-push` hook. Its URL is the second argument that git passes
+the hook. `--command` reads what Claude Code gives a `PreToolUse` hook. It reads the private
+patterns only for a command that writes to a pull request, since no other command needs them.
 
 It prints one line for each finding, `<file or field>:<line>: <pattern's name>`, then
 `<n> findings`. The two hook forms print to stderr, where git and the agent read a refusal.
 
     0  no finding
     1  a finding
-    2  nothing could be checked: the reason is on stderr. Also a finding with `--command`,
-       since 2 is the code on which Claude Code refuses the command.
+    2  jleak could check nothing, and stderr gives the reason. With `--command`, a finding
+       also exits 2, since 2 is the code on which Claude Code refuses the command.
 
-With no private patterns file the built-in ones are checked and stderr says so. `--strict`,
-which both hooks pass, makes that a 2: a hook that checked nothing private would pass
-everything private.
+With no private patterns file, jleak checks the built-in patterns and says so on stderr.
+Both hooks pass `--strict`. With `--strict`, jleak exits 2 when the private patterns file is
+missing. Without that, a hook that checked no private pattern would let every private name
+through.
 """
 
 import argparse
@@ -51,8 +52,9 @@ def parser() -> argparse.ArgumentParser:
 
 
 def patterns(args: argparse.Namespace) -> tuple[jleak.Pattern, ...]:
-    """The built-in patterns and the private ones. Raises Invalid when the private ones cannot
-    be used, and Missing only with `--strict`."""
+    """The built-in patterns and the private ones. Raises Invalid when jleak cannot use the private
+    ones. With `--strict`, a private patterns file that is `Missing` also raises Invalid.
+    Without `--strict`, the function says so on stderr and gives the built-in patterns alone."""
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     try:
         private = jleak.load(args.patterns or jleak.path(config))

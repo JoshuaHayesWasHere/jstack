@@ -1,9 +1,9 @@
-"""When the default branch goes from red to green, the crew of each open pull request that
-is red is told once to rebase and carry on, so one that main broke does not sit idle after
-main is fixed. A main that moved from green to green tells nobody. A conflict is told once
-per head by `rebase.github`, and not here (`test_jbus_github.py`).
-Run as `test_jbus_unlock.py` runs: the real pass, against the fakes, with the kitchen's
-own origin as the remote whose main moves."""
+"""When the default branch goes from red to green, jbus tells the crew of each open red pull
+request once to rebase and carry on. So a pull request that main broke does not sit idle after
+main is fixed. When main moves from green to green, jbus tells nobody. `rebase.github` tells a
+crew of a conflict once per head, and this module does not (`test_jbus_github.py`). Like
+`test_jbus_unlock.py`, the tests run the real pass against the fakes, with the kitchen's own
+origin as the remote whose main moves."""
 
 import json
 import subprocess
@@ -22,8 +22,9 @@ RED = "red: checks failed"
 
 @pytest.fixture
 def launched(kitchen, request):
-    """Alpha and beta, launched by a first pass that also records where main is, red unless
-    the test asks for `success`, with each thread's turn ended: one at work is told nothing."""
+    """Alpha and beta are rows that a first pass launched. That pass also records where main is,
+    red unless the test asks for `success`. Each thread's turn has ended, since jbus tells
+    nothing to a thread that is at work."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
     add(kitchen, "beta", priority=2)
@@ -43,7 +44,8 @@ def tip(kitchen):
 
 
 def checks(kitchen, sha, conclusion):
-    """The conclusion of main's one check run at a commit, `""` for one still running."""
+    """Set the conclusion of main's one check run at a commit, with `""` for a check run that is
+    still running."""
     kept = kitchen.stub / "check-runs.json"
     runs = json.loads(kept.read_text()) if kept.exists() else {}
     runs[sha] = [{"status": "completed" if conclusion else "in_progress", "conclusion": conclusion}]
@@ -51,7 +53,7 @@ def checks(kitchen, sha, conclusion):
 
 
 def move(kitchen, conclusion="success"):
-    """A merge lands on origin's main from another clone: the checkout never fetches it. Its
+    """Land a merge on origin's main from another clone, which the checkout never fetches. Its
     check ends as `conclusion` says."""
     other = kitchen.root / "other"
     if not other.exists():
@@ -73,8 +75,8 @@ def pending(kitchen, slug, number):
 
 
 def sends(kitchen):
-    """The main-moved messages that went: a red head is also told of its failed check once,
-    by `rebase.github`, where this module did not tell it first."""
+    """Return the main-moved messages that went out. Where this module did not first tell the
+    crew of a red head, `rebase.github` also tells that crew of its failed check once."""
     every = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
     return [given for given in every if given["clientRequestId"].startswith("mainmoved|")]
 
@@ -336,8 +338,8 @@ def test_a_main_whose_check_failed_after_it_landed_is_red_and_the_next_green_tel
 
 def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commit(launched):
     """A flake: main's check fails at its tip, and a rerun of that check passes while the tip
-    stays where it is. The fix row filed for it, not approved, is said green again and left as
-    it is: an approved one is the next test's."""
+    stays where it is. jbus filed a fix row for the flake, and the row is not approved. jbus
+    reports the row as green again and leaves it as it is. The next test covers an approved row."""
     red = tip(launched)
     launched.set("commits.json", [launched.commit(red)])
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
@@ -364,8 +366,8 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
     "launches it",
 )
 def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(launched):
-    """As main-red-b66eaae4c2ca was: its tip's check failed, a rerun passed, and the row was
-    approved after that. A main that is green needs no fix, so the row is not launched."""
+    """As with main-red-b66eaae4c2ca: its tip's check failed, a rerun passed, and the row got its
+    approval after that. A main that is green needs no fix, so jbus does not launch the row."""
     red = tip(launched)
     launched.set("commits.json", [launched.commit(red)])
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])

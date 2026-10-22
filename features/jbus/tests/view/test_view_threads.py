@@ -1,4 +1,5 @@
-"""The threads out: each one's liveness, the scouts' requests, and a thread that is gone."""
+"""The threads that are out: each one's liveness, the scouts' requests, and a thread that is
+gone."""
 
 import json
 
@@ -75,11 +76,12 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
 
 
 def test_each_scouts_request_says_researching_reported_or_blocked(scene, served):
-    """The one source the view reads that jbus does not write: a scout's request, for its
-    last `## Report` and the `Status:` line under it. Only `done` is reported: a last Report
-    that says not done is said as not done, whatever an earlier one said. A Report with a gate
-    in it still has its Status line, and a request that is not there is said as missing, never
-    as none."""
+    """A scout's request is the one source the view reads that jbus does not write. The view
+    reads its last `## Report` and the `Status:` line under it. Only `done` counts as
+    reported. When a scout's last Report says it is not done, the view says the scout is not
+    done, whatever an earlier Report said. A Report with a gate in it still has its Status
+    line. When a request is not there, the view says it is missing, never that there is
+    none."""
     requested(
         scene,
         tea_tin=REQUEST.format(slug="tea-tin"),

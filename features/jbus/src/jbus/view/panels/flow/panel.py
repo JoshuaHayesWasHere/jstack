@@ -1,5 +1,5 @@
-"""The queue as a flow: every queued row and every row that is out, a column for each wave.
-It draws the tasks the task panel gives, and has no data of its own."""
+"""The queue as a flow: every queued row and every row that is out, with a column for each wave.
+It draws the tasks that the task panel gives, and has no data of its own."""
 
 from __future__ import annotations
 

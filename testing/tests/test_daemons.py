@@ -1,4 +1,4 @@
-"""`daemons.stop` ends a daemon whatever it does with SIGTERM, and what it started."""
+"""`daemons.stop` ends a daemon and what it started, whatever the daemon does with SIGTERM."""
 
 import subprocess
 import time

@@ -1,17 +1,18 @@
 """`jbus playbook <role> <brief>`: open the playbook a brief, a request or a plan names.
 
 This is the one way a thread opens a playbook. The crew, scout, home, expert and pr-review
-skills each call it, and none keeps a block of its own that reads the `Playbook:` line:
-`features/repo-guards/tests/test_one_way.py` fails on a skill that carries one again. The
-name is the first word of the first `Playbook:` line of the file's head
-(`jbriefs.parse.playbook_named`), or the one `--name` gives, which a home and an expert are
-given in place of a line.
+skills each call it, and none keeps its own block that reads the `Playbook:` line:
+`features/repo-guards/tests/test_one_way.py` fails on a skill that carries such a block
+again. The playbook's name is the first word of the first `Playbook:` line in the file's head
+(`jbriefs.parse.playbook_named`), or the name `--name` gives. A home and an expert give the
+name with `--name`, in place of a line.
 
-A name that is `none`, or no name, prints nothing. Otherwise the file is the playbook of
-that name that `skills.json` lists in the repo this package lives in, the one the skills
-live in too, also when the work is in another repo (`jbriefs.skills.where`). A name it does
-not list prints `no playbook: ...`. A playbook whose `Run by:` line names another role than
-the one asked for prints `not <role's>: ...`. A playbook of the role prints, by role:
+With the name `none`, or no name, the command prints nothing. Otherwise it looks the name up in the
+`skills.json` of the repo this package is in, and opens that playbook. The skills are in that repo
+too, and the command reads that repo even when the work is in another repo (`jbriefs.skills.where`).
+For a name `skills.json` does not list, it prints `no playbook: ...`. For a playbook whose
+`Run by:` line names a role other than the one asked for, it prints `not <role's>: ...`. For
+a playbook of the role, it prints, by role:
 
 - `crewmate` and `scout`: its path; a `has` or `lacks` line for each line its `Run by:`
   asks a brief to have; its numbered steps under a line that names them; a `no principle`
@@ -19,7 +20,7 @@ the one asked for prints `not <role's>: ...`. A playbook of the role prints, by 
   cites, once and in full, under a line that names them all.
 - `home`: its path, and an `asks of its brief:` line for each line its `Run by:` asks.
 - `expert`: its path.
-- `reviewer`: what a reviewer is told of the crewmate's playbook, in place of the path:
+- `reviewer`: the lines a reviewer reads of the crewmate's playbook, in place of the path:
   its name, and the first paragraph of each principle it cites. A brief is a crewmate's,
   so the reviewer opens a crewmate's playbook.
 
@@ -58,8 +59,9 @@ STEP = re.compile(r"^[0-9]+\. ")
 
 
 def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> list[str]:
-    """What `jbus playbook` prints for `role`, with `text` the brief, request or plan, and
-    `name` the playbook's name where one is given in place of its line."""
+    """Return what `jbus playbook` prints for `role`. `text` is the brief, request or plan,
+    and `name` is the playbook's name when the caller gives one in place of the text's
+    `Playbook:` line."""
     name = name or briefs.playbook_named(text)
     if name in ("", "none"):
         return []
@@ -110,14 +112,15 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
 
 
 def _named(cited: str) -> str:
-    """The principle's name a citation names: `principles/<name>.md`, the stub each layout
-    holds for it, is `<name>`."""
+    """Return the name of the principle a citation names. Each layout has a stub for the
+    principle at `principles/<name>.md`, and a citation of that stub gives `<name>`."""
     return cited.removeprefix("principles/").removesuffix(".md")
 
 
 def _reviewed(name: str, cited: dict[str, Path]) -> list[str]:
-    """The reviewer's lines: the playbook's name, and each cited principle's first paragraph,
-    the lines after its `# ` title up to the first blank line under them, joined."""
+    """Return the reviewer's lines: the playbook's name, and each cited principle's first
+    paragraph, joined. That paragraph is the lines after the principle's `# ` title, up to the
+    first blank line under them."""
     said = [f"Playbook: {name}, the steps the crewmate worked by."]
     first = []
     for one, path in cited.items():

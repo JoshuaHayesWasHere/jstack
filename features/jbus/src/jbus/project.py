@@ -1,34 +1,35 @@
-"""`jbus project add`: one more `[[project]]` table at the end of jbus's config.
+"""`jbus project add`: add one more `[[project]]` table at the end of jbus's config.
 
-The config holds a webhook's key, so no hand and no skill writes it. `add` reads the file as
-text and writes it back with one table after the last byte it had: every other table is the
-bytes it was. The file as it was is kept first, beside it, as `config.toml.<time>.bak`, and
-both stay mode 600. The table has `name`, `checkout` and `projectId` and no webhook: the new
-project takes the `webhook_url` and `webhook_key` at the top of the config when it has them,
-and with none there a pass POSTs nothing for it.
+The config holds a webhook's key, so neither a person nor a skill writes the config. `add` reads the
+file as text and writes it back with one table after its last byte. Every other table keeps
+the same bytes. First `add` saves a copy of the file as it was, beside it, as
+`config.toml.<time>.bak`, and both stay mode 600. The table has `name`, `checkout` and
+`projectId`, and no webhook. The new project uses the `webhook_url` and `webhook_key` at the
+top of the config when the config has them. With none there, a pass POSTs nothing for the project.
 
-The file must load as a pass loads it (`jbus.load`): a config a pass refuses is refused
-here, before anything is written, with the line `jbus.load` gives.
+The file must load as a pass loads it (`jbus.load`). `add` refuses a config that a pass
+refuses, before it writes anything, with the line `jbus.load` gives.
 
-`add` answers with one line and raises `jbus.Refused` with one line. A second run with the
-same name, checkout and id is refused as `HAS`, which a caller may read as done before; a
-name or a checkout the config has with anything else differing is refused by what it shares.
-No line has a value of any key in it, what the caller gave included: a line of this command
-is safe in any log.
+`add` answers with one line, or raises `jbus.Refused` with one line. When a second run has the
+same name, checkout and id, `add` refuses it with the line `HAS`, which a caller may read as
+already done. It also refuses a name or a checkout that the config already has when any
+other field differs. Its line names what the two share. No line holds the value of any key, not
+even a value the caller gave, so a line of this command is safe in any log.
 
 `add --scratch` writes a scratch home's table in place of a repo's: `name`, `kind =
-"scratch"` and `projectId`, and no checkout, since it has no repo (`jbus.Scratch`). Its name
-is refused as a repo's is, against every project and every scratch home of the config.
+"scratch"` and `projectId`, and no checkout, since it has no repo (`jbus.Scratch`). `add`
+checks its name as it checks a repo's, against every project and every scratch home of the
+config.
 
-Each pass is a new `jbus poll` that loads the config, so the pass after `add` works the new
-project and no unit is restarted.
+Each pass is a new `jbus poll` that loads the config, so the pass after `add` covers the new
+project, and nobody restarts a unit.
 
-`missing` is what slipped past `add`: each folder of the homes' state root that holds a
-home's `home-id` and is the home of no project of the config. A home adds its repo at its
-start, and one started before that rule, or whose add was refused, is named here: the pass
-says the list when it changes, and `jbus status` and the view's machine row show it. A
-party's folder, `_<name>` (an expert's), is no repo's home and is never named, and a
-folder that is a link to a project's home is that home.
+`missing` finds the homes that `add` did not record: each folder of the homes' state root
+that holds a home's `home-id` and is the home of no project of the config. A home adds its
+repo at its start. `missing` names a home that started before that rule, or one that `add`
+refused to add. The pass prints the list when it changes, and `jbus status` and the view's
+machine row show it. A party's folder, `_<name>` (an expert's), is not the home of a repo,
+and `missing` never names it. A folder that is a link to a project's home counts as that home.
 """
 
 from __future__ import annotations
@@ -60,7 +61,8 @@ def _same(one: Path, other: Path) -> bool:
 
 
 def _private(path: Path, text: str) -> None:
-    """Write `text` to `path`, mode 600, in one step: a pass reads the old file or the new."""
+    """Write `text` to `path`, mode 600, in one step, so a pass reads either the old file or
+    the new one."""
     handle, made = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
         with os.fdopen(handle, "w") as file:
@@ -73,7 +75,8 @@ def _private(path: Path, text: str) -> None:
 
 
 def table(name: str, checkout: Path | None, project_id: str) -> str:
-    """The lines of one project's table, as TOML: a scratch home's where `checkout` is None."""
+    """Return the lines of one project's table, as TOML, or of a scratch home's where
+    `checkout` is None."""
     where = ("kind", jbus.SCRATCH) if checkout is None else ("checkout", str(checkout))
     pairs = (("name", name), where, ("projectId", project_id))
     return "[[project]]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in pairs)
@@ -81,7 +84,7 @@ def table(name: str, checkout: Path | None, project_id: str) -> str:
 
 def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> str:
     """Add the project's table to the config at `config_path`, or a scratch home's where
-    `checkout` is None. The answer is the one line."""
+    `checkout` is None. Return the answer, which is one line."""
     if config_path.name != "config.toml":
         raise jbus.Refused(f"refused: {config_path} is not a config.toml")
     config = jbus.load(config_path.parent)
@@ -119,7 +122,8 @@ def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> 
 
 
 def missing(config: jbus.Config) -> list[str]:
-    """The folders under the homes' state root with a `home-id` and no project, by name."""
+    """Return the folders under the homes' state root that have a `home-id` and no project,
+    by name."""
     homes = {config.home(one).resolve() for one in config.projects}
     homes |= {config.home(one.addressee()).resolve() for one in config.scratch}
     try:

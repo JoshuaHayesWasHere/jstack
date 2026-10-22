@@ -1,37 +1,42 @@
-"""`jroles mirror`: every extra Claude home a mirror of `~/.claude`, its login aside.
+"""`jroles mirror`: make every extra Claude home a mirror of `~/.claude`, except for its login.
 
-T3 Code runs a second Claude account as an instance of its own, in a home of its own (the
-`config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`, such as
-`~/.claude_prime`). A thread on it should have the memory, the transcripts, the skills, the
-settings and the instructions of the main home, `~/.claude`, and only the login of its own.
-So each entry of `~/.claude` is a symlink in the mirror, except the ones bound to a login or
-to one process (`KEEP`), and `<home>/.claude.json` stays a file of the mirror's own: its
-account keys (`ACCOUNT_KEYS`) are the mirror's, and every other key is the main file's,
-`projects` merged per project with the main file winning.
+T3 Code runs a second Claude account as an instance of its own, in a home of its own. That
+home is the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`,
+such as `~/.claude_prime`. A thread on that instance should have the memory, the transcripts,
+the skills, the settings and the instructions of the main home, `~/.claude`, and only the
+login of its own. So each entry of `~/.claude` is a symlink in the mirror, except the entries
+that belong to a login or to one process (`KEEP`). `<home>/.claude.json` stays the mirror's own
+file. The run keeps the mirror's values for its account keys (`ACCOUNT_KEYS`), and copies every
+other key from the main file. The run merges `projects` project by project, and where the two
+files differ, it keeps the main file's value.
 
-`plan` reads a mirror and gives what differs, one `Step` an entry, and nothing else: so
-`--check` and a run are the same reading. A run applies the steps under a lock in the mirror,
-and a run with nothing to do writes nothing. These are infra #53's rules:
+`plan` reads a mirror and returns what differs, one `Step` for each entry, and does nothing
+else. So `--check` and a run read the mirror the same way. A run applies the steps under a
+lock in the mirror, and a run with nothing to do writes nothing. These are infra #53's rules:
 
-- an entry of `~/.claude` the mirror lacks is linked (`link`);
-- a real entry the mirror holds where `~/.claude` has one, or a link elsewhere, is moved to
-  `<name>.bak-<time>` and linked. A directory's files are merged into `~/.claude` first: a
-  file `~/.claude` lacks is copied, and one it holds with other bytes wins and is named as a
-  conflict, the mirror's copy staying in the backup (`backup`);
-- an entry only the mirror has moves into `~/.claude` and is linked back (`move`);
-- a link into `~/.claude` whose entry is gone is removed (`dangling`);
-- `.claude.json` takes the main file's keys as above (`json`).
+- `link`: the run links an entry of `~/.claude` that the mirror lacks.
+- `backup`: the mirror holds a real entry where `~/.claude` has one, or a link that points
+  elsewhere. The run moves it to `<name>.bak-<time>` and links it. For a directory, the run
+  first merges its files into `~/.claude`. It copies a file that `~/.claude` lacks. When
+  `~/.claude` holds the file with other bytes, the run keeps the `~/.claude` copy and names
+  the file as a conflict. The mirror's copy stays in the backup.
+- `move`: the run moves an entry that only the mirror has into `~/.claude`, and links it back.
+- `dangling`: the run removes a link into `~/.claude` whose entry is gone.
+- `json`: the run gives `.claude.json` the main file's keys, as above.
 
-`skillUsage` is no key of the main file's: all the accounts are one user, so it is pooled. Each
-skill's entry in the pool has, field by field, the highest of every home's numbers, so the
-highest count and the latest time, and a run writes the pool into `~/.claude.json` and into
-each mirror. `--check` compares each home with the pool: a home behind it by use since the last
-sync (`PERIOD`, the timer's longest gap) is `pooling`, no drift, and one that lacks a skill
-whose last use is older than that, or whose skillUsage is not objects of numbers, fails.
+The run does not copy `skillUsage` from the main file. All the accounts are one user, so the
+run pools it. For each skill, the run takes the highest of every home's numbers, field by
+field, which gives the highest count and the latest time. A run writes the pool into
+`~/.claude.json` and into each mirror.
 
-Each step is safe to repeat and to stop halfway: the merge is made before the move and again
-after it, so a run that stopped between the two leaves nothing unmerged, and every other step
-finds nothing to do once its entry is a link.
+`--check` compares each home with the pool. A home may lack only the use since the last sync,
+within `PERIOD`, the timer's longest gap. Such a home is `pooling`, which is not drift. A home
+fails when it lacks a skill whose last use is older than `PERIOD`, or when its skillUsage holds
+an entry that is not an object of numbers.
+
+Each step is safe to repeat and to stop halfway. The run merges before the move and again
+after it, so a run that stopped between the two leaves nothing unmerged. Once an entry is a
+link, the run has nothing to do for any other step on it.
 """
 
 from __future__ import annotations
@@ -81,14 +86,15 @@ _OURS = re.compile(r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.cl
 DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
 PERIOD = (5 + 1 + 1) * 60
-"""The longest a use waits to be pooled, in seconds: the 5 minutes of `OnUnitActiveSec` in
-`features/jroles/units/jroles-mirror.timer`, its default `AccuracySec` of 1 minute, and 1 for
-the run."""
+"""The longest time, in seconds, between a skill use and the run that pools it. It is the sum
+of the 5 minutes of `OnUnitActiveSec` in `features/jroles/units/jroles-mirror.timer`, its
+default `AccuracySec` of 1 minute, and 1 minute for the run."""
 
 
 @dataclass(frozen=True)
 class Mirror:
-    """One home to keep a mirror of the main one, and the instance it is the home of."""
+    """One home to keep as a mirror of the main one, and the instance that the home
+    belongs to."""
 
     instance: str
     home: Path
@@ -109,9 +115,9 @@ class Main:
 @dataclass(frozen=True)
 class Step:
     """One entry of a mirror that is not as it should be. `kind` is `link`, `backup`,
-    `move`, `dangling` or `json`; `name` is the entry's name in the mirror's home, and `keys`
-    are the shared keys of a `json` step whose values differ, and `usage` the skill use it pools
-    in."""
+    `move`, `dangling` or `json`. `name` is the entry's name in the mirror's home. For a
+    `json` step, `keys` are the shared keys whose values differ, and `usage` is the skill use
+    that the step pools in."""
 
     kind: str
     name: str
@@ -119,7 +125,7 @@ class Step:
     usage: dict | None = None
 
     def would(self, main: Main, mirror: Mirror) -> str:
-        """What `--check` says of it."""
+        """What `--check` says of the step."""
         at, there = mirror.home / self.name, main.home / self.name
         keys = ", ".join(self.keys)
         return {
@@ -133,8 +139,9 @@ class Step:
 
 def mirrors(text: str, user: Path) -> tuple[Mirror, ...]:
     """Each `claudeAgent` instance of providers.json `text` whose home is not `~/.claude`.
-    A home is `config.homePath`, `~` for `user`, with no slash at the end, as
-    `features/jgauge/hooks/limits.sh` reads it. Refused when the file is not T3's shape."""
+    A home is `config.homePath`. The function reads `~` as `user` and drops the slash at the
+    end, as `features/jgauge/hooks/limits.sh` does. The function refuses a file that is not in
+    T3's shape."""
     pool.declared(text)
     main = os.path.realpath(user / ".claude")
     found = []
@@ -154,7 +161,8 @@ def mirrors(text: str, user: Path) -> tuple[Mirror, ...]:
 
 
 def declared(user: Path) -> tuple[Mirror, ...]:
-    """The mirrors this machine's providers.json declares, none with no file."""
+    """The mirrors that this machine's providers.json declares, or none when there is no
+    file."""
     try:
         text = (pool.config_dir() / "providers.json").read_text()
     except FileNotFoundError:
@@ -175,8 +183,9 @@ def _linked(at: Path, there: Path) -> bool:
 
 
 def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, ...]:
-    """What differs between the mirror and the main home, read and never changed, with the
-    pooled skill `usage`, none to leave the mirror's as it is."""
+    """What differs between the mirror and the main home. The function only reads, and
+    changes nothing. `usage` is the pooled skill use, or None to leave the mirror's skillUsage
+    as it is."""
     steps = []
     for name in _entries(main.home):
         at, there = mirror.home / name, main.home / name
@@ -200,7 +209,8 @@ def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, .
 
 
 def _deep(kept: object, over: object) -> object:
-    """`kept * over` as jq merges two values: objects key by key, `over` winning elsewhere."""
+    """`kept * over`, merged as jq merges two values. jq merges two objects key by key, and
+    for any other value it takes `over`."""
     if not (isinstance(kept, dict) and isinstance(over, dict)):
         return over
     return {**kept, **{key: _deep(kept.get(key), value) for key, value in over.items()}}
@@ -223,8 +233,9 @@ def _number(value: object) -> bool:
 
 
 def usage_of(path: Path, found: dict) -> dict:
-    """The skillUsage of `found`, the file at `path`, none when it has none. Refused, naming
-    the skill, when an entry is not an object of numbers: its fields could not be pooled."""
+    """The skillUsage of `found`, the file at `path`, or an empty one when it has none. The
+    function refuses, and names the skill, when an entry is not an object of numbers, since
+    `pooled` could not pool its fields."""
     usage = found.get(USAGE, {})
     if not isinstance(usage, dict):
         raise Refused(f"jroles mirror: {path}: {USAGE} is not a JSON object")
@@ -235,8 +246,8 @@ def usage_of(path: Path, found: dict) -> dict:
 
 
 def pooled(*usages: dict) -> dict:
-    """Every skill of `usages`, each field the highest any of them has: the highest count and
-    the latest time, so use in one home is never lost to another."""
+    """Every skill of `usages`, with each field at the highest value any of them has. That is
+    the highest count and the latest time, so the merge loses no home's use."""
     pool: dict[str, dict] = {}
     for usage in usages:
         for skill, entry in usage.items():
@@ -256,9 +267,11 @@ def pool_of(main: Main, homes: tuple[Path, ...]) -> dict:
 
 
 def lags(path: Path, usage: dict, pool: dict, now: float) -> tuple[list[str], list[str]]:
-    """What `--check` says of the skillUsage `usage` of the file at `path` against the pool:
-    the failures, a skill it lacks that was last used more than `PERIOD` ago, which a sync
-    since should have brought, and the use it is behind by that the next sync brings."""
+    """What `--check` says when it compares the skillUsage `usage` of the file at `path` with
+    the pool. It returns two lists. The first holds the failures. A failure is a skill that the
+    file lacks and that a thread last used more than `PERIOD` ago, so a sync since then should
+    have added it. The second holds the skill use that the file lacks and the next sync will
+    add."""
     lost, behind = [], []
     for skill, entry in pool.items():
         if skill in usage:
@@ -276,9 +289,11 @@ def lags(path: Path, usage: dict, pool: dict, now: float) -> tuple[list[str], li
 def shared(
     main: Main, mirror: Mirror, usage: dict | None = None
 ) -> tuple[dict, tuple[str, ...]] | None:
-    """The mirror's `.claude.json` with the main file's shared keys and its skillUsage pooled
-    with `usage`, and the shared keys whose values that changes, or None when it is so already,
-    or when either file is not there: a home with none has no login to keep."""
+    """The mirror's `.claude.json` as it should be, and the shared keys whose values change.
+
+    The new file has the main file's shared keys, and the function pools `usage` into its
+    skillUsage. The function returns None when the file already matches, or when either file is not
+    there, since a home with no `.claude.json` has no login to keep."""
     target = mirror.home / JSON
     ours, theirs = _read(target), _read(main.config)
     if ours is None or theirs is None:
@@ -311,8 +326,8 @@ def _files(directory: Path) -> Iterator[Path]:
 
 
 def merge(source: Path, into: Path, kept: Path) -> list[str]:
-    """Copy each file under `source` that `into` lacks; name each that both hold with other
-    bytes, whose copy from the mirror is under `kept`."""
+    """Copy each file under `source` that `into` lacks. For each file that both hold with
+    different bytes, return a conflict line that says the mirror's copy is under `kept`."""
     said = []
     for relative in _files(source):
         there = into / relative
@@ -333,7 +348,7 @@ def _backup(at: Path) -> Path:
 
 
 def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
-    """Make one step so, and say what it did."""
+    """Carry out one step, and say what it did."""
     at, there = mirror.home / step.name, main.home / step.name
     if step.kind == "link":
         at.symlink_to(there)
@@ -368,7 +383,7 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
 
 
 def _write(target: Path, made: dict, mode: int) -> None:
-    """Write `made` to `target` at once, by a temporary file renamed over it."""
+    """Write `made` to `target` in one move, by renaming a temporary file over it."""
     temporary = target.with_name(f"{JSON}.mirror.{os.getpid()}")
     temporary.unlink(missing_ok=True)
     try:
@@ -382,9 +397,10 @@ def _write(target: Path, made: dict, mode: int) -> None:
 def review(
     main: Main, mirror: Mirror, usage: dict | None, now: float
 ) -> tuple[list[str], list[str]]:
-    """What `--check` says of one mirror against the skill `usage` pool, none to leave its
-    skillUsage out: a line for each entry that differs, and the use it is behind that is no
-    drift. With either `.claude.json` missing, `shared` pools nothing, so none is read."""
+    """What `--check` says when it compares one mirror with the skill `usage` pool. When `usage`
+    is None, the function leaves the mirror's skillUsage out. It returns a line for each entry
+    that differs, and the skill use that the mirror lacks, which is not drift. When either
+    `.claude.json` is missing, `shared` pools nothing, so the function reads no skillUsage."""
     if not mirror.home.is_dir():
         return [f"{mirror.instance}: {mirror.home} is missing"], []
     said = [
@@ -401,8 +417,9 @@ def review(
 
 
 def check(main: Main, mirror: Mirror) -> list[str]:
-    """What `--check` finds wrong with one mirror: a line for each entry that differs, against
-    the pool of every home providers.json declares, as `jroles mirror --check` reads it."""
+    """What `--check` finds wrong with one mirror: a line for each entry that differs. The
+    function compares the mirror with the pool of every home that providers.json declares,
+    as `jroles mirror --check` reads it."""
     try:
         homes = [one.home for one in declared(main.config.parent) if one.home.is_dir()]
     except Refused:
@@ -412,10 +429,10 @@ def check(main: Main, mirror: Mirror) -> list[str]:
 
 
 def run(main: Main, mirror: Mirror, usage: dict | None = None) -> list[str]:
-    """Make one mirror so, under its lock and the main home's, with the skill `usage` pooled
-    in, and say what changed: nothing when nothing did. The main home's lock is what keeps two
-    runs on two mirrors from moving the same new name into `~/.claude` at once: each plan is
-    read and applied with no other run writing there."""
+    """Make one mirror match the main home, under its own lock and the main home's, and pool
+    the skill `usage` into it. Say what changed, or say nothing when nothing did. Each run
+    takes the main home's lock, so two runs on two mirrors cannot move the same new name into
+    `~/.claude` at once. Each run reads and applies its plan while no other run writes there."""
     if not mirror.home.is_dir():
         raise Refused(f"jroles mirror: {mirror.instance}: {mirror.home} is missing")
     with (mirror.home / LOCK).open("a") as own, (main.home / LOCK).open("a") as shared_lock:
@@ -426,8 +443,9 @@ def run(main: Main, mirror: Mirror, usage: dict | None = None) -> list[str]:
 
 
 def pool_main(main: Main, usage: dict) -> list[str]:
-    """Pool the skill `usage` into `~/.claude.json`, under the main home's lock, its every
-    other key as it is, and say so: nothing when it has it all already."""
+    """Pool the skill `usage` into `~/.claude.json`, under the main home's lock, and leave
+    every other key as it is. Say so, or say nothing when the file already has all of the pooled
+    `usage`."""
     with (main.home / LOCK).open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         found = _read(main.config)
@@ -494,9 +512,10 @@ def _broken(error: Exception) -> int:
 
 
 def _check(main: Main, chosen: tuple[Mirror, ...], usage: dict | None, main_too: bool) -> int:
-    """`--check`: each chosen mirror against the pool, and `~/.claude.json` with them unless
-    one instance was asked for. A line that is only `pooling` is no drift, and with no pool, a
-    home's skillUsage being malformed, the rest is still read."""
+    """`--check`: compare each chosen mirror with the pool. Compare `~/.claude.json` too,
+    unless the user asked for one instance. A line that is only `pooling` is not drift. When
+    there is no pool because a home's skillUsage is malformed, the function still checks every
+    entry other than skillUsage."""
     code, now = 0, time.time()
     if main_too and usage is not None:
         try:

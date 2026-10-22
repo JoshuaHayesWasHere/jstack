@@ -1,9 +1,9 @@
-"""A scratch home is a project with no repo: `jbus project add --scratch` writes its table,
-the pass runs no repo step for it, `jbus status` lists it with its home thread, and `jbus
-word --to <name>` reaches that thread.
+"""A scratch home is a project with no repo. `jbus project add --scratch` writes its table, the pass
+runs no repo step for it, `jbus status` lists it with its home thread, and `jbus word --to <name>`
+reaches that thread.
 
-Every test runs the real commands and the real pass in the kitchen of `test_jbus_kitchen`,
-against its faked T3 Code server. Nothing reaches the network.
+Every test runs the real commands and the real pass in the kitchen of `test_jbus_kitchen`, against
+its faked T3 Code server. Nothing reaches the network.
 """
 
 import subprocess
@@ -26,7 +26,7 @@ def add(kitchen, name=NAME, project=SCRATCH_ID):
 
 @pytest.fixture
 def scratch(kitchen):
-    """The kitchen with a scratch home added and started: its thread id in its `home-id`."""
+    """Add a scratch home to the kitchen and start it, with its thread id in its `home-id`."""
     code, out = add(kitchen)
     assert code == 0, out
     home = kitchen.root / "home" / NAME
@@ -36,7 +36,7 @@ def scratch(kitchen):
 
 
 def ran_in(kitchen, monkeypatch):
-    """Every directory a command of the pass ran in, the kitchen's fakes included."""
+    """Return every directory that a command of the pass ran in, the kitchen's fakes included."""
     seen = []
     inner = subprocess.run
 
@@ -110,7 +110,8 @@ def test_a_word_that_waited_for_the_home_id_goes_on_the_next_pass(kitchen, scrat
 
 
 def test_a_config_of_scratch_homes_alone_still_delivers_a_word_that_waited(kitchen, scratch):
-    """No repo project at all: the pass has no project's half, and the word goes all the same."""
+    """With no repo project at all, the pass has no project half, and the word goes out all the
+    same."""
     text = (kitchen.config_dir / "config.toml").read_text()
     server = text.splitlines()[0]
     kitchen.write(

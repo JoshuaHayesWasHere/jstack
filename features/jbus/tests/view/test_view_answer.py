@@ -1,4 +1,5 @@
-"""The one write of `jbus view`, the user's answer to a question, and how it is sent on."""
+"""The one write of `jbus view`, which is the user's answer to a question, and how the server
+sends that answer on."""
 
 import json
 from datetime import timedelta
@@ -281,7 +282,7 @@ class Counter:
         return int(said.split()[-1])
 
     def sends(self):
-        """Each message the stand-in for T3 Code was asked to send, taken or not."""
+        """Each message the server asked the stand-in for T3 Code to send, taken or not."""
         return [given for tool, given in self.t3.calls if tool == "t3_thread_send"]
 
     def passes(self, many=2):

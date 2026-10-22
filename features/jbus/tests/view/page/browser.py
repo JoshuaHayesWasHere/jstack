@@ -1,44 +1,50 @@
-"""The page of `jbus view`, opened in a headless browser and counted, at the size of a desk's
-screen, 1440 by 900, and of a phone's, 390 by 844.
+"""These tests open the page of `jbus view` in a headless browser and count its words, at the
+size of a desk's screen, 1440 by 900, and of a phone's, 390 by 844.
 
-A view's first screen is held to `WORDS`, and every project's to `EVERY`. The shell around
-it, the header and the sidebar, is counted apart and held to `SHELL`: the same on every view,
-it grows by one name and one count for each project.
+They limit a view's first screen to `WORDS` words, and the overview of every project to
+`EVERY`. They count the shell around it, the header and the sidebar, on its own, and limit it
+to `SHELL`. The shell is the same on every view, and it grows by one name and one count for
+each project.
 
 Each test starts the real server over a made-up state directory, as the tests of
-`features/jbus/tests/view/` do, and puts a small proxy in front of it. The proxy adds a probe to the
-page: it counts the words on the first screen, opens every drawer, and writes what it found into the
-page, which the browser then prints. The proxy can also stop passing requests on, which is how the
-page meets a server that is gone, and it writes down each write the page makes before it passes it
-on: a test may do something first, or have the write meet no server. The browser opens no
-window under 500 wide, so for the phone the proxy gives it a page that holds the real one in a
-frame of the phone's size.
+`features/jbus/tests/view/` do, and puts a small proxy in front of it. The proxy adds a probe to
+the page: it counts the words on the first screen, opens every drawer, and writes what it found
+into the page, which the browser then prints. The proxy can also stop passing requests on. That
+is how a test puts the page in front of a server that is gone. The proxy writes down each write
+the page makes before it passes the write on. So a test may do something first, or keep the
+write from reaching any server. The browser opens no window under 500 pixels wide. So for the
+phone, the proxy gives it a page that has the real one in a frame of the phone's size.
 
-In place of the probe the proxy can add axe, `AXE`: the engine, vendored for these tests
-alone in `fixtures/jbus-view/axe.min.js`, and `axe-run.js`, which runs it over the view and
-over every drawer it opens, and measures the focus ring of everything a key reaches.
+In place of the probe, the proxy can add axe, `AXE`, which is two files. One is the engine,
+vendored for these tests alone in `fixtures/jbus-view/axe.min.js`. The other is `axe-run.js`,
+which runs the engine over the view and over every drawer it opens, and measures the focus ring
+of everything a key reaches.
 
 These tests start a browser, so each of their modules is marked `browser`: `make check` leaves
-them out, and `make check-browser` runs them, nightly and on a release. Each run of them holds
-the machine's browser lock, `~/.local/state/locks/browser.lock`, where that file's directory is
-there: one browser of these tests is up at a time on the machine, however many runs there are.
-A test waits `PATIENCE` seconds for it and then fails with a line that says so. It is a lock of
-their own and not the heavy-suite lock, `heavy-suite.lock` beside it, so a run under `flock` on
-that one waits on nothing it holds itself. With no `chromium` on `PATH` a desk skips them, and
-a runner (GitHub Actions sets `GITHUB_ACTIONS` to true) fails every one: a check that passed
-there would say the page was opened. `JSTACK_TEST_BROWSER` names another browser to open it in.
-The browser workflow names Google Chrome on GitHub's runner, whose Chromium is a snapshot build
-that now and then never starts its virtual time: the page runs on the clock and the browser
-never prints it.
+them out, and `make check-browser` runs them, nightly and on a release. Where the directory of
+`~/.local/state/locks/browser.lock` exists, each run of them takes that file, the machine's
+browser lock. So only one browser of these tests runs at a time on the machine, however many
+runs there are.
+A test waits `PATIENCE` seconds for the lock and then fails with a line that says so. The lock is
+theirs alone, and it is not the heavy-suite lock, `heavy-suite.lock` beside it. So a run that has
+the heavy-suite lock through `flock` never waits on a lock it already has. With no `chromium` on
+`PATH`, a desk skips them and a runner fails every one. (GitHub Actions sets `GITHUB_ACTIONS` to
+true on a runner.) A check that passed on a runner would claim that the browser opened the page
+when no browser did. `JSTACK_TEST_BROWSER` names another browser to open it in. The browser
+workflow names Google Chrome on GitHub's runner. The runner's Chromium is a snapshot build that
+now and then never starts its virtual time. Then the page runs on the wall clock, and the
+browser never prints it.
 
-Each browser has `LAUNCH` seconds. It runs under `timeout`, in a process group of its own,
-which goes whole when it ends or when the test is stopped, and the test fails with a line
-that says so: a browser that hangs costs its test that bound, and leaves nothing behind. A
-test takes the lock once, waiting up to `PATIENCE` seconds, and browses up to `BROWSES`
-times, so its own bound is above all of those, and theirs fail first, by name.
+Each browser gets `LAUNCH` seconds. It runs under `timeout`, in a process group of its own,
+and the whole group ends when the browser ends or when something stops the test. A browser
+that runs out of time fails its test with a line that says so. A browser that hangs costs
+its test that much time and leaves no process behind. A test takes the lock once, waiting
+up to `PATIENCE` seconds, and browses up to `BROWSES` times. The test's own time limit is
+longer than all of those, so they run out first, each with a line that names it.
 
-The page is drawn in Liberation Sans, as `FONTS` asks, which a desk and a runner both have: a
-desk's own font and a runner's DejaVu Sans set the same words in lines of different widths.
+The browser draws the page in Liberation Sans, as `FONTS` asks. Both a desk and a runner have
+that font. A desk's own font and a runner's DejaVu Sans set the same words in lines of
+different widths.
 """
 
 import contextlib
@@ -191,8 +197,9 @@ def slugs():
 
 
 def lineup(scene, counts, merged=30, gates=6):
-    """A day of the given size: so many rows on each step, so many merged today, so many
-    open gates, and the list of what waits on the user that a pass would have left."""
+    """A day of the given size: as many rows on each step as `counts` gives, `merged` rows
+    merged today, `gates` open gates, and the list a pass would have left of what waits
+    on the user."""
     names = slugs()
     rows, log, listed, moves = [], [], [], []
     number = 100
@@ -250,7 +257,8 @@ def lineup(scene, counts, merged=30, gates=6):
 
 
 class Proxy:
-    """A door in front of the server that adds the probe to the page, and can go dark."""
+    """A proxy in front of the server that adds the probe to the page, and can stop passing
+    requests on."""
 
     def __init__(
         self, upstream, at, task="", pick="", gates=None, probe=True, tap="", walk=None, script=""
@@ -308,8 +316,9 @@ class Proxy:
                 self.wfile.write(body)
 
             def do_POST(self):
-                """A write of the page: written down as the browser sent it, then passed on
-                under the server's own name, as a page the server gave would send it."""
+                """A write of the page. The proxy writes it down as the browser sent it. Then
+                it passes the write on with the server's own address as its `Host` and
+                `Origin`, the way the server's own page would send it."""
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 proxy.writes.append(
                     {
@@ -349,8 +358,8 @@ class Proxy:
 
 
 def browser_lock():
-    """The browser lock of the home the run has: read when it is taken, so a test can give
-    itself a home of its own."""
+    """The browser lock under the run's home. It reads the home when a test takes the lock,
+    so a test can give itself a home of its own."""
     return Path(os.environ["HOME"]) / ".local" / "state" / "locks" / "browser.lock"
 
 
@@ -358,10 +367,11 @@ def browser_lock():
 def heavy():
     """The machine's browser lock, held while a browser runs.
 
-    It is the file `browser_lock()`, which only these tests take, so one of their browsers is up at
-    a time. The run's caller may hold the heavy-suite lock: that is another file, and
-    nothing here waits on it. It waits `PATIENCE` seconds for the lock and then fails the
-    test with one line: a check that waits without end reads as one that hangs.
+    The lock is the file `browser_lock()` names. Only these tests take it, so only one of
+    their browsers runs at a time. The run's caller may have the heavy-suite lock: that is
+    another file, and nothing here waits on it. This waits `PATIENCE` seconds for the browser
+    lock and then fails the test with one line, because a check that waits without end reads
+    as one that hangs.
     """
     held = browser_lock()
     if not held.parent.is_dir():
@@ -387,13 +397,13 @@ def browse(*arguments):
     """Run the browser headless under the browser lock, and give back what it printed.
 
     Chromium binds a socket in a directory it makes under `TMPDIR`, and the path of a socket
-    holds 107 characters. So the browser gets a short directory of its own, whatever `TMPDIR`
-    the run has: a runner's is long.
+    has at most 107 characters. So the browser gets a short directory of its own, whatever
+    `TMPDIR` the run has, because a runner's is long.
 
     `timeout` gives the browser `LAUNCH` seconds and then stops it, and the test fails with
-    a line that says so. The browser runs in a process group of its own, which goes whole when
-    it ends, also when the test is stopped from outside: Python's own timeout, or
-    pytest-timeout's, would stop one process and leave the ones it started.
+    a line that says so. The browser runs in a process group of its own, and the whole group
+    ends when the browser ends, also when something outside stops the test. Python's own
+    timeout, or pytest-timeout's, would stop one process and leave the ones it started.
     """
     command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"]
     bounded = ["timeout", "--kill-after=5", str(LAUNCH), *command, *arguments]
@@ -442,19 +452,20 @@ def look(
     script="",
     system="light",
 ):
-    """Open the page in the browser and give back what the probe found. The server is one
-    started here over the scene, or the one that listens on `port`. The page is the scene's
-    project, `#/demo`, or the `route` given, as `#/` for every project, and `fragment` is
-    more of the address after it, as `theme=dark`. `alter` is given the count of
-    each answer of `/stack.json` and its body, and gives back the body the page gets,
-    `alter_state` the same for `/state.json`, and
-    `tap` selects what the probe taps 3 s after the page loads, and `walk` is the steps the
-    probe takes from 2.5 s on, one each 0.5 s, as `back` or `open:task:oat-bowl`. `system`
-    is the scheme the browser asks for, `light` or `dark`. With
-    `gates`, the
-    probe answers them, and what it found has each write the page made under `writes`.
-    `on_write` is called with the count of each write before it is passed on, and a write
-    it answers `dark` for meets no server."""
+    """Open the page in the browser and give back what the probe found.
+
+    The page comes from the server that listens on `port`, or else from a new server
+    that this function starts over the scene. The
+    page is the scene's project, `#/demo`, or the `route` given, such as `#/` for every
+    project. `fragment` is more of the address after it, such as `theme=dark`. `alter` gets
+    the count of each answer of `/stack.json` and its body, and gives back the body the page
+    gets. `alter_state` does the same for `/state.json`. `tap` selects what the probe taps
+    3 s after the page loads. `walk` is the steps the probe takes from 2.5 s on, one each
+    0.5 s, such as `back` or `open:task:oat-bowl`. `system` is the scheme the browser asks
+    for, `light` or `dark`. With `gates`, the probe answers the gates, and what it found has
+    each write the page made under `writes`. The proxy calls `on_write` with the count of
+    each write before it passes the write on. A write for which `on_write` answers `dark`
+    reaches no server."""
     served = None if port else Served(scene)
     proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script)
     proxy.on_write = on_write or proxy.on_write
@@ -497,10 +508,10 @@ def clean(seen, screen=DESK):
 
 
 def a_day_of_threads(scene):
-    """Every role at work: a crewmate that hung and one that ended an hour ago, a reviewer, a
-    scout researching, one that reported and ended and one that ended with no Report, the
-    home, and two to fold: a crewmate that ended before the day began, and a thread of no
-    role."""
+    """Every role at work: a crewmate that hung, a crewmate that ended an hour ago, a
+    reviewer, three scouts, and the home. One scout is researching, one reported and ended,
+    and one ended with no Report. The page folds two more threads: a crewmate that ended
+    before the day began, and a thread with no role."""
     requested(
         scene,
         look=REQUEST.format(slug="look"),
@@ -529,7 +540,8 @@ def chips(seen_band):
 
 
 def walked(scene, tmp_path, route, walk):
-    """What the page showed after each step of `walk`, from `route` opened cold."""
+    """What the page showed after each step of `walk`, with the page first opened at
+    `route`."""
     seen = look(scene, tmp_path, route=route, walk=walk, at=4000 + 500 * len(walk), budget=12000)
     assert seen["errors"] == []
     return seen["walked"]
@@ -537,7 +549,7 @@ def walked(scene, tmp_path, route, walk):
 
 def gated(scene):
     """Three questions of one crewmate, each with its options, the first with a context and
-    an option more. The answer is their numbers."""
+    one more option. It returns the numbers of the three questions."""
     (scene.home / "tasks").mkdir()
     (scene.home / "tasks" / "alpha.md").write_text("# alpha\nThread: mcp:crew-alpha\n")
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
@@ -547,8 +559,9 @@ def gated(scene):
 
 
 def shown(port, tmp_path, opens):
-    """What the page says with the drawer `opens` names in its address open, as the browser
-    has it once the page is still, or nothing where no drawer is open."""
+    """What the page says when its address opens the drawer that `opens` names. The text is
+    what the browser shows once the page stops changing. It gives back nothing where no
+    drawer is open."""
     ran = browse(
         f"--user-data-dir={tmp_path / 'profile'}",
         "--virtual-time-budget=3000",

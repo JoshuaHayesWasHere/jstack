@@ -2,10 +2,10 @@
 
 The generator runs before `uv sync`, so it cannot import `jsonschema`. The keywords are
 `type`, `required`, `properties`, `additionalProperties`, `pattern`, `enum`, `const`, `items`,
-`minLength` and `maxLength`, with `$schema`, `$id`, `title`, `description` and `default` read
-as notes. A schema with any other keyword is refused rather than half read, and
-`testing/tests/test_jtrees_schema.py` holds the verdicts to `jsonschema`'s on a corpus of good
-and bad manifests.
+`minLength` and `maxLength`. The validator reads `$schema`, `$id`, `title`, `description` and
+`default` as notes. It refuses a schema with any other keyword rather than read half of it.
+`testing/tests/test_jtrees_schema.py` compares its verdicts with `jsonschema`'s on a corpus of
+good and bad manifests.
 """
 
 from __future__ import annotations
@@ -104,7 +104,8 @@ def _check(instance: object, schema: dict[str, Any], where: str, out: list[str])
 
 
 def validate(instance: object, schema: dict[str, Any]) -> list[str]:
-    """Each way `instance` breaks `schema`, as `<json pointer>: <why>`; none when it holds."""
+    """Each way `instance` breaks `schema`, as `<json pointer>: <why>`. The list is empty when
+    `instance` meets `schema`."""
     _supported(schema, "")
     out: list[str] = []
     _check(instance, schema, "", out)

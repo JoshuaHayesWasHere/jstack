@@ -1,11 +1,10 @@
-"""The top-level webhook is the monitor of every project: each event for the user, of every
-project, is posted to it as well as to the project's own webhook, when the two differ. With
-the same pair in both it is posted once. The two posts keep apart: each has its own outbox,
-five-minute gap, `last_error` and streak, so one webhook that is down neither holds nor
-repeats what the other is posted.
+"""The top-level webhook is the monitor of every project. When it differs from the project's own
+webhook, jbus posts each event for the user, of every project, to both. With the same pair in both,
+jbus posts it once. The two posts stay apart: each has its own outbox, five-minute gap, `last_error`
+and streak. So a webhook that is down neither holds up nor repeats what jbus posts to the other.
 
-Every test runs the real pass, or the real `wake.Box`, against the faked T3 Code server and
-webhooks of `test_jbus_kitchen`. Nothing reaches the network.
+Every test runs the real pass, or the real `wake.Box`, against the faked T3 Code server and webhooks
+of `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
@@ -35,12 +34,13 @@ def later(minutes):
 
 
 def monitored(kitchen, top):
-    """The kitchen's config with a top-level pair beside the project's own."""
+    """Write the kitchen's config with a top-level pair beside the project's own."""
     kitchen.config(webhook_url=top.url + "/wake", webhook_key=KEY)
 
 
 def held(kitchen):
-    """A first pass, then a pull request `jmerge` holds for the user: one `waiting` event."""
+    """Run a first pass, then have `jmerge` hold a pull request for the user, which is one
+    `waiting` event."""
     kitchen.poll()
     kitchen.brief("held", RESULT)
     kitchen.set("open.json", [kitchen.opened("held", 9)])

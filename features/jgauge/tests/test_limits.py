@@ -1,5 +1,6 @@
-"""`features/jgauge/hooks/limits.sh`: the file it writes from what Claude Code hands a status
-line, read back by `room`, and every input it leaves the file alone on.
+"""The tests of `features/jgauge/hooks/limits.sh`. Claude Code gives the status line script its
+input on stdin. The script writes a file from that input, and `room` reads the file back. The
+tests cover that file. They also cover every input on which the script leaves the file alone.
 Every test runs the script."""
 
 import json
@@ -22,7 +23,8 @@ SOON, LATER, WEEK = NOW + 3600, NOW + 5 * 3600, NOW + 90 * 3600
 
 
 def handed(**windows):
-    """What Claude Code gives a status line on stdin, with these windows as `used, resets_at`."""
+    """What Claude Code gives a status line on stdin. Each window in `windows` is a pair of the
+    share used and the reset time, `used, resets_at`."""
     return json.dumps(
         {
             "session_id": "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab",
@@ -258,8 +260,8 @@ def inventory(tmp_path, env, prime_home):
 
 @pytest.mark.parametrize("prime_home", ["~/.claude_prime", "{home}/.claude_prime/"])
 def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_path, env, prime_home):
-    """Each account's status line writes the file of the instance its CLAUDE_CONFIG_DIR is the
-    home of, so one account's limits never stand for another's."""
+    """Each account's status line writes the file of one instance: the instance whose home is
+    the account's CLAUDE_CONFIG_DIR. So one account's limits never count as another's."""
     home = tmp_path / "home"
     named = inventory(tmp_path, {**env, "HOME": str(home)}, prime_home.format(home=home))
     write(handed(five_hour=(12, SOON), seven_day=(30, WEEK)), named)
@@ -286,8 +288,10 @@ def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env)
 
 
 def test_a_reset_a_second_off_is_the_same_window_and_a_cap_on_it_stands(env):
-    """`jgauge limits` and jbus write the same window a second either side of the status line:
-    the script merges as `jroles.ledger.merge` does, and a lower share never replaces the cap."""
+    """The status line gives a window's reset. `jgauge limits` and jbus may each write a reset
+    for that window up to one second before or after it, and the script counts both as the same
+    window. The script merges them as `jroles.ledger.merge` does, and a lower share never
+    replaces the cap."""
     Path(env["LIMITS"]).write_text(f"five_hour 100 {SOON + 1}\n")
     write(handed(five_hour=(63, SOON)), env)
     assert kept(env) == f"five_hour 100 {SOON + 1}\n"

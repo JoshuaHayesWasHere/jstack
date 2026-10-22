@@ -1,6 +1,6 @@
-"""A crew thread that ended with no Result is told to carry on: one queued message for each
-ended run, at most two for a thread, and then a gate. Run as `test_jbus_queue.py`
-runs: the real pass, against the fakes."""
+"""jbus tells a crew thread that ended with no Result to carry on. It queues one message for each
+ended run, at most two for a thread, and then a gate. Like `test_jbus_queue.py`, the tests run
+the real pass against the fakes."""
 
 from datetime import timedelta
 from pathlib import Path
@@ -20,7 +20,8 @@ SKILLS = {"crew: alpha": "crew", "review: alpha, scoped": "pr-review", "scout: a
 
 
 def skill_file(name):
-    """The checkout's own skill file, worked out from this test file and not from jbus."""
+    """Return the checkout's own skill file, which this finds from the path of this test file and
+    not from jbus."""
     return skills()[name] / "SKILL.md"
 
 
@@ -47,7 +48,7 @@ def message(home, status, k, slug="alpha"):
 
 
 def crew(kitchen, slug="alpha", status="failed", run="run-1", **more):
-    """A thread jbus launched for the slug, whose latest run then ended as told."""
+    """Make a thread that jbus launched for the slug, whose latest run then ended as told."""
     add(kitchen, slug)
     kitchen.poll(NOW - timedelta(minutes=3))
     thread = kitchen.t3.threads[-1]

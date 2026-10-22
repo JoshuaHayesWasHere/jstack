@@ -1,11 +1,11 @@
-"""One supported way per feature: a feature a command owns has no copy of its old block in a
-skill, a file a skill reads, or a hook.
+"""Each feature has one supported way. When a command owns a feature, no skill, no file that a
+skill reads and no hook holds a copy of the block that the command replaced.
 
-Each row of `ONE_WAY` is a feature, the command that owns it, and a fragment of the block
-the command replaced, distinctive enough that only a copy of that block carries it. A file
-that carries a row's fragment fails with an error that names the command to call in its
-place. A copy pasted back into a skill is the mistake this catches: a copy drifts from the
-others, and one of them broke under zsh while the tests ran it under `sh` alone.
+Each row of `ONE_WAY` is a feature, the command that owns it, and a fragment of the block the
+command replaced. The fragment is distinctive enough that only a copy of that block holds it. When a
+file carries a row's fragment, the test fails with an error that names the command to call in its
+place. This test catches a copy pasted back into a skill. Such a copy comes to differ from the
+others: one copy broke under zsh while the tests ran that copy under `sh` alone.
 """
 
 import os
@@ -109,8 +109,8 @@ def blocks(placeholder):
 
 
 def run(tmp_path, command, block):
-    """`block` with `lines` in place of the placeholder, beside a fake `command` that keeps its
-    stdin. What the block printed, and what reached the command."""
+    """Run `block` with `lines` in place of the placeholder, beside a fake `command` that saves
+    its stdin. Return what the block printed and what reached the command."""
     bin_dir, kept = tmp_path / "bin", tmp_path / "kept"
     bin_dir.mkdir(exist_ok=True)
     fake = bin_dir / command.split()[0]
@@ -135,8 +135,9 @@ def run(tmp_path, command, block):
 def test_each_block_of_a_feature_leaves_its_checks_to_the_command(
     tmp_path, feature, command, placeholder, lines
 ):
-    """A check no fragment names is caught too: each block of the feature is run, and a check
-    in front of the command, whatever its words, stops the lines before the command."""
+    """The test runs each block of the feature, so it catches a check whose words appear in no
+    fragment. A check placed before the command stops the lines before they reach the command,
+    whatever the check's words are."""
     found = list(blocks(placeholder))
     assert found, f"no skill has a block for {feature}: the placeholder {placeholder} moved"
     for where, block in found:

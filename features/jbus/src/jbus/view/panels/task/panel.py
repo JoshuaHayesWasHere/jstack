@@ -1,6 +1,6 @@
-"""The tasks: the open work of the queue, each in its one state, and the rows that ended
-while they say another thing. Each state is the one the last pass judged, in `work.json`:
-the panel draws it and works none out."""
+"""The tasks: the open work of the queue, each in its one state, and the rows that ended while
+their status says another thing. Each state is the one that the last pass judged and wrote to
+`work.json`: the panel draws it and works none out."""
 
 from __future__ import annotations
 

@@ -2,13 +2,15 @@
 
     python -m jinstall <checkout> [--check | --uninstall | --doctor | --setup]
 
-which `install.sh` runs in a checkout, and `jinstall [<verb>]` (`cli`), a release's command.
+is what `install.sh` runs in a checkout. `jinstall [<verb>]` (`cli`) is the command a release
+installs.
 
-Install and --check are one function with one branch, whether `put` is called between two
-probes, so they cannot print different lines for one machine and a second install is a check. The
-doctor probes the same kinds and prints through the same `say`, so it gives --check's answer
-about every part both print. --setup walks the same list once, in order: it seeds each config
-that is not there, puts each due Carried need, and says what is left for the user.
+Install and --check are one function, which branches once: install calls `put` between two
+probes, and --check does not. So they cannot print different lines for one machine, and a second
+install is a check. The doctor probes the same kinds and prints through the same `say`, so it
+gives --check's answer for every part that both print. --setup walks the same list once, in
+order. It seeds each config that is not there, puts each due Carried need, and says what is left
+for the user.
 """
 
 import sys
@@ -34,7 +36,7 @@ class Verb(Enum):
 
 @dataclass(frozen=True)
 class Report:
-    """What a verb leaves: the lines for stdout, a note for stderr, the exit code."""
+    """What a verb returns: the lines for stdout, a note for stderr, and the exit code."""
 
     lines: tuple[str, ...]
     note: str
@@ -42,15 +44,16 @@ class Report:
 
 
 def say(need: Need, found: Found) -> str:
-    """The one place a line is made, for install, --check and --doctor:
-    `<state> <level> <name>[ -> <detail>]`."""
+    """The line for one need, `<state> <level> <name>[ -> <detail>]`. Install, --check and
+    --doctor make every line here and nowhere else."""
     line = f"{found.state.value} {need.level.value} {need.name}"
     return f"{line} -> {found.detail}" if found.detail else line
 
 
 def refused(machine: Machine, verb: str) -> Report | None:
-    """A linked worktree under the account's own HOME: its links would move every live skill
-    to it, so nothing is written from one."""
+    """The refusal for a linked worktree under the account's own HOME, or None for any other
+    checkout. The install writes nothing from such a worktree, because the install's links would
+    point every live skill at the worktree."""
     if not machine.in_a_worktree_of_the_account():
         return None
     why = f"install.sh: {machine.checkout} is a linked worktree, and HOME is your own: "
@@ -58,11 +61,14 @@ def refused(machine: Machine, verb: str) -> Report | None:
 
 
 def install(machine: Machine, write: bool) -> Report:
-    """Each due Carried need: probe; when `write` and the answer is missing or a replaceable
-    old, put and probe again; the line is the last probe's. Exit 1 when a line is not ok.
-    A put that fails is caught: its reason goes to `note`, the loop goes on, and the second
-    probe says what is true. With `write`, a linked worktree under the account's own HOME is
-    refused before anything is probed: its links would move every live skill to it."""
+    """Probe each due Carried need. With `write`, put the need and probe it again when the
+    probe answers missing, or answers an old that is replaceable. Each line gives the answer
+    of the last probe, and the exit code is 1 when a line is not ok.
+
+    When a put fails, the loop catches the failure, adds its reason to `note`, and goes on.
+    The second probe then reports the actual state. With `write`, the function refuses a
+    linked worktree under the account's own HOME before it probes anything, since the
+    install's links would point every live skill at that worktree."""
     if write and (refusal := refused(machine, "install")):
         return refusal
     lines, notes, code = [], [], 0
@@ -84,11 +90,14 @@ def install(machine: Machine, write: bool) -> Report:
 
 
 def setup(machine: Machine) -> Report:
-    """Every need once, in order, one line each: `done <name>` for what this run wrote,
-    `already <name>` for what was there, `needs you <name> -> <command>` for what is the user's.
-    A Seeded need that is missing is written; a due Carried need that is not ok is put, as the
-    install puts it. The jbus config comes before the units in the list, so a run that seeds it
-    links the units too. A second run writes nothing. Exit 1 while a hard need is the user's."""
+    """Walk every need once, in order, and print one line for each. The line is `done <name>`
+    for what this run wrote, `already <name>` for what was there, and
+    `needs you <name> -> <command>` for each step that is left for the user.
+
+    Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
+    the install puts it. The jbus config comes before the units in the list, so a run that
+    seeds it links the units too. A second run writes nothing. The exit code is 1 while a hard
+    need is left for the user."""
     if refusal := refused(machine, "set up"):
         return refusal
     lines, notes, code = [], [], 0
@@ -121,9 +130,10 @@ def setup(machine: Machine) -> Report:
 
 
 def uninstall(machine: Machine) -> Report:
-    """Every Carried and Seeded need, due or not, backwards: drop. Then `machine.sweep()`. Lines are
-    `removed <piece>` and `kept <piece> -> <why>`, and nothing for what is absent. Exit 1
-    only when a piece of this checkout's could not be removed. A second run prints nothing."""
+    """Drop every Carried and Seeded need, due or not, in reverse order, then run
+    `machine.sweep()`. The lines are `removed <piece>` and `kept <piece> -> <why>`, and there is
+    none for what is absent. The exit code is 1 only when uninstall could not remove a piece
+    that belongs to this checkout. A second run prints nothing."""
     lines, notes, code = [], [], 0
     kinds = [
         need.kind for need in reversed(needs(machine)) if isinstance(need.kind, (Carried, Seeded))
@@ -141,9 +151,10 @@ def uninstall(machine: Machine) -> Report:
 
 
 def doctor(machine: Machine) -> Report:
-    """Probe every need that is only probed and every due Carried need, and write nothing.
-    The last line is `doctor: ok` or `doctor: not ok, <n> hard`. Exit 1 only when a hard need
-    is not ok: an optional one never changes it."""
+    """Probe every need that the install only probes, and every due Carried need, and write
+    nothing.
+    The last line is `doctor: ok` or `doctor: not ok, <n> hard`. The exit code is 1 only when
+    a hard need is not ok: an optional need never changes it."""
     lines, hard = [], 0
     for need in needs(machine):
         if isinstance(need.kind, Carried) and not need.kind.due(machine):
@@ -156,7 +167,8 @@ def doctor(machine: Machine) -> Report:
 
 
 def parse(argv: Sequence[str]) -> tuple[Machine, Verb]:
-    """`<checkout> [verb]`. Anything else: the usage line on stderr and SystemExit(2)."""
+    """The machine and the verb of `<checkout> [verb]`. For any other arguments, the function
+    prints the usage line on stderr and raises SystemExit(2)."""
     verbs = {verb.value: verb for verb in Verb if verb is not Verb.INSTALL}
     if len(argv) not in (1, 2) or (argv[1:] and argv[1] not in verbs):
         print(USAGE, file=sys.stderr)

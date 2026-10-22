@@ -1,5 +1,5 @@
-"""A brief is checked when it is queued, and a go is bound to what the brief asks for, not
-to its wording. Run as `test_jbus_queue.py` runs: the real command and the real pass,
+"""`jbus queue add` checks a brief when it queues it, and a go binds to what the brief asks for,
+not to its wording. Like `test_jbus_queue.py`, the tests run the real command and the real pass
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json

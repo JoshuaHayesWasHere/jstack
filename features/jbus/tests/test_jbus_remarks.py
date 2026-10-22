@@ -1,5 +1,5 @@
-"""A comment on a pull request reaches its crew only when the repo's owner wrote it. Run as
-`test_jbus_main_moved.py` runs: the real pass, against the fakes, with a `gh` that
+"""A comment on a pull request reaches its crew only when the repo's owner wrote it. Like
+`test_jbus_main_moved.py`, the tests run the real pass against the fakes, with a `gh` that
 answers who owns the repo and what was written on the pull request."""
 
 import json
@@ -18,7 +18,7 @@ URL = "https://example.test/pull/7#c"
 
 @pytest.fixture
 def opened(kitchen):
-    """Alpha is launched and its pull request 7 is open, in a repo that ada owns."""
+    """Launch alpha and open its pull request 7, in a repo that ada owns."""
     add(kitchen, "alpha")
     said = kitchen.poll(NOW - timedelta(minutes=30))
     assert "launched alpha: mcp:thread-1" in said
@@ -39,7 +39,8 @@ def one(ident, author, body, **more):
 
 
 def anywhere(kitchen, words):
-    """Whether the words are in anything jbus wrote or sent: its state, the home, T3 Code."""
+    """Return whether the words are in anything jbus wrote or sent: its state, the home, or T3
+    Code."""
     kept = [p for p in (kitchen.state, kitchen.home) if p.exists()]
     files = [f for path in kept for f in path.rglob("*") if f.is_file()]
     return words in json.dumps(kitchen.t3.calls) or any(
@@ -90,8 +91,8 @@ def test_a_review_under_the_owners_login_reaches_the_crew_as_github_text_and_not
     opened,
 ):
     """Reviewer bots post under the owner's account, so the login proves nothing about who wrote
-    it: the message names GitHub, the kind of remark, the login and the link, and says it is not
-    from the user."""
+    the review. The message names GitHub, the kind of remark, the login and the link, and says
+    that the review is not from the user."""
     body = "## Review (fake-queue): the retry loop never stops"
     review = one(8, OWNER, body, state="CHANGES_REQUESTED", submitted_at="t1")
     opened.set("remarks.json", {"pulls/7/reviews": [review]})

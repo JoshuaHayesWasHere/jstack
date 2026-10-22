@@ -1,37 +1,38 @@
-"""The nine targets of the CI plan, counted from what `jbus ci` kept (`jbus.ci.ledger`).
+"""Count the nine targets of the CI plan from what `jbus ci` kept (`jbus.ci.ledger`).
 
-A number is counted over a window of time and says how: `Number.how` is the sentence that
-goes with it on the panel and in the weekly report. What every number shares:
+Each number counts over a window of time and says how it counts: `Number.how` is the
+sentence shown with it on the panel and in the weekly report. Every number follows these
+rules:
 
-- the period is the window, from `start` up to `end`; a job belongs to the day its `created`
-  falls in, a pull request to the day it merged, a push to main to the day it completed;
-- it is job level: a `check` and a `full` job each count once, never a run;
-- local and hosted runners are counted apart (`Number.value` is the local runner's, the
-  figure the targets are about, and `Number.hosted` the hosted one where there is one);
-- a job cancelled while it waited is counted: it is a job that did not get a minute of
-  execution, so it is in the jobs of the queue and out of the minutes of execution.
+- The period is the window, from `start` up to `end`. A job belongs to the day its `created`
+  falls in, a pull request to the day it merged, and a push to main to the day it completed.
+- It counts jobs, never runs: a `check` job and a `full` job each count once.
+- It counts local and hosted runners apart. `Number.value` is the local runner's figure,
+  which the targets are about, and `Number.hosted` is the hosted runner's, where there is one.
+- It counts a job cancelled while it waited. That job got no minute of execution, so it is in
+  the jobs of the queue and not in the minutes of execution.
 
 The nine, in order:
 
 1. `queue`: the median minutes a green job waited (`created` to `started`), against the
-   median minutes it ran. Target: the wait is under the run.
+   median minutes it ran. The target is that the wait is under the run.
 2. `waste`: the share of execution minutes spent by jobs that failed or were cancelled.
-   Target: under 15%.
-3. `own`: of the local jobs that failed on their last attempt, the share whose cause is the
-   pull request's own. Target: over 70%. A red is `main` when main was red with the same
-   failing tests when it started, `runner` when its log shows a runner fault and another
-   branch fails the same tests, `flake` when no fault shows, else `own`.
-4. `rebases`: force-pushes per pull request merged. Target: under 0.3.
-5. `stale`: force-pushes whose cause was only that main had moved, found from the jbus
-   event that preceded them. Target: none.
+   The target is under 15%.
+3. `own`: of the local jobs that failed on their last attempt, the share whose cause is the pull
+   request's own. The target is over 70%. A red job's cause is `main` when main was red with the
+   same failing tests at the time the job started. It is `runner` when its log shows a runner fault
+   and another branch fails the same tests, and `flake` when no fault shows. Otherwise it is `own`.
+4. `rebases`: force-pushes per pull request merged. The target is under 0.3.
+5. `stale`: the force-pushes made only because main had moved, as the jbus event before each
+   one shows. The target is none.
 6. `green`: the median minutes from the first job on a merged pull request's final head to
-   the last green one. Target: under 15 (set here; the scout named none).
+   the last green one. The target is under 15 (set here; the scout named none).
 7. `mainred`: the minutes main was red, on the window's last day, from the first failed push
-   to main until the next green one. Target: under 30 (set here).
-8. `flaky`: the tests that failed two branches in the window with no fault in the log.
-   Target: under 3 (set here). The scout's 9 was counted by hand; this is the rule's.
+   to main until the next green one. The target is under 30 (set here).
+8. `flaky`: the tests that failed on two branches in the window with no fault in the log.
+   The target is under 3 (set here). The scout counted 9 by hand; this number follows the rule.
 9. `inode`: the peak of /tmp's inode use a job wrote with `jbus ci --notice` (`tmp_inode_pct`).
-   Target: under 80 (set here). None until a job writes it.
+   The target is under 80 (set here). It has no value until a job writes it.
 """
 
 from __future__ import annotations
@@ -64,9 +65,10 @@ TARGETS = {
 
 @dataclass(frozen=True)
 class Number:
-    """One target: its `value` (the local runner's), how it `shown` reads, the `target` it is
-    held to, whether it is `met` (None where nothing was counted), `n`, the jobs or pull
-    requests counted, `how` it was counted, and `hosted`, the hosted runner's figure."""
+    """A `Number` is one target. It has its `value` (the local runner's figure), `shown`
+    (how the value reads), the `target` it is checked against, and `met` (None where there
+    was nothing to count). It also has `n`, the jobs or pull requests counted, `how` it
+    counts, and `hosted`, the hosted runner's figure."""
 
     key: str
     name: str
@@ -127,9 +129,9 @@ def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
 
 
 class Facts:
-    """What the ledger holds, read once, and what is worked out from it once: the pull
-    request each jbus event is about, the runs of main in order, the intervals main was red,
-    the cause of each red, and the cause of each force-push."""
+    """`Facts` reads the ledger once and works out these facts from it, once each: the pull request
+    each jbus event is about, the runs of main in order, the intervals main was red, the cause
+    of each red, and the cause of each force-push."""
 
     def __init__(
         self,
@@ -145,7 +147,7 @@ class Facts:
         self.pushes = self._pushes()
 
     def _main(self) -> list[tuple[datetime, str, str, datetime]]:
-        """Each run of main that ran, as (created, sha, state, completed), oldest first."""
+        """Return each run of main that ran, as (created, sha, state, completed), oldest first."""
         runs: dict[int, list[dict[str, Any]]] = defaultdict(list)
         for job in self.jobs:
             if (
@@ -169,7 +171,7 @@ class Facts:
         return sorted(found)
 
     def _intervals(self) -> list[tuple[datetime, datetime]]:
-        """The times main was red: from the first failed run to the next green one."""
+        """Return the times main was red: from the first failed run to the next green one."""
         found, red = [], None
         for _, _, state, done in sorted(self.main, key=lambda one: one[3]):
             if state == "failure" and red is None:
@@ -211,7 +213,7 @@ class Facts:
         return False
 
     def _causes(self) -> dict[int, str]:
-        """The cause of each failed job: `main`, `runner`, `flake` or `own`."""
+        """Return the cause of each failed job: `main`, `runner`, `flake` or `own`."""
         failed = [j for j in self.jobs if j["conclusion"] == "failure"]
         mains = [
             j
@@ -298,8 +300,8 @@ class Facts:
         return found
 
     def _pushes(self) -> list[tuple[int, datetime, str]]:
-        """Each force-push of a pull request's branch, with its cause: `conflict` (the rebase
-        was to settle a conflict), `staleness` (main had only moved), `fix` or `unknown`."""
+        """Return each force-push of a pull request's branch, with its cause: `conflict` (the
+        rebase resolved a conflict), `staleness` (main had only moved), `fix` or `unknown`."""
         messages = self._messages()
         found = []
         for one in self.pulls:
@@ -559,12 +561,12 @@ ALL: tuple[Callable[[Facts, datetime, datetime], Number], ...] = (
 
 
 def compute(facts: Facts, start: datetime, end: datetime) -> list[Number]:
-    """The nine targets over the window from `start` up to `end`."""
+    """Count the nine targets over the window from `start` up to `end`."""
     return [one(facts, start, end) for one in ALL]
 
 
 def day_windows(now: datetime, days: int, zone: tzinfo) -> list[tuple[str, datetime, datetime]]:
-    """The last `days` days in `zone`, oldest first, the last one ending at `now`."""
+    """Return the last `days` days in `zone`, oldest first, the last one ending at `now`."""
     today = now.astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
     found = []
     for back in range(days - 1, -1, -1):

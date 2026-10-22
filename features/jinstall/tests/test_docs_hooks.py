@@ -1,10 +1,13 @@
 """The hook entries `jinstall.needs` installs are the ones the features declare.
 
-Each hook, status line and git hook of every `features/<name>/feature.json`, read by the
-generator's own crawl, is one `HookGroup`, `StatusLine` or `GitHook` of `needs()`, and
-`needs()` has no other: a hook in one and not the other fails. The install reads them from
-`skills.json`, so this also holds the generated file to the manifests. The hooks `needs()`
-hard-coded before it read them are pinned too: each is still built, in the same order.
+The tests read every `features/<name>/feature.json` with the generator's own crawl. Each hook,
+status line and git hook that the crawl finds there must be one `HookGroup`, `StatusLine` or
+`GitHook` of `needs()`, and `needs()` must have no other. A hook that is in the manifests and
+not in `needs()`, or in `needs()` and not in the manifests, fails the test. The install reads
+the hooks from `skills.json`, so this also checks the generated file against the manifests.
+
+The tests also pin the hooks that `needs()` hard-coded before it read them: `needs()` still
+builds each one, in the same order.
 """
 
 import sys
@@ -23,7 +26,7 @@ HOOKED = (HookGroup, StatusLine, GitHook)
 
 
 def declared(machine):
-    """Each hook kind the features' manifests ask the install for."""
+    """Each hook kind that the features' manifests declare for the install."""
     files = {one.name: machine.home / one.hooks for one in HARNESSES if one.hooks}
     found = []
     for feature in crawl(REPO).features:
@@ -55,8 +58,9 @@ def test_the_install_puts_each_hook_the_features_declare_and_no_other():
 
 
 def hard_coded(machine):
-    """The hook needs `needs()` hard-coded on origin/migration (needs.py:203-237), in its
-    order, as (name, level, kind): what the manifests must give the install, one for one."""
+    """The hook needs that `needs()` hard-coded on origin/migration (needs.py:203-237), in
+    their order, as (name, level, kind). The manifests must give the install these, one for
+    one."""
     settings = machine.home / ".claude" / "settings.json"
     codex = machine.home / ".codex" / "hooks.json"
     pushed = machine.checkout / ".git" / "hooks" / "pre-push"
@@ -101,9 +105,10 @@ def hard_coded(machine):
 
 
 def test_the_install_still_builds_each_hook_need_it_hard_coded_and_in_the_same_order():
-    """Each need it hard-coded is built from the manifests, and in each file the groups of each
-    event keep their order, the order a fresh install writes them in. A hook added since is
-    built too, and is the manifests test's to hold."""
+    """`needs()` now builds, from the manifests, each need that it once hard-coded. In each
+    file, the groups of each event keep their order, which is the order a fresh install writes
+    them in. `needs()` also builds a hook added since then, and the manifests test checks that
+    one."""
     machine = Machine.here(REPO)
     hooked = (HookGroup, StatusLine, GitHook)
     expected = hard_coded(machine)
