@@ -25,15 +25,18 @@ PLUGIN_SCHEMA = "schemas/agent-plugins-1.0.0.plugin.schema.json"
 PRINCIPLE = "principle-"
 SKILL = "SKILL.md"
 
-# The paths no feature owns: the repo's own build, CI and generator (INFRA), and the shared
-# files the generator writes or a later unit deletes (SHARED-DELETE). Kept here and not in a
-# manifest, since a manifest is a feature's.
+# The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
+# points a user or a harness looks for where they are (INFRA); and the shared files the
+# generator writes or a later unit deletes (SHARED-DELETE). Kept here and not in a manifest,
+# since a feature owns its folder and nothing else. Each row outside lint-borders.py's LAYOUT is
+# a path that may stay outside it.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
         ".github/**",
         ".gitignore",
         "LICENSE",
         "SECURITY.md",
+        "THIRD_PARTY.md",
         "Makefile",
         "pyproject.toml",
         "uv.lock",
@@ -41,38 +44,24 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "schemas/**",
         "scripts/generate-jstack-trees.py",
         "scripts/jtrees/**",
+        "scripts/lint-borders.py",
+        "scripts/check-jstack-docs.py",
         "scripts/green_tree.py",
         "scripts/fresh-host.sh",
         "scripts/select_tests.py",
         "scripts/hot_files.py",
         "conftest.py",
         "testing/**",
-        "tests/test_test_plugins.py",
-        "tests/test_jtrees*.py",
-        "tests/test_select_tests.py",
-        "tests/test_workflows.py",
-        "tests/test_check_command.py",
-        "tests/daemons.py",
-        "tests/test_daemons.py",
-        "tests/repo_template.py",
-        "tests/test_hot_files.py",
+        "install.sh",
+        ".claude/skills/verify-jstack/SKILL.md",
         ".claude/skills/verify-jstack/features/ci-check.md",
+        ".cursor/skills/verify-main-red/SKILL.md",
     ),
     "SHARED-DELETE": (
         "README.md",
-        "CHANGELOG.md",
-        "CONTRIBUTING.md",
-        "THIRD_PARTY.md",
+        "CATALOG.md",
         "skills.json",
-        "docs/configuration.md",
-        "docs/hooks.md",
-        "docs/troubleshooting.md",
-        "docs/playbooks.md",
-        "tests/fixtures/README.md",
-        ".claude/skills/verify-jstack/features/README.md",
         ".cursor/skills/verify-jstack",
-        "tests/test_understanding_skills*.py",
-        ".claude/skills/verify-jstack/features/understanding-skills.md",
     ),
 }
 
@@ -82,7 +71,6 @@ SPOTS: tuple[tuple[Kind, str, str], ...] = (
     ("skill", "skills/*/SKILL.md", "folder"),
     ("skill", f"{FEATURES}/*/SKILL.md", "folder"),
     ("skill", f"{FEATURES}/*/skills/*/SKILL.md", "folder"),
-    ("principle", "principles/principle-*.md", "stem"),
     ("playbook", "playbooks/*.md", "stem"),
     ("playbook", f"{FEATURES}/*/playbooks/*.md", "stem"),
     ("playbook", f"{FEATURES}/*/skills/*/playbooks/*.md", "stem"),
@@ -153,12 +141,6 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
         )
         for one in manifest.get("hooks", ())
     )
-    owns = tuple(manifest.get("owns", ()))
-    try:
-        rows = tuple(pattern(one) for one in owns)
-    except ValueError as error:
-        faults.append(f"{where}: owns {error}")
-        return None
     return Feature(
         name=name,
         description=manifest["description"],
@@ -171,24 +153,7 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
             (one["name"], placed(one["script"])) for one in manifest.get("gitHooks", ())
         ),
         nameable=tuple(manifest.get("nameable", ())),
-        owns=owns,
-        _owns=rows,
     )
-
-
-def _paragraph(text: str) -> str:
-    """A principle's description: the paragraph under its `# ` title."""
-    lines = text.splitlines()
-    start = next((at for at, line in enumerate(lines) if line.startswith("# ")), None)
-    if start is None:
-        return ""
-    paragraph: list[str] = []
-    for line in lines[start + 1 :]:
-        if line.strip():
-            paragraph.append(line.strip())
-        elif paragraph:
-            break
-    return " ".join(paragraph)
 
 
 def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
@@ -221,8 +186,6 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
                 description = str(front.get("description", ""))
                 if name.startswith(PRINCIPLE):
                     kind = "principle"
-            elif kind == "principle":
-                description = _paragraph(text)
             owners = [one for one in tree.owners(relative) if one not in REPO_OWNERS]
             if len(owners) != 1:
                 faults.append(f"{relative}: is a {kind} with {len(owners)} feature owners {owners}")

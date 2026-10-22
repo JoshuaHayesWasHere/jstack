@@ -4,8 +4,8 @@ The generator runs before `uv sync`, so it cannot import `jsonschema`. The keywo
 `type`, `required`, `properties`, `additionalProperties`, `pattern`, `enum`, `const`, `items`,
 `minLength` and `maxLength`, with `$schema`, `$id`, `title`, `description` and `default` read
 as notes. A schema with any other keyword is refused rather than half read, and
-`tests/test_jtrees_schema.py` holds the verdicts to `jsonschema`'s on a corpus of good and bad
-manifests.
+`testing/tests/test_jtrees_schema.py` holds the verdicts to `jsonschema`'s on a corpus of good
+and bad manifests.
 """
 
 from __future__ import annotations

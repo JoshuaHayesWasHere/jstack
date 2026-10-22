@@ -1,23 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "crew",
-  "description": "The crewmate: does the one task of a brief in its own worktree and opens its pull request.",
-  "owns": [
-    "tests/test_messages.py",
-    "skills/crew/**",
-    "tests/crew/**",
-    "templates/result.md",
-    "templates/rerun.md",
-    ".claude/skills/verify-jstack/features/crew-skill.md",
-    "playbooks/autonomous-run.md",
-    "playbooks/bug-fix.md",
-    "playbooks/feature.md",
-    "playbooks/hillclimb.md",
-    "playbooks/pause-safely.md",
-    "playbooks/perf-issue.md",
-    "playbooks/prototype.md",
-    "playbooks/refactoring.md",
-    "playbooks/runtime-forensics.md",
-    "playbooks/visual-parity.md"
-  ]
+  "description": "The crewmate: does the one task of a brief in its own worktree and opens its pull request."
 }

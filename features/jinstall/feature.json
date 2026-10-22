@@ -10,23 +10,5 @@
   },
   "docs": [
     "docs/jinstall.md"
-  ],
-  "owns": [
-    "tests/test_units.py",
-    "src/jinstall/**",
-    "install.sh",
-    "docs/troubleshooting/setup.md",
-    "docs/troubleshooting/the-configs-and-the-limits-file.md",
-    "docs/troubleshooting/the-platform-and-the-programs.md",
-    "tests/test_install.py",
-    "tests/test_install_commands.py",
-    "tests/test_layout.py",
-    "tests/test_install_release.py",
-    "tests/test_doctor.py",
-    "tests/test_setup.py",
-    "tests/test_docs_hooks.py",
-    "skills/setup-pstack/**",
-    ".claude/skills/verify-jstack/features/install-skills.md",
-    "docs/jinstall.md"
   ]
 }

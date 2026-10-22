@@ -36,18 +36,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/**/evals/"]
+exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/features/*/evals/"]
 # generated: packages by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 packages = [
-    "src/jbriefs",
-    "src/jbus",
+    "features/jbriefs/src/jbriefs",
+    "features/jbus/src/jbus",
     "features/jdrift/src/jdrift",
-    "src/jgauge",
-    "src/jinstall",
+    "features/jgauge/src/jgauge",
+    "features/jinstall/src/jinstall",
     "features/jleak/src/jleak",
-    "src/jmerge",
-    "src/jpack",
-    "src/jroles",
+    "features/jmerge/src/jmerge",
+    "features/jpack/src/jpack",
+    "features/jroles/src/jroles",
     "features/jsettings/src/jsettings",
 ]
 # end generated
@@ -60,13 +60,7 @@ packages = [
 # generated: source by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 "skills.json" = "share/jstack/skills.json"
 "plugin.json" = "share/jstack/plugin.json"
-"docs" = "share/jstack/docs"
 "features" = "share/jstack/features"
-"hooks" = "share/jstack/hooks"
-"playbooks" = "share/jstack/playbooks"
-"principles" = "share/jstack/principles"
-"skills" = "share/jstack/skills"
-"templates" = "share/jstack/templates"
 # end generated
 
 # The repo's test command is `uv run pytest`, which runs the tests one after another.
@@ -74,32 +68,80 @@ packages = [
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 testpaths = [
-    "tests",
+    "testing/tests",
+    "features/architect/tests",
+    "features/automate-me/tests",
+    "features/crew/tests",
+    "features/evals/tests",
+    "features/expert/tests",
     "features/grilling/tests",
+    "features/home/tests",
+    "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
+    "features/jgauge/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
+    "features/jmerge/tests",
+    "features/jpack/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
+    "features/ketchup/tests",
+    "features/lessons/tests",
+    "features/no-comments/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
+    "features/recall/tests",
+    "features/repo-guards/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",
+    "features/tdd/tests",
+    "features/typescript-best-practices/tests",
     "features/verify-jstack/tests",
     "features/writing/tests",
 ]
 pythonpath = [
+    "features/jbriefs/src",
+    "features/jbus/src",
     "features/jdrift/src",
+    "features/jgauge/src",
+    "features/jinstall/src",
     "features/jleak/src",
+    "features/jmerge/src",
+    "features/jpack/src",
+    "features/jroles/src",
     "features/jsettings/src",
-    "src",
-    "tests",
+    "testing/tests",
+    "features/architect/tests",
+    "features/automate-me/tests",
+    "features/crew/tests",
+    "features/evals/tests",
+    "features/expert/tests",
     "features/grilling/tests",
+    "features/home/tests",
+    "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
+    "features/jgauge/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
+    "features/jmerge/tests",
+    "features/jpack/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
+    "features/ketchup/tests",
+    "features/lessons/tests",
+    "features/no-comments/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
+    "features/recall/tests",
+    "features/repo-guards/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",
+    "features/tdd/tests",
+    "features/typescript-best-practices/tests",
     "features/verify-jstack/tests",
     "features/writing/tests",
 ]
@@ -130,19 +172,46 @@ target-version = "py312"
 line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 src = [
+    "features/jbriefs/src",
+    "features/jbus/src",
     "features/jdrift/src",
+    "features/jgauge/src",
+    "features/jinstall/src",
     "features/jleak/src",
+    "features/jmerge/src",
+    "features/jpack/src",
+    "features/jroles/src",
     "features/jsettings/src",
-    "src",
-    "tests",
+    "testing/tests",
+    "features/architect/tests",
+    "features/automate-me/tests",
+    "features/crew/tests",
+    "features/evals/tests",
+    "features/expert/tests",
     "features/grilling/tests",
+    "features/home/tests",
+    "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
+    "features/jgauge/tests",
+    "features/jinstall/tests",
     "features/jleak/tests",
+    "features/jmerge/tests",
+    "features/jpack/tests",
+    "features/jroles/tests",
     "features/jsettings/tests",
+    "features/ketchup/tests",
+    "features/lessons/tests",
+    "features/no-comments/tests",
     "features/pr-review/tests",
+    "features/principles/tests",
+    "features/recall/tests",
+    "features/repo-guards/tests",
     "features/scout/tests",
     "features/show-me-your-work/tests",
     "features/skill-library/tests",
+    "features/tdd/tests",
+    "features/typescript-best-practices/tests",
     "features/verify-jstack/tests",
     "features/writing/tests",
 ]

@@ -18,7 +18,7 @@ writes what it was asked to `$SYSTEMD_RUN_CALLS` where that is set.
 
 No test leaves a daemon running: one starts it with `daemons.start`, and the autouse fixture
 `no_daemons_left` stops it when the test ends, also on a failed assert or a timeout. A pytest
-that is killed takes its daemons with it (`tests/daemons.py` says how).
+that is killed takes its daemons with it (`testing/tests/daemons.py` says how).
 
 A test that runs a pass asks for the `kitchen`: the fakes of `test_jbus_kitchen`, set up for
 one project. Its repo, a checkout and its origin, is a copy of one built once for each worker

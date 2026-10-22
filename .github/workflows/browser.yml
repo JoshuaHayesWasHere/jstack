@@ -6,7 +6,7 @@ name: browser
 # by hand. Never on a pull request, and never on a push to main.
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
-# brief for the fix, `browser-red-<date>` (src/jbus/watch.py).
+# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py).
 on:
   schedule:
     - cron: '0 7 * * *'
@@ -22,7 +22,7 @@ permissions:
 env:
   # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
   # each job. check.yml, browser.yml and pstack-drift.yml name the same one
-  # (tests/test_workflows.py).
+  # (testing/tests/test_workflows.py).
   UV_VERSION: "0.13.2"
 
 jobs:

@@ -1,18 +1,20 @@
-"""The docs indexes: the regions of README.md and of the pages under docs/ that the tree writes.
+"""The docs indexes: the regions of README.md, CATALOG.md and the pages under docs/ that the tree
+writes.
 
 A region is the text between `<!-- generated: <part> ... -->` and the next
 `<!-- generated: end -->`; the rest of each page is hand-written and is left as it is. The
 parts are:
 
 - `commands`, in README.md: one row a command, its page and what its feature does.
-- `catalog`, in docs/playbooks.md: one row a feature, with its skills, principles and
-  playbooks.
-- `hooks`, in docs/hooks.md: one row a hook, status line or git hook the install adds.
+- `catalog`, in CATALOG.md: one row a feature, with its skills, principles and playbooks.
+- `hooks`, in CATALOG.md: one row a hook, status line or git hook the install adds.
 - `pages`, in any page `<x>.md`: one line a page of the folder `<x>/` beside it, its first
   line `# <heading>`.
 
-A page that must hold a part and has lost its region is refused, and so is a part with no
-maker.
+The first three join every feature, so they live in pages no feature owns: a page a feature
+owns that holds one is refused, and a new hook, skill or playbook changes its own feature and
+the generated root pages alone. A page that must hold a part and has lost its region is
+refused, and so is a part with no maker.
 """
 
 from __future__ import annotations
@@ -31,7 +33,11 @@ REGION = re.compile(
     re.S,
 )
 HEADING = re.compile(r"\A# (.+)\n")
-REQUIRED = {"README.md": "commands", "docs/playbooks.md": "catalog", "docs/hooks.md": "hooks"}
+REQUIRED = {
+    "README.md": ("commands",),
+    "CATALOG.md": ("catalog", "hooks"),
+}
+JOINED = frozenset(part for parts in REQUIRED.values() for part in parts)
 
 
 def _link(page: str, target: str) -> str:
@@ -108,7 +114,7 @@ MAKERS: dict[str, Callable[[Tree, str], str]] = {
 
 
 def _scanned(tree: Tree) -> list[str]:
-    found = {"README.md", *REQUIRED}
+    found = set(REQUIRED)
     for glob in ("docs/**/*.md", f"{FEATURES}/*/docs/**/*.md"):
         found |= {path.relative_to(tree.root).as_posix() for path in tree.root.glob(glob)}
     return sorted(one for one in found if (tree.root / one).is_file())
@@ -120,8 +126,17 @@ def render(tree: Tree) -> dict[str, bytes]:
     for page in _scanned(tree):
         text = (tree.root / page).read_text(encoding="utf-8")
         parts = [found["part"] for found in REGION.finditer(text)]
-        if page in REQUIRED and REQUIRED[page] not in parts:
-            faults.append(f"{page}: has no `<!-- generated: {REQUIRED[page]} -->` region")
+        for part in REQUIRED.get(page, ()):
+            if part not in parts:
+                faults.append(f"{page}: has no `<!-- generated: {part} -->` region")
+        owners = set(tree.owners(page)) & {one.name for one in tree.features}
+        joined = sorted(set(parts) & JOINED)
+        if owners and joined:
+            faults.append(
+                f"{page}: is {', '.join(sorted(owners))}'s, and holds a region that joins every "
+                f"feature, {joined}: only a page no feature owns may, such as {', '.join(REQUIRED)}"
+            )
+            continue
         if not parts:
             continue
         unknown = [part for part in parts if part not in MAKERS]

@@ -31,7 +31,7 @@ nobody locked, so a run that skips on it still runs `uv sync --locked`.
 Only `green` skips the suite. It never fails: a run that cannot find out runs the suite as
 it always did. It needs no package, so it runs before `uv sync`, with `gh` and the run's
 token (`contents: read` for the ref, `actions: read` for the artifact). The lookup itself is
-`jmerge.green`, imported from `src/` beside it, which jmerge's fresh check asks too.
+`jmerge.green`, imported from `features/jmerge/src/`, which jmerge's fresh check asks too.
 """
 
 import json
@@ -40,7 +40,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "features" / "jmerge" / "src"))
 
 from jmerge import green
 

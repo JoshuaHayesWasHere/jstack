@@ -2,8 +2,10 @@ name: check
 
 on:
   pull_request:
+  # The integration branch `migration` is checked on each push as main is, so a break there
+  # is seen before it lands, and jmerge's red hold for a pull request into it reads its tip.
   push:
-    branches: [main]
+    branches: [main, migration]
   # A manual run always runs the suite, whatever marker the tree has.
   workflow_dispatch:
 
@@ -23,7 +25,7 @@ concurrency:
 env:
   # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
   # each job. check.yml, browser.yml and pstack-drift.yml name the same one
-  # (tests/test_workflows.py).
+  # (testing/tests/test_workflows.py).
   UV_VERSION: "0.13.2"
 
 jobs:
