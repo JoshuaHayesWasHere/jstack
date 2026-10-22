@@ -267,6 +267,24 @@ def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
     )
 
 
+def declare(root, feature, folder, like=None):
+    """`feature`'s feature.json with `projectSkills` set to `folder`, which is first made a
+    copy of the skill folder `like` when one is named."""
+    if like:
+        shutil.copytree(root / like, root / "features" / feature / folder)
+    manifest = root / "features" / feature / "feature.json"
+    value = json.loads(manifest.read_text())
+    manifest.write_text(json.dumps(value | {"projectSkills": [folder]}))
+
+
+def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmatter_name():
+    listed = json.loads((REPO / "skills.json").read_text())["projectSkills"]
+    assert listed == [
+        {"name": "verify-jstack", "path": "features/verify-jstack/project-skill"},
+        {"name": "verify-main-red", "path": "features/jbus/project-skill/verify-main-red"},
+    ]
+
+
 @pytest.mark.parametrize(
     ("change", "fault"),
     [
@@ -313,6 +331,15 @@ def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
         (
             lambda root: (root / "features" / "empty").mkdir(),
             "features/empty: has neither feature.json nor SKILL.md",
+        ),
+        (
+            lambda root: declare(root, "jpack", "nowhere"),
+            "features/jpack/feature.json: declares the project skill nowhere, which has no SKILL.md",
+        ),
+        (
+            lambda root: declare(root, "jmerge", "red", like="features/jbus/project-skill/verify-main-red"),
+            "features/jmerge/feature.json: declares the project skill verify-main-red, which is"
+            " also features/jbus/project-skill/verify-main-red",
         ),
     ],
 )
