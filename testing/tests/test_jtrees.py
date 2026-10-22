@@ -151,7 +151,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "name": "foo-run",
         "kind": "playbook",
         "path": "features/foo/playbooks/foo-run.md",
-        "source": "josh",
+        "source": "jstack",
         "nameable": True,
     }
     assert items["template", "foo.md"]["path"] == "features/foo/templates/foo.md"

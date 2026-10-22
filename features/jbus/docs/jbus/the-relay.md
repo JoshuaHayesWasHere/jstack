@@ -43,7 +43,7 @@ Sous Chef sends a decision made on a card back with `POST /item` on the relay's 
 The body is one JSON object:
 
 ```json
-{"project": "jstack", "item": "w3", "verb": "approve", "words": "go w3", "by": "Josh", "message": "<the chat message's id or link>", "seen_event": "jstack.w3.4"}
+{"project": "jstack", "item": "w3", "verb": "approve", "words": "go w3", "by": "you", "message": "<the chat message's id or link>", "seen_event": "jstack.w3.4"}
 ```
 
 | Field | What it is |
@@ -75,7 +75,7 @@ A POST that fails stops that route's cards until the next pass, which posts them
 This is the contract for Sous Chef's side, whose code is outside this repo:
 
 ```json
-{"kind": "item", "id": "jstack.w3.5", "item": "w3", "project": "jstack", "title": "Sous Chef's chat gets one card per Work item", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by Josh, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/jstack/item/w3"}
+{"kind": "item", "id": "jstack.w3.5", "item": "w3", "project": "jstack", "title": "Sous Chef's chat gets one card per Work item", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/jstack/item/w3"}
 ```
 
 | Field | What Sous Chef does with it |
@@ -84,6 +84,6 @@ This is the contract for Sous Chef's side, whose code is outside this repo:
 | `id` | The project and the line's id. It is the `seen_event` of a decision on this card. |
 | `item`, `project` | Which card this is: a new body for the same pair replaces the card in place, and the one with the higher line number wins. |
 | `title`, `state`, `owner`, `risk` | Shown on the card as they are. `state` is one of the eight states of [Work items](work-items.md). |
-| `last` | The last line in one sentence, shown under the title: a decision made in the view arrives here, as "Approved in jbus view by Josh, 11:52 EDT", and the card's buttons are the next body's. |
+| `last` | The last line in one sentence, shown under the title: a decision made in the view arrives here, as "Approved in jbus view by you, 11:52 EDT", and the card's buttons are the next body's. |
 | `actions` | One button for each, in order, each a `POST /item` with that `verb`. It is empty for a review item (a merge, a secret, the config) and for one that is done or dropped: such a card has the link and no button. |
 | `view` | The item in jbus view, as a link on every card: at the first origin of `JBUS_VIEW_ORIGINS`, the proxy the view is reached through, else at the first name of `JBUS_VIEW_NAMES` or the address `JBUS_VIEW_HOST` on port 4388, else at 127.0.0.1. |

@@ -10,7 +10,7 @@ takes in the lines that continue it, up to the next blank line, item or heading.
 `lint-notes.sh` reads the items the same way. A source writes a citation as
 `` `path:line` at <sha> `` or `` `path:first-last` at <sha> ``, with the commit in backticks
 or bare, and at most one word between `at` and the commit, as in
-`` at Winnifred `3f9c2ab` ``. The first double-quoted fragment after a citation, before the
+`` at demo `3f9c2ab` ``. The first double-quoted fragment after a citation, before the
 next one, is what the cited lines say. `verify` reports a citation that has no such fragment.
 A source with a date and no commit (a doc, a link, a command that was run) has no citation:
 the lint requires it to name a revision, and nothing here reads it. `verify` also reports a
