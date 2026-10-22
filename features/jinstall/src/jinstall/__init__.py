@@ -1,5 +1,6 @@
-"""jinstall: what `install.sh` runs from a checkout, before any command is on PATH and on the
-standard library alone, and the `jinstall` command a release installs, with no checkout.
+"""jinstall is what `install.sh` runs from a checkout, before any command is on PATH, with the
+standard library alone. It is also the `jinstall` command that a release installs, with no
+checkout.
 
     needs.py     the one list: Level, Need, needs()
     kinds.py     one class for each kind of need: its probe, and for a carried kind its

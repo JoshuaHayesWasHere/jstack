@@ -1,14 +1,16 @@
 """The machine a verb acts on, and every effect the install has on it.
 
-A kind writes only through Machine, which is what lets this file hold four rules:
-- A directory or JSON file the install creates is in the record before it exists, but for a
-  folder inside a harness's layout, which the layout's own drop removes.
-- A JSON file is written where it points, by a rename, and not over a change it saw before
-  the rename. One install or uninstall runs at a time for a HOME: `alone` holds a lock on it.
-- systemctl is run only when the user manager reads this HOME.
-- uv is run with nothing forced: it never replaces a program that is not its own.
-- A file `--setup` seeds is written once, with the digest of its bytes in a record, and is
-  removed only while its bytes still have that digest.
+A kind writes only through Machine, so this file can enforce these rules:
+- The install puts each directory or JSON file it creates into the record before the file
+  exists. A folder inside a harness's layout is the exception: the layout's own drop removes
+  it.
+- Machine writes a JSON file where its symlink points, by a rename, and never over a change
+  made after it read the file. One install or uninstall runs at a time for a HOME, because
+  `alone` holds a lock on it.
+- Machine runs systemctl only when the user manager reads this HOME.
+- Machine runs uv with nothing forced, so uv never replaces a program that is not its own.
+- Machine writes a file that `--setup` seeds once, with the digest of its bytes in a record,
+  and removes it only while its bytes still have that digest.
 """
 
 import fcntl
@@ -37,7 +39,7 @@ class Ran:
 class JsonObject:
     """A JSON file parsed at the boundary: one object, or no file yet (`existed` False).
     `real` is where a write lands, so a symlink into a dotfiles repo stays a symlink.
-    `seen` is the bytes read, which `Machine.write_object` compares before it writes."""
+    `seen` holds the bytes read, which `Machine.write_object` compares before it writes."""
 
     path: Path
     real: Path
@@ -48,7 +50,7 @@ class JsonObject:
 
 @dataclass(frozen=True)
 class Unreadable:
-    """A file that is there and is not one JSON object. It is never rewritten."""
+    """A file that is there and is not one JSON object. The install never rewrites it."""
 
     path: Path
     why: str
@@ -56,26 +58,29 @@ class Unreadable:
 
 @dataclass(frozen=True)
 class Dropped:
-    """What an uninstall step did, as printed: `removed <piece>`, `kept <piece> -> <why>`."""
+    """What an uninstall step did, as it prints: `removed <piece>` or
+    `kept <piece> -> <why>`."""
 
     removed: tuple[str, ...] = ()
     kept: tuple[str, ...] = ()
 
 
 class Moved(Exception):
-    """A file changed between the install's read and its write. The caller reads again, once."""
+    """A file changed between the install's read and its write. The caller reads it again,
+    once."""
 
 
 class Refused(Exception):
-    """An effect the machine did not carry out, with the reason as it is printed."""
+    """An effect the machine did not carry out, with the reason as the line prints it."""
 
 
 @dataclass(frozen=True)
 class Machine:
-    """`account` is the home directory the account has by its passwd entry: with `home` it
-    tells the user's real HOME from a sandbox's or a test's. `checkout` is the git checkout
-    jstack is installed from, None for a release, whose source is `release`: the tree its
-    wheel installed (`jbriefs.skills.packaged`)."""
+    """`account` is the account's home directory by its passwd entry. Compared with `home`,
+    it tells the user's real HOME from a sandbox's or a test's.
+
+    `checkout` is the git checkout that jstack is installed from, or None for a release. A
+    release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`)."""
 
     checkout: Path | None
     home: Path
@@ -86,14 +91,16 @@ class Machine:
 
     @property
     def source(self) -> Path:
-        """The tree each harness's layout is assembled from: the checkout, else the release's."""
+        """The tree the install assembles each harness's layout from: the checkout, or else
+        the release's tree."""
         source = self.checkout if self.checkout is not None else self.release
         assert source is not None, "a machine has a checkout or a release"
         return source
 
     @classmethod
     def here(cls, checkout: Path | None, release: Path | None = None) -> "Machine":
-        """The real one: HOME and PATH from the environment, `run` through subprocess."""
+        """The real machine. It takes HOME and PATH from the environment, and `run` goes
+        through subprocess."""
         env = dict(os.environ)
 
         def run(args: Sequence[str]) -> Ran:
@@ -114,7 +121,7 @@ class Machine:
         return cls(checkout, Path(env.get("HOME") or account), env, run, account, release)
 
     def which(self, name: str) -> Path | None:
-        """What typing `name` would run, by this machine's PATH."""
+        """The program that typing `name` would run, by this machine's PATH."""
         found = shutil.which(name, path=self.env.get("PATH", ""))
         return Path(found) if found else None
 
@@ -148,9 +155,10 @@ class Machine:
         return (self._tools() / tool).is_dir()
 
     def tool_source(self, tool: str) -> Path | None:
-        """The directory uv's tool `tool` is an editable install of, read from the PEP 610
-        record under uv's tool directory and never by running uv. None when there is no such
-        tool or it is not an editable install: `has_tool` tells the two apart."""
+        """The directory that uv's tool `tool` is an editable install of. The method reads
+        it from the PEP 610 record under uv's tool directory, and never runs uv. It returns
+        None when there is no such tool or the tool is not an editable install, and
+        `has_tool` tells those two cases apart."""
         record = f"lib/python*/site-packages/{tool.replace('-', '_')}-*.dist-info/direct_url.json"
         for path in sorted((self._tools() / tool).glob(record)):
             try:
@@ -163,9 +171,10 @@ class Machine:
         return None
 
     def tool_paths(self, tool: str) -> frozenset[Path]:
-        """The directories the `.pth` files of uv's tool `tool` put on its path: an editable
-        install lists one for each package root it was built with, and is not rebuilt when the
-        checkout moves a package. A line that runs code (`import ...`) is not a path."""
+        """The directories that the `.pth` files of uv's tool `tool` put on its path. An
+        editable install lists one for each package root it was built with. uv does not
+        rebuild it when the checkout moves a package. A line that runs code (`import ...`) is
+        not a path."""
         found: set[Path] = set()
         for path in sorted((self._tools() / tool).glob("lib/python*/site-packages/*.pth")):
             try:
@@ -176,8 +185,8 @@ class Machine:
         return frozenset(found)
 
     def tool_version(self, tool: str) -> str | None:
-        """The version uv's tool `tool` has, from the `Version:` of its package's METADATA.
-        None when there is no such tool or no record says."""
+        """The version of uv's tool `tool`, from the `Version:` of its package's METADATA.
+        It is None when there is no such tool or no record gives a version."""
         record = f"lib/python*/site-packages/{tool.replace('-', '_')}-*.dist-info/METADATA"
         for path in sorted((self._tools() / tool).glob(record)):
             try:
@@ -191,7 +200,8 @@ class Machine:
 
     def in_a_worktree_of_the_account(self) -> bool:
         """Whether a plain install here would point the account's live skills at a linked
-        worktree: HOME is the account's own, and the checkout's `.git` is a worktree's file."""
+        worktree. That is so when HOME is the account's own and the checkout's `.git` is a
+        worktree's file."""
         if self.checkout is None:
             return False
         git = self.checkout / ".git"
@@ -229,9 +239,9 @@ class Machine:
             next_to.write_text("".join(f"{path}\n" for path in paths))
 
     def _note(self, path: Path | None) -> None:
-        """Put `path` into the record. The levels above the record that are not there are
-        made here and go into it too, since the record cannot hold them before it exists.
-        With `path` None only the record's directory is made."""
+        """Put `path` into the record. This method makes the missing levels above the record
+        and records them too, since the record cannot hold them before it exists. With `path`
+        None, it makes only the record's directory."""
         record = self._record()
         above = [level for level in _levels(record.parent.parent) if not level.exists()]
         record.parent.mkdir(parents=True, exist_ok=True)
@@ -241,15 +251,16 @@ class Machine:
             self._write_record([*known, *new])
 
     def make_dirs(self, path: Path) -> None:
-        """mkdir -p. Each level that was not there goes into the record first."""
+        """Make the directory and its parents, as mkdir -p does. Each level that was not
+        there goes into the record first."""
         for level in _levels(path):
             if not level.is_dir():
                 self._note(level)
                 level.mkdir(exist_ok=True)
 
     def link(self, path: Path, target: Path) -> None:
-        """Make or repoint the symlink `path`. Refuses a path that is there and is no link,
-        unless it is a regular file whose bytes equal `target`'s."""
+        """Make or repoint the symlink `path`. The method refuses a path that is there and is
+        not a link, unless it is a regular file whose bytes equal `target`'s."""
         if not path.is_symlink() and path.exists():
             if not (path.is_file() and target.is_file() and same_bytes(path, target)):
                 raise Refused(f"{path} is not a link")
@@ -286,9 +297,10 @@ class Machine:
         return JsonObject(path, real, value, True, seen)
 
     def write_object(self, was: JsonObject, value: dict) -> None:
-        """Write `value` at `was.real`, two-space indent, keys in the order read. A file that
-        did not exist goes into the record first. A value equal to the one read writes
-        nothing. Raises Moved when the bytes on disk are no longer `was.seen`."""
+        """Write `value` at `was.real`, with a two-space indent and the keys in the order
+        read. A file that did not exist goes into the record first. A value equal to the one
+        read writes nothing. The method raises Moved when the bytes on disk are no longer
+        `was.seen`."""
         if value == was.value:
             return
         now = self.read_object(was.path)
@@ -306,7 +318,8 @@ class Machine:
         return self.state_home() / "jstack" / "seeded"
 
     def _seeded(self) -> dict[Path, str]:
-        """The record of seeded files, `<sha256> <path>` a line, as path to digest."""
+        """The record of seeded files, one `<sha256> <path>` on each line, as a map from
+        path to digest."""
         try:
             lines = self._seeds().read_text().splitlines()
         except OSError:
@@ -322,9 +335,9 @@ class Machine:
             next_to.write_text("".join(f"{digest} {path}\n" for path, digest in seeded.items()))
 
     def seed(self, path: Path, text: str, mode: int) -> None:
-        """Write a file that is not there, at `mode` from its first byte, and record the
-        digest of what was written first. Refuses a path that is there, a link to nothing
-        included: a file of the user's is never written over."""
+        """Write a file that is not there, with `mode` from its first byte, and record the
+        digest of what it wrote first. The method refuses any path that is there, a link to
+        nothing included, so it never writes over a file of the user's."""
         if path.is_symlink() or path.exists():
             raise Refused(f"{path} is there and is not written over")
         data = text.encode()
@@ -336,9 +349,9 @@ class Machine:
             next_to.write_bytes(data)
 
     def unseed(self, path: Path) -> bool | None:
-        """Remove a seeded file while its bytes are the ones `seed` wrote. True when it was
-        removed, False when it is kept, None when it is not a seeded file that is there. The
-        record forgets a file that is gone, and a file that is kept stays in it."""
+        """Remove a seeded file while its bytes are the ones `seed` wrote. Return True when
+        it removed the file, False when it kept the file, and None when no seeded file is
+        there. The record forgets a file that is gone, and keeps a file that stays."""
         seeded = self._seeded()
         if path not in seeded:
             return None
@@ -357,8 +370,8 @@ class Machine:
         return same
 
     def zone(self) -> str | None:
-        """The machine's own time zone as an IANA name: $TZ, else where /etc/localtime
-        points under a zoneinfo directory. None when neither names one."""
+        """The machine's own time zone as an IANA name. It is $TZ, or else where
+        /etc/localtime points under a zoneinfo directory, and None when neither names one."""
         named = self.env.get("TZ", "").removeprefix(":")
         if named:
             return named
@@ -367,16 +380,17 @@ class Machine:
         return name if found else None
 
     def uv(self, *args: str) -> Ran:
-        """Run uv. Before it, make through `make_dirs` each directory under HOME that uv would
+        """Run uv. First make, through `make_dirs`, each directory under HOME that uv would
         make by itself (`tool_bin()`), so the record has them."""
         self.make_dirs(self.tool_bin())
         return self.run(["uv", *args])
 
     def systemctl(self, *args: str) -> Ran | None:
         """Run `systemctl --user <args>`, or return None without running it when the manager
-        does not read this HOME: `systemctl --user show-environment` gives another HOME, or
-        does not answer. In a sandbox with no stand-in that is the real manager, so nothing
-        is asked of it but that one question."""
+        does not read this HOME. The manager does not read this HOME when
+        `systemctl --user show-environment` gives another HOME, or does not answer. In a
+        sandbox with no stand-in, the manager is the real one, so this method asks it only
+        that one question."""
         asked = self.run(["systemctl", "--user", "show-environment"])
         if asked.code != 0 or f"HOME={self.home}" not in asked.out.splitlines():
             return None
@@ -384,11 +398,13 @@ class Machine:
 
     def sweep(self) -> Dropped:
         """The last step of uninstall, over the record
-        (${XDG_STATE_HOME:-~/.local/state}/jstack/created, one path a line). Deepest first:
-        remove a recorded directory that is empty and a recorded JSON file that holds `{}`,
-        and take its line out. One that holds anything else is kept, with its line. When no
-        line is left but those of the levels above the record, remove the record and its
-        directory, then each of those levels that is empty."""
+        (${XDG_STATE_HOME:-~/.local/state}/jstack/created, one path on each line).
+
+        Deepest first, it removes each recorded directory that is empty and each recorded
+        JSON file that holds `{}`, and takes its line out. It keeps one that holds anything
+        else, with its line. When the only lines left are those of the levels above the
+        record, it removes the record and its directory, then each of those levels that is
+        empty."""
         record = self._record()
         if not record.is_file():
             return Dropped()
@@ -421,8 +437,8 @@ def same_bytes(one: Path, other: Path) -> bool:
 
 @contextmanager
 def _beside(path: Path) -> Iterator[Path]:
-    """A name beside `path` that is this process's own, renamed over `path` when the block
-    ends and removed when it raises."""
+    """A name beside `path` that is this process's own. This context renames the file
+    over `path` when the block ends, and removes it when the block raises."""
     next_to = path.with_name(f"{path.name}.{os.getpid()}.new")
     try:
         yield next_to
@@ -439,8 +455,8 @@ def _levels(path: Path) -> list[Path]:
 
 
 def _emptied(path: Path) -> bool | None:
-    """Remove a directory that is empty, or a JSON file that holds `{}`. True when this
-    removed it, False when it is kept, None when it was not there."""
+    """Remove a directory that is empty, or a JSON file that holds `{}`. Return True when
+    this call removed it, False when it kept it, and None when it was not there."""
     try:
         if path.is_symlink():
             return False

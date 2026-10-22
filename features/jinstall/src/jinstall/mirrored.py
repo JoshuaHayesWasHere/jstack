@@ -1,9 +1,9 @@
 """The doctor's look at each mirror home: `jroles mirror --check`, read in place.
 
-A mirror is an extra Claude home of providers.json, kept by `jroles-mirror.timer` as a mirror
-of `~/.claude` (`jroles.mirror`). The probe reads it through the same `plan` the command uses,
-so the doctor and `jroles mirror --check` cannot disagree. It is only probed: the timer, or
-`jroles mirror` by hand, mends it.
+A mirror is an extra Claude home that providers.json declares, and `jroles-mirror.timer` keeps
+it as a mirror of `~/.claude` (`jroles.mirror`). The probe reads it through the same `plan` that
+the command uses, so the doctor and `jroles mirror --check` cannot disagree. The doctor only
+probes a mirror. The timer, or `jroles mirror` run by hand, repairs it.
 
     ok       every entry is as `jroles mirror` makes it
     missing  the home is not there: the instance has no login yet
@@ -19,8 +19,8 @@ from jroles import Refused, mirror
 
 
 def declared(inventory: Path, home: Path) -> tuple[mirror.Mirror, ...]:
-    """The mirrors the inventory declares, none where it cannot be read: its own line says
-    why."""
+    """The mirrors the inventory declares, or none when the inventory cannot be read. The
+    inventory's own line says why."""
     try:
         return mirror.mirrors(inventory.read_text(), home)
     except (OSError, UnicodeDecodeError, Refused):
@@ -29,7 +29,7 @@ def declared(inventory: Path, home: Path) -> tuple[mirror.Mirror, ...]:
 
 @dataclass(frozen=True)
 class Mirrored:
-    """One mirror home against `~/.claude`."""
+    """One mirror home, compared with `~/.claude`."""
 
     mirror: mirror.Mirror
 
