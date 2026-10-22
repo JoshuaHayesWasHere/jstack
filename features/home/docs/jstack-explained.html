@@ -364,7 +364,7 @@
 </details>
 <details>
   <summary>The same task, file by file and message by message</summary>
-  <p><a href="../../home/docs/flow.html">features/home/docs/flow.html</a> draws every file a step reads or writes and every message a thread sends.</p>
+  <p><a href="flow.html">features/home/docs/flow.html</a> draws every file a step reads or writes and every message a thread sends.</p>
 </details>
 </section>
 
@@ -420,7 +420,7 @@
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
-<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a>
+<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a><a href="#skill-make-bot-ui">make-bot-ui</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
@@ -465,7 +465,8 @@
 <article class="card" id="skill-nohome"><h4>/nohome</h4><p>Opts this thread, or every new thread in the repo, out of the automatic home. With <code>merge</code> it switches the repo's automatic merge off or on.</p><p class="when">Reach for it when a thread should just do the work itself, or merges should wait.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-new-home"><h4>/new-home</h4><p>Sets up a repo's first home in five steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, and its home thread.</p><p class="when">Reach for it when a repo gets its first home, or one was started by hand.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-poteto-help"><h4>/poteto-help</h4><p>Answers a help question with the skill to type and the file it came from: the role that takes the work, its playbook, and the skills its words call for. It starts no work.</p><p class="when">Reach for it when you do not know which skill, playbook or role fits a brief, a request or a question.</p><div class="who"><span class="chip op">the operator</span></div></article>
-<article class="card" id="skill-setup-pstack"><h4>/setup-pstack</h4><p>Sets this machine up for jstack in one pass, through <code>install.sh --setup</code>: the configs it lacks, the links, the commands and the units, and the one command for each thing only you can do.</p><p class="when">Reach for it on a new machine, or to check one again.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-setup-pstack"><h4>/setup-pstack</h4><p>Sets this machine up for jstack in one pass, through <code>install.sh --setup</code> or a release's <code>jinstall --setup</code>: the configs it lacks, the links, the commands and the units, and the one command for each thing only you can do.</p><p class="when">Reach for it on a new machine, or to check one again.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-make-bot-ui"><h4>/make-bot-ui</h4><p>Makes a webhook task bound to this thread, signed with a key the user enters privately, and briefs a crewmate to build the page and the local server that posts each button press to it.</p><p class="when">Reach for it when a page with buttons should wake a thread, and a Lavish page or <code>jbus view</code> is not enough.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a crewmate builds the server</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Settle the shape before code <small>Decide what to build before a thread builds it.</small></h3><div class="cards">

@@ -335,7 +335,7 @@ def codes(text):
 
 
 def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
-    explained = (REPO / "features/jdrift/docs/jstack-explained.html").read_text()
+    explained = (REPO / "features/home/docs/jstack-explained.html").read_text()
     steps = re.findall(
         r'<li class="step \w+"><b><span class="n">(\d+)</span>(.*?)</b><small>(.*?)</small>',
         explained,

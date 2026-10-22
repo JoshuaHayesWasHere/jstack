@@ -1,5 +1,5 @@
 """`python -m jdrift.explained [--check]` builds the cards of
-`features/jdrift/docs/jstack-explained.html` from the files in the tree.
+`features/home/docs/jstack-explained.html` from the files in the tree.
 
 When you run it in this repo's root, the command reads one card line from each skill's
 `SKILL.md`, each playbook, and each principle's `SKILL.md`. From those lines it writes the
@@ -38,7 +38,7 @@ from pathlib import Path
 
 from jdrift import Refused
 
-PAGE = "features/jdrift/docs/jstack-explained.html"
+PAGE = "features/home/docs/jstack-explained.html"
 RUN = "uv run python -m jdrift.explained"
 BUILT = re.compile(
     r"(?P<begin><!-- built: (?P<kind>\w+) (?P<part>cards|links), (?P<tile>.+?) -->\n)"
