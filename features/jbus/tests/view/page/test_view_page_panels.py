@@ -109,8 +109,8 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
 ):
     """The test adds two folders to a copy of the package and edits no other file of it
     (`test_view_panels.py` compares the trees). `sample` adds a count beside the Needs you
-    queue, and a line to the task drawer, which opens it. Nothing opens `lost`, and the drawer
-    of `thrown` throws."""
+    queue, and a line to the task drawer. That line opens the `sample` drawer. Nothing opens
+    `lost`, and the drawer of `thrown` throws."""
     process = Process(scene)
     panel(process, "sample")
     panel(process, "lost", DRAWN + "panel({ drawer: drawn });\n")
@@ -154,7 +154,7 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
 
 
 def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_path):
-    """A round has a time where the event log has a `review` event of its head. Where the
+    """A round shows a time where the event log has a `review` event for the round's head. Where the
     log has none, the round says no time is kept. A task whose brief the view cannot read says
     that instead."""
     _, first, fixed = rounded(scene)
@@ -181,8 +181,8 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
 
 def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_path, monkeypatch):
     """The task drawer fills its Usage line with a request of its own. The line says when a
-    transcript is not there. It also says when the server does not answer the request,
-    rather than wait."""
+    transcript is not there. When the server does not answer the request, the line says
+    so rather than wait."""
     monkeypatch.setattr(usage, "PROJECTS", tmp_path / "projects")
     monkeypatch.setattr(usage, "_kept", {})
     served = Served(scene)

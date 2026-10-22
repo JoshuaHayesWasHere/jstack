@@ -6,7 +6,8 @@ approval with no record has no time, and such approvals come last, by slug.
 The panel reads `questions.json`, `words.json` and the queue, and writes none of them. An
 answered question is on no waiting list (`waiting.gates`), so this panel is the one place that
 lists it. An approval is the record that `queue.approve` writes. For a row approved before jbus
-kept that record, the approval is the string the row held then, marked as no record.
+kept that record, the approval is the string the row had then, and the panel marks it as no
+record.
 """
 
 from __future__ import annotations

@@ -73,8 +73,8 @@ NOT_KEPT = (
 
 def systemd(read: Read) -> dict[str, dict[str, str]] | None:
     """What systemd says of the timer and the service, or None where systemd did not answer. The
-    answer is the machine's, so the server asks systemd once for each of its own answers
-    (`Read.machine`)."""
+    answer is the same for the whole machine, so the server asks systemd once for each answer
+    it builds (`Read.machine`)."""
     try:
         asked = subprocess.run(
             ["systemctl", "--user", "show", TIMER, SERVICE, "-p", ASKED],
@@ -178,8 +178,8 @@ def _hook(one: Any) -> dict[str, Any] | None:
 
 def _code(said: dict[str, Any]) -> dict[str, Any]:
     """Which code answers requests: when the server started, and whether a file it runs is newer
-    on disk than that start. Where the server tried the code on disk and it did not start, it also
-    says why."""
+    on disk than that start. Where the server tried the code on disk and that code did not start,
+    the answer also says why."""
     return {
         "started": when(said.get("started")),
         "stale": said.get("stale") is True,
@@ -205,7 +205,7 @@ SOURCES = (
 
 
 def blind(read: Read) -> list[Spot]:
-    """While the last pass could not ask a source, how many tasks are not confirmed."""
+    """How many tasks are not confirmed because the last pass could not ask a source."""
     tasks, unconfirmed = read.tasks, read.unconfirmed
     if not unconfirmed or not tasks:
         return []

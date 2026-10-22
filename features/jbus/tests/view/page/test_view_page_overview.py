@@ -37,9 +37,9 @@ MIDDLE = (900, 900)
 
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
-    """The screen is a desk's, as high as the Needs you queue, `NEEDS`. Here that queue has
-    the four rows of the scene. The In progress section starts below that queue, with a row
-    for each of the 28 open tasks."""
+    """The screen is a desk's screen, made as high as the Needs you queue, `NEEDS`. Here that
+    queue has the four rows of the scene. The In progress section starts below that queue, with
+    a row for each of the 28 open tasks."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     screen = (DESK[0], DESK[1] + NEEDS)
@@ -68,8 +68,8 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
     """The overview has the machine as one word, one Needs you queue across the projects,
     oldest first, and a row for each project. Each row has a name, a dot, what is broken,
-    and two counts. The page asks `/stack.json` and nothing else, once a poll. A poll that
-    changed nothing draws nothing again."""
+    and two counts. The page asks `/stack.json` and nothing else, once a poll. After a poll
+    that changed nothing, the page draws nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
     assert clean(seen) == set()

@@ -18,8 +18,9 @@ data:
 - `card()`, its card on the first screen. Only a panel that has one adds to that screen;
 - `adds`, what it adds to another panel's drawer: `adds.task(task)` is one line of the task's
   drawer, and `adds.you()` is one count of the wait band;
-- `wide`, for a drawer of the full width, and `title`, for a panel the page asks for, the heading
-  its drawer shows while the page waits for the answer.
+- `wide`, for a drawer of the full width;
+- `title`, for a panel the page asks for: the heading its drawer shows while the page waits for
+  the answer;
 - `gloss`, what its cards mean, by name, as `[name, text]`: the glossary at `#/help` lists it;
 - `reads`, how fresh its drawer is, which the drawer's head says once: `"server"` for what the
   server reads itself on each request, `"mixed"` for both, and none for what a pass wrote.

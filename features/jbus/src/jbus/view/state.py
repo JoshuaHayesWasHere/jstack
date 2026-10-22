@@ -5,8 +5,8 @@ and its `panel.py` has its data: the function that builds its keys, the shape th
 cut to, and the sources the panel reads. This module has what the panels share. `Read` is
 one project at one moment, and it reads each file once: the queue, what the last pass left,
 and the logs. `Source` and `Spot` are what a panel declares. `build` puts the frame
-(`FRAME`) and the panels of the first screen together, and `Read.asked` answers for one
-panel by itself.
+(`FRAME`) and the panels of the first screen together, and `Read.asked` gives the answer
+of one panel on its own.
 
 Each call reads the files that the panels name in the project's state directory and in
 its home's directory, and `pass.json` and `status.json` beside them. It also reads what
@@ -1145,7 +1145,8 @@ class Read:
 
     @cached_property
     def unconfirmed(self) -> dict[str, Any] | None:
-        """What every task says while the last pass could not ask a source, or None."""
+        """The line every task shows while the last pass could not ask a source, or None where
+        it could ask every source."""
         silent = self.record.get("silent") if isinstance(self.record.get("silent"), dict) else {}
         unasked = text(silent.get(self.name), 40)
         if not unasked:
@@ -1204,7 +1205,7 @@ class Read:
 
     @property
     def ended(self) -> list[dict[str, Any]]:
-        """The rows that ended while their row in the queue says another thing."""
+        """The rows that ended, though the queue still gives each of them another state."""
         return self._open[1]
 
     @cached_property
@@ -1365,8 +1366,8 @@ def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> li
     """What is broken in a project, each as a plain reason and the drawer that has it.
 
     It names the checks that failed or that the view could not read, the bus when a wake
-    failed, and the sources the view could not read. It says nothing of what is well, or
-    only quiet."""
+    failed, and the sources the view could not read. It says nothing of what is well, and
+    nothing of what is only quiet."""
     found = []
     if checks["error"]:
         found.append({"what": "CI not read", "open": "checks"})

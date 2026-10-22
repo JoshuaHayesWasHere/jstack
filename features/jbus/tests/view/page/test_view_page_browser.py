@@ -37,7 +37,8 @@ def test_a_long_temporary_directory_does_not_fail_the_browser(scene, tmp_path, m
 
 def test_a_run_under_the_heavy_suite_lock_is_not_waited_on(own_home, monkeypatch):
     """The user's rule runs a suite of several workers under `flock` on the heavy-suite lock.
-    The two locks are files of their own names in one directory, here a made-up one."""
+    Each of the two locks is a file with the lock's own name. Both files are in one directory,
+    which here is a made-up one."""
     monkeypatch.setattr("view.page.browser.PATIENCE", 1)
     with open(own_home / "heavy-suite.lock", "a") as outer:
         fcntl.flock(outer, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -134,8 +135,9 @@ def test_a_browser_stopped_from_outside_leaves_no_process_it_started(
 
 
 def hanging(tmp_path, monkeypatch, first=""):
-    """A browser that never finishes, and starts a process that would outlive it. It gives
-    back the file with that process's id. `first` is shell code the browser runs before."""
+    """A browser that never finishes, and starts a process that would outlive it. It gives back
+    the file with that process's id. `first` is shell code that the browser runs before it
+    starts that process."""
     child = tmp_path / "child"
     hangs = tmp_path / "chromium"
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")

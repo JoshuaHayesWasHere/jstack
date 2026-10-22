@@ -6,12 +6,14 @@ words and with no command line in them. `needs` is what only the user can move a
 will: a gate that holds (`Holds:`) or has no default, an approval, a held merge, a row at a gate,
 a leftover, a setup. `proceeds` is a gate whose default is already taken. It closes with that
 default after 2 hours of silence (`questions.QUIET`), or, for a gate of a home's `gates.md`,
-stands as it is. A link's conflict asks its home and not the user, so it is on neither queue.
+stands as it is. A link's conflict is a question for its home, not for the user, so it is on
+neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
-page (`_items`). Its `item` and the line it was last `seen` at go with it, as a steer names them,
-and every other need has those two empty. The panel leaves a proposed item whose row waits for
-its approval to that row, since a go by the item's id is no go of the row. But for a row whose
+page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
+last `seen` at. Every other need has those two empty. Where a proposed item's row waits for its
+approval, the panel leaves the item to that row, since a go by the item's id is no go of the
+row. But for a row whose
 item was redirected, the item's id is the only thing that approves it (`jbus.steer.approvable`).
 So the item's need then takes the row's place."""
 
@@ -239,8 +241,9 @@ def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
 
 
 def _route(project: str, waits: dict[str, Any], slug: str) -> str:
-    """The hash route of the drawer that shows an item in full: the gate's own route for a
-    question that jbus holds, and for any other item the list of its kind, opened at the item."""
+    """The hash route of the drawer that shows an item in full. For a question that jbus holds,
+    it is the gate's own route. For any other item, it is the list of the item's kind, opened at
+    the item."""
     here = quote(project, safe="")
     if waits["answerable"]:
         return f"#/{here}/gate/{quote(waits['number'], safe='')}"
@@ -307,14 +310,14 @@ def _need(
 
 
 def _approves(waits: dict[str, Any]) -> str:
-    """The slug of the row that a need of the kind `approve` asks a go for, or nothing for any
-    other need."""
+    """For a need of the kind `approve`, the slug of the row it asks the user's go for. For any
+    other need, nothing."""
     return (waits["slug"] or waits["key"].rpartition(":")[2]) if waits["kind"] == "approve" else ""
 
 
 def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict[str, Any]]:
-    """A need for each proposed item that only its id can approve: one whose row does not wait
-    for a go, such as one with no row, and one that was redirected."""
+    """A need for each proposed item that the user can approve only by its id. Such an item is
+    one whose row does not wait for a go, such as one with no row, or one that was redirected."""
     lines = item.read(read.state)
     made = []
     for one in found.values():

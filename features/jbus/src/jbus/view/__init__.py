@@ -12,7 +12,8 @@ The routes that read are `routes()`, all `GET`:
   the server joins `page.html`, beside this file, with the script of each panel,
   `panels/<name>/panel.js` (`page`). A bare link to the page shows every project at once,
   from `/stack.json`, and `#/<project>` shows one project, from `/state.json`;
-- `/stack.json`: the machine once, and a summary of each project (`state.stack`). The
+- `/stack.json`: the machine's state, given once, and a summary of each project
+  (`state.stack`). The
   server runs the machine's checks once for it, however many projects there are, and asks
   GitHub for the runs of every repo at once;
 - `/state.json?project=<project>`: the state of one project (`state.Read.answer`): the
@@ -36,8 +37,9 @@ it has no words and its option is the default that was taken, or when it has no 
 all. The server reads which option is the default from the question's record, never from
 the page. More than one number is a batch, and a batch only takes defaults. The server
 sends an answer that does not keep the default to the thread that asked, once, in the same
-request (`questions.carry`). Where it does not go, the server closes the record all the
-same, the answer says why, and the next pass sends it. The server returns `closed` and
+request (`questions.carry`). Where the user's answer does not reach that thread, the
+server closes the record all the same. The server's reply says why, and the next pass sends
+the user's answer. The server returns `closed` and
 `refused`, each a list by number with one sentence, `say`. It refuses a question that was
 answered before, and gives that question's `first` answer. The status is 200 where a
 question closed and 409 where none did.
@@ -50,28 +52,29 @@ The body of `STEER`, `POST /steer`, is JSON with five fields:
 - `seen_event`, the item's last line as the page showed it;
 - `confirm`, which a hold needs.
 
-The server decides none of it, and calls `jbus.steer.steer`. It passes the user of the
-settings as the one who steers, and the view as where. The basis of the steer is these
-words, said in the view, at the server's clock. The rules of `jbus.steer.steer` are the
-only ones. The server refuses a steer whose `seen_event` is not the item's last line, and
-returns the line that came after it. So a second POST of the same steer gets 409, and the
-server writes nothing. Any other refusal is 409 too, with two exceptions: a hold with no
-`confirm` is 400, and an item the project does not have is 404. A message and a redirect
-have words. The server sends a message to the home in the same request
-(`jbus.steer.deliver`), as the command sends it. Where it does not go, the server records
-the line all the same, the answer says why, and the next pass sends it. The server returns
-`at`, the `item`, one sentence, `say`, and the item's `state` and `last_event`. Those two
-are what the record has after the write, or after the refusal.
+The server decides none of it, and calls `jbus.steer.steer`. It passes the user of the settings
+as the one who steers, and the view as the place of the steer. The basis of the steer is these
+words, said in the view, at the server's clock. The rules of `jbus.steer.steer` are the only
+ones. The server refuses a steer whose `seen_event` is not the item's last line, and returns the
+line that came after it. So a second POST of the same steer gets 409, and the server writes
+nothing. Any other refusal is 409 too, with two exceptions: a hold with no `confirm` is 400, and
+an item the project does not have is 404. A message and a redirect have words. The server sends
+a message to the home in the same request (`jbus.steer.deliver`), as the command sends it. Where
+the message does not reach the home, the server records the line all the same. The server's
+reply says why, and the next pass sends the message. The server returns `at`, the `item`, one
+sentence, `say`, and the item's `state` and `last_event`. Those two are what the record has
+after the write, or after the refusal.
 
 Any other path is 404, and any other method is 405. A request whose `Host` header is not one
 of the server's own names is 403. The server's own names are these, each at the server's
 port: its two addresses, `localhost`, and each name in `JBUS_VIEW_NAMES`. The host of each
 origin in `JBUS_VIEW_ORIGINS` is one too, with the scheme's default port or no port. Such
-an origin belongs to a proxy that passes the `Host` header on, as `https://<host name>`.
+an origin, as `https://<host name>`, belongs to a proxy that passes the `Host` header on.
 At the start, the server refuses an origin unless it is `http://` or `https://` followed by
 a host and an optional port (`origin`). Either write is 403 too unless its `Origin` header
-is the server's own address. For one of the server's names that is `http://<Host>`, with
-the name its `Host` header gives. For the host of an origin it is exactly that origin. So
+is the server's own address. For one of the server's names, the own address is
+`http://<Host>`, with the name that the `Host` header gives. For the host of an origin, the
+own address is exactly that origin. So
 only the server's own page can write. No answer has a CORS header. The server sends each
 answer with `no-store`, so no browser or proxy may store it. There is no sign-in. Anyone
 who reaches the port may answer and steer, as any shell of this machine may with
@@ -269,7 +272,7 @@ def _loaded() -> list[str]:
 class Code:
     """Which code serves requests: when the server started, and what on disk is newer than that.
 
-    It looks at the files the server runs and reads once. Those are each module the server
+    It looks at the files that the server runs and reads only once. Those are each module the server
     has loaded from under `root`, which is its checkout, and each file in `beside`, which is
     the directory of this package. It leaves out the page. A file that is gone counts as
     newer. `panels` is the names of the panels the server loaded. The folders of `beside`'s

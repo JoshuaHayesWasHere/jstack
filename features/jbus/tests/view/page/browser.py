@@ -7,13 +7,13 @@ to `SHELL`. The shell is the same on every view, and it grows by one name and on
 each project.
 
 Each test starts the real server over a made-up state directory, as the tests of
-`features/jbus/tests/view/` do, and puts a small proxy in front of it. The proxy adds a probe to the
-page: it counts the words on the first screen, opens every drawer, and writes what it found into the
-page, which the browser then prints. The proxy can also stop passing requests on. That is how a
-test shows the page a server that is gone. The proxy writes down each write the page makes before
-it passes the write on. So a test may do something first, or keep the write from reaching any
-server. The browser opens no window under 500 pixels wide. So for the phone, the proxy gives it a
-page that has the real one in a frame of the phone's size.
+`features/jbus/tests/view/` do, and puts a small proxy in front of it. The proxy adds a probe to
+the page: it counts the words on the first screen, opens every drawer, and writes what it found
+into the page, which the browser then prints. The proxy can also stop passing requests on. That
+is how a test puts the page in front of a server that is gone. The proxy writes down each write
+the page makes before it passes the write on. So a test may do something first, or keep the
+write from reaching any server. The browser opens no window under 500 pixels wide. So for the
+phone, the proxy gives it a page that has the real one in a frame of the phone's size.
 
 In place of the probe, the proxy can add axe, `AXE`. That is the engine, vendored for these tests
 alone in `fixtures/jbus-view/axe.min.js`, and `axe-run.js`. The script runs the engine over the
@@ -197,8 +197,8 @@ def slugs():
 
 def lineup(scene, counts, merged=30, gates=6):
     """A day of the given size: as many rows on each step as `counts` gives, `merged` rows
-    merged today, `gates` open gates, and the list of what waits on the user that a pass
-    would have left."""
+    merged today, `gates` open gates, and the list a pass would have left of what waits
+    on the user."""
     names = slugs()
     rows, log, listed, moves = [], [], [], []
     number = 100

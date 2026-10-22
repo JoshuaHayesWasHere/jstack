@@ -1,4 +1,4 @@
-"""`jbus view` is one server over what the passes left. It prints no secret, and its one write
+"""`jbus view` is one server that reads what the passes left. It prints no secret, and its one write
 is the user's answer to a question.
 
 Each test starts the real server on a free port over a temporary state directory, and asks
@@ -115,8 +115,8 @@ WORK = ("value", "who", "facts", "confirmed")
 
 
 def value_of(one):
-    """The value that a pass would have judged this row to have when it wrote the row. It is
-    used where a test names no value."""
+    """The value that a pass would have judged this row to have when it wrote the row. A test
+    gets it where the test names no value."""
     status, why = one.get("status", "queued"), one.get("why", "")
     if status == "queued":
         if not one.get("approved") or why.startswith("brief changed"):
@@ -340,8 +340,8 @@ class Scene:
 
     def passed(self, seconds_ago, running=False, threads=(), rows=None):
         """`pass.json` and the status file beside it, for a last pass that ended
-        `seconds_ago` seconds ago. That pass saw these threads out, and saw each row as given
-        here."""
+        `seconds_ago` seconds ago. That pass saw these threads as out, and saw each row as
+        given here."""
         ended = ago(seconds=seconds_ago)
         record = {
             "started": iso(ended - timedelta(seconds=21)).replace("+00:00", "Z"),
@@ -507,8 +507,8 @@ class Served:
             link.close()
 
     def write(self, body, origin=None, path=None, **how):
-        """A write as the server's own page makes it, to the one project of the state
-        directory. With an origin given, the write comes from that origin, and `""` is a
+        """A write to the one project of the state directory, made as the server's own page
+        makes it. With an origin given, the write comes from that origin, and `""` is a
         request with no `Origin` header. The answer is its status and what it said."""
         if path is None:
             path = "/answer?project=" + built.projects(self.doors.app.sources)[0]
@@ -795,7 +795,8 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 
 class Process:
     """The real server as a process of its own: `jbus view` over a copy of the packages it
-    runs. It checks its code every 0.2 s, where the server checks every `view.CHECK` seconds.
+    runs. This process checks its code every 0.2 s, where `jbus view` otherwise checks every
+    `view.CHECK` seconds.
     It copies each folder the packages are in (`testing.paths.sources`), and `src` is the copy
     that has `jbus`."""
 

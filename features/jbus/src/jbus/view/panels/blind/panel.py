@@ -2,8 +2,8 @@
 and last what the view never can.
 
 Each line opens the panel that says it. The line of a source that could not be read opens the panel
-that names the source, when the page asks the server for that panel on its own. Otherwise the
-line opens the list of every source, which the pulse panel draws.
+that names the source, where the page asks for that panel by itself, in a request of its own.
+Where it does not, the line opens the list of every source, which the pulse panel draws.
 """
 
 from __future__ import annotations
