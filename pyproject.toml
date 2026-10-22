@@ -62,7 +62,6 @@ packages = [
 "plugin.json" = "share/jstack/plugin.json"
 "docs" = "share/jstack/docs"
 "features" = "share/jstack/features"
-"playbooks" = "share/jstack/playbooks"
 "templates" = "share/jstack/templates"
 # end generated
 
@@ -75,6 +74,7 @@ testpaths = [
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",
+    "features/evals/tests",
     "features/expert/tests",
     "features/grilling/tests",
     "features/home/tests",
@@ -117,6 +117,7 @@ pythonpath = [
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",
+    "features/evals/tests",
     "features/expert/tests",
     "features/grilling/tests",
     "features/home/tests",
@@ -185,6 +186,7 @@ src = [
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",
+    "features/evals/tests",
     "features/expert/tests",
     "features/grilling/tests",
     "features/home/tests",

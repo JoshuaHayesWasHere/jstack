@@ -14,7 +14,7 @@ import pytest
 from jbriefs import skills
 from testing.paths import REPO
 
-EVAL = REPO / "evals" / "skill-cut"
+EVAL = REPO / "features" / "evals" / "skill-cut"
 
 
 def load(name):

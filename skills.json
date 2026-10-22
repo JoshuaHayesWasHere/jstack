@@ -54,7 +54,7 @@
     {
       "name": "eval",
       "kind": "playbook",
-      "path": "playbooks/eval.md",
+      "path": "features/evals/playbooks/eval.md",
       "source": "josh"
     },
     {
