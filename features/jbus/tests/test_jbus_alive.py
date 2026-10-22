@@ -14,8 +14,8 @@ import pytest
 
 import jbus
 import jmerge.cli
-from jbus import alive, cli
-from test_jbus_kitchen import ASK, KEY, NOW, PROJECT
+from jbus import alive, cli, wake
+from test_jbus_kitchen import KEY, NOW, PROJECT
 
 FAILED = (
     "alert: pass failed 3 times in a row since 11:00 ET: "
@@ -23,17 +23,16 @@ FAILED = (
 )
 
 
+def decide(kitchen):
+    """Queue one decision, the kind of event that starts a POST for the user."""
+    box = wake.Box(kitchen.state, jbus.load().project("demo"), jbus.load().webhook)
+    box.send("alpha", "decision", "decision alpha: which one?")
+
+
 def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_written(kitchen):
     """The state path of `broken` is a file, so its part of the pass raises. `demo` comes after
     it."""
-    assert (
-        kitchen.main(
-            "gate",
-            "alpha",
-            stdin=ASK,
-        )[0]
-        == 0
-    )
+    decide(kitchen)
     path = kitchen.config_dir / "config.toml"
     top, demo = path.read_text().split("[[project]]", 1)
     broken = [
@@ -51,7 +50,7 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
     assert failed.startswith("pass failed broken: FileExistsError: ")
     assert "woke demo: 1 events" in said
     assert "wait: crews out not known (broken: the pass raised)" in said
-    assert "gate alpha: question 1: which one?" in [
+    assert "decision alpha: which one?" in [
         e["line"] for post in kitchen.webhook.posts for e in post
     ]
     status = kitchen.status()
@@ -199,11 +198,7 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
     ]
     assert kitchen.webhook.posts == [] and kitchen.waiting() == []
     kitchen.webhook.status = 500
-    kitchen.main(
-        "gate",
-        "alpha",
-        stdin=ASK,
-    )
+    decide(kitchen)
     kitchen.poll(NOW + timedelta(minutes=59, seconds=30))
     kitchen.webhook.status = 200
     kitchen.poll(NOW + timedelta(hours=1))
@@ -214,8 +209,8 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
     (heartbeat,) = [e for e in kitchen.events("heartbeat") if "11:59" in e["line"]]
     assert (heartbeat["slug"], heartbeat["loud"], heartbeat["posted"]) == ("", "quiet", None)
     assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(hours=1, minutes=5))
-    assert [e["event"] for e in kitchen.webhook.posts[0]] == ["gate"]
-    assert kitchen.webhook.said == [["demo: gate alpha: question 1: which one?"]]
+    assert [e["event"] for e in kitchen.webhook.posts[0]] == ["decision"]
+    assert kitchen.webhook.said == [["demo: decision alpha: which one?"]]
     assert [one["posted"] for one in kitchen.events("heartbeat")] == [None, None]
 
 
@@ -224,11 +219,7 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
 )
 def test_a_webhook_url_that_cannot_be_used_is_in_no_line_and_not_in_the_status(kitchen, url):
     kitchen.config(url=url)
-    kitchen.main(
-        "gate",
-        "alpha",
-        stdin=ASK,
-    )
+    decide(kitchen)
     said = []
     assert cli.poll(jbus.load(), NOW, said.append) == 1
     assert alive.alarm(jbus.load(), NOW + timedelta(minutes=6), said.append) == 1

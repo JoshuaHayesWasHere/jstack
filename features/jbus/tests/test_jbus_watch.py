@@ -354,6 +354,7 @@ def test_a_second_pass_repeats_no_finding(kitchen):
     kitchen.poll()
     first = kitchen.lines()
     assert sorted(event["event"] for event in kitchen.events()) == [
+        "decision",
         "merged",
         "retro",
         "retro",
@@ -362,6 +363,8 @@ def test_a_second_pass_repeats_no_finding(kitchen):
         "waiting",
     ]
     assert "(approve main-red-111111111111)" in kitchen.lines("waiting")[0]
+    (decided,) = kitchen.lines("decision")
+    assert decided.startswith("decision main-red-111111111111: approve main-red-111111111111: ")
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(hours=1))
     assert kitchen.lines() == first

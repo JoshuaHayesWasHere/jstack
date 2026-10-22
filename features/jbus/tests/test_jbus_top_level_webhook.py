@@ -18,7 +18,10 @@ from test_jbus_kitchen import KEY, NOW, RESULT, Webhook
 from view.scene import Scene, Served, iso
 
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
-GAINED = "waiting demo: 1 wait on user, 1 new (hold 9), 0 gone"
+DECIDED = (
+    f'decision #9: {HELD}, a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
+)
+GAINED = f"demo: {DECIDED}"
 TOP_KEY = "top-level-key-0123456789"
 
 
@@ -40,7 +43,7 @@ def monitored(kitchen, top):
 
 def held(kitchen):
     """Run a first pass, then have `jmerge` hold a pull request for the user, which is one
-    `waiting` event."""
+    `decision` event."""
     kitchen.poll()
     kitchen.brief("held", RESULT)
     kitchen.set("open.json", [kitchen.opened("held", 9)])
@@ -63,7 +66,11 @@ def test_a_hold_is_posted_to_the_project_s_own_webhook_and_to_the_top_level_one(
     assert top.said == [[GAINED]]
     (own,), (other,) = kitchen.webhook.posts, top.posts
     assert own == other
-    assert (other[0]["project"], other[0]["event"], other[0]["loud"]) == ("demo", "waiting", "user")
+    assert (other[0]["project"], other[0]["event"], other[0]["loud"]) == (
+        "demo",
+        "decision",
+        "user",
+    )
     assert outbox(kitchen) == [] and outbox(kitchen, "top-level") == []
     assert "woke demo: 1 events" in said
 
@@ -73,9 +80,10 @@ def test_a_quiet_event_goes_to_neither_webhook(kitchen, top):
     kitchen.poll()
     box = wake.Box(kitchen.state, jbus.load().project("demo"), jbus.load().webhook)
     box.send("alpha", "result", "result alpha: done")
-    box.send("alpha", "gate", "gate alpha: which one?")
+    box.send("alpha", "gate", "gate alpha: tea or coffee?")
+    box.send("alpha", "decision", "decision alpha: which one?")
     kitchen.poll(later(10))
-    assert kitchen.webhook.said == top.said == [["demo: gate alpha: which one?"]]
+    assert kitchen.webhook.said == top.said == [["demo: decision alpha: which one?"]]
 
 
 def test_a_failing_top_level_webhook_leaves_the_own_webhook_s_posts_and_outbox_alone(kitchen, top):
@@ -85,7 +93,7 @@ def test_a_failing_top_level_webhook_leaves_the_own_webhook_s_posts_and_outbox_a
     kitchen.poll(later(10))
     assert kitchen.webhook.said == [[GAINED]] and outbox(kitchen) == []
     assert marks(kitchen)["last_error"] == ""
-    assert [one["line"] for one in outbox(kitchen, "top-level")] == [GAINED]
+    assert [one["line"] for one in outbox(kitchen, "top-level")] == [DECIDED]
     assert marks(kitchen, "top-level")["last_error"] == "the webhook answered 500"
     for minutes in (16, 22, 28):
         kitchen.poll(later(minutes))
@@ -121,7 +129,7 @@ def test_a_failing_own_webhook_leaves_the_top_level_webhook_s_posts_and_outbox_a
     kitchen.poll(later(10))
     assert top.said == [[GAINED]] and outbox(kitchen, "top-level") == []
     assert marks(kitchen, "top-level")["last_error"] == ""
-    assert [one["line"] for one in outbox(kitchen)] == [GAINED]
+    assert [one["line"] for one in outbox(kitchen)] == [DECIDED]
     assert marks(kitchen)["last_error"] == "the webhook answered 500"
     shown = kitchen.status()["projects"]["demo"]
     assert (shown["outbox"], shown["last_error"]) == (1, "the webhook answered 500")
@@ -150,9 +158,9 @@ def test_a_project_with_no_pair_of_its_own_posts_to_the_top_level_pair_alone(tmp
     inherits = Project("demo", tmp_path / "checkout", "demo", "p-1", top.url, TOP_KEY)
     box = wake.Box(tmp_path / "state", inherits, (top.url, TOP_KEY))
     assert [route.top for route in box.routes] == [False]
-    box.send("alpha", "gate", "gate alpha: which one?")
+    box.send("alpha", "decision", "decision alpha: which one?")
     assert box.flush(NOW, print) == 1
-    assert top.said == [["demo: gate alpha: which one?"]]
+    assert top.said == [["demo: decision alpha: which one?"]]
     assert not (tmp_path / "state" / "top-level").exists()
 
 
@@ -162,12 +170,12 @@ def test_the_top_level_post_is_logged_apart_and_the_log_reads_one_event(kitchen,
     kitchen.poll(later(10))
     lines = (kitchen.state / wake.LOG).read_text().splitlines()
     records = [json.loads(line) for line in lines]
-    (event,) = [one for one in records if one.get("event") == "waiting"]
+    (event,) = [one for one in records if one.get("event") == "decision"]
     assert [one["posted"] for one in records if "posted" in one] == [[event["id"]]]
     assert [one["posted_top_level"] for one in records if "posted_top_level" in one] == [
         [event["id"]]
     ]
-    assert [one["line"] for one in kitchen.events("waiting")] == [GAINED]
+    assert [one["line"] for one in kitchen.events("decision")] == [DECIDED]
 
 
 def test_the_view_s_bus_shows_the_top_level_webhook_beside_the_own_one(tmp_path, monkeypatch):

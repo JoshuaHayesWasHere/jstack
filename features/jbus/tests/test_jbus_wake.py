@@ -83,7 +83,7 @@ def sent(webhook):
 
 def test_a_flush_carries_the_key_in_both_headers_and_is_taken(tmp_path, webhook):
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert flush(made) == (1, [])
     (seen,) = webhook.seen
     assert seen["authorization"] == f"Bearer {KEY}"
@@ -91,15 +91,17 @@ def test_a_flush_carries_the_key_in_both_headers_and_is_taken(tmp_path, webhook)
     assert seen["content-type"] == "application/json"
     assert "x-jbus-key" not in seen
     (post,) = webhook.posts
-    assert sorted(post) == ["events", "kind", "say"] and post["say"] == ["demo: gate alpha: which?"]
+    assert sorted(post) == ["events", "kind", "say"] and post["say"] == [
+        "demo: decision alpha: which?"
+    ]
     assert post["kind"] == "events"
-    assert [event["line"] for event in post["events"]] == ["gate alpha: which?"]
+    assert [event["line"] for event in post["events"]] == ["decision alpha: which?"]
     assert waiting(made) == []
 
 
 def test_a_post_names_jbus_as_its_user_agent_and_not_urllib(tmp_path, webhook):
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert wake._post(made.routes[0], waiting(made)) == ""
     (seen,) = webhook.seen
     assert seen["user-agent"] == wake.AGENT and "jbus" in wake.AGENT
@@ -109,12 +111,12 @@ def test_a_post_names_jbus_as_its_user_agent_and_not_urllib(tmp_path, webhook):
 def test_a_post_carries_the_lines_for_the_chat_at_its_top_in_order(tmp_path, webhook):
     made = box(tmp_path, webhook)
     made.send("", "heartbeat", "heartbeat: jbus alive")
-    made.send("alpha", "stall", "stall alpha: no pass in an hour")
+    made.send("alpha", "alert", "alert alpha: no pass in an hour")
     made.send("alpha", "result", "result alpha: done")
-    made.send("beta", "gate", "gate beta: which?")
+    made.send("beta", "decision", "decision beta: which?")
     assert flush(made) == (2, [])
     (post,) = webhook.posts
-    assert post["say"] == ["demo: stall alpha: no pass in an hour", "demo: gate beta: which?"]
+    assert post["say"] == ["demo: alert alpha: no pass in an hour", "demo: decision beta: which?"]
     assert [event.get("say") for event in post["events"]] == post["say"]
 
 
@@ -127,9 +129,9 @@ def test_quiet_events_start_no_post_and_go_with_none_that_is_started(tmp_path, w
     assert made.flush(NOW, heard.append, went=heard.append) == 0
     assert heard == [] and webhook.seen == [] and "posted" not in made.marks()
     assert made.waiting() == 0
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert made.flush(NOW, heard.append, went=heard.append) == 1
-    assert heard == [""] and [event["event"] for event in sent(webhook)] == ["gate"]
+    assert heard == [""] and [event["event"] for event in sent(webhook)] == ["decision"]
     assert [one["event"] for one in made.log() if one["posted"] is None] == [
         "heartbeat",
         "jmerge",
@@ -159,8 +161,8 @@ def test_a_post_without_both_headers_is_refused_and_the_outbox_is_kept(
 
     monkeypatch.setattr(wake.urllib.request, "Request", partial)
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "one")
-    made.send("beta", "gate", "two")
+    made.send("alpha", "decision", "one")
+    made.send("beta", "decision", "two")
     before = waiting(made)
     assert flush(made) == (0, ["wake failed demo: the webhook answered 401"])
     assert len(webhook.seen) == 1 and webhook.posts == []
@@ -173,7 +175,7 @@ def test_the_key_never_shows(tmp_path, capsys, takes):
     webhook = Webhook(takes)
     try:
         made = box(tmp_path, webhook)
-        made.send("alpha", "gate", "gate alpha: which?", "the text", key="gate|alpha|which")
+        made.send("alpha", "decision", "decision alpha: which?", "the text", key="gate|alpha|which")
         answer = wake._post(made.routes[0], waiting(made))
         went = []
         took = made.flush(NOW, went.append, went=went.append)
@@ -191,7 +193,7 @@ def test_the_key_never_shows(tmp_path, capsys, takes):
 def test_a_403_is_a_failed_post_that_shows_no_url_and_no_key(tmp_path, webhook, capsys):
     webhook.fail, webhook.refusal = {1, 2}, 403
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "one")
+    made.send("alpha", "decision", "one")
     assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 403"
     assert flush(made) == (0, ["wake failed demo: the webhook answered 403"])
     shown = [made.marks()["last_error"], *capsys.readouterr()]
@@ -204,7 +206,7 @@ def test_a_key_no_header_can_carry_is_a_failed_post_that_does_not_show_it(
 ):
     key = KEY + "\nX-Other: 1"
     made = box(tmp_path, webhook, key)
-    made.send("alpha", "gate", "one")
+    made.send("alpha", "decision", "one")
     assert wake._post(made.routes[0], waiting(made)) == "the webhook could not be reached"
     assert flush(made) == (0, ["wake failed demo: the webhook could not be reached"])
     assert webhook.seen == []
@@ -217,7 +219,7 @@ def backlog(made: wake.Box) -> list[dict]:
     events: list[dict] = []
     while len(json.dumps(events).encode()) <= 2 * wake.WAKE_CAP:
         slug = f"task-{len(events) + 1}"
-        made.send(slug, "gate", f"gate {slug}", "x" * 7000)
+        made.send(slug, "decision", f"gate {slug}", "x" * 7000)
         events = waiting(made)
     assert len(json.dumps(events[:-1]).encode()) <= 2 * wake.WAKE_CAP
     return events
@@ -260,7 +262,7 @@ def test_a_flush_stopped_in_its_first_post_still_waits_the_gap(tmp_path, webhook
         raise Stopped
 
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "gate alpha: a line")
+    made.send("alpha", "decision", "decision alpha: a line")
     with monkeypatch.context() as patch:
         patch.setattr(wake, "_post", stopped)
         with pytest.raises(Stopped):
@@ -273,9 +275,9 @@ def test_a_flush_stopped_in_its_first_post_still_waits_the_gap(tmp_path, webhook
 
 def test_an_event_larger_than_one_post_may_carry_goes_alone(tmp_path, webhook):
     made = box(tmp_path, webhook)
-    small = wake.event("demo", "small", "gate", "small")
+    small = wake.event("demo", "small", "decision", "small")
     text = "x" * wake.WAKE_CAP
-    large = wake.event("demo", "large", "gate", "large", text, cap=2 * len(text))
+    large = wake.event("demo", "large", "decision", "large", text, cap=2 * len(text))
     made.state.mkdir(parents=True)
     (made.state / "outbox.json").write_text(json.dumps([small, large, small]))
     assert flush(made) == (3, [])

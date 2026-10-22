@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 from jbus import wake, word
-from test_jbus_kitchen import ASK, NOW, sends
+from test_jbus_kitchen import NOW, sends
 
 AT = "2026-10-12 10:55 ET"
 WORDS = "hold every merge until I say"
@@ -31,6 +31,14 @@ def logged(kitchen, project="demo"):
     code, out = kitchen.main("--project", project, "events")
     assert code == 0
     return [json.loads(line) for line in out.splitlines()]
+
+
+def decide(kitchen):
+    """Queue one decision, the kind of event that starts a POST for the user."""
+    config = jbus.load()
+    wake.Box(kitchen.state, config.project("demo"), config.webhook).send(
+        "alpha", "decision", "decision alpha: which one?"
+    )
 
 
 def test_a_word_goes_once_to_the_thread_in_the_homes_home_id(kitchen):
@@ -67,9 +75,9 @@ def test_no_webhook_is_posted_the_word_and_the_post_another_event_starts_has_non
     kitchen.monkeypatch.chdir(desk)
     assert kitchen.main("word", "--to", "demo", *SAID) == (0, f"sent: demo, to home-1, word {ID}\n")
     assert kitchen.waiting() == []
-    kitchen.main("--project", "demo", "gate", "alpha", stdin=ASK)
+    decide(kitchen)
     assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["gate"]]
+    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["decision"]]
     carried = json.dumps([kitchen.webhook.posts, kitchen.webhook.said, kitchen.waiting()])
     assert "merge" not in carried and "word" not in carried
 
@@ -244,9 +252,9 @@ def test_a_word_t3_code_refuses_waits_and_no_webhook_is_posted_anything_of_it(ki
         0,
         f"waits: demo, T3 Code refused it, word {ID}\n",
     )
-    kitchen.main("gate", "alpha", stdin=ASK)
+    decide(kitchen)
     assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["gate"]]
+    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["decision"]]
     assert [one["line"] for one in logged(kitchen) if one["event"] == "word"] == [
         "word demo: waits, T3 Code refused it"
     ]

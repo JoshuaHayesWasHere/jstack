@@ -156,7 +156,10 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     assert kitchen.main("gate", "beta", stdin=asked)[0] == 0
     kitchen.poll(later(1))
     said = [line for post in kitchen.webhook.said for line in post]
-    assert any("tea or coffee?" in line for line in said)
+    assert said == [
+        "demo: decision beta: question 2: may I deploy the site tonight, it names deploy. "
+        'Reply: "demo question 2: default"'
+    ]
     (opened,) = second.bodies
     assert keys(opened) == ["gate:q2"]
     assert opened["items"][0]["why"] == "always-pause: deploy"
@@ -183,8 +186,8 @@ def test_a_failing_second_target_leaves_the_others_alone(kitchen, second):
     hold(kitchen, 9)
     for minutes in (1, 7, 13):
         kitchen.poll(later(minutes))
-    gained = "waiting demo: 1 wait on user, 1 new (hold 9), 0 gone"
-    assert kitchen.webhook.said[0] == [gained]
+    why = 'a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
+    assert kitchen.webhook.said[0] == [f"demo: decision #9: {NINE}, {why}"]
     assert jbus.read_json(kitchen.state / "outbox.json", []) == []
     shown = kitchen.status()["projects"]["demo"]
     assert (shown["outbox"], shown["last_error"]) == (0, "")

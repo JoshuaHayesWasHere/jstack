@@ -296,13 +296,13 @@ def hung(kitchen):
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
-def test_a_thread_that_turns_hung_is_one_loud_event_for_that_thread_and_that_run(kitchen):
+def test_a_thread_that_turns_hung_is_one_quiet_event_for_that_thread_and_that_run(kitchen):
     kitchen.quiet()
     thread = hanging(kitchen)
     kitchen.poll()
     assert kitchen.lines("stall") == [STALL]
-    assert [one["loud"] for one in kitchen.events("stall")] == ["user"]
-    assert [one["line"] for post in kitchen.webhook.posts for one in post] == [STALL]
+    assert [one["loud"] for one in kitchen.events("stall")] == ["quiet"]
+    assert kitchen.webhook.posts == []
     kitchen.poll(NOW + MIN)
     kitchen.poll(NOW + 2 * MIN)
     assert kitchen.lines("stall") == [STALL]

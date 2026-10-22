@@ -634,7 +634,10 @@ def test_a_row_with_no_approval_is_never_launched(kitchen):
     assert kitchen.main("queue", "hold", "beta")[0] == 0
     for minutes in (0, 3, 6):
         kitchen.poll(NOW + timedelta(minutes=minutes))
-    assert kitchen.t3.launches == [] and kitchen.lines() == []
+    assert kitchen.t3.launches == []
+    decided = [line.partition(": approve ")[0] for line in kitchen.lines("decision")]
+    assert decided == ["decision alpha", "decision beta"]
+    assert [line for line in kitchen.lines() if not line.startswith("decision ")] == []
 
 
 def test_a_brief_changed_after_the_go_is_a_gate_until_it_is_approved_again(kitchen):

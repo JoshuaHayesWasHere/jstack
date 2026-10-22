@@ -108,6 +108,8 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     listed = {one["key"] for one in jbus.read_json(kitchen.state / "waiting-on-user.json", [])}
     assert listed == {"approve:alpha", "approve:beta"}
     assert remove(kitchen, "alpha")[0] == 0
+    told = about(kitchen, "alpha")
+    assert told[-1] == f"queue demo: removed alpha, {AT} by user"
     kitchen.webhook.posts.clear()
     own = kitchen.brief(
         "alpha", RESULT + GATE.format(n="<n>", asked="red?", status="open", slug="-")
@@ -120,7 +122,7 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     before = own.read_text()
     for now in (LATER, LATER + timedelta(minutes=3)):
         kitchen.poll(now)
-    assert about(kitchen, "alpha") == [f"queue demo: removed alpha, {AT} by user"]
+    assert about(kitchen, "alpha") == told
     assert kitchen.lines("gate") == ["gate beta: left or right?"]
     assert sends(kitchen) == [] and own.read_text() == before
     shown = kitchen.main("queue", "show")[1]
@@ -133,9 +135,7 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     sources = view.Sources(state_dir=kitchen.state_dir, home_dir=kitchen.root / "home")
     page = view.build(sources, "demo", LATER, lambda _: {"runs": [], "at": None})
     feed = page["bus"].pop("events")
-    assert [one["line"] for one in feed if one["slug"] == "alpha"] == [
-        f"queue demo: removed alpha, {AT} by user"
-    ]
+    assert [one["line"] for one in feed if one["slug"] == "alpha"] == told
     assert "alpha" not in json.dumps({name: page[name] for name in ("tasks", "waiting", "gates")})
     assert [one["number"] for one in page["gates"]] == ["5"]
 
@@ -150,10 +150,11 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     kitchen.webhook.posts.clear()
     kitchen.poll(LATER)
     assert kitchen.webhook.posts == [] and kitchen.t3.messages == {}
-    assert kitchen.lines() == [
-        "waiting demo: 1 wait on user, 1 new (approve alpha), 0 gone",
-        f"queue demo: removed alpha, {AT} by user",
-    ]
+    listed, decided, removed = kitchen.lines()
+    assert listed == "waiting demo: 1 wait on user, 1 new (approve alpha), 0 gone"
+    assert decided.startswith("decision alpha: approve alpha: jbus --project demo queue approve")
+    assert decided.endswith('a row with no approval of its brief. Reply: "demo approve alpha: go"')
+    assert removed == f"queue demo: removed alpha, {AT} by user"
 
 
 def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):

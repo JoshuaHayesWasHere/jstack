@@ -86,6 +86,7 @@ ORDER = [
     "after-derive 50 item.follow (rows)",
     "close 10 stall.tell",
     "close 20 waiting.keep (sight)",
+    "close 25 blockers.raise_listed",
     "close 30 waiting.cadence",
     "close 40 chores.began (world)",
     "close 50 chores.daily",
@@ -167,6 +168,11 @@ BEFORE = {
                 "waiting-on-user demo: run jbus t3 login · unblocks none · since 12:00 ET",
             ),
             ("waiting", "waiting demo: 1 wait on user, 1 new (config demo), 0 gone"),
+            (
+                "decision",
+                "decision config: run jbus t3 login, jbus lacks a setup only you can give. "
+                'Reply: "demo config: I set it up"',
+            ),
         ],
     ),
     "blind": (
@@ -210,7 +216,8 @@ AFTER = {
     "main moved": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
     "stale": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
     "t3 down": f"{JUDGED} {CLOSE}",
-    "signed out": f"{JUDGED} {CLOSE}",
+    # `blockers.raise_listed` reads the questions again, for the config item it raises.
+    "signed out": f"{JUDGED.replace('questions.read', 'questions.read questions.read')} {CLOSE}",
     "blind": f"stall.tell waiting.cadence {CLOSE}",
     "words.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
     "questions.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
