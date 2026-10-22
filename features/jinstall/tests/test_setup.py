@@ -319,7 +319,7 @@ def test_the_skill_on_a_release_runs_jinstall_setup_then_the_doctor(tmp_path):
         "already linux",
         "done patterns x",
         "needs you gh sign-in -> gh auth login",
-        "setup: 1 done, 1 already, 1 needs you, exit 1",
+        "setup: 1 done, 1 already, 1 needs you, 0 optional left, exit 1",
         "doctor: not ok, 1 hard",
     ]
     assert log.read_text() == "--setup\n--doctor\n"

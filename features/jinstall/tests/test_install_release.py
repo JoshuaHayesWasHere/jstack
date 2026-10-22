@@ -383,7 +383,9 @@ def test_setup_pstack_on_a_release_runs_jinstall_setup_and_the_doctor_and_report
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"release: {released.bin / 'jinstall'}"
     assert "already commands jstack" in said
-    assert re.fullmatch(r"setup: \d+ done, \d+ already, \d+ needs you, exit [01]", said[-2])
+    assert re.fullmatch(
+        r"setup: \d+ done, \d+ already, \d+ needs you, \d+ optional left, exit [01]", said[-2]
+    )
     assert re.fullmatch(r"doctor: (ok|not ok, \d+ hard)", said[-1])
 
 
