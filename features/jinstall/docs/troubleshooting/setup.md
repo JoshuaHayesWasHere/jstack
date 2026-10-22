@@ -1,7 +1,8 @@
 # Setup
 
 `sh install.sh --setup` prints one line for each need the doctor lists, in the same order, and exits 1 while a `hard` need is left to you.
-An optional need that is missing gets the doctor's own words, `missing optional`, since it is a layer you may leave off. A second run writes nothing.
+An optional need that is missing gets the doctor's own words, `missing optional`, since it is a layer you may leave off.
+A second run writes nothing.
 
 | Line | Meaning | Do this |
 |---|---|---|
