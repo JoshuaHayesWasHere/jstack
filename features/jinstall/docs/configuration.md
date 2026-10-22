@@ -31,6 +31,7 @@ user = "sam"
 timezone = "Europe/Berlin"
 timezone_label = "CET"
 headroom = 90
+retry_cap = 2
 ```
 
 | Key | Default | What it sets | Read by |
@@ -39,8 +40,9 @@ headroom = 90
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `jinstall --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
+| `retry_cap` | `2` | How many fixes a home queues for one blocker before it stops and the blocker comes to you as a decision ([Decisions](../../jbus/docs/jbus/decisions.md)). A whole number of 1 or more. | `jbus` |
 
-Each value but `headroom` is one word with no space and no comma.
+Each value but `headroom` and `retry_cap` is one word with no space and no comma.
 A file with any other key, or with a `timezone` that is not an IANA name, is refused.
 `jmerge` and `jbus` then stop with the one line that says why.
 They do not fall back to the defaults.
