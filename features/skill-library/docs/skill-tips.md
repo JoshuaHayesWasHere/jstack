@@ -14,7 +14,7 @@ A trigger matches whole words, whatever the case and the punctuation, and a `*` 
 
 Outside T3 Code the hook prints the line as a `systemMessage`, which is for you and not for the agent. Inside T3 Code it hands the line to the agent as context, with the instruction to pass it on and not to act on it.
 
-To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in the settings: it is a hard need, so `install.sh --check` exits 1 without it and the next install puts it back. The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.claude/settings.json`:
+To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in the settings: it is a hard need, so `jinstall --check` exits 1 without it and the next `jinstall` puts it back. The hook needs `jq`, `git` and `awk`. `jinstall` merges this group into `~/.claude/settings.json`:
 
 ```json
 {
