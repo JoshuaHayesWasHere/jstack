@@ -1,15 +1,19 @@
 """The README and the pages under `docs/` name what main has, and no longer what it dropped.
 
 The README is the front page: what jstack is, its requirements and a quickstart. The reference
-it held is one page a command under `docs/`, so each test reads the page the text is on.
+it used to hold is now one page for each command under `docs/`, so each test reads the page the
+text is on.
 
-Each name is looked for in the tracked files of `features/*/src` first: one the code does not have
-is not asked of the pages, so a name leaves their duty when it leaves the code. The figures the
-pages give are held to what the code and the timer's unit give. The quickstart's commands are
-run, under a temporary `HOME`, and so is the status line the configuration page shows. Each
-line the doctor prints that is not `ok` is held to an entry of a troubleshooting page. The
-pages say what jstack is: a line that names the old repo, the `jstack-v1` tag, the first jstack
-or the cutover, or says what was called what or moved where, fails, in any case of letters.
+The test looks for each name in the tracked files of `features/*/src` first. It does not require the
+pages to name what the code does not have: once the code drops a name, the pages need not name it.
+The figures the pages give must match the code and the `jbus.timer` unit. The test runs the
+quickstart's commands under a temporary `HOME`, and does the same run for the status line that the
+configuration page shows. Each line the doctor prints that is not `ok` must match an entry of a
+troubleshooting page.
+
+The pages say what jstack is. A line fails when it names the old repo, the `jstack-v1` tag, the
+first jstack or the cutover, or when it says what a thing used to be called or where it moved.
+The case of its letters does not matter.
 """
 
 import configparser
@@ -289,7 +293,7 @@ def test_the_readme_links_no_html_page_and_each_one_is_linked_from_a_page_it_lin
 
 
 def colours(rules):
-    """The classes a block of the picture's style gives a fill or a stroke."""
+    """The classes whose fill colour or stroke colour a rule in the picture's style sets."""
     return {
         name
         for names, body in re.findall(r"([^{}]+)\{([^{}]*)\}", rules)
@@ -521,8 +525,9 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
 
 
 def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
-    """Every JSON block of a page that holds a hook entry or a status line for `<layout>` is
-    the group, or the status line, that `needs()` writes for that event and script."""
+    """A page may have JSON blocks that hold a hook entry or a status line for `<layout>`.
+    Each such block is the group, or the status line, that `needs()` writes for the block's
+    event and script."""
     here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
     written = {}
     for need in listed.needs(Machine.here(REPO)):

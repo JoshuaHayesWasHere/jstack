@@ -1,13 +1,13 @@
-"""No Python file of `tests/` is over `CAP` lines but the ones on `ALLOWED`, and a file on the
-list that is back under the cap fails until it leaves the list, so the list only shrinks. A
-test file that grows past the cap is split by feature into a folder of `tests/`, as
-`features/jbus/tests/view/` and `features/crew/tests/` are.
+"""No Python file of `tests/` is over `CAP` lines except the ones on `ALLOWED`. A file on the
+list that is back under the cap fails until it leaves the list, so the list only shrinks. When
+a test file grows past the cap, its author splits it by feature into a folder of `tests/`, as
+happened with `features/jbus/tests/view/` and `features/crew/tests/`.
 
-With no `__init__.py` in `tests/`, pytest imports each test file there by its file name alone,
-so two test files of one name fail the run with "import file mismatch": no two have one name.
-A folder of `tests/` is a package, with an `__init__.py`: its `conftest.py` is then imported as
-`view.conftest`, and not as `conftest`, which a test that imports from the one of `tests/`
-would find in its place.
+With no `__init__.py` in `tests/`, pytest imports each test file there by its file name alone, so
+two test files with the same name fail the run with "import file mismatch". So no two test files
+share a name. A folder of `tests/` is a package, with an `__init__.py`, so pytest imports the
+`conftest.py` of `view/` as `view.conftest`. If pytest imported it as `conftest`, a test that
+imports from the `conftest` of `tests/` would get the folder's `conftest` instead.
 """
 
 from pathlib import Path
@@ -19,7 +19,7 @@ ALLOWED = {"features/pr-review/tests/test_pr_review_skill.py"}
 
 
 def files(root):
-    """Each Python file of `tests/` under `root`, and of each feature's `tests/`, but the
+    """Each Python file of `tests/` under `root`, and of each feature's `tests/`, except the
     fixtures, with its count of lines."""
     found = {}
     for folder in [root / "tests", *sorted(root.glob("features/*/tests"))]:

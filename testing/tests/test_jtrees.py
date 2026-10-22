@@ -234,8 +234,9 @@ def added(root, name):
 
 
 def test_two_features_added_on_two_branches_from_one_base_merge_with_no_conflict(copy):
-    """foo and qux are added on two branches, so each writes its own entries into the same
-    generated arrays and tables, one entry a line."""
+    """The test adds foo on one branch and qux on another, and both add entries to the same
+    generated arrays and tables. The generator writes one entry on each line, so the two branches
+    merge with no conflict."""
     assert generate(copy).returncode == 0
     assert git(copy, "init", "-q", "-b", "main").returncode == 0
     assert git(copy, "add", "-A").returncode == 0
@@ -268,8 +269,8 @@ def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
 
 
 def declare(root, feature, folder, like=None):
-    """`feature`'s feature.json with `projectSkills` set to `folder`, which is first made a
-    copy of the skill folder `like` when one is named."""
+    """`feature`'s feature.json with `projectSkills` set to `folder`. When `like` names a
+    skill folder, this first copies it to `folder`."""
     if like:
         shutil.copytree(root / like, root / "features" / feature / folder)
     manifest = root / "features" / feature / "feature.json"
@@ -407,9 +408,10 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
 
 
 def test_every_path_the_readmes_table_of_the_repo_names_is_in_the_repo():
-    """The rows below "| Path | Holds |" are written by hand, so no run of the generator moves
-    them: each path in the Path column is in the checkout, and each name a row gives in backticks
-    is too, from the root or from the row's own folder. A name with `~`, `<`, `{` or a space is a
+    """Somebody writes the rows below "| Path | Holds |" by hand, and no run of the generator
+    updates them. So each path in the Path column must be in the checkout. Each name that a row
+    gives in backticks must be there too, as a path from the root or from the row's own
+    folder. A name with `~`, `<`, `{` or a space is a
     pattern, and one with no `/` and no `.` is a command."""
     lines = (REPO / "README.md").read_text().splitlines()
     rows = []

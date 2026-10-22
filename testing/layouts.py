@@ -1,6 +1,6 @@
-"""A harness's layout for a test that reads the skills as an agent does: `assembled` makes it
-from this checkout as the install does (`jinstall.layout`), once a process. Kept apart from
-`paths`, which nearly every test imports, so only the tests that read a layout import
+"""`assembled` makes a harness's layout from this checkout as the install does (`jinstall.layout`),
+once for each process, for a test that reads the skills as an agent does. It is a module apart from
+`paths`, which nearly every test imports, so that only the tests that read a layout import
 `jinstall`."""
 
 import atexit
@@ -15,8 +15,8 @@ from testing.paths import REPO
 
 
 def place(at: Path, harness: str = "claude-code", root: Path = REPO) -> Path:
-    """`harness`'s layout as the install assembles it from the source `root`
-    (`jinstall.layout`), written at `at`: each entry a link to its file in `root`, or the file
+    """Write `harness`'s layout at `at`, as the install assembles it from the source `root`
+    (`jinstall.layout`), and return `at`. Each entry is a link to its file in `root`, or the file
     the assembly writes. A test reads the skills from it as an agent does."""
     (row,) = [one for one in HARNESSES if one.name == harness]
     for path, entry in layout.assemble(root, row).entries.items():
@@ -31,8 +31,8 @@ def place(at: Path, harness: str = "claude-code", root: Path = REPO) -> Path:
 
 @functools.cache
 def assembled(harness: str = "claude-code") -> Path:
-    """This checkout's layout for `harness`, placed once a process in a folder of its own,
-    removed when the process ends."""
+    """This checkout's layout for `harness`. This places it once for each process in a folder
+    of its own, and removes the folder when the process ends."""
     at = Path(tempfile.mkdtemp(prefix=f"jstack-{harness}-"))
     atexit.register(shutil.rmtree, at, True)
     return place(at / harness, harness)

@@ -1,10 +1,11 @@
-"""The repo a test copies in place of building its own with git: built once for each worker.
+"""The repo a test copies in place of building its own with git. The first test in each worker that
+copies it builds it.
 
-A kitchen's `repo` (`test_jbus_kitchen`), `Home` and `Merged` (`test_home_merge`) each made the
-same one-commit checkout and its bare origin with up to seven git processes. Now the first copy
-in a worker builds it in `root`, which conftest's `kitchen_template` gives, and every copy after
-starts no process. It imports nothing of jstack, so the tests that import it rest on nothing
-the test selection reads as a change.
+A kitchen's `repo` (`test_jbus_kitchen`), `Home` and `Merged` (`test_home_merge`) each made the same
+one-commit checkout and its bare origin with up to seven git processes. Now the first test in a
+worker that copies the repo builds it in `root`, which conftest's `kitchen_template` gives, and
+every copy after starts no process. This module imports nothing of jstack, so
+`scripts/select_tests.py` never selects this module's importers for a change to jstack's code.
 """
 
 import shutil
@@ -35,14 +36,18 @@ class Template(NamedTuple):
 
 
 def built(root):
-    """The template, made in `root` by the git processes a kitchen's `repo` started each time.
+    """Build the template in `root` and return it. Before the template, each kitchen's `repo` ran
+    these same git processes for every test.
 
-    The fetch names the origin's path in FETCH_HEAD, which a copy would keep, so the file
-    goes: nothing in the kitchen reads it. A build that failed partway leaves its files in
-    `root`, so the root is emptied first, and the next try fails on its own cause. A commit
-    or a push starts git's auto maintenance detached, which writes and removes a lock file
-    while the checkout is copied, so the build turns it off (`QUIET`). The push's receive-pack
-    reads only the origin's own config, so the origin's says it (`receive.autogc`).
+    The fetch writes the origin's path into FETCH_HEAD, and a copy would keep it. Nothing in the
+    kitchen reads the file, so the build deletes it. A build that failed partway leaves its files in
+    `root`, so the build empties the root first. Then, if the next try fails, it fails for its own
+    reason and not because of the leftover files. A commit or a push starts git's auto maintenance
+    in a detached process. That process writes and removes a lock file while a test copies the
+    checkout, so the build turns auto maintenance off (`QUIET`). The push's receive-pack reads only
+    the origin's own config, so the build turns auto maintenance off in that config too
+    (`receive.autogc`).
+
     """
     plain, checkout, origin = root / "plain", root / "checkout", root / "origin.git"
     shutil.rmtree(root, ignore_errors=True)
@@ -70,12 +75,14 @@ def built(root):
 
 
 def copied(template, checkout, origin):
-    """The template's checkout and origin, copied to these paths, with no process started.
+    """Copy the template's checkout and origin to these paths, and start no process.
 
-    The copy's `remote.origin.url` is the one path the template wrote into it, and it is
-    pointed at the copy's own origin, so a push or a fetch never reaches the template. The
-    template has no worktree, so there is no `gitdir` to point anywhere. A lock file is
-    left behind: it belongs to a git process in the template, and in a copy it would stop git.
+    The build wrote the template's path in one place only, the checkout's `remote.origin.url`, and
+    the copy keeps it there. This points that URL at the copy's own origin, so a push or a fetch
+    never reaches the template. The template has no worktree, so there is no `gitdir` to point
+    anywhere. The copy leaves out any lock file: the lock belongs to a git process in the template,
+    and in a copy it would make git refuse to run.
+
     """
     shutil.copytree(template.checkout, checkout, symlinks=True, dirs_exist_ok=True, ignore=LOCKS)
     shutil.copytree(template.origin, origin, symlinks=True, dirs_exist_ok=True, ignore=LOCKS)

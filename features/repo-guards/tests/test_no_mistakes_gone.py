@@ -1,10 +1,10 @@
 """jstack calls no-mistakes nowhere, and its code does not name it.
 
-A pull request's review is pstack's (`features/pr-review/SKILL.md`, "The review"), and no
-reviewer runs a test step. So the text an agent reads holds none of the three names of the
-old path. The code, the project file and the tests hold the first name nowhere but in this
-file, which has to spell it to look for it: `jgauge run` and the sweep of a `no-mistakes`
-remote are removed.
+pstack reviews a pull request (`features/pr-review/SKILL.md`, "The review"), and no reviewer runs a
+test step. So the text an agent reads holds none of the three names in `GONE`, the names of the old
+way of reviewing. Among the code, the project file and the tests, only this file holds the first of
+those names, because it must spell the name to look for it. jstack dropped `jgauge run` and the
+sweep of a `no-mistakes` remote.
 """
 
 import subprocess
@@ -35,7 +35,7 @@ def test_the_text_an_agent_reads_names_the_old_path_nowhere_else():
 
 
 def test_the_code_the_project_file_and_the_tests_do_not_name_it():
-    """Only what the repo tracks is read: a compiled file holds its checkout's own path."""
+    """The test reads only the files the repo tracks: a compiled file holds its checkout's path."""
     here = str(Path(__file__).relative_to(REPO))
     listed = subprocess.run(
         ["git", "ls-files", "--", *CODE], cwd=REPO, capture_output=True, text=True, check=True

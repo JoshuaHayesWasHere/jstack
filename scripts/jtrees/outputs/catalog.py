@@ -1,14 +1,15 @@
-"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`, and
-every hook script with the harnesses that run it and the entries the install writes for it,
-the status line and the git hooks. The install reads it to assemble each harness's layout
-(`jinstall.layout`) and to write each hook entry (`jinstall.needs`), in a checkout and from a
-release's wheel alike.
+"""`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`. It also
+lists every hook script, the status line and the git hooks. Each hook script comes with the
+harnesses that run it and the entries the install writes for it. The install reads the file
+to assemble each harness's layout (`jinstall.layout`) and to write each hook entry
+(`jinstall.needs`), in a checkout and from a release's wheel alike.
 
 A brief's `Skills:` line names a skill or a principle, or a playbook its feature lists as
-`nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). An
-item's `source` is read from the `Upstream map:` of `THIRD_PARTY.md`, through jdrift's own
-reader, loaded from jdrift's package wherever the tree has it: jdrift's `__init__` runs
-here, so it must import nothing but the standard library, as the generator does.
+`nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). This
+module loads jdrift's own reader from jdrift's package, wherever the tree has that package.
+With it, the module reads an item's `source` from the `Upstream map:` of `THIRD_PARTY.md`.
+jdrift's `__init__` runs here, so it must import nothing but the standard library, as the
+generator does.
 """
 
 from __future__ import annotations
@@ -53,8 +54,10 @@ def _jdrift(tree: Tree) -> ModuleType:
 
 
 def _source(name: str, upstream: tuple[str, ...]) -> dict[str, str]:
-    """pstack's item of the same name alone is `pstack`, with more beside it `adapted`; one
-    pstack item of another name is `adapted` under that `pstack_name`; none is `josh`."""
+    """The source of the item `name`, from the pstack paths in `upstream`. An item that
+    comes only from the pstack item of the same name is `pstack`, and one that comes from that item
+    and from any other upstream path is `adapted`. An item from one pstack item of another name is
+    `adapted`, with that item as its `pstack_name`. An item from no pstack item is `josh`."""
     items = [hit["name"] for path in upstream if (hit := _UPSTREAM_SKILL.fullmatch(path))]
     if name in items:
         return {"source": "pstack" if len(upstream) == 1 else "adapted"}
@@ -74,7 +77,7 @@ def _entry(item: Item, upstream: tuple[str, ...]) -> dict[str, object]:
 
 
 def entries(tree: Tree) -> list[dict[str, object]]:
-    """Every item as `skills.json` lists it, its `path` the repo's."""
+    """Every item as `skills.json` lists it, with its `path` from the repo root."""
     jdrift = _jdrift(tree)
     third = Path(tree.root / jdrift.FILE).read_text(encoding="utf-8")
     fed: dict[str, list[str]] = {}
@@ -85,10 +88,11 @@ def entries(tree: Tree) -> list[dict[str, object]]:
 
 
 def hooks(tree: Tree) -> list[dict[str, object]]:
-    """Every script a feature declares as a hook of an agent, or as its status line, which is
-    Claude Code's, with the harnesses that run it, and each entry the install writes for it
-    (`events`): its harness, event, matcher and whether it refuses, in the order its feature
-    declares them. A git hook is the checkout's, not a harness's, and is not listed."""
+    """Every script that a feature declares as an agent's hook or as its status line (only Claude
+    Code has a status line). Each script comes with the harnesses that run it and with its install
+    entries (`events`), in the order its feature declares them. Each entry gives its harness, event
+    and matcher, and whether it refuses. A git hook belongs to the checkout, not to a harness, so
+    this does not list it."""
     harnesses: dict[str, set[str]] = {}
     events: dict[str, list[dict[str, object]]] = {}
     for feature in tree.features:
@@ -112,7 +116,7 @@ def hooks(tree: Tree) -> list[dict[str, object]]:
 
 def status_line(tree: Tree) -> dict[str, str] | None:
     """The one status line a feature declares, which the install sets in Claude Code's
-    settings; two are refused."""
+    settings. It raises `Invalid` when two features declare one."""
     lines = [one.status_line for one in tree.features if one.status_line]
     if len(lines) > 1:
         raise Invalid([f"{PATH}: two features declare a status line: {', '.join(lines)}"])

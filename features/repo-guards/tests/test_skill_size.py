@@ -1,6 +1,6 @@
-"""A skill keeps a spine: its SKILL.md stays within `CAP` lines, and a long section moves to a
-file beside it that one trigger line in the SKILL.md says to read now. One level deep: a side
-file holds no trigger line of its own."""
+"""A skill's SKILL.md stays within `CAP` lines. A long section moves to a file beside the
+SKILL.md, and one trigger line in the SKILL.md says to read that file now. The nesting is one
+level deep: a side file holds no trigger line of its own."""
 
 import pytest
 

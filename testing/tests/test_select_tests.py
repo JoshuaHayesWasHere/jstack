@@ -1,10 +1,11 @@
 """`scripts/select_tests.py <base> <head>` names the test files a diff needs, from what the
 tests import and name, and from the map in verify-jstack's `features/`.
 
-The script is run as CI runs it, with `python3 -I -S`, so it imports nothing installed, in a
-temporary git repo that holds a copy of it, of `src/` as it is, and of a few modules, docs and
-tests of its own. The map's own tests read the repo's map and the files git tracks, and run
-the tests' imports once, to see that the script found every import that was made."""
+The test runs the script as CI runs it, with `python3 -I -S`, so it imports nothing installed.
+It runs it in a temporary git repo that holds a copy of the script, a copy of `src/` as it is,
+and a few modules, docs and tests of its own. The map's own tests read the repo's map and the
+files git tracks. They also run the tests' imports once, to see that the script found every
+import the tests made."""
 
 import importlib.util
 import json
@@ -153,7 +154,7 @@ class Repo:
         return git(self.root, "rev-parse", "HEAD")
 
     def change(self, files=(), gone=(), moved=(), text=None):
-        """The head after writing `files`, deleting `gone` and moving each pair of `moved`."""
+        """Write `files`, delete `gone`, move each pair of `moved`, and return the new head."""
         for name in files:
             with self.put(name).open("a") as file:
                 file.write(text or "\n")
@@ -387,7 +388,7 @@ def test_a_test_in_a_features_own_folder_is_selected_like_one_of_tests(repo, pat
 
 
 def test_a_test_module_named_as_a_plugin_selects_the_tests_that_ask_for_its_fixture(repo):
-    """A test that has a fixture of the same name of its own does not ask for the plugin's."""
+    """A test that has its own fixture of the same name does not ask for the plugin's fixture."""
     write(repo.root, FEATURE)
     repo.base = repo.commit()
 
@@ -711,8 +712,8 @@ def test_every_path_is_owned_by_a_feature():
 
 
 def test_every_root_the_ownership_test_reads_holds_a_file():
-    """A move that empties a root folder drops it here too, or the ownership test reads a
-    folder that is gone and names it as covered."""
+    """Whoever moves the last file out of a root folder must also drop the folder here.
+    Otherwise the ownership test reads a folder that is gone and names it as covered."""
     assert [root for root in (*OWNED, *ALSO) if not tracked(root)] == []
 
 
@@ -734,9 +735,9 @@ def test_every_feature_has_both_lines_and_patterns_jmerge_can_read():
 
 
 def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects():
-    """The tests of a feature come from what they import and what they name. A `Tests:` entry
-    is the test that reads a feature's files with no string that shows it (a glob over a tree),
-    so one that an import or a name already selects is a hand list the code makes needless."""
+    """The tests of a feature come from what they import and what they name. A `Tests:` entry names
+    a test that reads a feature's files without naming them in a string, such as with a glob over a
+    tree of files. If an import or a name already selects that test, the entry is redundant."""
     shown = []
     for name, (owned, listed_tests) in select.features().items():
         mine = [one for one, path in select.modules().items() if owns_module(owned, path)]
@@ -878,7 +879,8 @@ def outputs(repo, head, tmp_path):
 
 
 def test_a_selection_of_four_fifths_of_the_test_files_or_more_is_the_whole_suite(tmp_path):
-    """Five test files: three changed and the cross-cutting one are four of them, 80%."""
+    """Of five test files, the three changed ones and the cross-cutting one make four, which is
+    80%."""
     repo = Repo(tmp_path / "repo", files=SMALL)
     head = repo.change(
         ["testing/tests/test_a.py", "testing/tests/test_b.py", "testing/tests/test_c.py"]
