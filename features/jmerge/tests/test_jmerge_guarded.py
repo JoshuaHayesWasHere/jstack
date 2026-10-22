@@ -1,13 +1,13 @@
-"""A pull request that changes a guarded path is merged by `jmerge` itself, under a stricter
-gate than any other: a check with a start time, a review finished at the head, a rebase
-where main changed one of its paths since the check started, a `jmerge` whose own rules
-are main's, and the review's one safety fact proven at the head (`test_gate_skills`). One
-that changes a secret path is still the user's, and jbus sends it as a gate.
+"""`jmerge` itself merges a pull request that changes a guarded path, under a stricter gate than
+any other. The gate asks for a check with a start time, a review finished at the head, a
+rebase where main changed one of its paths since the check started, a `jmerge` whose own
+rules are main's, and the review's one safety fact proven at the head (`test_gate_skills`).
+A pull request that changes a secret path is still the user's, and jbus sends it as a gate.
 
-The command is run against `test_home_merge`'s fake `gh` and real origin, from a copy of
-the package that is a git checkout of its own, as the installed one is. The copy's
-`guarded.txt` is the list this file writes, `LISTED`: the shipped list is empty since
-2026-10-12, and the gate is tested over a list that has lines, as one put back would be."""
+The tests run the command against the fake `gh` and real origin of `test_home_merge`, from a
+copy of the package that is a git checkout of its own, as the installed one is. The copy's
+`guarded.txt` is the list this file writes, `LISTED`. The shipped list has been empty since
+2026-10-12, so the tests check the gate over a list that has lines, as a restored list would."""
 
 import shutil
 import sys
@@ -34,7 +34,7 @@ ET = jsettings.Settings(zone=ZoneInfo("America/New_York"), label="ET")
 
 
 def checkout(tmp_path, listed=None):
-    """A checkout that holds jmerge's own package, and is what its origin's main has. Its
+    """A checkout that holds jmerge's own package and matches its origin's main. Its
     `guarded.txt` is the shipped one, or the lines given."""
     origin = tmp_path / "rules.git"
     top = tmp_path / "rules"
@@ -189,7 +189,7 @@ def test_a_review_with_a_finding_that_has_no_ending_is_not_finished(proven_merge
 
 
 def test_a_review_of_another_head_does_not_cover_a_guarded_path(proven_merged, rules):
-    """An older `Rebase:` line names the head and claims nothing the command can check."""
+    """An older `Rebase:` line names the head and claims nothing that the command can check."""
     brief = merge.brief(
         merge.review("clean"), f"Rebase: range-diff empty, head {proven_merged.head}\n"
     )
@@ -529,7 +529,8 @@ def test_the_rules_are_asked_about_before_a_merge_can_pull_their_checkout(
     proven_merged, monkeypatch
 ):
     """In jmerge's own repo the main checkout holds the rules, and the pull after any merge
-    brings rules that were behind up to date: asked only then, old code would pass for new."""
+    brings rules that were behind up to date. If `jmerge` asked about them only then, old
+    code would pass for new."""
     here = repo(proven_merged, monkeypatch, [])
     here.own = True
     pulled = proven_merged.home.stub / "merged"

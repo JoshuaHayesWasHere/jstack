@@ -1,8 +1,8 @@
 """`jmerge` logs each line it prints in `merge.log`, but a pull request that waits or is held
-says so on every pass: such a line is logged when it is not the last one logged for that
-pull request, and what is printed is every line, as before.
+says so on every pass. So `jmerge` logs such a line only when it is not the last one logged
+for that pull request, and still prints every line, as before.
 
-The command is run against `test_home_merge`'s fake `gh` and real origin."""
+The tests run the command against the fake `gh` and real origin of `test_home_merge`."""
 
 import json
 

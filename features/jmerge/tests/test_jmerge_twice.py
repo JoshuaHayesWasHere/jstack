@@ -1,9 +1,10 @@
-"""A brief whose `Review:` line says `twice` gets one review, one fix round, and a second
-review of the head the fix pushed. It merges once the first review's findings are answered,
-its `Fixed:` line is pushed and the second review is written: what that review finds goes to
-a cleanup row (`jbus cleanup`) and never holds the merge. Driven through `ready.short_of`,
-the reader the merge goes by, and through `jmerge` itself against a real origin and a fake
-`gh` (`features/jmerge/tests/test_jmerge_fresh.py`)."""
+"""A brief whose `Review:` line says `twice` gets one review, one fix round, and a second review
+of the head that the fix pushed. It merges once the crew has answered the first review's
+findings and pushed its `Fixed:` line, and the second reviewer has written its review. What
+that review finds goes to a cleanup row (`jbus cleanup`) and never holds the merge. The tests
+drive it through `ready.short_of`, the reader that the merge goes by, and through `jmerge`
+itself against a real origin and a fake `gh` (`features/jmerge/tests/test_jmerge_fresh.py`).
+"""
 
 import jsettings
 from jmerge import ready
@@ -33,7 +34,7 @@ def review(head, found=(WARNING,), verdict=None):
 
 
 def answered(fixed=FIX):
-    """The first review answered in one fix round, and the fix pushed."""
+    """The first review, answered in one fix round, and the fix pushed."""
     return f"Finding F1: fixed, the loop\nFixed: {fixed}\nSecond reviewer: mcp:10 #1\n"
 
 
@@ -85,16 +86,16 @@ def test_a_clean_first_review_or_a_round_that_pushed_nothing_owes_no_second_revi
 
 
 def test_a_first_section_that_did_not_run_is_not_the_first_review():
-    """A reviewer that wrote `Verdict: not run` and ran again at a later head: the run is
-    the first review, and the fix it asks for still owes a second one."""
+    """A reviewer that wrote `Verdict: not run` and ran again at a later head. That run is the
+    first review, and the fix it asks for still owes a second one."""
     again = brief(result=answered()) + review("c" * 40, (), verdict="not run") + review(HEAD)
     assert ready.short_of(again, FIX) == ready.TWICE_UNWRITTEN.format(head=FIX[:12])
     assert ready.short_of(again + review(FIX, ()), FIX) == ""
 
 
 def test_a_twice_brief_asks_no_scoped_review_and_no_ruling_on_a_decline():
-    """A fix outside `tests/` and a decline would owe a `Review: review` brief a scoped
-    pass that rules on it; a twice brief's second review is the whole of it."""
+    """A fix outside `tests/` and a decline would make a `Review: review` brief owe a scoped
+    pass that rules on them. For a twice brief, the second review is all it owes."""
     declined = "Finding F1: not fixed, the loop, because a.py:3 reads it once\n"
     owed = "Scoped review: needed since " + HEAD + ", fix outside tests\n"
     text = brief(result=declined + f"Fixed: {FIX}\n" + owed) + review(HEAD) + review(FIX, ())
@@ -113,8 +114,8 @@ def test_a_twice_brief_still_owes_its_skills_and_the_crews_own_drop_lines():
 
 
 def written(kitchen, slug, head, second):
-    """The brief as a twice crewmate leaves it: its first review answered at the head its
-    fix pushed, and the second review of that head as `second` says."""
+    """The brief as a twice crewmate leaves it: its first review answered at the head its fix
+    pushed, and the second review of that head as `second` says."""
     pull = kitchen.pulls[slug]
     first = review("f" * 40)
     (kitchen.home.tasks / f"{slug}.md").write_text(

@@ -1,13 +1,13 @@
-"""`jmerge`'s fresh check takes a green marker of the merge tree it would test as its pass.
+"""The fresh check of `jmerge` takes a green marker of the merge tree it would test as its pass.
 
-A pull request whose check is stale is tested on its head merged over today's main. Where a
-green run of the check already ran the whole suite on that same tree, and left the marker
-`green-tree-<tree>`, the suite is not run again: the pull request merges on that run, and
-the line that says so names the tree and the run, in `merge.log` and in what jbus logs of
-the line. A marker of another tree, one a red run left, or none, is no proof, and the check
-runs as it always did.
+`jmerge` tests a pull request whose check is stale on its head merged over today's main.
+Where a green run of the check already ran the whole suite on that same tree, and left the
+marker `green-tree-<tree>`, the suite does not run again. The pull request merges on that
+run, and the line that says so names the tree and the run, in `merge.log` and in what jbus
+logs of the line. A marker of another tree, one that a red run left, or no marker, is no
+proof, and the check runs as it always did.
 
-The command is run against a real origin with a fake `gh`
+The tests run the command against a real origin with a fake `gh`
 (`features/jmerge/tests/test_jmerge_fresh.py`) that also answers the API's list of artifacts
 and its runs from files."""
 
@@ -49,7 +49,8 @@ def tree(kitchen, head, tip):
 
 
 def marked(kitchen, of, conclusion="success"):
-    """A run of the repo's own check that left the marker of this tree and ended so."""
+    """A run of the repo's own check that left the marker of this tree and ended with
+    `conclusion`."""
     stub = kitchen.home.stub
     run = {"id": RUN, "repository_id": 1, "head_repository_id": 1}
     listed = {"artifacts": [{"name": f"green-tree-{of}", "expired": False, "workflow_run": run}]}
@@ -135,9 +136,9 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
-    """A pass that ran stands over a main that moved off its tests
-    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not: its marker names the tree
-    it was taken on, and the new main makes another, which has none."""
+    """A pass that ran still counts over a main that moved off its tests
+    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not. Its marker names the
+    tree it was taken on, and the new main makes another tree, which has no marker."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
     stub = kitchen.home.stub
     (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))

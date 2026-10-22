@@ -1,5 +1,5 @@
-"""A rebase that dropped lines waits on its crew, who put them back or say why at that
-head, and then on the scoped review, which rules on each reason. Only a drop the review
+"""A rebase that dropped lines waits for its crew to put them back or say why at that head.
+Then it waits for the scoped review, which rules on each reason. Only a drop that the review
 ruled against is the user's."""
 
 import pytest
@@ -56,8 +56,8 @@ def test_an_explained_drop_waits_on_the_scoped_review():
 
 
 def test_a_drop_a_review_of_the_head_said_nothing_of_is_the_users():
-    """A head has its one review, so a ruling that is not in it is not coming: a full
-    review written at the rebased head, or a scoped one that left a file out."""
+    """A head has its one review, so a ruling that is not in it is not coming. That review may
+    be a full review written at the rebased head, or a scoped one that left a file out."""
     half = review(drops="Drops: upheld a.py\n")
     assert ready.drops(LOST, REBASE + ACKS + half, HEAD, user=jsettings.DEFAULTS) == (
         "hold",
@@ -103,8 +103,8 @@ def test_drops_explained_and_upheld_keep_nothing_from_the_merge():
 
 
 def test_a_ruling_stands_for_a_fix_pushed_after_it_once_the_crew_says_so_at_the_new_head():
-    """The scoped review saw the head the rebase ended on. A fix moved the head, so the
-    crew answers for the drop there, and the ruling on the file is not asked for twice."""
+    """The scoped review saw the head the rebase ended on. A fix moved the head, so the crew
+    answers for the drop there, and `jmerge` does not ask for the ruling on the file twice."""
     fixed = "d" * 40
     ruled = review(drops="Drops: upheld a.py, b.py\n")
     silent, _ = ready.drops(LOST, REBASE + ACKS + ruled, fixed, user=jsettings.DEFAULTS)
@@ -122,7 +122,7 @@ def notes(tmp_path):
 
 
 def dropped(notes):
-    """The pull request, rebased with main's line gone, the head before and the head after."""
+    """The pull request rebased with main's line gone, with the head before and the head after."""
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     was = notes.pulls["two"]["headRefOid"]
     head = notes.rebase(

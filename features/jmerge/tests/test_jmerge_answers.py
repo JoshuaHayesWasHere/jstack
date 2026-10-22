@@ -1,8 +1,9 @@
 """`jmerge` waits until every blocking finding has its answer, on every path, and not only
-where a `Second pass:` or `Scoped review:` line says a review of the fix is owed. Run through
-`ready.short_of`, the reader the merge goes by, over briefs as the skills write them.
+where a `Second pass:` or `Scoped review:` line says that a review of the fix is owed. The
+tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
+skills write them.
 
-The first three are the briefs the review-determinism-risks scout reproduced, which
+The first three are the briefs that the review-determinism-risks scout reproduced, which
 `short_of` called ready before this change."""
 
 import pytest

@@ -1,9 +1,10 @@
-"""A pull request that changes a protected path is the user's to merge: `jmerge` prints it
+"""A pull request that changes a protected path is the user's to merge, so `jmerge` prints it
 as `hold` and merges nothing. The patterns are the ones in
-`features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the command
-itself is run against a fake `gh`. The patterns of a guarded list are read the same way, and
-hold nothing: `test_jmerge_guarded` has the gate they are merged under, and the list they
-are read from here, since the shipped `features/jmerge/src/jmerge/guarded.txt` is empty."""
+`features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the tests
+run the command itself against a fake `gh`. The command reads the patterns of a guarded list
+the same way, and they hold nothing. `test_jmerge_guarded` has the gate that such pull
+requests merge under, and the list it reads here, since the shipped
+`features/jmerge/src/jmerge/guarded.txt` is empty."""
 
 import re
 import shutil
@@ -184,7 +185,7 @@ LISTS = ["protected.txt", "guarded.txt", "ci-paths.txt"]
 def test_jmerge_merges_nothing_while_a_list_has_a_pattern_it_cannot_read(
     merged, name, flags, tmp_path
 ):
-    """The command is run from a copy of the package whose file has one more line."""
+    """The test runs the command from a copy of the package whose file has one more line."""
     copy = tmp_path / "copy"
     shutil.copytree(SOURCE, copy / "jmerge")
     with (copy / "jmerge" / name).open("a") as file:
@@ -292,8 +293,8 @@ def test_jmerge_merges_a_pull_request_that_only_comes_near_one(merged, path):
 
 
 def renamed(merged, new, old=None):
-    """A ready pull request with one rename: GitHub lists it under the path the file has
-    now, and gives the path it left only when asked for the pull request's files."""
+    """A ready pull request with one rename. GitHub lists it under the file's current path, and
+    gives the path it left only when asked for the pull request's files."""
     merged.home.open_pull_request(merged.head, files=["a.txt", new], renamed=True)
     if old is not None:
         (merged.home.stub / "left").write_text(f"{old}\n")

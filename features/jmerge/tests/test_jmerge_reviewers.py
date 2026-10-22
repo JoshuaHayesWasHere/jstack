@@ -1,7 +1,7 @@
-"""A brief whose role map lists two reviewers gets a `## Review` section from each, both of
-one head: `jmerge` reads them as one round. The round waits for every reviewer the
-`Reviewer:` lines name, and its verdict is the worst of its sections. Run through
-`ready.short_of`, the reader the merge goes by, over briefs as the skills write them."""
+"""A brief whose role map lists two reviewers gets a `## Review` section from each, both of one
+head, and `jmerge` reads them as one round. The round waits for every reviewer that the
+`Reviewer:` lines name, and its verdict is the worst of its sections. The tests run through
+`ready.short_of`, the reader that the merge goes by, over briefs as the skills write them."""
 
 from jmerge import ready
 
@@ -47,8 +47,8 @@ def test_a_section_that_was_not_run_outranks_findings_and_holds_the_merge():
 
 
 def test_a_round_counts_once_so_a_later_clean_pass_still_reads_as_after_the_fix():
-    """Two sections at one head are one round: `ran` counts rounds, and a clean scoped pass
-    of the fix is the review that covers it, as with one reviewer."""
+    """Two sections at one head are one round, because `ran` counts rounds. A clean scoped
+    pass of the fix is the review that covers it, as with one reviewer."""
     first = section(CODEX, "findings", findings=["error a.py:1 x"]) + section(CURSOR, "clean")
     owed = f"Scoped review: needed since {SAW}, the fix changed a.py\n"
     brief = RESULT + TWO + "Finding: fixed, x\n" + owed + f"Fixed: {FIX}\n" + first
@@ -60,7 +60,7 @@ def test_a_round_counts_once_so_a_later_clean_pass_still_reads_as_after_the_fix(
 
 
 def test_a_reviewer_whose_section_names_a_later_head_still_counts_as_written():
-    """The reviewers are told apart by their `By:` lines, not by the head they saw."""
+    """`jmerge` tells the reviewers apart by their `By:` lines, not by the head they saw."""
     brief = RESULT + TWO + section(CODEX, "clean") + section(CURSOR, "clean", head=FIX)
     assert ready.short_of(brief, FIX) == ""
 
@@ -72,8 +72,9 @@ def test_one_reviewer_and_a_section_with_no_by_line_read_as_before():
 
 
 def test_a_reviewer_run_again_at_one_head_replaces_its_own_earlier_section():
-    """A section that was not run, then the same reviewer's clean re-run at the same head, is
-    a clean review: within a round each reviewer's last section is its word."""
+    """A section that did not run, followed by the same reviewer's clean re-run at the same
+    head, is a clean review. Within a round, each reviewer's last section is the one that
+    counts."""
     one = RESULT + "Reviewer: mcp:9\n" + "\n## Review\nVerdict: not run\nHead: " + SAW + "\n"
     again = one + "\n## Review\nVerdict: clean\nHead: " + SAW + "\n"
     assert ready.short_of(one, SAW) == ready.NO_VERDICT
@@ -89,9 +90,9 @@ SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
 
 
 def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
-    """Two Sonnet reviewers write the same model and effort: the number tells them apart, so
-    one numbered review alone waits and both pass (question 38: two Cursor reviews were
-    once read as one)."""
+    """Two Sonnet reviewers write the same model and effort, so the number tells them apart.
+    One numbered review alone waits, and both pass (question 38: `jmerge` once read two
+    Cursor reviews as one)."""
     one = RESULT + SEATS + section(f"{SONNET} #1", "clean")
     assert ready.short_of(one, SAW) == ready.NO_VERDICT
     both = one + section(f"{SONNET} #2", "clean")
@@ -117,8 +118,9 @@ STALLED += "Finding F1: fixed, a made up one\nFixed: none needed, it was answere
 
 
 def test_a_stalled_review_run_again_on_numbered_lines_reaches_a_verdict():
-    """A brief whose Codex reviewer never wrote waits for ever on its two unnumbered lines.
-    Run again on two numbered lines, it waits on those two and no longer on the Codex one."""
+    """A brief whose Codex reviewer never wrote waits forever on its two unnumbered lines.
+    Once the review runs again on two numbered lines, the brief waits for those two and no
+    longer for the Codex one."""
     assert ready.short_of(STALLED, SAW) == ready.NO_VERDICT
     rerun = STALLED + SEATS + section(f"{SONNET} #1", "clean")
     assert ready.short_of(rerun, SAW) == ready.NO_VERDICT

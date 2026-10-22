@@ -1,12 +1,12 @@
-"""A project's integration branches: the branches its state's `integration` file names, one a
-line. `jmerge` merges a pull request into one of them as it merges one into the default branch,
-judged against that branch: its staleness, its red hold, and a squash into it. The pull request
-that lands an integration branch on the default branch merges with a merge commit, and the
-branch is kept. With no such file a pull request into another branch is held, as before
-(`tests/test_home_merge.py`).
+"""A project's integration branches are the branches that its state's `integration` file
+names, one to a line. `jmerge` merges a pull request into one of them as it merges one into
+the default branch, and judges it against that branch: its staleness, its red hold, and a
+squash into it. The pull request that lands an integration branch on the default branch
+merges with a merge commit, and `jmerge` keeps the branch. With no such file, `jmerge` holds
+a pull request into another branch, as before (`tests/test_home_merge.py`).
 
-The command is run against a real origin and a fake `gh` whose merge goes into the pull
-request's own base, as `features/jmerge/tests/test_jmerge_fresh.py` runs it."""
+The tests run the command against a real origin and a fake `gh` whose merge goes into the
+pull request's own base, as `features/jmerge/tests/test_jmerge_fresh.py` runs it."""
 
 import json
 
@@ -64,7 +64,7 @@ def integration(kitchen, *branches):
 
 
 def into(kitchen, slug, number, files, base=TRAIN):
-    """A crewmate's pull request into `base`, ready. Its head."""
+    """Open a crewmate's pull request into `base` that is ready, and return its head."""
     head = kitchen.crew(slug, number, files)
     kitchen.pulls[slug]["baseRefName"] = base
     kitchen.brief(slug, head)
@@ -72,7 +72,7 @@ def into(kitchen, slug, number, files, base=TRAIN):
 
 
 def on(kitchen, branch, files):
-    """A commit pushed to `branch` by hand, now: after every check that started in 2000."""
+    """A commit pushed to `branch` by hand now, after every check that started in 2000."""
     tree = kitchen.tmp / "trees" / f"by-hand-{branch}"
     git(kitchen.home.main, "fetch", "-q", "origin")
     git(kitchen.home.main, "worktree", "add", "-q", "--detach", str(tree), f"origin/{branch}")
@@ -236,7 +236,7 @@ def test_the_fix_of_a_red_main_is_not_held_by_a_red_train():
 
 
 def viewed(kitchen, number, head, base):
-    """What GitHub says of a merged pull request, which a sweep asks."""
+    """What GitHub says of a merged pull request, which a sweep asks for."""
     said = {"state": "MERGED", "headRefOid": head, "baseRefName": base}
     (kitchen.home.stub / f"view-{number}").write_text(json.dumps(said))
 
