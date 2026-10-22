@@ -310,7 +310,8 @@ class T3(Server):
                 return None
             slug = given["title"].removeprefix("crew: ")
             thread = self.thread(slug, "preparing", project=given["projectId"])
-            thread["branch"] = given["workspaceStrategy"]["branch"]
+            thread["title"] = given["title"]
+            thread["branch"] = given["workspaceStrategy"].get("branch")
             if self.lose == "after":
                 return None
             made = {"threadId": thread["threadId"]}

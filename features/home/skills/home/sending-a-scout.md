@@ -44,6 +44,12 @@ When in doubt between the two, any one of the durable column's conditions decide
 
 A durable scout gets the check of the machine before its launch, as a crewmate does.
 
+**A scout through jbus.** Anyone who is not this home, an expert bot included, asks for a durable scout with `jbus --project <project> scout add <slug>`, the request on stdin, and never with `jbus queue add`, which launches a crewmate that branches and opens a pull request.
+The request has the shape of `$T/scout-request.md`, and `add` refuses one with a crewmate's line (`Task:`, `Size:`, `Pull request:`).
+Once the user approves it with `jbus scout approve <slug> --sha <sha12> --word <id>`, a pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch.
+`jbus scout show` gives each one's state and what its Report says, and the Report comes to this home as any scout's does.
+This home can send its own durable scouts the same way when it needs no worktree for them.
+
 A scout that finishes writes its report under `## Report` in its request and sends this thread one message. It never becomes the crewmate: the crewmate starts later, in a fresh thread, from the brief.
 
 **Launch a scout's brief without showing it** when the user approved the plan entry it is for: an entry agreed in planning or answered on a page. Launch from step 2 of "Handing a task to a crewmate": the brief is on disk already, and the home does not rewrite it. Show it first, and wait for the user's word, in two cases only: the brief changes that entry's "Done when", or the task has no entry the user approved. A brief changes the list when it drops a check, weakens one, or adds an outcome the entry does not ask for. Checks that only say how an entry's line is proven change nothing. To show it, give the path, the lines that differ and what the brief rests on, in a few lines.
