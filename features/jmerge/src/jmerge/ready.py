@@ -603,10 +603,11 @@ def unruled(said: Said) -> str:
 
 
 def declines(text: str, *, user: Settings) -> tuple[str, str]:
-    """`hold` and the reason when the scoped pass did not uphold the crew's decline of a
-    finding on one of `findings.RISKS`, which are review-triage's categories. Otherwise it
-    returns two empty strings. Only such a decline is the user's to decide. A decline on none
-    of them waits for the crew and its home (`unruled`)."""
+    """The scoped pass's ruling on a risky decline, as a hold. It returns `hold` and the reason
+    when the scoped pass did not uphold the crew's decline of a finding on one of
+    `findings.RISKS`, which are review-triage's categories. Otherwise it returns two empty
+    strings. Only such a decline is the user's to decide. The crew and its home decide a
+    decline on none of the risks (`unruled`)."""
     if asks_no_ruling(text):
         return "", ""
     named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)

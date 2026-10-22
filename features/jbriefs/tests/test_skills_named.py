@@ -244,9 +244,9 @@ def test_every_principle_has_pstacks_name_and_its_old_name_still_resolves():
 
 def test_no_principle_lost_a_line_in_the_rename():
     """Each principle, reached by its old name through the resolver, is the file it was at
-    c228ac6, with three exceptions. Its frontmatter differs, its links to the others name
-    their new files, and a move put a paragraph or list item one sentence to a line, which
-    reads as the same text."""
+    c228ac6, with three exceptions. Its frontmatter differs, and its links to the others name
+    their new files. A move also rewrote some paragraphs and list items to one sentence per
+    line, and such a paragraph reads as the same text."""
     lines = (FIXTURES / "principles-before-rename.txt").read_text().splitlines()
     before = dict(line.split() for line in lines if not line.startswith("#"))
     assert len(before) == 25

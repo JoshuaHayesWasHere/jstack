@@ -217,11 +217,12 @@ _ONE_TO_FOUR = "[a-z0-9]+( [a-z0-9]+)?( [a-z0-9]+)?( [a-z0-9]+)?"
 
 
 def tipped(text: str, found: dict[str, Skill]) -> list[tuple[str, str]]:
-    """The skills whose `tip:` phrases the text says, by the rule of
-    `features/skill-library/hooks/skill-tips.sh`. A phrase is its words, `*` stands for one
-    to four of them, and a phrase matches at the word bounds of the text's words. A skill
-    counts by its phrase with the most literal words. A skill that the text names as `/name`
-    or `$name` is not tipped. The order is the most words first, then by name."""
+    """The skills that the text tips, by the rule of `features/skill-library/hooks/skill-tips.sh`.
+    A skill is tipped when the text contains one of its `tip:` phrases. A phrase is its words,
+    `*` stands for one to four of them, and a phrase matches at the word bounds of the text's
+    words. A skill's score is the largest number of literal words in any of its matching
+    phrases. A skill that the text names as `/name` or `$name` is not tipped. The order is the
+    highest score first, then by name."""
     typed = re.sub(r"[^a-z0-9/$_-]+", " ", text.lower())
     named = f" {typed} "
     words = f" {_words(typed)} "

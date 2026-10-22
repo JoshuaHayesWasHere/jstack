@@ -102,10 +102,12 @@ def checkout() -> Path | None:
 
 
 def packaged() -> Path | None:
-    """The source tree that a release's wheel installs under the environment this code runs
-    in, `PACKAGED`. That is the wheel's shared data, which scripts/jtrees/outputs/pyproject.py
-    writes into pyproject.toml. Its `skills.json` gives each path from the tree itself, as
-    in a checkout. It is None where the tree is not there."""
+    """The source tree that a release's wheel installs, or None where the tree is not there.
+
+    The wheel installs the tree as its shared data, `PACKAGED`, under the environment this
+    code runs in. scripts/jtrees/outputs/pyproject.py writes that shared data into
+    pyproject.toml. The tree's `skills.json` gives each path from the tree itself, as in a
+    checkout."""
     copy = Path(sys.prefix) / PACKAGED
     return copy if (copy / CATALOG).is_file() else None
 
@@ -137,8 +139,8 @@ def _read(path: Path, changed: int) -> tuple[dict[str, Any], ...]:
 
 
 def listed(kind: str, at: Path | None = None) -> dict[str, Path]:
-    """Every file of `kind` (`skill`, `principle`, `playbook` or `template`) that the
-    `skills.json` of the checkout `at` lists, by name. `at` is this checkout by default."""
+    """Every file of `kind` (`skill`, `principle`, `playbook` or `template`), by name. The list
+    comes from the `skills.json` of the checkout `at`, which is this checkout by default."""
     at = root() if at is None else at
     return {item["name"]: at / item["path"] for item in _items(at) if item["kind"] == kind}
 

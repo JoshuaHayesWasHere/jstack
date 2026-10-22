@@ -264,9 +264,9 @@ def crewmates(name: str) -> bool:
 
 def playbook_named(text: str) -> str:
     """The name that the `Playbook:` line of a brief, a request or a plan gives. It is the
-    first word of the first such line of its head, or nothing for a head with no such line
-    or an empty one. `jbus playbook` opens the file it names, and this function is the one
-    reader of the line."""
+    first word of the first such line of its head. It is nothing when the head has no such
+    line, or when the line is empty. `jbus playbook` opens the file it names, and this
+    function is the one reader of the line."""
     said = _head(text, "Playbook:")
     return said.split()[0] if said else ""
 
@@ -489,12 +489,13 @@ def _expanded(word: str) -> tuple[str, ...]:
 def where(text: str) -> tuple[str, ...]:
     """The paths and globs that the head's `Where:` line names, in its order, each once.
 
-    It keeps an item in backticks or between commas that names a path under the repo. A
-    `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and it drops
-    prose in parentheses, the commas in it included. It spells out a brace set, so
-    `src/{a,b}.py` gives two paths, and the commas of a brace set do not end an item. It
-    reads a bare word when the word is the first of its item (`docs/ pages tied to`) or has
-    a `/` (`plus templates/x.service`). A line that names no path gives an empty tuple.
+    An item is a span in backticks or a span between commas, and the function keeps each
+    item that names a path under the repo. A `path:line` or `path:a-b` keeps its path, and a
+    directory loses its closing `/`. The function drops prose in parentheses, with the commas
+    in it. It spells out a brace set, so `src/{a,b}.py` gives two paths, and the commas of a
+    brace set do not end an item. It reads a bare word when the word is the first of its item
+    (`docs/ pages tied to`) or has a `/` (`plus templates/x.service`). A line that names no
+    path gives an empty tuple.
     """
     line = _head_lines(text, "Where")
     if line is None:

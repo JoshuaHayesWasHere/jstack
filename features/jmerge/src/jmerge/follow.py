@@ -16,14 +16,14 @@ from elsewhere.
 Each harness's layout links every skill file to its place in the checkout, and a pull does not
 assemble it again. A merge that moves or removes a skill leaves its links dangling, as #202
 did with pr-review. A merge that adds a skill or a file to one, or edits a file that the
-layout writes, leaves the layout short or stale. So after the pull, `sh install.sh` runs once
-in the checkout when `install.sh` assembled a layout on this machine from it and the layout
-differs from what the checkout now assembles (`layout.Layout.probe`, the answer that
-`install.sh --check` gives). This module compares the layouts, not the merge's paths. An edit
-to a file that a link already points at needs no install, so nothing runs for it. When a
-failed install left a layout stale, this module installs it again after the next merge.
-Nothing runs where every layout matches what the checkout makes, or on a machine installed
-from elsewhere.
+layout writes, leaves the layout short or stale. So after the pull, this module checks each
+layout on this machine that `install.sh` assembled from the checkout. When a layout differs
+from what the checkout now assembles, `sh install.sh` runs once in the checkout.
+`layout.Layout.probe` gives that answer, the same one that `install.sh --check` gives. This
+module compares the layouts, not the merge's paths. An edit to a file that a link already
+points at needs no install, so nothing runs for it. When a failed install left a layout stale,
+this module installs it again after the next merge. Nothing runs where every layout matches
+what the checkout makes, or on a machine installed from elsewhere.
 """
 
 from __future__ import annotations
