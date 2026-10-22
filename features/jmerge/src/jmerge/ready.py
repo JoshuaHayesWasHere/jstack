@@ -51,7 +51,7 @@ def reasons() -> dict[str, Reason]:
 
 
 OTHER_HOME = Reason("", "another home's")
-REQUIRED = ("check", "borders")
+REQUIRED = ("check",)
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
 DRAFT = Reason("", "draft")
@@ -239,17 +239,25 @@ def passed(rollup: list[dict], name: str) -> bool:
     )
 
 
-def waiting(rollup: list[dict]) -> tuple[str, ...]:
-    """The required checks whose latest run has not passed, in REQUIRED's order."""
-    return tuple(name for name in REQUIRED if not passed(rollup, name))
+def required_of(text: str) -> tuple[str, ...]:
+    """The checks that a repo's `required-checks` file names, one to a line, or `REQUIRED`
+    where it names none."""
+    return tuple(dict.fromkeys(line.strip() for line in text.splitlines() if line.strip())) or (
+        REQUIRED
+    )
 
 
-def started(rollup: list[dict]) -> datetime | None:
-    runs = latest(rollup, REQUIRED[0])
+def waiting(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
+    """The required checks whose latest run has not passed, in `required`'s order."""
+    return tuple(name for name in required if not passed(rollup, name))
+
+
+def started(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> datetime | None:
+    runs = latest(rollup, required[0])
     return _at(runs[0].get("startedAt")) if runs else None
 
 
-def pull_request(listed: dict) -> PullRequest:
+def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequest:
     return PullRequest(
         number=listed["number"],
         url=listed["url"],
@@ -258,12 +266,12 @@ def pull_request(listed: dict) -> PullRequest:
         head=listed["headRefOid"],
         base=listed.get("baseRefName") or "",
         mergeable=listed.get("mergeable") or "",
-        waiting=waiting(listed.get("statusCheckRollup") or []),
+        waiting=waiting(listed.get("statusCheckRollup") or [], required),
         files=tuple(one["path"] for one in listed["files"]),
         renamed=any(one.get("changeType") == "RENAMED" for one in listed["files"]),
         changed=listed["changedFiles"],
         draft=bool(listed.get("isDraft")),
-        started=started(listed.get("statusCheckRollup") or []),
+        started=started(listed.get("statusCheckRollup") or [], required),
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
     )
 

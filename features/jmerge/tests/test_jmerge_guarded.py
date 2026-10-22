@@ -269,7 +269,9 @@ def test_merge_off_still_merges_nothing(proven_merged, rules):
     assert proven_merged.untouched()
 
 
-def pull_request(*files, head=merge.PUSHED, checks=(STARTED,), rollup=merge.rollup):
+def pull_request(
+    *files, head=merge.PUSHED, checks=(STARTED,), rollup=merge.rollup, required=ready.REQUIRED
+):
     listed = {
         "number": 7,
         "url": merge.URL,
@@ -282,7 +284,7 @@ def pull_request(*files, head=merge.PUSHED, checks=(STARTED,), rollup=merge.roll
         "files": [merge.file(path) for path in files],
         "changedFiles": len(files),
     }
-    return ready.pull_request(listed)
+    return ready.pull_request(listed, required)
 
 
 def test_the_start_of_a_check_is_its_latest_run_named_check():
@@ -309,7 +311,9 @@ BORDERS_PASSED = merge.run("SUCCESS", "borders")
     ],
 )
 def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
-    assert ready.short_on_github(pull_request("a.txt", checks=checks, rollup=list)) == short
+    required = ready.required_of("check\nborders\n")
+    one = pull_request("a.txt", checks=checks, rollup=list, required=required)
+    assert ready.short_on_github(one) == short
 
 
 UNCHANGED = ready.Rebase("unchanged", (), merge.REVIEWED, merge.PUSHED)

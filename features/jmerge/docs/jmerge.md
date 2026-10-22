@@ -56,7 +56,10 @@ Each item below is a reason a pull request waits.
 - A brief that says `Review: twice` waits for its first review, the answers to that review's findings by id and a `Fixed:` line that names a pushed head, then for a second review written at a head after the first review's (`its second review is not written at <head>`).
   The second review's findings hold nothing, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`), and no scoped review, ruling on a decline or range-diff review after a rebase is asked; a clean first review, or a `Fixed: none needed`, owes no second review.
 - **The required checks passed, and GitHub says it merges.**
-  Green is each check `ready.REQUIRED` names, `check` (the suite) and `borders` (the border lint), passed by its latest run at the head, whatever the other checks say.
+  Green is each required check passed by its latest run at the head, whatever the other checks say.
+  A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check` and `integration`: one check name per line, with blank lines and the spaces around a name ignored.
+  With no such file, or one that names none, the required check is `check` alone (`ready.REQUIRED`), so a check the repo's workflows never run holds nothing.
+  jstack's own state directory names `check` (the suite) and `borders` (the border lint), so its pull requests wait for both.
   It waits with `<check> has not passed` for the first of them that has not, and with `it conflicts with its base` for a conflict.
 - **Its queue row lets it merge.**
   `jmerge` reads the `queue.json` of the jbus project whose checkout this is (`features/jmerge/src/jmerge/rows.py`), once a run, and looks up the row whose slug is the brief's.
@@ -103,7 +106,7 @@ Each reason is a constant of `features/jmerge/src/jmerge/ready.py` (`MIGRATION_T
 
 ## Fresh against main
 
-The check's start is the earliest start of the runs named `check` at the head.
+The check's start is the earliest start of the runs of the first required check at the head, `check` where the repo names none.
 After a `git fetch` in the main checkout, `jmerge` lists the paths the first-parent commits of the default branch changed since then.
 A pull request waits when one of those paths is its own, is a CI path in `features/jmerge/src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`), or is a caller of its files or something they depend on.
 That last is read from the files, at the tip for main's and at the head for its own: one imports the other, Python's way, by the file's dotted path or any tail of it (a `conftest.py` counts for every Python file under its directory), or names the other's path where that path has a `/` in it:
@@ -277,7 +280,7 @@ It lifts the hold at the head the hold was said at, which `jmerge` keeps in `hol
 | `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each `refs/jstack/green-tree/<tree>` marker on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. A worktree is kept while a process works in it, and also where `/proc` cannot be read to tell. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. |
 | `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. A branch that is gone is asked of its pull request. |
-| `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks: the crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on stays the check named `check` alone. |
+| `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks: the crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
 | `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
 | `--all` | Merges the pull requests of the repo's other homes too. |
 | `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |

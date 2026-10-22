@@ -1210,7 +1210,7 @@ def test_each_check_jmerge_requires_is_a_job_of_a_pull_request_and_borders_fails
     from jmerge import ready
 
     pulled = {"check": CHECK, "borders": BORDERS}
-    assert set(ready.REQUIRED) == set(pulled)
+    assert set(ready.REQUIRED) <= set(pulled)
     for name, workflow in pulled.items():
         assert name in jobs(workflow.read_text())
     (*_, lint), _ = steps(BORDERS.read_text(), "borders")
