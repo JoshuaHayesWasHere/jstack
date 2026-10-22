@@ -27,7 +27,7 @@ from testing.paths import REPO, playbooks, skills
 
 PAGE = REPO / "features/jdrift/docs/jstack-explained.html"
 COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
-LOCAL = {"../../../docs/flow.html"}
+LOCAL = {"../../home/docs/flow.html"}
 
 
 VOID = {"meta", "br", "hr", "img", "wbr", "input", "link", "source"}
@@ -151,7 +151,10 @@ MADE_UP = {
     '| model: a home | look: scout"\n---\n\n# Scout\n',
     "playbooks/one.md": "# One\n\n<!-- card: Build | 1 | One thing. -->\n\n1. Do it.\n",
     "playbooks/two.md": "<!-- card: Decide | 1 | Two things. | plain: `Review: none` -->\n",
-    "principles/prove.md": "# Prove\n\n<!-- card: Prove it | 1 | Run it. | `one`; most -->\n",
+    "features/principles/skills/principle-prove/SKILL.md": (
+        "---\nname: principle-prove\n---\n\n# Prove\n\n"
+        "<!-- card: Prove it | 1 | Run it. | `one`; most -->\n"
+    ),
 }
 
 
@@ -188,9 +191,9 @@ def carded(page, prefix):
 
 
 KINDS = {
-    "skill-": lambda: set(skills()),
+    "skill-": lambda: {name for name in skills() if not name.startswith("principle-")},
     "playbook-": lambda: set(playbooks()),
-    "principle-": lambda: {path.stem for path in (REPO / "principles").glob("*.md")},
+    "principle-": lambda: {name for name in skills() if name.startswith("principle-")},
 }
 
 
@@ -220,7 +223,7 @@ def test_a_card_and_its_link_are_in_the_tile_its_file_names_in_the_order_of_its_
     assert list(part(text, "playbook cards, Build").cards) == ["playbook-one"]
     assert part(text, "playbook links, Build").loads == ["#playbook-one"]
     assert list(part(text, "playbook cards, Decide").cards) == ["playbook-two"]
-    assert list(part(text, "principle cards, Prove it").cards) == ["principle-prove"]
+    assert list(part(text, "principle cards, Prove it").cards) == ["principle-principle-prove"]
     assert "skill-stale" not in text
 
 
@@ -241,7 +244,7 @@ def test_a_card_has_the_words_of_its_own_file(tree):
         "<code>Review: none</code></span></div></article>"
     ) in text
     assert (
-        '<div id="principle-prove"><b>prove</b><small>Run it.</small>'
+        '<div id="principle-principle-prove"><b>principle-prove</b><small>Run it.</small>'
         '<div class="leans"><code>one</code><span>most</span></div></div>\n'
     ) in text
 
@@ -249,14 +252,15 @@ def test_a_card_has_the_words_of_its_own_file(tree):
 def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to_the_page(
     tmp_path,
 ):
-    for folder in ("skills", "features", "playbooks", "principles"):
-        shutil.copytree(REPO / folder, tmp_path / folder)
+    shutil.copytree(REPO / "features", tmp_path / "features")
     (tmp_path / "docs").mkdir()
     page = Path(shutil.copy(PAGE, tmp_path / "docs"))
-    feature = (tmp_path / "playbooks" / "feature.md").read_text()
+    feature = (tmp_path / "features" / "crew" / "playbooks" / "feature.md").read_text()
     tile = CARD.search(feature).group(1).split(" | ")[0]
     card = f"<!-- card: {tile} | 99 | A thing that is `made up`. -->"
-    (tmp_path / "playbooks" / "made-up.md").write_text(CARD.sub(card, feature))
+    (tmp_path / "features" / "crew" / "playbooks" / "made-up.md").write_text(
+        CARD.sub(card, feature)
+    )
     before = read(build(REPO))
     text = build(tmp_path)
     assert page.read_text() == PAGE.read_text()
@@ -309,13 +313,13 @@ def test_the_check_says_the_page_is_behind_the_tree_and_writes_nothing(tree):
         == "current: features/jdrift/docs/jstack-explained.html has what the tree has\n"
     )
     (tree / "playbooks" / "made-up.md").write_text("<!-- card: Build | 2 | A thing. -->\n")
-    (tree / "principles" / "prove.md").unlink()
+    (tree / "features/principles/skills/principle-prove/SKILL.md").unlink()
     before = page.read_text()
     behind = explained(tree, "--check")
     assert behind.returncode == 1
     assert behind.stdout == (
         "behind: features/jdrift/docs/jstack-explained.html lacks playbook-made-up; "
-        "still has principle-prove: run uv run python -m jdrift.explained\n"
+        "still has principle-principle-prove: run uv run python -m jdrift.explained\n"
     )
     assert page.read_text() == before
 
@@ -370,7 +374,7 @@ PRINCIPLE_FORM = "<!-- card: <tile> | <place> | <the rule> | <who leans on it> -
             "`look: scuot` is not a look: scout or rev",
         ),
         (
-            "principles/made-up.md",
+            "features/principles/skills/principle-made-up/SKILL.md",
             "<!-- card: Prove it | 3 | A rule. | `one` | look: scout -->\n",
             "`look: scout` is not a look: it has none",
         ),
@@ -379,7 +383,7 @@ PRINCIPLE_FORM = "<!-- card: <tile> | <place> | <the rule> | <who leans on it> -
 def test_a_file_whose_card_line_cannot_be_read_is_named_and_nothing_is_written(
     tree, name, text, said
 ):
-    (tree / name).parent.mkdir(exist_ok=True)
+    (tree / name).parent.mkdir(parents=True, exist_ok=True)
     (tree / name).write_text(text)
     refused = explained(tree)
     assert refused.returncode == 2
@@ -441,5 +445,6 @@ def test_a_style_that_loads_a_file_is_read():
 
 def test_the_page_names_no_place_of_a_person():
     text = PAGE.read_text()
-    for banned in ("—", "~/", "/home/", "github.com"):
+    for banned in ("—", "~/", "github.com"):
         assert banned not in text, banned
+    assert not re.search(r"(?<![\w.])/home/", text), "a path under /home/"

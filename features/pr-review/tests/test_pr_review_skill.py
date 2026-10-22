@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-import crew.helpers as crew
+import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
 import test_jbus_unlock as unlock
@@ -219,7 +219,7 @@ def test_the_review_line_is_read_only_where_it_starts_a_line(reviewer, brief, va
 ASKED = "<the message this thread was started with, whole>"
 SECTION = "\n## Review\nVerdict: findings\nHead: " + "a" * 40 + "\n"
 NO_SECTION = "Review: review\nReviewer: mcp:thread-9\nTask: a `## Review` said inside a line\n"
-RERUN = REPO / "templates" / "rerun.md"
+RERUN = REPO / "features" / "crew" / "templates" / "rerun.md"
 
 
 def started(reviewer, asked, brief=""):
@@ -392,7 +392,7 @@ def test_a_brief_that_asks_for_no_review_gets_none(reviewer):
 def test_each_value_the_brief_template_offers_is_one_the_review_knows(reviewer):
     (line,) = [
         line
-        for line in (REPO / "templates" / "brief.md").read_text().splitlines()
+        for line in (REPO / "features/jbriefs/templates/brief.md").read_text().splitlines()
         if line.startswith("Review:")
     ]
     ends = {}
@@ -451,7 +451,8 @@ def test_the_intent_is_the_brief_from_task_to_the_end_of_decisions_then_the_scop
 
 def applies(name):
     """The paragraph a principle opens with, under its title, as one line."""
-    text = (REPO / "principles" / f"{name}.md").read_text()
+    skill = REPO / "features" / "principles" / "skills" / name / "SKILL.md"
+    text = skill.read_text().split("\n---\n\n", 1)[1]
     return " ".join(text.split("\n\n")[1].splitlines())
 
 

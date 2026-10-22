@@ -1,8 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "why",
-  "description": "Finds why the code is the way it is, with cited evidence.",
-  "owns": [
-    "skills/why/**"
-  ]
+  "description": "Finds why the code is the way it is, with cited evidence."
 }

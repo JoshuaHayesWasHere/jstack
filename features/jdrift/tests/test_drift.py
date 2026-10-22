@@ -12,7 +12,7 @@ import jdrift
 from jdrift.cli import main
 from testing.paths import REPO as ROOT
 
-TOPS = ("principles", "playbooks", "skills", "features")
+TOPS = ("playbooks", "skills", "features")
 
 SECTION = """# Third-party material
 
@@ -446,13 +446,35 @@ def test_shipped_map_has_every_file_the_prose_credits():
     assert names - set(local_sources(pinned)) == set()
 
 
+def placed(prose):
+    """Each file the prose places in a directory, `a.md` and `b.md` in `dir/` or more files in
+    `dir/` (the playbook files `a.md` and `b.md`), as the path it says that file has."""
+    names = r"`[\w.-]+\.md`(?:(?:, | and |, and )`[\w.-]+\.md`)*"
+    said = re.findall(rf"({names}) in `([\w/-]+/)`", prose)
+    said += [
+        (files, folder)
+        for folder, files in re.findall(rf"in `([\w/-]+/)` \(the playbook files? ({names})", prose)
+    ]
+    for files, folder in said:
+        yield from (folder + name for name in re.findall(r"`([\w.-]+\.md)`", files))
+
+
+def test_the_prose_places_each_file_where_the_map_has_it():
+    text, pinned = section()
+    prose = text.split("\n## ")[1].split("\nUpstream map:")[0]
+    paths = list(placed(prose))
+    assert len(paths) > 15
+    assert sorted(set(paths) - set(local_sources(pinned))) == []
+
+
 def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is_jstacks():
     _, pinned = section()
     mapped = set(local_sources(pinned))
-    principles = {f"principles/{path.name}" for path in (ROOT / "principles").glob("*.md")}
+    found = ROOT.glob("features/principles/skills/*/SKILL.md")
+    principles = {path.relative_to(ROOT).as_posix() for path in found}
     assert principles - mapped == set(pinned.own) & principles
     assert set(pinned.own) <= {
         file.relative_to(ROOT).as_posix() for top in TOPS for file in (ROOT / top).rglob("*")
     }
-    assert "principles/principle-depth-over-breadth.md" in pinned.own
+    assert "features/principles/skills/principle-depth-over-breadth/SKILL.md" in pinned.own
     assert len(principles) == 25

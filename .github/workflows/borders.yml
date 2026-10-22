@@ -16,11 +16,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Warns, as annotations, on a path with no owner or two, a new path outside the feature
-  # layout, and a change across two features with no `cross-cutting` label. It exits 0 on a
-  # warning: unit 37 makes it hard. Standard library only, so no uv sync, and a label flip
-  # costs seconds. On GitHub's merge of the pull request HEAD^1 is the tip of the base. It runs
-  # on infra's fast lane, as the pull request's check does (check.yml).
+  # Fails, with an annotation for each, on a path with no owner or two, a path outside the
+  # feature layout, and a change across two features with no `cross-cutting` label. It is a
+  # check jmerge requires (REQUIRED in features/jmerge/src/jmerge/ready.py). Standard library
+  # only, so no uv sync, and a label flip costs seconds. On GitHub's merge of the pull request
+  # HEAD^1 is the tip of the base. It runs on infra's fast lane, as the pull request's check
+  # does (check.yml).
   borders:
     runs-on: [self-hosted, jstack-fast]
     timeout-minutes: 5
@@ -33,4 +34,4 @@ jobs:
       - name: lint borders
         env:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-        run: python3 scripts/lint-borders.py --base HEAD^1 --labels "$LABELS"
+        run: python3 scripts/lint-borders.py --hard --base HEAD^1 --labels "$LABELS"

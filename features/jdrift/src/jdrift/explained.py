@@ -2,7 +2,7 @@
 `features/jdrift/docs/jstack-explained.html`, from the tree.
 
 Run in this repo's root, it reads one card line from each skill's `SKILL.md`, each playbook
-and `principles/*.md`, and writes the page's built parts from them: the text between each
+and each principle's `SKILL.md`, and writes the page's built parts from them: the text between each
 `<!-- built: <kind> <cards or links>, <tile> -->` and the `<!-- built: end -->` after it. The rest
 of the page is hand-written and is left as it is. A second run changes nothing.
 
@@ -163,8 +163,8 @@ KINDS = {
         _playbook,
     ),
     "principle": Kind(
-        ("principles/*.md",),
-        lambda p: p.stem,
+        ("features/*/skills/principle-*/SKILL.md",),
+        lambda p: p.parent.name,
         _comment,
         "<!-- card: <tile> | <place> | <the rule> | <who leans on it> -->",
         (2,),
@@ -194,13 +194,18 @@ def _card(kind: str, path: Path, root: Path) -> Card:
     return card
 
 
+def _files(kind: str, root: Path) -> list[Path]:
+    """The files of `kind` under `root`: a principle is a skill too, and its card is a
+    principle's."""
+    found = {path for files in KINDS[kind].files for path in root.glob(files)}
+    if kind == "skill":
+        found -= set(_files("principle", root))
+    return sorted(found)
+
+
 def cards(root: Path) -> list[Card]:
     """Every card the tree asks for, in the order its tile shows it."""
-    found = [
-        _card(kind, path, root)
-        for kind in KINDS
-        for path in sorted(path for files in KINDS[kind].files for path in root.glob(files))
-    ]
+    found = [_card(kind, path, root) for kind in KINDS for path in _files(kind, root)]
     return sorted(found, key=lambda card: (card.place, card.name))
 
 

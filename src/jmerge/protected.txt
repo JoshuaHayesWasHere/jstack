@@ -1,9 +1,0 @@
-secrets/
-.env
-.env.*
-*.pem
-*.key
-/src/jmerge/protected.txt
-/src/jmerge/guarded.txt
-/policy/
-/dns/

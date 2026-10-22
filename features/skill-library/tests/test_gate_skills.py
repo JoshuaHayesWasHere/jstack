@@ -7,7 +7,7 @@ A design call (`/architect`) leaves a `Design:` line in the brief, and `jbus que
 no brief that has none. A row already approved is grandfathered and launches.
 
 `jmerge` is run against `test_home_merge`'s fake `gh` and real origin, and the pass as
-`tests/test_jbus.py` runs it: the real command against a faked T3 Code server."""
+`features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code server."""
 
 import json
 import re

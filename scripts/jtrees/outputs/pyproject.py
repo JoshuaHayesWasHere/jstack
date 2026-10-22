@@ -28,6 +28,8 @@ SHARE = "share/jstack"
 # The folders skills link into that hold no item: the layout points such a link at GitHub, and
 # the release must hold the target to tell it from a link that dangles.
 LINKED = ("docs",)
+# The repo's own tests and the helpers several features' tests import by their bare names.
+SHARED_TESTS = "testing/tests"
 
 
 def _list(key: str, values: list[str]) -> str:
@@ -44,7 +46,7 @@ def _python(tree: Tree) -> list[str]:
 def _tests(tree: Tree) -> list[str]:
     """The test folders, which pytest collects and also puts on its path: a test imports a
     module of another folder's tests by its bare name."""
-    found = ["tests"] if (tree.root / "tests").is_dir() else []
+    found = [SHARED_TESTS] if (tree.root / SHARED_TESTS).is_dir() else []
     found += sorted(
         path.relative_to(tree.root).as_posix() for path in tree.root.glob(f"{FEATURES}/*/tests")
     )
@@ -53,9 +55,11 @@ def _tests(tree: Tree) -> list[str]:
 
 def _source(tree: Tree) -> list[str]:
     """What the wheel carries for the install to assemble the layouts from: the catalog and
-    plugin.json, each top folder an item or a hook sits in, and the folders of `LINKED`."""
+    plugin.json, each top folder an item or a hook sits in, and the folders of `LINKED` that
+    hold a page."""
     paths = [item.path for item in tree.items] + [str(one["path"]) for one in catalog.hooks(tree)]
-    folders = {path.split("/", 1)[0] for path in paths} | set(LINKED)
+    linked = {one for one in LINKED if any(p.is_file() for p in (tree.root / one).rglob("*.md"))}
+    folders = {path.split("/", 1)[0] for path in paths} | linked
     return [catalog.PATH, "plugin.json", *sorted(folders)]
 
 

@@ -1,10 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "principles",
-  "description": "One short file per working principle, which a playbook step cites.",
-  "owns": [
-    "principles/**",
-    "tests/test_principles.py",
-    ".claude/skills/verify-jstack/features/playbooks-and-principles.md"
-  ]
+  "description": "One skill per working principle, which a playbook step cites."
 }

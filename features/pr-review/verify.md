@@ -6,7 +6,7 @@ Paths:
 - `features/pr-review/`
 - `features/skill-library/skills/blast-radius/`
 - `features/skill-library/skills/interrogate/`
-- `templates/rerun.md`
+- `features/crew/templates/rerun.md`
 Tests: none
 
 ## Sub-features

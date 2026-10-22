@@ -5,17 +5,20 @@ reads the tree once and holds each page to it:
 
 - slash commands: `/<name>`, in prose or as the first word of a code span or of a line of a
   fenced block, or "the `<name>` skill", is a skill under `skills/` or in `EXTERNAL`.
-- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/brief.md`)
+- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`)
   exists. One with a placeholder, a glob, or a `/` before it is somewhere else and not read.
+  A skill is read from its layout, so it may also name a playbook, a template, a hook or a
+  skill's file where the layout puts it (`playbooks/<p>.md`, `templates/<t>`, `hooks/<h>`,
+  `skills/<n>/<file>`), once a move took it out of there.
 - links and anchors: a relative Markdown link outside code points at a file that exists and, with
   a `#anchor` into a Markdown file, at a heading of it as GitHub slugs it (fences skipped, `-N`
   for repeats).
 - counts: "has 39 skills" and the like, in the README or a docs page, is the number of skills,
   commands, principles or playbooks the tree has. A skill counts things of its own: not read.
 - models: every `claude-<family>-N-N` id in the README or a docs page is in the `## Models` table
-  of `docs/jroles.md`.
+  of `features/jroles/docs/jroles.md`.
 - tables: a row of a README table names each command, and a page of the docs links each skill's
-  `SKILL.md` and each playbook (the generated catalog of `docs/playbooks.md` does).
+  `SKILL.md` and each playbook (the generated catalog of `CATALOG.md` does).
 
 It prints `FAIL <doc>:<line> <why>` for each problem, then `<n> problems`, and exits 1 on any.
 A thing no page lists is reported at `README.md:1`.
@@ -23,6 +26,7 @@ A thing no page lists is reported at `README.md:1`.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import tomllib
@@ -47,13 +51,14 @@ EXTERNAL = {
 }
 PROSE_SLASH = re.compile(r"(?<![\w/.~<>$-])/([a-z][a-z0-9-]*)(?![\w/-]|\.\w)")
 NAMED_SKILL = re.compile(r"`([a-z][a-z0-9-]*)` skills?\b|\bskills? `([a-z][a-z0-9-]*)`")
+PRINCIPLE = "principle-"
 ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
 TREE_PATH = re.compile(rf"(?<![\w/.~<>*$-])((?:{'|'.join(ROOTS)})/[\w.-]+(?:/[\w.-]+)*)")
 LINK = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
 SCHEME = re.compile(r"([a-z][a-z0-9+.-]*:|//)", re.I)
 HEADING = re.compile(r"#{1,6}\s+(.*?)\s*#*\s*$")
 MODEL = re.compile(r"\bclaude-[a-z]+-\d+(?:-\d+)*\b")
-JROLES = "docs/jroles.md"
+JROLES = "features/jroles/docs/jroles.md"
 NUMBERS = (
     "zero one two three four five six seven eight nine ten "
     "eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
@@ -130,7 +135,7 @@ class Tree:
     skills: frozenset[str]
     playbooks: tuple[str, ...]
     commands: tuple[str, ...]
-    principles: int
+    principles: frozenset[str]
     models: frozenset[str]
 
     @classmethod
@@ -141,15 +146,43 @@ class Tree:
             frozenset(path.parent.name for path in skill_files(root)),
             tuple(sorted(path.stem for path in playbook_files(root))),
             tuple(sorted(scripts)),
-            len(list((root / "principles").glob("*.md"))),
+            frozenset(path.parent.name for path in principle_files(root)),
             models_of(root / JROLES),
+        )
+
+    def principle(self, path: str) -> bool:
+        """Whether `path` is `principles/<name>.md` for a principle: the stub each layout
+        holds where the principle is read, which the source tree does not have."""
+        name = path.removeprefix("principles/").removesuffix(".md")
+        return path == f"principles/{name}.md" and name in self.principles
+
+    def laid(self, path: str) -> bool:
+        """Whether `path` is where each layout puts a playbook, `playbooks/<name>.md`, a
+        template, `templates/<name>`, a hook, `hooks/<file>`, or a file of a skill,
+        `skills/<name>/<file>`, which a move into its feature takes out of the source tree."""
+        kind, _, rest = path.partition("/")
+        if kind == "playbooks":
+            return "/" not in rest and rest.removesuffix(".md") in self.playbooks
+        if kind == "templates":
+            return any(self.root.glob(f"features/*/templates/{rest}"))
+        if kind == "hooks":
+            return rest in hook_names(self.root)
+        name, _, file = rest.partition("/")
+        return (
+            kind == "skills"
+            and name in self.skills
+            and any(
+                (at.parent / file).is_file()
+                for at in skill_files(self.root)
+                if at.parent.name == name
+            )
         )
 
     def count(self, noun: str) -> int:
         return {
             "skills": len(self.skills),
             "commands": len(self.commands),
-            "principles": self.principles,
+            "principles": len(self.principles),
             "playbooks": len(self.playbooks),
         }[noun]
 
@@ -167,10 +200,27 @@ def models_of(page: Path) -> frozenset[str]:
     return frozenset(found)
 
 
+def hook_names(root: Path) -> set[str]:
+    """The file name of each hook a feature's `feature.json` declares under `hooks`, which a
+    layout holds as `hooks/<file>`: a git hook is linked into `.git/hooks/` and is not one."""
+    return {
+        Path(hook["script"]).name
+        for manifest in root.glob("features/*/feature.json")
+        for hook in json.loads(manifest.read_text()).get("hooks", ())
+    }
+
+
 def skill_files(root: Path) -> list[Path]:
-    """Each skill's `SKILL.md`, where it is now and where a move puts it."""
+    """Each skill's `SKILL.md`, where it is now and where a move puts it: a principle is not
+    one of them."""
     spots = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
-    return sorted(path for spot in spots for path in root.glob(spot))
+    found = (path for spot in spots for path in root.glob(spot))
+    return sorted(path for path in found if not path.parent.name.startswith(PRINCIPLE))
+
+
+def principle_files(root: Path) -> list[Path]:
+    """Each principle's `SKILL.md`: a skill whose name has the prefix `principle-`."""
+    return sorted(root.glob(f"features/*/skills/{PRINCIPLE}*/SKILL.md"))
 
 
 def playbook_files(root: Path) -> list[Path]:
@@ -180,9 +230,11 @@ def playbook_files(root: Path) -> list[Path]:
 
 
 def docs_of(root: Path) -> list[Doc]:
-    """The README, every page of the docs tree, and each skill's `SKILL.md`, in that order."""
+    """The README, the catalog where there is one, every page of the docs tree, and each
+    skill's `SKILL.md`, in that order."""
     pages = [
         root / "README.md",
+        *(page for page in [root / "CATALOG.md"] if page.is_file()),
         *sorted((root / "docs").rglob("*.md")),
         *sorted(root.glob("features/*/docs/**/*.md")),
         *skill_files(root),
@@ -246,7 +298,8 @@ def paths(tree: Tree, doc: Doc) -> Found:
     for line in doc.lines:
         for path in TREE_PATH.findall(re.sub(r"\]\([^)]*\)", "]", line.text)):
             path = path.rstrip(".,:;")
-            if not (tree.root / path).exists():
+            there = (tree.root / path).exists() or tree.principle(path)
+            if not there and not (doc.is_skill and tree.laid(path)):
                 why = f"{path} is named and the tree has no such path"
                 found.append((line.number, why))
     return found

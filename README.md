@@ -2,7 +2,7 @@
 
 **Status: experimental.** This is one person's stack, shared as is, with no support promised. Read it and fork it: the repo takes no issues and no pull requests. [Limits](#limits) says who it is for and what it costs.
 
-![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](docs/flow.svg)
+![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](features/home/docs/flow.svg)
 
 jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thread in its own worktree, and each ends in a pull request that gets one review.
 
@@ -11,7 +11,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 - A **scout** thread researches a question with read-only tool calls before a task is briefed.
 - A **reviewer** thread reviews one pull request and fixes nothing.
 
-[How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
+[How a task flows](features/home/docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
 Nine commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
 
@@ -58,7 +58,7 @@ These steps take a new machine to one merged pull request.
 	jinstall --setup
 	```
 
-	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
+	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](features/jinstall/docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
 
 2. Check the install. Every line must start with `ok`.
 
@@ -66,7 +66,7 @@ These steps take a new machine to one merged pull request.
 	jinstall --check
 	```
 
-3. Check the machine. The doctor prints a line for each requirement, then the lines of step 2. The last line must be `doctor: ok`. A `missing optional` line names a layer you have not set up. Every other `missing` or `old` line has an entry in [Troubleshooting](docs/troubleshooting.md).
+3. Check the machine. The doctor prints a line for each requirement, then the lines of step 2. The last line must be `doctor: ok`. A `missing optional` line names a layer you have not set up. Every other `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 	```sh
 	jinstall --doctor
@@ -87,7 +87,7 @@ These steps take a new machine to one merged pull request.
 	jmerge
 	```
 
-Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
+Nothing merges by itself until you choose who does it. Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](features/jinstall/docs/configuration.md#switches-for-one-repo) has both.
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
 
@@ -116,31 +116,33 @@ Each command has one page.
 <!-- generated: commands by scripts/generate-jstack-trees.py, do not edit -->
 | Command | Page | What it does |
 |---|---|---|
-| `jbriefs` | [docs/jbriefs.md](docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
-| `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
+| `jbriefs` | [features/jbriefs/docs/jbriefs.md](features/jbriefs/docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
+| `jbus` | [features/jbus/docs/jbus.md](features/jbus/docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [features/jdrift/docs/jdrift.md](features/jdrift/docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
-| `jgauge` | [docs/jgauge.md](docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
-| `jinstall` | [docs/jinstall.md](docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
+| `jgauge` | [features/jgauge/docs/jgauge.md](features/jgauge/docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
+| `jinstall` | [features/jinstall/docs/jinstall.md](features/jinstall/docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
 | `jleak` | [features/jleak/docs/jleak.md](features/jleak/docs/jleak.md) | Finds what must not leave the machine for a public repo, before a push or a pull request. |
-| `jmerge` | [docs/jmerge.md](docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
-| `jpack` | [docs/jpack.md](docs/jpack.md) | Checks a context pack. |
-| `jroles` | [docs/jroles.md](docs/jroles.md) | Picks the model for a role from the role map. |
+| `jmerge` | [features/jmerge/docs/jmerge.md](features/jmerge/docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
+| `jpack` | [features/jpack/docs/jpack.md](features/jpack/docs/jpack.md) | Checks a context pack. |
+| `jroles` | [features/jroles/docs/jroles.md](features/jroles/docs/jroles.md) | Picks the model for a role from the role map. |
 <!-- generated: end -->
 
 `jinstall` and `install.sh` put the commands on `PATH`. In a checkout that is not installed, run one as `uv run --project <checkout> <command>`.
 
 | Page | Read it to |
 |---|---|
-| [Configuration](docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
-| [Troubleshooting](docs/troubleshooting.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
-| [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
-| [Hooks](docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
-| [State](docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
-| [Playbooks, principles and templates](docs/playbooks.md) | Give a task numbered steps. |
+| [Configuration](features/jinstall/docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
+| [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
+| [The Chef](features/jbus/docs/chef.md) | Make the agent behind a `jbus` webhook. |
+| [Hooks](features/home/docs/hooks.md) | See what the start hook and the gauge hook do. |
+| [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
+| [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |
 
 ## Skills
 
-`skills/` and `features/` hold 39 skills, and eight skills run the flow, `poteto-help` as the way in. Each `SKILL.md` is the full text of what its thread does.
+`features/` holds every skill, and [the catalog](CATALOG.md) lists each one by its feature.
+Eight skills run the flow, `poteto-help` as the way in.
+Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
@@ -153,20 +155,17 @@ Each command has one page.
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
 | `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. For a brief, a scout's request or a plain question it runs `jbriefs pick` and names the role to type (`/crew <slug>`, `/scout <slug>` or `/home`), the playbook and the skills the words call for, each with its file. "Get set up" points at the Quickstart above. |
 
-The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on this machine and reports what is left for you, `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`. `THIRD_PARTY.md` lists where each came from.
+The others are loaded by name.
+`/setup-pstack` runs `install.sh --setup` on this machine and reports what is left for you, `/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`.
+`THIRD_PARTY.md` lists where each came from.
 
 ## What is in the repo
 
 | Path | Holds |
 |---|---|
-| `skills/` | The skills. `~/.{claude,agents,codex}/skills/<name>` are symlinks to them. |
-| `templates/` | The one copy of each text the skills and the start hook fill in, and the systemd units of `jbus`. |
-| `playbooks/` | The numbered steps for one kind of task. |
-| `principles/` | One short file per working principle. A playbook step names the ones it relies on. |
-| `hooks/` | `home-start.sh` and `limits.sh`. |
-| `src/` | The nine commands, one package each. |
+| `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, units, its command's package, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
+| `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
-| `docs/` | The pages above, and `docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
 | `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
 
@@ -182,13 +181,13 @@ The Python code is one `uv` project.
 
 `make check` is the one check command. It runs the lint and test commands above, in that order, and stops at the first that fails. CI runs `make check-fast` on a pull request, `make check` on main, and `make check-browser` runs the `browser` tests nightly and on a release.
 
-`tests/test_no_comments.py` fails `make check` on a comment in the files it checks under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
+`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
 `verify-jstack` (`.claude/skills/verify-jstack`, linked from `.cursor/skills/verify-jstack`) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
 
 ## Releasing
 
-`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it. A version bump is a pull request. [Releasing](docs/jinstall.md#releasing) has the steps.
+`make release`, on a clean `main` that is `origin/main`, tags `v<version>` and pushes the tag, and the release workflow checks, builds and publishes it. A version bump is a pull request. [Releasing](features/jinstall/docs/jinstall.md#releasing) has the steps.
 
 ## License
 

@@ -16,7 +16,7 @@ jstack has no mode that one thread works under. Work goes through threads that k
 - the **home** (`skills/home/SKILL.md`) plans with the user, writes each brief and launches its crewmate;
 - a **crewmate** (`skills/crew/SKILL.md`) does one brief in its own worktree and stays on its pull request;
 - a **scout** (`features/scout/SKILL.md`) answers one question read-only and writes a report;
-- an **expert** (`skills/expert/SKILL.md`) answers asks about its one subject from its sources and notes.
+- an **expert** (`features/expert/SKILL.md`) answers asks about its one subject from its sources and notes.
 
 Prefer a crewmate or a scout to a subagent for work that needs depth: its thread, its brief and its Result outlive the turn, where a subagent's context ends with its answer. A message that asks for work, not for help, goes to the home: give the user `/home` to type in the repo's main checkout, and do none of the work here.
 
