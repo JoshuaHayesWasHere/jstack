@@ -7,6 +7,7 @@ Paths:
 - `features/principles/`
 - `features/skill-library/templates/playbook.md`
 - `features/home/docs/playbooks.md`
+- `CATALOG.md`
 Tests: none
 
 ## Sub-features

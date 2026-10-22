@@ -10,5 +10,8 @@
         "claude-code"
       ]
     }
+  ],
+  "docs": [
+    "docs/skill-tips.md"
   ]
 }

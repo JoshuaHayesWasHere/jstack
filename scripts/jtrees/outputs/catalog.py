@@ -1,6 +1,8 @@
 """`skills.json`: every skill, principle, playbook and template, for `jbriefs.skills`, and
-every hook script with the harnesses that run it. The install reads it to assemble each
-harness's layout (`jinstall.layout`), in a checkout and from a release's wheel alike.
+every hook script with the harnesses that run it and the entries the install writes for it,
+the status line and the git hooks. The install reads it to assemble each harness's layout
+(`jinstall.layout`) and to write each hook entry (`jinstall.needs`), in a checkout and from a
+release's wheel alike.
 
 A brief's `Skills:` line names a skill or a principle, or a playbook its feature lists as
 `nameable`; the runtime finds every other file by kind and name (`jbriefs.skills.where`). An
@@ -18,6 +20,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from types import ModuleType
 
+from jtrees.crawl import Invalid
 from jtrees.model import Item, Tree
 
 PATH = "skills.json"
@@ -29,8 +32,10 @@ COMMENT = (
     "`adapted` is built from pstack's item with other material, or from a pstack item of "
     "another name, which `pstack_name` gives; `josh` is jstack's own, with no pstack skill or "
     "principle behind it, though it may borrow a passage from a pstack reference file. "
-    "THIRD_PARTY.md says what each took and what changed. hooks: each hook script and the "
-    "harnesses that run it, which the install links into each harness's layout."
+    "THIRD_PARTY.md says what each took and what changed. hooks: each hook script, the "
+    "harnesses that run it, which the install links into each harness's layout, and each "
+    "settings entry the install writes for it. statusLine: the script the install sets as "
+    "Claude Code's status line. gitHooks: each hook the install links into a main checkout."
 )
 _UPSTREAM_SKILL = re.compile(r"pstack/skills/(?P<name>[^/]+)/SKILL\.md")
 
@@ -79,26 +84,56 @@ def entries(tree: Tree) -> list[dict[str, object]]:
 
 def hooks(tree: Tree) -> list[dict[str, object]]:
     """Every script a feature declares as a hook of an agent, or as its status line, which is
-    Claude Code's, with the harnesses that run it. A git hook is the checkout's, not a
-    harness's, and is not listed."""
+    Claude Code's, with the harnesses that run it, and each entry the install writes for it
+    (`events`): its harness, event, matcher and whether it refuses, in the order its feature
+    declares them. A git hook is the checkout's, not a harness's, and is not listed."""
     harnesses: dict[str, set[str]] = {}
+    events: dict[str, list[dict[str, object]]] = {}
     for feature in tree.features:
         for hook in feature.hooks:
             harnesses.setdefault(hook.script, set()).update(hook.harnesses)
+            for harness in hook.harnesses:
+                event: dict[str, object] = {"harness": harness, "event": hook.event}
+                event |= {"matcher": hook.matcher} if hook.matcher else {}
+                event |= {"refuses": True} if hook.refuses else {}
+                events.setdefault(hook.script, []).append(event)
         if feature.status_line:
             harnesses.setdefault(feature.status_line, set()).add("claude-code")
     listed = [
         {"name": PurePosixPath(script).name, "path": script, "harnesses": sorted(names)}
+        | {"events": events.get(script, [])}
         for script, names in harnesses.items()
     ]
     # By name, which a move leaves as it is: a hook's lines change in place.
     return sorted(listed, key=lambda one: (one["name"], one["path"]))
 
 
-def text(items: list[dict[str, object]], hooks: list[dict[str, object]]) -> bytes:
-    listed = {"$comment": COMMENT, "items": items, "hooks": hooks}
+def status_line(tree: Tree) -> dict[str, str] | None:
+    """The one status line a feature declares, which the install sets in Claude Code's
+    settings; two are refused."""
+    lines = [one.status_line for one in tree.features if one.status_line]
+    if len(lines) > 1:
+        raise Invalid([f"{PATH}: two features declare a status line: {', '.join(lines)}"])
+    return {"name": PurePosixPath(lines[0]).name, "path": lines[0]} if lines else None
+
+
+def git_hooks(tree: Tree) -> list[dict[str, str]]:
+    """Each git hook a feature declares, which the install links into a main checkout's
+    `.git/hooks/<name>`."""
+    return [
+        {"name": name, "path": script}
+        for feature in tree.features
+        for name, script in feature.git_hooks
+    ]
+
+
+def text(tree: Tree) -> bytes:
+    listed: dict[str, object] = {"$comment": COMMENT, "items": entries(tree), "hooks": hooks(tree)}
+    line = status_line(tree)
+    listed |= {"statusLine": line} if line else {}
+    listed["gitHooks"] = git_hooks(tree)
     return (json.dumps(listed, indent=2) + "\n").encode()
 
 
 def render(tree: Tree) -> dict[str, bytes]:
-    return {PATH: text(entries(tree), hooks(tree))}
+    return {PATH: text(tree)}

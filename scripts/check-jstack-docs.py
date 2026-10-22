@@ -18,7 +18,7 @@ reads the tree once and holds each page to it:
 - models: every `claude-<family>-N-N` id in the README or a docs page is in the `## Models` table
   of `features/jroles/docs/jroles.md`.
 - tables: a row of a README table names each command, and a page of the docs links each skill's
-  `SKILL.md` and each playbook (the generated catalog of `features/home/docs/playbooks.md` does).
+  `SKILL.md` and each playbook (the generated catalog of `CATALOG.md` does).
 
 It prints `FAIL <doc>:<line> <why>` for each problem, then `<n> problems`, and exits 1 on any.
 A thing no page lists is reported at `README.md:1`.
@@ -230,9 +230,11 @@ def playbook_files(root: Path) -> list[Path]:
 
 
 def docs_of(root: Path) -> list[Doc]:
-    """The README, every page of the docs tree, and each skill's `SKILL.md`, in that order."""
+    """The README, the catalog where there is one, every page of the docs tree, and each
+    skill's `SKILL.md`, in that order."""
     pages = [
         root / "README.md",
+        *(page for page in [root / "CATALOG.md"] if page.is_file()),
         *sorted((root / "docs").rglob("*.md")),
         *sorted(root.glob("features/*/docs/**/*.md")),
         *skill_files(root),

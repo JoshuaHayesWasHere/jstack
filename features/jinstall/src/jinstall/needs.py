@@ -1,4 +1,5 @@
-"""The one list of what a machine needs to run jstack. Written once, here.
+"""The one list of what a machine needs to run jstack. Written once, here, but the hooks, which
+each feature declares and the install reads from the source's skills.json.
 
 Adding a need is one entry in `needs()`: the doctor then prints it, `--setup` says whether it
 is done, already there, or the user's to do, and when its kind is Carried the install also
@@ -44,7 +45,7 @@ from jinstall.kinds import (
     declared,
     templates,
 )
-from jinstall.layout import UNREADABLE, Layout, skills
+from jinstall.layout import UNREADABLE, Layout, git_hooks, hooks, skills, status_line
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
@@ -80,7 +81,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     and the Claude homes to probe. A release has no checkout, and lists neither the generated
     line nor the git hook. An inventory that cannot be taken
     names none, and its own line says why. A skills.json that cannot be read names no
-    skill, and each layout's line says why.
+    skill and no hook, and each layout's line says why.
 
     Only probed:
       hard      linux                         Linux
@@ -112,23 +113,22 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      ~/.codex/skills/<skill>       Link into Codex's
       hard      ~/.agents/skills/<skill>      Link into Cursor's, the root Cursor reads
       hard      <root>/<name>                 GoneLink, for each dead link into a layout
-      hard      hook ~/.claude/settings.json SessionStart      HookGroup("startup", home-start)
-      hard      hook ~/.claude/settings.json UserPromptSubmit  HookGroup(None, skill-tips)
-      hard      hook ~/.claude/settings.json PostToolUse       HookGroup(None, home-gauge)
-      hard      hook ~/.claude/settings.json PreToolUse        HookGroup(None, home-gauge)
-      hard      hook ~/.codex/hooks.json SessionStart          HookGroup("startup", home-start)
       optional  patterns <path>               Patterns
-      hard      hook ~/.claude/settings.json PreToolUse        HookGroup("Bash", outbound-command)
-      hard      hook <checkout>/.git/hooks/pre-push pre-push   GitHook, in a checkout
+      hard      hook <file> <event>           HookGroup, for each entry of each hook of
+                                              skills.json, in the file its harness reads
+                                              (`Harness.hooks`)
+      hard      hook <checkout>/.git/hooks/<name> <name>  GitHook, for each git hook of
+                                              skills.json, in a checkout
       hard      commands <tool>               Commands
-      optional  statusline ~/.claude/settings.json             StatusLine
+      optional  statusline ~/.claude/settings.json  StatusLine, the status line of skills.json
       optional  units ~/.config/systemd/user  Units
     """
     repo, home = machine.checkout, machine.home
     try:
-        named = skills(machine.source)
+        named, hooked = skills(machine.source), hooks(machine.source)
+        line, pushed = status_line(machine.source), git_hooks(machine.source)
     except UNREADABLE:
-        named = []
+        named, hooked, line, pushed = [], (), None, ()
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
@@ -200,41 +200,45 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for path in _listed(root)
         if dead(path, machine) and path.name not in named
     ]
-    settings, codex = home / ".claude" / "settings.json", home / ".codex" / "hooks.json"
+    patterns = jleak.path(machine.config_home())
+    found.append(Need(f"patterns {patterns}", Level.OPTIONAL, Patterns(patterns)))
+    files = {harness.name: home / harness.hooks for harness in HARNESSES if harness.hooks}
     found += [
-        Need(f"hook {file} {event}", Level.HARD, HookGroup(file, event, matcher, script))
-        for file, event, matcher, script in (
-            (settings, "SessionStart", "startup", "hooks/home-start.sh"),
-            (settings, "UserPromptSubmit", None, "hooks/skill-tips.sh"),
-            (settings, "PostToolUse", None, "hooks/home-gauge.sh"),
-            (settings, "PreToolUse", None, "hooks/home-gauge.sh"),
-        )
-    ]
-    found.append(
         Need(
-            f"hook {codex} SessionStart",
+            f"hook {files[one['harness']]} {one['event']}",
             Level.HARD,
-            HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),
+            HookGroup(
+                files[one["harness"]],
+                one["event"],
+                one.get("matcher"),
+                f"hooks/{hook['name']}",
+                refuses=one.get("refuses", False),
+                harness=one["harness"],
+            ),
         )
-    )
-    patterns, pushed = (
-        jleak.path(machine.config_home()),
-        GitHook("pre-push", "features/jleak/hooks/pre-push.sh"),
-    )
-    found += [
-        Need(f"patterns {patterns}", Level.OPTIONAL, Patterns(patterns)),
-        Need(
-            f"hook {settings} PreToolUse",
-            Level.HARD,
-            HookGroup(settings, "PreToolUse", "Bash", "hooks/outbound-command.sh", refuses=True),
-        ),
+        for hook in hooked
+        for one in hook["events"]
     ]
     if repo is not None:
-        hook = repo / ".git" / "hooks" / pushed.name
-        found.append(Need(f"hook {hook} {pushed.name}", Level.HARD, pushed))
+        found += [
+            Need(
+                f"hook {repo / '.git' / 'hooks' / one['name']} {one['name']}",
+                Level.HARD,
+                GitHook(one["name"], one["path"]),
+            )
+            for one in pushed
+        ]
     commands = _commands(machine)
     found.append(Need(f"commands {commands.tool}", Level.HARD, commands))
-    found.append(Need(f"statusline {settings}", Level.OPTIONAL, StatusLine(settings)))
+    settings = files[CLAUDE_CODE.name]
+    if line is not None:
+        found.append(
+            Need(
+                f"statusline {settings}",
+                Level.OPTIONAL,
+                StatusLine(settings, f"hooks/{line['name']}"),
+            )
+        )
     names = sorted(templates(machine))
     units = Units(
         machine.config_home() / "systemd" / "user",

@@ -88,8 +88,19 @@ def catalog(source: Path) -> tuple[dict, ...]:
 
 
 def hooks(source: Path) -> tuple[dict, ...]:
-    """Every hook script of the source's `skills.json`, with the harnesses that run it."""
+    """Every hook script of the source's `skills.json`, with the harnesses that run it and
+    each entry the install writes for it (`events`)."""
     return tuple(_catalog(source).get("hooks", ()))
+
+
+def status_line(source: Path) -> dict | None:
+    """The status line of the source's `skills.json`, its script's name and path, if any."""
+    return _catalog(source).get("statusLine")
+
+
+def git_hooks(source: Path) -> tuple[dict, ...]:
+    """Every git hook of the source's `skills.json`, its name and its path in the source."""
+    return tuple(_catalog(source).get("gitHooks", ()))
 
 
 def skills(source: Path) -> list[str]:

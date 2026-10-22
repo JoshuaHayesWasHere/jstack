@@ -7,7 +7,7 @@ Paths:
 - `features/skill-library/hooks/skill-tips.sh`
 - `features/jbriefs/docs/jbriefs.md`
 - `features/skill-library/skills/poteto-help/`
-- `features/home/docs/hooks.md`
+- `features/skill-library/docs/skill-tips.md`
 Tests: none
 
 ## Sub-features

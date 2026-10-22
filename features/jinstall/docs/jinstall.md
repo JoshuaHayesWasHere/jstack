@@ -63,6 +63,17 @@ A Markdown file with a link to a file the layout leaves out, such as a page of `
 The `README.md` of each layout names, for each skill, the tools and paths it asks for that the harness leaves out: Codex and Cursor have none of Claude Code's own tools, its home folder or its settings file.
 `--check` prints one line for each layout, `ok` when it is as the install assembles it, and `old` with the first file that is stale.
 
+## Hook entries
+
+The install writes one entry for each hook that `skills.json` lists, and `install.sh --uninstall` removes them: you write none of them by hand.
+[The catalog](../../../CATALOG.md#hooks) lists every hook, and each feature's own page shows its entry as the install writes it.
+Each harness reads its entries from one file: Claude Code from `~/.claude/settings.json`, and Codex from `~/.codex/hooks.json`.
+Each entry runs the script from that harness's layout, `<layout>/hooks/<script>`.
+Cursor gets no hook entry.
+The status line is Claude Code's, a `statusLine` in `~/.claude/settings.json`: the install writes it when the key is absent, replaces one that runs the same script from another layout, and leaves a status line of your own as it is.
+A git hook is no settings entry: the install links `.git/hooks/<name>` of the main checkout to its script, and the repo's worktrees run it too.
+The install leaves every other key of those files as it was.
+
 ## Releasing
 
 A release is cut from a clean `main` that is `origin/main`, by one command:

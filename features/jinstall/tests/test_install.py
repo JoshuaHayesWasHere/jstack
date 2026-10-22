@@ -217,13 +217,13 @@ class User:
         return [
             *layouts(self.home),
             *(f"hard {link}" for link in self.links()),
-            f"hard hook {self.settings} SessionStart",
-            f"hard hook {self.settings} UserPromptSubmit",
-            f"hard hook {self.settings} PostToolUse",
-            f"hard hook {self.settings} PreToolUse",
-            f"hard hook {self.codex} SessionStart",
             f"optional patterns {self.patterns}",
             f"hard hook {self.settings} PreToolUse",
+            f"hard hook {self.settings} PostToolUse",
+            f"hard hook {self.settings} SessionStart",
+            f"hard hook {self.codex} SessionStart",
+            f"hard hook {self.settings} PreToolUse",
+            f"hard hook {self.settings} UserPromptSubmit",
             "hard commands jstack",
             f"optional statusline {self.settings}",
         ]
@@ -913,7 +913,9 @@ def worktree(tmp_path):
     for checkout in (main, linked):
         (checkout / "skills" / "crew").mkdir(parents=True)
         (checkout / "skills" / "crew" / "SKILL.md").write_text("crew\n")
-        (checkout / "skills.json").write_text(json.dumps({"items": [item]}))
+        pushed = {"name": "pre-push", "path": "features/jleak/hooks/pre-push.sh"}
+        listed = {"items": [item], "gitHooks": [pushed]}
+        (checkout / "skills.json").write_text(json.dumps(listed))
         (checkout / "plugin.json").write_text(json.dumps(plugin))
         (checkout / "pyproject.toml").write_text('[project]\nname = "jstack"\nscripts = {}\n')
     return main, linked

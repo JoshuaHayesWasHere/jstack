@@ -127,13 +127,13 @@ def release_parts(home, source):
     return [
         *layouts(home),
         *(f"hard {home / root / name}" for root in ROOTS for name in names),
-        f"hard hook {settings} SessionStart",
-        f"hard hook {settings} UserPromptSubmit",
-        f"hard hook {settings} PostToolUse",
-        f"hard hook {settings} PreToolUse",
-        f"hard hook {home / '.codex' / 'hooks.json'} SessionStart",
         f"optional patterns {home / '.config' / 'jstack' / 'outbound.toml'}",
         f"hard hook {settings} PreToolUse",
+        f"hard hook {settings} PostToolUse",
+        f"hard hook {settings} SessionStart",
+        f"hard hook {home / '.codex' / 'hooks.json'} SessionStart",
+        f"hard hook {settings} PreToolUse",
+        f"hard hook {settings} UserPromptSubmit",
         "hard commands jstack",
         f"optional statusline {settings}",
     ]

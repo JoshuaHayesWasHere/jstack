@@ -32,3 +32,27 @@ The counting rule is in `features/jgauge/src/jgauge/transcript.py`, and `feature
 - **A floor** is the output of a call that has no finished line in the transcript. `jgauge` includes it in the total as the least that call's output can be, and a note under the table says how many calls and how many tokens. It estimates nothing upward.
 
 A subagent's last call often has no finished line in its own transcript, so its output is a floor. `jgauge session` on a reviewer thread counts the whole review in the thread's own row: a reviewer starts no subagent.
+
+## The limits writer
+
+`features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
+Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
+The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+`claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`.
+An account the inventory does not declare writes nothing, so one account's limits never stand for another's.
+`jgauge room` reads those files ([jroles](../../jroles/docs/jroles.md#the-ledger)).
+The script prints nothing and exits 0 on any input, so the status line it leaves is empty.
+
+`install.sh` sets it as `statusLine` in `~/.claude/settings.json` only when that key is absent:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "sh '<layout>/hooks/limits.sh'"
+  }
+}
+```
+
+A status line of your own is left as it is.
+[Configuration](../../../docs/configuration.md#the-limits-file) shows how to call the script from it.
