@@ -288,8 +288,7 @@ def test_the_build_writes_the_page_once_and_changes_nothing_the_second_time(tree
     second = explained(tree)
     assert second.returncode == 0
     assert (
-        second.stdout
-        == "current: features/home/docs/jstack-explained.html has what the tree has\n"
+        second.stdout == "current: features/home/docs/jstack-explained.html has what the tree has\n"
     )
     assert page.read_text() == once
 
