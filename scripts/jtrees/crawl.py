@@ -1,11 +1,12 @@
 """`crawl(root) -> Tree`: every feature of `features/`, read once and checked.
 
 A feature is a folder of `features/` with a `feature.json`, a `SKILL.md`, or both. Its
-manifest must hold to `schemas/feature.schema.json` and name its folder, and each path it
-declares must be a file. Skills, principles, playbooks and templates are found where they
-are now and where they will be after a move (`SPOTS`), and each is the item of the one
-feature that owns its path. `plugin.json` must hold to the vendored agent-plugins schema and
-carry pyproject's version. Every fault found is raised at once, in one `Invalid`.
+manifest must validate against `schemas/feature.schema.json` and name its folder, and each path it
+declares must be a file. The crawl finds skills, principles, playbooks and templates where
+they are now and where they will be after a move (`SPOTS`). It assigns each item to the one
+feature that owns the item's path. `plugin.json` must validate against the vendored agent-plugins
+schema and contain pyproject's version. The crawl collects every fault it finds and raises them
+together, in one `Invalid`.
 """
 
 from __future__ import annotations
@@ -27,9 +28,9 @@ SKILL = "SKILL.md"
 
 # The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
 # points a user or a harness looks for where they are (INFRA); and the shared files the
-# generator writes or a later unit deletes (SHARED-DELETE). Kept here and not in a manifest,
-# since a feature owns its folder and nothing else. Each row outside lint-borders.py's LAYOUT is
-# a path that may stay outside it.
+# generator writes or a later unit deletes (SHARED-DELETE). This list lives here and not in a
+# manifest, since a feature owns its folder and nothing else. Each row outside lint-borders.py's
+# LAYOUT is a path that may stay outside it.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
         ".github/**",
@@ -76,8 +77,8 @@ SPOTS: tuple[tuple[Kind, str, str], ...] = (
 
 
 class Invalid(Exception):
-    """The tree cannot be generated from: each fault, as `<path>: <why>`, printed after
-    `prefix`."""
+    """The generator cannot build from the tree. The error prints `prefix`, then each fault as
+    `<path>: <why>`."""
 
     def __init__(self, faults: list[str], prefix: str = "invalid: ") -> None:
         super().__init__("\n".join(faults))
@@ -94,8 +95,8 @@ def _json(path: Path, faults: list[str], root: Path) -> Any:
 
 
 def _declared(root: Path, folder: str, path: str) -> str:
-    """A path a manifest declares, from the repo root: in the feature's folder once it is
-    there, else where it is now."""
+    """The path from the repo root of a file that a manifest declares: in the feature's folder once
+    the file has moved there, and otherwise where the file is now."""
     moved = f"{folder}/{path}"
     return moved if (root / moved).exists() else path
 
@@ -228,7 +229,8 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
 
 
 def _project_skills_once(tree: Tree, faults: list[str]) -> None:
-    """A checkout links one project skill by each name: a second of the same name is a fault."""
+    """A checkout links at most one project skill for each name: a second skill of the same
+    name is a fault."""
     seen: dict[str, str] = {}
     for feature in tree.features:
         for name, path in feature.project_skills:
@@ -252,7 +254,8 @@ def _plugin(root: Path, faults: list[str]) -> None:
 
 
 def crawl(root: Path) -> Tree:
-    """The tree at `root`, checked; `Invalid` with every fault where it does not hold."""
+    """The tree at `root`, after the crawl has checked it. It raises `Invalid` with every fault it
+    finds in the tree."""
     faults: list[str] = []
     rules = _json(root / FEATURE_SCHEMA, faults, root)
     if rules is None:

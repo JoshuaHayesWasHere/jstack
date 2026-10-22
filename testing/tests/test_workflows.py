@@ -1,37 +1,37 @@
-"""The check workflow runs on main and on the integration branches, `unslop` and any
-`train/...`, as well as on every pull request, and a run on any of them is never cancelled by
-the next one: each push's run is a concurrency group of its own. A pull request gets the job
-`check`, the fast one, with the lint and the tests its change reaches, and a push to main or to
-an integration branch and a manual run get the job `full`, the whole suite. A push to an
-integration branch is checked as one to main is, so jmerge's red hold for a pull request into
-it has a check to read on its tip.
+"""The check workflow runs on main, on the integration branches (`unslop` and any `train/...`)
+and on every pull request. The next run never cancels a run on any of them, because each push's
+run is a concurrency group of its own. A pull request gets the job `check`, the fast one, which
+runs the lint and the tests its change reaches. A push to main or to an integration branch, and
+a manual run, get the job `full`, the whole suite. The workflow checks a push to an integration
+branch as it checks a push to main. jmerge holds a pull request into an integration branch
+while that branch is red, so jmerge has a check to read on the branch's tip.
 
-The workflow file is read as YAML, by the little of it these two blocks use: mappings by
-their indentation, a scalar, and a list in brackets.
+The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
+only mappings by their indentation, a scalar, and a list in brackets.
 
-Every job takes its runner from one repo variable, and the repo's local ephemeral runner,
-`jstack-ephemeral`, when the repo has none: never GitHub's, since every CI job runs locally.
-The two quick jobs of a pull request, its `check` and `borders`, run on infra's fast lane
-instead, `[self-hosted, jstack-fast]`, under the lane's 10 minute stop.
-The browser workflow names Google Chrome as its test browser on every runner, and the check
-names none: the tests that open a browser carry the marker `browser`, which `make check` leaves
-out and `make check-browser` runs, nightly at 03:00 ET, on a `v*` tag or a published release,
-and by hand, and never on a pull request or a push to main. Every workflow is given
-read access to the contents and no more, and none runs on `pull_request_target`. The check
-may also read the repo's artifacts, which is where a green run's marker is.
+Every job takes its runner from one repo variable, and takes the repo's local ephemeral runner,
+`jstack-ephemeral`, when the repo does not set that variable. No job runs on GitHub's runners, since
+every CI job runs locally. The two quick jobs of a pull request, its `check` and `borders`, run
+instead on infra's fast lane, `[self-hosted, jstack-fast]`, under the lane's 10 minute timeout. The
+browser workflow names Google Chrome as its test browser on every runner, and the check names none.
+The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
+check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, and by hand,
+but never on a pull request or a push to main. Every workflow gets read access to the contents and
+no more, and none runs on `pull_request_target`. The check may also read the repo's artifacts, which
+is where a green run's marker is.
 
-A run of `full` whose tree a green run already tested skips the suite, by its steps and never
-by its job or its triggers, so `full` is always reported. Only `full` asks for a marker, and
-`full` and a pull request's `check` that ran the whole suite leave one: a marker says the
-full suite passed a tree. A pull request's check also says, in its summary and its
-telemetry, whether the suite ran whole and on which tree. The script that asks is
-run here in a temporary repo, against a `gh` that answers from files.
+When a green run already tested the tree of a run of `full`, that run skips the suite. Its
+steps do the skipping, never its job or its triggers, so GitHub always reports `full`. Only `full`
+asks for a marker. `full` leaves one, and so does a pull request's `check` that ran the whole
+suite: a marker says the full suite passed on a tree. A pull request's check also says, in its
+summary and its telemetry, whether the suite ran whole and on which tree. This module runs the
+script that asks for a marker in a temporary repo, against a `gh` that answers from files.
 
 The drift step keeps jdrift's clone of pstack in the runner's temporary directory, which
 does not outlive the job.
 
 Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and every
-workflow names the same one: with no version setup-uv fetches the latest release on each job."""
+workflow names the same one: with no version, setup-uv fetches the latest release on each job."""
 
 import json
 import os
@@ -461,7 +461,8 @@ def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_
 
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
-    """A pull request's check skips nothing: its own run is the proof a marker stands on."""
+    """A pull request's check skips nothing: its own run is the proof that the suite passed,
+    and a marker records that."""
     asking = ("green_tree.py", "steps.tree.outputs.marker")
     leaving = ("green-tree", "upload-artifact", "steps.suite", "steps.marker")
     for job, asks in (("check", False), ("full", True)):
@@ -495,7 +496,7 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
 
 
 def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tree(tmp_path):
-    """The step is run as the runner runs it, with a `uv` that records what it was asked."""
+    """This runs the step as the runner runs it, with a `uv` that records what it was asked."""
     *_, report = steps(CHECK.read_text(), "check")[0]
     assert report["continue-on-error"] is True
     assert [
@@ -638,7 +639,8 @@ def summary_step():
 
 
 def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_pressure(tmp_path):
-    """Run on a report of 100 s of tests in a 100 s wall on 4 workers, under a quota of 4."""
+    """This runs the step on a report of 100 seconds of test time, in 100 seconds of wall-clock
+    time, on 4 workers under a quota of 4 CPUs."""
     found, _ = steps(CHECK.read_text(), "full")
     (summary,) = [step for step in found if step.get("name") == "suite summary"]
     assert [o for o in OUTCOMES if worked(summary["if"], {"steps.suite.outcome": o})] == [
@@ -687,10 +689,10 @@ def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_
 def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     """Run the script in a new repo against a `gh` that answers from these files.
 
-    The answers are by path, or a function that gives them for the repo's tree. With none for
-    it, the tree has no ref: the desk left no marker.
+    `answers` maps each path to its answer, or is a function that gives the answers for the repo's
+    tree. When no answer exists for the tree, the tree has no ref: the desk left no marker.
 
-    Gives the step's outputs, what it printed, the tree, and the paths `gh` was asked for.
+    Return the step's outputs, what it printed, the tree, and the paths `gh` was asked for.
     """
     repo, bin, said = tmp_path / "repo", tmp_path / "bin", tmp_path / "said"
     for made in (repo, bin, said):
@@ -781,7 +783,7 @@ def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_
 
 @pytest.mark.skipif(not Path("/usr/bin/python3").is_file(), reason="no system python3")
 def test_the_lookup_runs_on_the_runners_bare_python_before_uv_sync(tmp_path):
-    """The step runs before `uv sync`: the system's python3, isolated and with no site
+    """The step runs before `uv sync`, on the system's python3, isolated and with no site
     packages, so an import of anything installed fails here."""
     bare = ("/usr/bin/python3", "-I", "-S")
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, bare)
@@ -947,8 +949,8 @@ def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tm
 
 
 def triggers(text):
-    """What a workflow runs on, from its `on` block: each event, and what narrows it, a
-    mapping of keys, or the list a schedule has, one mapping to an item."""
+    """Each event in a workflow's `on` block, and what narrows it. What narrows an event is a
+    mapping of keys. For a schedule, it is a list with one mapping for each item."""
     lines = [
         line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")
     ]
@@ -1021,9 +1023,9 @@ PIN = "${{ env.UV_VERSION }}"
 
 
 def uv_versions(path):
-    """The uv each setup-uv step of a workflow installs: the workflow's own `UV_VERSION`
-    where the step's `version` names it, what the step writes otherwise, and None with none,
-    which setup-uv reads as the latest release."""
+    """The uv version that each setup-uv step of a workflow installs. Where a step's `version` is
+    `PIN`, it is the workflow's own `UV_VERSION`, and otherwise the step's own `version`. It is None
+    when the step gives no version, which setup-uv reads as the latest release."""
     text = path.read_text()
     pinned = (block("env", path) if "env:" in text.splitlines() else {}).get("UV_VERSION")
     found = []
@@ -1087,11 +1089,11 @@ def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_th
 
 
 def refused(text):
-    """The lines whose value YAML refuses, by line number: an unquoted value that holds `: `
-    or ends `:`, which YAML reads as a second mapping on one line. GitHub cannot use such a
-    file, and reports a run named after its path with no jobs on every push, whatever its
-    triggers say. A block scalar's lines (after `|` or `>`, indented past its key, not past a
-    list item's dash) are the shell's, not YAML's."""
+    """The lines whose value YAML refuses, by line number: an unquoted value that holds `: ` or ends
+    with `:`, which YAML reads as a second mapping on one line. GitHub cannot use such a file. On
+    every push it reports a run that has the file's path as its name and no jobs, whatever the
+    file's triggers say. A block scalar starts after `|` or `>`, and its lines are indented past its
+    key, not past a list item's dash. Those lines hold shell code, not YAML."""
     found, under = [], None
     for number, line in enumerate(text.splitlines(), 1):
         indent = len(line) - len(line.lstrip())

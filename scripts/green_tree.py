@@ -1,37 +1,40 @@
-"""Has the tree checked out here already passed the check?
+"""Has the tree in this checkout already passed the check?
 
 The check workflow runs this after its checkout and before anything else. A tree that passed
-has a marker, and there are two, asked for in this order:
+has a marker. There are two kinds, and the script asks for them in this order:
 
-- the desk's: a ref `refs/jstack/green-tree/<tree id>`, which `jmerge` pushes when its fresh
-  check of a head merged over main passes. It is at the commit that passed, and it counts
-  only when that commit's tree is the one checked out. Only somebody who may push to the
-  repo can write a ref, so a fork cannot leave one.
-- a run's: an artifact named `green-tree-<tree id>`, which a run of the check uploads for
-  the tree it checked out once the whole suite passed there: the `full` job, and a pull
-  request's `check` job whose selection was the whole suite.
+- the desk's: a ref `refs/jstack/green-tree/<tree id>`. `jmerge` builds a head merged over main,
+  checks the result again, and pushes the ref when that check passes. The ref is at the commit
+  that passed, and it counts only when that commit's tree is the one checked out. Only somebody
+  who may push to the repo can write a ref, so a fork cannot leave one.
+- a run's: an artifact named `green-tree-<tree id>`. A run of the check uploads it for the
+  tree it checked out, once the whole suite passed on that tree. Two jobs upload it: the
+  `full` job, and a pull request's `check` job whose selection was the whole suite.
 
 A later run that checks out the same tree tests the same thing, so it skips the suite. The
 key is the tree, never the head: on a pull request the checkout is GitHub's merge of the
-head over main, so the tree holds main as it was.
+head over main, so the tree contains main as of that merge.
 
-It answers in one word, the step's output `marker`:
+The script answers in one word, the step's output `marker`:
 
-- `green`: the desk marked this tree, or a run of this workflow, of this repo, that ended
-  in success left a marker for it. The line it prints names the desk's commit or that run.
-- `none`: no such run did. The line says so when a marker was a fork's.
-- `unknown`: the question could not be asked (no `gh`, no network, no permission). The line
-  is printed as a warning on the run, so a skip that never works is seen.
-- `unasked`: the run is a manual one or a run again, which always run the suite.
+- `green`: the desk marked this tree, or a successful run of this workflow in this repo
+  left a marker for it. The line it prints names the desk's commit or that run.
+- `none`: the desk did not mark this tree, and no such run left a marker for it. The line says
+  so when a marker was a fork's.
+- `unknown`: the script could not ask (no `gh`, no network, no permission). It prints the
+  line as a warning on the run, so that a skip that never works is visible.
+- `unasked`: the run is a manual run or a rerun, which always runs the suite.
 
-Its other outputs are `name`, the marker's name, which the workflow uploads under, and
-`from`, whose marker a `green` is: `desk` or `run`. The desk's check ran in an environment
-nobody locked, so a run that skips on it still runs `uv sync --locked`.
+Its other outputs are `name`, the name the workflow uploads the marker under, and `from`, which says
+whose marker a `green` came from: `desk` or `run`. The desk does not sync its check's environment
+from the lock file, so a run that skips the suite on the desk's marker still runs `uv sync
+--locked`.
 
-Only `green` skips the suite. It never fails: a run that cannot find out runs the suite as
-it always did. It needs no package, so it runs before `uv sync`, with `gh` and the run's
-token (`contents: read` for the ref, `actions: read` for the artifact). The lookup itself is
-`jmerge.green`, imported from `features/jmerge/src/`, which jmerge's fresh check asks too.
+Only `green` skips the suite. The script never fails: a run that cannot find out runs the
+suite as it always did. The script needs no package, so it runs before `uv sync`, with `gh` and
+the run's token (`contents: read` for the ref, `actions: read` for the artifact). The lookup
+itself is `jmerge.green`, which the script imports from `features/jmerge/src/`, and which
+jmerge's fresh check also calls.
 """
 
 import json

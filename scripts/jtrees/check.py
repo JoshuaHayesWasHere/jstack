@@ -1,9 +1,9 @@
 """Compare the outputs with the files on disk, or write them.
 
 `diff` names each output whose bytes or executable bit differ from the file at its path, or
-whose file is missing. `write` writes only those, each to a temporary file beside it that is
-then renamed into place, so a run stopped halfway leaves every file whole, and a second run
-writes nothing.
+whose file is missing. `write` writes only those outputs. It writes each one to a temporary
+file beside its path, then renames that file into place, so a run that stops halfway leaves
+every file whole, and a second run writes nothing.
 """
 
 from __future__ import annotations

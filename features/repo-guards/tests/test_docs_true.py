@@ -1,23 +1,24 @@
 """Each command's page under `docs/` says what its `--help` says today, and nothing more.
 
-The commands are the ones `pyproject.toml` lists. Each is asked for its `--help`, and so is
-each verb the help names, down to the last one: that is the tree the pages are held to.
+The commands are the ones `pyproject.toml` lists. The test asks each command for its `--help`,
+and asks the same of each verb the help names, down to the last one. That gives a tree of
+commands and verbs, and the test checks the pages against it.
 
-A page has a verb when it names the verb's command in full, as `jbus queue add`. It has a flag
-of a verb, or a choice such as `login` of `jbus t3`, when one line names both the verb's
-command and the flag. A flag of the command itself is looked for anywhere on the page, since
-the page is about that one command.
+A page has a verb when it names the verb's command in full, as `jbus queue add`. A page has a flag
+of a verb when one line names both the verb's command and the flag. The same goes for a verb's
+choices, such as `login` for `jbus t3`. The test looks for a flag of the command itself anywhere on
+the page, since the page is about that one command.
 
-The other way round, the code in the README and in every page is read as a shell would read
-it: after a command's name, a word where a verb goes must be a verb, and a `--flag` must be a
-flag of the verb it follows, in brackets or not. A name counts as a command where a shell
-would run it: first in
-its code, after `|`, `&&`, `;` or `--`, after the word `run`, or in a line that starts with
-`uv`. So a line of output that names a command is not read as one. On a command's own page a
-code span that starts with a `--flag` must be a flag of that command, so a page writes another
-tool's flag behind that tool's name, as `git push --no-verify`.
+The other way round, the test reads the code in the README and in every page as a shell would read
+it. After a command's name, a word in a verb's place must be one of its verbs, and a `--flag` must
+be a flag of the verb it follows, in brackets or not. A name counts as a command where a shell would
+run it: as the first word of a piece of code, after `|`, `&&`, `;` or `--`, after the word `run`, or
+in a line that starts with `uv`. So when a line of output names a command, the test does not read
+that name as a command. On a command's own page, a code span that starts with a `--flag` must be a
+flag of that command. So a page that gives another tool's flag puts that tool's name first, as `git
+push --no-verify`.
 
-The README's count of skills is held to the tree, and so is each count of commands that
+The README's count of skills must match the tree, and so must each count of commands that
 the README or a page gives.
 """
 
@@ -78,7 +79,8 @@ def help_of(path):
 
 
 def said_by(text):
-    """The command a help text is of, its flags, and the words where a verb may go."""
+    """The command a help text describes, its flags, and the words that may follow the command as
+    its verbs."""
     usage = text.split("\n\n")[0].removeprefix("usage:").split()
     command = []
     for word in usage:
@@ -161,7 +163,8 @@ def is_word(word):
 
 
 def gone(trees, text, own=None):
-    """What a text's code says of a command that the command's help does not have."""
+    """The verbs and flags that the code in a text puts after a command's name, where the command's
+    help has no such verb or flag."""
     found = []
     for piece in code(text):
         words = words_of(piece)
@@ -278,8 +281,8 @@ def test_an_option_line_the_walk_cannot_read_fails_and_is_not_passed_over(line):
 
 
 def told(command):
-    """A command's page and the pages of its folder, `docs/<command>/`, as one text: of `docs/`,
-    or of the `docs/` of the feature it moved into."""
+    """A command's page and the pages of its folder, `docs/<command>/`, as one text. The page
+    is in `docs/`, or in the `docs/` of the feature it moved into."""
     found = [DOCS / f"{command}.md", *REPO.glob(f"features/*/docs/{command}.md")]
     page = next(path for path in found if path.is_file())
     paths = (page, *sorted((page.parent / command).glob("*.md")))

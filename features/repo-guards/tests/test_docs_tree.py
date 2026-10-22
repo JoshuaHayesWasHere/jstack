@@ -1,8 +1,8 @@
-"""`scripts/check-jstack-docs.py`, the check of what the README and the docs say about the tree.
+"""`scripts/check-jstack-docs.py` checks what the README and the docs say about the tree.
 
-The script holds the rules; this module is its fixture runner. Each test runs it as a command,
-on the tree or on a small tree with a fault put in, and reads the `FAIL <doc>:<line> <why>`
-lines and the `<n> problems` line it prints.
+The script defines the rules, and this module runs it on fixtures. Each test runs the script as a
+command, on the tree or on a small tree that has a fault in it. It then reads the `FAIL <doc>:<line>
+<why>` lines and the `<n> problems` line that the script prints.
 """
 
 import importlib.util
@@ -20,7 +20,8 @@ ROOTS = ("skills", "features", "templates", "playbooks", "hooks", "docs")
 
 
 def ran(root):
-    """The FAIL lines the script prints on a root, with its count and exit code agreed."""
+    """The FAIL lines the script prints for `root`. It first asserts that the script's count of
+    problems and its exit code agree with those lines."""
     done = subprocess.run(
         [sys.executable, "-I", SCRIPT, str(root)], capture_output=True, text=True, check=False
     )

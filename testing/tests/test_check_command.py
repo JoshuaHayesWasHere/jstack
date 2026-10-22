@@ -1,32 +1,34 @@
-"""`make check` runs the tests on a number of workers counted from the processors the run may
-use: its cgroup's CPU quota where one is set, else the machine's. A desk takes a quarter of
-them, a runner of this machine one and a half for each processor of its quota, none under two.
-The workers steal the next test as each finishes, and the 25 slowest are printed. A test that
-passes leaves no directory under `/tmp`. A test that fails keeps its own.
+"""`make check` runs the tests on a number of workers that it counts from the processors the run
+may use: its cgroup's CPU quota where one is set, else the machine's. A desk takes a quarter of
+them, and a runner of this machine takes one and a half for each processor of its quota. The
+count is never under two. Each worker takes the next test when it finishes one, and the run
+prints the 25 slowest tests. A test that passes leaves no directory under `/tmp`. A test that
+fails keeps its own.
 
-A runner is a run GitHub Actions started, which says so with `GITHUB_ACTIONS=true`, and says
-whose machine it is on with `RUNNER_ENVIRONMENT`: `github-hosted` or `self-hosted`. One of
-GitHub's own runs nothing else, so it takes every processor. The tests that open a real
-browser carry the marker `browser`: `make check` and `make check-fast` leave them out, and
-`make check-browser` runs only them, one at a time. There a runner fails them for want of a
-browser, and only a desk skips them. A test module that opens a browser and lacks the marker
-fails here.
+A runner is a run that GitHub Actions started. It says so with `GITHUB_ACTIONS=true`, and it says
+whose machine it is on with `RUNNER_ENVIRONMENT`: `github-hosted` or `self-hosted`. A GitHub-hosted
+runner runs nothing else, so it takes every processor. The tests that open a real browser carry the
+marker `browser`. `make check` and `make check-fast` leave them out, and `make check-browser` runs
+only them, one at a time. There, a runner with no browser fails them, and only a desk skips them. A
+test module that opens a browser and lacks the marker fails here.
 
-The workers are pytest-xdist's, which has every worker collect the tests and stops the run
-when two of them differ. So a test's id must be the same in every process: one made from the
-clock differs between two workers that start in different seconds.
+The workers are pytest-xdist's. Every worker collects the tests, and xdist stops the run when
+two workers collect different ones. So a test's id must be the same in every process: an id
+made from the clock differs between two workers that start in different seconds.
 
-`make check-fast BASE=<rev>` is the check of a change: the same lint, and the test files
-`scripts/select_tests.py` names for the diff from that commit to the head, or `make check`
-where it says `all`. It is run here in a copy of the repo, against a `uv` that only says
-what it was asked.
+`make check-fast BASE=<rev>` is the check of a change. It runs the same lint, and then the test
+files that `scripts/select_tests.py` names for the diff from that commit to the head. Where the
+script says `all`, it runs `make check`. This module runs it in a copy of the repo, against a `uv`
+that only records what it was asked.
 
-The machine's budget is one sum, in workers: the test slots times a desk's workers, plus the
-runners times a runner's, at most one and a half for each of the machine's 24 processors. It is
-worked out here from the slot default and from what `make` prints: 3 x 6 + 3 x 6 = 36. A worker
-averages 0.51 of a core (measured 2026-10-19, 440 to 473 s of CPU a run at 6 and 8 workers), so
-that is about 18 cores busy of 24. The runners are three, each with a quota of 4 CPUs, and no
-file of the repo counts them: their units and confs are the machine's.
+The machine's budget is one sum, counted in workers. It is the test slots times a desk's workers,
+plus the runners times a runner's workers, and it is at most one and a half for each of the
+machine's 24 processors. This module works the sum out from the slot default and from what `make`
+prints: three slots of six workers and three runners of six workers, 36 in all. A worker uses 0.51
+of a core on average, so 36 workers keep about 18 of the 24 cores busy. A measurement on 2026-10-19
+found 440 to 473 seconds of CPU for each run, at 6 workers and at 8. The runners are three, each
+with a quota of 4 CPUs. No file of the repo counts them: their systemd units and config files are
+the machine's.
 """
 
 import os
@@ -72,13 +74,14 @@ def test_b_passes():
 
 
 def check(*args, **more):
-    """The commands `make check` would run, one a line, without running them.
+    """The commands `make check` would run, one on each line, without running them.
 
-    A run started as `make check TEST_WORKERS=2` hands that on to every make under it, so the
-    count asked about here is the Makefile's own only with those variables taken out. What
-    says the run is a runner's goes with them: the count is a desk's unless `more` says so. The
-    cgroup is one with no `cpu.max` unless `more` names one, so the count is never the quota of
-    whatever the suite itself runs under.
+    A run started as `make check TEST_WORKERS=2` passes that variable to every make under it. So
+    this drops the variables a run sets (`SET_BY_A_RUN`) to get the Makefile's own count. Those
+    include the variables that mark a run as a runner's run, so the count is a desk's unless `more`
+    says otherwise. The cgroup has no `cpu.max` unless `more` names one. So the count is never the
+    quota of the cgroup the suite itself runs under.
+
     """
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     env.update(UNLIMITED | more)
@@ -94,12 +97,12 @@ def check(*args, **more):
 
 
 def outside_a_run():
-    """The environment with what a pytest run sets, or is told by, taken out."""
+    """The environment without the variables that a pytest run sets or reads."""
     return {name: value for name, value in os.environ.items() if not name.startswith("PYTEST_")}
 
 
 def collected(*more):
-    """The id of every test, as a new process collects them, `more` being pytest's options."""
+    """The id of every test, as a new process collects them. `more` holds pytest's options."""
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", *more],
         cwd=REPO,
@@ -149,7 +152,8 @@ def workers(*args, **more):
 def test_the_workers_are_counted_from_the_processors_of_the_machine_where_no_quota_is_set(
     tmp_path,
 ):
-    """The machine's processors are what `getconf` says, here one on `PATH` that says 32."""
+    """The machine's processors are what `getconf` says. Here a fake `getconf` on `PATH` says
+    32."""
     (tmp_path / "getconf").write_text('#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] && echo 32\n')
     (tmp_path / "getconf").chmod(0o755)
     path = f"{tmp_path}:{os.environ['PATH']}"
@@ -177,8 +181,9 @@ def test_a_cgroup_quota_is_the_processors_a_run_counts_from_rounded_down_and_at_
 
 
 def test_the_quota_is_read_from_the_cgroup_the_run_is_in():
-    """Its directory under /sys/fs/cgroup, as /proc/self/cgroup names it: a container's own
-    cgroup is `/`, and a `systemd-run --scope` names the scope.
+    """A run's cgroup is the directory under /sys/fs/cgroup that /proc/self/cgroup names: a
+    container's own cgroup is `/`, and a command under `systemd-run --scope` gets the scope's
+    cgroup.
     """
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     made = subprocess.run(
@@ -214,9 +219,9 @@ def test_a_runner_of_githubs_own_takes_every_processor():
 
 @pytest.mark.parametrize("cores", [1, 2, 4, 8, 12, 24, 64])
 def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores):
-    """The full slots are counted from the Makefile's desk share: `DESK_SHARE` is its copy, and
-    `make` is the one that counts. At 0.86 of a core a worker (yelena, 2026-10-20), every slot
-    at once keeps at most 86% of the processors busy."""
+    """`make` counts the full slots from the Makefile's desk share, and `DESK_SHARE` is a copy of
+    that share. Each worker uses 0.86 of a core, as measured on yelena on 2026-10-20. So when every
+    slot runs at once, the slots keep at most 86% of the processors busy."""
     desk = workers(f"CORES={cores}")
     assert desk == sizes.desk_workers(cores)
     slots = sizes.derive(sizes.Name.TEST_SLOTS, sizes.Machine(cores, 1024))
@@ -246,8 +251,9 @@ def test_a_passed_test_leaves_no_directory_behind_and_a_failed_one_keeps_its_own
 
 
 def test_a_test_that_hangs_fails_by_name_inside_its_bound_and_the_run_goes_on(tmp_path):
-    """The repo's config gives every test a bound. Here it is 2 s, so a test that sleeps 60 s
-    fails with its name after 2, and the test beside it still passes."""
+    """The repo's config gives every test a time bound. Here the bound is 2 seconds, so a test that
+    sleeps for 60 seconds fails with its name after 2 seconds, and the other test in the file still
+    passes."""
     (tmp_path / "test_scratch.py").write_text(HANGS)
     started = time.monotonic()
     ran = subprocess.run(
@@ -267,7 +273,8 @@ def test_a_test_that_hangs_fails_by_name_inside_its_bound_and_the_run_goes_on(tm
 
 
 def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():
-    """A hang fails its test, and the run reaches its summary, long before the job is cut."""
+    """A hang fails its test, and the run reaches its summary, long before GitHub cancels the
+    job."""
     bound = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["pytest"]["ini_options"]
     job = re.search(r"timeout-minutes: (\d+)", (REPO / ".github/workflows/check.yml").read_text())
     assert 0 < int(bound["timeout"]) * 4 <= int(job[1]) * 60
@@ -309,9 +316,9 @@ def test_every_test_has_the_same_id_a_second_later():
 
 
 def changed_copy(tmp_path, path):
-    """A copy of the repo's files in a repo of its own, with two commits: the files as they
-    are, then one line added to `path`. Gives the copy and where `uv` writes what it was asked.
-    """
+    """A copy of the repo's files in a repo of its own, with two commits: the files as they are,
+    then one line added to `path`. Return the copy, and the file where the fake `uv` records each
+    command line it gets."""
     copy, bin = tmp_path / "copy", tmp_path / "bin"
     listed = subprocess.run(
         ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
@@ -438,9 +445,10 @@ IMPORTS = re.compile(r"^(?:from|import) ([\w.]+)", re.M)
 
 
 def browser_files(directory):
-    """The test files under the directory that start a browser or take the browser lock, by
-    themselves or through a module of the directory they import, and those pytest collects
-    under `-m browser`, which is what the marker is for."""
+    """Two sets of test files under the directory. The first holds the files that start a browser or
+    take the browser lock, directly or through a module of the directory that they import. The
+    second holds the files that pytest collects under `-m browser`, the selection the marker is for.
+    """
     texts = {path: path.read_text() for path in sorted(directory.rglob("*.py"))}
     opens = {
         ".".join(path.relative_to(directory).with_suffix("").parts)

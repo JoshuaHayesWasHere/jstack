@@ -1,8 +1,9 @@
-"""Warn where the tree leaves the feature layout: a tracked path with no owner or two, a tracked
-path outside the layout and the root's own files, and a diff that touches two features with no
-`cross-cutting` label. Each warning is a line GitHub reads as an annotation. It exits 0 with
-warnings, and 1 with them under --hard, as CI runs it; 2 when the tree or the base cannot be
-read. Standard library only, since CI runs it with no uv sync."""
+"""Warn about each place the tree breaks the feature layout: a tracked path with no owner or with
+two owners, a tracked path that is neither in the layout nor one of the root's own files, and a diff
+that touches two features with no `cross-cutting` label. Each warning is a line GitHub reads as an
+annotation. It exits 0 when it warns. Under --hard it exits 1 when it warns, and CI runs it with
+--hard. It exits 2 when it cannot read the tree or the base. It uses the standard library only,
+since CI runs it with no uv sync."""
 
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from jtrees.model import Tree
 # Where a path may be: a feature, the schemas, the repo's scripts, the shared test plumbing and
 # its tests, and CI.
 LAYOUT = ("features/", "schemas/", "scripts/", "testing/", ".github/")
-# The paths outside the layout that stay there: each the repo owns (crawl.py's REPO_OWNERS),
+# The paths outside the layout that stay there: the ones the repo owns (crawl.py's REPO_OWNERS),
 # the root's own files and the entry points a harness or a user looks for where they are.
 INFRA_ROOT = tuple(
     row for rows in REPO_OWNERS.values() for row in rows if not row.startswith(LAYOUT)
@@ -31,7 +32,7 @@ class Refused(Exception):
 
 
 def ownership(tree: Tree, paths: list[str]) -> dict[str, list[str]]:
-    """Each path with no owner or two, and why."""
+    """Each path with no owner or with two owners, and why."""
     unowned, twice = borders(tree, paths)
     found = {path: ["no owner"] for path in unowned}
     for path, owners in twice.items():
