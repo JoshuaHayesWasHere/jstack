@@ -21,7 +21,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
-OWNED = "src/ skills/ playbooks/ templates/ hooks/ docs/ scripts/".split()
+OWNED = "src/ templates/ docs/ scripts/".split()
 ALSO = (".claude/", ".cursor/", "install.sh")
 
 README = """\
@@ -693,6 +693,12 @@ def test_every_path_is_owned_by_a_feature():
         for path in tracked(*OWNED, *ALSO)
         if not any(select.owns(patterns, path) for patterns in owned)
     ] == []
+
+
+def test_every_root_the_ownership_test_reads_holds_a_file():
+    """A move that empties a root folder drops it here too, or the ownership test reads a
+    folder that is gone and names it as covered."""
+    assert [root for root in (*OWNED, *ALSO) if not tracked(root)] == []
 
 
 def test_every_test_file_the_map_names_is_there():
