@@ -38,6 +38,7 @@ PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "no
 
 .PHONY: check
 check:
+	git diff -z --name-only --diff-filter=d '$(BASE)...HEAD' -- 2> /dev/null | xargs -0 -r python3 features/writing/scripts/comment_lint.py || true
 	python3 scripts/generate-jstack-trees.py --check
 	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
@@ -49,10 +50,12 @@ check:
 # `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
 # pull request is the tip of main; a desk takes origin/main. The full suite runs on main
 # after the merge. Before the tests, features/writing/scripts/prose_lint.py holds each prose
-# line the diff adds to one sentence, and scripts/generate-jstack-trees.py fails a generated
-# file that is stale against features/, and scripts/check-jstack-docs.py fails a page of the
-# README or the docs that says what the tree does not have (`make check` runs both itself
-# where the selection is `all`).
+# line the diff adds to one sentence, features/writing/scripts/comment_lint.py warns on the
+# mechanical unslop rules in the comments and docstrings of the files the diff changes and
+# fails nothing, scripts/generate-jstack-trees.py fails a generated file that is stale against
+# features/, and scripts/check-jstack-docs.py fails a page of the README or the docs that says
+# what the tree does not have (`make check` runs the last three itself where the selection is
+# `all`).
 BASE ?= origin/main
 
 .PHONY: check-fast
@@ -60,6 +63,7 @@ check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
 	python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
+	git diff -z --name-only --diff-filter=d '$(BASE)...HEAD' -- | xargs -0 -r python3 features/writing/scripts/comment_lint.py; \
 	python3 scripts/generate-jstack-trees.py --check || exit; \
 	python3 scripts/check-jstack-docs.py || exit; \
 	set -x; \
