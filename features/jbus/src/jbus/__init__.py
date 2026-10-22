@@ -1,47 +1,49 @@
-"""jbus: what a home did by rote, done by one scheduled script with no model.
+"""jbus: one scheduled script with no model does what a home did by rote.
 
 This module is the shared model: the config, its projects, and the paths under the state
 directory. Every other module takes a `Config` or a `Project` and reads no path by itself.
 
-A level of loudness and one kind of event were named after one person until the name became
-a setting (`jsettings.Settings`). `NAMED_AFTER` is those two by the names they have now, and
-each was written with that setting's name, in lower case, where `user` is. `old_names` is the
-map from every old name to the one it has now: `current_level` reads a level through it and
-`current_kind` a kind of event. A
-third level, `chef`, started a POST for what asked nothing of the user: what was of that
-level is `quiet` now, and is read so.
+A level of loudness and one kind of event had one person's name until the name became a
+setting (`jsettings.Settings`). `NAMED_AFTER` holds those two by the names they have now.
+In those old names jbus wrote the person's name, in lower case, where it now writes `user`.
+`old_names` is the map from every old name to the name it has now. `current_level` reads a
+level through it, and `current_kind` reads a kind of event through it. A third level, `chef`,
+started a POST for an event that asked nothing of the user. An event of that level is `quiet`
+now, and jbus reads it as `quiet`.
 
-`IGNORED` is the keys of a project's table that nothing reads any more. A config that still
-has one loads, and `Config.ignored` names each, so that a pass can say so until it is removed.
-A webhook URL and key in any top-level table, one jbus reads or one nothing reads any more,
-are secret while they are in the file: `Config.tabled` keeps them, for `secrets` alone.
+`IGNORED` is the keys of a project's table that nothing reads any more. `load` still loads a
+config that has one, and `Config.ignored` names each such key, so that each pass can name
+it until the user removes it. A webhook URL and key in any top-level table, whether jbus reads
+that table or nothing reads it any more, are secret while they are in the file.
+`Config.tabled` holds them, and only `secrets` reads them there.
 
-A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
-top-level webhook: the monitor of every project, posted each event for the user of each one,
-and the pair of every project that has neither key of its own. A project with both keys of
-its own keeps them whole, and is posted its events there as well (`wake.Box`): once, where the
-two pairs are the same. One with only one of the two keys is refused: half a pair beside the
-top-level one would post with the wrong key. The top-level pair is secret whether a project
-takes it or not.
+A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the top-level
+webhook. It receives the events of every project: jbus posts it each event, for the user of each
+project. Every project that has neither key of its own also uses it as its pair. A project with both
+keys of its own uses them as they are. jbus posts the project's events to that pair as well as to
+the top-level one (`wake.Box`), and only once where the two pairs are the same. `load` refuses a
+project with only one of the two keys, because half a pair beside the top-level one would post with
+the wrong key. The top-level pair is secret whether a project uses it or not.
 
-A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the
-second target: the webhook of what blocks (`waiting.blocking`), which jbus-relay fans out.
-It is posted no event, only each item that blocks as it opens, each reminder and each
-refresh (`wake.Box.blocking`). Half of that pair is refused as half of the other is, and
-both are secret.
+A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
+target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to several
+places. jbus posts no event to it. It posts only each blocking item when the item opens, each
+reminder, and each refresh (`wake.Box.blocking`). `load` refuses half of that pair as it refuses
+half of the other, and both are secret.
 
-A `[[project]]` table whose `kind` is `scratch` is no repo: a scratch home, for throwaway
-questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one
-place a table becomes a project, and it sorts a scratch table into `Config.scratch` and never
-into `Config.projects`, so no step that takes a `Project` (the queue, `jmerge`, the sweep, CI,
-the readers, the snapshot) is ever given one. A name is one home's across both lists: a
-scratch table with a name a project has, or keeps its state under, is refused, and so is a
-repo table after a scratch home of its name.
+A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for throwaway
+questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one place
+that turns a table into a project. It sorts a scratch table into `Config.scratch` and never into
+`Config.projects`, so no step that takes a `Project` (the queue, `jmerge`, the sweep, CI, the
+readers, the snapshot) ever gets one. A name belongs to one home across both lists. `load` refuses a
+scratch table whose name is a project's name, or the name a project keeps its state under. It also
+refuses a repo table that comes after a scratch home of the same name.
 
-`END_TURN` is how every message to a crew ends, and the one to a reviewer that carries it on or
-wakes it. A turn ended while its own check, or a reviewer's proof, runs is never woken when it
-ends, so the push, the Result, the pull request or the Review it was to make never come: the
-message says to wait for that run in the turn, whenever it started.
+`END_TURN` is the ending of every message to a crew, and of the message that continues or
+wakes a reviewer. When a turn ends while its own check or a reviewer's proof still runs,
+nothing wakes the thread once that run ends. Then the push, the Result, the pull request or
+the Review that the turn was to make never comes. So the message says to wait for that run
+in the turn, whenever the run started.
 """
 
 from __future__ import annotations
@@ -76,18 +78,19 @@ END_TURN = (
 
 
 class Refused(Exception):
-    """jbus will not start, or will not run a verb. The message is the one line to print."""
+    """`Refused` means jbus will not start, or will not run a verb. The message is the one line
+    to print."""
 
 
 @dataclass(frozen=True)
 class Project:
-    """One repo jbus looks after, and the webhook that is posted what the user must act on:
-    its own pair, or the config's top-level one when it has none.
+    """A `Project` is one repo that jbus looks after, with the webhook where jbus posts what the
+    user must act on: its own pair, or the config's top-level one when it has none.
 
     `migrations` is the directory, from the checkout's root, where the repo keeps its
-    migrations, and nothing where it has none. `migration_names` says how a migration is
-    named: `numbered`, as `0004_insulin`, whose number is taken when it lands, or
-    `timestamped`, whose name cannot collide. `jmerge` reads both."""
+    migrations. It is empty where the repo has none. `migration_names` says how the repo names a
+    migration. With `numbered`, a name looks like `0004_insulin`, and the migration takes its
+    number when it lands. With `timestamped`, two names cannot collide. `jmerge` reads both."""
 
     name: str
     checkout: Path
@@ -101,17 +104,17 @@ class Project:
 
 @dataclass(frozen=True)
 class Scratch:
-    """A scratch home: a name, and the T3 Code project its threads run in. It has no repo, so
-    it has no checkout, no webhook and no migrations, and nothing of it can push, open a pull
-    request or launch a crew."""
+    """A `Scratch` is a scratch home: a name, and the T3 Code project its threads run in. It
+    has no repo, so it has no checkout, no webhook and no migrations. It pushes nothing,
+    opens no pull request and launches no crew."""
 
     name: str
     project_id: str
 
     def addressee(self) -> Project:
-        """The home as `word` addresses it: a `Project` whose checkout is nowhere, for the
-        `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for nothing else.
-        Its state and its home are `<name>`, as a repo's are."""
+        """Return the home as `word` addresses it: a `Project` with no checkout. It is
+        for the `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
+        nothing else. Its state and its home are `<name>`, as a repo's are."""
         return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
 
 
@@ -165,39 +168,44 @@ class Config:
         raise Refused(f"refused: no project {name or '(name one with --project)'}, have {names}")
 
     def addressee(self, name: str | None) -> Project:
-        """The home a word is for: a repo project by its name, or a scratch home's addressee."""
+        """Return the home a word is for: a repo project by its name, or a scratch home's
+        addressee."""
         for one in self.scratch:
             if one.name == name:
                 return one.addressee()
         return self.project(name)
 
     def secrets(self) -> tuple[str, ...]:
-        """Every string that must not leave this machine in a list, a digest or a line:
-        what `secrets` gives for each webhook, and the stored token's `CREDENTIALS`. Its
-        other strings, as `Bearer` and its scope, are no secret."""
+        """Return every string that must not leave this machine in a list, a digest or a line:
+        what `secrets` returns for each webhook, and the stored token's `CREDENTIALS`. The
+        token's other strings, such as `Bearer` and its scope, are not secret."""
         stored = read_json(self.token_path, {})
         token = stored.get("token") if isinstance(stored, dict) else None
         strings = [token.get(name) for name in CREDENTIALS] if isinstance(token, dict) else []
         return secrets(*self.hooks(), *strings)
 
     def hooks(self) -> list[Project | Hook]:
-        """Every webhook URL and key the config file holds, read or not."""
+        """Return every webhook URL and key the config file holds, whether jbus reads them or
+        not."""
         return [*self.projects, self.webhook, self.blocking, *self.tabled]
 
     def state(self, project: Project) -> Path:
-        """Where jbus keeps this project's queue, outbox, launches and what it has sent."""
+        """Return where jbus keeps this project's queue, outbox, launches and what it has
+        sent."""
         return self.state_dir / project.name
 
     def home(self, project: Project) -> Path:
-        """The home's state directory of the project's repo: its briefs, requests and gates."""
+        """Return the home's state directory for the project's repo: its briefs, requests and
+        gates."""
         return self.home_dir / project.state
 
 
 def old_names() -> dict[str, str]:
-    """Each name that changed, with the one it has now: `WAS`, and each of `NAMED_AFTER` as it
-    was written under the user's name of the settings. A name that is a level of now, as
-    `user` is with the default settings, is no old name. It reads the settings file, so a
-    caller with many names to read asks once and gives the map to the two below."""
+    """Return each name that changed, with the name it has now. The old names are those of `WAS`,
+    and each name of `NAMED_AFTER` spelled with the user's name from the settings, as jbus wrote it
+    then. A name that is a level now, as `user` is with the default settings, is not an old name.
+    This function reads the settings file, so a caller with many names to read calls it once and
+    passes the map to the two functions below."""
     try:
         name = jsettings.load().user.lower()
     except jsettings.Invalid:
@@ -207,19 +215,19 @@ def old_names() -> dict[str, str]:
 
 
 def current_level(name: str, names: dict[str, str]) -> str:
-    """A level by the name it has now. `names` is `old_names`."""
+    """Return a level by the name it has now. `names` is `old_names`."""
     now = names.get(name, name)
     return now if now in LEVELS else name
 
 
 def current_kind(name: str, names: dict[str, str]) -> str:
-    """A kind of event by the name it has now. `names` is `old_names`.
+    """Return a kind of event by the name it has now. `names` is `old_names`.
 
-    `wake.Box` reads the outbox, the keys of what was sent and the log through here, and
-    nothing writes an old name. The name a level had is no kind: a key of `sent.json` may
-    begin with any word, the user's name among them.
-    A module that looks one key up in `sent.json` reads the file as it is: none looks up a kind that
-    changed.
+    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function.
+    Nothing writes an old name any more. This function maps no old name of a level to a kind,
+    because a key of `sent.json` may begin with any word, the user's name among them. A module that
+    looks one key up in `sent.json` reads the file as it is, since no such module looks up a kind
+    that changed.
     """
     now = names.get(name, name)
     return name if now in LEVELS else now
@@ -237,15 +245,15 @@ def private(path: Path) -> None:
 
 
 def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
-    """Each key of `IGNORED` a project still has, by name, whatever its value is."""
+    """Return each key of `IGNORED` a project still has, by name, whatever its value is."""
     found = ((key, one["name"]) for one in raw.get("project", []) for key in IGNORED if key in one)
     return tuple(f"{key} of project {name}" for key, name in found)
 
 
 def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
-    """The directory a project keeps its migrations in, relative to its checkout and with no
-    `..` in it, and how they are named. Anything else is refused: a directory outside the
-    checkout is one `jmerge` would read the default branch for in the wrong place."""
+    """Return the directory a project keeps its migrations in, relative to its checkout and
+    with no `..` in it, and how the project names them. Refuse anything else: for a directory
+    outside the checkout, `jmerge` would read the default branch in the wrong place."""
     directory = entry.get("migrations", "")
     names = entry.get("migration_names", NUMBERED)
     parts = str(directory).strip("/").split("/") if directory else []
@@ -263,7 +271,8 @@ def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
 
 
 def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
-    """The webhook URL and key of each top-level table that has one: secret, read or not."""
+    """Return the webhook URL and key of each top-level table that has one. Each is secret,
+    whether jbus reads the table or not."""
     tables = (table for table in raw.values() if isinstance(table, dict))
     found = ((table.get("webhook_url"), table.get("webhook_key")) for table in tables)
     return tuple((str(url or ""), str(key or "")) for url, key in found if url or key)
@@ -274,9 +283,10 @@ BLOCKING = ("blocking_url", "blocking_key")
 
 
 def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
-    """The key of the table's pair that is missing beside the other, or None. A URL with an
-    empty key counts as a key missing: it would post with no key. An empty URL beside a key
-    is no webhook, and loads."""
+    """When the table has one key of its pair and not the other, return the missing key.
+    Otherwise return None. A URL with
+    an empty key counts as a missing key, since it would post with no key. An empty URL beside
+    a key is not a webhook, and `load` accepts it."""
     url, key = pair
     present = [name for name in pair if name in table]
     if len(present) == 1:
@@ -287,8 +297,8 @@ def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
 
 
 def _pair(table: dict[str, Any], default: Hook, pair: tuple[str, str] = PAIR) -> Hook:
-    """The table's URL and key, or `default` when it has neither. `_missing` has refused
-    half a pair first."""
+    """Return the table's URL and key, or `default` when it has neither. `_missing` has already
+    refused half a pair."""
     if not any(name in table for name in pair):
         return default
     return str(table[pair[0]]), str(table[pair[1]])
@@ -396,11 +406,12 @@ def read_json(path: Path, default: Any) -> Any:
 
 
 def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ...]:
-    """What is secret of each webhook, and each other string given, the longest first.
+    """Return the secret strings of each webhook and of each other string given, the longest
+    first.
 
-    A webhook's URL and its key are secret whole. So are the URL's host, path and query,
-    but for one shorter than `part`: taking `/` out of a text says nothing. An error that
-    quotes the URL is another matter, and there a part of two characters counts.
+    A webhook's whole URL and its whole key are secret. So are the URL's host, path and query,
+    except a part shorter than `part`, since taking `/` out of a text hides nothing. For an error
+    that quotes the URL, the caller passes a `part` of 2, so a part of two characters counts too.
     """
     whole: set[str] = set()
     parts: set[str] = set()
@@ -417,7 +428,8 @@ def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ..
 
 
 def redact(value: Any, secret: tuple[str, ...], mark: str = REDACTED) -> Any:
-    """The value with each secret in each of its strings replaced, lists and dicts included."""
+    """Return the value with each secret in each of its strings replaced, in lists and dicts
+    too."""
     if isinstance(value, str):
         for one in secret:
             value = value.replace(one, mark)
