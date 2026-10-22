@@ -4,9 +4,9 @@ jbus runs it only when the project's home is off, that is, when its `home-thread
 empty. A home that is switched on does its own merging, and two merges at once would race. The pass
 holds the pass lock around the run, so two passes never run it together either.
 
-`parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request.
-`stall` and `watch` read the `Line` it returns, not the text. `rebase` still reads the text
-of a `wait` line by itself.
+`parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
+and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
+`wait` line by itself.
 
 A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`, and a merge gate
 that did not pass). `expedite` asks the crew to lift those first. This module sends the user
@@ -17,7 +17,7 @@ jbus runs for it is `SWEEP`, which has `--check`.
 
 When no rule of `rules` names a pull request's reason, the pull request is on no step, and
 the view shows it in the Unknown lane. `unplaced` then sends the row's home one queued
-message for each row and reason text, since the fix is a new rule, and a home writes the brief
+message for each row and each reason text. The fix is a new rule, and a home writes the brief
 for a rule. The message is a quiet event. The row is not the user's, so it is not in
 `waiting-on-user.json`. Two reasons leave a pull request on no step by design, and jbus tells
 nobody of them (`OFF_STEP`): another home's pull request and a draft.
@@ -88,8 +88,8 @@ def rules() -> tuple[tuple[str, str], ...]:
 
 
 def step(said: str) -> str:
-    """Return the step a pull request waits on, from what `jmerge` last said of it,
-    `<word>: <reason>`. A `hold` is on the `hold` step, and a `wait` is on the first step of
+    """Return the step a pull request waits on, read from the last thing `jmerge` said of
+    it (`<word>: <reason>`). A `hold` is on the `hold` step, and a `wait` is on the first step of
     `rules` whose pattern matches its reason. Return nothing for a line with no reason, or for
     a reason no rule names."""
     word, _, reason = said.partition(": ")
@@ -105,8 +105,9 @@ class Said(list[str]):
     """`Said` is the list of lines `jmerge` printed about pull requests in this pass, as it
     printed them.
 
-    `failed` is true when `jmerge` did not run to its end. Then a pull request with no line is
-    one `jmerge` did not get to, not one it read and had nothing to say about.
+    `failed` is true when `jmerge` did not run to its end. In that case, a pull request with no line
+    is one that `jmerge` did not reach. It is not one that `jmerge` read and had nothing to say
+    about.
     """
 
     failed = False
@@ -114,8 +115,8 @@ class Said(list[str]):
     def crews(self, numbers: set[int]) -> Said:
         """Return the lines as the user is to hear them. A hold of one of these pull requests
         is its crew's to lift for now, so its line becomes a `wait`. The line stays in the
-        list, since a pull request with no line is one `jmerge` did not reach, and that one
-        keeps the hold it had."""
+        list. A pull request with no line counts as one that `jmerge` did not reach, and such
+        a pull request keeps the hold it had."""
         mine = {text for text in self if (line := parse(text)) and line.number in numbers}
         kept = Said(
             "wait" + text[4:] if text in mine and text[:5] == "hold " else text for text in self
@@ -134,13 +135,14 @@ def home_thread(run: Pass) -> str:
 def merge(run: Pass) -> Said:
     """Run `jmerge`, send each line it prints about a pull request, and return the lines.
 
-    Every line is a quiet event, a `hold` line too. `waiting` lists a hold that is the
-    user's, and the user learns of the hold when it joins that list, once for the pull
-    request and not once for each head. `expedite` deals first with a hold that a crew can
-    lift. A `jmerge` that did not run is a failure of the `jmerge` streak, and one that ran
-    ends the streak. One that stopped after it printed a line ends the streak too, as it
-    always did, and the pass says so. The `Said` this returns is then `failed`, so jbus keeps
-    what it knew of the rows `jmerge` did not reach.
+    Every line is a quiet event, including a `hold` line. `waiting` lists each hold that is
+    the user's. The user learns of a hold when it joins that list: once for the pull request,
+    not once for each head. `expedite` deals first with a hold that a crew can lift.
+
+    When `jmerge` does not run, that counts as a failure of the `jmerge` streak, and a run of
+    `jmerge` ends the streak. A run that stopped after it printed a line also ends the streak,
+    as it always did, and the pass says that it stopped. The `Said` that this function returns
+    is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did not reach.
     """
     home = home_thread(run)
     if home:
@@ -196,10 +198,10 @@ def sweep(run: Pass) -> tuple[bool, str]:
 
 
 def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, thread: str) -> None:
-    """Tell the home that a row's pull request is on no step, once for each row and each
-    thing `jmerge` said of it, `<word>: <reason>`. `thread` is the home's thread, or empty
-    where the project has no home. When a message fails to send, the next pass sends it
-    again."""
+    """Tell the home that a row's pull request is on no step. Send this once for each row and for
+    each thing `jmerge` said of the pull request (`<word>: <reason>`). `thread` is the home's
+    thread, or empty where the project has no home. When a message fails to send, the next pass
+    sends it again."""
     reason = said.partition(": ")[2]
     if not reason or step(said) or reason in OFF_STEP:
         return

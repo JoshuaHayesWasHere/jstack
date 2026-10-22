@@ -18,11 +18,10 @@ The nine, in order:
    median minutes it ran. The target is that the wait is under the run.
 2. `waste`: the share of execution minutes spent by jobs that failed or were cancelled.
    The target is under 15%.
-3. `own`: of the local jobs that failed on their last attempt, the share whose cause is the
-   pull request's own. The target is over 70%. A red job's cause is `main` when main was red
-   with the same failing tests as the job started. It is `runner` when its log shows a runner
-   fault and another branch fails the same tests, and `flake` when no fault shows. Otherwise
-   it is `own`.
+3. `own`: of the local jobs that failed on their last attempt, the share whose cause is the pull
+   request's own. The target is over 70%. A red job's cause is `main` when main was red with the
+   same failing tests at the time the job started. It is `runner` when its log shows a runner fault
+   and another branch fails the same tests, and `flake` when no fault shows. Otherwise it is `own`.
 4. `rebases`: force-pushes per pull request merged. The target is under 0.3.
 5. `stale`: the force-pushes made only because main had moved, as the jbus event before each
    one shows. The target is none.
@@ -66,10 +65,10 @@ TARGETS = {
 
 @dataclass(frozen=True)
 class Number:
-    """A `Number` is one target: its `value` (the local runner's), `shown`, how it reads, the
-    `target` it is checked against, whether it is `met` (None where there was nothing to
-    count), `n`, the jobs or pull requests counted, `how` it counts, and `hosted`, the hosted
-    runner's figure."""
+    """A `Number` is one target. It has its `value` (the local runner's figure), `shown`
+    (how the value reads), the `target` it is checked against, and `met` (None where there
+    was nothing to count). It also has `n`, the jobs or pull requests counted, `how` it
+    counts, and `hosted`, the hosted runner's figure."""
 
     key: str
     name: str
@@ -130,7 +129,7 @@ def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
 
 
 class Facts:
-    """`Facts` reads the ledger once, and works out from it, once: the pull request
+    """`Facts` reads the ledger once and works out these facts from it, once each: the pull request
     each jbus event is about, the runs of main in order, the intervals main was red, the cause
     of each red, and the cause of each force-push."""
 

@@ -1,17 +1,16 @@
 """Ask GitHub for a project's Actions jobs and pull requests, and keep them (`jbus.ci.ledger`).
 
-Every call is a read through `gh api`. It reads the repo's workflow runs of the last `days`
-days, the jobs of each run the ledger does not keep yet (`filter=all`, so every attempt of a
-rerun), and the pull requests. For each pull request it reads the timeline, where a
-force-push of its branch is an event. For a red job on a local runner it reads the log once,
-for the failing tests the log names and the runner faults it shows.
+Every call is a read through `gh api`. It reads the repo's workflow runs of the last `days` days and
+the pull requests. For each run it reads the jobs the ledger does not keep yet, with `filter=all` so
+that it gets every attempt of a rerun. For each pull request it reads the timeline, where a
+force-push of its branch is an event. For a red job on a local runner it reads the log once, for the
+failing tests the log names and the runner faults it shows.
 
-The collector reads a job's telemetry from its check run's annotations. An annotation is the
-one place for a job's own words that the API returns, since the API cannot read a job
-summary. The telemetry is an annotation titled `jstack-ci` whose message is a JSON object
-(`jbus.ci.notice` writes it).
+The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
+API returns only its annotations, since the API cannot read a job summary. The telemetry is an
+annotation titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
 
-`Gh` is the interface to GitHub: `Cli` asks GitHub, and a test passes one that answers from
+`Gh` is the interface to GitHub: `Cli` asks GitHub, and a test passes a `Gh` that replays
 a recording.
 """
 

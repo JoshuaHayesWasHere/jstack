@@ -1,10 +1,12 @@
 """Work items: jbus keeps every piece of work as one item with a stable id, a source, an owner
 and one state, in `items.jsonl` in the project's state directory.
 
-jbus names an item `w<n>`, minted from the project's counter (`items-next.json`, as it mints a
-question's number), and never gives that name again, even where the log was lost. An item has
-a slug only once a row of the queue links to it. An item proposed in chat has none. A row that
-`jbus queue add` makes links at once, to the item `--item` names or to one it mints.
+jbus names an item `w<n>`, with a number it mints from the project's counter
+(`items-next.json`), as it mints a question's number. It never gives that name again, even
+where the log was lost. An item has
+a slug only once a row of the queue links to it. An item proposed in chat has none. When
+`jbus queue add` makes a row, the row links at once, to the item that `--item` names or to a
+new item that the command mints.
 
 The record is the log. jbus only ever appends to it, under `items.lock`, and never trims it:
 `forget` trims `events.jsonl` and leaves the log alone. A line is `{id, item, at, by, where,
@@ -14,16 +16,16 @@ adds the item's `project`, `title` and `owner`, and its `slug` where it has one.
 
 The state of an item is the fold of its lines by `MOVES` (`fold`). `MOVES` is one table of
 every move there is. `write` refuses a move that is not in it, with a sentence, and writes
-nothing. When an item leaves `waiting_on_you`, it goes back to the state it entered it from,
-which the fold records (`Item.back`). A writer may name the last line it saw (`seen`), and `write`
-refuses the line where the item moved since.
+nothing. When an item leaves `waiting_on_you`, it goes back to the state it was in before, which
+the fold records (`Item.back`). A writer may name the last line it saw (`seen`). Then `write`
+refuses the new line if the item has moved since that line.
 
 Each line is also a quiet event of its own kind, `item.<verb>`, in `events.jsonl`
 (`wake.Box.record`), so the view's feed and `jbus events` show it.
 
 The pass moves an item by its row (`follow`). It reads the row's approval (`approved`) and the
 value `work.py` judged for the row this pass, and maps them to a state by `AIM`. It writes a
-line only where that state is not the item's, and only for a move the facts show, so a pass
+line only where the item is not in that state yet, and only for a move the facts show, so a pass
 with nothing new writes nothing. Only `work.py` judges the row.
 
 `risk` is `review` where a person must look before anything is done, and `routine` otherwise.
@@ -207,8 +209,8 @@ config."""
 
 @dataclass(frozen=True)
 class Item:
-    """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller asks
-    `risk` for it. `back` is the state the item entered `waiting_on_you` from, and None in any
+    """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller calls
+    `risk` for the item. `back` is the state the item entered `waiting_on_you` from, and None in any
     other state. `redirect` is the id of a redirect that has had no approval by the item's id
     since (an `approved` line with `by_id`, which only `approve` writes). It is empty where
     there is none. While it is set, no rule, no word from chat, no approval of the row and no
@@ -375,11 +377,11 @@ def write(
 ) -> dict[str, Any]:
     """Append one line, and its event. Return the line.
 
-    A `proposed` line makes the item that `item` names, an id that `reserve` gave, or mints a
-    new one. Any
-    other line names the item. `write` refuses it, with a sentence, where `MOVES` has no such
-    move, where the item's last line is not `seen` when that is given, and, for a link, where
-    the item is linked already or another item has the slug. A refused line writes nothing.
+    A `proposed` line makes the item that `item` names, which is an id that `reserve` gave, or
+    else mints a new item. Any other line names its item. `write` refuses a line, with a
+    sentence, where `MOVES` has no such move, or where `seen` is given and is not the item's
+    last line. It also refuses a link where the item is linked already or another item has the
+    slug. A refused line writes nothing.
     """
     with _locked(state):
         made = _put(state, verb, item=item, by=by, where=where, line=line, seen=seen, **more)
@@ -388,8 +390,9 @@ def write(
 
 
 def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | None) -> Item:
-    """Return the item to make a move on, or `Refused` for an item that does not exist, one
-    whose last line is not `seen` where that is given, and one whose state has no such move.
+    """Return the item to make a move on. Raise `Refused` when the item does not exist, when
+    `seen` is given and is not the item's last line, or when the item's state has no such
+    move.
     This function checks for a stale `seen` first. It refuses that with the line that came
     after `seen`, printed as `shown` prints a line. So when a move to `done` or `dropped`
     makes a steer stale, the writer of that steer learns of the move."""
@@ -477,8 +480,8 @@ def told(box: wake.Box, made: dict[str, Any]) -> None:
 
 
 def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
-    """Return `review` for a merge `jmerge` holds (the value `hold`), and for an open gate of
-    the item's that has a `Holds:` line or words that name a secret or the config. A wait on
+    """Return `review` for a merge `jmerge` holds (the value `hold`), and for an item with an
+    open gate that has a `Holds:` line or words that name a secret or the config. A wait on
     the config shows up only as such a gate, since the `config` items of what waits on the
     user name no row. Return `routine` for anything else."""
     if value == "hold":
@@ -503,10 +506,10 @@ def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:
     the value `work.py` judged for the row this pass (None where it confirmed no value).
 
     A pass approves an item that is proposed or held where the row has a go, except an item
-    that was redirected and has not been approved by its id since. Then the pass moves the item
+    that was redirected and that nobody has approved by its id since. Then the pass moves the item
     to the state `AIM` says, by the one move `MOVES` has for it. If the item waits on the user
-    and its row no longer waits, the pass resumes it first, where `MOVES` has such a move. It
-    has one only from the state the item came from. The pass makes no other move: it makes
+    and its row no longer waits, the pass resumes it first. `MOVES` has that move only from the
+    state the item came from. The pass makes no other move: it makes
     none that the facts do not show.
     """
     made: list[Verb] = []

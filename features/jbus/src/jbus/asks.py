@@ -169,7 +169,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
 
 
 def _item(state: Path, slug: str, given: str) -> str:
-    """Pick the work item to link a row that is added to. The first choice is the item that
+    """Pick the work item that a newly added row links to. The first choice is the item that
     `--item` names, which must be one the row can link to. Next is the item the row has, then
     the item a pass linked to its slug. Last, this function reserves a new item for the row
     now (`jbus.item`)."""

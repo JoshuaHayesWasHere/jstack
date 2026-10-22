@@ -2,15 +2,15 @@
 needs.
 
 The pull request of a brief whose `Review:` line says `after` merges on its check alone
-(`jmerge.ready.after`). Its review's findings do not block the merge, and a row of their
-own fixes them later. The reviewer runs this command once it has written its section, and
+(`jmerge.ready.after`). Its review's findings do not block the merge, and a crew fixes them
+later, in a row of their own. The reviewer runs this command once it has written its section, and
 pipes what it prints into `jbus queue add cleanup-<slug>`. That command queues the row
 without approving it, so the row waits for the user's go like any other.
 
 The command prints that row's brief, `cleanup-<slug>`, when the last round's verdict is
 `findings`. The brief lists each finding that would have gone to the crew, with its
 path:line, the pull request, and the merge commit GitHub gives for it. Where the pull request
-has not merged yet, it gives the head the review saw instead. Where the review needs no row,
+has not merged yet, the brief gives the head the review saw instead. Where the review needs no row,
 the command prints nothing and ends 1 with the reason on one line. That is when the brief
 does not say `after` or `twice`, when the review is clean or has no verdict, or when the row
 is already in the queue. A `queue add` on a row that is already there would withdraw its

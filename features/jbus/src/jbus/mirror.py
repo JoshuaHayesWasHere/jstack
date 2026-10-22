@@ -4,9 +4,9 @@ Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state d
 It sends one event for each new section: a Result (a follow-up included), a Review, a
 Report, an open gate, an answered gate, and a gate that a thread with no home wrote into its
 own Result or Report. A gate that a thread piped to `jbus gate` is a question jbus keeps
-(`questions`). `gate_key` gives it the same key as the gate in the file, so it is the same
+(`questions`). `gate_key` gives it the same key as the gate in the file, so the two are one
 event, and jbus sends no event for its answer. `seen.json` keeps the file, heading and hash
-of every section sent. So jbus sends each section once, and sends a Result, Review or Report
+of every section jbus sent. So jbus sends each section once, and sends a Result, Review or Report
 again when its text changes. The first pass of a project sends nothing: it only records what
 is already there. jbus also sends nothing for a file that no pass read before and whose slug
 was never a row of the queue. A tree restored from a backup puts such a file back (`scan`).
@@ -131,8 +131,8 @@ def options(lines: str) -> tuple[list[tuple[str, str, frozenset[str]]], list[str
 
     A line is `Option: <short name>: <what follows from it>`, and the name ends at the first
     colon. `(default)`, `(recommended)` or `(default, recommended)` between the name and that
-    colon marks the option. A line still in its angle brackets is not filled in, and is not
-    an option.
+    colon marks the option. A line that still has its angle brackets is a placeholder
+    that nobody filled in, and is not an option.
     """
     found, unread = [], []
     for line in map(str.strip, lines.splitlines()):
@@ -194,8 +194,8 @@ def _gates(
 ) -> list[tuple[str, str, str, str, str]]:
     """Return the events of a `gates.md`. A gate jbus holds as a question gets no
     `gate answered` event: its record is closed, and jbus reports a closed record nowhere.
-    With no `held`, jbus could not read the questions, and this reports no answered gate
-    until it can."""
+    With no `held`, jbus could not read the questions, so this function reports no
+    answered gate until jbus can read them."""
     found = []
     for number, asked, heading, body in gates(text):
         slug = asker(body)
@@ -216,14 +216,14 @@ def scan(
 ) -> int:
     """Send what is new. `held` is the keys of the questions jbus holds (`questions.keys`).
     `rows` is the rows of the queue as the pass loaded them, or None where the pass could not
-    load them. With None, the pass treats no file as restored, as on a project's first pass,
-    which records all there is.
+    load them. With None, the pass treats no file as restored. It
+    records everything there is, as on a project's first pass.
 
-    `seen.json` keeps each file the pass reads, with no heading while the file has nothing to
-    send, so a later pass can tell that a pass read the file. Suppose no pass ever read a
+    `seen.json` keeps each file the pass reads. While a file has nothing to send, its entry has
+    no heading. So a later pass can tell that a pass read the file. Suppose no pass ever read a
     file, and no row of the queue has or had its slug. Then the file arrived with all its
-    sections at once, as a tree restored from a backup does. The pass records it and sends
-    nothing for it, and `noticed.keep` takes in its `Noticed` lines as lines from before. A
+    sections at once, as a file in a tree restored from a backup does. The pass records it and
+    sends nothing for it, and `noticed.keep` adds its `Noticed` lines as lines from before. A
     brief jbus launched has a row. A home writes a scout's request before the launch, so a
     pass reads the request before the scout's Report is in it.
     """

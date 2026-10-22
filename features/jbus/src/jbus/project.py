@@ -10,10 +10,10 @@ top of the config when the config has them. With none there, a pass POSTs nothin
 The file must load as a pass loads it (`jbus.load`). `add` refuses a config that a pass
 refuses, before it writes anything, with the line `jbus.load` gives.
 
-`add` answers with one line, or raises `jbus.Refused` with one line. It refuses a second run
-with the same name, checkout and id with the line `HAS`, which a caller may read as already
-done. It also refuses a name or a checkout that the config already has with any other field
-different, and its line names what the two share. No line holds the value of any key, the
+`add` answers with one line, or raises `jbus.Refused` with one line. When a second run has the
+same name, checkout and id, `add` refuses it with the line `HAS`, which a caller may read as
+already done. It also refuses a name or a checkout that the config already has when any
+other field differs. Its line names what the two share. No line holds the value of any key, the
 values the caller gave included, so a line of this command is safe in any log.
 
 `add --scratch` writes a scratch home's table in place of a repo's: `name`, `kind =

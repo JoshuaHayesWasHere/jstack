@@ -16,13 +16,13 @@ reason with its sentence:
 - `unanswered`, `uncited`, `repeated` and `risky`, the waits of an answer by id
   (`jbriefs.findings`): answer each finding by id, and give a decline a reason that cites a
   path:line, a command or a gate. Give each finding its own reason, and park a gate for a
-  risky one. Each of these four reasons and the three above names, by id, the findings that
-  have no answer that counts;
-- `second`, `the second pass is not written`: launch the second reviewer. A brief written
-  before fixes got a scoped review says this reason;
+  risky one. These four reasons and the three above each list, by id, the findings that have
+  no answer that counts;
+- `second`, `the second pass is not written`: launch the second reviewer. A brief from the
+  time before fixes got a scoped review gives this reason;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
-  with the two ranges, the patch the last review saw and the patch at the head. Where no
-  range can be worked out, run the crew skill's block, which says what to do;
+  with the two ranges, the patch the last review saw and the patch at the head. Where the
+  crew cannot work out a range, run the crew skill's block, which says what to do;
 - `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
   skill's block of "A second pass". The block launches the one scoped pass that a blocking
   decline needs, even where the crew pushed nothing;
@@ -33,13 +33,13 @@ reason with its sentence:
   no crew to lift it;
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
-- `unreviewed`, `it has no review yet`: launch the reviewer the pull request is owed. Or
-  send a reviewer that ended its turn with no `## Review` back to work, with
-  `/pr-review run <slug> again`. `features/crew/templates/rerun.md` says a reviewer accepts
-  that line whether or not the brief has a section. `tell` does not send this reason for a
-  pull request that the crew skill leaves with no reviewer, since somebody was told of it
-  already. Such a brief names no reviewer launched, and either its `Reviewer:` line says
-  `none` or it has an `Unrun:`, `Stuck:` or `Stale base:` line for the head;
+- `unreviewed`, `it has no review yet`: launch the reviewer the pull request is owed. Or send a
+  reviewer that ended its turn with no `## Review` back to work, with `/pr-review run <slug> again`.
+  `features/crew/templates/rerun.md` says a reviewer accepts that line whether or not the brief has
+  a section. `tell` does not send this reason for a pull request that the crew skill leaves with no
+  reviewer, since the crew skill has told somebody of it already. Such a brief names no launched
+  reviewer, and either its `Reviewer:` line says `none` or it has an `Unrun:`, `Stuck:` or
+  `Stale base:` line for the head;
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward
   its cap of two after fixed and green. Then renumber the migration and the ones after it,
@@ -48,7 +48,7 @@ reason with its sentence:
   repo's merge gate at the head, fix what it names or make what it asks for, and push where a
   file changed. Only a gate that passes lifts the hold.
 
-`tell` reads each thread by the status T3 Code lists it with. It leaves alone a crew whose
+`tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.LIVE`: starting, `running` or `waiting`), since the line may be
 what the crew is about to write. It tells a crew that ended its turn (`completed`, `failed`,
 `interrupted`, `cancelled`). The last four reasons wait for a review, so `tell` also does
@@ -59,22 +59,21 @@ passes. After the message, a pass is an idle one when the reason and the head ar
 were and nobody is at work, neither the crew nor a reviewer the reason waits for. The
 `PASSES`th idle pass sends one `stall` event for the chat, which names the pull request, the
 reason and the crew's thread. So the user hears once, and only of a crew that did not act.
-Long work does not hold the stall back for good. The `REVIEWING`th pass after the message
+Long work does not delay the stall forever. The `REVIEWING`th pass after the message
 also sends that stall, and where somebody is at work in that pass, the stall says so.
 
-A `hold` is the user's, except for `unruled` and `gate`. `tell` returns the pull requests
-whose hold it has in hand, and a pass shows those to the user as a `wait`. A hold that is
-not in hand is an item of the user's list (`waiting`), and the user learns of it when it
-appears on that list. Such a hold always has an owner. A hold that `tell` cannot take on
-goes to the user at once: one with no crew jbus launched, or with no `Rebase:` line to take
-the ranges from. A hold also goes to the user when jbus could not tell its crew by the
-`LAPSE`th pass, because the thread stays at work or the message is not delivered. A hold
-that its crew did not lift goes to the user too. Starting with the pass after a stall that
-finds nobody at work, that hold is an item of the user's list, until the reason or the head
-changes. A stall sent while work is still going on gives the user nothing. The hold becomes
-the user's once that work has ended and `PASSES` idle passes have gone by. A pass that
-could not ask T3 Code or GitHub has no crew to ask. Then `told` keeps in hand the holds
-`tell` had in hand, and every other hold is the user's.
+A `hold` is the user's, except for `unruled` and `gate`. `tell` returns the pull requests whose hold
+it has in hand, and a pass shows those to the user as a `wait`. A hold that is not in hand is an
+item of the user's list (`waiting`), and the user learns of it when it appears on that list. Such a
+hold always has an owner. A hold that `tell` cannot take on goes to the user at once: one whose crew
+jbus did not launch, or with no `Rebase:` line to take the ranges from. A hold also goes to the user
+when jbus could not tell its crew by the `LAPSE`th pass, because the thread stays at work or the
+message is not delivered. A hold that its crew did not lift goes to the user too. Starting with the
+pass after a stall that finds nobody at work, that hold is an item of the user's list, until the
+reason or the head changes. A stall that jbus sends while work is still going on does not make the
+hold the user's. The hold becomes the user's once that work has ended and `PASSES` idle passes have
+gone by. A pass that could not ask T3 Code or GitHub has no crew to ask. Then `told` keeps in hand
+the holds `tell` had in hand, and every other hold is the user's.
 """
 
 from __future__ import annotations
@@ -489,7 +488,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
 
 def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reason: str) -> None:
     """Send the home the stall of a decline that the scoped review did not uphold, once for
-    the slug and the reason. The home gets it in place of the user, whom jbus never pages for
+    the slug and the reason. The home gets it instead of the user. jbus never pages the user for
     it, since the finding is in none of review-triage's categories. Where there is no home,
     the pass prints the stall, and the view keeps showing the pull request on the findings
     step. When a message fails to send, the next pass sends it again."""

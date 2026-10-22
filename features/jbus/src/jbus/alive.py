@@ -1,6 +1,6 @@
 """`jbus alarm`: count a pass that did not finish, or, with `--stale`, look for a pass that
 ended within a limit. `jbus-failed.service` runs the first when a pass fails.
-`jbus-stale.timer` runs the second, so jbus also sees a timer that is stopped.
+`jbus-stale.timer` runs the second, so jbus also notices a pass timer that is stopped.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def stale(
     `jbus-failed.service` does not see, since it runs only when a pass fails.
 
     The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
-    one that died. When the last pass is past the limit, or there is no record at all, the
+    a pass that died. When the last pass is past the limit, or there is no record at all, the
     look counts a failure of the `stale` streak. That streak alerts once, at its first failure
     (`alert.sound`). The next pass in which nothing raised ends the streak and says that it
     recovered (`poll`).

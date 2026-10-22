@@ -13,12 +13,11 @@ A streak is the failures in a row of one thing, under a key:
 - `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
 - `health <check>` for an incident `jbus.health` found.
 
-`failed` counts one failure, and returns the alert line once the count has reached the
-threshold. `ok` ends the streak, and returns the recovered line when the streak had alerted.
-An incident is a streak that `opened` starts and `closed` ends, with the line its caller
-passes.
-Everything else is silent: the failures before the threshold, the ones after the alert, and a
-success with no alert before it.
+`failed` counts one failure, and returns the alert line once the count has reached the threshold.
+`ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
+streak that `opened` starts and `closed` ends, with the line its caller passes. Everything else is
+silent: the failures before the threshold, the ones after the alert, and a success with no alert
+before it.
 
 This module returns a line on each count until `told` records that the line is in the queue,
 and only `told` marks the streak. When a caller raises, or is killed, after it gets the line
@@ -147,10 +146,11 @@ def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
 
 
 def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
-    """Record an incident found under `key`. Return `alert: <line>` from the look that found it
-    until `told`, and nothing after, so that jbus pages the incident once. `line` says the
-    number and what it is against. This function writes the streak when the incident starts
-    and not on each look, so its count stays 1: an incident is not a failure in a row."""
+    """Record an incident found under `key`. Return `alert: <line>` on each look, from the look that
+    found the incident until `told` records the line, and nothing after that. So jbus pages the
+    incident once. `line` gives the number and the limit it is against. This function writes the
+    streak when the incident starts and not on each look, so its count stays 1: an incident is not a
+    failure in a row."""
     with _locked(state):
         one = streak(state, key)
         if one is None:
@@ -160,9 +160,9 @@ def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
 
 
 def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str | None:
-    """Record that a look measured the incident under `key` under its limit again. Return
-    `recovered: <line>` for an incident that jbus paged, until `told`, and nothing where there
-    is no incident.
+    """Record that a look found the incident under `key` back under its limit. For an
+    incident that jbus paged, return `recovered: <line>` on each look until `told` records the
+    line. Return nothing where there is no incident.
 
     When the page for an incident's start did not go out, jbus still tells the user that the
     incident ended. The answer then also says when the incident began, and this function marks
@@ -313,8 +313,8 @@ def sound(
     The alert goes to the desk and waits in each project's outbox like any other event. This
     function flushes what waits each time, so an alert the webhook did not accept goes out
     with the next alarm or with the next pass that ends. It marks the streak alerted only after
-    it has told the desk and the projects, so an alarm that is stopped before then alerts again
-    on the next one.
+    it has told the desk and the projects. So when something stops an alarm before then, the
+    next alarm alerts again.
     """
     line = failed(config.state_dir, key, cause, after, now=now, user=config.user)
     if line:

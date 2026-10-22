@@ -4,11 +4,11 @@ This is the one way a thread opens a playbook. The crew, scout, home, expert and
 skills each call it, and none keeps its own block that reads the `Playbook:` line:
 `features/repo-guards/tests/test_one_way.py` fails on a skill that carries such a block
 again. The playbook's name is the first word of the first `Playbook:` line in the file's head
-(`jbriefs.parse.playbook_named`), or the name `--name` gives. A home and an expert get the
+(`jbriefs.parse.playbook_named`), or the name `--name` gives. A home and an expert give the
 name with `--name`, in place of a line.
 
-With the name `none`, or no name, it prints nothing. Otherwise it opens the playbook of that
-name that `skills.json` lists in the repo this package is in. The skills are in that repo
+With the name `none`, or no name, it prints nothing. Otherwise it looks the name up in the
+`skills.json` of the repo this package is in, and opens that playbook. The skills are in that repo
 too, and it reads that repo also when the work is in another repo (`jbriefs.skills.where`).
 For a name `skills.json` does not list, it prints `no playbook: ...`. For a playbook whose
 `Run by:` line names a role other than the one asked for, it prints `not <role's>: ...`. For

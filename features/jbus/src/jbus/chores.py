@@ -1,6 +1,6 @@
-"""Run the steps that close a project's pass, before `alert.flush`. A pass that had a world
-records that a whole pass has run (`chores.began`). Then the pass sends the day's snapshot,
-and runs the sweep that is due.
+"""Run the steps that close a project's pass, before `alert.flush`. A pass in which T3 Code and
+GitHub both answered (a pass with a world) records that a whole pass has run (`chores.began`). Then
+the pass sends the day's snapshot, and runs the sweep that is due.
 
 Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the
 last Result of each brief written in `SNAPSHOT_DAYS`. It then prunes what it sent of the

@@ -2,8 +2,8 @@
 body of the kind `item`, and its `id` is the project and the line's id. So the relay sends
 each card once, and Sous Chef replaces the item's card with the newest. A pass posts a card
 for each line that has none yet (`post`) to each webhook route that is the relay
-(`relayed`). On a route's first pass, it posts one card for each live item instead of the
-whole log.
+(`relayed`). On the first pass for a route, the pass posts one card for each live item
+instead of one for each line of the log.
 
 A card's `actions` are the decisions that the relay's `POST /item` accepts from the chat
 (`jbus.chat`).
@@ -132,8 +132,8 @@ def relayed(route: wake.Route) -> bool:
 def cards(
     state: Path, lines: list[dict[str, Any]], user: jsettings.Settings, after: int | None
 ) -> list[dict[str, Any]]:
-    """Return the cards still to post after the first `after` of the log's `lines`, in order.
-    With None, no card has gone out yet, so return one card for each live item, at its last
+    """Return the cards still to post after the first `after` of the log's `lines`, in order. When
+    `after` is None, no card has gone out yet, so return one card for each live item, at its last
     line, and not one for each line of the log."""
     risks: dict[str, Risk] = {}
     found: dict[str, Item] = {}

@@ -12,8 +12,8 @@ its id, with `t3_thread_read`, which also answers for an archived thread:
 - no answer: the row stays as the last pass judged it, not confirmed (`World.unasked`).
 
 `ask` keeps an answer of archived or missing in `unlisted.json`, by thread id, and does not
-ask about that thread again. When the user unarchives a thread, it appears in the list
-again, and the pass goes by the list.
+ask about that thread again. When the user unarchives a thread, the thread appears in
+the list again, and the pass reads it from the list.
 """
 
 from __future__ import annotations

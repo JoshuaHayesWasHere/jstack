@@ -3,9 +3,9 @@ home closes it.
 
 A leftover is a row whose thread ended or whose pull request merged, and whose last Result
 has a `Left:` line that is not `none`. No thread is at work on it (`ended`). A row whose
-thread ended or hung with no Result at all is a leftover too, once its crew had its
-carry-ons (`watch.unwritten`). Its `left` text is that reason, and its message says to carry
-the thread on, to remove the row, or to end it with a Result.
+thread ended or hung with no Result at all is a leftover too, once its crew has had its
+carry-ons (`watch.unwritten`). For such a row the `left` text gives that reason, and the
+message says to carry the thread on, to remove the row, or to end it with a Result.
 
 jbus closes no leftover and starts no thread for one. `tell` sends the row's home one queued
 message. The message has the slug, its pull request and whether it merged, the whole `Left:`
@@ -13,8 +13,8 @@ line, each question the slug asked with its answer or a note that it is open, an
 ways to end it. The retry key is
 `leftover|<slug>|<the first 12 of a hash of the Left: text>|<the home's thread>`, so jbus
 tells a home once for a row and a `Left:` text, and again when the text changes. When a home
-takes over from the one jbus told, jbus tells the new home too, and its 30 minutes start
-then.
+takes over from the one jbus told, jbus tells the new home too, and the new home's 30
+minutes start then.
 
 The home is the one the brief's `Home:` line names. Its thread is the first word of that
 home's `home-id`, which jbus reads on each pass. That rule is `jbriefs.home`, which a
@@ -27,22 +27,23 @@ crewmate and `jmerge` also use.
 - `thread` and `told` are the home's thread the message went to and when it went, or empty
   until jbus sends it.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
-  thread, that T3 Code lists that thread as settled or does not list it, or that the message did not
-  go.
+  thread, that T3 Code lists that thread as settled or does not list it, or that the message
+  did not go.
 - `stalled` is when jbus reported the row to the user as a stall, or empty. A new `Left:`
   text keeps it, so jbus reports a row once.
 - `busy` is true when a thread was at work on the row in the last pass, so the row waits on
   that thread.
 
 `his` says whose a leftover is: the home's while `his` returns nothing, and the user's with
-the reason `his` gives. A leftover is the user's when it has a `why`, while no home was
-told, or once `CLOSE_MINUTES` have passed since jbus told the home. jbus reports that last
+the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
+home, or once `CLOSE_MINUTES` have passed since jbus told the home. jbus reports that last
 case once, as a `stall` event (`stall.unclosed`). The list of what waits on the user
 (`waiting.left`) and the view read the same record. The pass that writes the list judges
 every row on it, so each record the list reads has `told` or `why`.
 
-A pass that could not list the threads that are not settled judges no home's thread. A row whose
-home was told stays as it was, and any other row is the user's until a pass can list them.
+When a pass could not list the threads that are not settled, it judges no home's thread. A
+row whose home jbus told stays as it was. Any other row is the user's until a pass can list
+those threads again.
 
 This module sets the timers of what blocks (`waiting.cadence`) beside `CLOSE_MINUTES`. jbus
 reminds the user once of an item that still blocks `REMIND_MINUTES` after it opened, and
@@ -161,9 +162,9 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
     """Return the rows whose Result leaves something and that no thread is at work on, each
     with its `why`.
 
-    jbus counts a merged row's thread as at work by the thread's status alone. It settles the
-    thread of a merge before it tells that thread, and a settled thread that took the message
-    up is at work.
+    jbus counts a merged row's thread as at work by the thread's status alone. jbus settles
+    the thread of a merge before it tells that thread, and a settled thread that picked the
+    message up is at work.
     """
     found = []
     for row in sorted(rows, key=queue.order):

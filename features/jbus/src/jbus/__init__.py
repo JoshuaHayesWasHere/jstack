@@ -5,40 +5,39 @@ directory. Every other module takes a `Config` or a `Project` and reads no path 
 
 A level of loudness and one kind of event had one person's name until the name became a
 setting (`jsettings.Settings`). `NAMED_AFTER` holds those two by the names they have now.
-jbus wrote each of them with that setting's name, in lower case, where `user` is now.
+jbus wrote each of them with the name in that setting, in lower case, where it writes `user` now.
 `old_names` is the map from every old name to the name it has now. `current_level` reads a
 level through it, and `current_kind` reads a kind of event through it. A third level, `chef`,
-started a POST for what asked nothing of the user. What was of that level is `quiet` now, and
-jbus reads it as `quiet`.
+started a POST for an event that asked nothing of the user. An event of that level is `quiet`
+now, and jbus reads it as `quiet`.
 
 `IGNORED` is the keys of a project's table that nothing reads any more. `load` still loads a
-config that has one, and `Config.ignored` names each such key, so that a pass can say so
-until the user removes it. A webhook URL and key in any top-level table, whether jbus reads
+config that has one, and `Config.ignored` names each such key, so that each pass can name
+it until the user removes it. A webhook URL and key in any top-level table, whether jbus reads
 that table or nothing reads it any more, are secret while they are in the file.
 `Config.tabled` holds them, and only `secrets` reads them there.
 
-A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
-top-level webhook. It receives the events of every project: jbus posts it each event, for the
-user of each project. Every project that has neither key of its own also uses it as its pair.
-A project with both keys of its own uses them as they are, and jbus posts its events there as
-well (`wake.Box`), once where the two pairs are the same. `load` refuses a project with only one
-of the two keys, because half a pair beside the top-level one would post with the wrong key.
-The top-level pair is secret whether a project uses it or not.
+A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the top-level
+webhook. It receives the events of every project: jbus posts it each event, for the user of each
+project. Every project that has neither key of its own also uses it as its pair. A project with both
+keys of its own uses them as they are. jbus posts the project's events to that pair as well
+(`wake.Box`), and only once where the two pairs are the same. `load` refuses a project with only one
+of the two keys, because half a pair beside the top-level one would post with the wrong key. The
+top-level pair is secret whether a project uses it or not.
 
-A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the
-second target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to
-several places. jbus posts it no event, only each item that blocks as it opens, each reminder
-and each refresh (`wake.Box.blocking`). `load` refuses half of that pair as it refuses half
-of the other, and both are secret.
+A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
+target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to several
+places. jbus posts no event to it. It posts only each blocking item when the item opens, each
+reminder, and each refresh (`wake.Box.blocking`). `load` refuses half of that pair as it refuses
+half of the other, and both are secret.
 
-A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for
-throwaway questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is
-the one place that turns a table into a project. It sorts a scratch table into
-`Config.scratch` and never into `Config.projects`, so no step that takes a `Project` (the
-queue, `jmerge`, the sweep, CI, the readers, the snapshot) ever gets one. A name belongs to
-one home across both lists. `load` refuses a scratch table whose name a project has or keeps
-its state under. It also refuses a repo table that comes after a scratch home of the same
-name.
+A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for throwaway
+questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one place
+that turns a table into a project. It sorts a scratch table into `Config.scratch` and never into
+`Config.projects`, so no step that takes a `Project` (the queue, `jmerge`, the sweep, CI, the
+readers, the snapshot) ever gets one. A name belongs to one home across both lists. `load` refuses a
+scratch table whose name is a project's name, or the name a project keeps its state under. It also
+refuses a repo table that comes after a scratch home of the same name.
 
 `END_TURN` is the ending of every message to a crew, and of the message that continues or
 wakes a reviewer. When a turn ends while its own check or a reviewer's proof still runs,
@@ -89,7 +88,7 @@ class Project:
     user must act on: its own pair, or the config's top-level one when it has none.
 
     `migrations` is the directory, from the checkout's root, where the repo keeps its
-    migrations, and nothing where it has none. `migration_names` says how the repo names a
+    migrations. It is empty where the repo has none. `migration_names` says how the repo names a
     migration: `numbered`, as `0004_insulin`, which takes its number when it lands, or
     `timestamped`, whose name cannot collide. `jmerge` reads both."""
 
@@ -113,7 +112,7 @@ class Scratch:
     project_id: str
 
     def addressee(self) -> Project:
-        """Return the home as `word` addresses it: a `Project` whose checkout is nowhere. It is
+        """Return the home as `word` addresses it: a `Project` with no checkout. It is
         for the `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
         nothing else. Its state and its home are `<name>`, as a repo's are."""
         return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
@@ -203,7 +202,7 @@ class Config:
 
 def old_names() -> dict[str, str]:
     """Return each name that changed, with the name it has now: `WAS`, and each of `NAMED_AFTER`
-    as jbus wrote it under the user's name of the settings. A name that is a level now, as
+    as jbus wrote it with the user's name from the settings. A name that is a level now, as
     `user` is with the default settings, is not an old name. This function reads the settings
     file, so a caller with many names to read calls it once and passes the map to the two
     functions below."""
@@ -224,10 +223,10 @@ def current_level(name: str, names: dict[str, str]) -> str:
 def current_kind(name: str, names: dict[str, str]) -> str:
     """Return a kind of event by the name it has now. `names` is `old_names`.
 
-    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function,
-    and nothing writes an old name. It maps no old name of a level to a kind, because a key of
-    `sent.json` may begin with any word, the user's name among them. A module that looks one
-    key up in `sent.json` reads the file as it is, since none looks up a kind that changed.
+    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function.
+    Nothing writes an old name any more. It maps no old name of a level to a kind, because a key of
+    `sent.json` may begin with any word, the user's name among them. A module that looks one key up
+    in `sent.json` reads the file as it is, since no such module looks up a kind that changed.
     """
     now = names.get(name, name)
     return name if now in LEVELS else now
@@ -283,7 +282,7 @@ BLOCKING = ("blocking_url", "blocking_key")
 
 
 def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
-    """Return the key of the table's pair that is missing beside the other, or None. A URL with
+    """Return the key that the table's pair is missing while it has the other, or None. A URL with
     an empty key counts as a missing key, since it would post with no key. An empty URL beside
     a key is not a webhook, and `load` accepts it."""
     url, key = pair

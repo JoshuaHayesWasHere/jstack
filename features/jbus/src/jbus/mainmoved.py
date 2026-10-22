@@ -13,39 +13,41 @@ and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip fol
 `tell` loses no tip whose check had not ended when it landed, and no second red tip either.
 It keeps the last tip whose check passed as `green`.
 
-`landed` lists each tip main went through since the last pass, and `tell` looks at them in
-order. A tip still counts when it failed or passed before any pass looked at it, even with a
-newer tip on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks at it
-again until the check of a later tip ends. A tip's check is main's own, which `tell` reads as
-`main_check` reads it. Each pass asks again about a failed check at main's tip, or at the
-red tip kept as `broken`: a rerun that passes on that same commit ends the red there.
+`landed` lists each tip main went through since the last pass, and `tell` looks at them in order. A
+tip still counts when it failed or passed before any pass looked at it, even with a newer tip on top
+of it. `tell` keeps a tip whose check has not ended as `pending`, and looks at that tip again until
+the check of a later tip ends. A tip's check is main's own, which `tell` reads as `main_check` reads
+it. Each pass asks again about a failed check at main's tip, or at the red tip kept as `broken`: a
+rerun that passes on that same commit ends the red there.
 
 `tell` does not tell a crew of a conflict. Only a push ends a conflict, and `rebase.github`
-tells the crew of it once per head. `tell` asks the remote for its commit on each pass,
+tells the crew about a conflict once per head. `tell` asks the remote for main's commit on
+each pass,
 since no step of a pass is sure to fetch. A pull request's check state is GitHub's own.
 `tell` reads it in the pass's list of open pull requests.
 
-The message names the green tip that ended the red. Its key,
-`mainmoved|<slug>|#<number>|<that tip 12>`, is its retry key at T3 Code and its mark in
+The message names the green tip that ended the red. The message's key,
+`mainmoved|<slug>|#<number>|<that tip 12>`, is both its retry key at T3 Code and its mark in
 `sent.json`. `tell` advances the commit in `main.json` only when it owes no send, so a pass
 that got no answer looks again. With the mark, no pass sends the same message twice.
 A pass that still owes a send writes only `fixed`, the green tip. Main then reads as green
-for `jmerge.mainjson`, while the record keeps the commit to look at again, and the next pass
+for `jmerge.mainjson`. The record still keeps the commit to look at again. The next pass
 takes the red as ended at that tip, whatever tip main is at by then. A pass does the same
 when the rebase message went to a red head and GitHub has not yet said whether that head
 still conflicts.
 
 `rebase.held` holds back a message when its thread is at work or its head moved. A held
 message delays no other message: a turn may last long, and a pull request that turns red meanwhile
-was not red when main moved. `tell` puts its slug on `held` in `main.json`, beside the
-commit, the red tip and the green tip that ended it (`broken` and `fixed`). Each pass looks
+was not red when main moved. `tell` puts the held message's slug on `held` in `main.json`,
+beside the commit, the red tip and the green tip that ended the red (`broken` and
+`fixed`). Each pass looks
 at those slugs again, and at no others, until main moves again.
 
 jbus tells a crew to rebase a head once, here or in `rebase.tell`. `tell` skips a red head
 that is also in conflict and already has `rebase|<slug>|<head 12>`. It marks a head it tells
 with that key, and the rebase message marks this module's key for the commit main is at.
 `tell` also marks with `failed|<slug>|<head 12>` each head it tells, and each head whose
-message T3 Code refused, which then went to a gate. This message says what to do about the
+message T3 Code refused, a message that then went to a gate. This message says what to do about the
 failed check, so `rebase.github` does not say it again.
 """
 

@@ -1,7 +1,7 @@
 """The digest lists what waits and what moved in every project, as one dict built with no model.
 
 `build` is the one builder. `jbus digest --json` prints what it returns, and a server can
-serve the same dict at an address. It reads only what the passes left and calls no service:
+serve the same dict at an address. `build` reads only what the passes left and calls no service:
 no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dict has these keys:
 
 - `at` is when it was built, and `since` is the time from which the digest counts merges.
@@ -11,16 +11,16 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     is done and leaves nothing is over. A row that merged with work left for after the merge
     is not.
   - `merged` holds `{"slug", "pr", "at"}` for each row that turned `merged` at or after
-    `since`, oldest first, from `transitions.jsonl`. Its `pr` is as the row has it, `#<n>`,
-    or empty.
+    `since`, oldest first, from `transitions.jsonl`. Each entry's `pr` is the row's own
+    value, `#<n>`, or empty.
   - `done` holds the same for each row that turned `done`, which has no pull request.
   - `pulls` holds `{"number", "slug", "url", "waits"}` for each of those rows that has a pull
     request and is not merged. Its `waits` is the last line `jmerge` logged for it, as
     `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
   - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
     not, that a home approved by a standing rule at or after `since`, oldest first. The user
-    said nothing about such a row. The list's length is the count the user is told, `follows`
-    is the row the user did approve, and `at` is when the home ran the approval, to the
+    said nothing about such a row. The list's length is the count the user is told.
+    `follows` is the row the user did approve. `at` is when the home ran the approval, to the
     minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
     lists a row twice at worst and never misses it.
   - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
@@ -144,8 +144,9 @@ def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[di
     """Return each row a home approved by a standing rule at or after `start`, and skip a row
     whose record has no time jbus stamped.
 
-    A record's time is to the minute, so this rounds `start` down to its minute. A row approved
-    in the minute a digest was built is in the next digest too, and no digest misses it."""
+    A record's time is to the minute, so this rounds `start` down to its minute. A row that a
+    home approved in the minute a digest was built is in the next digest too, and no digest
+    misses it."""
     start = start.replace(second=0, microsecond=0)
     found = []
     for row in table:
@@ -206,8 +207,8 @@ def build(
 
 
 def _status(_: argparse.Namespace, config: Config) -> int:
-    """Print the status file with the record of the pass, and with the streaks and the homes
-    not on the bus as they are now.
+    """Print the status file and the record of the pass. Print the streaks, and the homes
+    that are not on the bus, as they stand now.
 
     The file's own streaks are a copy from the last pass that ended, and `jbus alarm` keeps
     counting after that pass. A pass writes the record at its start, so this also prints a

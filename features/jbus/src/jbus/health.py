@@ -5,13 +5,14 @@ Each check returns a `Reading`: the number, what it counts, and the limit jbus c
 with.
 
 - `disk <mount>` and `inodes <mount>` are the space and the inodes used on each mount the
-  stack writes (jbus's state and homes, each project's checkout, the temp directory, the
-  user's home, the ledger, the relay's state). They are over at `FULL` (80%) or more. A
+  stack writes to (jbus's state and homes, each project's checkout, the temp directory, the
+  user's home, the ledger, the relay's state). Each is over its limit at `FULL` (80%) or
+  more. A
   filesystem that counts no inodes (btrfs) has no inode number.
 - `timeout jbus` and `timeout jmerge` count the passes systemd stopped at `jbus.service`'s
   TimeoutStartSec, and the runs of `jmerge` that a pass stopped at `JMERGE_TIMEOUT`. Both read the
-  journal of `jbus.service` over the last `TIMEOUT_MINUTES`. One is an incident. A pass that systemd
-  stopped cannot say so itself, so the journal is the one place that shows both.
+  journal of `jbus.service` over the last `TIMEOUT_MINUTES`. A single one is an incident. A pass
+  that systemd stopped cannot say so itself, so the journal is the one place that shows both.
 - `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config
   posts to the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env
   file, which `jbus.service` does not load. Each is over on one of these: the relay's unit is
@@ -21,8 +22,8 @@ with.
   `REFUSED_MINUTES`. Such a body stays in the relay's `dead/` and the relay never sends it
   (`jbus.relay`). jbus does not judge silence and errors from a heartbeat that is stale.
 - `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's
-  pools and the built-in one. They read the ledger that the threads' status lines and their
-  limit failures write (`jroles.ledger`). jbus pages for the seven-day window at `FULL`. The
+  pools and the built-in one. They read the ledger (`jroles.ledger`), which the threads'
+  status lines and limit failures write. jbus pages for the seven-day window at `FULL`. The
   five-hour window fills and resets each day, so jbus pages for it only when it is full.
   `capped` is the instance `jroles.pool.choose` skips: while the cap lasts, new launches go
   to the next instance of the pool, and with every instance capped no launch starts. The
@@ -34,8 +35,8 @@ A reading over its limit is an incident, with the key `health <the reading's key
 when a reading under the limit ends it (`alert.closed`). When jbus could not take a reading
 (`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
 incident's reading, because a mount or an instance is gone or the config no longer posts to
-a relay, jbus ends the incident with no line. A page goes to the desk, and once to the
-top-level webhook as an event of the machine (`wake.Box.send`).
+a relay, jbus ends the incident with no line. jbus sends a page to the desk, and once to
+the top-level webhook as an event of the machine (`wake.Box.send`).
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -81,8 +82,8 @@ GIB = 2**30
 @dataclass(frozen=True)
 class Mount:
     """A `Mount` is a mount the stack writes. It holds the bytes used and the bytes still free
-    to a user, and the inodes used and the inodes in all, which are 0 on a filesystem that
-    does not count them."""
+    to a user, and the inodes used and the inodes in all. The two inode counts are 0 on a
+    filesystem that does not count inodes."""
 
     point: str
     used: int
