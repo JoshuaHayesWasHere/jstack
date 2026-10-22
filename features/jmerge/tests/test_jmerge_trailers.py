@@ -13,7 +13,7 @@ commit's message."""
 import pytest
 
 from jmerge import trailers
-from test_jmerge_fresh import LINES, Kitchen, git
+from test_jmerge_fresh import LINES, Kitchen, git, url
 from test_jmerge_integration import TRAIN, integration
 
 CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -76,6 +76,7 @@ def test_each_ai_trailer_is_found_and_taken_out(line):
         f"feat: a change\n\n{HUMAN}\n",
         "feat: the cursor moves with the copilot of the plane\n",
         "docs: say claude code generated nothing here\n",
+        'feat: refuse the footer\n\nA line "Generated with Claude Code" is refused.\n',
         "Co-authored-by: Clauderia Smith <clauderia@example.com>\n",
     ],
 )
@@ -142,3 +143,13 @@ def test_the_landing_of_a_train_is_a_merge_commit_whose_body_is_the_title(kitche
         f"pr merge 9 --merge --match-head-commit {head} --body-file - --repo {kitchen.origin}"
     ]
     assert message(kitchen) == f"Merge pull request #9\n\nfeat: {TRAIN}"
+
+
+def test_a_branch_whose_messages_cannot_be_read_waits_and_is_never_merged(kitchen):
+    kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
+    gone = "f" * 40
+    kitchen.pulls["alpha"]["headRefOid"] = gone
+    kitchen.brief("alpha", gone)
+    (said,) = kitchen.run()
+    assert said == f"wait 7 {url(7)}: its commit messages could not be read for the squash"
+    assert kitchen.calls() == []

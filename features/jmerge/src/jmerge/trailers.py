@@ -1,8 +1,8 @@
 """The lines that credit an AI tool as a co-author of a commit, found and taken out.
 
 A line is one when it is a `Co-authored-by:` trailer that names Claude, Codex, OpenAI, Cursor or
-Copilot as a word, or an `@anthropic.com` address, or when it says it was generated with Claude
-Code. Case does not matter. A human co-author is never one.
+Copilot as a word, or an `@anthropic.com` address, or when the whole line is the footer that says
+it was generated with Claude Code. Case does not matter. A human co-author is never one.
 
 jmerge strips them from the squash commit it writes, and the pull request's check
 (`scripts/no_ai_trailers.py`) fails a pull request that carries one. The unit
@@ -17,7 +17,7 @@ PATTERNS = (
         r"^\s*co-authored-by:.*(\b(claude|codex|openai|cursor|copilot)\b|@anthropic\.com)",
         re.IGNORECASE,
     ),
-    re.compile(r"generated with\W*claude code", re.IGNORECASE),
+    re.compile(r"^\W*generated with \[?claude code\]?(\([^)]*\))?\W*$", re.IGNORECASE),
 )
 
 
