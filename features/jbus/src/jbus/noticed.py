@@ -1,32 +1,32 @@
-"""What the threads noticed: each `Noticed` line of the briefs and the scout requests, kept as
-one record a home marks taken or dropped. `jbus noticed`.
+"""`jbus noticed`: keep each `Noticed` line of the briefs and the scout requests as one
+record, which a home marks taken or dropped.
 
-A crewmate's Result and a scout's Report end with a `Noticed:` line, and a Review has its
-`Noticed, from the review:` line: where a thread writes down what is wrong outside its task.
-Each pass reads them all, in `tasks/*.md` and `scouts/*.md` of the home's state directory:
-every `## Result` (a follow-up included), `## Review` and `## Report` section. A line is
-`Noticed`, or `Noticed` and a few words after a comma or in parentheses, then a colon. What
-follows the colon is one record, and each item of the list under the line is one more
-(`lines`), so a line added to the list later is one new record. A text that is empty or says
-`none` is no record.
+A crewmate's Result and a scout's Report end with a `Noticed:` line, and a Review has a
+`Noticed, from the review:` line. On that line a thread writes down what is wrong outside
+its task. Each pass reads them all, in `tasks/*.md` and `scouts/*.md` of the home's state
+directory: every `## Result` (a follow-up included), `## Review` and `## Report` section.
+The line starts with `Noticed`, or with `Noticed` and a few words after a comma or in
+parentheses, and then a colon. The text after the colon is one record, and each item of the
+list under the line is one more (`lines`). So a line added to the list later is one new
+record. A text that is empty or says `none` makes no record.
 
 `noticed.json` in the project's state directory is `{"records"}`, each a `Record`:
 
 - `key`: `<slug>:<the first 12 of the sha256 of its text>`. A pass that finds the same text
   of the same slug again adds nothing, so two passes add what one adds;
 - `slug`, `kind` (`tasks` or `scouts`), `section` (its heading, with no `## `) and `label`
-  (the words before the colon): where it was first found;
-- `text`: whole;
+  (the words before the colon): where a pass first found it;
+- `text`: the whole text;
 - `seen_at`: when a pass first found it, in UTC;
-- `mark`: `new`, `taken` or `dropped`. A record is marked once, from `new`, by `take` or
-  `drop`, and by nothing else: `row` is the queue row or plan entry that took it, `why` why
-  it was dropped, and `by` and `at` who marked it and when, as `--by` and `--at` were typed.
+- `mark`: `new`, `taken` or `dropped`. Only `take` or `drop` marks a record, once, from
+  `new`. `row` is the queue row or plan entry that took it, and `why` says why the marker
+  dropped it. `by` and `at` say who marked it and when, copied from `--by` and `--at`.
 
-The first pass of a project, the one that finds no file, marks every line there is then as
-`dropped` with the why `FROM_BEFORE`, `by` jbus: what was written before the list was kept is
-no new line to anybody. jbus writes nothing into a brief, asks nobody about a line and makes
-no queue row for one. A file that does not parse is refused by every verb that would write it
-(`Unparsable`), and a pass says so and leaves it as it is.
+The first pass of a project, the one that finds no file, marks every line that exists then
+as `dropped`, with the why `FROM_BEFORE` and `by` jbus. A line the threads wrote before jbus
+kept the list is new to nobody. jbus writes nothing into a brief, asks nobody about a line
+and makes no queue row for one. Every verb that would write a file that does not parse
+refuses it (`Unparsable`), and a pass says so and leaves the file as it is.
 """
 
 from __future__ import annotations
@@ -60,7 +60,8 @@ _NAME = re.compile(r"[^\s,]+")
 
 
 class Unparsable(jbus.Refused):
-    """`noticed.json` is not what this module writes, so nothing is written over it."""
+    """`noticed.json` is not in the form this module writes, so this module writes nothing
+    over it."""
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,7 @@ class Record:
     at: str = ""
 
     def line(self) -> str:
-        """The record in one line: its key, where it is from, its mark, and its text."""
+        """Return the record as one line: its key, where it is from, its mark, and its text."""
         said = {TAKEN: f" by {self.row}", DROPPED: f": {self.why}"}.get(self.mark, "")
         text = " ".join(self.text.split())
         return f"{self.key} {self.slug}, {self.section}, {self.mark}{said}: {text}"
@@ -90,13 +91,13 @@ def key(slug: str, text: str) -> str:
 
 
 def lines(body: str) -> Iterator[tuple[str, str]]:
-    """Each item of each `Noticed` line of a section: its label and its text.
+    """Return each item of each `Noticed` line of a section: its label and its text.
 
-    What follows the colon is one item. Under it, each line that starts `- `, `* ` or a small
-    letter, as a `follow-up: <finding>` line does, is one more, and an indented line belongs to
-    the item above it. The list ends at a blank line, a heading or a line that starts with a
-    capital, such as `Left:`, so a line added under it later is one more item and leaves the
-    others as they were.
+    The text after the colon is one item. Under it, each line that starts with `- `, `* ` or a
+    lowercase letter, as a `follow-up: <finding>` line does, is one more item. An indented
+    line belongs to the item above it. The list ends at a blank line, a heading, or a line
+    that starts with a capital, such as `Left:`. So a line added under the list later is one
+    more item and leaves the others as they were.
     """
     rows = body.splitlines()
     for at, row in enumerate(rows):
@@ -120,7 +121,8 @@ def lines(body: str) -> Iterator[tuple[str, str]]:
 
 
 def found(home: Path, now: datetime) -> list[Record]:
-    """Every record the briefs and requests hold now, as new ones seen at `now`, each once."""
+    """Return every record the briefs and requests hold now, each once, as a new record seen
+    at `now`."""
     made: dict[str, Record] = {}
     seen = now.astimezone(UTC).isoformat(timespec="seconds")
     for kind in ("tasks", "scouts"):
@@ -153,8 +155,8 @@ def _locked(state: Path) -> Iterator[None]:
 
 
 def read(state: Path) -> list[Record] | None:
-    """Every record, as kept, or None where there is no file yet. `Unparsable` for a file
-    that is not one this module wrote."""
+    """Return every record as kept, or None where there is no file yet. Raise `Unparsable`
+    for a file that is not one this module wrote."""
     file = path(state)
     if not file.exists():
         return None
@@ -173,9 +175,10 @@ def _write(state: Path, records: list[Record]) -> None:
 
 
 def keep(state: Path, home: Path, now: datetime, *, before: frozenset[str] = frozenset()) -> int:
-    """Add what is new, and give how many were added. On the first pass every line there is
-    is added as dropped, `FROM_BEFORE`, and so is every line of the files `before` names, as
-    `tasks/<slug>.md` or `scouts/<slug>.md`: the ones `mirror.scan` found restored."""
+    """Add what is new, and return how many records it added. On the first pass it adds
+    every line that exists as dropped, `FROM_BEFORE`. It does the same for every line of the
+    files `before` names, as `tasks/<slug>.md` or `scouts/<slug>.md`: the ones `mirror.scan`
+    found restored."""
     with _locked(state):
         records = read(state)
         first = records is None
@@ -202,7 +205,8 @@ def scan(run: Pass) -> None:
 
 
 def _named(state: Path, home: Path, slug: str) -> bool:
-    """Whether a queue row or an entry of a plan, open or done, of any home, has the slug."""
+    """Return whether a queue row or an entry of a plan, open or done, of any home, has the
+    slug."""
     try:
         rows = queue.load(state)
     except queue.Unparsable as error:
@@ -232,7 +236,7 @@ def mark(
     row: str = "",
     why: str = "",
 ) -> str:
-    """Mark one new record taken by `row`, or dropped for `why`. Anything else is refused."""
+    """Mark one new record taken by `row`, or dropped for `why`. Refuse anything else."""
     if not _NAME.fullmatch(by):
         raise jbus.Refused(f"refused: --by is one name with no comma, not {by!r}")
     if not user.takes(at):

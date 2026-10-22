@@ -1,11 +1,11 @@
-"""The steps that close a project's pass, before `alert.flush`: what a pass that had a world
-marks, the day's snapshot, and the sweep it leaves owed.
+"""Run the steps that close a project's pass, before `alert.flush`: what a pass that had a
+world marks, the day's snapshot, and the sweep that the pass leaves owed.
 
 Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the
-last Result of each brief written in `SNAPSHOT_DAYS`. It then prunes what was sent of the
-pull requests merged `wake.PRUNE_AFTER` ago, forgets the log's lines older than
-`wake.LOG_KEEP`, and owes a look at what `jmerge` would sweep, again on each pass until
-`jmerge` has run.
+last Result of each brief written in `SNAPSHOT_DAYS`. It then prunes what it sent of the
+pull requests merged `wake.PRUNE_AFTER` ago, and forgets the log's lines older than
+`wake.LOG_KEEP`. Last, it owes a look at what `jmerge` would sweep, and owes that look again
+on each pass until `jmerge` has run.
 """
 
 from __future__ import annotations

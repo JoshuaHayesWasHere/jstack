@@ -1,25 +1,31 @@
-"""A failure that repeats is told once, and so is its end. This is the only place a streak lives.
+"""Tell a failure that repeats once, and its end once. This module is the only place that keeps
+a streak.
 
-A streak is the failures in a row of one thing, under a key: `pass` for a pass that did not
-finish, `webhook <project>` for a POST the project's own webhook did not take, `top-level
-webhook <project>` for a POST of the project's that the top-level webhook did not take,
-`blocking webhook <project>` for a body of the project's that the second target did not take,
-`jmerge <project>` for a `jmerge` that did not run, `snapshot` for a snapshot of the homes'
-state tree that did not finish, `stale` for a look by `jbus alarm --stale` that found no pass
-ended within its limit, and `health <check>` for an incident `jbus.health` found. `failed`
-counts one and gives the alert line once the count has reached the threshold. `ok` ends the
-streak, and gives the recovered line when it had alerted. An incident is a streak that
-`opened` starts and `closed` ends, with the line its caller gives. Everything else is
-silence: the failures before the threshold, the ones after the alert, and a success with no
-alert before it.
+A streak is the failures in a row of one thing, under a key:
 
-A line is owed until `told` says it is queued, and only then is the streak marked: a
-caller that raises, or is killed, between the line and the queue gets the line again on
-its next count. So a line goes at least once, and twice only after such a break.
+- `pass` for a pass that did not finish;
+- `webhook <project>` for a POST the project's own webhook did not take;
+- `top-level webhook <project>` for a POST of the project's that the top-level webhook did not
+  take;
+- `blocking webhook <project>` for a body of the project's that the second target did not take;
+- `jmerge <project>` for a `jmerge` that did not run;
+- `snapshot` for a snapshot of the homes' state tree that did not finish;
+- `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
+- `health <check>` for an incident `jbus.health` found.
 
-The streaks are in `streaks.json`, which only this module writes, under a lock: `jbus alarm`
-runs outside the pass lock, and may count while a pass ends another streak. The status file
-shows a copy, under `streaks`.
+`failed` counts one failure, and gives the alert line once the count has reached the
+threshold. `ok` ends the streak, and gives the recovered line when the streak had alerted. An
+incident is a streak that `opened` starts and `closed` ends, with the line its caller gives.
+Everything else is silent: the failures before the threshold, the ones after the alert, and a
+success with no alert before it.
+
+A line is owed until `told` says that the line is in the queue, and only then does this module
+mark the streak. A caller that raises, or is killed, between the line and the queue gets the
+line again on its next count. So a line goes at least once, and twice only after such a break.
+
+The streaks are in `streaks.json`. Only this module writes that file, and it writes under a
+lock, because `jbus alarm` runs outside the pass lock and may count while a pass ends another
+streak. The status file shows a copy, under `streaks`.
 """
 
 from __future__ import annotations
@@ -73,7 +79,8 @@ def _path(state: Path) -> Path:
 
 @contextmanager
 def _locked(state: Path) -> Iterator[None]:
-    """Held from a streak's read to its write, so no count and no `alerted` is lost."""
+    """Hold the lock from a streak's read to its write, so that no count and no `alerted` is
+    lost."""
     state.mkdir(parents=True, exist_ok=True)
     with open(state / "streaks.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
@@ -81,12 +88,12 @@ def _locked(state: Path) -> Iterator[None]:
 
 
 def streaks(state: Path) -> dict[str, dict]:
-    """Every open streak, by key, as the status file shows them."""
+    """Return every open streak, by key, as the status file shows them."""
     return read_json(_path(state), {})
 
 
 def streak(state: Path, key: str) -> Streak | None:
-    """The streak that is open under this key, or None when its last try went."""
+    """Return the streak that is open under this key, or None when its last try succeeded."""
     kept = streaks(state).get(key)
     return Streak(**kept) if kept else None
 
@@ -111,7 +118,7 @@ def failed(
     now: datetime | None = None,
     user: jsettings.Settings,
 ) -> str | None:
-    """Count one failure. The answer is the alert line, from the count `after` until `told`."""
+    """Count one failure. Return the alert line, from the count `after` on, until `told`."""
     now = now or datetime.now(UTC)
     with _locked(state):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
@@ -123,7 +130,8 @@ def failed(
 
 
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
-    """A try went. The answer is the recovered line of a streak that alerted, until `told`.
+    """Record a try that succeeded. Return the recovered line of a streak that alerted, until
+    `told`.
 
     A streak that had not alerted ends here, with no line.
     """
@@ -137,10 +145,10 @@ def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
 
 
 def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
-    """An incident under `key` is found. The answer is `alert: <line>` from the look that
-    found it until `told`, and nothing after: it is paged once. `line` says the number and
-    what it is against. The streak is written when the incident starts and not on each
-    look, so its count stays 1: it is no failure in a row."""
+    """Record an incident found under `key`. Return `alert: <line>` from the look that found it
+    until `told`, and nothing after, so that jbus pages the incident once. `line` says the
+    number and what it is against. This function writes the streak when the incident starts
+    and not on each look, so its count stays 1: an incident is not a failure in a row."""
     with _locked(state):
         one = streak(state, key)
         if one is None:
@@ -150,12 +158,14 @@ def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
 
 
 def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str | None:
-    """The incident under `key` was measured and is under its limit again. The answer is
-    `recovered: <line>` for one that was paged, until `told`, and nothing where there is none.
+    """Record that a look measured the incident under `key` under its limit again. Return
+    `recovered: <line>` for an incident that jbus paged, until `told`, and nothing where there
+    is no incident.
 
-    One whose start was never told, since its page did not go, is not ended unseen: the
-    answer says when it began as well, and the streak is marked as paged, so `told` ends it
-    and a page that does not go this time goes as a plain recovered line on the next look."""
+    An incident whose start jbus never told, because its page did not go, does not end unseen.
+    The answer also says when the incident began, and this function marks the streak as paged.
+    So `told` ends the streak, and if this page does not go either, it goes as a plain
+    recovered line on the next look."""
     with _locked(state):
         one = streak(state, key)
         owed = one is not None and not one.alerted
@@ -169,7 +179,8 @@ def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str
 
 
 def told(state: Path, key: str) -> None:
-    """The line `failed` or `ok` gave is queued: mark the streak alerted, or end it."""
+    """Mark the streak alerted, or end it, once the line that `failed` or `ok` gave is in the
+    queue."""
     with _locked(state):
         one = streak(state, key)
         if one is None:
@@ -187,9 +198,9 @@ def recovered(
     guarded: Callable[[str, Callable[[], Any]], Any],
     raised: dict[str, str],
 ) -> None:
-    """After a pass in which nothing raised, end the `PASS` streak and then the `STALE` one,
-    and send each recovered line to every project, each send `guarded` by its project's
-    name. A send that raises leaves its streak, and the next, for the next pass."""
+    """After a pass in which nothing raised, end the `PASS` streak and then the `STALE` one.
+    Send each recovered line to every project, each send `guarded` by its project's name. A
+    send that raises leaves its streak, and the next one, for the next pass to end."""
     for key in (PASS, STALE):
         if raised:
             break
@@ -201,7 +212,7 @@ def recovered(
 
 
 def retire(state: Path, key: str) -> None:
-    """End a streak nothing counts any more, with no line: what counted it is gone."""
+    """End a streak that nothing counts any more, with no line, since what counted it is gone."""
     with _locked(state):
         if streak(state, key):
             _keep(state, key, None)
@@ -210,11 +221,11 @@ def retire(state: Path, key: str) -> None:
 def deliver(run: wake.Pass, line: str | None, *, desk: bool = True) -> None:
     """Send an alert or a recovered line to the chat, and nothing when there is no line.
 
-    While the project's webhook is failing the line would only wait in the outbox, so the
-    desk is told as well. `desk=False` is for a caller that has told the desk itself.
+    While the project's webhook is failing, the line would only wait in the outbox, so this
+    function tells the desk as well. `desk=False` is for a caller that has told the desk itself.
 
-    The line is queued with no key: a streak gives it once, and a later streak that starts
-    at the same minute of another day makes the same line, which must go again.
+    The line goes into the queue with no key. A streak gives a line once, and a later streak
+    that starts at the same minute of another day makes the same line, which must go again.
     """
     if not line:
         return
@@ -233,13 +244,13 @@ def tell(run: wake.Pass, key: str, line: str | None) -> None:
 
 def flush(run: wake.Pass) -> int:
     """Post what waits for the project to each of its webhooks, and keep each webhook's streak
-    by how that went. The answer is how many the project's own webhook took.
+    by how the post went. Return how many events the project's own webhook took.
 
-    The own webhook goes first, so an alert it gives is posted to the top-level one in the
-    same pass. A project with no top-level route any more ends that streak, with no line, and
-    drops what waited for it: a pair that comes back later is posted only what is new. The
-    second target goes first, with its own streak, so an alert it gives is posted to the
-    others in the same pass, and the same holds for it.
+    The own webhook goes first, so that this function posts an alert it gives to the top-level
+    one in the same pass. For a project with no top-level route any more, end that streak, with
+    no line, and drop what waited for it: if the pair comes back later, it gets only what is
+    new. The second target goes first, with its own streak, so that this function posts an
+    alert it gives to the others in the same pass, as it does for the own webhook.
     """
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:
@@ -275,10 +286,10 @@ def _count(run: wake.Pass, key: str, went: list[str]) -> None:
 
 
 def why(error: Exception, *hooks: jbus.Project | jbus.Hook) -> str:
-    """An exception as one line, for the journal and the status file.
+    """Write an exception as one line, for the journal and the status file.
 
-    An error from a webhook URL that cannot be used quotes it, whole or in part, so what
-    is secret of each hook is taken out (`jbus.secrets`).
+    An error from a webhook URL that cannot be used quotes the URL, whole or in part, so this
+    function takes out what is secret of each hook (`jbus.secrets`).
     """
     said = " ".join(f"{type(error).__name__}: {error}".split())
     return wake.cut(jbus.redact(said, jbus.secrets(*hooks, part=2), "[webhook]"), 300)
@@ -292,12 +303,13 @@ def sound(
     now: datetime,
     say: Callable[[str], None],
 ) -> int:
-    """Count one failure of a unit that runs outside the pass, and alert once it is due.
+    """Count one failure of a unit that runs outside the pass, and alert once the alert is due.
 
-    The alert goes to the desk and waits in each project's outbox like any other event, and
-    what waits is flushed each time, so one the webhook did not take goes with the next alarm
-    or the next pass that ends. The streak is marked alerted after the desk and the projects
-    were told, so an alarm that is stopped before then alerts again on the next one.
+    The alert goes to the desk and waits in each project's outbox like any other event. This
+    function flushes what waits each time, so an alert the webhook did not take goes with the
+    next alarm or with the next pass that ends. It marks the streak alerted only after it has
+    told the desk and the projects, so an alarm that is stopped before then alerts again on the
+    next one.
     """
     line = failed(config.state_dir, key, cause, after, now=now, user=config.user)
     if line:
@@ -319,8 +331,8 @@ def sound(
 
 
 def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]) -> None:
-    """A unit outside the pass went: end its streak, and tell each project it recovered when
-    the streak had alerted."""
+    """Record that a unit outside the pass succeeded: end its streak, and tell each project
+    that it recovered when the streak had alerted."""
     line = ok(config.state_dir, key, user=config.user)
     if not line:
         return

@@ -1,17 +1,19 @@
-"""A launched thread that T3 Code's list leaves out: archived, missing, or not yet listed.
+"""Find the launched threads that T3 Code's list leaves out: archived, missing, or not yet listed.
 
-`t3_thread_list` lists the threads that are not archived and cannot be asked for the rest,
-so a home that tidies up by archiving a finished thread takes it out of what a pass reads.
-The row's thread is still its thread. `ask` reads each launched thread the list does not
-have, by its id, with `t3_thread_read`, which answers for an archived thread too:
+`t3_thread_list` lists the threads that are not archived, and has no way to ask for the rest.
+So when a home tidies up by archiving a finished thread, a pass no longer reads that thread,
+though the thread still belongs to its row. `ask` reads each launched thread that the list
+does not have by its id, with `t3_thread_read`, which also answers for an archived thread:
 
 - archived: the thread is the row's, put away like a settled one (`World.archived`);
 - not found: T3 Code has no such thread (`World.missing`);
-- there and not archived: a launch the list has not caught up with, left as it is;
+- there and not archived: a launch that the list has not caught up with, which `ask` leaves
+  as it is;
 - no answer: the row stays as the last pass judged it, not confirmed (`World.unasked`).
 
-An answer that archived or missing is kept in `unlisted.json` by thread id and not asked
-again: an archived thread that is unarchived is listed again, and the list wins.
+`ask` keeps an answer of archived or missing in `unlisted.json`, by thread id, and does not
+ask about that thread again. An archived thread that is unarchived appears in the list again,
+and the list wins.
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ KEPT = ("threadId", "title", "status", "createdAt", "updatedAt")
 
 
 def ask(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
-    """Put each launched thread of `rows` that the pass's list does not have in `world`."""
+    """Put each launched thread of `rows` that is missing from the pass's list into `world`."""
     path = run.state / NAME
     kept: dict[str, Any] = read_json(path, {})
     before = dict(kept)

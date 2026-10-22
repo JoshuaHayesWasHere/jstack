@@ -1,45 +1,51 @@
-"""Telling a crew that main was fixed: the wake a red pull request never gets by itself.
+"""`tell` tells a crew that main was fixed: a red pull request gets no such wake by itself.
 
-A pull request that is red because main was broken has no review, so `jmerge` says only
-that it has none, and `rebase.tell` hears nothing it acts on. Its crew ended its turn, and
-fixing main wakes nobody. `tell` keeps the default branch's commit from pass to pass, and
-sends the crew of each open pull request that is red one message when main goes from red to
-green: a main that moved while green was no reason for a branch to move. A red tip is kept
-as `broken` in `main.json` until a green one follows it, so a tip whose check had not ended
-when it landed, or a second red one, loses nothing, and the last tip whose check passed is
-kept as `green`: `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for
-a launch and for `jmerge`. Each tip main went through since the last pass is looked at in
-order (`landed`), so a tip that failed or passed under a newer one before a pass saw it
-counts, and a tip whose check has not ended is kept as `pending` and looked at again until
-a tip after it settles. A tip's check is main's own, read as `main_check`
-reads it, and a failed check at main's tip, or at the red tip kept as `broken`, is asked
-again each pass: a rerun that passes on that same commit ends the red there. A conflict is
-not told here: only a push ends it, and
-`rebase.github` tells it once per head. The commit is the remote's own, asked for each pass:
-nothing in a pass is sure to fetch. A pull request's check state is GitHub's own, read
-out of the pass's list of open pull requests.
+A pull request that is red because main was broken has no review. `jmerge` says only that it
+has none, and `rebase.tell` finds nothing in it to act on. Its crew has ended its turn, and a
+fix to main wakes nobody.
 
-The message names the green tip that ended the red, and its key,
+`tell` records the default branch's commit from pass to pass. When main goes from red to
+green, it sends one message to the crew of each open pull request that is red. A main that
+moved while green gives a branch no reason to move.
+
+`main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for a launch
+and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip follows it, so
+a tip whose check had not ended when it landed loses nothing, and neither does a second red
+tip. It keeps the last tip whose check passed as `green`.
+
+`landed` lists each tip main went through since the last pass, and `tell` looks at them in
+order. A tip that failed or passed before a pass saw it still counts, even with a newer tip
+on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks at it
+again until a tip after it settles. A tip's check is main's own, which `tell` reads as
+`main_check` reads it. Each pass asks again about a failed check at main's tip, or at the
+red tip kept as `broken`: a rerun that passes on that same commit ends the red there.
+
+`tell` does not tell of a conflict. Only a push ends a conflict, and `rebase.github` tells
+it once per head. `tell` asks the remote for its commit on each pass, since nothing in a
+pass is sure to fetch. A pull request's check state is GitHub's own, read from the pass's
+list of open pull requests.
+
+The message names the green tip that ended the red. Its key,
 `mainmoved|<slug>|#<number>|<that tip 12>`, is its retry key at T3 Code and its mark in
-`sent.json`. The commit in `main.json` moves on only when no send is owed, so a
-pass that got no answer looks again, and the mark keeps what was told from being told twice.
-A pass that still owes a send writes only `fixed`, the green tip, so main reads as green for
-`jmerge.mainjson` while the record keeps the commit to look at again, and the next pass takes the
-red as ended there, whatever tip main is at by then.
-So does a pass in which GitHub had not yet said whether a red head the rebase message went to
-still conflicts.
+`sent.json`. `tell` moves the commit in `main.json` on only when no send is owed, so a pass
+that got no answer looks again. With the mark, no pass sends the same message twice.
+A pass that still owes a send writes only `fixed`, the green tip. Main then reads as green
+for `jmerge.mainjson`, while the record keeps the commit to look at again, and the next pass
+takes the red as ended at that tip, whatever tip main is at by then. A pass does the same
+when GitHub has not yet said whether a red head the rebase message went to still conflicts.
 
-A message `rebase.held` keeps back, for a thread at work or a head that moved, holds nothing
-else up: a turn may last, and a pull request that turns red meanwhile was not red when main
-moved. Its slug goes on `held` in `main.json`, beside the commit and the red tip with the
-green one that ended it (`broken` and `fixed`), and each pass looks at
-those slugs again, and at no other, until main moves again.
+`rebase.held` keeps a message back when its thread is at work or its head moved. That
+message delays no other: a turn may last long, and a pull request that turns red meanwhile
+was not red when main moved. `tell` puts its slug on `held` in `main.json`, beside the
+commit, the red tip and the green tip that ended it (`broken` and `fixed`). Each pass looks
+at those slugs again, and at no others, until main moves again.
 
-A crew is told to rebase a head once, here or by `rebase.tell`. A red head that is also in
-conflict and has `rebase|<slug>|<head 12>` is not told here, a head told here is marked with
-that key, and the rebase message marks this module's key for the commit main is at. A head
-told here, or refused and put to a gate, is marked with `failed|<slug>|<head 12>` too: this
-message says what to do of its failed check, so `rebase.github` does not say it again.
+jbus tells a crew to rebase a head once, here or in `rebase.tell`. `tell` skips a red head
+that is also in conflict and already has `rebase|<slug>|<head 12>`. It marks a head it tells
+with that key, and the rebase message marks this module's key for the commit main is at.
+`tell` also marks with `failed|<slug>|<head 12>` each head it tells, and each head whose
+message T3 Code refused and that went to a gate. This message says what to do about the
+failed check, so `rebase.github` does not say it again.
 """
 
 from __future__ import annotations
@@ -70,14 +76,17 @@ MESSAGE = (
 
 
 def short_of(pull: dict) -> str:
-    """Why a pull request is woken, in the message's words, or nothing for one that is not."""
+    """Return why `tell` wakes the crew of a pull request, in the message's words, or an empty
+    string for one it does not wake."""
     return RED if checks(pull) == "failed" else ""
 
 
 def main_check(run: Pass, sha: str, again: bool = False) -> str:
-    """Whether the checks of a commit on main passed, as `watch._check` says it, through the
-    answers `checks.json` keeps: a final one is asked of GitHub once. With `again`, a kept
-    `failed` is asked again: a rerun of the check on the same commit may have passed."""
+    """Return whether the checks of a commit on main passed, as `watch._check` says it.
+
+    It goes through the answers `checks.json` keeps, so it asks GitHub for a final answer
+    once. With `again`, it asks again about a kept `failed`, since a rerun of the check on the
+    same commit may have passed."""
     known: dict[str, str] = read_json(run.state / "checks.json", {})
     if again and known.get(sha) == "failed":
         del known[sha]
@@ -87,10 +96,12 @@ def main_check(run: Pass, sha: str, again: bool = False) -> str:
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
-    """The tips main went through since `last`, oldest first and `main` the newest, along
-    first parents, as GitHub lists main's commits. Where `last` is not on that way (no record
-    yet, a main that was rewritten, more than `WAITING` tips, or no answer), it is the tips
-    back to the newest one whose check has settled."""
+    """Return the tips main went through since `last`, along first parents, as GitHub lists
+    main's commits. The oldest comes first, and `main` is the newest.
+
+    Where `last` is not on that line of first parents (no record yet, a main that was
+    rewritten, more than `WAITING` tips, or no answer), it returns the tips back to the newest
+    one whose check has settled."""
     if main == last:
         return [main]
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={main}&per_page={WAITING}")
@@ -112,9 +123,10 @@ def landed(run: Pass, last: str, main: str) -> list[str]:
 
 def tell(run: Pass, client: Client, world: World) -> None:
     """Send the crew of a red pull request one message when main goes from red to green: the
-    commit that fixed it may fix them.
+    commit that fixed main may fix the pull request too.
 
-    Only a pull request that is open under a slug jbus launched: any other is not its crew.
+    It tells only the crew of a pull request open under a slug jbus launched. Whoever works
+    on any other pull request is not jbus's crew.
     """
     asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     default = asked.stdout.strip().removeprefix("origin/")

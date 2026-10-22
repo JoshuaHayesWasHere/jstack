@@ -1,15 +1,15 @@
-"""The pruning schedule of a project's context pack: the stale check once a day, logged.
+"""jbus runs the stale check of a project's context pack once a day, and logs what it finds.
 
 A project whose main checkout has a pack, `docs/context/` with a `notes/` folder, gets the
-stale check of `jpack.stale` once a day, against the default branch as the checkout's
-`origin/HEAD` names it, or its `HEAD` where that is not known. Its `stale` and `prune` lines
-go into one quiet event, `pack`: the log has them, and nobody is posted. A pack with nothing
-stale logs nothing. jbus edits no pack: rechecking a note, or pruning it, is the pull request
-of the subject repo's home.
+stale check of `jpack.stale` once a day. The check runs against the default branch as the
+checkout's `origin/HEAD` names it, or against its `HEAD` where that is not known. Its `stale`
+and `prune` lines go into one quiet event, `pack`: the log has them, and jbus posts them to
+nobody. A pack with nothing stale logs nothing. jbus edits no pack: the subject repo's home
+rechecks or prunes a note, in a pull request of its own.
 
-`packs.json` in the project's state directory keeps the day the check last ran, so a pass
-runs it at most once a day, and a pass whose check could not run tries again on the next.
-It is a step of the pass's `close` slot, after the sweep.
+`packs.json` in the project's state directory records the day the check last ran, so a pass
+runs it at most once a day. When the check could not run, the next pass tries again.
+The check is a step of the pass's `close` slot, after the sweep.
 """
 
 from __future__ import annotations

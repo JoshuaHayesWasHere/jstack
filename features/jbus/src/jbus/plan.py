@@ -1,20 +1,21 @@
-"""A home's plan, joined with the queue when it is read: `jbus plan`.
+"""`jbus plan`: read a home's plan, and join it with the queue at each read.
 
 `plan.md` holds what the user decided: one section for each entry, `## <slug>: <one line>`,
-with its "Done when" list and his words under `Decisions:`. It holds no status. An entry is
-often several briefs, and each brief is a row of the queue that names its entry (`queue.entry`),
-so what an entry's work has come to is counted from its rows at the read (`status`), in the
-words of the row statuses. No model types it, and nothing here writes it down.
+with its "Done when" list and the user's words under `Decisions:`. It holds no status. An
+entry is often several briefs, and each brief is a row of the queue that names its entry
+(`queue.entry`). So `status` counts what an entry's work has come to from its rows at each
+read, in the words of the row statuses. No model types the status, and nothing here writes
+it down.
 
 An entry with no row has only what the home wrote of it: its `Stage:` line, which says where
 the planning is (`proposed`, `planned`, `parked` or `scouting`). A plan from before has
-`Status:` lines, which were typed: one is passed over where the entry has rows, and shown as
-typed where it has none.
+`Status:` lines, which someone typed. jbus passes over such a line where the entry has rows,
+and shows it as typed where the entry has none.
 
 An entry whose rows are all over (`queue.over`) is finished, and `close` moves its section,
-as it is, to `plan-done.md` beside the plan. That is the one write here, and it changes no
-line of the section: `plan.md` keeps the open entries only, so a home's start reads the lines
-`shown` gives and not the file.
+as it is, to `plan-done.md` beside the plan. That is the only write in this module, and it
+changes no line of the section. `plan.md` keeps the open entries only, so a home's start
+reads the lines `shown` returns and not the file.
 """
 
 from __future__ import annotations
@@ -35,8 +36,9 @@ _SCOPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 @dataclass(frozen=True)
 class Entry:
-    """One `## <slug>: <one line>` section of a plan. `stage` is what its `Stage:` line says,
-    and `typed` is the `Status:` line of a plan from before, whole. Either may be empty."""
+    """An `Entry` is one `## <slug>: <one line>` section of a plan. `stage` is what its
+    `Stage:` line says, and `typed` is the whole `Status:` line of a plan from before. Either
+    may be empty."""
 
     slug: str
     line: str
@@ -45,8 +47,8 @@ class Entry:
 
 
 def entries(text: str) -> list[Entry]:
-    """The entries of a plan, in its order. A `## ` heading that is no `<slug>: <one line>`
-    is no entry, and ends the one above it."""
+    """Return the entries of a plan, in its order. A `## ` heading that is not
+    `<slug>: <one line>` starts no entry, and ends the one above it."""
     found: list[Entry] = []
     inside = False
     for line in text.splitlines():
@@ -69,12 +71,12 @@ def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
 
 
 def status(entry: Entry, rows: list[queue.Row]) -> str:
-    """What the entry's work has come to. `rows` are the rows of the entry.
+    """Return what the entry's work has come to. `rows` are the rows of the entry.
 
-    With rows, it is counted from them: the finished ones first, `4 of 7 merged`, then each
-    open row that has a pull request by its number, `#383 at pr`, then the rest by status,
-    `1 queued not approved`. With every row over it says to close the entry. With none it is
-    the entry's stage, or its typed line, or `no stage`.
+    With rows, it counts them: the finished ones first, `4 of 7 merged`, then each open row
+    that has a pull request, by its number, `#383 at pr`, then the rest by status,
+    `1 queued not approved`. With every row over, it says to close the entry. With no rows, it
+    returns the entry's stage, or its typed line, or `no stage`.
     """
     if not rows:
         if entry.stage:
@@ -115,8 +117,8 @@ def _cut(text: str, cap: int) -> str:
 
 
 def shown(text: str, rows: list[queue.Row]) -> str:
-    """One line for each entry of the plan: its slug, its one line and its status, each cut
-    so that a plan of seventeen entries is a screen and not a file."""
+    """Return one line for each entry of the plan: its slug, its one line and its status. It
+    cuts each part short so that a plan of seventeen entries fits on one screen."""
     said = []
     for one in entries(text):
         counted = status(one, rows_of(one.slug, rows))
@@ -125,8 +127,8 @@ def shown(text: str, rows: list[queue.Row]) -> str:
 
 
 def path(home: Path, scope: str | None) -> Path:
-    """The plan of the root home, or of the scoped home `scope`. One that is not there is
-    refused."""
+    """Return the plan of the root home, or of the scoped home `scope`. Refuse a plan that
+    is not there."""
     if scope is not None and not _SCOPE.fullmatch(scope):
         raise Refused(f"refused: {scope} is not a scope")
     plan = (home / scope if scope else home) / "plan.md"
@@ -138,9 +140,10 @@ def path(home: Path, scope: str | None) -> Path:
 def close(plan: Path, slug: str, rows: list[queue.Row]) -> str:
     """Move the entry's section, as it is, from the plan to `plan-done.md` beside it.
 
-    The section is the heading and every line up to the next `## ` heading. It is refused
-    while a row of the entry is not over. The section is appended before the plan is
-    rewritten, so a move that dies between the two leaves it in both and loses no line.
+    The section is the heading and every line up to the next `## ` heading. `close` refuses
+    while a row of the entry is not over. It appends the section to `plan-done.md` before it
+    rewrites the plan, so a move that stops between the two leaves the section in both files
+    and loses no line.
     """
     lines = plan.read_text().splitlines(keepends=True)
     start = next((at for at, line in enumerate(lines) if line.startswith(f"## {slug}: ")), None)
@@ -164,11 +167,11 @@ def close(plan: Path, slug: str, rows: list[queue.Row]) -> str:
 
 
 def _plan(args: argparse.Namespace, config: Config) -> int:
-    """`jbus plan`: each entry of a home's plan with its status, counted from the queue now.
-    `jbus plan close <entry>` moves a finished entry's section to `plan-done.md`.
+    """`jbus plan`: show each entry of a home's plan with its status, counted from the queue
+    now. `jbus plan close <entry>` moves a finished entry's section to `plan-done.md`.
 
-    The home skill is every repo's, so with no `--project` it is the plan of the repo it is
-    run in, and a repo the config does not name is refused."""
+    The home skill is every repo's, so with no `--project` the verb reads the plan of the repo
+    it runs in, and refuses a repo the config does not name."""
     project = verbs.here(config, args.project)
     where = path(config.home(project), args.scope)
     try:

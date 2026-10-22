@@ -1,6 +1,7 @@
-"""Whether a thread that is out is alive: one word, worked out of what T3 Code says of it.
+"""Say whether a thread that is out is alive, in one word worked out from what T3 Code says
+of it.
 
-`judge` is the whole of it. It reads no clock and no file: the pass gives it the thread's
+`judge` does all of the work. It reads no clock and no file: the pass gives it the thread's
 status, the minutes since the thread last wrote an item, how many runs are queued behind
 the one that is active, how many requests wait for an answer, and
 whether the thread holds a page that still waits on the user.
@@ -10,12 +11,12 @@ The word is one of `LIVENESS`:
 - `moving`: a turn is under way and wrote something within `QUIET_MINUTES`;
 - `quiet`: a turn is under way and has written nothing for `QUIET_MINUTES`;
 - `hung`: it has written nothing for `HUNG_MINUTES`, or for `QUIET_MINUTES` while a run is
-  queued behind it: a wake that waits is what a long honest run does not have;
-- `waiting`: the thread waits on a request, or is silent over a request or a page that
-  waits on the user, which is never a hang;
+  queued behind it. A long run that is still working has no wake waiting behind it;
+- `waiting`: the thread waits on a request, or is silent while a request or a page waits on
+  the user. That is never a hang;
 - `ended`: no turn is under way;
-- `unknown`: no rule above names what was given. It is never `moving`: the facts go back
-  with the word, so what nobody foresaw is said as it is.
+- `unknown`: no rule above matches the facts given. It is never `moving`. `judge` returns
+  the facts with the word, so a case nobody foresaw is reported as it is.
 """
 
 from __future__ import annotations
@@ -32,7 +33,8 @@ OVER = ("completed", "failed", "interrupted", "cancelled", "rolled_back", "idle"
 
 @dataclass(frozen=True)
 class Facts:
-    """What a pass knows of one thread. `silent` is None where its last write is not known."""
+    """A `Facts` holds what a pass knows of one thread. `silent` is None where the pass does not
+    know the thread's last write."""
 
     status: str
     silent: float | None

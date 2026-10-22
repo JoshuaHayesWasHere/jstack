@@ -1,10 +1,10 @@
-"""The week's report of the nine targets, `reports/ci-week-<date>.md` in a project's home,
-and the one alert a missed target earns.
+"""Write the week's report of the nine targets, `reports/ci-week-<date>.md` in a project's
+home, and send the one alert for a missed target.
 
-The report says every number with how it was counted (`Number.how`), the period, and what
-the counts rest on: the jobs, local and hosted apart, and how many were cancelled while they
-waited. A week with every target met, or with no data for it, gives no alert; one that missed
-a target gives one `alert` event for the week, which names each target missed.
+The report gives every number with how it was counted (`Number.how`), the period, and what
+the counts are based on: the jobs, local and hosted apart, and how many jobs were cancelled
+while they waited. A week with every target met, or with no data, gives no alert. A week
+that missed a target gives one `alert` event for the week, which names each missed target.
 """
 
 from __future__ import annotations
@@ -94,8 +94,8 @@ def escalate(
     now: datetime,
     say: Any,
 ) -> int:
-    """Alert the project once for the week if a target was missed. The key is the week's
-    report, so a run again the same day alerts no more."""
+    """Alert the project once for the week if it missed a target. The alert's key is the
+    week's report, so a second run on the same day sends no second alert."""
     late = missed(nine)
     if not late:
         say("ci: every target met or without data, no alert")

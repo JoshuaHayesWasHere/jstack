@@ -1,36 +1,37 @@
-"""Launching, and only what was approved: a crewmate thread for a row of the queue.
+"""Launch a crewmate thread for a row of the queue, and only for a row the user approved.
 
 `t3_thread_launch` has no retry key, so jbus keeps one: `<project>/<slug>/<brief_sha 12>`,
-a file under `launches/`. The file is written with `state: intent` and fsynced before the
-call, and gets the thread id after the reply. A key with a thread id is never launched
-again. An intent with no thread id is a lost reply: it is settled by looking the thread
-up, never by calling again.
+a file under `launches/`. jbus writes the file with `state: intent` and fsyncs it before the
+call, and adds the thread id after the reply. jbus never launches a key that has a thread id
+again. An intent with no thread id is a lost reply. jbus settles it by looking the thread up,
+never by calling again.
 
 Once a launch has its thread, `write_thread` puts `Thread: <id>` in the head of
-`tasks/<slug>.md`. It is the one line jbus ever writes in a brief after the launch. A pass
-that died before the line was written is made good by the next one (`write_missing`).
+`tasks/<slug>.md`. It is the one line jbus ever writes in a brief after the launch. When a
+pass died before it wrote the line, the next pass writes it (`write_missing`).
 
-`max_running` is one cap for the machine: `dispatch` is given the slots that every project
-together leaves free, and hands them out in turns, one launch a turn (`Turns`).
+`max_running` is one cap for the whole machine. `dispatch` gets the slots that all the
+projects together leave free, and hands them out in turns, one launch a turn (`Turns`).
 
-Before a launch the machine and the plan are asked for room, with `jgauge room`, the check
-a home makes. A row with no room waits, and so does every row after it in the pass, in
+Before a launch, jbus asks the machine and the plan for room with `jgauge room`, the same
+check a home makes. A row with no room waits, and so does every row after it in the pass, in
 every project.
 
-A brief is not linted here. `jbus queue add` runs the lints (`jbriefs.parse.faults`) when a
-row is first queued, and a row with a go is grandfathered: a lint added after its approval
+jbus does not lint a brief here. `jbus queue add` runs the lints (`jbriefs.parse.faults`)
+when it first queues a row. A row with a go is grandfathered: a lint added after its approval
 does not refuse it, whatever its `Design:`, `Proves it:`, `Skills:`, `Size:` or `Playbook:`
-line says, and `jbus queue show` lists such rows. What stops a launch is a brief that the go
-no longer holds for (`jbriefs.meaning`).
+line says. `jbus queue show` lists such rows. What stops a launch is a brief that the go no
+longer covers (`jbriefs.meaning`).
 
 Before a launch puts a thread on a mirror instance (`jroles.mirror`, a home of providers.json
-that is not the main one), `mirrored` asks `jroles mirror --check` of it. On drift
-it runs the mirror once and asks again, and an instance still not mirrored is passed over by
-the pool for the rest of the pass: the launch goes to the next instance with headroom, or waits.
+that is not the main one), `mirrored` asks `jroles mirror --check` about it. On drift it runs
+the mirror once and asks again. When the instance is still not mirrored, the pool passes over
+it for the rest of the pass: the launch goes to the next instance with headroom, or waits.
 
-A file another brief names never stops a launch: each crew has its own worktree and branch.
-A launch that shares a path with a brief still out sends one `overlap` event, and that is
-all. The merge is where it is settled, and `jbus.rebase` tells the crew that must rebase.
+A file that another brief names never stops a launch, because each crew has its own worktree
+and branch. A launch that shares a path with a brief still out sends one `overlap` event, and
+does nothing else. The crew of the pull request that merges second rebases it, and
+`jbus.rebase` tells that crew to.
 """
 
 from __future__ import annotations
@@ -67,12 +68,13 @@ def records(run: Pass, slug: str) -> list[tuple[Path, dict[str, Any]]]:
 
 
 def launched(run: Pass, slug: str) -> str:
-    """The thread id of the slug's launch, if it has one."""
+    """Return the thread id of the slug's launch, or nothing if it has none."""
     return next((r["thread"] for _, r in reversed(records(run, slug)) if r.get("thread")), "")
 
 
 def thread_of(brief: str) -> str:
-    """The thread id on a brief's `Thread:` line: the first such line, as the skills read it."""
+    """Return the thread id on a brief's `Thread:` line. Like the skills, it reads the first
+    such line."""
     for line in brief.splitlines():
         if line.startswith("Thread:"):
             return (line.split()[1:2] or [""])[0]
@@ -82,9 +84,10 @@ def thread_of(brief: str) -> str:
 def write_thread(run: Pass, slug: str, thread: str, *, replace: bool = True) -> None:
     """Put `Thread: <id>` in the head of `tasks/<slug>.md`, as the home skill's step 3 does.
 
-    It takes the place of an earlier `Thread:` line, so a brief never has two. With none,
-    it goes above the first `## `, which is above a Result a fast crewmate wrote already.
-    Without `replace`, a brief that has a `Thread:` line of any thread is left as it is.
+    The line replaces an earlier `Thread:` line, so a brief never has two. Where the brief has
+    none, the line goes above the first `## `, so it is above any Result that a fast crewmate
+    has already written. Without `replace`, it leaves a brief that already has a `Thread:`
+    line, for any thread, as it is.
     """
     path, line = run.home / "tasks" / f"{slug}.md", f"Thread: {thread}"
     try:
@@ -109,9 +112,10 @@ def write_thread(run: Pass, slug: str, thread: str, *, replace: bool = True) -> 
 def write_missing(run: Pass) -> None:
     """Give each launch that has its thread the `Thread:` line its brief never got.
 
-    That is a pass that ended between the launch record and the line. A line that is there
-    is left alone, whatever thread it names. It runs before anything reads the briefs for
-    their thread, so the pass that repairs a line also sends by it.
+    The line is missing when a pass ended between writing the launch record and writing the
+    line. It leaves a line that is there alone, whatever thread it names. It runs before
+    anything reads the briefs for their thread, so the pass that repairs a line also sends to
+    the thread the line names.
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
@@ -123,9 +127,10 @@ GREEN_MAIN = "Green main:"
 
 
 def green_main(brief: str, green: str) -> str:
-    """The brief with `Green main: <sha>` under its first line, the last commit of main whose
-    check passed (`jmerge.mainjson`), for a crew to rebase onto where main is red, in place of any
-    such line its head had. With no green main known the brief has none."""
+    """Return the brief with `Green main: <sha>` under its first line, in place of any such
+    line its head had. The sha is the last commit of main whose check passed
+    (`jmerge.mainjson`), which a crew rebases onto where main is red. With no green main
+    known, the brief gets no such line."""
     kept, head = [], True
     for line in brief.splitlines(keepends=True):
         head = head and not line.startswith("## ")
@@ -141,8 +146,9 @@ def green_main(brief: str, green: str) -> str:
 def arguments(
     run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None
 ) -> dict[str, Any]:
-    """What `t3_thread_launch` is called with: the home skill's crew launch, the brief in it,
-    and the model selection the role map's `crew` line gives on the instance `routed` chose."""
+    """Return the arguments for `t3_thread_launch`: the home skill's crew launch with the
+    brief in it, and the model selection that the role map's `crew` line gives on the instance
+    `routed` chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
@@ -173,10 +179,12 @@ def _under(path: str, directory: str) -> bool:
 
 
 def shared(run: Pass, slug: str, brief: str) -> dict[str, list[str]]:
-    """The paths this brief shares with each brief that is out, by its slug (`jmerge --claims`).
+    """Return the paths this brief shares with each brief that is out, by that brief's slug
+    (`jmerge --claims`).
 
-    Of two paths where one is under the other, the one named is the file, not its directory.
-    A `jmerge --claims` that did not run names nobody: an overlap is told, and holds nothing.
+    Where one of two paths is under the other, it names the file, not its directory. When
+    `jmerge --claims` did not run, it names no brief. An overlap is only told, and holds
+    nothing back.
     """
     mine = where(brief)
     ran = run.run("jmerge", "--claims")
@@ -197,7 +205,8 @@ def shared(run: Pass, slug: str, brief: str) -> dict[str, list[str]]:
 
 
 def overlaps(run: Pass, slug: str, brief: str) -> None:
-    """Tell the Chef, once for each pair, whose files the row just launched also changes.
+    """Tell the Chef, once for each pair, which other brief's files the row just launched
+    also changes.
 
     Each crew works in its own worktree, so a shared file stops nothing: the pull request
     that merges second is the one that rebases (`rebase.tell`).
@@ -213,9 +222,9 @@ def overlaps(run: Pass, slug: str, brief: str) -> None:
 def settle_lost(run: Pass, client: Client) -> None:
     """Look up each launch whose reply was lost, and adopt the one thread that matches.
 
-    One that stays lost is a gate, and its slug is not launched again until its file under
-    `launches/` is removed by hand. It holds no other row back: a thread that does exist is
-    counted where every thread is, in what T3 Code lists.
+    A launch that stays lost becomes a gate. jbus does not launch its slug again until the
+    user removes its file under `launches/` by hand. It holds no other row back: the pass
+    counts a thread that does exist with every other thread, in what T3 Code lists.
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for path in sorted(directory.glob("*/*.json")):
@@ -245,10 +254,10 @@ def settle_lost(run: Pass, client: Client) -> None:
 
 
 def mirrored(run: Pass, slug: str, instance: str, checked: dict[str, bool]) -> bool:
-    """Whether a thread may be put on `instance`: it is no mirror of providers.json, or
-    `jroles mirror --check` finds it mirrored, at once or after one run of the mirror. The
-    answer is kept in `checked` for the pass, and an instance that is not mirrored is said for
-    each slug it stops."""
+    """Say whether a thread may go on `instance`. It may when the instance is no mirror of
+    providers.json, or when `jroles mirror --check` finds it mirrored, at once or after one run
+    of the mirror. The function keeps the answer in `checked` for the pass. It says that an
+    instance is not mirrored once for each slug the instance stops."""
     if instance not in checked:
         try:
             named = {one.instance for one in jroles.mirror.declared(Path.home())}
@@ -274,10 +283,11 @@ def mirrored_choice(
     kept: ledger.Ledger | None = None,
     full: float = ledger.FULL,
 ) -> pool.Choice:
-    """The pool's choice for `instances` with every instance that is not mirrored passed
-    over, on the ledger `kept`, as it is on disk where none is given. `here`, the instance a
-    thread is on already, is no move and is not asked. An instance is full at `full`: a real
-    cap for a move, the user's headroom for a launch."""
+    """Return the pool's choice for `instances`, passing over every instance that is not
+    mirrored. The choice reads the ledger `kept`, or the ledger on disk where the caller gives
+    none. `here` is the instance a thread is on already: choosing it is no move, so the
+    function does not check its mirror. An instance is full at `full`, which is a real cap for
+    a move and the user's headroom for a launch."""
     skip: dict[str, str] = {}
     kept = ledger.read(instances) if kept is None else kept
     while True:
@@ -289,11 +299,11 @@ def mirrored_choice(
 
 
 def room(run: Pass, instance: str | None) -> tuple[str, list[str]]:
-    """Why there is no room for a launch, or nothing, and the notes `jgauge room` gave. The
-    plan's limits are read for `instance`, the one the launch goes to, or for the built-in
-    one where the launch inherits.
+    """Return why there is no room for a launch, or nothing, with the notes `jgauge room`
+    gave. `jgauge room` reads the plan's limits for `instance`, the instance the launch goes
+    to, or for the built-in one where the launch inherits.
 
-    A check that did not run, or that said neither `go` nor `wait: `, is no room either.
+    A check that did not run, or that said neither `go` nor `wait: `, also counts as no room.
     """
     ran = run.run("jgauge", "room", *(("--instance", instance) if instance else ()))
     said = ran.stdout.strip()
@@ -326,10 +336,11 @@ SLOT = "no slot"
 
 @dataclass
 class Turns:
-    """One project's rows in a pass, lowest priority first, and its turns at the free slots.
+    """A `Turns` holds one project's rows in a pass, lowest priority first, and its turns at the
+    free slots.
 
-    `left` holds the rows not read yet. A row is read once in a pass, so a row that was
-    passed over is not judged again on a later turn, and no gate is sent twice.
+    `left` holds the rows not read yet. The pass reads each row once, so it does not judge a
+    row it passed over again on a later turn, and it sends no gate twice.
     """
 
     run: Pass
@@ -340,13 +351,14 @@ class Turns:
     checked: dict[str, bool] = field(default_factory=dict)
 
     def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str]]:
-        """Read rows off `left`, and give each that only a slot can still stop, with its brief.
+        """Read rows off `left`, and yield each row that only a slot can still stop, with its
+        brief.
 
-        A row that is not given is passed over: one whose thread has ended with a Result is
-        never launched again. One that a changed brief or a slug it depends on stops has
-        that on `Pass.reasons`: a slug stops it until it merged, or ended `done` with no
-        pull request. Once the pass is `full` a row is only read
-        for its reason, and no gate is sent for it: one held back is on `Pass.held`.
+        It passes over every other row. jbus never launches a row again once its thread has
+        ended with a Result. When a changed brief or a slug the row depends on stops a row,
+        the reason goes on `Pass.reasons`. A slug stops the row until that slug has merged, or
+        ended `done` with no pull request. Once the pass is `full`, it reads a row only for
+        its reason and sends no gate for it. A row it holds back goes on `Pass.held`.
         """
         run, world = self.run, self.world
         merged = set(world.merged) - set(world.open)
@@ -384,10 +396,12 @@ class Turns:
             yield row, brief
 
     def take(self) -> str:
-        """One turn: launch the first row that may be launched. The answer is how it ended.
+        """Take one turn: launch the first row that may launch, and return how the turn
+        ended.
 
-        `LAUNCHED` is a slot used, a launch whose reply was lost included. `NOTHING` is no
-        row left to launch, and `NO_ROOM` is a row that waits for room on the machine.
+        `LAUNCHED` means the turn used a slot, also for a launch whose reply was lost.
+        `NOTHING` means no row is left to launch, and `NO_ROOM` means a row waits for room on
+        the machine.
         """
         run, client = self.run, self.client
         for row, brief in self._ready(full=False):
@@ -506,11 +520,11 @@ class Turns:
         return NOTHING
 
     def rest(self, *, cap: bool) -> None:
-        """No more launches in this pass: read the rows left for why each waits.
+        """Read the rows left for why each waits, once the pass makes no more launches.
 
-        The rows ahead of the first one that waits for a slot are owed their gates, slot or
-        no slot. With `cap`, the slots are what ran out, and every row that waits is said,
-        with the time it began to wait for a slot: its `since`, or now for a new wait.
+        The rows ahead of the first row that waits for a slot still get their gates, slot or
+        no slot. With `cap`, the slots are what ran out, and the pass names each row that
+        waits, with the time it began to wait for a slot: its `since`, or now for a new wait.
         """
         waits = [row for row, _ in itertools.islice(self._ready(full=False), 1)]
         waits += [row for row, _ in self._ready(full=True)]
@@ -530,13 +544,14 @@ def turns(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> Tur
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
-    """Hand out the free slots, one launch a turn, round the projects in the order given.
+    """Hand out the free slots, one launch a turn, going round the projects in the order
+    given.
 
     `slots` is how many launches the pass may make: `max_running` less the crews out in
-    every project. With no `slots` the crews out are not known, and nothing is launched. A
-    project whose turn launches nothing has no more turns in the pass, and no room ends the
-    turns of every project: it is one machine. The answer is the name of the project of each
-    launch, in order.
+    every project. With no `slots`, the pass does not know the crews out and launches nothing.
+    A project whose turn launches nothing has no more turns in the pass. No room ends the
+    turns of every project, because they all share one machine. Return the name of the
+    project of each launch, in order.
     """
     for one in projects:
         one.waited = read_json(one.run.state / "room.json", {})

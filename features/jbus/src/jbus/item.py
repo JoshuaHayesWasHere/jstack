@@ -1,30 +1,32 @@
-"""Work items: every piece of work as one item with a stable id, a source, an owner and one
-state, kept as `items.jsonl` in the project's state directory.
+"""Work items: jbus keeps every piece of work as one item with a stable id, a source, an owner
+and one state, in `items.jsonl` in the project's state directory.
 
-An item is named `w<n>`, minted from the project's counter (`items-next.json`, as a
-question's number is) and never named again, also where the log was lost. It has a slug
-only once a row of the queue is linked to it: an item proposed in chat has none, and a row
-`jbus queue add` makes is linked at once, to the item `--item` names or to one it mints.
+jbus names an item `w<n>`, minted from the project's counter (`items-next.json`, as it mints a
+question's number), and never gives that name again, even where the log was lost. An item has
+a slug only once a row of the queue links to it. An item proposed in chat has none. A row that
+`jbus queue add` makes links at once, to the item `--item` names or to one it mints.
 
-The record is the log, which is only ever appended to, under `items.lock`, and never
-trimmed: `forget` trims `events.jsonl` and leaves it. A line is `{id, item, at, by, where,
-line, verb, ...}`: `id` is the item's id and the line's number among the item's own lines
-(`w3.2`), `where` is one of `Where`, `line` says what happened, and a `proposed` line adds
-the item's `project`, `title` and `owner`, and its `slug` where it has one. The state of an
-item is the fold of its lines by `MOVES` (`fold`), one table that holds every move there is:
-what is not in it is refused in a sentence and writes nothing (`write`). `waiting_on_you` is
-left for the state it was entered from, which the fold keeps (`Item.back`). A write may name
-the last line its writer saw (`seen`), and is refused where the item moved since.
+The record is the log. jbus only ever appends to it, under `items.lock`, and never trims it:
+`forget` trims `events.jsonl` and leaves the log alone. A line is `{id, item, at, by, where,
+line, verb, ...}`. In it, `id` is the item's id and the line's number among the item's own
+lines (`w3.2`), `where` is one of `Where`, and `line` says what happened. A `proposed` line
+adds the item's `project`, `title` and `owner`, and its `slug` where it has one.
+
+The state of an item is the fold of its lines by `MOVES` (`fold`). `MOVES` is one table that
+holds every move there is. `write` refuses a move that is not in it, with a sentence, and
+writes nothing. An item leaves `waiting_on_you` for the state it entered it from, which the
+fold keeps (`Item.back`). A writer may name the last line it saw (`seen`), and `write`
+refuses the line where the item moved since.
 
 Each line is also a quiet event of its own kind, `item.<verb>`, in `events.jsonl`
 (`wake.Box.record`), so the view's feed and `jbus events` show it.
 
-The pass moves an item by its row (`follow`): the row's go (`approved`) and the value
-`work.py` judged for it this pass, mapped to a state by `AIM`. It writes a line only where
-that state is not the item's, and only a move the facts show: so a pass with nothing new
-writes nothing. `work.py` stays the one judge of the row.
+The pass moves an item by its row (`follow`). It takes the row's go (`approved`) and the value
+`work.py` judged for the row this pass, and maps them to a state by `AIM`. It writes a line
+only where that state is not the item's, and only for a move the facts show, so a pass with
+nothing new writes nothing. `work.py` remains the one judge of the row.
 
-`risk` is `review` where a person must look before anything is done, and `routine` else.
+`risk` is `review` where a person must look before anything is done, and `routine` otherwise.
 
 Each line is also a card for Sous Chef's chat, which `jbus.cards` makes and posts.
 """
@@ -79,8 +81,8 @@ class State(StrEnum):
 
 
 class Verb(StrEnum):
-    """What a line does to its item. Its value is the line's `verb` and its event's kind
-    after `item.`."""
+    """A `Verb` is what a line does to its item. Its value is the line's `verb`, and the kind
+    of the line's event after `item.`."""
 
     PROPOSE = "proposed"
     LINK = "linked"
@@ -96,8 +98,8 @@ class Verb(StrEnum):
 
 
 class Steer(StrEnum):
-    """What a steer does, the `action` of a `steered` line: a message to the item's home, a
-    hold of its go, or a new brief that sends it back to `proposed`."""
+    """A `Steer` is what a steer does, the `action` of a `steered` line: a message to the
+    item's home, a hold of its go, or a new brief that sends the item back to `proposed`."""
 
     MESSAGE = "message"
     HOLD = "hold"
@@ -204,12 +206,12 @@ config."""
 
 @dataclass(frozen=True)
 class Item:
-    """One item as its lines fold. `risk` is `routine` until `risk` is asked; `back` is the
-    state `waiting_on_you` was entered from, and None in any other state. `redirect` is the
-    id of the redirect that no approval by the item's id has followed yet (an `approved` line
-    with `by_id`, which only `approve` writes), and empty where there is none. No rule, no
-    word from chat, no approval of the row and no pass approves such an item (`jbus.steer`,
-    `planned`)."""
+    """An `Item` is one item, as its lines fold. `risk` is `routine` until a caller asks `risk`
+    for it. `back` is the state the item entered `waiting_on_you` from, and None in any other
+    state. `redirect` is the id of the redirect that no approval by the item's id has followed
+    yet (an `approved` line with `by_id`, which only `approve` writes), and empty where there
+    is none. No rule, no word from chat, no approval of the row and no pass approves such an
+    item (`jbus.steer`, `planned`)."""
 
     id: str
     project: str
@@ -229,7 +231,7 @@ def kind(verb: Verb) -> str:
 
 
 def refusal(item: Item | None, move: Move, name: str = "") -> str:
-    """The sentence a move that is not in `MOVES` is refused with."""
+    """Return the sentence that refuses a move that is not in `MOVES`."""
     if item is None:
         return f"refused: there is no item {name}, and only a proposal makes one"
     was = f"refused: {item.id} is {item.state}, and an item that is {item.state}"
@@ -239,8 +241,9 @@ def refusal(item: Item | None, move: Move, name: str = "") -> str:
 
 
 def move_of(line: dict[str, Any]) -> Move:
-    """The move a line makes: its steer's action for a `steered` line, else its verb. A
-    `steered` line with no action is the verb alone, which `MOVES` has no row for."""
+    """Return the move a line makes: its steer's action for a `steered` line, else its verb.
+    For a `steered` line with no action, that is the verb alone, which `MOVES` has no row
+    for."""
     verb, action = Verb(line["verb"]), line.get("action")
     if verb is Verb.STEER and action in set(Steer):
         return Steer(action)
@@ -248,7 +251,7 @@ def move_of(line: dict[str, Any]) -> Move:
 
 
 def advance(item: Item | None, line: dict[str, Any]) -> Item:
-    """The item after one line, or `Refused` where the line's move is not in `MOVES`."""
+    """Return the item after one line, or `Refused` where the line's move is not in `MOVES`."""
     verb, move = Verb(line["verb"]), move_of(line)
     to = MOVES.get((item.state if item else None, move))
     if to is None:
@@ -282,8 +285,8 @@ def advance(item: Item | None, line: dict[str, Any]) -> Item:
 
 
 def fold(lines: Iterable[dict[str, Any]]) -> dict[str, Item]:
-    """Every item, by its id, as its lines fold. A line that is not a move is passed over:
-    `write` writes none, so it was not written by jbus."""
+    """Return every item, by its id, as its lines fold. Skip a line that is not a move: `write`
+    writes none, so jbus did not write it."""
     items: dict[str, Item] = {}
     for line in lines:
         try:
@@ -298,8 +301,8 @@ def path(state: Path) -> Path:
 
 
 def read(state: Path) -> list[dict[str, Any]]:
-    """Every line of the log, oldest first. A line that does not parse, as one a write that
-    died left half written, is passed over."""
+    """Return every line of the log, oldest first. Skip a line that does not parse, such as one
+    that a write left half written when it died."""
     try:
         text = path(state).read_text()
     except FileNotFoundError:
@@ -337,15 +340,15 @@ def _number(name: str) -> int:
 
 
 def _next(state: Path, lines: list[dict[str, Any]]) -> int:
-    """The next number: past the counter and past every item the log names."""
+    """Return the next number: past the counter and past every item the log names."""
     count = read_json(state / COUNTER, {}).get("next")
     highest = max((_number(str(line.get("item", ""))) for line in lines), default=0)
     return max(count if isinstance(count, int) else 1, highest + 1)
 
 
 def reserve(state: Path) -> str:
-    """A new item's id, taken from the counter now, for a proposal written after something
-    else is: it is never given again, also where that proposal is never written."""
+    """Take a new item's id from the counter now, for a proposal that jbus writes after some
+    other write. jbus never gives that id again, even where the proposal is never written."""
     with _locked(state):
         number = _next(state, read(state))
         write_json(state / COUNTER, {"next": number + 1})
@@ -353,7 +356,7 @@ def reserve(state: Path) -> str:
 
 
 def clock() -> datetime:
-    """The time a line is written with."""
+    """Return the time to write a line with."""
     return datetime.now(UTC)
 
 
@@ -369,12 +372,12 @@ def write(
     seen: str | None = None,
     **more: Any,
 ) -> dict[str, Any]:
-    """Append one line, and its event. The answer is the line.
+    """Append one line, and its event. Return the line.
 
     A `proposed` line makes the item `item` names, which `reserve` gave, or mints one. Any
-    other names the item, and is refused in a sentence where `MOVES` has no such move, where
-    the item's last line is not `seen` when that is given, and for a link, where the item is
-    linked already or another item has the slug: a refused line writes nothing.
+    other line names the item. `write` refuses it, with a sentence, where `MOVES` has no such
+    move, where the item's last line is not `seen` when that is given, and, for a link, where
+    the item is linked already or another item has the slug. A refused line writes nothing.
     """
     with _locked(state):
         made = _put(state, verb, item=item, by=by, where=where, line=line, seen=seen, **more)
@@ -383,10 +386,11 @@ def write(
 
 
 def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | None) -> Item:
-    """The item a move is made on, or `Refused`: one there is not, one whose last line is
-    not `seen` where that is given, and one whose state has no such move. A stale `seen` is
-    refused first, with the line that came after it as `shown` prints a line, so a steer
-    made stale by a move to `done` or `dropped` is told of that move."""
+    """Return the item to make a move on, or `Refused` for an item that does not exist, one
+    whose last line is not `seen` where that is given, and one whose state has no such move.
+    This function checks a stale `seen` first, and refuses it with the line that came after
+    it, printed as `shown` prints a line. So the writer of a steer that a move to `done` or
+    `dropped` made stale hears of that move."""
     current = fold(lines).get(name)
     if current is None:
         raise Refused(refusal(None, move, name))
@@ -399,7 +403,7 @@ def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | Non
 
 
 def said_line(one: dict[str, Any]) -> str:
-    """One line of the log as `jbus item show` prints it."""
+    """Format one line of the log as `jbus item show` prints it."""
     return f"{one['id']} {one['at']} {one['verb']} by {one['by']} in {one['where']}: {one['line']}"
 
 
@@ -414,7 +418,7 @@ def _put(
     seen: str | None,
     **more: Any,
 ) -> dict[str, Any]:
-    """`write`'s line, appended with `items.lock` held by the caller."""
+    """Append `write`'s line, while the caller holds `items.lock`."""
     lines = read(state)
     found = fold(lines)
     if verb is Verb.PROPOSE:
@@ -462,8 +466,8 @@ def _put(
 
 
 def told(box: wake.Box, made: dict[str, Any]) -> None:
-    """A line's quiet event, in `events.jsonl`. It is written after the line, so an event
-    that cannot be written takes no line back."""
+    """Write a line's quiet event in `events.jsonl`. It goes after the line, so an event that
+    cannot be written takes no line back."""
     verb, name, slug = Verb(made["verb"]), made["item"], made.get("slug", "")
     did = f"{verb} ({made['action']})" if verb is Verb.STEER else str(verb)
     said = f"item {box.project.name}: {name} {did}" + (f", {slug}" if slug else "")
@@ -471,10 +475,10 @@ def told(box: wake.Box, made: dict[str, Any]) -> None:
 
 
 def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
-    """`review` for a merge `jmerge` holds (the value `hold`), and for an open gate of the
-    item's with a `Holds:` line or whose words name a secret or the config, which is what a
-    wait on the config is: the `config` items of what waits on the user name no row. Anything
-    else is `routine`."""
+    """Return `review` for a merge `jmerge` holds (the value `hold`), and for an open gate of
+    the item's that has a `Holds:` line or words that name a secret or the config. Such a gate
+    is what a wait on the config is, since the `config` items of what waits on the user name no
+    row. Return `routine` for anything else."""
     if value == "hold":
         return Risk.REVIEW
     for gate in gates:
@@ -484,7 +488,7 @@ def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
 
 
 def judged(state: Path, item: Item) -> Item:
-    """The item with its risk, from what the last pass left of its row."""
+    """Return the item with its risk, from what the last pass left of its row."""
     if not item.slug:
         return item
     value = work.last(state).get(item.slug, "")
@@ -493,14 +497,15 @@ def judged(state: Path, item: Item) -> Item:
 
 
 def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:
-    """The verbs a pass writes for an item, by its row's go and the value `work.py` judged
-    for it this pass (None where it judged none it confirmed), in order.
+    """Return the verbs a pass writes for an item, in order. They follow from its row's go and
+    the value `work.py` judged for the row this pass (None where it judged none it confirmed).
 
-    An item that is proposed or held is approved where the row has a go, but for one that
-    was redirected and not approved by its id since. Then the item moves
-    to the state `AIM` says, by the one move `MOVES` has for it. An item waiting on the user
-    whose row no longer waits is resumed first, where only from the state it came from is
-    there such a move. No other move is made: a pass makes none the facts do not show.
+    A pass approves an item that is proposed or held where the row has a go, except an item
+    that was redirected and has not been approved by its id since. Then the pass moves the item
+    to the state `AIM` says, by the one move `MOVES` has for it. If the item waits on the user
+    and its row no longer waits, the pass resumes it first, where `MOVES` has such a move. It
+    has one only from the state the item came from. The pass makes no other move: it makes
+    none that the facts do not show.
     """
     made: list[Verb] = []
     state, back = (item.state, item.back) if item else (S.PROPOSED, None)
@@ -529,14 +534,14 @@ def _move(state: State, back: State | None, target: State) -> Verb | None:
 
 
 def follow(run: wake.Pass, rows: list[queue.Row]) -> int:
-    """The pass's step: move each row's item as `planned` says, give a row that is not over
-    and has no item one, and drop the item of a row that was removed. The answer is how many
+    """Move each row's item as `planned` says, give an item to a row that is not over and has
+    none, and drop the item of a row that was removed. This is the pass's step. Return how many
     lines it wrote.
 
-    A row has an item before its item's first line where `jbus queue add` reserved one and
-    has not proposed it yet: the pass proposes that one, so the row has one item whoever
-    writes first. A line refused since another writer moved the item first is passed over:
-    the next pass sees what that writer wrote.
+    A row has an item before the item's first line where `jbus queue add` reserved one and
+    has not proposed it yet. The pass proposes that item, so the row has one item whoever
+    writes first. Skip a line that `write` refused because another writer moved the item
+    first: the next pass sees what that writer wrote.
     """
     state, box = run.state, run.box
     found = items(state)
@@ -597,15 +602,15 @@ def follow(run: wake.Pass, rows: list[queue.Row]) -> int:
 
 
 def _title(text: str | None, slug: str) -> str:
-    """A brief's title: its first line, after the `# <slug>:` it starts with."""
+    """Return a brief's title: its first line, after the `# <slug>:` it starts with."""
     first = (text or "").partition("\n")[0].removeprefix("#").strip()
     return first.removeprefix(f"{slug}:").strip() or slug
 
 
 def link(state: Path, box: wake.Box, row: queue.Row, given: str, by: str, user: str) -> str:
-    """What `jbus queue add` does to the row's item, once the row is added: propose the item
-    it reserved, or link the one `--item` named, and approve it where the row has a go. The
-    answer is the item's id."""
+    """Do what `jbus queue add` does to the row's item once the row is added: propose the item
+    it reserved, or link the one `--item` named, and approve it where the row has a go. Return
+    the item's id."""
     slug, name = row["slug"], row["item"]
     found = items(state).get(name)
     if found is None:
@@ -635,8 +640,8 @@ def link(state: Path, box: wake.Box, row: queue.Row, given: str, by: str, user: 
 
 
 def linkable(state: Path, given: str, slug: str) -> None:
-    """Refuse an `--item` that cannot be linked to the row: one there is not, one that is
-    another row's, and one whose state has no link."""
+    """Refuse an `--item` that cannot be linked to the row: one that does not exist, one that
+    is another row's, and one whose state has no link."""
     found = items(state)
     item = found.get(given)
     if item is None:
@@ -653,7 +658,7 @@ def linkable(state: Path, given: str, slug: str) -> None:
 
 
 def shown(state: Path, item: Item) -> str:
-    """What `jbus item show` prints: the item, its risk, and each of its lines."""
+    """Return what `jbus item show` prints: the item, its risk, and each of its lines."""
     item = judged(state, item)
     head = [
         f"{item.id}: {item.title}",

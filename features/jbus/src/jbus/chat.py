@@ -1,8 +1,9 @@
-"""Sous Chef's decisions on a card come back on the relay's `POST /item`, with the relay's
-key: `{project, item, verb, words, by, message, seen_event}` on a card (`jbus.cards.card`),
-decided as `jbus item approve` or `jbus item steer` decides it, from `chat` (`decide`). It is
-by Sous Chef, as itself, or by the user, with the chat message it was said in and the words
-quoted from it, which nothing reads back and which are kept with `checked: false`.
+"""Take Sous Chef's decisions on a card, which come back on the relay's `POST /item`, with the
+relay's key: `{project, item, verb, words, by, message, seen_event}` on a card
+(`jbus.cards.card`). `decide` decides each one as `jbus item approve` or `jbus item steer`
+decides it, from `chat`. Sous Chef makes a decision as itself, or the user makes it. A user's
+decision comes with the chat message the user said it in and the words quoted from that
+message. Nothing reads those back, and jbus keeps them with `checked: false`.
 """
 
 from __future__ import annotations
@@ -21,18 +22,19 @@ TEXT = ("project", "item", "verb", "by", "seen_event")
 
 
 def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
-    """A decision from Sous Chef's chat on a card, `POST /item`, as `jbus item approve` or
-    `jbus item steer` decides it, `where: chat`. The answer is the HTTP status and its body.
+    """Take a decision from Sous Chef's chat on a card, `POST /item`, as `jbus item approve` or
+    `jbus item steer` decides it, `where: chat`. Return the HTTP status and its body.
 
     `verb` is one of the card's actions: `approve`, `message`, or `hold`, which the card's
-    button confirms. `seen_event` is the card's `id`, and the line it names must still be the
-    item's last, so a card acted on twice moves the item once. `by` is Sous Chef, which steers
-    as itself and approves nothing, or the user, with `message`, the chat message's id or
-    link, and `words`, the words quoted from it: those are kept unchecked (`steer.chat`), and
-    an approval from chat is taken only for a routine item they name. Anyone else is 403, and
-    a decision jbus refuses is 409 with its sentence, as is a verb the item's card does not
-    offer now (`cards.actions`): a review item, a merge, a secret or the config, is decided in
-    the view and takes no message or hold from chat either.
+    button confirms. `seen_event` is the card's `id`. The line it names must still be the
+    item's last, so a card acted on twice moves the item once. `by` is Sous Chef or the user.
+    Sous Chef steers as itself and approves nothing. The user's decision comes with `message`,
+    the chat message's id or link, and `words`, the words quoted from it. jbus keeps those
+    unchecked (`steer.chat`), and takes an approval from chat only for a routine item that the
+    words name. Anyone else gets 403. A decision that jbus refuses gets 409 with its sentence,
+    and so does a verb the item's card does not offer now (`cards.actions`). The user decides
+    a review item, a merge, a secret or the config in the view, and such an item takes no
+    message or hold from chat either.
     """
     wrong = [key for key in TEXT if not isinstance(body.get(key), str) or not body[key].strip()]
     wrong += [key for key in ("words", "message") if not isinstance(body.get(key, ""), str)]

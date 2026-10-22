@@ -1,11 +1,13 @@
-"""`jbus home <brief-or-request>`: the thread of the home a brief or a scout's request is.
+"""`jbus home <brief-or-request>`: print the thread of the home that a brief or a scout's
+request belongs to.
 
 The file is `<state>/tasks/<slug>.md` or `<state>/scouts/<slug>.md`, and its state is the
-directory two above it. It prints the thread in the `home-id` of the file's home, read now,
-or nothing where that home has none: between a handoff and the next start, or in a repo with
-no home. With `--directory` it prints the home's directory in its place, which a home holds
-up to its own. A file that is not there names no home and is the root's. The rule is
-`jbriefs.home`, the one the skills, jbus and `jmerge` share.
+directory two levels above it. The command reads the `home-id` of the file's home now and
+prints the thread in it. It prints nothing where that home has no thread: between a handoff
+and the next start, or in a repo with no home. With `--directory` it prints the home's
+directory instead, and a home compares that directory with its own. A file that is not there
+names no home, so it belongs to the root home. The rule is `jbriefs.home`, which the skills,
+jbus and `jmerge` share.
 """
 
 from __future__ import annotations
