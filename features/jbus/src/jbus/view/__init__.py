@@ -349,7 +349,7 @@ class Code:
 class App(Writes):
     """What the server answers to a `GET` and to its two writes, on either address.
 
-    The panels are the folders there are when the app starts, and the app loads each one
+    When the app starts, it takes each folder that is a panel then, and loads each panel
     once. When two panels give the same key, the app does not start. The app reads only a
     panel's script again on every request.
     `config` loads jbus's config, and only a write that has an answer to send calls it."""
@@ -619,9 +619,9 @@ class Doors:
             self._open.clear()
 
     def serve(self) -> int:
-        """Open the listeners and serve until something stops the process. The server also
-        stops when the code on disk is newer than the running code, and that newer code
-        starts. Then the server ends with `NEWER_CODE`."""
+        """Open the listeners and serve until something stops the process. The server also ends
+        when the code on disk is newer than the running code and a trial of that code starts.
+        It then ends with `NEWER_CODE`."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)

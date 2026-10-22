@@ -154,9 +154,9 @@ def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
 
 
 def test_a_project_page_asks_one_thing_each_poll_and_every_project_once_a_minute(scene, tmp_path):
-    """The page asks every 5 s, one request a poll. The switcher names every project, so a
-    project's page asks `/stack.json` too: once beside its first read, and then once a
-    minute in place of its own `/state.json`."""
+    """The page polls every 5 seconds and sends one request for each poll. The switcher names
+    every project, so a project's page asks `/stack.json` too: once beside its first read, and
+    then once a minute in place of its own `/state.json`."""
     stacked(scene)
     seen = look(scene, tmp_path, at=63000, budget=70000)
     asked = [one.partition("?")[0] for one in seen["asked"]]
