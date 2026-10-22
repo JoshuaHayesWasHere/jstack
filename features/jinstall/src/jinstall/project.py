@@ -17,9 +17,10 @@ from jinstall.machine import Dropped, Machine
 
 
 def ours(machine: Machine) -> bool:
-    """Whether this run may write in the checkout it installs from."""
+    """Whether this run may write in the checkout it installs from: never a linked worktree
+    under the account's own HOME, which the install refuses."""
     checkout = machine.checkout
-    if checkout is None:
+    if checkout is None or machine.in_a_worktree_of_the_account():
         return False
     return machine.home == machine.account or checkout.is_relative_to(machine.home)
 

@@ -13,7 +13,7 @@ import pytest
 
 from jinstall.__main__ import install as run_install
 from jinstall.machine import Machine
-from test_install import REPO, Ran, User, checkout_under, line_for
+from test_install import REPO, Ran, User, checkout_under, line_for, worktree
 
 ROOTS = (".claude/skills", ".cursor/skills")
 DECLARED = {
@@ -122,21 +122,32 @@ def test_uninstall_takes_the_links_away_and_leaves_no_folder_it_made(user):
     assert not (checkout / ".cursor").exists()
 
 
-def test_a_checkout_outside_a_sandboxed_home_and_a_release_get_no_project_links(tmp_path):
+def test_a_checkout_outside_a_sandboxed_home_a_worktree_and_a_release_get_no_project_links(
+    tmp_path,
+):
+    main, linked = worktree(tmp_path)
+    for checkout in (main, linked):
+        (checkout / "skills" / "own").mkdir(parents=True)
+        (checkout / "skills" / "own" / "SKILL.md").write_text("---\nname: own\n---\n")
+        catalog = checkout / "skills.json"
+        listed = json.loads(catalog.read_text())
+        listed["projectSkills"] = [{"name": "own", "path": "skills/own"}]
+        catalog.write_text(json.dumps(listed))
     home = tmp_path / "home"
     home.mkdir()
 
-    def named(checkout, account, release=None):
+    def named(checkout, account, release=None, skill="own"):
         there = Machine(checkout, home, {}, lambda args: Ran(None, ""), account, release)
         said = run_install(there, write=False).lines
-        return [line.split(" ", 2)[2] for line in said if "/.claude/skills/verify" in line]
+        return [line.split(" ", 2)[2] for line in said if f"skills/{skill}" in line]
 
-    assert named(REPO, home) == [
-        str(REPO / ".claude/skills/verify-jstack"),
-        str(REPO / ".claude/skills/verify-main-red"),
+    assert named(main, home) == [
+        str(main / ".claude/skills/own"),
+        str(main / ".cursor/skills/own"),
     ]
-    assert named(REPO, tmp_path / "account") == []
-    assert named(None, home, release=REPO) == []
+    assert named(main, tmp_path / "account") == []
+    assert named(linked, home) == []
+    assert named(None, home, release=REPO, skill="verify-") == []
 
 
 def test_git_tracks_nothing_under_the_checkouts_project_roots():
