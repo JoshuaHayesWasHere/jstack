@@ -184,6 +184,7 @@ The Python code is one `uv` project.
 `features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
 `verify-jstack` (`features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+A linked worktree has no such link, and reads the skill from `features/verify-jstack/project-skill/`, the folder `skills.json` names under `projectSkills`.
 
 ## Releasing
 

@@ -10,12 +10,14 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-Verify skill: `.claude/skills/verify-*/`.
+Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json`'s `projectSkills` (jstack: `features/verify-jstack/project-skill/`).
 
 **One task, one pull request, from the worktree and branch the home gave you.** Its base is the default branch, and nothing is stacked on another task's branch, but for a link of a stack, whose brief says so (step 6). Work that turns out to be more than one pull request goes in the Result under "Noticed": the home splits it.
 
 1. Run the repo's check command (`notes.md` names it) until it passes. A heavy suite is run as `skills/crew/SKILL.md` "Do the task" says, by whoever it says. Where the repo has a verify skill, run it on what you changed. A pass is the real thing run and read, not "it compiles" (`principles/principle-prove-it-works.md`).
-2. Read your own diff against the default branch once, as its first reader. Take out debug leftovers, anything outside the brief's **Where**, and every comment that narrates the change: a comment stays only for a why the code cannot show. The smallest diff that meets "Done when" ships (`principles/principle-laziness-protocol.md`). This is not the review: the reviewer does that, in a new thread.
+2. Read your own diff against the default branch once, as its first reader.
+   Take out debug leftovers, anything outside the brief's **Where**, and every comment that narrates the change: a comment stays only for a why the code cannot show.
+   The smallest diff that meets "Done when" ships (`principles/principle-laziness-protocol.md`).
 3. Order the commits before the first push so they tell the story on the branch and in the pull request: the failing test before the fix, the subtraction before the reshape, the scaffold before the feature (`principles/principle-sequence-verifiable-units.md`). Each commit passes the check, but for a failing test that the next commit turns green. Amend when a fix belongs in the commit just made, a new commit when it is separable. After the first push add commits and rewrite nothing: the only rebase is the one `skills/crew/SKILL.md` "A conflict" runs.
 4. Title the pull request and each commit as a Conventional Commit, `type(scope): subject` with no full stop: type one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, scope the area, subject short, naming the symbol that carries the change.
    The squash lands the title on the default branch, and a commit body never repeats the subject.

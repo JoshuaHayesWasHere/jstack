@@ -155,6 +155,7 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 | `fake-gh` | linked as `gh` on the sandbox's PATH, never run by hand | the stand-in for `gh`: answers from `gh/*.json`, exits 64 on `pr merge` |
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
 
-When jstack changes, the map in `features/` is what goes stale first: `/maintain-verification-skill` keeps it honest.
+When jstack changes, the feature files are what go stale first.
+`/maintain-verification-skill` finds this skill through `skills.json`, where `projectSkills` names it, but it reads a feature map only from the skill's own `features/` folder, which this skill does not have: on jstack it stops at `no feature map`.
 
 Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and the map a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `testing/tests/test_select_tests.py` fails on a path the map leaves out.

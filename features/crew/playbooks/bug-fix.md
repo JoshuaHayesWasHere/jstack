@@ -10,7 +10,7 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-Verify skill: `.claude/skills/verify-*/`.
+Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json`'s `projectSkills` (jstack: `features/verify-jstack/project-skill/`).
 
 **You own this task: the hunt, the fix and the proof.** Be scientific. Every line that ships traces to runtime evidence. A guard that "might help" is a hypothesis, not a fix, and does not ship. When evidence refutes a hypothesis, revert what it motivated. The smallest change the evidence justifies ships, and nothing more (`principles/principle-laziness-protocol.md`).
 
