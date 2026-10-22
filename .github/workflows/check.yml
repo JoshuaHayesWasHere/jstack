@@ -40,8 +40,9 @@ jobs:
     if: github.event_name == 'pull_request'
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
-    # cost nothing. The image is pinned, not ubuntu-latest, so the tools the suite finds there
-    # (Google Chrome for browser.yml, git, gh, jq) change only with a change to this file.
+    # cost nothing. The image is pinned, not ubuntu-latest, so a new Ubuntu release comes only
+    # with a change to this file. GitHub still refreshes the image about weekly, so the
+    # versions of what the suite finds there (Google Chrome, git, gh, jq) move with it.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -148,7 +149,8 @@ jobs:
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed
       # over every test, the tail (the wall less that sum shared out over the workers: the time
       # the workers were not all busy), the slowest file, and the CPU pressure of the machine
-      # and of this runner's cgroup.
+      # and of this runner's cgroup. GitHub's hosted runner sets no CPU quota, so its quota
+      # reads `none`.
       - name: suite summary
         if: steps.suite.outcome == 'success' || steps.suite.outcome == 'failure'
         continue-on-error: true

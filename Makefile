@@ -13,8 +13,9 @@
 # machine, and several checks run at once. A runner (GitHub Actions sets GITHUB_ACTIONS to
 # true) of GitHub's own, where RUNNER_ENVIRONMENT is github-hosted and every jstack CI job runs,
 # runs nothing else, so it takes one for each processor. A self-hosted runner takes one and a
-# half for each processor of its quota: a worker waits on subprocesses and files about half the
-# time, so a quota of 4 runs 6 workers. None takes fewer than two. `make check TEST_WORKERS=4`
+# half for each processor of its quota, as measured on the owner's own runners before CI moved
+# to GitHub: a worker waits on subprocesses and files about half the time, so a quota of 4 runs
+# 6 workers. None takes fewer than two. `make check TEST_WORKERS=4`
 # sets the count by hand, and `CORES=4` the processors it is counted from.
 #
 # The desk share is also the full test slots' count (`test_slots` in

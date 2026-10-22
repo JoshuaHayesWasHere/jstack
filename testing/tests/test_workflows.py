@@ -11,7 +11,7 @@ only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
 of the owner's machine or reads a repo variable for it. Each job has a cap that a hung run meets.
-The browser workflow names Google Chrome as its test browser on every runner, and the check names none.
+The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
 check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, and by hand,
 but never on a pull request or a push to main. Every workflow gets read access to the contents and
@@ -174,7 +174,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
     }
 
 
-def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_the_variable_that_picked_one():
+def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_its_variable():
     for path in sorted(WORKFLOWS.parent.rglob("*")):
         if path.is_file():
             text = path.read_text()
