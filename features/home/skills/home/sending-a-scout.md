@@ -44,7 +44,7 @@ When in doubt between the two, any one of the durable column's conditions decide
 
 A durable scout gets the check of the machine before its launch, as a crewmate does.
 
-**A scout through jbus.** Anyone who is not this home, an expert bot included, asks for a durable scout with `jbus --project <project> scout add <slug>`, the request on stdin, and never with `jbus queue add`, which launches a crewmate that branches and opens a pull request.
+**A scout through jbus**: anyone who is not this home, an expert bot included, asks for a durable scout with `jbus --project <project> scout add <slug>`, the request on stdin, and never with `jbus queue add`, which launches a crewmate that branches and opens a pull request.
 The request has the shape of `$T/scout-request.md`, and `add` refuses one with a crewmate's line (`Task:`, `Size:`, `Pull request:`).
 Once the user approves it with `jbus scout approve <slug> --sha <sha12> --word <id>`, a pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch.
 `jbus scout show` gives each one's state and what its Report says, and the Report comes to this home as any scout's does.

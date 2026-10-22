@@ -104,16 +104,24 @@ Preconditions:
 - A new sandbox, `env.sh` sourced, `doctor: ok`.
 - No `jbus poll` has run in it.
 
-- **Write the request.** Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none` and `Out of bounds: read-only. <what it must not do>`.
-- **Add it.** Run `record scout-path jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"`. It prints `added alpha: request <12 characters>, waits for a go`, and the request is in `$HOME/.local/state/home/demo/scouts/alpha.md`.
-- **Try a crewmate's line.** Pipe in a request with a `Task:` line, as `printf '# beta: x\nTask: "do it"\n' | record scout-path jbus --project demo scout add beta`. It exits 1 and names `a Task: line, which only a crewmate's brief has`, and no `scouts/beta.md` is written.
-- **Keep a word, and approve.** Run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `record scout-path jbus --project demo scout approve alpha --sha <the 12 characters> --word <the id>`. It prints `approved alpha: request <12 characters>, his word, ...`.
-- **Pass.** Run `record scout-path jbus poll`. It prints `launched scout alpha: mcp:sandbox-thread-1`.
-- **Check the launch itself.** Run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`. There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "root"}`, and `t3/threads.json` gives its thread the branch `null`.
-- **Check the repo.** Run `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format='%(refname)'`. It lists `main` and the origin's refs, and no branch more.
-- **Pass again, and read the table.** Run `record scout-path jbus poll`, then `record scout-path jbus --project demo scout show`. Nothing more is launched, and the row reads `| alpha | launched | none | mcp:sandbox-thread-1 | ...`.
-- **Write a Report.** Append `## Report` with `Status: done` to the request, then run `record scout-path jbus --project demo scout show`. The row's report reads `reported`.
-- **Proof.** Copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/scouts.json` into `$VERIFY_JSTACK_EVIDENCE`.
+- **Write the request**: write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none` and `Out of bounds: read-only. <what it must not do>`.
+- **Add it**: run `record scout-path jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
+  It prints `added alpha: request <12 characters>, waits for a go`, and the request is in `$HOME/.local/state/home/demo/scouts/alpha.md`.
+- **Try a crewmate's line**: pipe in a request with a `Task:` line, as `printf '# beta: x\nTask: "do it"\n' | record scout-path jbus --project demo scout add beta`.
+  It exits 1 and names `a Task: line, which only a crewmate's brief has`, and no `scouts/beta.md` is written.
+- **Keep a word, and approve**: run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `record scout-path jbus --project demo scout approve alpha --sha <the 12 characters> --word <the id>`.
+  It prints `approved alpha: request <12 characters>, his word, ...`.
+- **Pass**: run `record scout-path jbus poll`.
+  It prints `launched scout alpha: mcp:sandbox-thread-1`.
+- **Check the launch itself**: run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
+  There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "root"}`, and `t3/threads.json` gives its thread the branch `null`.
+- **Check the repo**: run `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format='%(refname)'`.
+  It lists `main` and the origin's refs, and no branch more.
+- **Pass again, and read the table**: run `record scout-path jbus poll`, then `record scout-path jbus --project demo scout show`.
+  Nothing more is launched, and the row reads `| alpha | launched | none | mcp:sandbox-thread-1 | ...`.
+- **Write a Report**: append `## Report` with `Status: done` to the request, then run `record scout-path jbus --project demo scout show`.
+  The row's report reads `reported`.
+- **Proof**: copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/scouts.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ### A gate wakes the Chef
 
