@@ -54,6 +54,10 @@ jobs:
           version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
+      # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
+      # shell may be zsh, and GitHub's image has no zsh.
+      - name: zsh
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
       # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
       - name: green tree
         id: tree
@@ -131,15 +135,14 @@ jobs:
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
-      - name: probe tools (temporary)
-        run: |
-          for t in zsh tmux rg shellcheck sqlite3 gitleaks chromium chromium-browser google-chrome node systemd-analyze systemctl gh jq setsid; do printf '%s %s\n' "$t" "$(command -v $t || echo MISSING)"; done
-          nproc; cat /proc/self/cgroup; cat "/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/self/cgroup)/cpu.max" || true; make -n check | tail -1
+      # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
+      # shell may be zsh, and GitHub's image has no zsh.
+      - name: zsh
+        if: steps.tree.outputs.marker != 'green'
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
-        env:
-          PYTEST_ADDOPTS: -rs
         run: make check JUNIT="$RUNNER_TEMP/junit.xml"
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed

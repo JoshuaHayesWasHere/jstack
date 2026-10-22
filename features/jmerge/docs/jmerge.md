@@ -128,6 +128,7 @@ It never touches the crewmate's branch or worktree.
 A pass is said on the `ready` and `merged` lines.
 A pass is also the one thing it pushes: the merge that passed goes to `refs/jstack/green-tree/<tree>` on the origin, named for that merge's tree, before the pass is said.
 The merge that lands has the same tree, so the job `full` of main's run of the check finds the marker, runs `uv sync --locked`, and skips `make check`.
+Both jobs of the check run on GitHub's hosted runner, `ubuntu-24.04`, and never on the machine that runs `jmerge`.
 A pull request's own job, `check`, runs `make check-fast BASE=HEAD^1`, the lint and the tests its change reaches.
 Where that selection is 80% of the test files or more, or the change touches something every test rests on, it runs the whole suite, and a pass leaves the marker `green-tree-<tree>` for the tree it checked out, GitHub's merge of the head over main: a marker says the full suite passed a tree, so a fast run leaves none.
 Its job summary says `full suite: yes` or `no`, `tree <tree>`, and the same goes to `ci.jsonl` as the job's `full` and `tree` (`jbus ci --notice`).

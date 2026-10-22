@@ -12,6 +12,7 @@ A job gives these as it runs, the one way: `jbus ci --notice full=true workers=4
 ### The nine targets
 
 Each is counted over the period, from job-level rows only: a job counts once and a run never does. The local runner is the figure a target is held to, and the hosted runner's is shown beside it where it has one. The targets other than the first five are set here, because the plan named none.
+jstack's own CI runs on GitHub's hosted runner since 2026-10-22, so each of its jobs is `hosted`, and a target held to the local runner has no new jobs of jstack's to count.
 
 | Target | Held to | Counted as |
 | --- | --- | --- |

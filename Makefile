@@ -11,11 +11,11 @@
 #
 # A desk takes a quarter of them. Not `auto`, which takes them all: other work shares the
 # machine, and several checks run at once. A runner (GitHub Actions sets GITHUB_ACTIONS to
-# true) of this machine takes one and a half workers for each processor of its quota: a worker
-# waits on subprocesses and files about half the time, so a quota of 4 runs 6 workers. One of
-# GitHub's own (RUNNER_ENVIRONMENT is github-hosted) takes one for each. None takes fewer
-# than two. `make check TEST_WORKERS=4` sets the count by hand, and `CORES=4` the processors
-# it is counted from.
+# true) of GitHub's own, where RUNNER_ENVIRONMENT is github-hosted and every jstack CI job runs,
+# runs nothing else, so it takes one for each processor. A self-hosted runner takes one and a
+# half for each processor of its quota: a worker waits on subprocesses and files about half the
+# time, so a quota of 4 runs 6 workers. None takes fewer than two. `make check TEST_WORKERS=4`
+# sets the count by hand, and `CORES=4` the processors it is counted from.
 #
 # The desk share is also the full test slots' count (`test_slots` in
 # features/jgauge/src/jgauge/sizes.py, whose DESK_SHARE is this quarter): every slot at once
@@ -23,9 +23,7 @@
 # of 8 cores or more, 5 on 10, 11 or 15. A worker keeps 0.86 of a core busy (measured on
 # yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU for each 89 to 94 s run at 6 workers),
 # so every slot at once asks for about 21 of the 24. testing/tests/test_check_command.py holds the
-# share and the count to each other. The runners are not in that count: they run in a slice of
-# their own, with its own CPU cap and a lower CPU weight, which the machine's own config sets,
-# and room's CPU pressure line holds launches when the two together run hot.
+# share and the count to each other. CI is not in that count: it runs on GitHub's machines.
 CGROUP ?= /sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))

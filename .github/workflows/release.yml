@@ -37,6 +37,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: make release-tag TAG="$TAG"
       - run: uv sync --locked
+      # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
+      # shell may be zsh, and GitHub's image has no zsh.
+      - name: zsh
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
       - name: make check
         run: make check
       - name: make dist
