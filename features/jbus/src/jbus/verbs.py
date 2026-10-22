@@ -25,7 +25,7 @@ modules declare the same rank, `chores` raises a `ValueError`.
 
 `project` and `here` are the two ways a verb finds its project.
 
-This module imports none of jbus's features, so that each of them can import it.
+This module imports none of jbus's features, so that each feature can import this module.
 """
 
 from __future__ import annotations
@@ -66,9 +66,9 @@ class Verb:
     the exit code.
 
     `abbrev` lets the user type an option short, as `--he` for `--help`. It is on by default,
-    as argparse has it, and off for the verbs that turned it off before verbs were declared.
-    `config` is off for a verb that reads no config, and the command then runs it with None
-    in the config's place.
+    as argparse has it, and off for the verbs that turned it off before jbus declared verbs
+    this way. `config` is off for a verb that reads no config, and the command then runs the
+    verb with None in place of the config.
     """
 
     name: str
@@ -103,7 +103,7 @@ class Step:
     - `rows`: the judged rows of a queue that parses (`Half.states`), which only the second
       half has.
 
-    The pass skips a step whose needs it does not have.
+    The pass skips a step when the pass lacks one of the step's needs.
     """
 
     slot: str
@@ -170,7 +170,7 @@ def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
     `ranked` raises a `ValueError` that names the module for a slot that is not one of `SLOTS`, for
     a rank that another module took in the same slot, and for a need that the step's slot cannot
     supply. What a slot supplies is the second item of its pair in `SLOTS`. The first slot runs
-    before the pass knows whether it is blind or what T3 Code and GitHub said, so it supplies
+    before the pass knows whether the pass is blind or what T3 Code and GitHub said, so it supplies
     `client` alone."""
     found: dict[tuple[str, int], tuple[Step, str]] = {}
     for module in pkgutil.iter_modules(paths, f"{jbus.__name__}."):

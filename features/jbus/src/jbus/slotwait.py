@@ -9,14 +9,14 @@ thread, so each pass of `jbus poll` resumes it, in `wake`:
 - `wake` drops a woken waiter that jbus told long ago and that has done nothing since.
 - For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
-  `waiters.HOLDS`: jbus has told it, and it has not taken the slot yet.
+  `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
 - A wake is one `t3_thread_send` in mode queue, keyed by the wait, so a retry sends the same
   message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
   each wait once, and sends again a message that got no answer.
 
-The file belongs to the machine, not to a project. A pass of any project wakes any waiter, and once
-one pass records a wake, the other passes read it there. A thread that takes a slot leaves the file
-(`jgauge.slot.take`).
+`test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
+waiter, and once one pass records a wake in the file, the other passes read that record there. A
+thread that takes a slot leaves the file (`jgauge.slot.take`).
 """
 
 from __future__ import annotations

@@ -18,34 +18,33 @@ list of `Word`:
 - `skipped`: why jbus posted the word to nobody. It is set for a word that was said in, or
   recorded by, the home that the word is for. `thread` is then that home's thread, and
   `sent_at` is the time when jbus kept the word. So the word is done, and nobody tells the home
-  what it recorded itself. `skipped` is empty for
-  every other word.
+  what it recorded itself. `skipped` is empty for every other word.
 - `waits`: why the word has not gone yet, as the log last said it.
 
 A word goes once, as one queued message to the thread in the home's `home-id`. jbus reads that file
 when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
 at once, except to the home that recorded it. For a word said in that home's own thread (`--message`
 whose thread is the home's) or recorded by it (`--from <thread id>`), `keep` records the word as
-sent, with `skipped` saying why. With `--all`, it does so only for that project's copy. A home that
-handed off and has no `home-id` has no thread to send to, so a word for it waits for the next home
-like any other word. A word that could not go waits in the file, and each pass tries it again
-(`deliver`). A home with no `home-id`, or one that handed off, gets the word on the pass after the
-next home's start wrote its id there. The retry key is `word|<project>|<id>|<thread>`, and jbus
-writes `sent_at` only after T3 Code accepted the message.
+sent, with `skipped` saying why. With `--all`, `keep` does so only for the copy of the project whose
+home recorded the word. A home that handed off and has no `home-id` has no thread to send to, so a
+word for that home waits for the next home like any other word. A word that could not go waits in
+the file, and each pass tries it again (`deliver`). A home with no `home-id`, or one that handed
+off, gets the word on the first pass after the next home starts and writes its own id into
+`home-id`. The retry key is `word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3
+Code accepted the message.
 
-No part of a word is an event. A word is in no outbox, so no POST to a project's webhook or to
-the top-level one carries it, and whoever ran the command hears nothing back. The log still has
-a line for it (`wake.Box.record`), which `jbus events` prints. The line holds the words, `by`,
-`at`, and `to`, which is the thread that received the word, or nothing while the word waits or when
-jbus posted it to nobody. A word that T3 Code refuses gets such a line too, and waits like any
-other.
+No part of a word is an event. A word is in no outbox, so no POST to a project's webhook or to the
+top-level one carries it, and whoever ran the command hears nothing back. The log still has a line
+for the word (`wake.Box.record`), which `jbus events` prints. The line holds the words, `by`, `at`,
+and `to`, which is the thread that received the word, or nothing while the word waits or when jbus
+posted it to nobody. A word that T3 Code refuses gets such a line too, and waits like any other.
 
-The command holds no lock of the pass, so a pass and the command can both hold the same unsent
-word. jbus writes what became of a word into the record as the file holds it at that moment,
-under `words.lock`, and never changes a word that has `sent_at` again (`_change`).
+The command holds no lock of the pass, so a pass and the command can both hold the same unsent word.
+For that reason, under `words.lock`, jbus rereads the record from the file, writes what became of
+the word into it, and never changes a word that has `sent_at` again (`_change`).
 
-A file that does not parse, or that holds something other than a record, is `Unparsable`.
-Nothing writes over it, and a pass says so in a gate and goes on.
+A file that does not parse, or that holds something other than a record, is `Unparsable`. jbus
+does not write over such a file, and a pass reports it in a gate and goes on.
 """
 
 from __future__ import annotations
@@ -159,7 +158,8 @@ def keep(
     For a word given as `--message`, `heard` is the message from which jbus read the words and the
     time, and `ref` is then the message's `<thread id>/<message id>`. `recorder` is the thread that
     ran `jbus word`, for `--from`. When a new word was said in the project's home thread, or
-    recorded by it, `keep` records it as sent to that thread and posts it to nobody (`skipped`).
+    recorded by that thread, `keep` records the word as sent to that thread and posts it to
+    nobody (`skipped`).
     """
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])
@@ -351,12 +351,12 @@ def _deliver(half: Half) -> None:
 def scratch(
     config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
 ) -> None:
-    """For each scratch home, send its waiting words to its thread. That is all the work a
-    scratch home gets from jbus, and `jbus.cli.poll` runs it once a pass as a chore. A
-    scratch home is not one of the projects that a pass works through (`jbus.load`), so this
-    cannot be one of a project's steps. When a scratch home's `words.json` does not
-    parse, `scratch` says so and raises no gate, since a scratch home has no webhook that
-    could take a gate."""
+    """For each scratch home, send the home's waiting words to the home's thread. That is all
+    the work a scratch home gets from jbus, and `jbus.cli.poll` runs `scratch` once a pass as
+    a chore. A scratch home is not one of the projects that a pass works through
+    (`jbus.load`), so `scratch` cannot be one of a project's steps. When a scratch home's
+    `words.json` does not parse, `scratch` says so and raises no gate, since a scratch home
+    has no webhook that could take a gate."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)
         try:

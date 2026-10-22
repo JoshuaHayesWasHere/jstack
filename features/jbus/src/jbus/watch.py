@@ -1,27 +1,30 @@
-"""jbus reads what is out from T3 Code and GitHub, and writes each finding as one line.
+"""This module reads the work that is out from T3 Code and GitHub, and writes each finding as
+one line.
 
 `look` asks once a pass for the project's crewmate threads, its open pull requests and the ones
-merged lately. It counts the threads of a slug that was removed from the queue, then leaves them
-out, so no pass finds one stale or tells one to carry on. The slug's pull requests stay. When only
-GitHub was silent, the answer from `look` still gives how many crews are out. That count is one for
-the machine, and `jbus poll` adds it up over every project. `watch` sends a line for what a home
-would have noticed: a merge; a thread that ran past its timebox, waits on a request, or ended with
-no Result; a main branch whose check failed after a merge; a red run of the browser workflow; and a
-revert. It names no cause and changes nothing. What no rule covers is a gate. `status` is the
-table's derived column for a slug, and `why` is the reason its row waits: the line that `jmerge` has
-for its pull request, what stopped its launch, or what its Result leaves.
+merged lately. `look` counts the threads of a slug that was removed from the queue, but leaves
+them out of its answer, so no pass finds such a thread stale or tells it to carry on. The slug's
+pull requests stay in the answer. When only GitHub was silent, the answer from `look` still gives
+how many crews are out. The machine has one such count: `jbus poll` adds it up over every
+project. `watch` sends a line for what a home would have noticed: a merge; a thread that ran past
+its timebox, waits on a request, or ended with no Result; a main branch whose check failed after
+a merge; a red run of the browser workflow; and a revert. `watch` names no cause and changes
+nothing. What no rule covers is a gate. `status` gives the table's derived column for a slug.
+`why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull
+request, what stopped the slug's launch, or what the slug's Result leaves.
 
 A pull request belongs to the slug whose brief names it on the `Branch:` line of a Result,
 and `jmerge` ties the two the same way (`tied`). The name of a pull request's branch gives
 its slug only where no brief names the pull request.
 
-`work.judge` judges a row's state once a pass, from its `facts`. The facts of a thread out that
-belongs to no row are `thread_facts`. A row's status, one of `queue.STATUSES`, is the projection of
-its state (`work.status`): `gate`, `pr`, `merged`, `done`, `left`, `launched`, `running`, `waiting`,
-`stale`, `failed` or `queued`. Its `why` is what a Result leaves, for a row that merged, ended or
-left something. A row is stale with nothing written when its thread ended or hung. Until
-`UNWRITTEN_MINUTES` after its thread last wrote, jbus keeps resuming its crew. After that the row is
-`left` (`unwritten`). Its `why` says so, and its home closes it (`leftover`).
+`work.judge` judges a row's state once a pass, from the row's `facts`. The facts of a thread out
+that belongs to no row are `thread_facts`. A row's status, one of `queue.STATUSES`, is the
+projection of the row's state (`work.status`): `gate`, `pr`, `merged`, `done`, `left`, `launched`,
+`running`, `waiting`, `stale`, `failed` or `queued`. For a row that merged, ended or left
+something, the row's `why` is what its Result leaves. A row is stale when its thread ended or hung
+and wrote nothing. Until `UNWRITTEN_MINUTES` after the thread last wrote, jbus keeps resuming the
+row's crew. After that, the row is `left` (`unwritten`), its `why` says so, and the slug's home
+closes the row (`leftover`).
 """
 
 from __future__ import annotations
@@ -147,7 +150,8 @@ def crew_threads(client: Client, project_id: str, contains: str = TITLE) -> list
 
 
 def _silent(run: Pass, why: str) -> Look:
-    """Record once a day that T3 Code gave no answer: the pass launches and watches nothing."""
+    """Record once a day that T3 Code gave no answer. The pass then launches nothing and watches
+    nothing."""
     name = run.project.name
     run.say(f"wait {name}: T3 Code could not be asked ({why})")
     day = run.now.date().isoformat()
@@ -220,8 +224,8 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     When GitHub is silent, jbus still knows the crews out, and they count toward `max_running`.
 
     The list of merged pull requests is the last hundred. When the queue names a slug that is
-    not in that list, `look` asks GitHub for it by name. It keeps a merge that it finds that way,
-    so the slug stays merged.
+    not in that list, `look` asks GitHub for it by name. `look` keeps any merge that it finds
+    that way, so the slug stays merged.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
@@ -332,10 +336,10 @@ def left(result: str) -> str:
 def unfinished(result: str) -> str:
     """Return what keeps a Result with no merge from ending its task, or nothing.
 
-    That is what the Result leaves, or a `Branch:` line that is missing or that ends on an
-    address, which here means a pull request that is neither open nor merged. This is the one
-    rule for a task that ended with no pull request: `ended` and `threads.finished` both
-    read it.
+    The answer is what the Result leaves, or a `Branch:` line that is missing or that ends on
+    an address. An address there means a pull request that is neither open nor merged. This
+    function is the one rule for a task that ended with no pull request: `ended` and
+    `threads.finished` both call it.
     """
     short, words = left(result), said_on(result, "Branch").split()
     if short:
@@ -366,9 +370,9 @@ class End:
 def ended(run: Pass, world: World, slug: str) -> End | None:
     """Return the end of a slug whose thread ended with a Result and no pull request pending.
 
-    Its thread has ended when it is settled or no longer `LIVE`. If T3 Code lists no thread
-    for a slug, the slug has not started, or this pass launched it. A slug with a pull request
-    that is open or merged takes its status from that pull request.
+    The slug's thread has ended when the thread is settled or no longer `LIVE`. If T3 Code lists no
+    thread for a slug, the slug has not started, or this pass launched it. A slug with a pull
+    request that is open or merged takes its status from that pull request.
     """
     thread = world.thread(slug)
     if slug in world.open or slug in world.merged:
@@ -383,13 +387,14 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
 
 
 def gone(run: Pass, world: World, slug: str, launched: str) -> bool:
-    """Return whether a slug's thread is gone and wrote nothing. That holds when the slug was
-    launched, T3 Code lists no thread for it, a settled or archived one included, no pull
-    request of the slug is open or merged, and its brief has no Result.
+    """Return whether a slug's thread is gone and wrote nothing. The answer is yes when four
+    things hold: jbus launched the slug; T3 Code lists no thread for the slug, not even a
+    settled or archived one; no pull request of the slug is open or merged; and the slug's
+    brief has no Result.
 
-    `launched` is the thread of its launch record, or nothing for a slug with none. A pass
-    calls `gone` before it launches anything, with the answers it already has. A thread
-    launched after those answers is in neither of them.
+    `launched` is the thread of the slug's launch record, or nothing for a slug with none. A
+    pass calls `gone` before it launches anything, with the answers that it already has from
+    T3 Code and GitHub. A thread launched after jbus got those answers appears in neither.
     """
     if not launched or slug in world.threads or slug in world.settled or slug in world.archived:
         return False
@@ -648,15 +653,15 @@ def unwritten(
 ) -> str:
     """Return why a `stale` row has nobody on it, or nothing while its crew is still on it.
 
-    A thread that ended or hung with nothing written is `stale` for as long as jbus keeps resuming
-    its crew (`threads.resume`). Starting `UNWRITTEN_MINUTES` after its thread last wrote, or at
-    once for a hung turn, the row is a leftover, and jbus sends it to its home to close
-    (`leftover`). It is `left` until its home ends it, the thread goes on, or the row leaves the
-    queue.
+    A thread that ended or hung with nothing written is `stale` for as long as jbus keeps
+    resuming the row's crew (`threads.resume`). Once `UNWRITTEN_MINUTES` have passed since the
+    thread last wrote, or at once for a hung turn, the row is a leftover, and jbus sends the row
+    to the slug's home to close (`leftover`). The row stays `left` until the home ends it, the
+    thread goes on, or the row leaves the queue.
 
-    The row of a thread that ended its turn to wait on a test slot, one of `waiting`, is
-    never `left`, however long the thread is quiet: jbus wakes the thread when a slot is free
-    (`slotwait`). After that, the rule above counts again from the thread's last write.
+    If a thread ended its turn to wait on a test slot, so that it is one of `waiting`, its row
+    is never `left`, however long the thread is quiet: jbus wakes the thread when a slot is
+    free (`slotwait`). After that, the rule above counts again from the thread's last write.
     """
     if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
         return ""
@@ -675,7 +680,7 @@ def unwritten(
 def status(
     run: Pass, world: World, slug: str, state: work.State, launched: str = ""
 ) -> dict[str, str]:
-    """Return a row's derived columns. Its status is the projection of its state
+    """Return a row's derived columns. The row's status is the projection of the row's state
     (`work.status`). `why` holds the reason that comes with the status itself: what a Result
     leaves.
 
@@ -703,9 +708,9 @@ def waits(run: Pass, pulls: Said, home: str) -> Waits:
     """Return what `jmerge` waits for or holds, by the pull request's number.
 
     `pulls` is what `jmerge` printed in this pass. Where the `home` merges, `jmerge` did
-    not run here, and the lines are the last ones that it logged, in `merge.log.last`. `waits`
-    reads that file in no other case, since the file keeps a line even after its pull
-    request stopped waiting.
+    not run here, and `waits` reads the last lines that `jmerge` logged, in `merge.log.last`.
+    `waits` reads that file in no other case, since the file keeps a pull request's line even
+    after the pull request stopped waiting.
     """
     said: list[Any] = pulls
     if home:
@@ -736,14 +741,13 @@ def unread(run: Pass, read: bool) -> str:
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:
     """Return why a row waits, or nothing. `found` is its derived columns, as `status` gave them.
 
-    A row with a pull request waits for what `jmerge` says of it. A row that was not
-    launched waits for what `dispatch` recorded (`Pass.reasons`), or for its approval.
-    Where `dispatch` read no row, it recorded nothing, and an approved row waits for what is
-    `unread`: dispatch that is off, or the stop file. A pass that is `UNREAD` says nothing
-    of the row, so its stored reason stays, unless the row has got its approval since. The
-    same holds for a pass in which `jmerge` failed and printed no line for the pull request.
-    A row that ended, or that merged with work left for after it, takes its reason from
-    `status`.
+    A row with a pull request waits for what `jmerge` says of it. A row that was not launched waits
+    for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where `dispatch` read no
+    row, it recorded nothing, and an approved row waits for what is `unread`: dispatch that is off,
+    or the stop file. A pass that is `UNREAD` says nothing of the row, so the row's stored reason
+    stays, unless the row has got its approval since. The same holds for a pass in which `jmerge`
+    failed and printed no line for the pull request. A row that ended, or that merged with work left
+    for after it, takes its reason from `status`.
     """
     if found.get("why"):
         return found["why"]
@@ -826,12 +830,11 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     """Return whether the check runs of a commit on main passed. `_check` asks GitHub once
     for a final answer, and keeps it in `known`.
 
-    A cancelled run is no failed check: a later run displaced it or someone stopped it, and
-    a push run cancelled before it had a job leaves the commit with no check run at all.
-    With `again`, `_check` reruns such a run at its first attempt, and the commit is
-    `pending` until the rerun ends. GitHub's `run_attempt` says whether it ran again:
-    `cancelled` is a later attempt that was cancelled too, and `refused` a run that GitHub
-    did not start again.
+    A cancelled run is no failed check: a later run displaced it or someone stopped it, and a push
+    run cancelled before it had a job leaves the commit with no check run at all. With `again`,
+    `_check` reruns a cancelled run that is at its first attempt, and the commit is `pending` until
+    the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a later
+    attempt that was cancelled too, and `refused` a run that GitHub did not start again.
     """
     if sha in known:
         return known[sha]
@@ -1012,16 +1015,16 @@ def _browser_name(day: str, taken: set[str]) -> str:
 
 
 def _browser_red(run: Pass) -> None:
-    """File the brief for the fix of a red run of browser.yml, which no pull request's check
-    runs, and queue it unapproved, once per run. jbus records each run that it has seen in
-    `browser-runs.json`, so it does not file a removed row again. On a project's first pass,
-    it only records the runs that it sees.
+    """File the brief for the fix of a red run of browser.yml, a workflow that no pull
+    request's check runs, and queue the brief unapproved, once per run. jbus records each run
+    that it has seen in `browser-runs.json`, so it files no brief again for a run whose row was
+    removed. On a project's first pass, jbus only records the runs that it sees.
 
     A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. Where GitHub
-    would not give its jobs, or a failed job's log, the next pass asks about the run again.
-    Once the run ended `BROWSER_GRACE` ago, jbus files it without the test names. jbus files
-    nothing for a manual run on a branch other than the default: that run is the branch's
-    concern.
+    would not give the run's jobs, or a failed job's log, the next pass asks about the run
+    again. Once the run ended `BROWSER_GRACE` ago, jbus files the brief without the test
+    names. jbus files nothing for a manual run on a branch other than the default: that run is
+    the branch's concern.
     """
     said = _api(
         run,
@@ -1085,7 +1088,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
 
     A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
-    once for each commit. It files and queues the brief for its fix once, and only for
+    once for each commit. `_retro` files and queues a brief for the fix once, and only for
     main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
     is no longer main, so there is nothing to fix. If main turns green again before a filed
     row launches, `_retro` reports that once and leaves the row as it is.

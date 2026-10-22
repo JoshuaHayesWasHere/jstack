@@ -3,10 +3,10 @@
 The pass writes the record twice, under the pass's lock. `Record.start` writes the start with no
 end, so a pass that hangs or dies shows as started and not ended. `Record.end` writes the end and
 the seconds the pass took. For each project it also writes what the pass saw of the project's open
-rows: how many threads each row has that are not settled, the thread's status and last update as T3
-Code gave them, and the pull request's checks as GitHub gave them. A row stays open until its pull
-request merges. Beside the rows, the record lists the project's `threads`: every thread that is not
-settled, a crew's or not, with its role and its liveness (`live`).
+rows: how many unsettled threads each row has, the thread's status and last update as T3 Code gave
+them, and the pull request's checks as GitHub gave them. A row stays open until its pull request
+merges. Beside the rows, the record lists the project's `threads`: every thread that is not settled,
+a crew's or not, with its role and its liveness (`live`).
 
 When the pass cannot write the record, it says `pass record failed` in the journal and goes on. If
 the write that failed was the end, the file keeps the start with no end, as it does for a pass that
@@ -15,17 +15,17 @@ died: the journal and the status file's `last_pass` show which of the two happen
 The pass reads the seconds from a clock that keeps counting while the machine is suspended, and the
 end is the start plus those seconds.
 
-A project's rows carry `seen`, the start of the pass that saw them. A pass that could not ask T3
-Code or GitHub about a project keeps what the pass before it saw, under that pass's `seen`, and so
-does a pass that has not ended yet. The status file's `last_pass` moves only when a pass ends; this
-file's `started` moves when one begins.
+A project's rows carry `seen`, the start of the pass that saw them. For a project that a pass could
+not ask T3 Code or GitHub about, the record keeps what the pass before saw, under that pass's
+`seen`. It does the same while a pass has not ended yet. The status file's `last_pass` moves only
+when a pass ends; this file's `started` moves when one begins.
 
 `silent` names, for each project the pass could not ask about, the source that did not answer:
 `T3 Code` or `GitHub`. Such a pass derived no row of that project, so the project's queue stays as
-an earlier pass left it. A pass that starts keeps what the pass before it said, until its own end
-says which sources answered. A pass that saw nothing of a project and names no source for it, such
-as a pass that raised, keeps the entry the project had: only a pass that saw the project's rows
-takes the entry out.
+an earlier pass left it. When a pass starts, the record keeps the `silent` entries of the pass
+before, until the end of the new pass writes which sources answered. If a pass saw nothing of a
+project and names no source for it, as when the pass raised, the record keeps the project's entry.
+Only a pass that saw the project's rows removes the entry.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
-"""This module finds what waits on the user. It follows the `depends` links of each approved row
-that cannot move until it reaches a root.
+"""This module finds what waits on the user. For each approved row that cannot move, this module
+follows the row's `depends` links up to a root.
 
 A root is one thing only the user can do, and it has a key:
 
@@ -12,22 +12,22 @@ A root is one thing only the user can do, and it has a key:
 `walk` starts at every approved row that was not launched and follows its `depends` links
 (`Pass.reasons`, which `dispatch` records). It stops at a root or at progress: a thread, a pull
 request on which `jmerge` waits, a slot, or a gate that the Chef already has. `tell` sends one
-`waiting-on-user` event for each root, and sends it again each hour while the root is still open. It
-rewrites `stall.json`, which records when jbus first saw each root and when it last sent it. `tell`
-returns the roots that are still open, and `waiting` lists them with everything else that waits on
-the user.
+`waiting-on-user` event for each root, and sends that event again each hour while the root is still
+open. `tell` also rewrites `stall.json`, which records when jbus first saw each root and when jbus
+last sent the root. `tell` returns the roots that are still open, and `waiting` lists them with
+everything else that waits on the user.
 
-`guarded` handles what waits on a crew. That is a pull request that changes a guarded path, which
-`jmerge` keeps on a `wait` line that wakes nobody. The line may say that the head has no proven
-safety fact, while the head is a fix pushed after the last review. Then `guarded` asks the crew for
-the one scoped review that proves the fix, once per head. When the line still says the same of the
-same head after `PASSES` passes, `guarded` sends one `stall` event, for the chat. `guarded.json`
-counts the passes.
+`guarded` handles what waits on a crew. What waits on a crew is a pull request that changes a
+guarded path. `jmerge` keeps such a pull request on a `wait` line, and that line wakes nobody. The
+line may say that the head has no proven safety fact, while the head is a fix pushed after the last
+review. Then `guarded` asks the crew for the one scoped review that proves the fix, once per head.
+When the line still says the same of the same head after `PASSES` passes, `guarded` sends one
+`stall` event, for the chat. `guarded.json` counts the passes.
 
-`unclosed` handles a leftover that its home did not close. That is a row that ended with something
-left, where jbus told the row's home of it (`leftover`) `leftover.CLOSE_MINUTES` ago or more.
-`unclosed` sends one `stall` event for the row, which names the home's thread. From then on the row
-is on the list of what waits on the user.
+`unclosed` handles a leftover that its home did not close. Such a leftover is a row that ended with
+something left, after jbus told the row's home about the leftover (`leftover`)
+`leftover.CLOSE_MINUTES` ago or more. `unclosed` sends one `stall` event for the row, and the event
+names the home's thread. From then on the row is on the list of what waits on the user.
 
 `hung` handles a turn that hangs: a thread that is out and has written nothing for too long
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
@@ -186,12 +186,12 @@ def tell(
     """Send each root that is due, say which roots cleared, and rewrite `stall.json`. Return the
     roots that are still open, each `{"key", "line", "since", "unblocks"}`.
 
-    `tell` also raises each due root on the desk. It prints the root when the webhook is not set or
-    its last POST failed. A pass judges no row when it could not ask T3 Code or GitHub, could not
+    `tell` also raises each due root on the desk. `tell` prints the root when the webhook is not set
+    or its last POST failed. A pass judges no row when it could not ask T3 Code or GitHub, could not
     read the queue, or ran with dispatch off. Such a pass keeps the roots that it had as they were,
     and neither sends nor clears them, except a root that is plainly `done`. `tell` also keeps the
     root of a held pull request as it was when the pull request is still open and `jmerge` said
-    nothing of it in this pass. Either `jmerge` did not run, or the home merges.
+    nothing of it in this pass. In that case either `jmerge` did not run, or the home merges.
     """
     name = run.project.name
     user = run.user
@@ -250,8 +250,8 @@ def launched_for(brief: str, head: str) -> bool:
     """Say whether the crew already launched the scoped review of this head. The sign is a
     `Scoped reviewer:` line that ends `of <head>`, as the crew skill's "A second pass" reads it. A
     line that names another head is no launch for this head. Neither is a line that names no head,
-    as a rebase's line did before its ask named one. Neither is the line that a session writes when
-    it had no launch tool, `Scoped reviewer: none, ...`."""
+    as lines written for a rebase did before jbus's ask named the head. Neither is the line that a
+    session writes when it had no launch tool, `Scoped reviewer: none, ...`."""
     return any(not words[2].startswith("none") for words in _reviewers(brief, head))
 
 
@@ -267,13 +267,13 @@ def prove(run: Pass, client: Client, world: World, number: int, slug: str, short
     `prove` asks nothing when the review is of the commit that `jmerge` names. That review's proof
     is unproven or failed, and a second review of the same commit would not change it. Such a wait
     is a stall. `prove` also asks nothing when the crew wrote a `Scoped reviewer:` line for the
-    head, including a line that says it had no launch tool. That crew has told its home and has
-    nothing more to do.
+    head, including a line that says the crew had no launch tool. That crew has told its home and
+    has nothing more to do.
 
-    The commit that `jmerge` names is the head. For a rebase that changed the patch, it is the
-    commit before the head instead: `jmerge` compared the head with that commit and found no proof
-    there, so the fix was rebased after no review proved it. Either way, `prove` asks for a review
-    of the head.
+    The commit that `jmerge` names is the head. For a rebase that changed the patch, the named
+    commit is the commit before the head instead: `jmerge` compared the head with that commit and
+    found no proof there, so the fix was rebased after no review proved it. Either way, `prove` asks
+    for a review of the head.
     """
     head = world.open[slug].get("headRefOid", "")
     named = _UNPROVEN.search(short)
@@ -310,9 +310,9 @@ def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
 
     `guarded` counts each pass in which `jmerge` says the same of the same head. At the `PASSES`th
     pass it sends one `stall` event, which names the pull request, the head and the crew's thread.
-    When the crew launches a scoped reviewer for the head, the count starts again, once. The event
-    then comes at the `REVIEWING`th pass and says so, since a review takes longer than `PASSES`
-    passes.
+    `guarded` starts the count again, once, when the crew launches a scoped reviewer for the head.
+    The event then comes at the `REVIEWING`th pass and says so, since a review takes longer than
+    `PASSES` passes.
     """
     by_number = {pull["number"]: slug for slug, pull in world.open.items()}
     was: dict[str, Any] = read_json(run.state / "guarded.json", {})
@@ -395,9 +395,10 @@ def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> st
     cannot tell.
 
     `now` is the call's thread as this pass has it, or None when T3 Code no longer lists the thread
-    as out. The run's own status tells an interrupt from an end. A run that is neither active nor
-    among the runs read has ended. A run that is still under way wrote again if its thread wrote an
-    item after the call. A message queued to the thread does not count as a write (`threads.out`).
+    as out. The run's own status shows whether someone interrupted the run or the run ended. A run
+    that is neither active nor among the runs read has ended. A run that is still under way wrote
+    again if its thread wrote an item after the call. A message queued to the thread does not count
+    as a write (`threads.out`).
     """
     if now is None:
         return ENDED
@@ -423,10 +424,11 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
     queued behind. The first pass that can tell what became of a call adds one more line,
     `{"at", "thread", "run", "became"}`.
 
-    `hung` writes a call's line before it sends the event, so every alarm has its record. A pass
-    that dies between the two writes the line again and then sends the event. When `hung` cannot
-    write a line, it says so and sends nothing, and the next pass tries again. `hung` does not
-    report a thread for which a read gave no active run, since there is no run to report.
+    `hung` writes a call's line before it sends the event, so every alarm has its record. If a pass
+    dies between the write and the send, the next pass writes the line again and then sends the
+    event. When `hung` cannot write a line, it says so and sends nothing, and the next pass tries
+    again. `hung` does not report a thread for which a read gave no active run, since there is no
+    run to report.
     """
     if out is None:
         return

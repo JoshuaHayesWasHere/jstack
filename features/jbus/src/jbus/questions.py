@@ -315,9 +315,10 @@ def _proposed(lines: str) -> tuple[Option, ...]:
 
     The user picks among the options that the thread weighed, so a gate has two options or more,
     each under a name of its own. One of them is the default that the thread took, and at most one
-    is the thread's pick. A name that ends in parentheses is a mark that the thread misspelled. If
-    jbus kept such a name, the option would have no mark. The default that the thread took is the
-    one it recommends, because a pass may close the question by silence, with that default.
+    is the thread's pick. A mark such as `(default)` goes in parentheses after the name. A name
+    that ends in parentheses holds a mark that the thread did not spell as one, and if jbus kept
+    it as a name, the option would have no mark. The default that the thread took is the one it
+    recommends, because a pass may close the question by silence, with that default.
     """
     read, unread = mirror.options(lines)
     found = tuple(
@@ -486,11 +487,11 @@ def answer(
     heard: queue.Said | None = None,
 ) -> Question:
     """Close a question with the user's answer. `answer` refuses a second answer and puts
-    the first in the refusal, except after a close by silence: that close is not the user's
-    answer, and theirs replaces it.
+    the first in the refusal. The one exception is a question that silence closed: that close
+    is not the user's answer, so the user's answer replaces it.
 
     `keeps` says the answer is the default. Only the person who heard the answer knows
-    whether it is, because words such as "yes" do not say it. For an answer given as
+    whether it keeps the default, because words such as "yes" do not say it. For an answer given as
     `--message`, `heard` is the T3 Code message in which jbus read the words and the time.
     """
     if by != user.user:
@@ -550,7 +551,7 @@ def closed_in_files(run: Pass) -> None:
     """Close each open question when a `gates.md` of the home marks its gate as answered.
 
     Until the skills read jbus, a home that takes an answer in its own thread writes the
-    answer in its `gates.md` and carries the answer to the thread itself. So this function
+    answer in its `gates.md` and sends the answer to the thread itself. So this function
     closes the record with the words of that `Status:` line, and jbus sends nothing. Those
     words replace a close by silence.
     """
@@ -672,17 +673,16 @@ class Carried:
 
 def carry(run: Pass, client: Client, one: Question) -> Carried:
     """Send one answer to the thread that asked the question. The answer either differs from
-    the default, or keeps the default of a gate that holds. The thread waits for it as the
-    word to go ahead (`GO`) or, when the answer differs, as the word not to take the default
-    (`HELD`).
+    the default, or keeps the default of a gate that holds. The thread waits for that answer:
+    it is the go-ahead (`GO`) or, when the answer differs, the instruction not to take the
+    default (`HELD`).
 
-    The answer goes as one queued message to the thread on the `Thread:` line of the slug's
-    brief or request, under the retry key `answer|<slug>|<number>`. The pass and the view
-    both send answers through this function, so neither of them sends an answer a second
-    time. When the answer goes, this function marks its record `told` and writes a quiet
-    event. When it does not go, this function writes no mark and no event, and the caller
-    reports the failure. An answer for a slug that was
-    removed from the queue goes to nobody.
+    The answer goes as one queued message to the thread on the `Thread:` line of the slug's brief or
+    request, under the retry key `answer|<slug>|<number>`. The pass and the view both send answers
+    through this function, so neither of them sends an answer a second time. When the answer goes,
+    this function marks its record `told` and writes a quiet event. When the answer does not go,
+    this function writes no mark and no event, and the caller reports the failure. An answer for a
+    slug that was removed from the queue goes to nobody.
     """
     number, slug = one.number, one.slug
     if one.answer is None or slug in run.removed:
@@ -709,9 +709,9 @@ def tell(run: Pass, client: Client) -> None:
     """Send each answer that differs from its default, and each answer that keeps the default
     of a gate that holds, once to the thread that asked (`carry`).
 
-    When the slug has no `Thread:` line, jbus writes a quiet event about the answer, once.
-    When T3 Code refuses an answer, the answer reached nobody, so jbus raises a gate about it,
-    once. jbus tries both again on each pass until they go. An answer for a slug that was
+    When the slug has no `Thread:` line, jbus writes a quiet event about the answer, once. When T3
+    Code refuses an answer, the answer reached nobody, so jbus raises a gate about it, once. jbus
+    tries both kinds of answer again on each pass until they go. An answer for a slug that was
     removed from the queue goes to nobody.
     """
     gone = run.removed
@@ -765,11 +765,11 @@ def propose(run: Pass, client: Client) -> None:
     """For each open question with no options, ask its thread once to pipe the gate again,
     with options.
 
-    A question has none when it was asked before gates had to propose them. The message goes
-    where an answer goes, to the thread on the `Thread:` line of the slug's brief or request.
-    jbus sends no message for a slug with no such line, or to a thread that T3 Code no longer
-    lists. It writes a quiet event instead, once, and the question stays open as it is. When
-    T3 Code did not answer a list or a send, jbus tries it again on the next pass.
+    A question has no options when a thread asked it before gates had to propose options. The
+    message goes where an answer goes, to the thread on the `Thread:` line of the slug's brief or
+    request. jbus sends no message for a slug with no such line, or to a thread that T3 Code no
+    longer lists. It writes a quiet event instead, once, and the question stays open as it is. When
+    T3 Code did not answer a list or a send, jbus tries the list or the send again on the next pass.
 
     jbus records in the question's record (`proposed`) that it asked the thread. It does not record
     this among the keys of what it sent, because a snapshot drops those keys for a slug whose

@@ -3,48 +3,49 @@ that ask something of the user.
 
 An event is one JSON object, `{"project", "slug", "event", "line", "text", "loud"}`. `line` is the
 finding in one line, and `text` is what made it. `loud` says who should see the event, and jbus
-looks it up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the `EVENTS`
-that each of its modules declares at its top, so a new kind is a line in its own module and none
-here. There are two levels. `user` is an escalation: a new question, a hold or an approval for the
-user to give, an alert, a stall. Such an event waits in the outbox for the next POST. It also has
-`say`, the line to post in the chat as it is. That line begins with the project, since the user acts
-in that project's home. `quiet` is everything else, a fact for the record: jbus writes it to the log
-and never posts it. The caller that queues an event may give it the lower level: a `waiting` event
-that asks nothing new of the user is `quiet`.
+looks `loud` up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the
+`EVENTS` that each of its modules declares at its top, so a new kind needs one line in the module
+that sends it and none in this one. There are two levels. `user` is an escalation: a new question, a
+hold or an approval for the user to give, an alert, a stall. Such an event waits in the outbox for
+the next POST. It also has `say`, the line to post in the chat as it is. That line begins with the
+project, since the user acts in that project's home. `quiet` is everything else, a fact for the
+record: jbus writes it to the log and never posts it. The caller that queues an event may give it
+the lower level: a `waiting` event that asks nothing new of the user is `quiet`.
 
-`Box` keeps a project's outbox and the keys of everything it has sent, so a finding goes
-once. It takes a short lock for each change, because `jbus gate` and `jbus done` add an event
+`Box` keeps a project's outbox and the keys of everything it has sent, so jbus sends a finding only
+once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an event
 while a pass runs. `notify` shows on the desktop what jbus could not post to the webhook.
 
 An event for the user goes to each of the project's `routes`. One is the project's own webhook. The
-other is the top-level webhook, which monitors every project, if the config sets it and it is not
-the same pair. Each route has its own outbox, five-minute gap and `last_error`, in its own folder:
-the project's state for its own webhook, and `top-level/` inside it for the other. So a webhook that
-is down neither holds back nor repeats what jbus posts to the other.
+other is the top-level webhook, which monitors every project, if the config sets that webhook and
+its pair differs from the project's. Each route has its own outbox, five-minute gap and
+`last_error`, in its own folder: the project's state folder for the project's own webhook, and
+`top-level/` inside that folder for the top-level webhook. So a webhook that is down neither holds
+back nor repeats what jbus posts to the other.
 
 Every body has a top-level `kind`, and jbus-relay routes each body by it: `events` for what an
 outbox of events posts, and `reminder` and `refresh` for the timers of what blocks
 (`waiting.cadence`). The second target, the config's `blocking` pair, is a route of its own beside
 those (`Box.blocking`). Its outbox, in `blocking/`, holds whole bodies, not events, and no event
-goes there. Each pass queues to it one `events` body that lists the items that began to block in
-that pass, with `items` beside `say` and `events`. It also queues a reminder or a refresh as each
-falls due. The flush keeps the five-minute gap for the `events` body. A reminder or a refresh waits
-on no gap, and sends along whatever waits before it, so the bodies go in order. A retry after a
-failed POST waits on the gap, whatever it carries. A refresh that waits replaces the one before it,
-which is out of date.
+goes there. Each pass queues to the second target one `events` body that lists the items that began
+to block in that pass, with `items` beside `say` and `events`. The pass also queues a reminder or a
+refresh as each falls due. The flush keeps the five-minute gap for the `events` body. The flush
+sends a reminder or a refresh with no gap, together with every body queued before it, so the bodies
+go in order. A retry after a failed POST waits on the gap, whatever the retried body holds. A
+refresh that waits replaces the one before it, which is out of date.
 
-The log is `events.jsonl`. jbus adds a line for each event as it queues it,
+The log is `events.jsonl`. jbus adds a line for each event when it queues the event,
 `{"at", "id", "event", "slug", "loud", "line", "text"}`, and one for each POST a webhook took,
 `{"at", "posted": [ids]}`. The daily prune rewrites the file without its oldest lines. Both times
 come from the clock, so a POST's time is never before the time of what it carries. A POST to the
 top-level webhook is `{"at", "posted_top_level": [ids]}`, so `posted` lists only what the project's
-own webhook took. The id is a hash of the event as the outbox holds it, so the outbox and the POST
-carry nothing extra for the log. `Box.log` reads the two kinds of line back as one list, and
-`jbus events` and the view read a quiet event from there. `Box.record` adds a line for what jbus
-keeps and never posts, such as the user's word to a home (`jbus.word`): that line is in the log and
-in no outbox. The log never decides what is sent or what counts as sent. jbus leaves out a line it
-cannot write, except one that is in no outbox: that line waits in `unlogged.json` until jbus can
-write its next line.
+own webhook took. The id is a hash of the event as the outbox holds it, so jbus adds nothing to the
+outbox or to the POST for the log's sake. `Box.log` reads the two kinds of line back as one list,
+and `jbus events` and the view read quiet events from that list. `Box.record` adds a line for what
+jbus keeps and never posts, such as the user's word to a home (`jbus.word`): that line is in the log
+and in no outbox. jbus never reads the log to decide what to send or what counts as sent. jbus
+leaves out a line it cannot write, except one that is in no outbox: that line waits in
+`unlogged.json` until jbus can write its next line.
 """
 
 from __future__ import annotations
@@ -254,9 +255,9 @@ class Box:
     count how many POSTs failed in a row: that is a streak, and `jbus.alert` keeps streaks.
     The top-level route's `wake.json` holds only its own `posted` and `last_error`.
 
-    `top` is the config's top-level pair. It is a route of its own when it is set and is not
-    the project's pair. A project with no pair of its own already has the top-level one as
-    its own, and jbus posts to it once.
+    `top` is the config's top-level pair. It is a route of its own when the config sets it and
+    it differs from the project's pair. A project with no pair of its own already uses the
+    top-level pair as its own, and jbus posts to that pair once.
     """
 
     def __init__(
@@ -358,7 +359,7 @@ class Box:
             self._log(owed=True, **record, text=cut(text), **more)
 
     def _log(self, owed: bool = False, **record: Any) -> None:
-        """Add one line to the log, which only its owner reads. The caller holds the lock.
+        """Add one line to the log, which only the log's owner reads. The caller holds the lock.
 
         jbus leaves out a line that it cannot write, and the outbox and the POST go on without it. A
         line that is `owed`, which is in no outbox, waits in `unlogged.json`, and jbus writes it
@@ -549,8 +550,9 @@ class Box:
         """Post what waits for one route, the project's own by default, in order, at most once
         in five minutes. Return how many went.
 
-        Only an event for the user waits there. An outbox written before jbus only logged
-        quiet events may hold an event of another level: `flush` drops it and posts nothing.
+        Only events for the user wait in a route's outbox. An outbox written before jbus only
+        logged quiet events may hold an event of another level: `flush` drops such an event
+        without posting it.
 
         What waits goes in lists of at most `WAKE_CAP` bytes of JSON, one after another, and
         each list leaves the outbox as soon as it is sent. Each list gets one try. The first
@@ -701,21 +703,20 @@ Reason = Changed | Depends | Slot
 class Pass:
     """A `Pass` is one pass over one project, with the state that all its steps share.
 
-    `find` sends a finding, once per key. What no rule covers is a `condition`, a quiet
-    event that asks the user nothing. `gate` records one for a slug, and the rest of the
-    pass leaves the slug alone: it is in `gated`, its row is at `gate`, and `asked` keeps
-    what the condition is. `held` is the rows where a full pass held back the gate. `reasons`
-    holds why each approved row was not launched. `dispatch` records that reason once it has
-    judged the row.
+    `find` sends a finding, once per key. What no rule covers is a `condition`, a quiet event that
+    asks the user nothing. `gate` records a condition for a slug, and the rest of the pass leaves
+    the slug alone: the slug is in `gated`, its row is at `gate`, and `asked` keeps what the
+    condition is. `held` is the rows where a full pass held back the gate. `reasons` holds why each
+    approved row was not launched. `dispatch` records that reason once it has judged the row.
 
     A slug that `jbus queue remove` took out is gone for good: each time a caller asks,
     `removed` reads the names from `removed.json`, and `find` sends nothing for one of them.
     If a pull request for such a slug opens later, every step still treats it as a pull
     request.
 
-    `told` is the slugs whose thread this pass told to carry on: they wait on that thread,
-    not on the user. `limited` is the slugs whose last run ended on a usage limit
-    (`jbus.failover`). The pass sends them no carry-on, since the failover sends it.
+    `told` is the slugs whose thread this pass told to carry on: those slugs wait on their
+    thread, not on the user. `limited` is the slugs whose last run ended on a usage limit
+    (`jbus.failover`). The pass sends their threads no carry-on, since the failover sends one.
     """
 
     config: Config

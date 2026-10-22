@@ -2,8 +2,8 @@
 
 The relay keeps a record of what blocks (`Watch`), and updates it from each body on the `blocking`
 route. When a `reminder` or a `refresh` lists an item that is still open `PAGE_MINUTES` (45) after
-it began to block, the relay pages it once (`judge`). A page is one line (`page_line`). For a body
-that Sous Chef did not take, the relay pages its first item or event (`unheard_line`).
+it began to block, the relay pages that item once (`judge`). A page is one line (`page_line`). For a
+body that Sous Chef did not take, the relay pages its first item or event (`unheard_line`).
 """
 
 from __future__ import annotations
@@ -102,12 +102,12 @@ def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str
     """Update the record of what blocks from a body. Return the new `Watch` and the pages the
     body makes, each `(page id, line)`.
 
-    `judge` keeps the items of an `events`, `reminder` or `refresh` body under the body's
-    event id. A `refresh` lists every open item of its project, so an item of that
-    project that the refresh does not list has closed, and `judge` drops it. An item makes a page
-    when a `reminder` or `refresh` lists it `PAGE_MINUTES` or more after it began to block
-    (the body's `at` against the item's `opened`) and nobody has marked it seen. The pager's
-    route sends each page id once."""
+    `judge` keeps the items of an `events`, `reminder` or `refresh` body under the body's event id.
+    A `refresh` lists every open item of its project, so an item of that project that the refresh
+    does not list has closed, and `judge` drops it. `judge` makes a page for an item when a
+    `reminder` or `refresh` lists the item `PAGE_MINUTES` or more after the item began to block (the
+    body's `at` against the item's `opened`), and nobody has marked the item seen. The pager's route
+    sends each page id once."""
     kind, project = body.get("kind"), body.get("project")
     if kind not in ("events", "reminder", "refresh"):
         return watch, []

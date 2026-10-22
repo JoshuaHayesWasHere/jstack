@@ -1,28 +1,28 @@
 """This module works out the state of each piece of work once a pass, in this one place.
 
-`judge` does all of it. It reads no clock and no file. The pass gives it `Facts`, seven closed
-facets of one row of the queue or of one thread that belongs to no row, and `judge` returns one
-`State`. The facets are:
+`judge` does all of this work. `judge` reads no clock and no file. The pass gives it `Facts`, seven
+closed facets of one row of the queue or of one thread that belongs to no row, and `judge` returns
+one `State`. The facets are:
 
 - `Row`: whether the queue has the row, and how its go stands.
 - `Thread`: the row's thread as T3 Code reports it, with its liveness (`jbus.live`). When T3 Code
-  does not list the thread, the facet is `archived` if T3 Code reads it back as archived,
+  does not list the thread, the facet is `archived` if T3 Code reads the thread back as archived,
   `missing` if T3 Code has no such thread, and `starting` if T3 Code has the thread and does not
-  list it yet. So a launch is not lost because its thread left the list.
+  list it yet. So jbus does not lose a launch when the launch's thread leaves the list.
 - `Launch`: whether a launch record names a thread.
 - `Written`: what the brief's last Result says. For a thread that belongs to no row, it is what
   the thread's role owes: a scout owes its Report, a reviewer its Review, and a home or another
   thread nothing.
-- `Pull`: the work's pull request. For one that is open, it is the step that jmerge's reason
-  names (`merge.step`), or `other` for a reason that no rule names.
+- `Pull`: the work's pull request. For an open pull request, the facet is the step that jmerge's
+  reason names (`merge.step`), or `other` for a reason that no rule names.
 - `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 
 Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet may be,
-with who holds the work in that state and the one thing it waits for. No two patterns match one set
-of facts. When no pattern matches a set of facts, the state is `unknown` and carries those facts, so
-jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets that it
-narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has
+with who holds the work in that state and the one thing the work waits for. No two patterns match
+one set of facts. When no pattern matches a set of facts, the state is `unknown` and carries those
+facts, so jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets that
+it narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has
 not answered, `judge` passes over the pattern. When a source has not answered and no pattern
 matches, the state is the last state that a pass judged (`Facts.last`), marked not confirmed.
 
@@ -145,7 +145,7 @@ class Facts:
 
     `last` is no facet: it is the value that the last pass judged, or nothing when no pass did.
     `seen` is no facet either. It is the status that T3 Code gave a thread when jbus does not know
-    that status. The thread's `thread` facet is then `none`, and its state is `unknown`
+    that status. The thread's `thread` facet is then `none`, and the work's state is `unknown`
     (`unforeseen`)."""
 
     row: Row
@@ -420,13 +420,13 @@ def status(state: State) -> str:
 
     A gate comes first, then the pull request. A row whose pull request is open is `pr`, and one
     whose pull request merged is `merged`, whatever the thread does. A thread in a status that jbus
-    does not know makes the row `stale`, for somebody to look at. A hung turn makes it `stale` too.
-    A thread that ended with nothing written makes the row `stale` when it completed or was
+    does not know makes the row `stale`, for somebody to look at. A hung turn makes the row `stale`
+    too. A thread that ended with nothing written makes the row `stale` when it completed or was
     archived, and `failed` when it failed. The row is `launched` while no thread is there for a
     launch, and `queued` once the thread was settled. A thread that left T3 Code's list changes
-    nothing for a row that ended: it counts only for a row with nothing written. The state knows no
-    clock. A `stale` row with nothing written becomes `left` once the pass finds its thread quiet
-    for long enough, which `watch.unwritten` decides.
+    nothing for a row that ended: it counts only for a row with nothing written. `status` reads no
+    clock. A `stale` row with nothing written becomes `left` once the pass finds the row's thread
+    quiet for long enough, which `watch.unwritten` decides.
     """
     facts, value = state.facts, state.value
     if value == "asking":
@@ -489,12 +489,12 @@ class Holder:
 def holder(state: State, role: str = "", home: bool = False, after: bool = False) -> Holder:
     """Return who holds a state, which is its pattern's holder except in three cases.
 
-    `role` is the role of a thread that belongs to no row. When such a thread is at work, its
-    role holds it, not a crewmate, and it is on no lane of the line. A leftover or a closed
-    pull request is the user's, with two exceptions. When its home has it (`home`, what
-    `leftover.json` says), the home holds it. When a merged pull request's `Left:` line is for
-    after the merge (`after`) and a thread is at work on it, its crewmate holds it. Either
-    holder is on the lane of work that is running.
+    `role` is the role of a thread that belongs to no row. When such a thread is at work, the
+    holder is that role, not a crewmate, and the state is on no lane of the line. A leftover or
+    a closed pull request is the user's, with two exceptions. When `leftover.json` says that the
+    pull request's home has it (`home`), the home holds the state. When a merged pull request's
+    `Left:` line is for after the merge (`after`) and a thread is at work on it, the crewmate
+    holds the state. Either holder is on the lane of work that is running.
 
     A role's holder is in `threads.ROLES`. `holder` imports `threads` inside the function,
     since `threads` imports this module.

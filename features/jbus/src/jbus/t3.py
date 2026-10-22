@@ -1,9 +1,9 @@
 """jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
 
-`login` registers jbus with the server, sends the user to its approval page, keeps the token that
-the server issues, and records when the server issued it. `expiry` says when that token runs out.
-`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test scans this
-package for any other tool name.
+`login` registers jbus with the server, sends the user to the server's approval page, keeps the
+token that the server issues, and records when the server issued it. `expiry` says when that token
+runs out. `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test
+scans this package for any other tool name.
 
 Three of the eight tools change a thread, and `Client.call` allows each of them in one form
 only (`_held`):
@@ -11,10 +11,9 @@ only (`_held`):
 - `t3_thread_organize`, to settle or archive a thread that the call names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`).
-- `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:`
-  line names or to the thread in a home's `home-id`. jbus sends it for the user's word
-  (`jbus.word`), and for a task of that home that ended with something left
-  (`jbus.leftover`).
+- `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:` line
+  names or to the thread in a home's `home-id`. jbus sends such a message for the user's word
+  (`jbus.word`), and for a task of that home that ended with something left (`jbus.leftover`).
 
 `Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
 the message, its text and its time, and that is why jbus counts the user's word as checked.
@@ -192,8 +191,9 @@ def expiry(token_path: Path) -> datetime | None:
     """Return when the stored token runs out, or None when no token is stored.
 
     The token was obtained at `obtained_at`. For a token stored before jbus recorded that time,
-    `expiry` takes the time its file was last written. It lasts its own `expires_in` seconds, or
-    `LIFETIME` when it has none. `expiry` does not read the token itself.
+    `expiry` takes the time that the token's file was last written. The token lasts its own
+    `expires_in` seconds, or `LIFETIME` when it has no `expires_in`. `expiry` does not read the
+    token itself.
     """
     stored = read_json(token_path, {})
     token = stored.get("token") if isinstance(stored, dict) else None

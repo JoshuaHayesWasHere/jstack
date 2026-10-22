@@ -1,11 +1,11 @@
 """When the repo owner's login posts on a crew's pull request, jbus relays that text to the
 crew. It relays nothing that anybody else posts.
 
-A comment or a review on a pull request is text from GitHub, and on a public repo anybody
-may write one. The owner's login proves nothing about who wrote it: reviewer bots post under
-the user's account. So a relayed remark is never the user's word. The message names GitHub,
-the kind of remark, the login and the link, and says it is reviewer or bot output. The
-user's word reaches a crew only from `jbus word` or in the crew's own thread.
+A comment or a review on a pull request is text from GitHub, and on a public repo anybody may write
+one. The owner's login proves nothing about who wrote it: reviewer bots post under the user's
+account. So a relayed remark is never the user's word. The message that jbus sends names GitHub, the
+kind of remark, the login and the link, and says the remark is reviewer or bot output. The user's
+word reaches a crew only from `jbus word` or in the crew's own thread.
 
 For each open pull request of a slug that jbus launched, `tell` reads GitHub's three lists of
 remarks. It sends the slug's crew each remark whose author is the repo's owner, one message
@@ -20,9 +20,9 @@ request.
 A crew is the thread on a brief's `Thread:` line, whoever launched it.
 
 A remark's key, `remark|<slug>|#<number>|<kind> <id> <when>`, is its retry key at T3 Code
-and its mark in `sent.json`, so jbus relays each remark once. When its author edits a
-comment, jbus relays the comment again, since `<when>` is when it last changed. jbus relays a
-review as its author submitted it. It leaves out a review not yet submitted, and does not
+and its mark in `sent.json`, so jbus relays each remark once. When an author edits a comment,
+jbus relays the comment again, since `<when>` is when the comment last changed. jbus relays a
+review as its author submitted it. jbus leaves out a review not yet submitted, and does not
 relay a later edit of a review's words. jbus reads each list to its last page.
 """
 

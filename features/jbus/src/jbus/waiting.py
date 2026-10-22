@@ -12,13 +12,15 @@ Each pass rewrites the list. An item is one thing only the user can do,
   copy of the gate in the file;
 - `row`: a row of the queue at `gate` that has no open pull request, with its `slug`. The line is
   the condition that jbus recorded for the row. jbus records a condition about a pull request once,
-  for its crew or its message, and the row is at `gate` for that one pass;
+  for the pull request's crew or for the message to that crew, and the row is at `gate` for that one
+  pass;
 - `left`: a row whose thread ended with a Result that leaves something, with its `slug`. The line is
-  the row's `why`. It stays one item until the Result leaves nothing or the row is gone. A row that
-  merged with something left is listed while its thread is not at work, starting with the pass after
-  the one that told the thread of the merge. When jbus has told a row's home of its `Left:` line
-  (`leftover`), the row waits on that home and is not listed. The row is listed, with the reason
-  after its `why`, when it has no home to tell or its home has not closed it in time;
+  the row's `why`. The row stays one item until the Result leaves nothing or the row is gone. A row
+  that merged with something left is listed while its thread is not at work, starting with the pass
+  after the one that told the thread of the merge. When jbus has told a row's home about the row's
+  `Left:` line (`leftover`), the row waits on that home and is not listed. The row is listed, with
+  the reason after its `why`, when the row has no home to tell, or its home has not closed the
+  leftover in time;
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
 - `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
@@ -34,18 +36,18 @@ root's line says more and the root has `unblocks`. A row to approve is listed on
 also when it is at `gate` for its changed brief. A pass that could not ask about a kind keeps the
 items of that kind that it had.
 
-When a pass writes a list with other keys than the list that it found, it sends one `waiting` event.
-The event gives how many items wait, the new ones by name (`short`), and each line, marked `+` for a
-new item and `-` for one that is gone. The event goes to the chat only when the list gained an item
-that `asks` something new of the user. Such an item is a hold, an approval or a config item, and
-this event is the only message that tells the user of them. It is also a gate in a home's
-`gates.md`. A config item is a condition of jbus's own, and it still asks: with no sign-in to T3
-Code jbus has stopped, and only the user can sign in. Any other change is `quiet`. That covers a
-pass that only took items off, and a question that jbus holds, since its own `gate` event told the
-user when jbus asked it. It also covers a row that jbus put at `gate`, since that is jbus's own
-condition. The first pass that writes the list sends no event. Neither the file nor the event holds
-a webhook URL, key or token, since `redact` takes each one out of what a pass found before the pass
-compares it with the file.
+When a pass writes a list with other keys than the list that it found, the pass sends one `waiting`
+event. The event gives how many items wait, the new ones by name (`short`), and each line, marked
+`+` for a new item and `-` for one that is gone. The event goes to the chat only when the list
+gained an item that `asks` something new of the user. Such an item is a hold, an approval or a
+config item, of which no other message tells the user, or a gate in a home's `gates.md`. A config
+item is one of jbus's own conditions, but it still asks something of the user: with no sign-in to T3
+Code jbus has stopped, and only the user can sign in. Any other change is `quiet`. `quiet` covers a
+pass that only took items off. It covers a question that jbus holds, since jbus's own `gate` event
+told the user when jbus asked the question. It also covers a row that jbus put at `gate`, since that
+is jbus's own condition. The first pass that writes the list sends no event. Neither the file nor
+the event holds a webhook URL, key or token, since `redact` removes each of them from the pass's
+findings before the pass compares those findings with the file.
 
 What blocks is a part of this list, and `blocking` is the one function that decides it. An item
 blocks when it is open and nothing can move without the user. That is the design's Blocking test
@@ -59,10 +61,10 @@ blocks when it is open and nothing can move without the user. That is the design
   because its brief changed after the go, and a row of the queue that waits with no brief in
   `briefs/<slug>.md`;
 - (c) a `hold`, which is a pull request that `jmerge` holds;
-- (d) a stall, which is any of these: a `left` item, a leftover that is the user's because its home
-  did not close it in `CLOSE_MINUTES` or it has no home; a `config` item; a streak of `alert` that
-  alerted, of this project or of the pass, except the second target's own; and a gate that has a
-  default, whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
+- (d) a stall, which is any of these: a `left` item, a leftover that is the user's because the row's
+  home did not close it in `CLOSE_MINUTES` or the row has no home; a `config` item; a streak of
+  `alert` that alerted, of this project or of the pass, except the second target's own; and a gate
+  that has a default, whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
 
 None of these blocks: a gate with a default whose thread still writes, a `row` that jbus put at
 `gate`, and a leftover that is still with its home.
@@ -71,12 +73,12 @@ None of these blocks: a gate with a default whose thread still writes, a `row` t
 bodies (`wake.Box.post`). It queues a body for the items that opened in a pass, one `reminder` for
 each item still open `REMIND_MINUTES` after it opened, and a `refresh` of every open item, oldest
 first. The `refresh` goes on the pass that begins a new `REFRESH_MINUTES` period, also when no item
-is open. A body names an item by its key, the key the list uses, so it names a question by its
-number. A pass that cannot judge a stall, or that is blind, closes no item that it had open.
+is open. A body names an item by its key, the same key that the list uses, so it names a question by
+its number. A pass that cannot judge a stall, or that is blind, closes no item that it had open.
 
 The file once had another name (`jbus.old_names`). Where there is no file of the current name,
-`read` takes a file of the old name, and reads each line by the name that its event has now. `keep`
-removes the old file once it has written the new one.
+`read` takes a file of the old name, and renames each line's event to the name that the event has
+now. `keep` removes the old file once it has written the new one.
 """
 
 from __future__ import annotations
@@ -310,17 +312,17 @@ def left(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
 
 
 def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> list[Item]:
-    """Return the open pull requests `jmerge` holds. `holds` goes by what `jmerge` printed in this
+    """Return the open pull requests `jmerge` holds. `holds` uses what `jmerge` printed in this
     pass, or, where the home merges, by the last line that `jmerge` logged for each pull request. A
-    pull request that is still open and that `jmerge` said nothing about keeps the hold that it had,
-    since `jmerge` did not run.
+    pull request that is still open and that `jmerge` said nothing about keeps its earlier hold,
+    since in that case `jmerge` did not run.
 
-    A pass that could not ask T3 Code or GitHub has no `world`, and trusts `jmerge`. It counts a
-    pull request that `jmerge` holds in this pass as open. A pull request that `jmerge` said nothing
-    about keeps the hold that it had. So the list gets a hold even when nothing but `jmerge`
-    answers. `keep` calls `holds` only when `jmerge` ran in the pass. Nothing ever removes the last
-    lines that a home logged, and with no `world` nothing says which of those lines are about a pull
-    request that is still open.
+    A pass that could not ask T3 Code or GitHub has no `world`, and trusts `jmerge`. Such a pass
+    counts a pull request that `jmerge` holds in this pass as open. A pull request that `jmerge`
+    said nothing about keeps its earlier hold. So the list gets a hold even when nothing but
+    `jmerge` answers. `keep` calls `holds` only when `jmerge` ran in the pass. Nothing ever removes
+    the last lines that a home logged, and with no `world` nothing says which of those lines are
+    about a pull request that is still open.
     """
     lines = [line.strip() for line in pulls]
     if merge.home_thread(run):
@@ -364,7 +366,7 @@ def keep(
     derived: bool,
     read_all: bool,
 ) -> list[Item]:
-    """Rewrite the list, and send one event when its keys are not the keys that the list had. The
+    """Rewrite the list, and send one event when the new list's keys differ from the old list's. The
     event is for the chat when the list gained an item that `asks` something new of the user, and
     `quiet` for any other change.
 
@@ -608,8 +610,8 @@ def cadence(
     but it still sends what falls due. The first pass that writes the file sends no opening body,
     since what blocks then did not open in that pass. With no second target, `cadence` judges
     nothing and writes nothing, so the first pass that has a second target starts from what blocks
-    then. `cadence` writes the marks before it queues the bodies. So a pass that dies between the
-    two sends a body once too few, never twice.
+    then. `cadence` writes the marks before it queues the bodies. If a pass dies between the two,
+    jbus sends that body once too few, never twice.
     """
     path = run.state / BLOCKS
     if run.box.blocking is None:

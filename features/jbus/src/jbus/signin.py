@@ -10,15 +10,15 @@ left. jbus sends it:
 - once a day from `DAILY` days out, the day it runs out included;
 - once more, on the first pass after it has run out.
 
-A pass sends the reminder for its current mark, and none for a mark already behind it: a first pass
-2 days out sends that day's reminder and not the week's. jbus stores the last expiry it saw, and the
-marks it has sent for that expiry, in `sign-in.json` in its state. So when the user adds, removes or
-moves a project in the config, jbus repeats no mark. An expiry later than the last one seen is a
-renewal. jbus reports the renewal once, with the new expiry, and starts the count over. The first
-expiry jbus sees is not a renewal. When jbus cannot read the file, it does not treat the expiry that
-it finds as a renewal either.
+Each of the three cases above is a mark. A pass sends the reminder for the mark it is in now, and
+none for a mark already behind it: a first pass 2 days out sends that day's reminder and not the
+week's. jbus stores the last expiry it saw, and the marks it has sent for that expiry, in
+`sign-in.json` in its state. So when the user adds, removes or moves a project in the config, jbus
+repeats no mark. An expiry later than the last one seen is a renewal. jbus reports the renewal once,
+with the new expiry, and starts the count over. The first expiry jbus sees is not a renewal. When
+jbus cannot read the file, it does not treat the expiry that it finds as a renewal either.
 
-The sign-in is the machine's, so jbus gives the reminder once, not once for each project. It
+The sign-in is the machine's, so jbus gives the reminder once, not once for each project. jbus
 queues the reminder in the box of the config's first project, as an event of the machine
 (`wake.Box.send`). Such an event waits for the top-level webhook alone
 (`wake.Box.machine_route`), and that project's flush posts it. `jbus events` of that project

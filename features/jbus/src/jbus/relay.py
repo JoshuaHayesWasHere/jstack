@@ -7,12 +7,12 @@ whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON objec
 takes gets an id: the body's own `id` when that is a short name, and otherwise a hash of the body,
 so a body posted twice has one id.
 
-Each route of `ROUTES` picks the part of the body that it sends. Before the relay answers 202, it
-writes the picked part to the route's spool, with `relay: {"id", "route"}` added to its keys. Each
-route has a sender thread that posts the route's spool in order, outside the request and with a
-timeout, so a webhook that is slow or down never holds back the next body. When a POST succeeds,
-the sender records the body's id in the route's `sent` file, with the time, and takes the body
-out of the spool. When a POST fails, the body stays in the spool, and the relay writes
+Each route of `ROUTES` picks the part of the body that the route sends. Before the relay answers
+202, it writes the picked part to the route's spool, with `relay: {"id", "route"}` added to the
+part's keys. Each route has a sender thread that posts the route's spool in order, outside the
+request and with a timeout, so a webhook that is slow or down never holds back the next body. When a
+POST succeeds, the sender records the body's id in the route's `sent` file, with the time, and takes
+the body out of the spool. When a POST fails, the body stays in the spool, and the relay writes
 `relay: POST to <target> (<route>) failed for event <id>: <why>` to the journal. The sender tries
 the body again after `RELAY_RETRY_SECONDS`, or sooner when the next body comes.
 
@@ -24,31 +24,31 @@ the exception: the sender keeps a body that got one of them in the spool and sen
 
 Once a route has sent a body under the body's own id, it never spools that id again. A route does
 not spool a hashed id again while it holds the id, or after it sent the id in the last
-`RELAY_DEDUP_SECONDS` (900). A repeat in that window is jbus posting again a body whose answer it
-lost. jbus's bodies carry no time, so a hashed id depends only on the body's content, and the same
-alert sent again later is a new event. Because the window ends, that later alert goes out. When
-the relay stops after it took a POST that is not yet in `sent`, it sends that body once more after
-it starts again. So the relay sends each body at least once.
+`RELAY_DEDUP_SECONDS` (900). A repeat in that window means that jbus lost the relay's answer and
+posted the body again. jbus's bodies carry no time, so a hashed id depends only on the body's
+content, and the same alert sent again later is a new event. Because the window ends, the relay
+sends that later alert. When the relay stops after it took a POST that is not yet in `sent`, it
+sends that body once more after it starts again. So the relay sends each body at least once.
 
-Both routes go to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`). The route
-`everything` sends every body as it came, and the route `blocking` sends what blocks
-(`blocking`). The relay refuses to start when a target's URL or key is missing, empty or
-REPLACE_ME, or when the inbound key is missing. It names each such key in the journal, never its
-value, and exits 2, which `jbus-relay.service` does not restart. The relay keeps its state in
-`RELAY_STATE`, ~/.local/state/jbus-relay: `spool/<route>/`, `sent/<route>`, `dead/<route>/`,
-`watch.json` and `heartbeat.json`.
+Both routes send to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`). The route
+`everything` sends every body as it came, and the route `blocking` sends what blocks (`blocking`).
+The relay refuses to start when a target's URL or key is missing, empty or REPLACE_ME, or when the
+inbound key is missing. The relay names each such key in the journal, but never the key's value, and
+exits 2, which `jbus-relay.service` does not restart. The relay keeps its state in `RELAY_STATE`,
+~/.local/state/jbus-relay: `spool/<route>/`, `sent/<route>`, `dead/<route>/`, `watch.json` and
+`heartbeat.json`.
 
 The heartbeat is `heartbeat.json`. The relay writes it every `BEAT_SECONDS`, on each body that it
-takes, and when a route begins or stops failing. It holds these keys:
+takes, and when a route begins or stops failing. The file holds these keys:
 
-- `beat`: when the relay wrote it.
+- `beat`: when the relay wrote the file.
 - `started`: when this relay started.
 - `heard`: when the relay last took a body, kept across a restart.
 - `silent_minutes`: `RELAY_SILENT_MINUTES` (90), how long without a body counts as silence.
-- `failing`: each route whose last POST failed with no later POST that went, with when it began
-  to fail, why, and how many bodies wait. The relay keeps a route's entry across a restart while
-  the route still holds a body. When a target refuses a body for good and no body waits behind
-  it, the route's entry ends.
+- `failing`: each route whose last POST failed with no later POST that went, with when the route
+  began to fail, why, and how many bodies wait. The relay keeps a route's entry across a restart
+  while the route still holds a body. When a target refuses a body for good and no body waits
+  behind that body, the route's entry ends.
 - `refused`: each body that a target refused for good in the last day, with its route, when, why and
   its file in `dead/`, kept across a restart.
 
@@ -67,8 +67,8 @@ so in two cases:
   it began to block, the relay pages that item once (`jbus.silent`).
 
 A POST to `/ack` that names an event id marks the items of that body as seen, and the relay does
-not page a seen item under (b). A page is one line. It goes through a spooled route of its own,
-`page`, which keeps its ids for good.
+not page a seen item under (b). A page is one line. Each page goes through a spooled route of its
+own, `page`, and that route keeps the ids that it sent for good.
 
 Sous Chef sends its decisions on a card back on `POST /item`, with the same key (`jbus.chat`).
 """

@@ -8,11 +8,11 @@ changed. Then it pushes to `origin`, whether or not it committed, so the next ru
 that failed. When the tree has no `origin`, the snapshot keeps its commit and fails: a snapshot kept
 on this machine alone is no backup.
 
-`jbus-snapshot.timer` runs it at 08:30 and 17:30. A home runs it with `--why` right after
-each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
+`jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30. A home runs it with `--why` right
+after each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
 A snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
-`jbus snapshot --alarm`. The first failure alerts the desk and every project, once, and the
-next snapshot that succeeds says it recovered (`alert.sound`, `alert.recover`).
+`jbus snapshot --alarm`. The first failure in a row raises an alert, once, to the desk and every
+project, and the next snapshot that succeeds reports the recovery (`alert.sound`, `alert.recover`).
 """
 
 from __future__ import annotations
