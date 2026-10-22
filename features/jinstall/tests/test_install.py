@@ -160,7 +160,6 @@ class User:
         self.layout = laid(self.home)
         self.START = group("home-start.sh", self.home)
         self.CODEX_START = group("home-start.sh", self.home, harness="codex")
-        self.TIPS = group("skill-tips.sh", self.home, matcher=None)
         self.GAUGE = group("home-gauge.sh", self.home, matcher=None)
         self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
         limits = self.layout / "hooks" / "limits.sh"
@@ -212,6 +211,23 @@ class User:
         for name in programs:
             (narrow / name).symlink_to(self.stub / name)
         return str(narrow)
+
+    def written(self, harness="claude-code"):
+        """The groups the install writes in `harness`'s hooks file, by event, as the hooks of
+        skills.json give them."""
+        found = {}
+        for hook in layout.hooks(REPO):
+            for one in hook["events"]:
+                if one["harness"] == harness:
+                    made = group(
+                        hook["name"],
+                        self.home,
+                        matcher=one.get("matcher"),
+                        refuses=one.get("refuses", False),
+                        harness=harness,
+                    )
+                    found.setdefault(one["event"], []).append(made)
+        return found
 
     def links(self):
         return [self.home / root / name for root in ROOTS for name in SKILLS]
@@ -293,15 +309,10 @@ def test_it_puts_every_part_and_says_ok_for_each(user):
     for link, skill in user.linked().items():
         assert os.readlink(link) == str(skill)
     assert json.loads(user.settings.read_text()) == {
-        "hooks": {
-            "SessionStart": [user.START],
-            "UserPromptSubmit": [user.TIPS],
-            "PostToolUse": [user.GAUGE],
-            "PreToolUse": [user.GAUGE, user.OUTBOUND],
-        },
+        "hooks": user.written(),
         "statusLine": user.STATUS,
     }
-    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [user.CODEX_START]}}
+    assert json.loads(user.codex.read_text()) == {"hooks": user.written("codex")}
     assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
     assert user.said(user.uv_log) == [f"tool install --editable {REPO} --reinstall"]
     assert user.said(user.systemctl_log) == []
@@ -433,14 +444,7 @@ def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touc
     assert line_for(said, part) == [f"old hard {part} -> {by_hand}"]
     assert line_for(said, "statusline") == []
     assert user.run()[0] == 0
-    assert json.loads(user.settings.read_text()) == written | {
-        "hooks": {
-            "UserPromptSubmit": [user.TIPS],
-            "SessionStart": [user.START],
-            "PostToolUse": [user.GAUGE],
-            "PreToolUse": [user.GAUGE, user.OUTBOUND],
-        }
-    }
+    assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()}
     assert user.run("--uninstall")[0] == 0
     assert json.loads(user.settings.read_text()) == {
         "model": "one",
@@ -475,7 +479,7 @@ def test_an_empty_hooks_file_is_missing_the_entry_and_gets_it(user, written):
     user.write(user.codex, written)
     assert user.run("--check") == (1, user.every("missing"))
     assert user.run() == (0, user.every("ok"))
-    assert json.loads(user.codex.read_text()) == {"hooks": {"SessionStart": [user.CODEX_START]}}
+    assert json.loads(user.codex.read_text()) == {"hooks": user.written("codex")}
 
 
 def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_path):
@@ -487,13 +491,7 @@ def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_pat
     assert user.run() == (0, user.every("ok"))
     assert os.readlink(user.settings) == str(kept)
     assert json.loads(kept.read_text()) == {
-        "hooks": {
-            "Stop": stop,
-            "SessionStart": [user.START],
-            "UserPromptSubmit": [user.TIPS],
-            "PostToolUse": [user.GAUGE],
-            "PreToolUse": [user.GAUGE, user.OUTBOUND],
-        },
+        "hooks": {"Stop": stop, **user.written()},
         "statusLine": user.STATUS,
     }
     assert sorted(path.name for path in kept.parent.iterdir()) == ["settings.json"]
