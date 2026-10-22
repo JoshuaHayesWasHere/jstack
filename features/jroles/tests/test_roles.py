@@ -371,8 +371,7 @@ def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
 
 def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_nothing(pooled):
     """A launch of only some of the reviewers would run a review that nobody chose, so jroles
-    holds every line of the role until the
-    reset."""
+    holds every line of the role until the reset."""
     (pooled.config / "roles").write_text(
         "review: codex gpt-6-sol codex effort=xhigh\n"
         f"review: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"

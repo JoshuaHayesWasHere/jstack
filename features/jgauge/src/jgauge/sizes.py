@@ -8,17 +8,15 @@ the owner may set it:
   `~/.config/jstack/machine.toml`;
 - `short_slots`, read the same way for the short lane, set in the same file;
 - `max_running`, the crew cap that `jbus` reads when it dispatches, set in
-  `~/.config/jbus/config.toml`,
-  where it lived before this module. jbus parses that file and passes the raw value here, so
-  this module checks the value and gives its default.
+  `~/.config/jbus/config.toml`, where it lived before this module. jbus parses that file and
+  passes the raw value here, so this module checks the value and gives its default.
 
 Every caller arrives at the same count because the module derives a default from whole-machine
 facts only: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`. The module
-never reads the caller's
-cgroup quota, its affinity or `nproc`, which differ between `jbus.service`, a desk shell, an
-agent's slice and a CI container on the same machine. The Makefile does read the quota for its
-workers, on purpose: it sizes a run's workers to the run, and this module sizes the machine's
-slots to the machine.
+never reads the caller's cgroup quota, its affinity or `nproc`, which differ between
+`jbus.service`, a desk shell, an agent's slice and a CI container on the same machine. The
+Makefile does read the quota for its workers, on purpose: it sizes a run's workers to the run,
+and this module sizes the machine's slots to the machine.
 
 The module takes the first source that is set, in this order: `--slots` and `TEST_SLOTS` (the
 full lane only), the local home, the derivation. `TEST_SLOTS` overrides the count for one run.

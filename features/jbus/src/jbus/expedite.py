@@ -522,8 +522,7 @@ def _tell(
     run: Pass, client: Client, world: World, number: int, slug: str, row: Short, entry: dict
 ) -> str:
     """Send the message that is due, and return how it went: `told`, `users` for a hold no
-    message can lift, or nothing when the
-    next pass must try the message again."""
+    message can lift, or nothing when the next pass must try the message again."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix"):

@@ -2,9 +2,9 @@
 
 The install only probes a Kind: the doctor prints what the probe found, and the install never
 writes the part. A kind that `Asks` gives `--setup` the one command that the user runs to
-repair what the probe found. The kinds
-read the configs through `jbus.load`, `jsettings.load` and `jroles.read_map`, the loaders the
-commands use, so the doctor cannot disagree with the commands about what is valid.
+repair what the probe found. The kinds read the configs through `jbus.load`, `jsettings.load`
+and `jroles.read_map`, the loaders the commands use, so the doctor cannot disagree with the
+commands about what is valid.
 
 A Seeded kind is a config that `--setup` writes once, where there is no file. `--uninstall`
 removes it while it is still what `--setup` wrote (`Machine.seed`).
@@ -119,8 +119,8 @@ class Seeded(Kind, Protocol):
     mode: int
 
     def text(self, machine: Machine) -> str:
-        """The bytes to write. The kind reads them from the machine, and the loader accepts every
-        value in them."""
+        """The text that `--setup` writes. The kind reads it from the machine, and the loader
+        accepts every value in it."""
         ...
 
     def drop(self, machine: Machine) -> Dropped:
@@ -420,7 +420,7 @@ class HookGroup:
 class GitHook:
     """A hook of the checkout's own repo, a link from <checkout>/.git/hooks/<name> to
     <checkout>/<script>. The worktrees of a repo run the hooks of its main checkout, so the
-    one link covers every branch that this machine sends to a remote.
+    one link covers every branch that this machine pushes.
 
     `needs()` lists this need only with a checkout, since a release has no repo of its own.
     due: `.git` is a directory, and HOME is the account's own or holds the checkout. A
@@ -803,7 +803,8 @@ class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
     install links ~/.config/systemd/user/<name> to its template, and it enables each of
     `timers`. The template is the checkout's, or else the release's. The checkout's template is
-    the file that the links pointed at before the release's copy, and that systemd's own links under
+    the file that the links pointed at before the committed harness copy
+    (`harness/jstack/claude-code`, the first of `BEFORE`), and that systemd's own links under
     `timers.target.wants` still point at.
 
     due: jbus is set up (its config is there), or a unit of this checkout's is there.
@@ -1115,7 +1116,7 @@ class Limits:
 
 @dataclass(frozen=True)
 class StateRepo:
-    """The homes' state tree, which `jbus snapshot` commits and sends to its `origin`.
+    """The homes' state tree, which `jbus snapshot` commits and pushes to its `origin`.
     ok: the directory is the top of a git repo with an origin. The detail names the origin,
       with any credentials taken out of it.
     missing: the directory is not a git repo, or the repo has no origin."""

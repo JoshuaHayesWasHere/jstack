@@ -29,8 +29,8 @@ TITLE = "feat: the task, done"
 
 @functools.cache
 def uv_cache():
-    """The uv cache of the user the tests run as. The fixture asks `uv` for it once, when a test
-    needs it."""
+    """The uv cache of the user the tests run as. This helper asks `uv` for it once, when a
+    test first needs it, and `functools.cache` keeps the answer."""
     ran = subprocess.run(["uv", "cache", "dir"], check=True, capture_output=True, text=True)
     return ran.stdout.strip()
 

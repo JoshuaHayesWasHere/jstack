@@ -303,7 +303,7 @@ SELECTED = {
 @pytest.fixture
 def selected(tmp_path):
     """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
-    before main changed the module `src/demo/two.py`. The test `testing/tests/test_two.py`
+    over a main that changed the module `src/demo/two.py`. The test `testing/tests/test_two.py`
     imports that module. No test file is one that every change selects."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py")

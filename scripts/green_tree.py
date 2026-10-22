@@ -26,9 +26,9 @@ The script answers in one word, the step's output `marker`:
 - `unasked`: the run is a manual run or a rerun, which always runs the suite.
 
 Its other outputs are `name`, the name the workflow uploads the marker under, and `from`, which says
-whose marker a `green` came from: `desk` or `run`. The desk does not sync its check's environment
-from the lock file, so a run that skips the suite on the desk's marker still runs `uv sync
---locked`.
+whose marker a `green` came from: `desk` or `run`. The desk's check ran in an environment that
+nothing checked against the lock file, so a run that skips the suite on the desk's marker still
+runs `uv sync --locked`.
 
 Only `green` skips the suite. The script never fails: a run that cannot find out runs the
 suite as it always did. The script needs no package, so it runs before `uv sync`, with `gh` and
