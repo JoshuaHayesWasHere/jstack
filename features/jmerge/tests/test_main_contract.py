@@ -4,7 +4,7 @@
 1. Each formatter's line parses back to the fields it was given, for every reason that
    `ready` names, and `merge.step` puts each reason on the step that declares it.
 2. A table of records gives the `Main` that a reader acts on. Over every order of events
-   that the red-main model walks, every record that the real `mainmoved.tell` writes is a
+   that the red-main model enumerates, every record that the real `mainmoved.tell` writes is a
    `Record`.
 3. A real `jmerge` that could not ask GitHub prints a line that is about no pull request,
    and a jbus pass reports it as a `jmerge` that did not run.
@@ -127,7 +127,7 @@ def test_record_writes_only_what_it_is_given_and_reads_back_as_the_same_main():
 
 
 def test_every_record_the_real_tell_writes_over_the_model_is_a_record():
-    """Over every order of events that the red-main model walks, the real `tell` writes
+    """Over every order of events that the red-main model enumerates, the real `tell` writes
     `main.json` only as a `Record`, and writes it no other way."""
     written = []
 

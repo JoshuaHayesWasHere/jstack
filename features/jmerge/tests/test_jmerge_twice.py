@@ -1,8 +1,8 @@
 """A brief whose `Review:` line says `twice` gets one review, one fix round, and a second review
 of the head that the fix pushed. It merges once the crew has answered the first review's
-findings and pushed its `Fixed:` line, and the second reviewer has written its review. What
-that review finds goes to a cleanup row (`jbus cleanup`) and never holds the merge. The tests
-drive it through `ready.short_of`, the function that `jmerge` asks before a merge, and through
+findings and pushed its `Fixed:` line, and the second reviewer has written its review. What that
+review finds goes to a cleanup row (`jbus cleanup`) and never holds the merge. The tests drive
+it through `ready.short_of`, the function that `jmerge` calls before a merge, and through
 `jmerge` itself against a real origin and a fake `gh`
 (`features/jmerge/tests/test_jmerge_fresh.py`).
 """

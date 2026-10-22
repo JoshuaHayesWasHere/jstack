@@ -107,8 +107,8 @@ class Steps:
 
 
 def steps(said: str) -> Steps:
-    """Read what a `Playbook:` line says, without its label. It holds the name, then `; ` and
-    each step as `<n> done` or `<n> skip: <reason>`, numbered in order from 1 to the last."""
+    """Read what a `Playbook:` line says, without its label. The line gives the name, then `; `
+    and each step as `<n> done` or `<n> skip: <reason>`, numbered in order from 1 to the last."""
     name, *parts = [part.strip() for part in said.split(";")]
     if not name or name.startswith("<"):
         return Steps(name, fault="names no playbook")
@@ -302,7 +302,7 @@ _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
 
 
 def designed(text: str) -> str:
-    """Why a brief has no design call, or nothing.
+    """Why a brief has no design call, in one line, or an empty string when it has one.
 
     The first `Design:` line of its head gives the call: the path of the design the brief
     was written from, a file with its extension, or `none, <why>`. A `none` with no reason
@@ -332,7 +332,7 @@ REQUIRED = (
 
 
 def fields(text: str) -> list[tuple[str, list[str]]]:
-    """A brief as its fields, in order: each label with the lines it holds.
+    """A brief as its fields, in order: each label with the lines under it.
 
     A line of the head (the lines above the first `## `) that starts `<Label>: ` starts a
     field, and the text after the label is the field's first line. Every other line
@@ -407,7 +407,8 @@ _BARE_CHECK = re.compile(r"\bmake check(?![-\w])")
 
 
 def check_command(notes: str) -> str:
-    """The repo's check command, as the `Check command:` line of its notes names it, or nothing."""
+    """The repo's check command, as the `Check command:` line of its notes names it, or an empty
+    string when the notes name none."""
     named = _CHECK_COMMAND.search(notes)
     return named["command"].strip() if named else ""
 
@@ -448,7 +449,7 @@ def _head_lines(text: str, label: str) -> str | None:
 
 
 def _path(word: str, ticked: bool) -> str:
-    """The path or glob that a word names under the repo, or nothing.
+    """The path or glob under the repo that a word names, or an empty string when it names none.
 
     A word in backticks names one if it is a single token that is not an option, a URL or a
     path that leaves the repo. A word between commas needs more to tell it from prose: a

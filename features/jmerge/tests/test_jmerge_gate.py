@@ -202,9 +202,9 @@ def test_jbus_tells_the_crew_of_each_gate_hold():
 
 def test_a_gate_ends_before_jbus_stops_the_jmerge_that_runs_it():
     """A run starts no new gate once its gates have used up their budget. The budget plus one
-    gate's time limit is less than the time that a pass gives `jmerge`. `jmerge` stops and
-    holds a gate that runs over its limit, so jbus does not kill the gate when it stops
-    `jmerge`."""
+    gate's time limit is less than the time that a pass gives `jmerge`. `jmerge` stops a gate
+    that runs over its limit and holds the pull request, so jbus does not kill the gate when it
+    stops `jmerge`."""
     assert cli.Gate.BUDGET + cli.Gate.TIMEOUT < wake.JMERGE_TIMEOUT
 
 

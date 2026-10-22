@@ -10,9 +10,9 @@ from testing.paths import REPO
 
 
 def in_the_template(line):
-    """Whether a line that a block printed is the template's line of that label. Each of the
-    template's `<...>` must be filled in, and the template's note of when the line appears
-    must be left off."""
+    """Whether a line that a block printed is the template's line of that label. The block must
+    fill in each of the template's `<...>`, and must leave off the template's note of when the
+    line appears."""
     template = (REPO / "features" / "crew" / "templates" / "result.md").read_text()
     (written,) = [text for text in template.splitlines() if text.split()[0] == line.split()[0]]
     shape, holes = written.split("   <")[0], 1

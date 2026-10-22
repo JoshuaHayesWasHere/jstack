@@ -7,10 +7,9 @@ origin. Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one rev
 and the user's home has a jbus config whose project is this checkout.
 
 The project's state can also hold a pull request back because main is red. jbus's `main.json`
-names a red tip when its `broken` field holds a tip that is not green. While `main.json` names
-a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges, and every other
-pull
-request waits until main is green."""
+names a red tip when its `broken` field contains a tip that is not green. While `main.json`
+names a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges, and every
+other pull request waits until main is green."""
 
 import json
 
@@ -37,7 +36,7 @@ def row(slug, status="pr", pr="", **more):
 
 def queue_of(home, rows, more=""):
     """The jbus config that names this checkout as a project, and that project's queue. `more`
-    holds lines of the project's table, such as its migration directory."""
+    contains lines of the project's table, such as its migration directory."""
     config = home.user / ".config" / "jbus"
     config.mkdir(parents=True, exist_ok=True)
     (config / "config.toml").write_text(
@@ -214,7 +213,7 @@ def adds(*names):
 @pytest.fixture
 def lined(merged):
     """The repo has `0004_start` on main. `alpha` (#7), `beta` (#8) and `gamma` (#9) are
-    reviewed clean and green at one head, whose tree holds the migration that `alpha` adds."""
+    reviewed clean and green at one head, whose tree contains the migration that `alpha` adds."""
     home, tree = merged.home, merged.tree
     commit_migration(home.main, "0004_start")
     merge.git(home.main, "push", "-q", "origin", "main")

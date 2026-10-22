@@ -237,7 +237,7 @@ def test_the_fix_of_a_red_main_is_not_held_by_a_red_train():
 
 
 def viewed(kitchen, number, head, base):
-    """What GitHub says of a merged pull request, which a sweep asks for."""
+    """What GitHub returns when a sweep asks about a merged pull request."""
     said = {"state": "MERGED", "headRefOid": head, "baseRefName": base}
     (kitchen.home.stub / f"view-{number}").write_text(json.dumps(said))
 

@@ -1,6 +1,6 @@
-"""`jmerge` logs each line it prints in `merge.log`. It prints a line for a pull request that
-waits or is held on every pass, so it logs such a line only when the line differs from the
-last line logged for that pull request. It still prints every line, as before.
+"""`jmerge` logs each line it prints in `merge.log`. On every pass it prints a line for each
+pull request that waits or that it holds, so it logs such a line only when the line differs from
+the last line logged for that pull request. It still prints every line, as before.
 
 The tests run the command against the fake `gh` and real origin of `test_home_merge`."""
 

@@ -186,7 +186,8 @@ LISTS = ["protected.txt", "guarded.txt", "ci-paths.txt"]
 def test_jmerge_merges_nothing_while_a_list_has_a_pattern_it_cannot_read(
     merged, name, flags, tmp_path
 ):
-    """The test runs the command from a copy of the package whose file has one more line."""
+    """The test runs the command from a copy of the package whose protected list has one more
+    line."""
     copy = tmp_path / "copy"
     shutil.copytree(SOURCE, copy / "jmerge")
     with (copy / "jmerge" / name).open("a") as file:

@@ -1,5 +1,5 @@
-"""The crew skill's rebase: the ref of the head before it, the push, the lines it dropped, and
-a review that is running."""
+"""The crew skill's rebase: the backup ref of the head from before the rebase, the push, the
+lines that the rebase dropped, and a review that is still running."""
 
 import re
 import shutil

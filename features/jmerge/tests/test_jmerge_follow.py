@@ -1,5 +1,5 @@
-"""When a merge changes the package list of pyproject.toml, `jmerge` reinstalls the tool that
-uv installed in editable mode from the main checkout. It does so once, and says so on its
+"""When a merge changes the package list of pyproject.toml, `jmerge` reinstalls the tool that uv
+installed, in editable mode, from the main checkout. It does so once, and says so on its
 `merged` line. The tests run `jmerge` as `tests/test_home_merge.py` runs it, against its fake
 `gh` and a temporary origin."""
 
@@ -26,10 +26,10 @@ LISTED = '[project]\nname = "demo-tool"\n\n[tool.hatch.build.targets.wheel]\npac
 
 
 class Tooled:
-    """A merged pull request whose checkout is a Python project, `demo-tool`, that uv has as an
-    editable tool of this checkout. Its main lists the package `src/a`, and the pull
-    request's head lists `moved`. A stand-in `uv`, found on the path before the real one,
-    records each `uv tool install` and `uv sync` that `jmerge` asks it to run, and runs
+    """A merged pull request whose checkout is a Python project, `demo-tool`, that uv has
+    installed as an editable tool from this checkout. Its main lists the package `src/a`, and
+    the pull request's head lists `moved`. A stand-in `uv`, found on the path before the real
+    one, records each `uv tool install` and `uv sync` that `jmerge` asks it to run, and runs
     neither."""
 
     def __init__(self, merged, tmp_path, monkeypatch, moved):

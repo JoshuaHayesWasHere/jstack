@@ -54,7 +54,7 @@ def _project(run: Run, main: Path, commit: str) -> dict:
 
 
 def packages(project: dict) -> object:
-    """The package list that a pyproject.toml gives hatch's wheel, or None where it gives none."""
+    """The package list that a pyproject.toml sets for hatch's wheel, or None when it sets none."""
     try:
         return project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
     except (KeyError, TypeError):
@@ -67,9 +67,10 @@ def _said(ran: subprocess.CompletedProcess[str]) -> str:
 
 
 def follow(run: Run, main: Path, before: str) -> list[str]:
-    """The notes for a pull of the main checkout from `before` to its HEAD. First comes the
-    note of the tool, `lines.reinstalled` or `lines.not_reinstalled`, then the note of the
-    install, `lines.installed` or `lines.not_installed`, each only where it was due."""
+    """The notes for a pull of the main checkout from `before` to its HEAD. First comes the note
+    of the tool, `lines.reinstalled` or `lines.not_reinstalled`, then the note of the install,
+    `lines.installed` or `lines.not_installed`, and each note appears only when its step was
+    due."""
     return [note for note in (_tool(run, main, before), _install(run, main)) if note]
 
 

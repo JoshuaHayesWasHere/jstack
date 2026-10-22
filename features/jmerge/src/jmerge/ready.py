@@ -440,16 +440,16 @@ def _mode(line: str) -> str:
 
 
 def after(text: str) -> bool:
-    """Whether the brief says `Review: after`. Such a brief merges on its check, and its
-    review's findings go to a cleanup row (`jbus cleanup`), so no review holds it."""
+    """Whether the brief says `Review: after`. Such a brief merges once its check passes, and
+    its review's findings go to a cleanup row (`jbus cleanup`), so no review holds it."""
     return said_of(text).mode == AFTER
 
 
 def asks_no_ruling(text: str) -> bool:
-    """Whether the brief's mode needs no ruling from any review after the first. `after` merges
-    on its check, and `twice` merges once its second review is written. So neither mode asks
-    for a scoped review of the fix, a ruling on a decline or a drop, or a range-diff review
-    after a rebase."""
+    """Whether the brief's mode needs no ruling from any review after the first. A brief in
+    `after` mode merges once its check passes, and `twice` merges once its second review is
+    written. So neither mode asks for a scoped review of the fix, a ruling on a decline or a
+    drop, or a range-diff review after a rebase."""
     return said_of(text).mode in (AFTER, TWICE)
 
 
@@ -606,8 +606,8 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
     """The scoped pass's ruling on a risky decline, as a hold. It returns `hold` and the reason
     when the scoped pass did not uphold the crew's decline of a finding on one of
     `findings.RISKS`, which are review-triage's categories. Otherwise it returns two empty
-    strings. Only such a decline is the user's to decide. The crew and its home decide a
-    decline on none of the risks (`unruled`)."""
+    strings. Only such a decline is the user's to decide. The crew and its home decide a decline
+    that concerns none of the risks, through `unruled`."""
     if asks_no_ruling(text):
         return "", ""
     named = tuple(one for one in findings.triage(text).declines(findings.OVERRULED) if one.risk)

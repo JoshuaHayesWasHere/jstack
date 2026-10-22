@@ -29,14 +29,14 @@ is in such a replaced section keeps its id and counts for nothing (`Finding.supe
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from before
-the ids answered. Some findings have no bucket and no answer by id. `triage` gives the answers
+the ids answered. Some findings have no bucket and no answer by id. `triage` matches the answers
 with no id to those findings in order, as the crew's count matched them. Only an **Act on**
-finding blocks a merge. A finding from before the buckets blocks too, as every finding did
-then, and so does a finding on one of `RISKS`, whatever its bucket. A decline of a blocking
-finding counts only when its reason cites a `path:line`, a command in backticks, or a gate
-that the Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for
-an earlier finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks
-the user with the default "fix it". Severity is a field and decides nothing.
+finding blocks a merge. A finding from before the buckets blocks too, as every finding did then,
+and so does a finding on one of `RISKS`, whatever its bucket. A decline of a blocking finding
+counts only when its reason cites a `path:line`, a command in backticks, or a gate that the
+Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier
+finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks the user
+with the default "fix it". Severity is a field and decides nothing.
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
@@ -125,10 +125,10 @@ class Ruling:
 class Section:
     """One `## Review` section: who wrote it, the first word of its verdict, its head, the
     findings it lists (`found` counts them) and the ones it dismissed. `scoped` is true for a
-    scoped pass, which has a `Scope:` line, and `rulings` holds that pass's ruling on each
-    decline by id. `line` is the index of the section's heading among the brief's lines.
-    `by` is the whole `By:` text, the number included, and `seat` is that number, or None for
-    a `By:` line that has no number."""
+    scoped pass, which has a `Scope:` line, and `rulings` contains that pass's ruling on each
+    decline, by id. `line` is the index of the section's heading among the brief's lines. `by`
+    is the whole `By:` text, the number included, and `seat` is that number, or None for a `By:`
+    line that has no number."""
 
     by: str = ""
     verdict: str = ""
@@ -152,9 +152,9 @@ _SEAT = re.compile(r"\s#(\d+)$")
 @dataclass(frozen=True)
 class Legacy:
     """A brief in which no `Reviewer:` line has a number. This module reads it as it read every
-    brief before reviewers had numbers. `named` holds the lines that name a thread. The round
-    waits for them only where more than one is named, and counts them against the distinct
-    `By:` texts of the sections."""
+    brief before reviewers had numbers. `named` contains the lines that name a thread. The round
+    waits for them only where more than one is named, and counts them against the distinct `By:`
+    texts of the sections."""
 
     named: int
 

@@ -135,7 +135,8 @@ def dropped(notes):
 
 
 def brief(notes, was, head, more):
-    """What its crewmate and the scoped reviewer added to the brief since the rebase."""
+    """What the pull request's crewmate and the scoped reviewer added to the brief since the
+    rebase."""
     line = f"Rebase: patch changed in n.txt, before {was}, head {head}\n"
     notes.brief("two", was, line)
     with (notes.home.tasks / "two.md").open("a") as file:

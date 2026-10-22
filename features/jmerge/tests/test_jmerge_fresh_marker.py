@@ -109,7 +109,8 @@ def test_a_skip_is_remembered_and_said_the_same_way_on_a_later_run(kitchen):
 
 
 def test_a_marker_of_another_tree_is_no_proof_and_the_check_runs(kitchen):
-    """The pull request's own check ran on its head merged over the main it had then."""
+    """The pull request's own check ran on its head merged over main as main was when the check
+    started."""
     checked = fresh.Checked(kitchen, fresh.BOTH)
     before = fresh.git(kitchen.origin, "rev-parse", "refs/heads/main~1")
     marked(kitchen, tree(kitchen, checked.head, before))
@@ -136,10 +137,10 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
-    """A pass that ran still counts after main gains commits that do not touch its tests
-    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not count then. A skip's
-    marker names the tree that the skip was taken on, and the new main makes another tree,
-    which has no marker."""
+    """A pass that ran still counts after main gains commits that do not touch the pull
+    request's tests (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not count then.
+    A skip's marker names the tree that the skip was taken on, and the new main makes another
+    tree, which has no marker."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
     stub = kitchen.home.stub
     (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))

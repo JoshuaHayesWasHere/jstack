@@ -1078,10 +1078,10 @@ class Repo:
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
         """The red hold on a pull request. For a pull request into main it is main's hold, and
-        for a pull request into an integration branch it is that branch's hold. It reads
-        the latest checks of the branch's tip, and asks GitHub once a run. When GitHub gives
-        no answer for a branch, the branch is not known to be red, as with a main that jbus
-        never judged."""
+        for a pull request into an integration branch it is that branch's hold. It reads the
+        latest checks of the branch's tip, and asks GitHub once per run. When GitHub gives no
+        answer for a branch, the branch is not known to be red, as with a main that jbus never
+        judged."""
         if one.base == default:
             return rows.red(self.main_state, slug)
         if one.base not in self.reds:

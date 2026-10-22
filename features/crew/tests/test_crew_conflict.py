@@ -130,7 +130,8 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
 
 
 def main_adds(pr, other, name):
-    """Main lands a file, as a pull request would that took the next migration number."""
+    """A commit on main adds a file, as a pull request that took the next migration number
+    would."""
     pr.commit(other, name, "theirs\n", f"main adds {name}")
     git(other, "push", "-q", "origin", "HEAD:main")
     return git(other, "rev-parse", "HEAD")
@@ -213,7 +214,8 @@ def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path)
 
 
 def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
-    """A follow-up with no `Fixed:` line of its own counts its rebases, and holds the third."""
+    """A follow-up with no `Fixed:` line of its own counts its rebases, and stops before it
+    makes the third."""
     pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)

@@ -1,16 +1,16 @@
-"""`main.json` holds what jbus last knew of the check of the default branch, and this module
-is the one place that writes down its shape.
+"""`main.json` contains what jbus last knew of the check of the default branch, and this module
+is the one place that defines the file's format.
 
-That file is the one record of main's red tip. `broken` is the tip whose check failed, and
-the file keeps it until a green tip follows. `check` is what the check of the tip at `main`
-says. `jbus.mainmoved.tell` is the file's only writer. It writes the file each pass, whether
-or not a pull request merged lately, and builds each record with `record`. It also keeps
-`green` there, the last tip whose check passed, and `pending`, the tips whose check has not
-ended. Each pass looks at every tip that main went through since the last pass. When a tip's
-check failed and a newer tip's check is still pending, the failed tip is `broken`. When a
-later tip's check passes, that ends `broken`. So `red` here is `broken` while the tip is not
-green. `green` is the tip whose check passed, or the green tip kept before. A tip whose
-check has not ended, or was cancelled, changes neither.
+That file is the one record of main's red tip. `broken` is the tip whose check failed, and the
+file keeps it until a green tip follows. `check` is what the check of the tip at `main` says.
+`jbus.mainmoved.tell` is the file's only writer. It writes the file each pass, whether or not a
+pull request merged lately, and builds each record with `record`. It also keeps `green` there,
+the last tip whose check passed, and `pending`, the tips whose check has not ended. Each pass
+looks at every tip that main went through since the last pass. When a tip's check failed and a
+newer tip's check is still pending, the failed tip is `broken`. When the check of a later tip
+passes, the file no longer keeps `broken`. So `red` here is `broken` while the tip is not green.
+`green` is the tip whose check passed, or the green tip kept before. A tip whose check has not
+ended, or was cancelled, changes neither.
 
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
 (`jbus.dispatch`), and while `red` is set, `jmerge` merges no pull request but the fix's
@@ -40,7 +40,7 @@ SETTLED: tuple[Check, ...] = ("green", "failed")
 
 
 class Record(TypedDict):
-    """What the file holds."""
+    """What the file contains."""
 
     main: str
     """The 40-hex tip of origin's default branch."""
@@ -71,8 +71,8 @@ class Main:
 
 
 def of(record: object) -> Main:
-    """What a `main.json` record says of main. It says nothing known where the value is not a
-    record."""
+    """What a `main.json` record says of main. When the value is not a record, it says that
+    nothing is known."""
     if not isinstance(record, dict):
         return Main()
     keys = ("main", "check", "broken", "green", "fixed")

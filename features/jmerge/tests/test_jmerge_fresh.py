@@ -186,8 +186,8 @@ class Kitchen:
         return said
 
     def after_check(self, *flags):
-        """A run that starts a fresh check says that the check is queued, and returns. The check
-        records when it ends, and the next run reads what it recorded."""
+        """A run that starts a fresh check says that the check is queued, and returns. When the
+        check ends, it records its result, and the next run reads that result."""
         before = known(self)
         queued = self.run(*flags)
         assert any(line.endswith(ready.FRESH_QUEUED) for line in queued), queued
@@ -564,8 +564,8 @@ def test_a_rebase_from_a_commit_the_main_checkout_does_not_have_waits(notes):
 
 
 def test_main_is_fetched_before_its_lines_are_looked_for(notes):
-    """A merge made on GitHub that the main checkout never fetched. The rebase is onto it, and
-    the lines it added count as main's all the same."""
+    """A merge made on GitHub that the main checkout never fetched. The rebase is onto that
+    merge, and the lines that the merge added still count as main's."""
     seen = notes.tip()
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     notes.rebase(
@@ -848,7 +848,7 @@ def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(ki
 
 
 def settled(kitchen, before=None, limit=60.0):
-    """Wait until the fresh check that a run started in the background ends. The check ends
+    """A run started a fresh check in the background. Wait until that check ends. The check ends
     when it records something newer than what `fresh.json` had `before`. It then releases
     `fresh.lock`, which it holds until it pushes its marker."""
     fresh = cli.Fresh(kitchen.home.main, kitchen.home.state)
@@ -880,7 +880,7 @@ def recorded(kitchen, number, limit=60.0):
 
 
 def checked_of(kitchen, fresh, checked):
-    """What `Fresh.of` says of the pull request once the check it started has ended."""
+    """What `Fresh.of` says of the pull request once the fresh check that it started has ended."""
     before = known(kitchen)
     assert fresh.of(7, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
     settled(kitchen, before)
@@ -998,9 +998,9 @@ def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
 
 
 def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kitchen):
-    """The 03:26 outage: the suite ran longer than the 300 s that jbus gives jmerge, so it
-    never recorded. The run now returns while the check goes on, and the check records when
-    it ends."""
+    """The 03:26 outage: the suite ran longer than the 300 s that jbus gives jmerge, so the
+    check never recorded its result. The run now returns while the check goes on, and the check
+    records when it ends."""
     checked = Checked(kitchen, f"sleep 3; {BOTH}")
     began = time.monotonic()
     assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]

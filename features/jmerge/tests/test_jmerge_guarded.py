@@ -1,8 +1,8 @@
 """`jmerge` itself merges a pull request that changes a guarded path, under a stricter gate than
-any other. The gate asks for five things. The check must have a start time, and the review
-must be finished at the head. When main changed one of the pull request's paths since the
-check started, the pull request must be rebased. `jmerge` must run the rules on main, and the
-review must prove its one safety fact at the head (`test_gate_skills`). A pull request that
+any other. The gate asks for five things. The check must have a start time, and the reviewer
+must finish the review at the head. When main changed one of the pull request's paths since the
+check started, the crew must rebase the pull request. `jmerge` must run the rules on main, and
+the review must prove its one safety fact at the head (`test_gate_skills`). A pull request that
 changes a secret path is still the user's, and jbus sends it as a gate.
 
 The tests run the command against the fake `gh` and real origin of `test_home_merge`, from a
@@ -36,7 +36,7 @@ ET = jsettings.Settings(zone=ZoneInfo("America/New_York"), label="ET")
 
 
 def checkout(tmp_path, listed=None):
-    """A checkout that holds jmerge's own package and matches its origin's main. Its
+    """A checkout that contains jmerge's own package and matches its origin's main. Its
     `guarded.txt` is the shipped one, or the lines given."""
     origin = tmp_path / "rules.git"
     top = tmp_path / "rules"
@@ -530,9 +530,9 @@ def test_a_repo_that_does_not_hold_the_rules_merges_any_other_path_without_askin
 def test_the_rules_are_asked_about_before_a_merge_can_pull_their_checkout(
     proven_merged, monkeypatch
 ):
-    """In jmerge's own repo the main checkout holds the rules, and the pull after any merge
-    brings rules that were behind up to date. If `jmerge` asked about the rules only after
-    that pull, it would judge with the old rules as if they were the new ones."""
+    """In jmerge's own repo the main checkout contains the rules, and the pull after any merge
+    brings rules that were behind up to date. If `jmerge` asked about the rules only after that
+    pull, it would judge with the old rules as if they were the new ones."""
     here = repo(proven_merged, monkeypatch, [])
     here.own = True
     pulled = proven_merged.home.stub / "merged"

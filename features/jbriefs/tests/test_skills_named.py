@@ -138,8 +138,8 @@ def test_an_unknown_skill_name_is_refused_at_queue_time_and_nothing_is_queued(ki
 
 
 def test_a_row_queued_before_with_an_unknown_name_is_grandfathered_and_launches(kitchen):
-    """A lint runs when a row is first queued, so the launch does not gate a row that already
-    has a go for a name that a later check does not know."""
+    """A lint runs only when a row is first queued. So when a row already has a go and names a
+    skill that a later check does not know, the launch does not gate that row."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", brief("alpha", UNKNOWN))
     add(kitchen, "beta", priority=2)

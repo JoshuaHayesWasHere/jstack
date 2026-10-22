@@ -260,7 +260,8 @@ def covers(main, brief, head):
 
 
 def run(conclusion, job=None):
-    """A check run as `gh pr view --json statusCheckRollup` lists it, with its job if it has one."""
+    """One run of a check, as `gh pr view --json statusCheckRollup` lists the run, with its job
+    if the run has one."""
     one = {"__typename": "CheckRun", "status": "COMPLETED", "conclusion": conclusion}
     if job:
         one["detailsUrl"] = f"https://github.com/someone/repo/actions/runs/5/job/{job}"
@@ -354,7 +355,8 @@ class Failed(PullRequest):
         self.push()
 
     def push(self, checks=None):
-        """GitHub has the head this worktree is at, and its failed check is job 2 of run 5."""
+        """GitHub has the head that this worktree is at, and the pull request's failed check is
+        job 2 of run 5."""
         view = {
             "headRefOid": self.head(),
             "baseRefName": "main",
@@ -392,8 +394,8 @@ class Failed(PullRequest):
 
 
 class Link(PullRequest):
-    """The second link of a stack. Its worktree started from the branch of the link under it,
-    which has since been squash-merged, and the remote keeps that branch."""
+    """The second link of a stack. Its worktree started from the branch of the link under it.
+    That link's branch has since been squash-merged, and the remote still keeps the branch."""
 
     def __init__(self, tmp_path, base, edits="mine.txt", under_moved=False):
         self.stub = tmp_path / "stub"
@@ -484,6 +486,6 @@ def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"
 
 
 def asked(pr, mergeable):
-    """GitHub's answer about the pull request, with the head it has there."""
+    """GitHub's answer about the pull request, with the head that GitHub has for it."""
     view = {"baseRefName": "main", "mergeable": mergeable, "headRefOid": pr.head()}
     (pr.stub / "view.json").write_text(json.dumps(view))

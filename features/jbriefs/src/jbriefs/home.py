@@ -2,12 +2,11 @@
 module is the one copy of that rule.
 
 A repo's state directory holds the root home's files, and a directory beside them for each
-scoped home. A scope is such a directory whose `home-id` holds an id or whose `handoff.md`
-has a `Was home:` line. A brief names its home on a `Home:` line in its head, before its
-first `## ` heading. A home writes the scope's name there. A brief from before homes wrote
-scope names gives a thread id that is in a `home-id` or on a `Was home:` line. A brief with
-no such line, or one that names the root's ids or no scope, belongs to the root
-(`home_of`).
+scoped home. A scope is such a directory whose `home-id` holds an id or whose `handoff.md` has a
+`Was home:` line. A brief names its home on a `Home:` line in its head, before its first `## `
+heading. A home writes the scope's name there. A brief written before homes wrote scope names
+gives instead a thread id that is in a `home-id` or on a `Was home:` line. A brief with no such
+line, or one that names the root's ids or no scope, belongs to the root (`home_of`).
 
 A home's thread is the first word of its `home-id`, read again on each call. A home that
 handed off has no thread until the next home's start writes its own id there. An id equal
@@ -42,7 +41,8 @@ def ids(directory: Path) -> tuple[str, str]:
 
 
 def named(brief: str) -> str:
-    """The first word of the brief's first `Home:` line in its head, or nothing."""
+    """The first word of the brief's first `Home:` line in its head, or an empty string when the
+    head has no such line."""
     for line in brief.splitlines():
         if line.startswith("## "):
             break
@@ -75,7 +75,7 @@ def home_of(state: Path, brief: str) -> Path:
 
 
 def thread_of(directory: Path) -> str:
-    """The thread of the home whose directory this is now, or nothing when the directory has no
-    `home-id` or the id there belongs to the home that handed off."""
+    """The thread that the home of this directory is now. It is an empty string when the
+    directory has no `home-id`, or when the id there belongs to the home that handed off."""
     now, was = ids(directory)
     return "" if was == now else now

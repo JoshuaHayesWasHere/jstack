@@ -38,8 +38,8 @@ class Line:
 
 
 def one(text: str) -> Line | None:
-    """The `Line` parsed from one line of `jmerge`'s output, or nothing where the line is not
-    about a pull request."""
+    """The `Line` parsed from one line of `jmerge`'s output, or None when the line is not about
+    a pull request."""
     found = LINE.match(text.strip())
     if not found:
         return None
@@ -56,12 +56,14 @@ def parse(text: str) -> list[Line]:
 
 
 def waits(verb: Literal["wait", "hold"], number: int, url: str, why: str) -> str:
-    """The line of a pull request that does not merge on this run, and why."""
+    """The line for a pull request that does not merge on this run, with the reason it does not
+    merge."""
     return f"{verb} {number} {url}: {why}"
 
 
 def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str], url: str) -> str:
-    """The line of a pull request that this run merged, with how to revert it at the end."""
+    """The line for a pull request that this run merged, with the command that reverts the merge
+    at the end of the line."""
     revert = f"revert: gh pr revert {shlex.quote(url)}"
     return ", ".join([f'merged {number} {slug} {commit} "{title}"', *notes, revert])
 
@@ -107,6 +109,6 @@ def not_installed(why: str) -> str:
 
 
 def unfollowed(text: str) -> str:
-    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or nothing where
-    the line has neither."""
+    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or an empty string
+    when the line has neither note."""
     return "; ".join(found[0] for found in UNFOLLOWED.finditer(text))

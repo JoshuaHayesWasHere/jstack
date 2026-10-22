@@ -261,9 +261,9 @@ def owed(name: str, table: dict[str, str] | None = None) -> str:
 
 
 def _ends() -> frozenset[str]:
-    """The labels that end a `Skills run:` section, read from the templates of the Result and
-    of the scout's report. They are all the other fields of those two templates, so an
-    artifact may hold a line of its own such as `Candidate A: ...`."""
+    """The labels that end a `Skills run:` section, read from the templates of the Result and of
+    the scout's report. They are all the other fields of those two templates, so an artifact may
+    contain a line of its own such as `Candidate A: ...`."""
     return frozenset(
         found["label"]
         for name in ("result.md", "scout-report.md")
@@ -273,9 +273,9 @@ def _ends() -> frozenset[str]:
 
 
 def run(text: str) -> dict[str, str]:
-    """Every artifact that the `Skills run:` sections of a brief's Results hold, by canonical
-    name. A section ends at a `## ` heading or at another field of the Result (`_ends`). A
-    later Result's item for a name replaces an earlier one's."""
+    """Every artifact in the `Skills run:` sections of a brief's Results, by canonical name. A
+    section ends at a `## ` heading or at another field of the Result (`_ends`). A later
+    Result's item for a name replaces an earlier one's."""
     found: dict[str, str] = {}
     inside = False
     current = ""
@@ -330,7 +330,8 @@ def missing(text: str) -> tuple[str, ...]:
 
 def shown(text: str) -> str:
     """What the reviewer reads of the artifacts: the artifact of each named skill, as `run`
-    reads it, or a line that it has none. It returns nothing where the brief names no skill."""
+    reads it, or a line saying that the skill has no artifact. It returns an empty string when
+    the brief names no skill."""
     have = run(text)
     out = []
     for one in named(text):

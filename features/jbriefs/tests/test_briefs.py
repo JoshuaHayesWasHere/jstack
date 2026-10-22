@@ -272,7 +272,7 @@ def test_the_last_results_playbook_line_is_its_own():
 def written(*, by_a_scout):
     """A brief in the template's shape with every field filled in, as a scout or a home writes it.
 
-    The scout's findings hold what a result holds, to show that jbriefs does not read them
+    The scout's findings contain what a result contains, to show that jbriefs does not read them
     as a result.
     """
     filled = {
