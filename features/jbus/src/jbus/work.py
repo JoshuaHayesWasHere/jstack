@@ -1,34 +1,36 @@
-"""The state of each piece of work, worked out once a pass, and the one place it is.
+"""This module works out the state of each piece of work once a pass, in this one place.
 
-`judge` is the whole of it. It reads no clock and no file: the pass gives it `Facts`, seven
-closed facets of one row of the queue or of one thread that is no row's, and it gives back
+`judge` does all of this work. `judge` reads no clock and no file. The pass gives it `Facts`, seven
+closed facets of one row of the queue or of one thread that belongs to no row, and `judge` returns
 one `State`. The facets are:
 
-- `Row`: whether the queue has the row, and how its go stands;
-- `Thread`: the row's thread as T3 Code has it, with its liveness (`jbus.live`). One T3 Code
-  does not list is `archived` where it reads back as archived, `missing` where it has no such
-  thread, and `starting` where it has it and does not list it yet: a launch is not lost
-  because it left the list;
-- `Launch`: whether a launch record names a thread;
-- `Written`: what the brief's last Result says, or for a thread that is no row's, what its
-  role owes: a scout its Report, a reviewer its Review, a home or another thread nothing;
-- `Pull`: its pull request, and for one that is open the step jmerge's reason names
-  (`merge.step`), or `other` for a reason no rule names;
-- `Question`: whether a gate of jbus's is open for it this pass;
+- `Row`: whether the queue has the row, and how its go stands.
+- `Thread`: the row's thread as T3 Code reports it, with its liveness (`jbus.live`). When T3 Code
+  does not list the thread, the facet is `archived` if T3 Code reads the thread back as archived,
+  `missing` if T3 Code has no such thread, and `starting` if T3 Code has the thread and does not
+  list it yet. So jbus does not lose a launch when the launch's thread leaves the list.
+- `Launch`: whether a launch record names a thread.
+- `Written`: what the brief's last Result says. For a thread that belongs to no row, it is what
+  the thread's role owes: a scout owes its Report, a reviewer its Review, and a home or another
+  thread nothing.
+- `Pull`: the work's pull request. For an open pull request, the facet is the step that jmerge's
+  reason names (`merge.step`), or `other` for a reason that no rule names.
+- `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 
-Each value of `VALUES` but `unknown` is one `Pattern`: a set of what each facet may be, with
-who holds the work there and the one thing it waits for. No two patterns hold for one set of
-facts, and a set no pattern holds for is `unknown`, which carries its facts: what nobody
-foresaw is said as it is. A pattern needs the sources of the facets it narrows, T3 Code for
-`Thread` and `Launch` and GitHub for `Pull`. While one of them did not answer it is passed
-over, and with none that holds the state is the last one a pass judged (`Facts.last`),
-marked not confirmed.
+Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet may be,
+with who holds the work in that state and the one thing the work waits for. No two patterns match
+one set of facts. When no pattern matches a set of facts, the state is `unknown` and carries those
+facts, so jbus reports a case that no pattern covers as it is. A pattern needs the sources of the
+facets that it narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those
+sources has not answered, `judge` passes over the pattern. When a source has not answered and no
+pattern matches, the state is the last state that a pass judged (`Facts.last`), marked not
+confirmed.
 
-`status` is the row's `status` column, one of `queue.STATUSES`, as a projection of the
-state: every reader of the queue goes on reading the words it read. `write` keeps every
-state of a pass in `work.json`, whole, in the project's state directory, and the view draws
-that file.
+`status` gives the row's `status` column, one of `queue.STATUSES`, as a projection of the
+state, so every reader of the queue still finds the same words as before. `write` keeps
+every state of a pass, whole, in `work.json` in the project's state directory, and the view
+draws that file.
 """
 
 from __future__ import annotations
@@ -140,10 +142,12 @@ SOURCE = {"thread": T3, "launch": T3, "pull": GITHUB}
 
 @dataclass(frozen=True)
 class Facts:
-    """What a pass knows of one piece of work, one value of each facet. `last` is no facet:
-    it is the value the last pass judged, or nothing where none did. Nor is `seen`: the
-    status T3 Code gave a thread where it is one jbus does not know, whose `thread` facet
-    is then `none` and whose state is `unknown` (`unforeseen`)."""
+    """`Facts` are what a pass knows of one piece of work: one value of each facet.
+
+    `last` is no facet: it is the value that the last pass judged, or nothing when no pass did.
+    `seen` is no facet either. It is the status that T3 Code gave a thread when jbus does not know
+    that status. The thread's `thread` facet is then `none`, and the work's state is `unknown`
+    (`unforeseen`)."""
 
     row: Row
     thread: Thread
@@ -162,8 +166,8 @@ class Facts:
 
 @dataclass(frozen=True)
 class Pattern:
-    """One value, the facts it is, and what it means. A facet the pattern does not name may
-    be anything. `lane` is the step of the view's line it is drawn on."""
+    """A `Pattern` is one value, the facts that make it, and what it means. A facet the pattern does
+    not name may be anything. `lane` is the step of the view's line where the view draws it."""
 
     value: str
     name: str
@@ -182,8 +186,9 @@ class Pattern:
 
     @functools.cached_property
     def needs(self) -> frozenset[str]:
-        """The sources of the facets it narrows: the ones that must have answered. Worked out
-        once: a pass judges every row against every pattern."""
+        """Return the sources of the facets that the pattern narrows, which are the ones that must
+        have answered. The property works them out once, since a pass judges every row
+        against every pattern."""
         return frozenset(
             source
             for name, source in SOURCE.items()
@@ -371,8 +376,8 @@ BY_VALUE = {pattern.value: pattern for pattern in (*PATTERNS, UNKNOWN)}
 
 @dataclass(frozen=True)
 class State:
-    """The one state of a piece of work: its value, who holds it, the one thing it waits for,
-    whether this pass confirmed it, and the facts it was judged from."""
+    """A `State` is the one state of a piece of work: its value, who holds it, the one thing it
+    waits for, whether this pass confirmed it, and the facts from which `judge` judged it."""
 
     value: str
     who: str
@@ -386,7 +391,8 @@ class State:
 
 
 def matching(facts: Facts) -> list[Pattern]:
-    """Every pattern the facts are, whatever answered: one at most, which the walk proves."""
+    """Return every pattern the facts match, whatever answered. At most one pattern matches,
+    as the walk proves."""
     return [pattern for pattern in PATTERNS if pattern.matches(facts)]
 
 
@@ -405,23 +411,23 @@ def _state(pattern: Pattern, facts: Facts, confirmed: bool) -> State:
 
 
 def every() -> Iterator[Facts]:
-    """Every set of facts there is, once each, with no last state."""
+    """Yield every set of facts there is, once each, with no last state."""
     for values in itertools.product(*FACETS.values()):
         yield Facts(*values)
 
 
 def status(state: State) -> str:
-    """The row's `status`, one of `queue.STATUSES`, as the state projects it.
+    """Return the row's `status`, one of `queue.STATUSES`, as the state projects it.
 
-    A gate wins, then the pull request: one that is open is `pr`, one that merged is
-    `merged`, whatever the thread does. A thread in a status jbus does not know is `stale`,
-    for somebody to look at. A hung turn is `stale` too, and a thread that ended with
-    nothing written is `stale` when it completed or was archived, `failed` when it failed,
-    `launched` while no thread is there for a launch, and `queued` once it was settled. A
-    thread that left T3 Code's list changes nothing of a row that ended: only a row with
-    nothing written is judged by it. The state knows no clock: a row `stale` with nothing
-    written is `left` once the pass finds its thread quiet for long enough, which is
-    `watch.unwritten`'s.
+    A gate comes first, then the pull request. A row whose pull request is open is `pr`, and one
+    whose pull request merged is `merged`, whatever the thread does. A thread in a status that jbus
+    does not know makes the row `stale`, for somebody to look at. A hung turn makes the row `stale`
+    too. A thread that ended with nothing written makes the row `stale` when it completed or was
+    archived, and `failed` when it failed. The row is `launched` while no thread is there for a
+    launch, and `queued` once the thread was settled. A thread that left T3 Code's list changes
+    nothing for a row that ended: it counts only for a row with nothing written. `status` reads no
+    clock. A `stale` row with nothing written becomes `left` once the pass finds the row's thread
+    quiet for long enough, which `watch.unwritten` decides.
     """
     facts, value = state.facts, state.value
     if value == "asking":
@@ -456,14 +462,15 @@ _THREAD = {
 
 
 def without_t3(answered: Answered) -> Answered:
-    """`answered` with T3 Code taken out: what a pass knows when it could not ask T3 Code
-    about one row's thread, whatever it knows of the others."""
+    """Return `answered` with T3 Code taken out. That is what a pass knows when it could not
+    ask T3 Code about one row's thread, whatever it knows of the others."""
     return {Answered.BOTH: Answered.GITHUB, Answered.T3: Answered.NEITHER}.get(answered, answered)
 
 
 def unforeseen(facts: Facts) -> State:
-    """The state of work whose thread is in a status jbus does not know: `unknown`, whatever
-    the other facets say, since its `thread` facet is not what T3 Code said."""
+    """Return the state of work whose thread is in a status that jbus does not know. It is
+    `unknown`, whatever the other facets say, since the work's `thread` facet is not what T3
+    Code said."""
     return _state(UNKNOWN, facts, True)
 
 
@@ -472,7 +479,8 @@ AT_WORK = (Thread.STARTING, Thread.MOVING, Thread.QUIET)
 
 @dataclass(frozen=True)
 class Holder:
-    """Who holds a state, the one thing it waits for, and the lane it is drawn on."""
+    """A `Holder` names who holds a state, the one thing it waits for, and the lane on which
+    the view draws it."""
 
     who: str
     waits: str
@@ -480,15 +488,17 @@ class Holder:
 
 
 def holder(state: State, role: str = "", home: bool = False, after: bool = False) -> Holder:
-    """Who holds a state, which is its pattern's holder but in three cases.
+    """Return who holds a state, which is its pattern's holder except in three cases.
 
-    `role` is the role of a thread that is no row's: one at work is held by that role, not by
-    a crewmate, and it is on no lane of the line. A leftover or a closed pull request is the
-    user's, unless its home has it (`home`, what `leftover.json` says) or, for a merged one
-    whose `Left:` line is for after the merge (`after`), a thread is at work on it: then its
-    home or its crewmate holds it, on the lane of work that is running.
+    `role` is the role of a thread that belongs to no row. When such a thread is at work, the
+    holder is that role, not a crewmate, and the state is on no lane of the line. A leftover or
+    a closed pull request is the user's, with two exceptions. When `leftover.json` says that the
+    pull request's home has it (`home`), the home holds the state. When a merged pull request's
+    `Left:` line is for after the merge (`after`) and a thread is at work on it, the crewmate
+    holds the state. Either holder is on the lane of work that is running.
 
-    A role's holder is in `threads.ROLES`, imported here since `threads` imports this module.
+    A role's holder is in `threads.ROLES`. `holder` imports `threads` inside the function,
+    since `threads` imports this module.
     """
     pattern = state.pattern
     if role:
@@ -510,7 +520,7 @@ def holder(state: State, role: str = "", home: bool = False, after: bool = False
 
 
 def entry(state: State, held: Holder | None = None, **about: Any) -> dict[str, Any]:
-    """One line of `work.json`: what the work is (`about`), its state and who holds it
+    """Return one line of `work.json`: what the work is (`about`), its state, and who holds it
     (`holder`)."""
     held = held or holder(state)
     return {
@@ -530,7 +540,7 @@ def path(state_dir: Path) -> Path:
 
 
 def last(state_dir: Path) -> dict[str, str]:
-    """The value the last pass judged for each key of `work.json`."""
+    """Return the value that the last pass judged for each key of `work.json`."""
     kept = read(state_dir)
     return {
         one["key"]: one["value"]

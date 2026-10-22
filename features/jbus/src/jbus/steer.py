@@ -1,15 +1,18 @@
-"""Steering a work item, and the user's go for one by its id: the verbs of `jbus item`.
+"""This module steers a work item, and records the user's go for an item named by its id: the verbs
+of `jbus item`.
 
-`steer` is the one place a steer is decided, from the chat, the view or the command: a
-message to the item's home, a hold of its row's go, or a redirect to a new brief. It is one
-`steered` line of the item's log (`jbus.item`), refused and writing nothing where the item
-moved since the line its writer saw. `approve` is the user's go for an item by its id,
-taken from chat only where the words name the item and its risk is routine.
+`steer` is the one place that decides a steer, whether it comes from the chat, the view or the
+command. A steer is a message to the item's home, a hold of its row's go, or a redirect to a new
+brief. `steer` writes one `steered` line to the item's log (`jbus.item`). When the log has a newer
+line than the one the steer's writer saw, `steer` refuses and writes nothing. `approve` records the
+user's go for an item by its id. `approve` takes a go from chat only when the words name the item
+and the item's risk is routine.
 
-A message is sent to the thread of the item's home through `word.post`, and what became of
-it is kept in `item-sends.json` beside the log, since a send is no move: a pass sends each
-one that has not gone (`deliver`). A redirect's line is written before its row changes, and
-the first step of a pass finishes the row of one that died between the two (`settle`).
+`word.post` sends a message to the thread of the item's home. A send does not change the item, so
+jbus does not write the send to the item's log. jbus records what became of the message in
+`item-sends.json` beside the log, and a pass sends each message that has not gone (`deliver`).
+`steer` writes a redirect's line before it changes the row. When the process dies between the line
+and the row change, an early step of the next pass makes the row change (`settle`).
 """
 
 from __future__ import annotations
@@ -63,9 +66,9 @@ CHAT = "chat"
 
 @dataclass(frozen=True)
 class Basis:
-    """The words of the user's a steer by him rests on, as an approval names them
-    (`queue.basis`): a word `jbus word` kept, the answer that closed a question, or a message
-    jbus read from T3 Code."""
+    """The user's words that a steer by the user is based on, named the way an approval names
+    them (`queue.basis`). They are a word that `jbus word` kept, the answer that closed a
+    question, or a message that jbus read from T3 Code."""
 
     kind: str
     ref: str
@@ -87,23 +90,25 @@ def steer(
     basis: Basis | None = None,
     thread: str = "",
 ) -> dict[str, Any]:
-    """The one place a steer is decided: a message to the item's home, a hold of its go, or a
-    redirect to a new brief. The answer is the `steered` line it wrote.
+    """Decide a steer, in the one place that does: a message to the item's home, a hold of
+    its go, or a redirect to a new brief. Return the `steered` line that `steer` wrote.
 
-    It is refused, and writes nothing, where the item's last line is not `seen` (the answer
-    quotes the line that came after), so the same steer sent twice is written once. A steer
-    by the user rests on a word of his (`basis`); any other is by the agent that ran it, as
-    `by` and `thread` name it, with `ran_by` as an approval records it. A hold takes
-    `confirm`, and takes the row's go back as `jbus queue hold` does. A redirect writes
-    `words` as the row's brief and takes its go back in the same batch, so the item is
-    proposed again, and only an approval by its id approves it (`Item.redirect`).
+    `steer` refuses and writes nothing when the item's last line is not `seen`, and the refusal
+    quotes the newer line. So when the same steer is sent twice, `steer` writes it once. A steer by
+    the user must cite one of the user's words (`basis`). Any other steer is by the agent that ran
+    the command, which `by` and `thread` name, and the line records `ran_by` the way an approval
+    records it. A hold needs `confirm`, and takes back the row's go as `jbus queue hold` does. A
+    redirect writes `words` as the row's brief and takes back the row's go in the same batch. So
+    the item is proposed again, and only an approval by the item's id approves the item
+    (`Item.redirect`).
 
-    A hold changes the row before the line, both under `items.lock`: a hold that dies
-    between the two is made again by the same steer, whose `seen` still holds. A redirect
-    writes its line first, with the new brief, and then the row: a redirect that dies between
-    the two is marked already, so nothing approves the item, and the first pass finishes the
-    row's change before it launches anything (`settle`). A message is sent after the line
-    (`deliver`), and one T3 Code did not take is sent by the next pass.
+    A hold changes the row first and writes the line second, both under `items.lock`. When the
+    process dies between the two, running the same steer again makes the hold again, since the
+    steer's `seen` still matches the log's last line. A redirect writes its line first, with the new
+    brief, and changes the row second. When the process dies between the two, the item already has
+    the redirect mark, so no approval of the row approves the item. The next pass then makes the row
+    change before the pass launches anything (`settle`). `deliver` sends a message after `steer`
+    writes the line, and the next pass sends a message that T3 Code did not take.
     """
     action, where = Steer(action), Where(where)
     if where is Where.PASS:
@@ -146,7 +151,8 @@ def steer(
 
 
 def rests(basis: Basis | None) -> dict[str, Any]:
-    """What a line keeps of the word of the user's it rests on: nothing where there is none."""
+    """Return the fields that a line records about the user's word that the steer cites, or
+    nothing when the steer cites no word."""
     if basis is None:
         return {}
     heard = basis.said
@@ -161,15 +167,16 @@ def rests(basis: Basis | None) -> dict[str, Any]:
 
 
 def chat(message: str, words: str, user: jsettings.Settings, now: datetime) -> Basis:
-    """The user's words as Sous Chef's chat quotes them, by the chat message's id or link.
-    Nothing reads them back from the chat, so they are kept with `checked: false`."""
+    """Return the user's words as Sous Chef's chat quotes them, by the chat message's id or
+    link. Nothing reads them back from the chat, so the basis marks them `checked: false`."""
     said = queue.Said(" ".join(words.split()), user.stamp(now), "chat", False, message)
     return Basis(CHAT, message, said)
 
 
 def _redirectable(state: Path, item: Item, text: str) -> None:
-    """Refuse a redirect the queue would refuse, before its line is written: an item with no
-    row, and a brief a launch would refuse (`jbriefs.parse.faults`)."""
+    """Before `steer` writes the line, refuse a redirect that the queue would refuse. The
+    queue refuses a redirect for an item with no row, and a redirect whose new brief has
+    faults that a launch would refuse (`jbriefs.parse.faults`)."""
     if not item.slug:
         raise Refused(f"refused: {item.id} has no row, so it has no brief to redirect")
     if queue.fresh(state, item.slug) is None:
@@ -183,10 +190,11 @@ def _redirectable(state: Path, item: Item, text: str) -> None:
 
 
 def _redirect(state: Path, made: dict[str, Any]) -> str:
-    """Write a redirect line's brief as the brief of the item's row and take its go back, in
-    one batch of the queue: `Add` alone keeps a go whose brief means the same, and a redirect
-    is never approved by the go it had. The answer says what the queue did, or nothing where
-    the row has the brief and no go already, so a second run is the first."""
+    """Write a redirect line's brief as the brief of the item's row, and take the row's go
+    back, in one batch of the queue. `Add` alone would keep the go when the new brief means
+    the same, and the row's old go must never approve a redirect. Return what the queue did,
+    or nothing when the row already has the brief and no go. So a second run changes nothing
+    that the first did not."""
     slug = items(state)[made["item"]].slug
     row = queue.fresh(state, slug)
     if row is None:
@@ -208,8 +216,9 @@ def _redirect(state: Path, made: dict[str, Any]) -> str:
 
 
 def settle(state: Path) -> list[str]:
-    """Finish the row's change of each redirect not yet approved by its id: one whose steer
-    died after its line was written. The answer is what the queue did, one line each."""
+    """Make the row change of each redirect that is not yet approved by its id. A redirect
+    still needs this change when its steer died after it wrote the line. Return what the
+    queue did, one line for each redirect."""
     lines = {one.get("id"): one for one in read(state)}
     done = []
     for item in items(state).values():
@@ -225,8 +234,8 @@ def settle(state: Path) -> list[str]:
 
 
 def approvable(state: Path, slug: str) -> None:
-    """Refuse an approval of a row, by any basis, whose item was redirected and has not been
-    approved by its id since: a redirected item is never approved by the row's go."""
+    """Refuse an approval of a row, by any basis, when the row's item was redirected and has
+    not been approved by its id since. The row's go never approves a redirected item."""
     item = by_slug(items(state)).get(slug)
     if item is not None and item.redirect:
         raise Refused(
@@ -237,7 +246,7 @@ def approvable(state: Path, slug: str) -> None:
 
 
 def names(words: str, item: Item) -> bool:
-    """Whether the words name the item: its id or its slug, as a whole name."""
+    """Say whether the words name the item, by its id or its slug as a whole name."""
     return any(
         name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", words, re.I)
         for name in (item.id, item.slug)
@@ -257,14 +266,15 @@ def approve(
     project: str,
     basis: Basis | None = None,
 ) -> dict[str, Any]:
-    """The user's go for an item, by its id. The answer is the `approved` line.
+    """Record the user's go for an item, by its id. Return the `approved` line.
 
-    From chat it is taken only where the words name the item and its risk is `routine`: a
-    review item is approved in the view, whose link the refusal names, and so is one that
-    was redirected. Its line has `by_id`, which ends a redirect (`Item.redirect`), and the
-    word it rests on, where one is named (`rests`). Before it ends one, it finishes the
-    redirect's row change where a steer died before making it (`_redirect`), under the same
-    lock: once the mark is gone, `settle` no longer looks.
+    `approve` takes a go from chat only when the words name the item and the item's risk is
+    `routine`. A review item and a redirected item cannot be approved from chat. The user approves
+    them in the view, and the refusal names the view's link. The line has `by_id`, which ends a
+    redirect (`Item.redirect`). It also has the word that the approval cites, when the approval
+    names one (`rests`). When a steer died before it made the redirect's row change, `approve` makes
+    that change before it ends the redirect (`_redirect`), under the same lock. Once the redirect
+    mark is gone, `settle` no longer looks at the item.
     """
     where = Where(where)
     if by != user.user:
@@ -281,8 +291,9 @@ def approve(
 
 
 def _finish(state: Path, id: str) -> None:
-    """Make the row change of the item's open redirect, where its line is written and the
-    row has not changed: nothing where there is no redirect, or the row has it already."""
+    """Make the row change of the item's open redirect, when `steer` wrote the redirect's line
+    and did not change the row. Do nothing when there is no redirect or the row has the change
+    already."""
     item = items(state).get(id)
     if item is None or not item.redirect:
         return
@@ -292,8 +303,9 @@ def _finish(state: Path, id: str) -> None:
 
 
 def _from_chat(state: Path, id: str, words: str, project: str) -> None:
-    """Refuse an approval from chat whose words do not name the item, of a review item, or
-    of a redirected one. It is asked with `items.lock` held, so no line comes between."""
+    """Refuse an approval from chat when its words do not name the item, when the item is a
+    review item, or when it was redirected. The caller holds `items.lock`, so no other writer
+    adds a line between the check and the approval."""
     item = items(state).get(id)
     if item is None:
         raise Refused(refusal(None, Verb.APPROVE, id))
@@ -316,9 +328,10 @@ def _from_chat(state: Path, id: str, words: str, project: str) -> None:
 
 
 def sends(state: Path) -> dict[str, dict[str, str]]:
-    """What became of each message steer, by its line's id: the thread it went to, when, and
-    why it waits where it has not gone. The log is only appended to, and a send is no move,
-    so it is kept beside it, in `item-sends.json`."""
+    """Return what became of each message steer, by its line's id: the thread that received
+    it, the time, and why it waits when it has not gone. jbus only appends to the log, and a
+    send does not change the item, so jbus keeps the sends beside the log, in
+    `item-sends.json`."""
     kept = read_json(state / SENDS, {})
     return kept if isinstance(kept, dict) else {}
 
@@ -331,11 +344,12 @@ def deliver(
     user: str,
     now: datetime,
 ) -> dict[str, dict[str, str]]:
-    """Send each message steer that has not gone to the thread of the item's home, as one
-    queued message under the retry key `item|<project>|<id>|<line id>`, through `word.post`:
-    the command and a pass may both send one, and T3 Code takes it once. The answer is what
-    became of each it tried, by line id. Why one waits is written once, and again when the
-    reason changes, each time with a quiet event."""
+    """For each message steer that has not gone yet, send the message to the thread of the item's
+    home through `word.post`. Each message goes as one queued message under the retry key
+    `item|<project>|<id>|<line id>`, so when the command and a pass both send the same message, T3
+    Code accepts it once. Return what became of each message that it tried, by line id. When a
+    message waits, `deliver` writes the reason once in a quiet event, and writes it again when the
+    reason changes."""
     project, found, tried = box.project.name, None, {}
     for line in read(state):
         if line.get("verb") != Verb.STEER or line.get("action") != Steer.MESSAGE:
@@ -476,7 +490,8 @@ def _item(args: argparse.Namespace, config: jbus.Config) -> int:
 
 
 def _basis(args: argparse.Namespace, config: jbus.Config, state: Path) -> Basis | None:
-    """The word of the user's a steer names, read where it is kept, or None for none."""
+    """Return the user's word that a steer names, read from where jbus keeps it, or None
+    when the steer names none."""
     for kind in BASES:
         ref = getattr(args, kind)
         if ref:
@@ -494,7 +509,7 @@ def _steer(
     state: Path,
     box: wake.Box,
 ) -> int:
-    """`jbus item steer`: the steer, and for a message, whether it went."""
+    """`jbus item steer`: make the steer, and for a message, say whether it went."""
     words = sys.stdin.read() if args.action == Steer.REDIRECT else " ".join(args.words)
     made = steer(
         state,
@@ -529,7 +544,8 @@ def _steer(
 
 
 def _deliver(half: Any) -> None:
-    """`deliver` as a step of the pass: each message steer T3 Code has not taken yet."""
+    """Run `deliver` as a step of the pass. It sends each steer's message that T3 Code has
+    not taken yet."""
     run = half.run
     went = deliver(run.state, run.box, run.home, half.client, run.user.user, run.now)
     for name, one in went.items():
@@ -538,7 +554,8 @@ def _deliver(half: Any) -> None:
 
 
 def _settle(half: Any) -> None:
-    """`settle` as a step of the pass, first in it, so a launch finds every redirect's row."""
+    """Run `settle` as an early step of the pass, before any launch, so every redirect has
+    changed its row by the time a launch reads the queue."""
     for said in settle(half.run.state):
         half.run.say(said)
 
