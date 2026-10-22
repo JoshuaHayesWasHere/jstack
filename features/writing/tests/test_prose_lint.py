@@ -1,4 +1,4 @@
-"""One sentence per line, for new prose. The tests run
+"""New prose has one sentence per line. The tests run
 `features/writing/scripts/prose_lint.py <base>` with `python3 -I -S`, as `make check-fast` runs
 it. They run it in a repo made from `features/writing/tests/fixtures/prose/`, with a pull
 request's commit on top of it. A prose line the commit adds or changes fails when it holds more
@@ -36,7 +36,8 @@ def git(repo, *args):
 
 @pytest.fixture
 def repo(tmp_path):
-    """A repo whose `main` holds the old page at `docs/old.md`, on a branch `pr` from it."""
+    """A repo whose `main` holds the old page at `docs/old.md`, checked out on a branch `pr`
+    made from `main`."""
     (tmp_path / "docs").mkdir()
     shutil.copy(OLD, tmp_path / "docs" / "old.md")
     git(tmp_path, "init", "-q", "-b", "main")

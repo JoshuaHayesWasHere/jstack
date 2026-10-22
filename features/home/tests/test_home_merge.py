@@ -142,7 +142,7 @@ esac
 
 
 def block(about):
-    """The one `sh` block of the skill that has a word in it, as an agent reads it."""
+    """The one `sh` block of the skill that has the text `about` in it, as an agent reads it."""
     (found,) = [text for text in FENCED.findall(as_read(SKILL)) if about in text]
     return textwrap.dedent(found)
 
@@ -162,7 +162,8 @@ def git(cwd, *args):
 
 
 def file(path, renamed=False):
-    """A changed file as GitHub lists it: a rename has the path the file has now, alone."""
+    """A changed file as GitHub lists it. For a rename, GitHub lists only the path the file has
+    now."""
     kind = "RENAMED" if renamed else "MODIFIED"
     return {"path": path, "additions": 1, "deletions": 0, "changeType": kind}
 
@@ -237,9 +238,10 @@ class Home:
         renamed=False,
         draft=False,
     ):
-        """What GitHub lists of the one open pull request. `changed` is how many files it
-        says the pull request changes, where that is more than it lists; `renamed` makes the
-        last file a rename; `draft` is a pull request its author has not marked ready."""
+        """What GitHub lists of the one open pull request. `changed` is the number of files
+        GitHub says the pull request changes, when that number is more than the files it lists.
+        `renamed` makes the last file a rename. `draft` marks a pull request its author has not
+        marked ready."""
         listed = {
             "number": 7,
             "url": URL,
@@ -309,9 +311,9 @@ class Home:
 
 
 def pushed_on(home):
-    """Make three commits on a branch from where it left main, each on top of the one before.
-    Return a function that puts their real ids in a text in place of `REVIEWED`, `PUSHED` and
-    `LATER`. A fix is the commit on top of the reviewed head."""
+    """Make three commits on a branch from the commit where it forks from main, each on top of
+    the one before. Return a function that puts their real ids in a text in place of
+    `REVIEWED`, `PUSHED` and `LATER`. A fix is the commit on top of the reviewed head."""
     git(home.main, "update-ref", "refs/remotes/origin/main", "HEAD")
     git(home.main, "checkout", "-q", "-b", "alpha")
     real = {}
@@ -718,7 +720,8 @@ def test_a_pull_request_short_of_ready_is_printed_with_the_first_reason(home, ca
 
 @pytest.mark.parametrize("case", [case for case in SHORT if SHORT[case][2] == NO_ORIGIN])
 def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case):
-    """The commit the cases above fetch: the `Fixed:` commit, else the reviewed head."""
+    """The commit the cases above fetch is the `Fixed:` commit, or the reviewed head when the
+    brief has no `Fixed:` line."""
     from jmerge import ready
 
     text, listed, _ = SHORT[case]
@@ -752,8 +755,8 @@ def test_a_pull_request_that_waits_is_not_a_failure(home):
 
 
 def test_outside_a_repo_it_fails_and_prints_no_line(home, tmp_path):
-    """Outside a repo `$H` names no repo, and the command reads the switch from the directory
-    above."""
+    """Outside a repo, `$H` names no repo, and the command reads the switch from the directory
+    above `$H`."""
     (home.state.parent / "home-thread").write_text(f"{ME}\n")
     assert home.run(cwd=tmp_path) == []
     assert home.code != 0
@@ -863,7 +866,7 @@ class Merged:
 
     The origin is a copy of the template's origin, whose `main` has the commit that `Home` copied.
     The checkout gets what `git push -u origin main` would write: the remote, `main`'s upstream
-    and the ref of `origin/main`. So `Merged` is built on a `Home` that nothing has changed yet.
+    and the ref of `origin/main`. So `Merged` starts from a `Home` that no test has changed yet.
     """
 
     def __init__(self, home, tmp_path):
@@ -1176,7 +1179,7 @@ def test_a_url_the_shell_would_read_is_quoted_in_the_revert_command(merged):
 
 
 def calls(home):
-    """Each call of `gh` the command made, as its words."""
+    """Each call of `gh` that the command made, as the line of arguments the stub recorded."""
     return (home.stub / "calls").read_text().splitlines()
 
 
@@ -1318,8 +1321,8 @@ def test_the_sweep_keeps_that_branch_until_no_pull_request_is_based_on_it(merged
 
 
 class Rebased:
-    """A ready pull request whose default branch moved on, and whose crewmate rebased the
-    branch onto the new tip and pushed. The main checkout has the branch from before and after
+    """A ready pull request whose default branch got new commits, and whose crewmate rebased
+    the branch onto the new tip and pushed. The main checkout has the branch from before and after
     the rebase."""
 
     def __init__(self, merged, theirs):
@@ -1357,8 +1360,9 @@ CHANGED = "patch changed in a.txt, before {before}, head {head}"
 
 
 def scoped(merged, rebased):
-    """The line of a pull request whose rebase changed what its patch says: it waits for one
-    review of the range-diff, from where each head left main."""
+    """The line of a pull request whose rebase changed what its patch says. The pull request
+    waits for one review of the range-diff. The diff compares each head from the commit where it
+    branched from main."""
     tip = git(merged.home.main, "rev-parse", "origin/main")
     return (
         f"wait 7 {URL}: the rebase changed the content after its review; scoped review of "

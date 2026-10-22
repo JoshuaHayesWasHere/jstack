@@ -1,4 +1,5 @@
-"""A home plans, assigns and starts: word of finished work reaches it only while it merges.
+"""A home plans, assigns and starts. A crewmate tells the home of finished work only while the home
+is the one that merges.
 
 Before any line about its pull request, a crewmate asks who merges, with the test that the home
 skill's "Who merges" section makes. A crewmate pipes a gate to `jbus gate` and does not send it to

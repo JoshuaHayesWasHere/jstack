@@ -123,7 +123,7 @@ def fixture(log, at):
     """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24). One row is
     over the line with CPU pressure low, and one is at the line with CPU pressure under 10: the
     report counts both. One is over the line with CPU pressure high, and one is just under the
-    line. One has no CPU pressure reading, and the last is quiet."""
+    line. One has no CPU pressure reading, and the last has a low load."""
     log.parent.mkdir(parents=True, exist_ok=True)
     loads = [
         ("49.00", "5.00"),

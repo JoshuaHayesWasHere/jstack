@@ -1,6 +1,6 @@
 """`home-id`: a home writes its thread id there, in its own directory. Three skills read the root
-home's to know whom to tell, and the handoff removes it. Each test takes every block from the skill
-that gives it."""
+home's `home-id` to know whom to tell, and the handoff removes it. Each test takes every block from
+the skill that gives it."""
 
 import os
 import re
@@ -130,8 +130,9 @@ class Scene:
 
     def run(self, skill, block, checkout, thread=""):
         """Run a block as the skill says to: in one call with the block at the top, and for a
-        home with the block that finds it. A home with no id is the root, in a session with no
-        tool that gives one. `thread=None` leaves that block out, as the start's first steps do.
+        home with the block that finds this home. In a session with no tool that gives an id, a
+        home with no id is the root. `thread=None` leaves the block that finds the home out, as
+        the start's first steps do.
         """
         top = paths(skill)
         if skill == "home" and thread is not None:
@@ -147,7 +148,7 @@ class Scene:
         return ran
 
     def which_home(self, typed="", checkout=None):
-        """What step 1 of a home's start prints for what the user typed after `/home`, in lines."""
+        """The lines step 1 of a home's start prints for what the user typed after `/home`."""
         first = block("home", "title: home:")
         assert TYPED in first
         ran = self.run("home", first.replace(TYPED, typed), checkout or self.main, None)
@@ -164,7 +165,7 @@ class Scene:
         return done.stdout
 
     def home_hands_off(self, thread=THREAD, checkout=None, note=NOTE):
-        """Run steps 2 and 3 of a handoff: write the note where none is, then close."""
+        """Run steps 2 and 3 of a handoff: write the note if there is none yet, then close."""
         for own in (self.home_dir, *self.home_dir.iterdir()):
             ids = own / "home-id"
             mine = ids.is_file() and ids.read_text().split() == [thread]
@@ -283,7 +284,7 @@ def test_a_handoff_by_the_home_removes_its_file_and_names_it_on_the_note(scene):
 @pytest.mark.parametrize("switch", [None, "", f"{OTHER}\n"])
 def test_a_start_and_a_handoff_leave_the_merge_switch_as_it_was(scene, switch):
     """`home-thread` hands merging from jbus to a home, and the user sets it by hand: a home that
-    starts and hands off neither writes it nor removes it."""
+    starts and hands off neither writes nor removes `home-thread`."""
     merges = scene.home_dir / "home-thread"
     if switch is not None:
         merges.write_text(switch)

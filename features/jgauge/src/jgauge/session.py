@@ -1,7 +1,7 @@
 """What one thread cost, read from its transcript and nothing else.
 
-The transcript is the record. The counting rule is `transcript.calls`: once
-per `message.id`. Two figures come from it:
+The counting rule is `transcript.calls`, which counts each `message.id` once.
+The module computes two figures with it:
 
 - the total: input, cache write, cache read and output, summed over calls;
 - the peak context: the largest input side (input plus cache read plus cache
@@ -43,7 +43,8 @@ def _row(path: Path, role: str, seen: set[str]) -> dict:
 
 
 def _total(sums: dict) -> int:
-    """Every token of a sum. A floor counts as output too, though it is not yet final."""
+    """The number of tokens in a sum: input, cache write, cache read and output. A floor
+    counts as output too, though it is not yet final."""
     return (
         sums["tokens_in"]
         + sums["cache_write"]
@@ -56,8 +57,9 @@ def _total(sums: dict) -> int:
 def _rows(path: Path, seen: set[str]) -> list[dict]:
     """A session's row, then one for each subagent it started.
 
-    The search goes down the whole `subagents/` directory: Claude Code writes an agent that a
-    workflow started a level below, in `subagents/workflows/<workflow id>/`.
+    The search goes down the whole `subagents/` directory. When a workflow starts an agent,
+    Claude Code writes that agent's transcript one level further down, in
+    `subagents/workflows/<workflow id>/`.
     """
     agents = sorted((path.with_suffix("") / "subagents").rglob("agent-*.jsonl"))
     return [_row(path, "session", seen), *(_row(agent, "subagent", seen) for agent in agents)]

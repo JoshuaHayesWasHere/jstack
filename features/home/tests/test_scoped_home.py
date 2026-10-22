@@ -368,7 +368,8 @@ def two_homes_work(homes):
 
 
 def read_before_the_note(homes, *paths, own=None):
-    """A start showed these to the home before: they are in its `read-seen`."""
+    """Mark the briefs at `paths` as ones a start showed to the home before, by writing them
+    to its `read-seen`."""
     with ((own or homes.home_dir) / "read-seen").open("a") as seen:
         for path in paths:
             seen.write(f"{path}: ## Result\n")
@@ -495,7 +496,8 @@ def test_a_block_run_without_the_block_it_is_run_after_says_so_and_does_nothing(
 def test_a_direct_launch_adds_the_briefs_row_only_where_jbus_has_a_plan_for_this_repo(
     homes, monkeypatch, answers
 ):
-    """`jbus queue add` with no project takes the config's only one, whatever the repo."""
+    """`jbus queue add` with no project takes the one project in the config, whatever the
+    repo."""
     stub = homes.user / "bin"
     stub.mkdir()
     called = homes.user / "called"

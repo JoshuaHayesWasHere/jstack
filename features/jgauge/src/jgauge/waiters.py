@@ -1,4 +1,5 @@
-"""The threads that wait on a test slot. The module keeps them in one file, the slot queue's.
+"""The threads that wait on a test slot. The module keeps them in one file, the queue of the
+test slots.
 
 A thread that finds every slot of a lane taken does not poll and does not end its turn
 silent. It registers here, through `jgauge test-slot --thread <id>`, and ends its turn with
@@ -16,7 +17,8 @@ reader never sees half a list. A waiter is one wait:
 - `since` is when the thread first waited, and orders the queue. A thread that jbus wakes and
   that finds the slot taken again keeps waiting from the same `since`, so it does not go to the
   back;
-- `id` names this wait, so a retry of its wake is one message and the next wait is another;
+- `id` names this wait. A retry of its wake is still one message, and the thread's next wait
+  gets a message of its own;
 - `woken` is when jbus sent the wake, or nothing. jbus wakes a wait once.
 
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
@@ -26,8 +28,8 @@ leaves the file (`drop`).
 A thread has one form of id, T3 Code's `mcp:<uuid>`, and `thread_id` adds the prefix to an id
 given without it. A file written before this rule may hold two records for one thread. They
 count as one wait that keeps the older record's place. The module keeps the older record.
-Where jbus woke the older record and not the later one, it keeps the later record instead, with
-the older `since`. The next change writes the file in that form.
+Where jbus woke the older record and not the later one, the module keeps the later record
+instead, with the older `since`. The next change writes the file in that form.
 """
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ class Waiter:
 
 
 def thread_id(text: str) -> str:
-    """The thread's id in T3 Code's form, `mcp:` and its id."""
+    """The thread's id in T3 Code's form: the prefix `mcp:`, then the id."""
     return text if not text or text.startswith(PREFIX) else PREFIX + text
 
 
@@ -150,8 +152,8 @@ def register(
 
 
 def drop(locks: Path, thread: str) -> None:
-    """Take `thread` out: it took its slot. With no waiters file there is nothing to take it
-    out of, and the function makes none."""
+    """Take `thread` out of the waiters, since it took its slot. When there is no waiters
+    file, the function does nothing and creates no file."""
     if not (locks / NAME).exists():
         return
     thread = thread_id(thread)
@@ -159,12 +161,13 @@ def drop(locks: Path, thread: str) -> None:
 
 
 def forget(locks: Path, ids: set[str]) -> None:
-    """Take out the waits with these ids. A thread that waits again has another id, and stays."""
+    """Take out the waits with these ids. A thread that waits again has a new id, so its new
+    wait stays in the file."""
     _change(locks, lambda waiters: [one for one in waiters if one.id not in ids])
 
 
 def woken(locks: Path, wait: str, now: datetime) -> None:
-    """Record that jbus sent the wait with this id its wake."""
+    """Record that jbus sent its wake to the wait with this id."""
     _change(
         locks,
         lambda waiters: [

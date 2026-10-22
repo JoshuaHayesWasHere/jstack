@@ -17,7 +17,8 @@ through this process, which passes it on.
 A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
 and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`) and
 exits with code 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the
-lane is free, and the thread runs its command again, which takes the slot and leaves the file.
+lane is free. The thread then runs its command again. That run takes the slot and takes the
+thread out of the waiters file.
 """
 
 from __future__ import annotations
@@ -61,7 +62,8 @@ def short() -> Lane:
 
 
 class BadCount(Exception):
-    """The number of slots asked for is not a number of slots."""
+    """The slot count that `--slots`, `TEST_SLOTS` or the machine file gives is not a valid
+    count."""
 
 
 def count(asked: str | None) -> int:
@@ -121,9 +123,9 @@ def _first_free(locks: Path, lane: Lane) -> int | None:
 
 
 def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int | None:
-    """Wait for a slot and take it. With a `thread` it waits for none: with every slot taken it
-    registers the thread as a waiter on the lane, says so in one line, and takes nothing. A
-    thread that takes a slot leaves the waiters."""
+    """Wait for a slot and take it. With a `thread` it does not wait: when every slot is taken,
+    it registers the thread as a waiter on the lane, says so in one line, and takes no slot. A
+    thread that takes a slot is no longer a waiter."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread:

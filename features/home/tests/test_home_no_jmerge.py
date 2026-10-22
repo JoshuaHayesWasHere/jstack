@@ -1,4 +1,4 @@
-"""One merger for a repo: jbus runs `jmerge` while `home-thread` is empty or missing, so no skill
+"""A repo has one merger. jbus runs `jmerge` while `home-thread` is empty or missing, so no skill
 step may run it then. The tests take every `sh` block of a skill that runs `jmerge` to merge, land
 or sweep, and run it with the blocks its skill says to run first, against a stub `jmerge` that
 records its calls."""
@@ -53,8 +53,9 @@ cat "$OPEN"
 
 
 def blocks(skill, read=Path.read_text):
-    """Each `sh` block of a skill, with the line it starts on. The line counts lines of the
-    file alone, or with `as_read`, lines of the skill as an agent reads it."""
+    """Each `sh` block of a skill, with the number of the line it starts on. By default the
+    number counts the lines of the file alone. With `as_read` it counts the lines of the skill as
+    an agent reads it."""
     text = read(skill)
     return [
         (text.count("\n", 0, found.start(1)) + 1, textwrap.dedent(found.group(1)))
@@ -149,8 +150,8 @@ class Repo:
 
     def log(self, *lines):
         """Write lines that `jmerge` prints when jbus runs it, the way jbus keeps them. jbus
-        appends each line to the log with a date. It also keeps a `wait` or `hold` line as the
-        last line `jmerge` printed about that line's pull request."""
+        appends each line to the log with a date. For each pull request, jbus also keeps the
+        last `wait` or `hold` line that `jmerge` printed about it."""
         with (self.state / "merge.log").open("a") as log:
             log.writelines(f"2026-10-12 13:40 {line}\n" for line in lines)
         last = self.state / "merge.log.last"
@@ -337,8 +338,8 @@ LANDING = re.compile(r"`(flags='[^'`]*--land <name>')`")
 )
 def test_a_playbooks_landing_is_the_merge_step_with_its_flags_line(repo, playbook, asked):
     """The test puts the `flags=` lines a playbook gives in place of the merge step's own, as the
-    playbook says, and runs the step. The lines reach its one `jmerge` line, and no other block
-    runs."""
+    playbook says, and runs the step. The step passes those flags to its one `jmerge` line, and no
+    other block runs."""
     given = LANDING.findall((PLAYBOOKS / f"{playbook}.md").read_text())
     assert [line.replace("<name>", "demo") for line in given] == [f"flags='{a}'" for a in asked]
     (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]

@@ -43,8 +43,8 @@ def make(homes, thread=ROOT, scope=NEW, prefix=PREFIX, owns=OWNS):
 
 
 def test_the_root_home_makes_a_scope_with_its_plan_and_its_section_of_the_shared_notes(homes):
-    """The block dates the plan and the notes with the day it runs on, which may be the next
-    one by the time it runs."""
+    """The block dates the plan and the notes with the day it runs on. By the time the block
+    runs, that may already be the next day."""
     before = homes.state()
     first = date.today().isoformat()
     made, launch = make(homes)

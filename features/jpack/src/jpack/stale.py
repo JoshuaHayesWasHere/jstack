@@ -21,7 +21,8 @@ DAYS = 14
 
 
 def since(repo: Path, sha: str, rev: str, path: str, now: datetime) -> datetime | None:
-    """When `path` first changed after `sha` on the way to `rev`, or None where it did not."""
+    """When `path` first changed in the commits after `sha` up to `rev`, or None when `path`
+    is the same at `rev` as at `sha`."""
     if not git(repo, "diff", "--quiet", sha, rev, "--", path).returncode:
         return None
     logged = git(repo, "log", "--format=%ct", "--reverse", f"{sha}..{rev}", "--", path)

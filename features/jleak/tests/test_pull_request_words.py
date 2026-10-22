@@ -1,7 +1,7 @@
-"""The two blocks that keep a stranger's words from reaching a crewmate as orders.
+"""The two blocks that stop a crewmate from taking a stranger's words as orders.
 Each test runs a block as an agent runs it, against a `gh` that records what the block asks it. One
 block is the playbook's, which opens a pull request and locks it. The other is the crew
-skill's, which says whose a comment is."""
+skill's, which tells the crewmate who wrote a comment."""
 
 import json
 import os

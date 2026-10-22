@@ -1,5 +1,6 @@
-"""The home's launch check names each brief out whose `Where:` overlaps the task's, and holds no
-launch back for it: of the two pull requests, the one that merges second rebases. The test runs the
+"""The home's launch check names each brief out whose `Where:` overlaps the task's. It does not
+hold the launch back for such a brief: the pull request that merges second rebases onto the
+first. The test runs the
 home skill's block as a home runs it, over `jmerge --claims` against a fake `gh` and a temporary
 state directory."""
 

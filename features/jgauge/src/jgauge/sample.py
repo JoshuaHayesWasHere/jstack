@@ -8,11 +8,11 @@ cannot read it (no /proc/pressure/io, a kernel with no `full` line for cpu), and
 The log holds 30 days at most. Once its first row is older than that, the sampler writes the
 log again with the last 29 days. The sampler thus rewrites the file about once a day, not on
 every sample.
-The sampler rewrites a log from before the two /tmp columns once, with those fields empty in
-its old rows.
+When the log was written before the two /tmp columns existed, the sampler rewrites it once and
+leaves those two fields empty in its old rows.
 
 The report reads the stalls from each project's `events.jsonl` under jbus's state directory: a
-`stall`, a `slot-wake` (a thread that waited for a test slot, and how many minutes), and the
+`stall`, a `slot-wake` (a thread that waited for a test slot, with the minutes it waited), and the
 `condition` that jbus's gate writes when a row had no room for its passes."""
 
 from __future__ import annotations
@@ -58,7 +58,8 @@ def proc() -> Path:
 
 
 def tmpfs() -> Path:
-    """The filesystem whose file slots room.sh counts, its `TMPFS`."""
+    """The filesystem on which room.sh counts file slots: `TMPFS` when it is set, and /tmp
+    otherwise."""
     return Path(os.environ.get("TMPFS") or "/tmp")
 
 
@@ -68,7 +69,8 @@ def jbus_state() -> Path:
 
 
 def room_line(name: str) -> int:
-    """One of room's lines, which the function reads from its `<name>=` in room.sh, the one copy.
+    """One of room's lines. The function reads it from the line `<name>=` in room.sh, which
+    holds the one copy of each line.
     `LOAD` is a percent of the cores, `CPU` and `PRESSURE` are shares of time, `MEMORY` is in
     GB, and `CUSHION` and `SLOTS` are percents. `CUSHION` is the user's `headroom`, which
     `jgauge room` passes to room.sh, so the value here is its default."""
@@ -128,8 +130,8 @@ def _first_time(log: Path) -> int | None:
 
 
 def _widen(log: Path) -> None:
-    """Rewrite a log from before the /tmp columns under today's header, with the two /tmp
-    fields empty in its old rows."""
+    """Rewrite a log that was written before the /tmp columns existed. The new file has
+    today's header, and the two /tmp fields of its old rows are empty."""
     part = log.with_name(f".{log.name}.part")
     with log.open() as old, part.open("w") as new:
         next(old)
@@ -142,9 +144,9 @@ def _widen(log: Path) -> None:
 
 
 def _prune(log: Path, now: int) -> None:
-    """Write the log again with the rows of the last PRUNED_TO_DAYS. It picks the rows by their
-    time and not by their place in the file. After the clock goes back, the log still keeps
-    every row it should."""
+    """Write the log again with only the rows of the last 29 days (`PRUNED_TO_DAYS`). The
+    function picks the rows by their time and not by their place in the file. After the clock
+    goes back, the log still keeps every row it should."""
     since = now - PRUNED_TO_DAYS * DAY
     part = log.with_name(f".{log.name}.part")
     with log.open() as old, part.open("w") as new:
@@ -189,8 +191,8 @@ def take(log: Path) -> None:
 
 
 def since(asked: str) -> int:
-    """A start for the report: seconds since the epoch, or an ISO date or time, local if it
-    names no zone."""
+    """A start for the report: seconds since the epoch, or an ISO date or time. An ISO value
+    that names no time zone is local time."""
     if asked.isdecimal():
         return int(asked)
     try:
@@ -310,9 +312,10 @@ def _peaks(rows: list[list[str]], at: dict[str, int]) -> list[str]:
 
 
 def _stalls(start: int, until: int) -> str:
-    """What jbus recorded in the span as a held-up thread or row. That is its `stall` events,
-    the threads it woke from a wait for a test slot (with how many of them waited over
-    STALL_MINUTES), and the rows its gate held back because they had no room."""
+    """What jbus recorded in the span as a held-up thread or row. These are its `stall`
+    events, the threads it woke from a wait for a test slot, and the rows its gate held back
+    because they had no room. The report also counts the threads that waited over 5 minutes
+    (`STALL_MINUTES`)."""
     stalls = waits = timed = long = longest = rooms = 0
     files = sorted(jbus_state().glob("*/events.jsonl"))
     for path in files:

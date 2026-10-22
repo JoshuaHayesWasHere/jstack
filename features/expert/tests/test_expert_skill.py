@@ -68,7 +68,7 @@ def block(which):
 
 class Scene:
     """A user's home directory with the skill linked as `install.sh` links it, a made-up
-    expert's folder, and a directory that is in no repo to run from."""
+    expert's folder, and a directory outside any repo for the blocks to run from."""
 
     def __init__(self, tmp_path, repo=None):
         self.user = tmp_path / "user"
@@ -88,8 +88,8 @@ class Scene:
         self.elsewhere.mkdir()
 
     def run(self, which, name=NAME, **filled):
-        """Run the block after the block at the top, with its placeholders filled, and return
-        what it prints. The exit code comes first when it is not 0."""
+        """Run the block at the top and then the block `which`, with the placeholders filled,
+        and return what they print. The exit code comes first when it is not 0."""
         body = block("top").replace("<name>", name)
         if which != "top":
             body += block(which)
@@ -115,15 +115,16 @@ class Scene:
         }
 
     def asked(self, playbook, thread=THREAD):
-        """What the block of an ask prints for the thread that is the expert, or that was."""
+        """What the ask's block prints for a thread that is the expert now or was the expert
+        before."""
         if not (self.folder / "home-id").exists():
             self.run("id", threadId=thread)
         return self.run("playbook", threadId=thread, playbook=playbook)
 
     def taken(self, thread, posts_into, **filled):
-        """What the block says after the call that takes the webhook over. In the list that
-        call reads, the webhook the call kept posts into `posts_into`, or the list does not have
-        that webhook."""
+        """What the block says after the call that takes the webhook over. The call reads a list
+        of webhooks. When `posts_into` is set, the kept webhook in that list posts into
+        `posts_into`. When `posts_into` is empty, the list does not have the webhook."""
         id = (self.folder / "webhook").read_text().split()[0]
         tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
         reply = json.dumps({"tasks": tasks if posts_into else []})
@@ -131,7 +132,8 @@ class Scene:
         return self.run("taken", **asked)
 
     def starts(self, thread=THREAD):
-        """Run the blocks of a start in its order, and keep what a `create` returns."""
+        """Run the blocks of an expert's start in the skill's order, and keep what a `create`
+        returns."""
         self.run("read")
         self.run("id", threadId=thread)
         (said,) = self.run("webhook", threadId=thread)
@@ -338,7 +340,7 @@ def test_the_skills_calls_rename_pin_and_keep_a_webhook_and_settle_nothing():
 
 
 def made(tmp_path, playbooks):
-    """A repo the skill lives in, with these playbooks, each given as a name and the text that
+    """A repo that holds the skill, with these playbooks, each given as a name and the text that
     follows its `Run by:`."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
@@ -521,8 +523,8 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
 
 
 def started(scene, t3, thread):
-    """An expert's start, with the calls it makes to a made-up T3 Code: the pin, and the unpin
-    of the thread that this one takes over from. The block of step 3 names that thread."""
+    """An expert's start, with the calls it makes to a made-up T3 Code. It pins `thread`, and
+    it unpins the thread that `thread` takes over from, which the block of step 3 names."""
     pin, unpin = (
         call
         for call in calls.CALLS
@@ -543,8 +545,8 @@ def test_a_roll_over_cut_off_anywhere_and_run_again_leaves_one_thread_pinned(sce
     t3 = T3()
 
     def rolls_over(steps):
-        """The first `steps` of a roll over, in the skill's order: its block, the launch,
-        the rename."""
+        """Run the first `steps` steps of a roll-over in the skill's order. The steps are the
+        roll-over block, the launch and the rename."""
         said = scene.run("roll", threadId=THREAD) if steps else [""]
         if not said[0].startswith("launch: "):
             return

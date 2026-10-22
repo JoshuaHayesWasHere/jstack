@@ -1,8 +1,8 @@
 """`jleak`: what it prints for text that matches a pattern, and its exit code.
 
 Every test runs the command. The private patterns are a file the test writes in its own config
-directory, with made-up words in it. A test builds a key that a built-in pattern matches when
-it runs, so this file holds none.
+directory, with made-up words in it. A test that needs a key a built-in pattern matches
+builds that key while it runs, so this file holds no such key.
 """
 
 import os
@@ -170,8 +170,8 @@ def test_this_tree_has_no_key_a_built_in_pattern_matches(jstack_config):
 
 
 def test_this_tree_has_nothing_the_file_the_install_makes_matches(tmp_path):
-    """The test uses a made-up
-    home, so what it checks are the shapes: a thread id and a tailnet's names and addresses."""
+    """The test uses a made-up home, so it checks the formats the install writes
+    patterns for: a thread id and a tailnet's names and addresses."""
     made = tmp_path / jleak.FILE
     made.write_text(jleak.example(Path("/burrow", "hollow")))
     code, said, _ = run("--strict", "--patterns", str(made), "--all", cwd=REPO)

@@ -71,8 +71,8 @@ def test_any_other_number_of_cells_is_refused_and_writes_nothing(tmp_path, cells
 
 
 def block(skill, tmp_path, cells, before=""):
-    """Run the one `sh` block of a skill with its placeholders filled, set up as a crewmate
-    has it. The crew skill is a symlink under ~/.claude/skills into the harness copy. This skill
+    """Run the one `sh` block of a skill with its placeholders filled, in a setup like a
+    crewmate's. The crew skill is a symlink under ~/.claude/skills into the harness copy. This skill
     has no link of its own, and the work is in another repo. Return what the block printed, and
     that repo."""
     (body,) = re.findall(

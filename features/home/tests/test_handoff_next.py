@@ -40,15 +40,16 @@ def scene(tmp_path):
 
 def hands_off(scene, thread, checkout=None):
     """What the handoff's close prints when `thread` runs it as step 3 says, after the test writes
-    the note. The test gives the close no reply of `list_scheduled_tasks`, so the close's lines on
-    the tasks are not here."""
+    the note. The test gives the close no reply from `list_scheduled_tasks`, so the output has no
+    lines about the scheduled tasks."""
     ran = scene.home_hands_off(thread, checkout)
     assert ran.returncode == 0
     return "".join(line for line in ran.stdout.splitlines(True) if not line.startswith("not read:"))
 
 
 def was_home(scene):
-    """The thread the next home's start settles, read as the home skill's block reads it."""
+    """The thread that the next home's start settles. The test reads it the way the home skill's
+    block does."""
     before = block("home", "so no thread is looked for")
     (line,) = [line for line in before.splitlines() if "was=$(" in line]
     return scene.run("home", f'{line}\nprintf "%s" "$was"', scene.main).stdout
@@ -220,7 +221,8 @@ def role_map(jstack_config):
 
 
 def launched(printed):
-    """The launch call a party's close printed, after a check that the launch tool takes it."""
+    """The launch call that a party's close printed. The function first checks that the call
+    matches the schema of the launch tool."""
     given = json.loads(dict(printed)["launch"])
     assert takes("t3_thread_launch", given) == []
     return given

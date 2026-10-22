@@ -1,7 +1,7 @@
 """The tests check a context pack with no model. They run `jpack lint`, `jpack verify`
-and `jpack stale` on a made-up pack in a temporary git repo, the template's own example note
-among them. They also run the day's stale check of a jbus pass on a project whose checkout has a
-pack."""
+and `jpack stale` on a made-up pack in a temporary git repo. One of the pack's notes is the
+template's own example note. They also run the stale check that a jbus pass makes once a day,
+on a project whose checkout has a pack."""
 
 import os
 import re

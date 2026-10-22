@@ -6,10 +6,11 @@ The counting rule (features/jgauge/docs/meter-findings.md has the observations b
   write a line twice, so the reader never counts lines.
 - Claude Code writes a line with a `stop_reason` when the message finishes, and that line has
   its final counts. A message with such a line is final.
-- A message with no such line has only the output count as it started: a floor.
-  Its input and cache counts are still exact. The reader flags the floor and keeps it apart
-  from the final output. It never adds the floor to the final output and never estimates it
-  upward.
+- A message with no such line has only the output count written when it started. That count
+  is a floor.
+  Its input and cache counts are still exact. The reader flags the floor and keeps it
+  apart from the final output. It never adds the floor to the final output and never
+  estimates it upward.
 - A message whose model is `<synthetic>` is the harness's own text, not a call.
 """
 
@@ -24,7 +25,8 @@ FIELDS = ("tokens_in", "tokens_out", "cache_read", "cache_write")
 
 
 class TranscriptError(Exception):
-    """A transcript that cannot be read. `reason` is one short word for the record."""
+    """A transcript that cannot be read. `reason` is one short word that names the fault, such as
+    `missing`."""
 
     def __init__(self, reason: str, detail: str = "") -> None:
         super().__init__(f"{reason}: {detail}" if detail else reason)

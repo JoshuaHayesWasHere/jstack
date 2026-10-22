@@ -3,7 +3,7 @@
 The push tests make a repo with a bare remote, link `features/jleak/hooks/pre-push.sh` as its
 `pre-push` hook and run `git push`. The command tests feed
 `features/jleak/hooks/outbound-command.sh` what Claude Code gives a `PreToolUse` hook. The
-private patterns are made-up words in a file of the test's own.
+private patterns are made-up words in a file that the test writes for itself.
 """
 
 import json

@@ -102,7 +102,7 @@ def test_the_sweep_reads_the_docs_of_every_feature_but_home():
 
 
 def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkeypatch):
-    """A root home starts by steps 1 and 3 of the home skill, in the state directory jbus
+    """A root home starts with steps 1 and 3 of the home skill, in the state directory jbus
     reads. Its id is in `home-id`, `home-thread` is not there, and the pass runs `jmerge`."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     try:

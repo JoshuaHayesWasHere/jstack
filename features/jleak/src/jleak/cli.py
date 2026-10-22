@@ -5,11 +5,11 @@
     jleak [--strict] [--patterns FILE] --push URL
     jleak [--strict] [--patterns FILE] --command
 
-`--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is, reads
-`-` as what is piped in, and names it in a finding as `--as` says. `--push` reads what git gives
-a `pre-push` hook, for the URL that git passes the hook as its second argument. `--command`
-reads what Claude Code gives a `PreToolUse` hook. It reads the private patterns only for a
-command that writes to a pull request, since any other command needs none.
+`--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is. It
+reads `-` as what is piped in, and a finding names that text by the FIELD that `--as` gives.
+`--push` reads what git gives a `pre-push` hook. Its URL is the second argument that git passes
+the hook. `--command` reads what Claude Code gives a `PreToolUse` hook. It reads the private
+patterns only for a command that writes to a pull request, since no other command needs them.
 
 It prints one line for each finding, `<file or field>:<line>: <pattern's name>`, then
 `<n> findings`. The two hook forms print to stderr, where git and the agent read a refusal.
@@ -20,8 +20,8 @@ It prints one line for each finding, `<file or field>:<line>: <pattern's name>`,
        also exits 2, since 2 is the code on which Claude Code refuses the command.
 
 With no private patterns file, jleak checks the built-in patterns and says so on stderr.
-`--strict`, which both hooks pass, makes that a 2: a hook that checked nothing private would
-pass everything private.
+Both hooks pass `--strict`, and with it a missing private patterns file exits 2. Without that,
+a hook that checked no private pattern would let every private name through.
 """
 
 import argparse
@@ -52,7 +52,8 @@ def parser() -> argparse.ArgumentParser:
 
 def patterns(args: argparse.Namespace) -> tuple[jleak.Pattern, ...]:
     """The built-in patterns and the private ones. Raises Invalid when jleak cannot use the private
-    ones, and Missing only with `--strict`."""
+    ones. With `--strict`, a Missing private patterns file also raises Invalid. Without it,
+    the function says so on stderr and gives the built-in patterns alone."""
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     try:
         private = jleak.load(args.patterns or jleak.path(config))

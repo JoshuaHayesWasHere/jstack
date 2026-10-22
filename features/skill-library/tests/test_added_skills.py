@@ -1,6 +1,7 @@
-"""The skills added after the first eleven: each loads only when the user types it, the tests run
-its shell blocks, and each subagent it starts is a read-only Explore agent that its tool accepts.
-The tests of what one skill's blocks print are in that skill's own feature's folder."""
+"""The skills added after the first eleven. Each loads only when the user types it, and the tests
+run its shell blocks. Each subagent a skill starts is a read-only Explore agent, of a type that
+the Agent tool accepts. The tests of what one skill's blocks print are in the folder of the
+feature that holds the skill."""
 
 import os
 import re
@@ -117,7 +118,7 @@ def test_every_block_of_an_added_skill_runs_and_says_something(name, body, repo,
 
 def says_something(body, repo, home, tmp_path):
     """Whether a block runs with nothing on stderr and prints a line. A stand-in comes first on
-    PATH for each host command a block reads, so the test never reads what this machine's own
+    PATH for each host command a block runs, so the test never reads what this machine's own
     command prints."""
     stand_ins = tmp_path / "stand-ins"
     a_tool(stand_ins, "tailscale", STAND_IN_TAILSCALE)

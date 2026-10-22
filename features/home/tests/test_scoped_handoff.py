@@ -58,15 +58,16 @@ class HandingOff(Homes):
         return self.run("handoff", found.replace("<threadId>", thread), self.main)
 
     def closes(self, thread):
-        """Step 6, the block that says who starts the next home. Its output, in lines."""
+        """Run step 6, the block that says who starts the next home, and return the lines it
+        prints."""
         ran = self.does('rm -f "$M/home-id"', thread)
         assert ran.returncode == 0
         return ran.stdout.splitlines()
 
     def hands_off(self, thread, own):
-        """A handoff's steps on disk, in order: find the home, write the note, close. The test gives
-        the close no reply of `list_scheduled_tasks`, so this leaves out what the close printed of
-        the tasks.
+        """Run a handoff's steps on disk, in order: find the home, write the note, close. The test
+        gives the close no reply from `list_scheduled_tasks`, so the result has no lines about the
+        scheduled tasks.
         """
         found = self.does(WHERE, thread).stdout.splitlines()
         (own / "handoff.next.md").write_text(PAGE)

@@ -10,16 +10,16 @@ answers:
    `<home>/.credentials.json`, while that token has not expired. Claude Code makes the same
    call for `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
 2. The answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`),
-   `cachedUsageUtilization`, while it is under `FRESH` old and belongs to the account signed in
-   there.
+   `cachedUsageUtilization`, while it is less than 15 minutes old (`FRESH`) and belongs to the
+   account signed in there.
 
 The command never refreshes, writes or prints a token, and it never writes either file. A
 refresh token rotates, and a refresh here would race the sessions signed in with it. When no
 source answers for a home, the command writes nothing for it and prints
 `stale <instance>: <why>`. The home's last line then stays, so a launch never reads a capped
 account as free. When the command reads a home, it sets the time of the home's file to now,
-also when no line changed. `--check` can then tell a reader that stopped from an account that
-is idle.
+even when no line changed. With that, `--check` can tell an idle account apart from a reader
+that stopped running.
 
 The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
 The command floors it to the second, as the other writers do, and the ledger's merge takes
@@ -48,7 +48,7 @@ TIMEOUT_SECONDS = 10
 
 @dataclass(frozen=True)
 class Home:
-    """A Claude home and the instance whose ledger file it writes."""
+    """A Claude home, and the instance whose ledger file `jgauge limits` writes for it."""
 
     instance: str
     path: Path
@@ -91,9 +91,9 @@ def _json(file: Path) -> dict:
 
 
 def records(instance: str, usage: object) -> list[ledger.Record]:
-    """The ledger's lines of a usage answer in the shape that the endpoint returns and Claude
-    Code caches, `{five_hour: {utilization, resets_at}, ...}`. Raises ValueError for an answer
-    not in that shape."""
+    """The ledger's lines for a usage answer. The answer has the shape that the endpoint
+    returns and that Claude Code caches, `{five_hour: {utilization, resets_at}, ...}`. Raises
+    ValueError for an answer not in that shape."""
     if not isinstance(usage, Mapping):
         raise ValueError("the answer is not an object")
     found = []
@@ -167,7 +167,8 @@ def from_cache(home: Home, now: datetime) -> list[ledger.Record]:
 
 
 def read(home: Home, now: datetime, get: Fetch = fetch) -> tuple[str, list[ledger.Record]]:
-    """The source that answered for `home`, and its lines. Raises `Stale` where none did."""
+    """The source that answered for `home`, and its lines. Raises `Stale` when no source
+    answered."""
     reasons = []
     for name, source in (
         ("endpoint", lambda: from_endpoint(home, now, get)),
@@ -194,7 +195,7 @@ def keep(home: Home, found: list[ledger.Record], now: datetime) -> Path:
 
 
 def age(file: Path, now: datetime) -> timedelta | None:
-    """How long ago the file was last written, or None where there is none."""
+    """How long ago the file was last written, or None when there is no file."""
     try:
         return now - datetime.fromtimestamp(file.stat().st_mtime, UTC)
     except OSError:
@@ -202,7 +203,8 @@ def age(file: Path, now: datetime) -> timedelta | None:
 
 
 def stale(file: Path, now: datetime) -> str | None:
-    """Why the file is not a fresh reading, or None while it is under `FRESH` old."""
+    """Why the file is not a fresh reading, or None while it is less than 15 minutes
+    (`FRESH`) old."""
     old = age(file, now)
     if old is None:
         return f"no {file}"
@@ -214,7 +216,7 @@ def stale(file: Path, now: datetime) -> str | None:
 
 def run(now: datetime, get: Fetch = fetch) -> list[str]:
     """Read every home and return a line for each: `<instance> <source> <file>` for a home
-    that was read, and `stale <instance>: <why>` for one that was not."""
+    that the command read, and `stale <instance>: <why>` for a home that it could not read."""
     said = []
     for home in homes():
         try:

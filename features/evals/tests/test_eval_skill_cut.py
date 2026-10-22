@@ -219,9 +219,9 @@ def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeyp
 
 
 def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
-    """A case names `principles/type-system-discipline.md`, the file's name before pstack's
-    prefix. At a revision after the rename, the eval reads the renamed file for that name, as it
-    does for the file's own name."""
+    """A case names `principles/type-system-discipline.md`, which was the file's name before the
+    rename added pstack's prefix. At a revision after the rename, the eval reads the renamed file
+    for the old name, just as it does for the new name."""
     path = "principles/type-system-discipline.md"
     renamed = "HEAD:features/principles/skills/principle-type-system-discipline/SKILL.md"
     now = subprocess.run(

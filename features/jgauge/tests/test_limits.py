@@ -1,5 +1,6 @@
-"""The tests of `features/jgauge/hooks/limits.sh`. They cover the file the script writes from
-what Claude Code passes a status line, which `room` reads back. They also cover every input on
+"""The tests of `features/jgauge/hooks/limits.sh`. Claude Code passes a status line its input,
+the script writes a file from that input, and `room` reads the file back. The tests cover that
+file. They also cover every input on
 which the script leaves the file alone. Every test runs the script."""
 
 import json
@@ -286,8 +287,9 @@ def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env)
 
 
 def test_a_reset_a_second_off_is_the_same_window_and_a_cap_on_it_stands(env):
-    """`jgauge limits` and jbus write the same window a second either side of the status line:
-    the script merges as `jroles.ledger.merge` does, and a lower share never replaces the cap."""
+    """`jgauge limits` and jbus write a reset of the same window one second before and one
+    second after the status line's reset. The script merges them as `jroles.ledger.merge` does,
+    and a lower share never replaces the cap."""
     Path(env["LIMITS"]).write_text(f"five_hour 100 {SOON + 1}\n")
     write(handed(five_hour=(63, SOON)), env)
     assert kept(env) == f"five_hour 100 {SOON + 1}\n"

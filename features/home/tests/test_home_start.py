@@ -284,7 +284,8 @@ def rows(bus, *made):
 
 
 def a_note(bus, *briefs):
-    """The note the last home left. A start showed each brief given to a home."""
+    """The note the last home left. The test marks each brief in `briefs` as one that a home's
+    start already showed."""
     for slug in briefs:
         bus.kitchen.brief(slug, "\n## Result\nStatus: done\n")
         with (bus.dir / "read-seen").open("a") as seen:
