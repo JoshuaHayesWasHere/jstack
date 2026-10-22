@@ -41,7 +41,7 @@ class Pushed:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
-                "T": str(REPO / "templates"),
+                "T": str(REPO / "features" / "crew" / "templates"),
             },
             check=True,
         )

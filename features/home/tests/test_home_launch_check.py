@@ -42,7 +42,7 @@ def test_two_briefs_out_on_the_task_s_file_are_each_named_and_hold_nothing(claim
 
 def test_a_brief_on_other_files_or_not_launched_is_not_named(claims):
     claims.write("task", thread=False, where="`skills/home/SKILL.md`")
-    claims.write("alpha", where="`src/jbus/`")
+    claims.write("alpha", where="`features/jbus/src/jbus/`")
     claims.write("beta", thread=False, where="`skills/home/SKILL.md`")
     claims.write("gamma", where="`skills/home/`, `docs/`")
     said = check(claims)

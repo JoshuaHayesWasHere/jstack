@@ -66,7 +66,7 @@ These steps take a new machine to one merged pull request.
 	jinstall --check
 	```
 
-3. Check the machine. The doctor prints a line for each requirement, then the lines of step 2. The last line must be `doctor: ok`. A `missing optional` line names a layer you have not set up. Every other `missing` or `old` line has an entry in [Troubleshooting](docs/troubleshooting.md).
+3. Check the machine. The doctor prints a line for each requirement, then the lines of step 2. The last line must be `doctor: ok`. A `missing optional` line names a layer you have not set up. Every other `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 	```sh
 	jinstall --doctor
@@ -87,7 +87,7 @@ These steps take a new machine to one merged pull request.
 	jmerge
 	```
 
-Nothing merges by itself until you choose who does it. Set up [`jbus`](docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](docs/configuration.md#switches-for-one-repo) has both.
+Nothing merges by itself until you choose who does it. Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md) and its timer runs `jmerge` each minute. Or write a home's thread id into `~/.local/state/home/<repo>/home-thread`, and that home runs `jmerge`. [Configuration](features/jinstall/docs/configuration.md#switches-for-one-repo) has both.
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
 
@@ -117,7 +117,7 @@ Each command has one page.
 | Command | Page | What it does |
 |---|---|---|
 | `jbriefs` | [features/jbriefs/docs/jbriefs.md](features/jbriefs/docs/jbriefs.md) | Writes one HTML page of every home, plan and brief. |
-| `jbus` | [docs/jbus.md](docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
+| `jbus` | [features/jbus/docs/jbus.md](features/jbus/docs/jbus.md) | Does a home's routine work from a timer, so a repo can run with no home thread. |
 | `jdrift` | [features/jdrift/docs/jdrift.md](features/jdrift/docs/jdrift.md) | Lists what changed upstream in the files taken from pstack. |
 | `jgauge` | [features/jgauge/docs/jgauge.md](features/jgauge/docs/jgauge.md) | Counts what a thread cost in tokens, and says whether there is room for one more. |
 | `jinstall` | [features/jinstall/docs/jinstall.md](features/jinstall/docs/jinstall.md) | Installs, checks and removes jstack on a machine: install.sh in a checkout, and the jinstall command from a release. |
@@ -131,9 +131,9 @@ Each command has one page.
 
 | Page | Read it to |
 |---|---|
-| [Configuration](docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
-| [Troubleshooting](docs/troubleshooting.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
-| [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
+| [Configuration](features/jinstall/docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
+| [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
+| [The Chef](features/jbus/docs/chef.md) | Make the agent behind a `jbus` webhook. |
 | [Hooks](features/home/docs/hooks.md) | See what the start hook and the gauge hook do. |
 | [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
 | [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |
@@ -163,12 +163,9 @@ The others are loaded by name.
 
 | Path | Holds |
 |---|---|
-| `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
-| `templates/` | The systemd units of `jbus`. |
+| `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, units, its command's package, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
 | `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
-| `src/` | The nine commands, one package each. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
-| `docs/` | The pages above, and `features/jgauge/docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
 | `.claude/skills/verify-jstack/` | A skill that drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox. |
 

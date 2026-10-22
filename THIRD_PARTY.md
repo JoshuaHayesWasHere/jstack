@@ -271,7 +271,7 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 
 ## axe-core
 
-`tests/fixtures/jbus-view/axe.min.js` is axe-core, by Deque Systems, the accessibility engine the page tests of `jbus view` run in the browser. Only the tests read it: the view never serves it.
+`features/jbus/tests/fixtures/jbus-view/axe.min.js` is axe-core, by Deque Systems, the accessibility engine the page tests of `jbus view` run in the browser. Only the tests read it: the view never serves it.
 
 - Source: https://github.com/dequelabs/axe-core
 - Version: 4.14.0, the file `axe.min.js` of the package `https://registry.npmjs.org/axe-core/-/axe-core-4.14.0.tgz`, integrity `sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==`
@@ -280,12 +280,12 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 
 ## Atkinson Hyperlegible Next
 
-`src/jbus/view/font.woff2` is Atkinson Hyperlegible Next, by The Atkinson Hyperlegible Next Project Authors, the one font of the page `jbus view` serves. The view serves it at `/font.woff2`.
+`features/jbus/src/jbus/view/font.woff2` is Atkinson Hyperlegible Next, by The Atkinson Hyperlegible Next Project Authors, the one font of the page `jbus view` serves. The view serves it at `/font.woff2`.
 
 - Source: https://github.com/googlefonts/atkinson-hyperlegible-next
 - Version: commit 7925f50f649b3813257faf2f4c0b381011f434f1, the file `fonts/webfonts/AtkinsonHyperlegibleNext[wght].woff2`, 48,188 bytes, sha256 `abde1ad5cf78b9ac575ef90d991f2e9101eb0b3b6668bde9a00e2e1e27d99afd`
 - Changed here: nothing. The file is taken whole and renamed.
-- License: the SIL Open Font License 1.1, "Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors". Its text, the repo's `OFL.txt`, is shipped beside the font as `src/jbus/view/OFL.txt`.
+- License: the SIL Open Font License 1.1, "Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors". Its text, the repo's `OFL.txt`, is shipped beside the font as `features/jbus/src/jbus/view/OFL.txt`.
 
 ## Felix Rieseberg
 

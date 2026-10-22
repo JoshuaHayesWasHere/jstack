@@ -1,7 +1,7 @@
 """No Python file of `tests/` is over `CAP` lines but the ones on `ALLOWED`, and a file on the
 list that is back under the cap fails until it leaves the list, so the list only shrinks. A
 test file that grows past the cap is split by feature into a folder of `tests/`, as
-`tests/view/` and `features/crew/tests/` are.
+`features/jbus/tests/view/` and `features/crew/tests/` are.
 
 With no `__init__.py` in `tests/`, pytest imports each test file there by its file name alone,
 so two test files of one name fail the run with "import file mismatch": no two have one name.
@@ -72,8 +72,9 @@ def test_no_two_test_files_have_one_name():
 def test_each_folder_of_the_tests_is_a_package():
     folders = {
         path.parent
-        for path in (REPO / "tests").rglob("*.py")
-        if path.parent != REPO / "tests" and "fixtures" not in path.relative_to(REPO).parts
+        for root in (REPO / "tests", *REPO.glob("features/*/tests"))
+        for path in root.rglob("*.py")
+        if path.parent != root and "fixtures" not in path.relative_to(REPO).parts
     }
     assert (
         sorted(

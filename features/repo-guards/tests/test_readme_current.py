@@ -3,11 +3,11 @@
 The README is the front page: what jstack is, its requirements and a quickstart. The reference
 it held is one page a command under `docs/`, so each test reads the page the text is on.
 
-Each name is looked for in the tracked files of `src/` first: one the code does not have is
-not asked of the pages, so a name leaves their duty when it leaves the code. The figures the
+Each name is looked for in the tracked files of `features/*/src` first: one the code does not have
+is not asked of the pages, so a name leaves their duty when it leaves the code. The figures the
 pages give are held to what the code and the timer's unit give. The quickstart's commands are
 run, under a temporary `HOME`, and so is the status line the configuration page shows. Each
-line the doctor prints that is not `ok` is held to an entry of the troubleshooting page. The
+line the doctor prints that is not `ok` is held to an entry of a troubleshooting page. The
 pages say what jstack is: a line that names the old repo, the `jstack-v1` tag, the first jstack
 or the cutover, or says what was called what or moved where, fails, in any case of letters.
 """
@@ -107,7 +107,7 @@ WAS = (
 )
 IS = (
     "The key is used to sign each POST, in POSTs no longer than 100 KB.",
-    "Trimmed copies are in `tests/fixtures/projects/-tmp-pipeline-check/`.",
+    "Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-pipeline-check/`.",
     "CI is a pipeline of one job, as of the workflow file.",
 )
 
@@ -120,13 +120,19 @@ def where(name):
 
 
 def page(name):
-    """A page, and after it the pages of its folder, as `docs/jbus/` is to `docs/jbus.md`: beside
-    it, or in the `docs/` of a feature its pages moved into."""
+    """A page, and after it the pages of its folder, as `jbus/` is to `jbus.md`: beside it, or
+    in the `docs/` of a feature its pages moved into."""
     found = where(name)
     stem = Path(name).stem
     folders = {found.parent / stem, *REPO.glob(f"features/*/docs/{stem}")}
     paths = (found, *sorted(path for folder in folders for path in folder.glob("*.md")))
     return "\n".join(path.read_text() for path in paths)
+
+
+def troubleshooting():
+    """The troubleshooting pages of every feature, `features/*/docs/troubleshooting/`."""
+    found = sorted(REPO.glob("features/*/docs/troubleshooting/*.md"))
+    return "\n".join(path.read_text() for path in found)
 
 
 def pages():
@@ -149,12 +155,16 @@ def blocks(text, language):
 def test_the_pages_name_what_the_code_has_and_nothing_it_dropped():
     said = pages()
     tracked = subprocess.run(
-        ["git", "ls-files", "src"], cwd=REPO, capture_output=True, text=True, check=True
+        ["git", "ls-files", "features/*/src/*"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.splitlines()
     code = "\n".join(tracked)
     code += "\n".join((REPO / name).read_text(errors="ignore") for name in tracked)
     there = [name for name in NAMED if name in code]
-    assert there, "the search of src/ found none of the names"
+    assert there, "the search of features/*/src found none of the names"
     assert [name for name in there if name not in said] == []
     assert [name for name in GONE if name in said] == []
 
@@ -162,7 +172,7 @@ def test_the_pages_name_what_the_code_has_and_nothing_it_dropped():
 def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_have():
     said = page("jbus.md")
     timer = configparser.ConfigParser(interpolation=None)
-    timer.read(REPO / "templates/jbus.timer")
+    timer.read(REPO / "features/jbus/units/jbus.timer")
     assert f"(`OnUnitActiveSec={timer['Timer']['OnUnitActiveSec']}`)" in said
     assert f"after {alert.AFTER} failures in a row" in said
     assert f"`Authorization: Bearer` and `{wake.HEADER}`" in said
@@ -420,10 +430,8 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
 
 
 def patterns():
-    """Each line the troubleshooting page is keyed on, as a pattern: `<word>` is any text."""
-    keyed = re.findall(
-        r"^\| `((?:missing|old|doctor:) [^`]+)` \|", page("troubleshooting.md"), re.M
-    )
+    """Each line the troubleshooting pages are keyed on, as a pattern: `<word>` is any text."""
+    keyed = re.findall(r"^\| `((?:missing|old|doctor:) [^`]+)` \|", troubleshooting(), re.M)
     assert len(keyed) > 40
     return [
         re.compile(

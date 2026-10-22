@@ -89,7 +89,7 @@ case $C$P in
         case $said in
         'added: '*) echo "3 jbus project: done, ${said#added: }" ;;
         'refused: the config already has this project') echo "3 jbus project: already, jbus's config has its table" ;;
-        'refused: no config at '*) echo "3 jbus project: needs you: set jbus up once for the machine, as docs/jbus.md \"Set up jbus\" says, then type /new-home ${C##*/} again" ;;
+        'refused: no config at '*) echo "3 jbus project: needs you: set jbus up once for the machine, as features/jbus/docs/jbus.md \"Set up jbus\" says, then type /new-home ${C##*/} again" ;;
         *) echo "3 jbus project: needs you: jbus project add said \"$said\"" ;;
         esac
     fi ;;

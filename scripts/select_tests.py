@@ -9,8 +9,8 @@ A changed module, of `src/` or a feature's `features/<name>/src/`, of the tests 
 selects the test files that import it, directly or through any chain of modules: a test file
 that imports a module that imports it is selected too. The tests are in `tests/` and in each
 feature's own, `features/<name>/tests/`.
-A test file may be in a folder of one, as `tests/view/test_view_bus.py`, and is taken to import
-the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
+A test file may be in a folder of one, as `features/jbus/tests/view/test_view_bus.py`, and is taken
+to import the `conftest.py` of each folder it is in below that `tests/`. A changed test file is
 selected itself. A module that calls `importlib.import_module` is taken to import every module
 under its directory. A test with a string that is the name of a package of a `src/` is taken to
 run it in a process of its own, and to import every module of it. A file in a package that is
@@ -26,8 +26,9 @@ with each `features/<name>/verify.md`, adds to this: a feature file names the pa
 owns (`Paths:`, in jmerge's pattern syntax) and the tests that read them in a way no string
 shows (`Tests:`), and a changed path
 selects the `Tests:` of each feature that owns it. An edit to a feature file selects that
-feature's tests: its `Tests:` and every test file that imports a module it owns. Its README
-lists the test files that read the whole tree (`Cross-cutting:`), which every change runs.
+feature's tests: its `Tests:` and every test file that imports a module it owns. The map's
+page, `CROSS`, lists the test files that read the whole tree (`Cross-cutting:`), which every change
+runs.
 
 It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more: such
 a run costs about what the whole suite does, and run whole it leaves the tree's marker. And
@@ -65,6 +66,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP = ".claude/skills/verify-jstack/features"
+CROSS = "features/verify-jstack/project-skill/map.md"
 PAGE = "verify.md"
 TESTS = re.compile(r"(features/[^/]+/)?tests/")
 SOURCE = re.compile(r"(features/[^/]+/)?src/")
@@ -136,7 +138,7 @@ def features():
 
 
 def cross_cutting():
-    return listed((ROOT / MAP / "README.md").read_text(), "Cross-cutting")
+    return listed((ROOT / CROSS).read_text(), "Cross-cutting")
 
 
 def owns(patterns, path):

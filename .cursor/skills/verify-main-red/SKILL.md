@@ -6,7 +6,7 @@ description: Rerun the exhaustive check of main.json's red-main contract, the re
 # verify-main-red
 
 `main.json` in a jbus project's state is the one record of main's red tip.
-`mainmoved.tell` (`src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`features/jmerge/src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
+`mainmoved.tell` (`features/jbus/src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`features/jmerge/src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
 A test runs the orders someone wrote down.
 This check runs every order of merges, check answers, T3 Code answers and passes within its bounds, through the real `tell` and the real `rows.red`, and checks two properties after every pass:
 
@@ -17,29 +17,29 @@ This check runs every order of merges, check answers, T3 Code answers and passes
   When `rows.red` names a tip, no tip that landed after it has a `green` check.
   Broken, jmerge holds every merge after main was fixed.
 
-The model is `tests/main_red_model.py`, standard library only (a `collections.deque` walk, states kept by a `json` key).
+The model is `features/jbus/tests/main_red_model.py`, standard library only (a `collections.deque` walk, states kept by a `json` key).
 Its docstring says what each step is, the code line that backs it, what is stubbed and what is not covered.
 
 ## Does a change touch it
 
 Rerun it when the diff touches any of these:
 
-- `src/jbus/mainmoved.py` (`tell`, `main_check`, `SETTLED`, the `STEPS` slot);
+- `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `SETTLED`, the `STEPS` slot);
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`);
 - `features/jmerge/src/jmerge/rows.py` (`main`, `red`);
-- `src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `src/jbus/merge.py`;
-- `src/jbus/watch.py` `_check` (797-828), the answers a tip's check can have;
-- `write_json` in `src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
+- `features/jbus/src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `features/jbus/src/jbus/merge.py`;
+- `features/jbus/src/jbus/watch.py` `_check` (797-828), the answers a tip's check can have;
+- `write_json` in `features/jbus/src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
 - a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
 
-`scripts/select_tests.py` selects `tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainjson.py`, `rows.py`, `merge.py`, `cli.py` or `features/jmerge/docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
+`scripts/select_tests.py` selects `features/jbus/tests/test_main_red_model.py` for a change to `mainmoved.py`, `mainjson.py`, `rows.py`, `merge.py`, `cli.py` or `features/jmerge/docs/jmerge.md`, through what the model imports and the path it names, so `make check-fast` runs it.
 Run it by hand anyway when you change the contract on purpose: what it prints is the point.
 
 ## Run it
 
 ```sh
-uv run pytest tests/test_main_red_model.py -q
+uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
 It takes about a second (3,808 states in the widest world).
@@ -48,7 +48,7 @@ The three findings below were strict xfails until `mainjson-red-fix` fixed them.
 To print every world:
 
 ```sh
-uv run python tests/main_red_model.py
+uv run python features/jbus/tests/main_red_model.py
 ```
 
 It prints all four worlds, how many states each walks and how many break each property.
@@ -116,11 +116,11 @@ Check every step against this table; a step no line backs is a modeling error, a
 
 | Step | Backed by |
 |---|---|
-| `pass (...)` | one `tell` under the pass lock, `src/jbus/cli.py:215-219`, in the `after-expedite` slot, `src/jbus/mainmoved.py:222-230` |
-| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `src/jbus/cli.py:146` |
+| `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py:215-219`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:222-230` |
+| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py:146` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainjson.fix_of`), a merge by hand, `jmerge --accept` |
-| `Mn's check settles: <answer>` | an answer `watch._check` gives, `src/jbus/watch.py:797-828`; `pending` is a check not ended |
-| `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `src/jbus/mainmoved.py:185-195` |
+| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:797-828`; `pending` is a check not ended |
+| `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `features/jbus/src/jbus/mainmoved.py:185-195` |
 
 The stubs are the other place a model can lie: `mainmoved.main_check`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
 If one of them is no longer what `tell` calls, the step it stands for is not the code's.
@@ -143,4 +143,4 @@ When every step is backed, the trace is a real bug: report it with the trace, in
 
 Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` at `mainmoved.py:98` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` at `mainmoved.py:164` breaks S2 with every send answered (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
 On the fixed code, dropping `broken, waiting = tip, []` for `waiting = []` at `mainmoved.py:139` breaks S1 one tip at a time and over every order.
-Dropping `owed_at or` at `mainmoved.py:128` passes the walk, since the model's GitHub always lists the tips, and fails `test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_pending` in `tests/test_jbus_main_moved.py`, where the list is empty.
+Dropping `owed_at or` at `mainmoved.py:128` passes the walk, since the model's GitHub always lists the tips, and fails `test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_pending` in `features/jbus/tests/test_jbus_main_moved.py`, where the list is empty.

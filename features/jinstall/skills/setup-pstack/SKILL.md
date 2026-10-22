@@ -65,4 +65,5 @@ Tell the user, in at most eight lines:
 3. The doctor's last line, `doctor: ok` or `doctor: not ok, <n> hard`.
 4. When a `needs you` line was left: run each command, then type `/setup-pstack` again.
 
-Do not list the `done` and `already` lines one by one: the count says them. Where the user asks what a line means, `docs/troubleshooting.md` in the checkout has each one under "Setup".
+Do not list the `done` and `already` lines one by one: the count says them.
+Where the user asks what a line means, `features/jinstall/docs/troubleshooting/setup.md` in the checkout has each one.

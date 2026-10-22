@@ -367,7 +367,10 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
     tests = selected(copy)
-    assert "features/jdrift/tests/test_drift.py" in tests and "tests/test_jbus.py" not in tests
+    assert (
+        "features/jdrift/tests/test_drift.py" in tests
+        and "features/jbus/tests/test_jbus.py" not in tests
+    )
     assert asked.read_text().splitlines() == [
         *LINT,
         " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
@@ -408,7 +411,7 @@ def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_
     everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
     assert marked and others
     assert sorted(marked + others) == sorted(everything)
-    page = REPO / "tests" / "view" / "page"
+    page = REPO / "features" / "jbus" / "tests" / "view" / "page"
     assert {test.split("::")[0] for test in marked} == {
         path.relative_to(REPO).as_posix() for path in page.glob("test_*.py")
     }
@@ -494,7 +497,8 @@ def test_a_test_module_in_a_folder_that_opens_a_browser_through_a_module_it_impo
 
 
 def test_every_test_module_that_opens_a_browser_carries_the_marker():
-    opening, marked = browser_files(REPO / "tests")
-    page = {path.name for path in (REPO / "tests" / "view" / "page").glob("test_*.py")}
+    tests = REPO / "features" / "jbus" / "tests"
+    opening, marked = browser_files(tests)
+    page = {path.name for path in (tests / "view" / "page").glob("test_*.py")}
     assert page and page <= opening
     assert sorted(opening - marked) == []

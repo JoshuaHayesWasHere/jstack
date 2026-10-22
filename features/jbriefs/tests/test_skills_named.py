@@ -359,4 +359,4 @@ def test_no_module_reads_a_file_of_the_checkout_from_its_own_place_in_it():
         for path in source_modules()
         if re.search(r"parents\[[24]\]", path.read_text())
     }
-    assert found == {"src/jbus/view/__init__.py"}
+    assert found == {"features/jbus/src/jbus/view/__init__.py"}

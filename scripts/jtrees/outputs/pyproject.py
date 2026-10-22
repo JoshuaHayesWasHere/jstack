@@ -53,9 +53,11 @@ def _tests(tree: Tree) -> list[str]:
 
 def _source(tree: Tree) -> list[str]:
     """What the wheel carries for the install to assemble the layouts from: the catalog and
-    plugin.json, each top folder an item or a hook sits in, and the folders of `LINKED`."""
+    plugin.json, each top folder an item or a hook sits in, and the folders of `LINKED` that
+    hold a page."""
     paths = [item.path for item in tree.items] + [str(one["path"]) for one in catalog.hooks(tree)]
-    folders = {path.split("/", 1)[0] for path in paths} | set(LINKED)
+    linked = {one for one in LINKED if any(p.is_file() for p in (tree.root / one).rglob("*.md"))}
+    folders = {path.split("/", 1)[0] for path in paths} | linked
     return [catalog.PATH, "plugin.json", *sorted(folders)]
 
 

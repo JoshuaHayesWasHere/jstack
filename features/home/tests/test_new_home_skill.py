@@ -201,8 +201,8 @@ def test_a_name_the_config_has_for_another_checkout_is_the_users_to_settle(machi
 def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
     machine.config.unlink()
     assert machine.jbus() == [
-        "3 jbus project: needs you: set jbus up once for the machine, as docs/jbus.md "
-        '"Set up jbus" says, then type /new-home Winnie again'
+        "3 jbus project: needs you: set jbus up once for the machine, as "
+        'features/jbus/docs/jbus.md "Set up jbus" says, then type /new-home Winnie again'
     ]
     assert not machine.config.exists()
     bare = machine.bin.parent / "bare"

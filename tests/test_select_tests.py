@@ -21,7 +21,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
-OWNED = "src/ templates/ docs/ scripts/".split()
+OWNED = "scripts/".split()
 ALSO = (".claude/", ".cursor/", "install.sh")
 
 README = """\
@@ -129,7 +129,9 @@ class Repo:
                 ignore=shutil.ignore_patterns("__pycache__"),
             )
         features = features or {"README.md": README, "alpha.md": ALPHA, "beta.md": BETA}
+        cross = {select.CROSS: features.pop("README.md")} if "README.md" in features else {}
         write(root / select.MAP, features)
+        write(root, cross)
         write(root, FILES if files is None else files)
         git(root, "init", "-q", "-b", "main")
         self.base = self.commit()
@@ -328,7 +330,7 @@ def test_a_feature_with_a_page_in_both_places_selects_all(tmp_path):
 
 
 def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
-    head = repo.change([f"{select.MAP}/README.md"])
+    head = repo.change([select.CROSS])
 
     assert repo.selected(head) == ["tests/test_tree.py"]
 
@@ -544,6 +546,7 @@ def whole(tmp_path):
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
     shutil.copy2(REPO / "conftest.py", repo.put("conftest.py"))
+    shutil.copy2(REPO / select.CROSS, repo.put(select.CROSS))
     for page in REPO.glob(f"features/*/{select.PAGE}"):
         shutil.copy2(page, repo.put(page.relative_to(REPO).as_posix()))
     tests = [*(REPO / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]
@@ -558,11 +561,11 @@ def whole(tmp_path):
 def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
     repo = whole(tmp_path)
 
-    head = repo.change(["src/jbus/view/page.html"])
+    head = repo.change(["features/jbus/src/jbus/view/page.html"])
 
     selected = repo.selected(head)
-    assert "tests/view/test_view_server.py" in selected
-    assert not [one for one in selected if one.startswith("tests/view/page/")]
+    assert "features/jbus/tests/view/test_view_server.py" in selected
+    assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
     assert set(select.cross_cutting()) <= set(selected)
     assert "features/jdrift/tests/test_drift.py" not in selected
 
@@ -571,11 +574,11 @@ def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its
 def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel, tmp_path):
     repo = whole(tmp_path)
 
-    head = repo.change([f"src/jbus/view/panels/{panel}/panel.py"])
+    head = repo.change([f"features/jbus/src/jbus/view/panels/{panel}/panel.py"])
 
     selected = repo.selected(head)
-    assert f"tests/view/test_view_{panel}.py" in selected
-    assert not [one for one in selected if one.startswith("tests/view/page/")]
+    assert f"features/jbus/tests/view/test_view_{panel}.py" in selected
+    assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
 
 
 SUMMARY = re.compile(

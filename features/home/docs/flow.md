@@ -31,7 +31,7 @@ Three things come to you. Everything else that is reversible is done without ask
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
 - **A held pull request.**
   `jmerge` printed `hold`.
-  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../../docs/configuration.md#jstack).
+  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../jinstall/docs/configuration.md#jstack).
   Add `--check` to see what it would do.
   It is refused without the review's proven safety fact.
   [jmerge](../../jmerge/docs/jmerge.md) has the rest.

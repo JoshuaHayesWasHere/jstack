@@ -15,10 +15,10 @@ from testing.layouts import assembled
 from testing.paths import REPO
 
 THREAD = "mcp:thread-one"
-SCANNED = ["src", "features", ".cursor", "install.sh"]
+SCANNED = ["features", ".cursor", "install.sh"]
 NAMED = r"[^\s|;&<>()]*home-thread"
 WRITES = [
-    re.compile(rf">>?\s*{NAMED}"),
+    re.compile(rf"(?<!\w)>>?\s*{NAMED}"),
     re.compile(rf"\btee\b[^|;&]*{NAMED}"),
     re.compile(r"home-thread[^\n]*\.write_(text|bytes)\("),
     re.compile(r"""home-thread[^\n]*\bopen\(\s*["'][wax]"""),

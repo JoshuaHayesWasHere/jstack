@@ -112,14 +112,14 @@ def test_a_link_to_a_file_the_layout_leaves_out_points_at_github(copy):
     skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(
         skill.read_text()
-        + "\nSee [the state](../home/docs/state.md#homes), [jbus](../../src/jbus/) and"
+        + "\nSee [the state](../home/docs/state.md#homes), [jbus](../jbus/src/jbus/) and"
         " [ketchup](../ketchup/SKILL.md), but not `[code](../../nowhere.md)`.\n"
     )
     entry = layout.assemble(copy, CLAUDE_CODE).entries["skills/bro/SKILL.md"]
     assert isinstance(entry, layout.Written)
     text = entry.content.decode()
     assert f"[the state]({GITHUB}/blob/main/features/home/docs/state.md#homes)" in text
-    assert f"[jbus]({GITHUB}/tree/main/src/jbus)" in text
+    assert f"[jbus]({GITHUB}/tree/main/features/jbus/src/jbus)" in text
     assert "[ketchup](../ketchup/SKILL.md)" in text
     assert "`[code](../../nowhere.md)`" in text
 

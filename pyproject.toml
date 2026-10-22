@@ -40,7 +40,7 @@ exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/fe
 # generated: packages by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 packages = [
     "features/jbriefs/src/jbriefs",
-    "src/jbus",
+    "features/jbus/src/jbus",
     "features/jdrift/src/jdrift",
     "features/jgauge/src/jgauge",
     "features/jinstall/src/jinstall",
@@ -60,9 +60,7 @@ packages = [
 # generated: source by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 "skills.json" = "share/jstack/skills.json"
 "plugin.json" = "share/jstack/plugin.json"
-"docs" = "share/jstack/docs"
 "features" = "share/jstack/features"
-"templates" = "share/jstack/templates"
 # end generated
 
 # The repo's test command is `uv run pytest`, which runs the tests one after another.
@@ -79,6 +77,7 @@ testpaths = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",
     "features/jinstall/tests",
@@ -104,6 +103,7 @@ testpaths = [
 ]
 pythonpath = [
     "features/jbriefs/src",
+    "features/jbus/src",
     "features/jdrift/src",
     "features/jgauge/src",
     "features/jinstall/src",
@@ -112,7 +112,6 @@ pythonpath = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "src",
     "tests",
     "features/architect/tests",
     "features/automate-me/tests",
@@ -122,6 +121,7 @@ pythonpath = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",
     "features/jinstall/tests",
@@ -173,6 +173,7 @@ line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 src = [
     "features/jbriefs/src",
+    "features/jbus/src",
     "features/jdrift/src",
     "features/jgauge/src",
     "features/jinstall/src",
@@ -181,7 +182,6 @@ src = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "src",
     "tests",
     "features/architect/tests",
     "features/automate-me/tests",
@@ -191,6 +191,7 @@ src = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",
     "features/jinstall/tests",

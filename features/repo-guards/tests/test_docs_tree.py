@@ -79,7 +79,7 @@ def test_a_copy_with_a_broken_link_an_unknown_skill_and_a_wrong_count_fails_each
 def test_a_broken_anchor_in_the_tree_fails_with_its_line(copy):
     page = copy / "features" / "home" / "docs" / "state.md"
     lines = page.read_text().count("\n")
-    link = "../../../docs/jbus.md#no-such-heading"
+    link = "../../jbus/docs/jbus.md#no-such-heading"
     page.write_text(page.read_text() + f"See [the jbus page]({link}).\n")
     assert ran(copy) == [
         f"FAIL features/home/docs/state.md:{lines + 1} the link {link} goes to a heading "

@@ -2,8 +2,8 @@
 
 A crewmate asks who merges before any line about its pull request, by the test the home
 skill's "Who merges" makes. A gate is piped to `jbus gate` and not sent to the home, and
-`tests/test_gates.py` has the home read it back from jbus. Every block here is lifted from
-its skill and run, the gate's against the real `jbus` in a temporary state directory."""
+`features/jbus/tests/test_gates.py` has the home read it back from jbus. Every block here is lifted
+from its skill and run, the gate's against the real `jbus` in a temporary state directory."""
 
 import json
 import os

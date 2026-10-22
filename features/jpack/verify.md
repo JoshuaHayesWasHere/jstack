@@ -4,7 +4,7 @@ A repo's context pack under `docs/context/` is linted, its citations are verifie
 
 Paths:
 - `features/jpack/src/jpack/`
-- `src/jbus/packs.py`
+- `features/jbus/src/jbus/packs.py`
 - `features/jpack/templates/context/`
 - `features/jpack/docs/`
 - `features/home/skills/home/`

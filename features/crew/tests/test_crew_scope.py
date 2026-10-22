@@ -23,7 +23,7 @@ def test_the_files_outside_the_where_are_asked_of_jmerge_before_the_pull_request
         **os.environ,
         "HOME": str(user),
         "PATH": f"{pr.stub}:{room.BIN}:{os.environ['PATH']}",
-        "T": str(REPO / "templates"),
+        "T": str(REPO / "features" / "crew" / "templates"),
     }
 
     def asked():

@@ -193,7 +193,7 @@ def test_a_release_with_jbus_set_up_links_its_units_into_its_source(released, tm
     put = released.run(home, "jinstall", **env)
     assert put.stdout.splitlines()[-1] == f"ok optional units {home / '.config/systemd/user'}"
     unit = home / ".config" / "systemd" / "user" / "jbus.timer"
-    assert os.readlink(unit) == str(released.source / "templates" / "jbus.timer")
+    assert os.readlink(unit) == str(released.source / "features" / "jbus" / "units" / "jbus.timer")
 
 
 def test_a_release_whose_version_is_not_its_plugins_is_told_so_and_not_put_over(released, tmp_path):
@@ -331,7 +331,7 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     parts = [*release_parts(home, source), units]
     assert checked.stdout.splitlines() == lines_of("ok", parts, home)
     assert os.readlink(home / ".config/systemd/user/jbus.timer") == str(
-        source / "templates/jbus.timer"
+        source / "features/jbus/units/jbus.timer"
     )
     for harness in HARNESSES:
         for link in (home / harness.root).iterdir():

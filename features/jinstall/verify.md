@@ -6,7 +6,7 @@ Paths:
 - `/install.sh`
 - `/skills.json`
 - `features/jinstall/src/jinstall/`
-- `src/jbus/*.py`
+- `features/jbus/src/jbus/*.py`
 - `features/jbriefs/src/jbriefs/`
 - `features/jgauge/src/jgauge/`
 - `features/jmerge/src/jmerge/`
@@ -16,14 +16,14 @@ Paths:
 - `features/jroles/src/jroles/`
 - `features/jsettings/`
 - `hooks/`
-- `templates/jbus.service`
-- `templates/jbus.timer`
-- `templates/jbus-failed.service`
-- `templates/jbus-relay.service`
-- `templates/jbus-snapshot.service`
-- `templates/jbus-snapshot.timer`
-- `templates/jbus-snapshot-failed.service`
-- `templates/jbus-view.service`
+- `features/jbus/units/jbus.service`
+- `features/jbus/units/jbus.timer`
+- `features/jbus/units/jbus-failed.service`
+- `features/jbus/units/jbus-relay.service`
+- `features/jbus/units/jbus-snapshot.service`
+- `features/jbus/units/jbus-snapshot.timer`
+- `features/jbus/units/jbus-snapshot-failed.service`
+- `features/jbus/units/jbus-view.service`
 Tests: none
 
 ## Sub-features
@@ -63,7 +63,9 @@ Preconditions:
 - **See the templates beside the skills.** Run `record install-skills realpath "$HOME/.claude/skills/crew/../../templates"`. It prints `<HOME>/.local/share/jstack/harness/claude-code/templates`.
 - **See the hooks.** Run `record install-skills jq -r '.hooks[][].hooks[].command, (.statusLine.command // empty)' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json"`. Each command of `settings.json` runs a script under `<HOME>/.local/share/jstack/harness/claude-code/hooks/`, and the one of `hooks.json` under `.../codex/hooks/`.
 - **See the commands.** Run `record install-skills ls "$HOME/.local/bin" "$UV_TOOL_DIR"`. The six commands, and the one tool `jstack`.
-- **See the units.** Run `record install-skills readlink "$HOME/.config/systemd/user/jbus.timer"`, then `record install-skills cat "$VERIFY_JSTACK_SANDBOX/systemctl.log"`. The link points at `<this checkout>/templates/jbus.timer`, and the log has `--user daemon-reload` and `--user enable --now jbus.timer`.
+- **See the units.**
+  Run `record install-skills readlink "$HOME/.config/systemd/user/jbus.timer"`, then `record install-skills cat "$VERIFY_JSTACK_SANDBOX/systemctl.log"`.
+  The link points at `<this checkout>/features/jbus/units/jbus.timer`, and the log has `--user daemon-reload` and `--user enable --now jbus.timer`.
 - **Check again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
 - **Stand in for a tool built before a move.** Run `sed -i '\|/features/jsettings/src$|d' "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. The line for the commands is `old hard commands jstack -> stale: its editable paths lack <this checkout>/features/jsettings/src`, and it exits 1.
 - **Install it again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.

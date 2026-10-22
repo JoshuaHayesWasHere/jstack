@@ -23,6 +23,7 @@ INFRA_ROOT = (
     ".gitignore",
     "LICENSE",
     "SECURITY.md",
+    "THIRD_PARTY.md",
     "Makefile",
     "pyproject.toml",
     "conftest.py",

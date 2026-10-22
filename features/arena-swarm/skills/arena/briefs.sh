@@ -87,7 +87,7 @@ $(home)
 EOF
 }
 # The head of a brief, and the head as jbus reads it for a brief's sha (`body` in
-# src/jbus/queue.py): with no `Home:`, `Thread:` or `Green main:` line, which a home and a
+# features/jbus/src/jbus/queue.py): with no `Home:`, `Thread:` or `Green main:` line, which a home and a
 # launch write in.
 headof() { awk '/^## / {exit} {print}' "${1}"; }
 bare() { grep -v '^Home:\|^Thread:\|^Green main:'; }

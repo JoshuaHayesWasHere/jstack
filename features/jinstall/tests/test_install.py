@@ -706,7 +706,9 @@ def test_with_a_manager_that_reads_another_home_only_the_links_are_made_and_remo
     log = user.systemctl_log
     user.script("systemctl", f'#!/bin/sh\necho "$*" >> "{log}"\necho HOME=/another/home\n')
     assert user.run() == (0, user.every("ok", units))
-    assert os.readlink(user.units / "jbus.timer") == str(REPO / "templates" / "jbus.timer")
+    assert os.readlink(user.units / "jbus.timer") == str(
+        REPO / "features" / "jbus" / "units" / "jbus.timer"
+    )
     assert user.run("--uninstall")[0] == 0
     assert user.listing() == []
     assert set(user.said(log)) == {"--user show-environment"}
@@ -1070,7 +1072,7 @@ def checkout_under(user):
     checkout.mkdir(parents=True)
     for name in ("install.sh", "pyproject.toml", "skills.json", "plugin.json"):
         shutil.copy(REPO / name, checkout / name)
-    for name in ("src", "features", "templates"):
+    for name in ("features",):
         shutil.copytree(REPO / name, checkout / name, ignore=shutil.ignore_patterns("__pycache__"))
     subprocess.run(["git", "init", "-q", checkout], check=True)
     return checkout, f"hard hook {checkout / '.git' / 'hooks' / 'pre-push'} pre-push"

@@ -135,7 +135,7 @@ def test_callers_and_dependencies_go_both_ways_and_skip_the_rest():
         "tests/conftest.py": "",
         "skills/crew/SKILL.md": "python -c 'from jmerge import cli, ready'\n",
         "docs/jmerge.md": "the rules are in src/jmerge/ready.py\n",
-        "src/jbus/merge.py": "import re\n",
+        "features/jbus/src/jbus/merge.py": "import re\n",
         "README.md": "Makefile and re\n",
         "tests/test_other.py": "import jbus.merge\n",
     }

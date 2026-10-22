@@ -235,9 +235,9 @@ def test_with_no_home_the_third_table_says_so(tmp_path):
 
 
 def weekly(home):
-    """The home skill's weekly block, with `$H` the home and `$T` this repo's templates."""
+    """The home skill's weekly block, with `$H` the home and `$T` the home feature's templates."""
     (found,) = [text for text in FENCED.findall(as_read(SKILL)) if "hot_files.py" in text]
-    return f'H="{home}"\nT="{REPO / "templates"}"\n' + textwrap.dedent(found)
+    return f'H="{home}"\nT="{REPO / "features" / "home" / "templates"}"\n' + textwrap.dedent(found)
 
 
 def test_the_status_runs_it_once_a_week(tmp_path):
