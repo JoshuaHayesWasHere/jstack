@@ -10,7 +10,8 @@ It also keeps AI co-author trailers out of your commits and pull requests ("AI t
   The install makes `${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml` once, with your home path in it, and your name, your machine's name and your private repos as examples behind a `#`.
   Take the `#` off each line you need, and put in your own names.
 - **With no patterns file, the hooks refuse.**
-  While the file is missing, the `pre-push` hook refuses every push, and the Claude Code hook refuses every shell command that names `push` or `gh pr`.
+  While the file is missing, the `pre-push` hook refuses every push.
+  The Claude Code hook then refuses every `gh pr create`, `gh pr edit`, `gh pr comment` and `gh pr review`, and every `git push` that skips the `pre-push` hook.
   `jleak` run by hand checks only the built-in patterns, and says so on stderr.
 - **Know which repos get the git hooks.**
   The install links `pre-push` and `commit-msg` into jstack's own checkout when it runs from one, into the checkout of each project of `jbus`'s config, and into each repo you set up with `jinstall --repo`.

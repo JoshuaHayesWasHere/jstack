@@ -13,6 +13,7 @@ jstack asks it before each launch, and runs each test command under one of its m
   It never refreshes, writes or prints a token.
   The install (`jinstall`) enables `jgauge-limits.timer`, which runs it every 2 minutes.
   To stop the calls, run `systemctl --user disable --now jgauge-limits.timer`: the ledger is then written only by the status line and by `jbus` at a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
+  The install keeps the timer on, so the next `jinstall` run enables it again, and `jinstall --check` reports it as not enabled until then.
 
 ## See what a thread cost
 
