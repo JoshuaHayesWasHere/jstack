@@ -1,6 +1,6 @@
 ---
 name: maintain-verification-skill
-description: "Keep a repo's verify skill, `.claude/skills/verify-<app>/`, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
+description: "Keep a repo's verify skill, `.claude/skills/verify-<app>/` or a `verify-<app>` project skill, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
 tip: sends a scout per feature of the verify skill, then one crewmate drives them all and fixes the map | audit the verify skill | maintain the verify skill | is the feature map still right | verify skill drift
 disable-model-invocation: true
 card: "Distrust the change | 7 | Keeps the repo's verify skill honest: one scout per feature file reads the feature from source and reports the drift, then one crewmate drives every feature live and ships at most one pull request of proven corrections. | Reach for it, in the home, when the app has changed since the verify skill was written or last checked. | op: the operator; model: a home"
@@ -12,6 +12,7 @@ Source: pstack, `pstack/skills/maintain-verification-skill/SKILL.md`
 
 A feature map rots the moment the app changes.
 This skill is the upkeep loop for a verify skill that `/create-verification-skill` wrote, or any project skill in `.claude/skills/verify-*/` with a `features/` map.
+A repo that keeps its own skills in its features, as jstack does, names such a skill in `skills.json`, under `projectSkills`: its `path` is the skill's folder, which every worktree has.
 The unit of rigor is the feature, not every sentence: every feature file is read from source, and every feature is driven live.
 
 ## Where it runs
@@ -26,7 +27,7 @@ In each block below, set `app=` to the `<app>` typed, or leave it empty, and `sc
 ## 1. Send the scouts
 
 Run this:
-It finds the verify skill on the default branch, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<commit>-<feature>.md`, where `<commit>` is the default branch's commit the audit reads:
+It finds the verify skill on the default branch, a tracked `.claude/skills/verify-<app>/` or a `verify-<app>` item of `skills.json`'s `projectSkills`, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<commit>-<feature>.md`, where `<commit>` is the default branch's commit the audit reads:
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
@@ -35,16 +36,18 @@ app=''
 scope=''
 git fetch -q origin 2> /dev/null
 base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo HEAD)
-dirs=$(git ls-tree -d --name-only "$base" .claude/skills/ 2> /dev/null | grep '^\.claude/skills/verify-' || true)
-if [ -n "$app" ]; then dirs=$(printf '%s\n' "$dirs" | grep -x ".claude/skills/verify-$app" || true); fi
-if [ -z "$dirs" ]; then
-    echo "no verify skill: $base has no .claude/skills/verify-${app:-*}/: brief a crewmate to run /create-verification-skill instead"
-elif [ "$(printf '%s\n' "$dirs" | wc -l)" -gt 1 ]; then
+tracked=$(git ls-tree -d --name-only "$base" .claude/skills/ 2> /dev/null | sed -n 's|^\.claude/skills/verify-\([^/]*\)$|\1 &|p')
+declared=$(git show "$base:skills.json" 2> /dev/null | jq -r '.projectSkills[]? | select(.name | startswith("verify-")) | "\(.name | ltrimstr("verify-")) \(.path)"' 2> /dev/null || true)
+found=$(printf '%s\n%s\n' "$tracked" "$declared" | sed '/^$/d' | sort -u -k 1,1)
+if [ -n "$app" ]; then found=$(printf '%s\n' "$found" | grep "^$app " || true); fi
+if [ -z "$found" ]; then
+    echo "no verify skill: $base has no .claude/skills/verify-${app:-*}/ and its skills.json names no verify-${app:-*} project skill: brief a crewmate to run /create-verification-skill instead"
+elif [ "$(printf '%s\n' "$found" | wc -l)" -gt 1 ]; then
     echo "which one: type /maintain-verification-skill <app> with one of these:"
-    printf '%s\n' "$dirs" | sed 's|^\.claude/skills/verify-|  |'
+    printf '%s\n' "$found" | sed 's|^\([^ ]*\) |  \1: |'
 else
-    dir=$dirs
-    app=${dir#.claude/skills/verify-}
+    app=${found%% *}
+    dir=${found#* }
     run="maintain-$app-$(git rev-parse --short=7 "$base")"
     features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | grep -vx README || true)
     if [ -z "$features" ]; then

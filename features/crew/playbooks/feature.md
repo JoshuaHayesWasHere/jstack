@@ -10,7 +10,7 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-Verify skill: `.claude/skills/verify-*/`.
+Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json`'s `projectSkills` (jstack: `features/verify-jstack/project-skill/`).
 
 **You own the design and the code.** The brief's "Done when" list is the target and its **Decisions** are settled: build to them. If you think a decision is wrong, say so in this thread with your reason and carry on with what does not depend on it.
 
