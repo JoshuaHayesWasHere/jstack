@@ -63,7 +63,7 @@ Each view has its own address, a hash, so it opens cold from a pasted link, and 
 | `#/<project>` | One project's page. |
 | `#/<project>/task/<slug>` | That page with the drawer of one task open. |
 | `#/help` | The glossary over the page, every term of it. |
-| `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/infra/gate/3`, `#/infra/you/gate` or `#/infra/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
+| `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/demo/gate/3`, `#/demo/you/gate` or `#/demo/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
 
 `&theme=light` or `&theme=dark` after any of them sets the theme. An old link, `?project=<project>` or `#/<project>&open=<drawer>`, is rewritten to its address.
 
