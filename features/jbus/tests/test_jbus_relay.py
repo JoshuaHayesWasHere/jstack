@@ -925,7 +925,8 @@ def test_the_env_file_is_read_as_systemd_reads_it(tmp_path):
 
     path = tmp_path / "env"
     path.write_text(
-        "# a comment\nexport RELAY_PORT=4391\nRELAY_STATE='/a b'\nRELAY_SILENT_MINUTES=\nno-equals\n"
+        "# a comment\nexport RELAY_PORT=4391\nRELAY_STATE='/a b'\n"
+        "RELAY_SILENT_MINUTES=\nno-equals\n"
     )
     assert relaying.env_file(path) == {"RELAY_STATE": "/a b", "RELAY_SILENT_MINUTES": ""}
     assert relaying.env_file(tmp_path / "none") == {}
