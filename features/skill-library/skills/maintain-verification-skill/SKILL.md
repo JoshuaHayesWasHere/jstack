@@ -51,7 +51,7 @@ else
     run="maintain-$app-$(git rev-parse --short=7 "$base")"
     features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | grep -vx README || true)
     if [ -z "$features" ]; then
-        echo "no feature map: $dir/features/ on $base has no feature file: brief a crewmate to seed it, as section 3 of /create-verification-skill says"
+        echo "no feature map: $dir/features/ on $base has no feature file: where $dir/SKILL.md keeps its map elsewhere, this audit cannot read it, so stop; otherwise brief a crewmate to seed it, as section 3 of /create-verification-skill says"
     else
         mkdir -p "$H/scouts"
         echo "$dir" > "$H/scouts/$run.dir"
