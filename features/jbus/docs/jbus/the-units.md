@@ -22,5 +22,6 @@ Each unit runs `~/.local/bin/jbus`.
 An optional unit is turned off again by the next install once the config that asked for it is gone.
 `jinstall --check` and `jinstall --doctor` print one `units` line, and [The jbus units](../troubleshooting/the-jbus-units.md) says what each form of it means.
 
-Each unit's `Documentation=` names its page of these docs, by where its file is (`%Y`), so `systemctl --user show -p Documentation <unit>` leads here.
+Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`, by where its file is (`%Y`).
+`systemctl --user show -p Documentation <unit>` prints that page.
 A unit copied in place of the link loses that, and `jinstall --check` reports the copy as old.

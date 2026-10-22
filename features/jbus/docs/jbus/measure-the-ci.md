@@ -16,8 +16,11 @@ A job gives these as it runs, the one way: `jbus ci --notice full=true workers=4
 ### The nine targets
 
 Each is counted over the period, from job-level rows only: a job counts once and a run never does.
-A target is held to the figure of the self-hosted runners, `local`, and the GitHub-hosted runners' figure is shown beside it where there is one.
-A repo that runs on GitHub-hosted runners alone shows the hosted figure, and `no data` for the target itself.
+Four targets count the jobs of self-hosted runners alone, `local`: queue, wasted-minute share, own-cause reds and time-to-green.
+Queue, wasted-minute share and time-to-green show the GitHub-hosted runners' figure beside theirs.
+On a repo that runs on GitHub-hosted runners alone, these four targets read `no data`.
+The other five count every pull request, push to main or job, whatever runner it ran on.
+Flaky tests reads a red job's failing tests from the log of a self-hosted job only, so on a hosted-only repo it counts 0.
 
 | Target | Held to | Counted as |
 | --- | --- | --- |
