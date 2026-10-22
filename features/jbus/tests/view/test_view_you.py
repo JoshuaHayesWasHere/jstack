@@ -122,8 +122,9 @@ def test_the_roles_are_in_state_json_and_stack_json_and_an_added_role_with_them(
 def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_needs_you(
     tmp_path, monkeypatch
 ):
-    """Eleven questions that go ahead on their default, a link's conflict whose question goes to
-    its home, a gate of a home's file with a default, and an approval. The page's count is one.
+    """The scene has eleven questions that go ahead on their default, and a link's conflict,
+    whose question goes to its home. It also has a gate of a home's file with a default, and an
+    approval. The page's count is one.
     Each countdown is the 2 hours of silence after which jbus closes the question."""
     scene = Scene(tmp_path, monkeypatch)
     asked = [ago(minutes=10 * at) for at in range(11)]

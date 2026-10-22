@@ -277,8 +277,8 @@ class Code:
     has loaded from under `root`, which is its checkout, and each file in `beside`, which is
     the directory of this package. It leaves out the page. A file that is gone counts as
     newer. `panels` is the names of the panels the server loaded. The folders of `beside`'s
-    `panels/` that are panels now may differ from those names. Then the directory of the
-    panels counts as newer. That happens, for one, once someone writes the second file of a
+    `panels/` that are panels now may differ from those names. When they differ, the directory
+    of the panels counts as newer. That happens, for one, once someone writes the second file of a
     new folder. It does not look at the `panel.py` of a folder that is not a panel yet.
     """
 

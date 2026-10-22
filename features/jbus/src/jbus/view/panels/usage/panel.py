@@ -189,9 +189,9 @@ def started(path: Path) -> datetime | None:
 
 
 def _homes(read: Read) -> list[dict[str, Any]]:
-    """Each home that the last pass listed, with the session of the main checkout that started
-    nearest the home's thread, from a minute before the thread to `JOINED` after it. A session
-    belongs to one home only."""
+    """Each home that the last pass listed, with one session of the main checkout. That session
+    started between a minute before the home's thread and `JOINED` after it, and of those it is
+    the one that started nearest the thread. A session belongs to one home only."""
     homes = sorted(
         (one for one in read.out or [] if one["role"] == "home"),
         key=lambda one: one["created"] or "",

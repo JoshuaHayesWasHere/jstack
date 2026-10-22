@@ -261,8 +261,8 @@ ROLE_WORDS = (
 
 def test_the_drawers_name_the_kinds_and_roles_as_state_json_gives_them(scene, tmp_path):
     """The drawer of what waits on you heads each kind with its label, in the page's order.
-    The threads drawer counts each role in its words. Help says what each role is, on a
-    project and on the page of every project."""
+    The threads drawer shows a count for each role, in the drawer's own words. Help says what
+    each role is, on a project and on the page of every project."""
     said_by_him(scene)
     you, threads, help_ = walked(
         scene, tmp_path, "#/demo/you", ["look", "hash:#/demo/threads/scout", "hash:#/demo/help"]

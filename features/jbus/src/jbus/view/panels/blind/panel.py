@@ -19,9 +19,9 @@ SHAPE = {"blind": [{"line": None, "open": None}]}
 
 
 def _unread(read: Read) -> list[dict[str, str]]:
-    """Each source that could not be read, except a source that a session writes, since having no
-    session is no fault. Each line opens the one panel that names its source, where that panel is
-    not on the first screen."""
+    """Each source that the view could not read, except a source that a session writes, since
+    having no session is no fault. Each line opens the one panel that names its source, where
+    that panel is not on the first screen."""
     names: dict[str, list[str]] = {}
     for panel in read.panels:
         for source in panel.sources:
