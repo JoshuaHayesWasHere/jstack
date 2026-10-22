@@ -177,7 +177,9 @@ def test_a_gate_josh_has_to_decide_gives_exactly_one_decision_event(demo):
     (event,) = posted(demo)
     assert event["event"] == "decision"
     assert event["slug"] == "alpha"
-    assert event["say"].startswith("demo: decision alpha: question 1: remove the three stale")
+    assert event["say"].startswith(
+        "demo: decision alpha: question 1: remove the three stale branches, it holds (deletes data)"
+    )
     assert 'Reply: "demo question 1: default"' in event["say"]
     assert "decision question 1" in cleared.stdout
     assert "cleared question 1" not in cleared.stdout

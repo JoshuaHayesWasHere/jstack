@@ -204,7 +204,8 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     for one in listed:
         why = needs(one, context.get(one["key"], ""))
         if why:
-            said = f"{one['line'].rstrip('.')}, {why}"
+            asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
+            said = f"{(asked or one['line']).rstrip('.?')}, {why}"
             decide(run.box, one.get("slug") or "", one["key"], said, _reply(run.project, one))
 
 
