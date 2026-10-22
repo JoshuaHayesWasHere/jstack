@@ -1,18 +1,18 @@
 """`jbus snapshot`: commit the homes' state tree and push it, so every home's state is kept.
 
-The tree is the config's `home_dir`, `~/.local/state/home`, a git repo. A snapshot stages
-everything (`git add -A`). With something staged, gitleaks reads it, and one secret in it
-unstages it all and commits nothing; otherwise it commits `snapshot <YYYY-MM-DD HH:MM ET>`,
-in the user's zone, followed by `: <why>` when `--why` says what changed. Then it pushes to
-`origin`, whether or not it committed, so a push that failed is made again by the next run.
-A tree with no `origin` keeps its commit and fails: a snapshot kept on this machine alone is
-no backup.
+The tree is the config's `home_dir`, `~/.local/state/home`, which is a git repo. A snapshot stages
+everything (`git add -A`). When something is staged, gitleaks reads it. If gitleaks finds one
+secret, the snapshot unstages everything and commits nothing. Otherwise it commits
+`snapshot <YYYY-MM-DD HH:MM ET>`, in the user's zone, followed by `: <why>` when `--why` says what
+changed. Then it pushes to `origin`, whether or not it committed, so the next run retries a push
+that failed. When the tree has no `origin`, the snapshot keeps its commit and fails: a snapshot kept
+on this machine alone is no backup.
 
-`jbus-snapshot.timer` runs it at 08:30 and 17:30, and a home runs it with `--why` right after
-each edit to a `standing.md`, so that edit is a commit of its own and can be undone. A
-snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
-`jbus snapshot --alarm`: the first failure alerts the desk and every project, once, and the
-next snapshot that goes says it recovered (`alert.sound`, `alert.recover`).
+`jbus-snapshot.timer` runs it at 08:30 and 17:30. A home runs it with `--why` right after
+each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
+A snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
+`jbus snapshot --alarm`. The first failure alerts the desk and every project, once, and the
+next snapshot that succeeds says it recovered (`alert.sound`, `alert.recover`).
 """
 
 from __future__ import annotations
@@ -40,7 +40,8 @@ ALARM = (
 
 
 class Failed(Exception):
-    """A snapshot that committed nothing it should have, or did not push what it committed."""
+    """A snapshot failed: it did not commit what it should have, or did not push what it
+    committed."""
 
 
 def _git(tree: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -54,11 +55,13 @@ def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:
 
 
 def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = None) -> str:
-    """Snapshot the tree, and say what was done in one line. `Failed` when it could not.
+    """Snapshot the tree, and return one line that says what was done. Raise `Failed` when
+    the snapshot could not be taken.
 
-    A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push, so the
-    homes' runs and the timer's wait for each other and never share an index. A run that waits
-    `WAIT` seconds fails, so a push that hangs holds up no edit's snapshot unseen."""
+    A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push. So the
+    runs of the homes and the timer wait for each other and never share an index. A run that
+    has waited `WAIT` seconds for the lock fails, so a push that hangs cannot hold up an
+    edit's snapshot without anyone seeing it."""
     found = _git(tree, "rev-parse", "--absolute-git-dir")
     if found.returncode:
         raise Failed(f"{tree} is not a git repo")
@@ -119,8 +122,9 @@ def snapshot(
     say: Callable[[str], None] = print,
     why: str | None = None,
 ) -> int:
-    """Take a snapshot of `config.home_dir`. One that went ends a streak of failed ones, and
-    exits 0 even where a project could not be told so: the snapshot is what the unit runs."""
+    """Take a snapshot of `config.home_dir`. A snapshot that succeeds ends a streak of failed
+    ones. It exits 0 even when jbus could not tell a project of the recovery, because the
+    snapshot is the job the unit runs."""
     now = now or datetime.now(UTC)
     try:
         say(take(config.home_dir, now, config.user, why))
@@ -134,7 +138,7 @@ def snapshot(
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a snapshot that did not finish. The first in a row alerts, once."""
+    """Count a snapshot that did not finish. The first failure in a row alerts, once."""
     now = now or datetime.now(UTC)
     say("snapshot failed")
     return alert.sound(config, alert.SNAPSHOT, ALARM, AFTER, now, say)

@@ -1,6 +1,7 @@
-"""The state each row of the queue is in, judged once in a pass's second half (`judged`),
-and the steps that read it: the table's derived columns (`derive`), the home told of each
-open pull request on no step (`unplaced`), and `work.json` (`keep_work`).
+"""This module judges the state of each row of the queue once, in the second half of a pass
+(`judged`). The steps after it read that state: they rewrite the table's derived columns (`derive`),
+tell the home of each open pull request that is on no step (`unplaced`), and write `work.json`
+(`keep_work`).
 """
 
 from __future__ import annotations
@@ -16,13 +17,13 @@ if TYPE_CHECKING:
 
 
 def judged(half: Half) -> None:
-    """The state of each row of the queue, judged once (`work.judge`). A row waits on
-    another until that one is merged or ended `done`, by the rule `dispatch` launches by
-    (`watch.final`).
+    """Judge the state of each row of the queue, once (`work.judge`). A row waits on another until
+    that one is merged or ended `done`, which is the rule `dispatch` launches by (`watch.final`).
 
-    With GitHub silent and T3 Code answering, the steps that list the threads out did not
-    run, since they act on a world: the threads out are listed here as that step lists them,
-    and `stall.hung` reads them, so a thread's liveness is still judged and a hang told.
+    When GitHub is silent and T3 Code answers, the steps that list the threads out did not run,
+    since they act on a world. This function lists the threads out the way that step does, and
+    `stall.hung` reads them, so the pass still judges whether each thread is alive and tells of a
+    hang.
     """
     run, world, rows, client = half.run, half.seen.world, half.rows, half.client
     if rows is None:
@@ -61,8 +62,8 @@ def derive(half: Half) -> None:
 
 
 def unplaced(half: Half) -> None:
-    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`),
-    by what `jmerge` said of it in this pass."""
+    """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`), going
+    by what `jmerge` said of that pull request in this pass."""
     run, world, states = half.run, half.seen.world, half.states
     for row in half.table or []:
         slug = row["slug"]
@@ -76,9 +77,9 @@ def unplaced(half: Half) -> None:
 
 
 def keep_work(half: Half) -> None:
-    """Write `work.json`: the state of every row, and of every thread out that is no row's,
-    each with who holds it (`work.holder`). With no list of the threads out, the threads are
-    the last pass's, not confirmed."""
+    """Write `work.json`, which holds the state of every row and of every thread out that is no
+    row's, each with who holds it (`work.holder`). When the pass has no list of the threads out, the
+    file keeps the last pass's threads, and this pass has not confirmed them."""
     run, rows, states = half.run, half.table or [], half.states
     held = leftover.read(run.state)
     listed = []

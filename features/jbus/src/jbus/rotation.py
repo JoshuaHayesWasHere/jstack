@@ -1,9 +1,10 @@
-"""Whose turn is first: the project the free slots start at, kept from one pass to the next.
+"""jbus keeps whose turn is first, the project the free slots start at, from one pass to the
+next.
 
-Each pass is a new process, so the place is a file, `rotation.json` in the state directory:
-`{"next": "<project name>"}`. It is written only by a pass that launched something, and
-names the project after the last one that launched. A file that is missing or does not
-read, or that names a project the config no longer has, starts at the config's first.
+Each pass is a new process, so jbus keeps the place in a file, `rotation.json` in the state
+directory: `{"next": "<project name>"}`. Only a pass that launched something writes it, and
+it names the project after the last one that launched. If the file is missing or does not
+read, or names a project the config no longer has, the turns start at the config's first.
 """
 
 from __future__ import annotations
@@ -35,10 +36,11 @@ def keep(config: Config, last: str) -> None:
 
 
 def share(config: Config, halves: list[Half], say: Callable[[str], None]) -> None:
-    """Launch across the projects: one count of the crews out, and the free slots in turns.
+    """Launch across the projects, with one count of the crews out and the free slots given
+    in turns.
 
-    The turns start at the project the rotation file names. With the crews out of any
-    project not known, the count is not known, and nothing is launched anywhere.
+    The turns start at the project the rotation file names. If the crews out of any project
+    are not known, the count is not known, and `share` launches nothing anywhere.
     """
     first = start(config)
     turns = [half.turns for half in halves[first:] + halves[:first] if half.turns]

@@ -1,18 +1,23 @@
-"""The T3 Code server, as an outside MCP client: the sign-in, and eight tools.
+"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
 
 `login` registers jbus with the server, sends the user to its approval page, and keeps the
-token it is given, with when it was given. `expiry` is when that token runs out. `Client`
-then calls the tools in `TOOLS` at `<server>/mcp`, and no other: a test reads this package
-for any other name. Three of the eight change a thread, and `Client.call` lets each through in
-one form only (`_held`): `t3_thread_organize` to settle or archive a thread it names,
-`t3_thread_configure` to move a thread a brief or a home names to another instance of its
-role's pool, with its model and options as they were (`jbus.failover`), and
-`t3_thread_send` as a queued message, with a retry key, to a thread a brief's `Thread:`
-line names, or to the thread in a home's `home-id`: for the user's word (`jbus.word`), and
-for a task of that home's that ended with something left (`jbus.leftover`).
+token the server gives, with the time it gave it. `expiry` says when that token runs out.
+`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test reads
+this package for any other name.
 
-`Client.message` reads one message by its id, with `t3_thread_read`: who wrote it, its text
-and its time are T3 Code's, which is what makes a word of the user's a checked one.
+Three of the eight tools change a thread, and `Client.call` lets each through in one form only
+(`_held`):
+
+- `t3_thread_organize`, to settle or archive a thread it names.
+- `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
+  its role's pool, with its model and options as they were (`jbus.failover`).
+- `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:`
+  line names or to the thread in a home's `home-id`. jbus sends it for the user's word
+  (`jbus.word`), and for a task of that home's that ended with something left
+  (`jbus.leftover`).
+
+`Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
+the message, its text and its time, and that is what makes a word of the user's a checked one.
 """
 
 from __future__ import annotations
@@ -56,15 +61,15 @@ GONE = re.compile(r"not found|no such|unknown thread|does not exist|no thread", 
 
 
 class T3Error(Exception):
-    """The server gave no answer: it could not be reached, or its reply was lost."""
+    """The server gave no answer: jbus could not reach it, or its reply was lost."""
 
 
 class T3Refused(T3Error):
-    """The server answered, and the answer was no. Nothing was made."""
+    """The server answered, and the answer was no. The server made nothing."""
 
 
 def _at(url: str) -> str:
-    """The server named by its path only: no message of jbus carries a URL."""
+    """Name the server by its path only, since no message of jbus carries a URL."""
     return f"T3 Code at {urllib.parse.urlsplit(url).path}"
 
 
@@ -90,7 +95,8 @@ def _get_json(url: str, timeout: float = 8) -> dict[str, Any]:
 
 
 def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dict[str, Any]:
-    """Sign in once. The user approves in the browser; the token is stored and never printed."""
+    """Sign in once. The user approves in the browser, and `login` stores the token and never
+    prints it."""
     meta = _get_json(f"{server}/.well-known/oauth-authorization-server")
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
@@ -183,11 +189,11 @@ def _seconds(value: Any) -> float | None:
 
 
 def expiry(token_path: Path) -> datetime | None:
-    """When the stored token runs out, or None where no token is stored.
+    """Return when the stored token runs out, or None when no token is stored.
 
-    It was obtained at `obtained_at`, or for a token stored before that was kept, when its
-    file was last written. It lasts its own `expires_in` seconds, or `LIFETIME` without one.
-    The token itself is not read.
+    The token was obtained at `obtained_at`. For a token stored before jbus kept that time,
+    it was obtained when its file was last written. It lasts its own `expires_in` seconds, or
+    `LIFETIME` when it has none. `expiry` does not read the token itself.
     """
     stored = read_json(token_path, {})
     token = stored.get("token") if isinstance(stored, dict) else None
@@ -204,9 +210,9 @@ def expiry(token_path: Path) -> datetime | None:
 
 @dataclass(frozen=True)
 class Message:
-    """One message of a thread, as T3 Code has it. `title` is the thread's. `kind` is the
-    item's `type`, `by` its `createdBy` and `source` its `creationSource`: what an agent or
-    jbus sent into a thread is a `user_message` too, by `agent`."""
+    """One message of a thread, as T3 Code has it. `title` is the thread's title. `kind` is
+    the item's `type`, `by` is its `createdBy` and `source` is its `creationSource`. A message
+    that an agent or jbus sent into a thread is a `user_message` too, by `agent`."""
 
     thread: str
     id: str
@@ -219,12 +225,12 @@ class Message:
 
     @property
     def own(self) -> bool:
-        """Whether the user wrote it: a user message that no agent sent."""
+        """Say whether the user wrote the message: a user message that no agent sent."""
         return self.kind == "user_message" and self.by == "user"
 
 
 class Client:
-    """One MCP session at `<server>/mcp`. `call` is the only way a tool is reached."""
+    """One MCP session at `<server>/mcp`. `call` is the only way jbus reaches a tool."""
 
     def __init__(self, server: str, token_path: Path, *, timeout: float = 60) -> None:
         self.url = f"{server}/mcp"
@@ -286,7 +292,8 @@ class Client:
         return [tool for tool in self._rpc("tools/list", {})["tools"] if tool["name"] in TOOLS]
 
     def _held(self, tool: str, arguments: dict[str, Any]) -> str:
-        """Why a call that changes a thread is not one jbus makes, or nothing."""
+        """Return why jbus does not make this call that changes a thread, or nothing when it
+        does make it."""
         if tool == "t3_thread_organize":
             if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
                 "settle",
@@ -316,8 +323,8 @@ class Client:
         return ""
 
     def message(self, thread: str, message: str) -> Message:
-        """The message of the thread with that id, its text whole. One the thread does not
-        have, or with no time, is `T3Refused`."""
+        """Return the message of the thread with that id, with its whole text. Raise
+        `T3Refused` when the thread does not have the message, or the message has no time."""
         item = f"turn-item:message:{urllib.parse.quote(message, safe='')}"
         asked = {"threadId": thread, "itemId": item, "maxCharsPerItem": CHARS}
         text, offset = "", 0
@@ -370,11 +377,11 @@ class Client:
 
 
 def heard(config: Config, ref: str) -> queue.Said:
-    """The user's own message `<thread id>/<message id>`, read from T3 Code now: its text on
-    one line, its time in the user's zone, and the title of its thread.
+    """Read the user's own message `<thread id>/<message id>` from T3 Code now, and return
+    its text on one line, its time in the user's zone, and the title of its thread.
 
-    A message an agent or jbus sent into a thread is not the user's, and is refused. So is
-    one T3 Code does not give.
+    A message that an agent or jbus sent into a thread is not the user's, and `heard` refuses
+    it. It also refuses a message that T3 Code does not give.
     """
     thread, _, message = ref.partition("/")
     if not thread or not message:
@@ -395,8 +402,9 @@ def heard(config: Config, ref: str) -> queue.Said:
 
 
 def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | None:
-    """What `jbus word` and `jbus answer` were given the user's words as: the message jbus
-    read, or None for words typed with `--by` and `--at`. Both, or neither, is refused."""
+    """Return the form in which `jbus word` and `jbus answer` were given the user's words: the
+    message jbus read, or None for words typed with `--by` and `--at`. `typed` refuses the
+    words when they come in both forms, or in neither."""
     given = args.by is not None or args.at is not None or bool(args.words)
     if args.message is not None and not given:
         return heard(config, args.message)

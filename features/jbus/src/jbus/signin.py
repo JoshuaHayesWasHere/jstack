@@ -1,28 +1,31 @@
-"""The reminder that jbus's sign-in to T3 Code runs out. jbus launches nothing once it has,
-until `jbus t3 login` signs in again, so the user is told before, as a `sign-in` event.
+"""jbus reminds the user that its sign-in to T3 Code runs out. Once the sign-in has run out,
+jbus launches nothing until `jbus t3 login` signs in again, so it tells the user beforehand,
+with a `sign-in` event.
 
-The days left are counted by the calendar of the user's zone, from the day of the pass to the
-day the stored token runs out (`t3.expiry`). The reminder says, each time with the expiry and
-the days left:
+jbus counts the days left by the calendar of the user's zone, from the day of the pass to the
+day the stored token runs out (`t3.expiry`). The reminder gives the expiry and the days left
+each time, and comes:
 
 - once, on the first pass `WEEK` days out or fewer;
 - once a day from `DAILY` days out, the day it runs out included;
 - once more, on the first pass after it has run out.
 
-A pass says the mark it is in, and nothing for one it has passed by: a first pass 2 days out
-says that day and not the week. The expiry last seen and the marks said of it are in
-`sign-in.json` in jbus's state, so a project added, removed or moved in the config says no
-mark again. An expiry later than the last one seen is a renewal: it is said once, with the
-new expiry, and the count starts over. The first expiry jbus sees is no renewal, and nor is
-a file that cannot be read.
+A pass gives the reminder of the mark it is in, and none for a mark it has already passed: a
+first pass 2 days out gives that day's reminder and not the week's. jbus keeps the expiry it
+last saw, and the marks it gave for it, in `sign-in.json` in its state. So adding, removing or
+moving a project in the config repeats no mark. An expiry later than the last one seen is a
+renewal. jbus says it once, with the new expiry, and the count starts over. The first expiry
+jbus sees is not a renewal. When jbus cannot read the file, the expiry it finds is not one
+either.
 
-It is the machine's sign-in, so it is told once and not once a project: it is queued in the
-box of the config's first project as an event of the machine (`wake.Box.send`), which waits
-for the top-level webhook alone (`wake.Box.machine_route`), and that project's flush posts
-it. `jbus events` of that project lists it.
+The sign-in is the machine's, so jbus gives the reminder once, not once for each project. It
+queues the reminder in the box of the config's first project, as an event of the machine
+(`wake.Box.send`). Such an event waits for the top-level webhook alone
+(`wake.Box.machine_route`), and that project's flush posts it. `jbus events` of that project
+lists it.
 
-The `sign_in` line of each project in the status file is another thing, and stays as it was:
-`expiring`, within `warn_days`.
+The `sign_in` line of each project in the status file is separate from the reminder, and
+stays as it was: `expiring`, within `warn_days`.
 """
 
 from __future__ import annotations
@@ -45,8 +48,8 @@ def _path(config: Config) -> Path:
 
 
 def _kept(config: Config) -> tuple[datetime | None, list[str]]:
-    """The expiry last seen and the marks said of it. A file that cannot be read as one is
-    no expiry seen: the count starts there, and says no renewal."""
+    """Return the expiry last seen and the marks given for it. A file jbus cannot read as one
+    counts as no expiry seen: the count starts there, and gives no renewal."""
     kept = read_json(_path(config), {})
     try:
         return datetime.fromisoformat(kept["expires"]), [str(mark) for mark in kept["said"]]
@@ -59,7 +62,7 @@ def _days(expires: datetime, now: datetime, user: jsettings.Settings) -> int:
 
 
 def due(expires: datetime, now: datetime, user: jsettings.Settings) -> tuple[str, str] | None:
-    """The mark a pass at `now` is in and its line, or None where it is in none."""
+    """Return the mark a pass at `now` is in and its line, or None if the pass is in none."""
     stamp = user.stamp(expires)
     if now >= expires:
         return "passed", f"{KIND}: {WHOSE} expired {stamp}, no days left: run jbus t3 login"
@@ -76,11 +79,12 @@ def _box(config: Config) -> wake.Box:
 
 
 def remind(config: Config, now: datetime) -> None:
-    """Queue what the reminder owes at `now`, then keep the expiry and the marks said of it.
+    """Queue what the reminder owes at `now`, then keep the expiry and the marks given for it.
 
-    The marks are kept beside the expiry, not by the box, so which project is first does
-    not decide what was said. A new expiry starts the marks over. They are kept after the
-    queue, so a pass that stops between the two says a mark again, and never loses one.
+    jbus keeps the marks beside the expiry, not in the box, so which project is first does
+    not decide what was said. A new expiry starts the marks over. jbus writes the marks after
+    it queues the lines, so a pass that stops between the two gives a mark again, and never
+    loses one.
     """
     expires = t3.expiry(config.token_path)
     if expires is None or not config.projects:
@@ -105,8 +109,8 @@ def remind(config: Config, now: datetime) -> None:
 
 
 def plan(config: Config, now: datetime) -> str:
-    """What `jbus status` says of the reminder: the webhook it goes to, and the days still
-    ahead."""
+    """Return what `jbus status` says of the reminder: the webhook it goes to, and the days
+    still ahead."""
     expires = t3.expiry(config.token_path)
     if expires is None:
         return "none: no sign-in is stored"
@@ -135,7 +139,7 @@ def plan(config: Config, now: datetime) -> str:
 
 
 def expiring(config: Config, now: datetime) -> str:
-    """What is said of a sign-in within `warn_days` of running out, or nothing."""
+    """Return the line for a sign-in within `warn_days` of running out, or nothing."""
     expires = t3.expiry(config.token_path)
     if expires is None or expires - now > timedelta(days=config.warn_days):
         return ""

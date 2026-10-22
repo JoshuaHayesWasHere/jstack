@@ -1,56 +1,72 @@
-"""`jbus relay`: take what jbus posts on 127.0.0.1 and send it on to Sous Chef, never dropping
-a body without a line in the journal.
+"""`jbus relay`: take what jbus posts on 127.0.0.1 and send it on to Sous Chef. The relay never
+drops a body without a line in the journal.
 
-The relay listens on `RELAY_PORT` (4390) of 127.0.0.1, or on a free port it picks for 0, and
-names the port it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST
-whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body it
-takes has an id: the body's own `id` when that is a short name, else a hash of the body, so a
-body posted twice has one id. Each route of `ROUTES` picks what it sends of the body, and the
-picked body, with `relay: {"id", "route"}` beside its keys, is written to the route's spool
-before the relay answers 202. A route's sender thread posts its spool in order, off the
-request path and with a timeout, so a webhook that is slow or down never holds back the next
-body. A body it posted is put in the route's `sent` file, with the time, and taken out of the
-spool; one that failed stays, the journal gets `relay: POST to <target> (<route>) failed for
-event <id>: <why>`, and it goes again after `RELAY_RETRY_SECONDS` or when the next body comes.
-A 4xx would never go, so the body moves to `dead/<route>/`, with a line, and the bodies behind
-it go on; but for `AGAIN`, a key or an address the target refuses (401, 403, 404, 407), which
-is its setting, and 408 and 429, which pass: those stay to go again. An own id a route sent is
-never spooled again. A hashed id is not spooled again while the route holds it or sent it in
-the last `RELAY_DEDUP_SECONDS` (900): that is jbus posting again a body whose answer it lost.
-jbus's bodies carry no time, so a hashed id says only what the body says, and the same alert
-said again later is a new event: the window is what lets it go. A POST taken and
-not yet in `sent` when the relay stops goes once more after its start: the relay sends at
-least once.
+The relay listens on `RELAY_PORT` (4390) of 127.0.0.1, or, given 0, on a free port it picks. It
+names the port it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST whose
+`X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body it takes
+gets an id: the body's own `id` when that is a short name, and otherwise a hash of the body, so a
+body posted twice has one id.
 
-Both routes go to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`):
-`everything`, every body as it came, and `blocking`, what blocks (`blocking`). A target whose
-URL or key is missing, empty or REPLACE_ME, or a missing inbound key, is refused at start: the
-relay names each such key in the journal, never its value, and exits 2, which
-`jbus-relay.service` does not restart. State is in `RELAY_STATE`, ~/.local/state/jbus-relay:
-`spool/<route>/`, `sent/<route>`, `dead/<route>/`, `watch.json` and `heartbeat.json`.
+Each route of `ROUTES` picks what it sends of the body. Before the relay answers 202, it writes
+the picked body to the route's spool, with `relay: {"id", "route"}` beside its keys. Each route
+has a sender thread that posts the route's spool in order, apart from the request and with a
+timeout, so a webhook that is slow or down never holds back the next body. When a POST goes, the
+sender records the body in the route's `sent` file, with the time, and takes it out of the spool.
+When a POST fails, the body stays in the spool, and the journal gets
+`relay: POST to <target> (<route>) failed for event <id>: <why>`. The sender tries the body again
+after `RELAY_RETRY_SECONDS`, or sooner when the next body comes.
 
-The heartbeat is `heartbeat.json`, written each `BEAT_SECONDS`, on each body taken, and when a
-route begins or ends to fail: `beat`, when it was written; `started`, when this relay started;
-`heard`, when the relay last took a body, kept across a restart; `silent_minutes`,
-`RELAY_SILENT_MINUTES` (90), how long with no body is silence; `failing`, each route whose
-last POST failed and was not followed by one that went, with when it began to fail, why, and
-how many bodies wait, kept across a restart while the route still holds a body, and ended by
-a body refused for good when none waits behind it; and `refused`, each body a target refused
-for good in the last day, with its route, when, why and its file in `dead/`, kept across a
-restart. The relay judges none of it: `jbus health` reads it and pages (`jbus.health`). jbus
-posts a `refresh` to `blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay it
-posts to hears a body at least that often.
+A body that got a 4xx would never go, so the sender moves it to `dead/<route>/`, writes a line,
+and goes on with the bodies behind it. The codes of `AGAIN` are the exception, and a body that
+got one stays to go again. A 401, 403, 404 or 407 means the target refuses a key or an address,
+which is a setting to fix, and a 408 or a 429 passes with time.
 
-When Sous Chef is silent the relay pages a second way, the `pager` target (Home Assistant's
-mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify-send` beside
-it. Silent is judged with no word from Sous Chef: (a) a POST on the `blocking` route that
-failed pages each body that waits on that route, once for each event id; (b) an item still
-open in a `reminder` or a `refresh` `PAGE_MINUTES` (45) after it began to block pages once
-(`jbus.silent`). A POST to `/ack` naming an event id marks the items of that body seen, and a seen
-item pages nothing under (b). A page is one line, and it goes through a spooled route of its
-own, `page`, whose ids are kept for good.
+Once a route has sent a body under the body's own id, it never spools that id again. It does not
+spool a hashed id again while it holds the id or sent it in the last `RELAY_DEDUP_SECONDS` (900):
+such a body is jbus posting again a body whose answer it lost. jbus's bodies carry no time, so a
+hashed id says only what the body says, and the same alert said again later is a new event. The
+window is what lets that later alert go. When the relay stops after it took a POST that is not
+yet in `sent`, it sends that body once more after it starts: the relay sends at least once.
 
-Sous Chef's decisions on a card come back on `POST /item`, with the same key (`jbus.chat`).
+Both routes go to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`). The route
+`everything` sends every body as it came, and the route `blocking` sends what blocks
+(`blocking`). The relay refuses to start when a target's URL or key is missing, empty or
+REPLACE_ME, or when the inbound key is missing. It names each such key in the journal, never its
+value, and exits 2, which `jbus-relay.service` does not restart. The relay keeps its state in
+`RELAY_STATE`, ~/.local/state/jbus-relay: `spool/<route>/`, `sent/<route>`, `dead/<route>/`,
+`watch.json` and `heartbeat.json`.
+
+The heartbeat is `heartbeat.json`. The relay writes it every `BEAT_SECONDS`, on each body it
+takes, and when a route begins or stops failing. It holds these keys:
+
+- `beat`: when the relay wrote it.
+- `started`: when this relay started.
+- `heard`: when the relay last took a body, kept across a restart.
+- `silent_minutes`: `RELAY_SILENT_MINUTES` (90), how long without a body counts as silence.
+- `failing`: each route whose last POST failed with no later POST that went, with when it began
+  to fail, why, and how many bodies wait. The relay keeps it across a restart while the route
+  still holds a body. A body refused for good ends it when no body waits behind that one.
+- `refused`: each body a target refused for good in the last day, with its route, when, why and
+  its file in `dead/`, kept across a restart.
+
+The relay judges none of it: `jbus health` reads it and pages (`jbus.health`). jbus posts a
+`refresh` to `blocking_url` each hour (`leftover.REFRESH_MINUTES`), so a relay that jbus posts to
+hears a body at least that often.
+
+When Sous Chef is silent, the relay pages a second way, the `pager` target (Home Assistant's
+mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), with `notify-send` beside it.
+The relay judges that Sous Chef is silent without any word from Sous Chef, in two cases:
+
+- (a) When a POST on the `blocking` route fails, the relay pages each body that waits on that
+  route, once for each event id.
+- (b) When a `reminder` or a `refresh` lists an item that is still open `PAGE_MINUTES` (45) after
+  it began to block, the relay pages that item once (`jbus.silent`).
+
+A POST to `/ack` that names an event id marks the items of that body seen, and a seen item pages
+nothing under (b). A page is one line. It goes through a spooled route of its own, `page`, which
+keeps its ids for good.
+
+Sous Chef sends its decisions on a card back on `POST /item`, with the same key (`jbus.chat`).
 """
 
 from __future__ import annotations
@@ -101,9 +117,10 @@ def everything(body: Body) -> Body | None:
 
 
 def blocking(body: Body) -> Body | None:
-    """What blocks of a body: a reminder or a refresh whole, an `events` body of the second
-    target whole when it has `items`, and of any other the events that are loud for the user
-    or of a blocking kind. None when nothing in it blocks."""
+    """Return what blocks of a body, or None when nothing in it blocks. A reminder or a
+    refresh blocks whole, and so does an `events` body of the second target when it has
+    `items`. Of any other body, the events that block are those loud for the user or of a
+    blocking kind."""
     if str(body.get("kind") or body.get("event") or "") in PASS:
         return body
     events = [event for event in body.get("events") or [] if isinstance(event, dict)]
@@ -127,7 +144,8 @@ def as_spooled(data: bytes) -> bytes:
 
 
 def home_assistant(data: bytes) -> bytes:
-    """A spooled page as Home Assistant's `notify` service takes it: its line, nothing else."""
+    """Return a spooled page as Home Assistant's `notify` service takes it: its line and
+    nothing else."""
     return json.dumps({"message": json.loads(data)["page"]}).encode()
 
 
@@ -149,7 +167,7 @@ PAGES = Route("page", "pager", everything, home_assistant)
 
 
 class Refused(Exception):
-    """The relay's settings, which it does not start on."""
+    """The relay's settings are not usable, so the relay does not start."""
 
 
 @dataclass(frozen=True)
@@ -176,8 +194,8 @@ def _unusable(env: Mapping[str, str], key: str) -> str | None:
 
 
 def settings(env: Mapping[str, str]) -> Settings:
-    """The relay's settings from its environment. `Refused` names every key that is not
-    usable, and no value."""
+    """Read the relay's settings from its environment. The `Refused` this raises names every
+    key that is not usable, and no key's value."""
     wrong = [why for why in [_unusable(env, "RELAY_INBOUND_KEY")] if why]
     for name, keys in [*TARGETS.items(), (PAGES.target, PAGER)]:
         wrong += [f"target {name}: {why}" for key in keys if (why := _unusable(env, key))]
@@ -210,7 +228,7 @@ def settings(env: Mapping[str, str]) -> Settings:
 
 
 def event_id(body: Body) -> str:
-    """The body's own `id` when it is a short name, else a hash of the body."""
+    """Return the body's own `id` when it is a short name, and otherwise a hash of the body."""
     own = body.get("id")
     if isinstance(own, str) and NAME.fullmatch(own):
         return own
@@ -219,7 +237,7 @@ def event_id(body: Body) -> str:
 
 
 class Failed(Exception):
-    """A POST the target did not take. `final` when sending it again cannot help."""
+    """The target did not take a POST. `final` is true when sending it again cannot help."""
 
     def __init__(self, why: str, final: bool = False) -> None:
         super().__init__(why)
@@ -259,7 +277,8 @@ def _sync(folder: Path) -> None:
 
 
 class Lane:
-    """One route: its spool, the ids it sent, and the thread that posts the spool in order."""
+    """One route, with its spool, the ids it sent, and the thread that posts the spool in
+    order."""
 
     def __init__(
         self,
@@ -300,7 +319,8 @@ class Lane:
         return path.stem.split("-", 1)[-1]
 
     def _recent(self) -> dict[str, float]:
-        """The ids sent within the dedup window, from `sent/<route>`, each with its time."""
+        """Return the ids sent within the dedup window, read from `sent/<route>`, each with its
+        time."""
         lines = self.record.read_text().splitlines() if self.record.exists() else []
         sent = {}
         for line in lines:
@@ -344,7 +364,8 @@ class Lane:
                 self.unheard(self._id(path), json.loads(path.read_bytes()))
 
     def take(self, id: str, body: Body) -> bool:
-        """Spool what the route picks of the body. False when it picks nothing or has the id."""
+        """Spool what the route picks of the body. Return False when the route picks nothing or
+        already has the id."""
         picked = self.route.pick(body)
         if picked is None:
             return False
@@ -367,7 +388,8 @@ class Lane:
         return True
 
     def drain(self) -> bool:
-        """Post the spool in order. False at the first POST that failed, which stays."""
+        """Post the spool in order. Return False at the first POST that failed, whose body stays
+        in the spool."""
         for path in self._waiting():
             id = self._id(path)
             if self._fresh(self.sent.get(id, 0.0)):
@@ -430,7 +452,8 @@ def _now() -> str:
 
 
 def notify(line: str, say: Say) -> None:
-    """Raise the page on this machine's desktop. One that fails is said, and pages on."""
+    """Raise the page on this machine's desktop. When that fails, `notify` says so, and the
+    page still goes out on its route."""
     command = shutil.which("notify-send")
     if command is None:
         say("relay: no notify-send on PATH, the page was not raised on the desktop")
@@ -447,7 +470,8 @@ def notify(line: str, say: Say) -> None:
 
 
 class Pager:
-    """The second way: the `page` route to Home Assistant, and `notify-send` beside it."""
+    """The second way to page: the `page` route to Home Assistant, with `notify-send` beside
+    it."""
 
     def __init__(self, config: Settings, say: Say) -> None:
         self.say = say
@@ -460,7 +484,7 @@ class Pager:
         threading.Thread(target=notify, args=(line, self.say), daemon=True).start()
 
     def unheard(self, id: str, body: Body) -> None:
-        """(a): Sous Chef did not take a body that blocks."""
+        """Page case (a) of the module: Sous Chef did not take a body that blocks."""
         line = silent.unheard_line(id, body)
         if line is not None:
             self.page(f"unheard-{id}", line)
@@ -511,7 +535,8 @@ class Relay:
         return id
 
     def ack(self, id: str) -> int | None:
-        """Mark seen the items the event id carried. None for an id the relay does not hold."""
+        """Mark seen the items the event id carried, and return how many. Return None for an
+        id the relay does not hold."""
         with self.lock:
             pages = self.watch.ids.get(id)
             if pages is None:
@@ -524,7 +549,7 @@ class Relay:
         return len(pages)
 
     def _refusals(self) -> list[Body]:
-        """The refusals the last heartbeat kept, of the last `REFUSED_KEPT`."""
+        """Return the refusals the last heartbeat kept from the last `REFUSED_KEPT`."""
         try:
             kept = json.loads(self.beating.read_text()).get("refused")
         except (OSError, ValueError, AttributeError):
@@ -537,8 +562,9 @@ class Relay:
         return recent
 
     def _failing(self) -> None:
-        """Each route the last heartbeat names as failing, while it still holds a body: a
-        restart does not end a failure, and it keeps the time it began."""
+        """Mark as failing each route the last heartbeat names as failing, while the route
+        still holds a body. A restart does not end a failure, and the failure keeps the time it
+        began."""
         try:
             kept = json.loads(self.beating.read_text()).get("failing")
         except (OSError, ValueError, AttributeError):
@@ -550,8 +576,8 @@ class Relay:
                 lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
 
     def refuse(self, one: Body) -> None:
-        """A body was refused for good: keep it for the heartbeat, and beat. Each lane's thread
-        calls it, so the list is changed under a lock."""
+        """Keep a body that a target refused for good for the heartbeat, and beat. Each lane's
+        thread calls `refuse`, so it changes the list under a lock."""
         with self.refuse_lock:
             self.refusals = [*self._recent(), one]
         self.beat()
@@ -561,10 +587,11 @@ class Relay:
         return [one for one in self.refusals if now - silent.when(one["at"]) < REFUSED_KEPT]
 
     def beat(self) -> None:
-        """Write the heartbeat: see the module. One that cannot be written is said.
+        """Write the heartbeat, which the module's docstring describes. When it cannot be
+        written, say so.
 
-        The state is read and written under one lock, so a beat that read it before a route
-        began or ended to fail cannot be written over the beat that read it after."""
+        `beat` reads and writes the state under one lock. So a beat that read the state before
+        a route began or stopped failing cannot overwrite the beat that read it after."""
         part = self.beating.with_suffix(".part")
         with self.beat_lock:
             with self.refuse_lock:
