@@ -1,15 +1,23 @@
-"""The `jleak` command has four forms.
+"""The `jleak` command has six forms.
 
     jleak [--strict] [--patterns FILE] --all
     jleak [--strict] [--patterns FILE] [--as FIELD] FILE...
     jleak [--strict] [--patterns FILE] --push URL
     jleak [--strict] [--patterns FILE] --command
+    jleak --trailers
+    jleak --commit-msg FILE
 
 `--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is. It
 reads `-` as what is piped in, and a finding names that text by the FIELD that `--as` gives.
 `--push` reads what git gives a `pre-push` hook. Its URL is the second argument that git passes
 the hook. `--command` reads what Claude Code gives a `PreToolUse` hook. It reads the private
 patterns only for a command that writes to a pull request, since no other command needs them.
+
+The last two forms read no private pattern: they look for the AI trailers of `jleak.trailers`.
+`--trailers` reads what Claude Code or Codex gives a `PreToolUse` hook, and refuses a commit or a
+pull request whose text has such a line, with exit code 2. `--commit-msg` reads what git gives a
+`commit-msg` hook, takes each such line out of the message file and prints one line that names
+them. It exits 0 whatever it finds, since the hook cleans a message and never stops a commit.
 
 It prints one line for each finding, `<file or field>:<line>: <pattern's name>`, then
 `<n> findings`. The two hook forms print to stderr, where git and the agent read a refusal.
@@ -33,7 +41,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import jleak
-from jleak import sources
+from jleak import sources, trailers
 
 
 def parser() -> argparse.ArgumentParser:
@@ -47,6 +55,10 @@ def parser() -> argparse.ArgumentParser:
     way.add_argument("--all", action="store_true", help="every tracked file of this repo")
     way.add_argument("--push", metavar="URL", help="what a pre-push hook is given")
     way.add_argument("--command", action="store_true", help="what a PreToolUse hook is given")
+    way.add_argument(
+        "--trailers", action="store_true", help="what a PreToolUse hook is given, for AI trailers"
+    )
+    way.add_argument("--commit-msg", metavar="FILE", type=Path, help="what a commit-msg hook is given")
     made.add_argument("files", nargs="*", metavar="FILE", help="a file, or - for the piped text")
     return made
 
@@ -87,8 +99,46 @@ def count(found: Sequence[jleak.Finding]) -> str:
     return f"{len(found)} finding{'' if len(found) == 1 else 's'}"
 
 
+def refuse_trailers(given: str) -> int:
+    """`--trailers`: 2 with each finding on stderr when the command writes an AI trailer, else
+    0."""
+    try:
+        command, cwd = typed(given)
+    except sources.Unreadable as error:
+        print(f"jleak: {error}, so nothing is checked", file=sys.stderr)
+        return 0
+    found = jleak.scan(sources.messages(command, cwd), trailers.PATTERNS)
+    for finding in found:
+        print(finding, file=sys.stderr)
+    if not found:
+        return 0
+    many = "" if len(found) == 1 else "s"
+    again = "drop the line and commit again"
+    print(f"jleak: {len(found)} AI trailer{many}, so the command is refused: {again}", file=sys.stderr)
+    return 2
+
+
+def clean_message(file: Path) -> int:
+    """`--commit-msg`: take the AI trailers out of the message file, and name them."""
+    try:
+        message = file.read_text()
+        cleaned, taken = trailers.strip(message)
+        if taken:
+            file.write_text(cleaned)
+    except (OSError, UnicodeError) as error:
+        print(f"jleak: the commit message could not be cleaned: {error}", file=sys.stderr)
+        return 0
+    if taken:
+        print(f"jleak: took out of the commit message: {' | '.join(taken)}", file=sys.stderr)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.trailers:
+        return refuse_trailers(sys.stdin.read())
+    if args.commit_msg:
+        return clean_message(args.commit_msg)
     if not (args.all or args.push or args.command or args.files):
         parser().print_usage(sys.stderr)
         return 2

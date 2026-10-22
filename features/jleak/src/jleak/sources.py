@@ -181,15 +181,22 @@ def _run(words: list[str]) -> list[str]:
     return words[at:]
 
 
-def _push_rules(words: list[str]) -> Iterator[str]:
-    """The rules a `git ... push` breaks: the names of the flags and settings in it that would
-    skip the `pre-push` hook."""
+def _git_verb(words: list[str]) -> tuple[int, list[str]]:
+    """Where the verb of a `git ...` command is, past git's own options, and the settings that
+    its `-c` options give."""
     at, set_here = 1, []
     while at < len(words) and words[at].startswith("-"):
         if words[at] in TAKES_A_VALUE:
             set_here += words[at + 1 : at + 2] if words[at] == "-c" else []
             at += 1
         at += 1
+    return at, set_here
+
+
+def _push_rules(words: list[str]) -> Iterator[str]:
+    """The rules a `git ... push` breaks: the names of the flags and settings in it that would
+    skip the `pre-push` hook."""
+    at, set_here = _git_verb(words)
     if words[at : at + 1] != ["push"]:
         return
     if "--no-verify" in words[at:]:
@@ -259,3 +266,110 @@ def command(typed: str, cwd: Path) -> tuple[list[Finding], list[Text]]:
             if any(one == "pr" and verb in VERBS for one, verb in verbs):
                 sent += _sent(words, here, cwd)
     return broken, sent
+
+
+MESSAGE_VERBS = {"create", "edit", "merge"}
+WRITES_A_MESSAGE = re.compile(r"\bgit\b.*\bcommit\b|\bgh(-axi)?\b.*\bpr\b", re.S)
+
+
+def _file_flags(words: list[str]) -> tuple[str, str] | None:
+    """The flags that name a message file, for a simple command that writes a commit's message
+    or a pull request's text, and None for any other simple command."""
+    program = Path(words[0]).name if words else ""
+    if program == "git":
+        at, _ = _git_verb(words)
+        return ("-F", "--file") if words[at : at + 1] == ["commit"] else None
+    if program in ("gh", "gh-axi"):
+        verbs = zip(words, words[1:], strict=False)
+        if any(one == "pr" and verb in MESSAGE_VERBS for one, verb in verbs):
+            return ("-F", "--body-file")
+    return None
+
+
+def _lines(words: list[str]) -> tuple[tuple[int, str], ...]:
+    """The lines of a simple command's words, numbered as lines of the command. A word before a
+    here-document is a line of its own, with a line for each new line in the word, and with the
+    value of an `--option=value` word as one more line. A here-document's words are joined back
+    into the lines they came from."""
+    lines, at, here, joined = [], 1, False, []
+    for word in words:
+        if not here:
+            lines += [(at + more, part) for more, part in enumerate(word.split("\n"))]
+            if word.startswith("-") and "=" in word:
+                lines.append((at, word.partition("=")[2]))
+            at += word.count("\n")
+            here = word.startswith("<<")
+            continue
+        first, *rest = word.split("\n")
+        joined += [first] if first else []
+        for part in rest:
+            lines.append((at, " ".join(joined)))
+            at, joined = at + 1, [part] if part else []
+    if joined:
+        lines.append((at, " ".join(joined)))
+    return tuple(lines)
+
+
+def _parts(words: list[str]) -> list[list[str]]:
+    """The simple commands inside the words of one that reads a here-document, which `_simple`
+    does not split: the words between two words that end a command."""
+    found, part = [], []
+    for word in words:
+        if word and not word.strip("<>" + "".join(ENDS)) and set(word) & ENDS:
+            found.append(part)
+            part = []
+        else:
+            part.append(word)
+    return [each for each in (*found, part) if each]
+
+
+def _file(name: str, cwd: Path) -> Text | None:
+    """A message file's text, or None for one that is not there yet, such as a file that the same
+    command writes first."""
+    try:
+        text = (cwd / os.path.expandvars(os.path.expanduser(name))).read_text(errors="replace")
+    except OSError:
+        return None
+    return Text.of("message file", text)
+
+
+def messages(typed: str, cwd: Path) -> list[Text]:
+    """The text that a command writes into a commit's message or a pull request: the lines of
+    each simple command that runs `git ... commit` or `gh pr create`, `edit` or `merge`, and the
+    message file it names (`-F`, `--file`, `--body-file`). A simple command that reads a
+    here-document gives all its lines when a commit or a pull request is among the commands
+    inside it, so a message that `cat` writes to a file before `git commit -F` reads it is read.
+    A file that is not there is not read: git's `commit-msg` hook reads the message then.
+    When the function cannot cut a command into words, it gives the whole command, as long as
+    the command may write a commit or a pull request."""
+    try:
+        simple = _simple(typed)
+    except ValueError:
+        return [Text.of("command", typed)] if WRITES_A_MESSAGE.search(typed) else []
+    found = []
+    for words, here in simple:
+        words = _run(words)
+        program = Path(words[0]).name if words else ""
+        if program == "cd" and len(words) > 1:
+            cwd = cwd / os.path.expandvars(os.path.expanduser(words[1]))
+        writers = [
+            (part, flags)
+            for part in (_parts(words) if here else [words])
+            if (flags := _file_flags(_run(part)))
+        ]
+        if not writers:
+            continue
+        found.append(Text("command", _lines(words)))
+        for part, (short, long) in writers:
+            for at, word in enumerate(part):
+                if word in (short, long):
+                    name = part[at + 1] if at + 1 < len(part) else "-"
+                elif word.startswith(f"{long}="):
+                    name = word.partition("=")[2]
+                elif word.startswith(short) and len(word) > len(short) and word[2] != "=":
+                    name = word[len(short) :]
+                else:
+                    continue
+                text = _file(name, cwd) if name != "-" else None
+                found += [text] if text else []
+    return found
