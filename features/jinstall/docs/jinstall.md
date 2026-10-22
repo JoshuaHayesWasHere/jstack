@@ -28,14 +28,15 @@ From a checkout, `sh install.sh --setup` does the same for the checkout, and ins
 |---|---|
 | `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. One line a part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
-| `jinstall --setup` | Walks every need once, in order: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. |
+| `jinstall --setup` | Walks every need once, in order: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. One line a hook. |
 | `jinstall --uninstall` | Takes away what it put, and keeps what is yours. |
 
 `--setup` links each skill into `~/.{claude,agents,codex}/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and sets a status line that writes the limits file, unless you have a status line of your own.
 Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units.
-Run each command a `needs you` line names, such as `gh auth login` or `jbus t3 login`, then run it again.
+Run each command a `needs you` line names, such as `gh auth login`, then run it again.
+A `missing optional` line, such as the relay or the backup, is a layer you may leave off.
 A second run writes nothing.
 
 ## A release and a checkout

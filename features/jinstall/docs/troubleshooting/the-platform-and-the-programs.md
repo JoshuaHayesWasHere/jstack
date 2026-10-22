@@ -17,5 +17,6 @@
 | `missing hard gh` | The GitHub CLI is not on `PATH`. | Install `gh`. |
 | `missing hard gh sign-in -> gh auth login` | `gh auth token` exited non-zero. | Run `gh auth login`. |
 | `missing optional lavish-axi -> npm install -g lavish-axi` | `lavish-axi` is not on `PATH`. A scout writes no visual page, and a question round is asked as text. | Run `npm install -g lavish-axi`, or leave it. |
-| `missing optional state repo <path> -> not a git repo` | The homes' state tree is not a git repo, so `jbus snapshot` fails and alerts. | Run `git init <path>`, then add the remote as the next line says. |
-| `missing optional state repo <path> -> no remote` | The state tree has no `origin`. Each `jbus snapshot` commits and then fails, and the first failure alerts. | Run `git -C <path> remote add origin <url>`, with a private repository of your own. |
+| `missing optional state repo <path> -> not a git repo` | The homes' state tree is not a git repo, so `jbus snapshot` fails, and the backup is off. | Run `git init <path>`, then add the remote as the next line says. |
+| `missing optional state repo <path> -> no remote, so the backup is off` | The state tree has no `origin`. Each `jbus snapshot` commits here and pushes nothing, `jbus-snapshot.timer` is off, and nothing alerts. | Nothing, or run `git -C <path> remote add origin <url>`, with a private repository of your own, then `sh install.sh`. |
+| `old optional state repo <path> -> needs gitleaks, which reads each snapshot for secrets` | The state tree has a remote and there is no `gitleaks`, so a snapshot would commit nothing and fail. The install leaves `jbus-snapshot.timer` as it is. | Install `gitleaks`, then run `sh install.sh`. |
