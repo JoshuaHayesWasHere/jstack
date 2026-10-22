@@ -48,7 +48,8 @@ def _ask(path: str) -> Any:
 
 
 def _state(one: dict[str, Any]) -> str:
-    """A run's state in one word: what it concluded, or its status while it has not."""
+    """A run's state in one word: what it concluded, or its status while it has not
+    concluded."""
     return text(one.get("conclusion") or one.get("status"), 30)
 
 

@@ -4,7 +4,7 @@ A panel's folder holds two files, and the folder's name is the panel's name. `pa
 data:
 
 - `build(read)`, one function from the sources (`state.Read`) to a dict;
-- `SHAPE`, the shape that `clean.keep` cuts that dict to before it leaves;
+- `SHAPE`, the shape that `clean.keep` cuts that dict to before the server sends it;
 - `SOURCES`, each source it reads, with who writes it (`state.Source`);
 - `FIRST`, True where the first screen needs the dict: then its keys are keys of `/state.json`.
   The page asks for any other panel when its drawer opens, at `/panel/<name>.json`;
@@ -18,16 +18,16 @@ data:
 - `card()`, its card on the first screen. Only a panel that has one adds to that screen;
 - `adds`, what it adds to another panel's drawer: `adds.task(task)` is one line of the task's
   drawer, and `adds.you()` is one count of the wait band;
-- `wide`, for a drawer of the full width, and `title`, the heading that the drawer of a panel the
-  page asks for shows while the answer is on its way.
+- `wide`, for a drawer of the full width, and `title`, for a panel the page asks for, the heading
+  its drawer shows while the page waits for the answer.
 - `gloss`, what its cards mean, by name, as `[name, text]`: the glossary at `#/help` lists it;
 - `reads`, how fresh its drawer is, which the drawer's head says once: `"server"` for what the
   server reads itself on each request, `"mixed"` for both, and none for what a pass wrote.
 
 Nothing else names a panel. The server lists this directory when it starts (`found`). The keys of
 `/state.json`, the shapes, the list of sources, the routes and the page's drawers all come from
-what it finds. The page is `page.html` with each `panel.js` in it, which the server reads on
-every request. A folder that is added or removed after the start counts as newer code on disk
+what it finds. The page is `page.html` with each `panel.js` in it. The server reads those files
+on every request. A folder that is added or removed after the start counts as newer code on disk
 (`names`), and the server starts again for it.
 """
 

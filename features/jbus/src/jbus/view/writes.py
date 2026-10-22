@@ -84,9 +84,9 @@ class Writes:
 
     def _carry(self, name: str, closed: questions.Question, now: datetime) -> tuple[bool, str, str]:
         """Send one answer that differs from the default to the thread that asked, as a pass
-        would. It returns whether the answer went, the reason where it did not, with no
-        secret in it, and what sends it later. Nothing sends it later for a slug removed
-        from the queue."""
+        would. It returns whether the answer went, and the reason where it did not, with no
+        secret in it. It also returns what will send the answer later. For a slug that was
+        removed from the queue, nothing sends it later."""
         pass_ = "the next pass sends it"
         hidden: tuple[str, ...] = ()
         try:
@@ -186,7 +186,7 @@ class Writes:
         }
 
     def _answer(self, name: str, body: bytes) -> Answer:
-        """Close each question the body numbers with the user's answer."""
+        """Close each question whose number the body gives, with the user's answer."""
         try:
             asked = json.loads(body)
             numbers, option, words = asked["numbers"], asked.get("option"), asked.get("words")
@@ -214,8 +214,8 @@ class Writes:
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
 
     def _steer(self, name: str, body: bytes) -> Answer:
-        """Steer one item, through `steer.steer`, or approve it, through `steer.approve`, by the
-        user of the settings, in the view."""
+        """Steer one item through `steer.steer`, or approve it through `steer.approve`. The
+        user of the settings does it, in the view."""
         try:
             asked = json.loads(body)
             id, action, seen = asked["item"], asked["action"], asked["seen_event"]

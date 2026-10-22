@@ -37,9 +37,9 @@ MIDDLE = (900, 900)
 
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
-    """The screen is a desk's, as high as the Needs you queue, `NEEDS`, which here has the
-    four rows of the scene. In progress, with a row for each of the 28 open tasks, starts
-    below it."""
+    """The screen is a desk's, as high as the Needs you queue, `NEEDS`. Here that queue has
+    the four rows of the scene. In progress starts below it, with a row for each of the 28
+    open tasks."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     screen = (DESK[0], DESK[1] + NEEDS)
@@ -66,10 +66,10 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 
 
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
-    """The machine as one word, one Needs you queue across the projects, oldest first, and a
-    row for each project: a name, a dot, what is broken, and two counts. The page asks
-    `/stack.json` and nothing else, once a poll, and a poll that changed nothing draws
-    nothing again."""
+    """The overview has the machine as one word, one Needs you queue across the projects,
+    oldest first, and a row for each project. Each row has a name, a dot, what is broken,
+    and two counts. The page asks `/stack.json` and nothing else, once a poll. A poll that
+    changed nothing draws nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
     assert clean(seen) == set()
@@ -141,7 +141,7 @@ def sidebar(scene):
 @pytest.mark.parametrize("screen", [DESK, MIDDLE, PHONE])
 @pytest.mark.parametrize("route", ["#/", "#/demo"])
 def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
-    """With a top-level webhook that holds events, nothing is wider than the screen."""
+    """With a top-level webhook that has events, nothing is wider than the screen."""
     lineup(scene, TODAY)
     sidebar(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
@@ -185,8 +185,9 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
 
 
 def test_a_link_to_no_project_draws_the_machine_with_its_own_word_on_jbus(scene, tmp_path):
-    """The page has no project's read there, so the one /stack.json read is all it knows of
-    the machine. Whether jbus passes is what that read says, whatever the page drew before."""
+    """On that route the page reads no project, so all it knows of the machine comes from
+    its one read of /stack.json. That read alone says whether jbus passes, whatever the page
+    drew before."""
     stacked(scene)
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
     seen = look(scene, tmp_path, route="#/hydra")
@@ -259,9 +260,9 @@ ROLE_WORDS = (
 
 
 def test_the_drawers_name_the_kinds_and_roles_as_state_json_gives_them(scene, tmp_path):
-    """The drawer of what waits on you heads each kind with its label, in the page's order; the
-    threads drawer counts each role in its words; Help says what each role is, on a project
-    and on the page of every project."""
+    """The drawer of what waits on you heads each kind with its label, in the page's order.
+    The threads drawer counts each role in its words. Help says what each role is, on a
+    project and on the page of every project."""
     said_by_him(scene)
     you, threads, help_ = walked(
         scene, tmp_path, "#/demo/you", ["look", "hash:#/demo/threads/scout", "hash:#/demo/help"]

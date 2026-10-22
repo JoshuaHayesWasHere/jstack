@@ -281,7 +281,7 @@ class Counter:
         return int(said.split()[-1])
 
     def sends(self):
-        """Each message the stand-in for T3 Code was asked to send, taken or not."""
+        """Each message the server asked the stand-in for T3 Code to send, taken or not."""
         return [given for tool, given in self.t3.calls if tool == "t3_thread_send"]
 
     def passes(self, many=2):

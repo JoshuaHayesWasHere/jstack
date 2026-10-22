@@ -16,7 +16,7 @@ def a_brief(scene, slug, title, task):
 
 
 def needing(scene):
-    """One item of each of the six kinds over two projects, each asked at a time of its own:
+    """One item of each of the six kinds, over two projects, each with a time of its own:
     a setup 7 h old, an approval with a brief and a row behind it, a question that holds, a
     leftover, a row at a gate of `pantry`, and a held pull request."""
     stacked(scene)
@@ -91,8 +91,8 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
     served, monkeypatch
 ):
     """The drawer of what waits on the user lists the kinds by their `shown` place, and an
-    item's button is its kind's verb: a kind added to `waiting.KINDS` is there with no other
-    edit."""
+    item's button is its kind's verb. So a kind added to `waiting.KINDS` shows in the drawer
+    with no other edit."""
     kinds = served.json("/state.json?project=demo")["kinds"]
     assert [one["name"] for one in kinds] == ["row", "left", "hold", "approve", "gate", "config"]
     assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
@@ -105,8 +105,8 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
 def test_the_roles_are_in_state_json_and_stack_json_and_an_added_role_with_them(
     served, monkeypatch
 ):
-    """The page and its panels name a thread's role from these: a role added to
-    `threads.ROLES` is in both with no other edit, and its title gives it."""
+    """The page and its panels name a thread's role from these. So a role added to
+    `threads.ROLES` shows in both with no other edit, and a thread's title gives its role."""
     roles = served.json("/state.json?project=demo")["roles"]
     assert [one["name"] for one in roles] == ["crew", "scout", "reviewer", "home", "other"]
     assert served.json("/stack.json")["roles"] == roles
@@ -123,8 +123,8 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
     tmp_path, monkeypatch
 ):
     """Eleven questions that go ahead on their default, a link's conflict that asks its home,
-    a gate of a home's file with a default, and an approval. The page's count is one, and
-    each countdown is the 2 hours of silence that close the question."""
+    a gate of a home's file with a default, and an approval. The page's count is one. Each
+    countdown is the 2 hours of silence after which jbus closes the question."""
     scene = Scene(tmp_path, monkeypatch)
     asked = [ago(minutes=10 * at) for at in range(11)]
     for at, when_asked in enumerate(asked):

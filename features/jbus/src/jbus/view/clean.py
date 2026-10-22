@@ -7,7 +7,7 @@ given, and `clean` turns any other URL into `LINK`. Text with the shape of a tok
 `jbus.REDACTED`. A token's shape counts only where it starts a word, so `task-...` is no
 `sk-` key. The text after a word such as `key=` becomes `jbus.REDACTED` too. So does the
 text after a word such as `Authorization:`, when that text is one run of 16 or more of the
-characters a key is written in, which a word of prose is not.
+characters a key is written in. A word of prose is never such a run.
 
 Neither function knows a secret. To read, the server reads no config, so it cannot take a
 webhook's key out by name as `jbus.redact` does. Two things keep a key out of an answer:

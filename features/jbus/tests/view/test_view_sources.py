@@ -1,5 +1,5 @@
-"""What the view reads: no secret in any answer, nothing written, and a source that is
-missing or does not parse said."""
+"""What the view reads: no secret in any answer, nothing written, and the view saying so for a
+source that is missing or does not parse."""
 
 import json
 import os

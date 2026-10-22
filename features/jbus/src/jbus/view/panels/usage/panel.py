@@ -2,16 +2,16 @@
 its worktree, and for each home, the one session it runs as.
 
 Each session's transcript is `<session>.jsonl` in a folder of `KEPT`. The folder's name is the
-working directory with each character that is not a letter or a digit as `-`. A task's crewmate,
-and the reviewers launched into its worktree, work in `~/.t3/worktrees/<project>/<slug>`, so that
-folder holds every thread of the task. A home works in the project's main checkout, beside other
-threads, so the panel takes as a home's session the session of that folder that starts within
-`JOINED` of the home's thread.
+working directory, with `-` in place of each character that is not a letter or a digit. A task's
+crewmate, and the reviewers launched into its worktree, work in
+`~/.t3/worktrees/<project>/<slug>`, so that folder holds every thread of the task. A home works
+in the project's main checkout, beside other threads. So for a home, the panel takes the session
+of that folder that starts within `JOINED` of the home's thread.
 
 The sum is `jgauge.session.of_transcript`, the sum that `jgauge session` prints. The panel reads
-a transcript only when the page asks for this panel. It keeps what a transcript gave by the size
-and the mtime of each of its files, so a second ask reads no file that did not change. The answer
-is numbers and times only: the panel copies no text of a transcript into it.
+a transcript only when the page asks for this panel. It keeps the sum of each transcript, keyed
+by the size and the mtime of each of its files. So a second ask reads no file that did not
+change. The answer is numbers and times only: the panel copies no text of a transcript into it.
 """
 
 from __future__ import annotations
@@ -52,9 +52,10 @@ _lock = threading.Lock()
 
 
 def _projects(read: Read) -> dict[str, Any]:
-    """The age of what the panel last read: the mtime of the newest transcript it counted, as the
-    panel kept it, so the first screen reads no transcript. It is None before the first ask. A
-    folder that is not there counts as read too: each task and home then says it is not known."""
+    """The age of what the panel last read: the mtime of the newest transcript it counted. The
+    panel takes that mtime from what it kept, so the first screen reads no transcript. It is None
+    before the first ask. A folder that is not there counts as read too, and each task and home
+    then shows its cost as not known."""
     with _lock:
         stamps = [stamp for key, _ in _kept.values() for _, _, stamp in key]
     newest = iso(datetime.fromtimestamp(max(stamps) / 1e9, UTC)) if stamps else None
@@ -96,7 +97,7 @@ def _figures(total: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any
 
 
 def counted(path: Path) -> dict[str, Any] | None:
-    """One session's figures, and its own peak as `own`: None where it cannot be read."""
+    """One session's figures, and its own peak as `own`: None where the panel cannot read it."""
     key = _files(path)
     with _lock:
         kept = _kept.get(path)
@@ -124,8 +125,8 @@ def _sessions(where: Path) -> list[Path]:
 
 
 def _unit(where: Path, paths: list[Path]) -> dict[str, Any]:
-    """The summed figures of the given sessions with each session's own, or why they are not
-    known."""
+    """The summed figures of the given sessions, with each session's own figures, or the reason
+    they are not known."""
     counts = [counted(path) for path in paths]
     read = [one for one in counts if one]
     unit: dict[str, Any] = {"folder": _short(where), "unread": len(counts) - len(read), **FIGURES}
@@ -151,7 +152,8 @@ def _task(read: Read, slug: str) -> dict[str, Any]:
 
 
 def checkout(name: str) -> Path | None:
-    """The project's main checkout, as the `.git` file of a worktree T3 made of it says."""
+    """The project's main checkout, read from the `.git` file of a worktree that T3 made of the
+    project."""
     try:
         made = sorted((WORKTREES / name).iterdir())
     except OSError:

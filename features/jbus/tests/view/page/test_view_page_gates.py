@@ -57,9 +57,9 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
 
 
 def test_the_inline_accept_waits_ten_seconds_undo_stops_it_and_one_write_follows(scene, tmp_path):
-    """A gate with a default and no hold is accepted from the queue: Undo in the 10 s window
-    sends nothing, a second accept sends one write after the window, and the page shows the
-    server's sentence. Nothing on the page or in the drawer is focused to start with."""
+    """The user accepts a gate with a default and no hold from the queue. Undo in the 10 s
+    window sends nothing, a second accept sends one write after the window, and the page shows
+    the server's sentence. At the start, nothing on the page or in the drawer has the focus."""
     tea, _, _ = gated(scene)
     walk = ["look", "tap:[data-accept]", "look", "tap:[data-undo]", *["look"] * 23]
     walk += ["tap:[data-accept]", *["look"] * 23]
@@ -77,7 +77,7 @@ def test_the_inline_accept_waits_ten_seconds_undo_stops_it_and_one_write_follows
 
 
 def test_an_accept_still_counting_is_dropped_when_the_route_leaves_its_project(scene, tmp_path):
-    """Going to another project hides the queue and its Undo, so the countdown ends there
+    """Going to another project hides the queue and its Undo. So the countdown ends there,
     and no write follows."""
     gated(scene)
     walk = ["look", "tap:[data-accept]", "hash:#/nowhere", *["look"] * 25]

@@ -1,4 +1,4 @@
-"""A panel is one folder of two files, and the rest is built from the folders."""
+"""A panel is one folder of two files, and the view builds the rest from the folders."""
 
 import http.client
 import json
@@ -39,7 +39,8 @@ WIDENED = " font-src 'self';"
 
 
 def differs(copy, real=REPO / "features" / "jbus" / "src"):
-    """Each file of the copy that the checkout does not have as it is, from the copy's top."""
+    """Each file of the copy that differs from the checkout's, or that the checkout does not
+    have, as a path from the copy's top."""
     found = []
     for path in sorted(copy.rglob("*")):
         if path.is_dir() or "__pycache__" in path.parts:
@@ -120,10 +121,10 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
 
 def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served):
     """The page has every panel's script inline, so the policy allows no script from a server.
-    `POLICY` here is the string of the commit `BEFORE`, copied, with the one widening since,
+    `POLICY` here is a copy of the string at the commit `BEFORE`, plus the one widening since,
     `WIDENED`: the page's font from its own server. That copy is the test. On a checkout
     with no history, such as a runner's, it is the whole test. Where git has the commit,
-    the test also holds the copy to the file as it was there, with the widening taken out."""
+    the test also compares the copy, with the widening taken out, to the file at that commit."""
     assert view.POLICY == POLICY
     assert served.ask("/")[1]["Content-Security-Policy"] == POLICY
     was = subprocess.run(
@@ -139,7 +140,7 @@ def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served
 
 def test_the_font_is_served_at_one_path_beside_its_licence(served):
     """The page's one font is the server's own file, so the phone on the tailnet needs no other
-    host, and its licence, the SIL OFL 1.1, is shipped beside it."""
+    host. The font's licence, the SIL OFL 1.1, ships beside it."""
     link = http.client.HTTPConnection("127.0.0.1", served.port, timeout=10)
     try:
         link.request("GET", "/font.woff2", headers={"Host": f"127.0.0.1:{served.port}"})
@@ -195,9 +196,9 @@ def test_a_folder_added_to_a_copy_of_the_package_is_a_panel_and_no_other_file_is
 
 
 def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, process):
-    """The server loads its panels when it starts. A folder added later is code on disk that
-    is newer. One that does not load leaves the server running as it is, and the server
-    says so. One that loads ends the server, so the next start serves the folder."""
+    """The server loads its panels when it starts. A folder added later counts as newer code
+    on disk. If the new folder does not load, the server keeps running as it is and says so.
+    If it loads, the server ends, so the next start serves the folder."""
     process.start()
     made = folder(process, "sample", data="raise ValueError('a panel that does not load')\n")
     process.until(lambda: process.code().get("error"))
@@ -221,9 +222,9 @@ def test_a_panel_asked_for_by_itself_looks_at_its_own_sources_and_no_other(scene
 
 
 def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(scene, process):
-    """A folder is a panel once it holds both files. A check that sees the first file alone
-    leaves the server as it is, and the second file ends the server, so the next start
-    serves the panel."""
+    """A folder is a panel once it has both files. A check that sees only the first file
+    leaves the server as it is. The second file ends the server, so the next start serves
+    the panel."""
     process.start()
     made = process.src / "jbus" / "view" / "panels" / "sample"
     made.mkdir()

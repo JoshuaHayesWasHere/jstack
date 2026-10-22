@@ -10,10 +10,10 @@ stands as it is. A link's conflict asks its home and not the user, so it is on n
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). Its `item` and the line it was last `seen` at go with it, as a steer names them,
-and every other need has those two empty. A proposed item whose row waits for its approval is
-left to that row, since a go by the item's id is no go of the row. But the user can approve a row
-whose item was redirected only by the item's id (`jbus.steer.approvable`), so the item's need
-then replaces the row's."""
+and every other need has those two empty. The panel leaves a proposed item whose row waits for
+its approval to that row, since a go by the item's id is no go of the row. But for a row whose
+item was redirected, the item's id is the only thing that approves it (`jbus.steer.approvable`).
+So the item's need then takes the row's place."""
 
 from __future__ import annotations
 

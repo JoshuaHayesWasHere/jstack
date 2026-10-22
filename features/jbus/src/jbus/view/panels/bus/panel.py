@@ -1,11 +1,11 @@
 """The bus: what the outbox and the wakes count, what jbus sent today by kind and loudness, and
 the last events of the log. The panel never opens the outbox itself.
 
-`top_level` is the same count for the top-level webhook, the monitor of every project, where the
-project posts to it beside its own webhook. The count is that webhook's outbox, its failed wakes,
-its last error and its last POST. It is None where the project has one webhook. `blocking` is the
-same count for the second target, the webhook of what blocks. It is None where the config sets
-none, and its outbox holds bodies, not events."""
+`top_level` is the same count for the top-level webhook, which monitors every project. It is
+there where the project posts to that webhook beside its own. The count is that webhook's outbox,
+its failed wakes, its last error and its last POST. It is None where the project has one webhook.
+`blocking` is the same count for the second target, the webhook of what blocks. It is None where
+the config sets none, and its outbox holds bodies, not events."""
 
 from __future__ import annotations
 

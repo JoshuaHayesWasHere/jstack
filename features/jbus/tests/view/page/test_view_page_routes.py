@@ -79,8 +79,8 @@ WORDS_AT = "#/demo/words/approval/tea-cups"
     ],
 )
 def test_every_route_opens_cold_from_a_pasted_link(scene, tmp_path, route, drawer):
-    """A view is a link. Pasted in a new tab, it opens on its own with the drawer it names,
-    and the page rewrites an old `&open=` link to its route."""
+    """A view is a link. Pasted in a new tab, the link opens the view with the drawer it
+    names. The page rewrites an old `&open=` link to its route."""
     said_by_him(scene)
     (first,) = walked(scene, tmp_path, route, ["look"])
     assert first["open"] is bool(drawer)
@@ -284,11 +284,11 @@ def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(s
 def test_an_address_read_and_written_again_names_the_same_view(
     scene, tmp_path, route, hash, title, crumbs, notice, tap
 ):
-    """The page reads where it is from the address alone, and writes each link it draws from
-    what it read. `#/` is every project, `#/<project>` one project, and `#/help` the
-    glossary over every project. A part that is no name (`%E0`) is a project kept as it was
-    written, and the page rewrites an old `?project=` link to its route. Following the link
-    to where the page is opens the same view again."""
+    """The page reads where it is from the address alone. It builds each link it draws from
+    what it read. `#/` is every project, `#/<project>` is one project, and `#/help` is the
+    glossary over every project. A part that is no name (`%E0`) is a project, kept as it was
+    written. The page rewrites an old `?project=` link to its route. Following the link to
+    where the page is opens the same view again."""
     said_by_him(scene)
     first, again = walked(scene, tmp_path, route, ["look", f"tap:{tap}"])
     assert (first["hash"], first["title"], first["crumbs"]) == (hash, title, crumbs)

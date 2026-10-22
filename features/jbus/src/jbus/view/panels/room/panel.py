@@ -49,7 +49,8 @@ NOT_KEPT = (
 
 def room_limits(user: jsettings.Settings) -> dict[str, float]:
     """The limits that `jgauge room` holds a launch to, read from its script, and the plan's
-    limits, read from the user's headroom, which `jgauge room` passes to it."""
+    limits. The plan's limits come from the user's headroom, which `jgauge room` passes to the
+    script."""
     script = ROOM.read_text()
     names = {
         "load": "LOAD",

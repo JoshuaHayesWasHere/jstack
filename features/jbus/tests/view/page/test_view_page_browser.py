@@ -17,8 +17,8 @@ pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAU
 
 @pytest.fixture
 def own_home(tmp_path, monkeypatch):
-    """A home of the test's own, with a locks directory, so its lock is nobody else's and it
-    waits on no lock of the machine's."""
+    """A home of the test's own, with a locks directory. So no other test shares its lock,
+    and it waits on no lock of the machine's."""
     locks = tmp_path / "home" / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -27,7 +27,7 @@ def own_home(tmp_path, monkeypatch):
 
 def test_a_long_temporary_directory_does_not_fail_the_browser(scene, tmp_path, monkeypatch):
     """Chromium binds a socket in a directory it makes under TMPDIR, and the path of a socket
-    holds 107 characters."""
+    has room for 107 characters."""
     long = tmp_path / ("t" * max(1, 89 - len(str(tmp_path))))
     long.mkdir()
     assert len(str(long)) >= 90
@@ -135,7 +135,7 @@ def test_a_browser_stopped_from_outside_leaves_no_process_it_started(
 
 def hanging(tmp_path, monkeypatch, first=""):
     """A browser that never finishes, and starts a process that would outlive it. It gives
-    back the file that holds that process's id. `first` is shell the browser runs before."""
+    back the file with that process's id. `first` is shell code the browser runs before."""
     child = tmp_path / "child"
     hangs = tmp_path / "chromium"
     hangs.write_text(f"#!/bin/sh\n{first}sleep 300 &\necho $! > {child}\nexec sleep 300\n")

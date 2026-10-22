@@ -177,8 +177,9 @@ def _hook(one: Any) -> dict[str, Any] | None:
 
 
 def _code(said: dict[str, Any]) -> dict[str, Any]:
-    """Which code answers: when the server started, whether a file it runs is newer on disk than
-    that, and, where the server tried the code on disk and it did not start, why."""
+    """Which code answers requests: when the server started, and whether a file it runs is newer
+    on disk than that start. Where the server tried the code on disk and it did not start, it also
+    says why."""
     return {
         "started": when(said.get("started")),
         "stale": said.get("stale") is True,

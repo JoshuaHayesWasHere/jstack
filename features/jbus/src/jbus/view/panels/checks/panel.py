@@ -1,5 +1,5 @@
-"""The repo's checks: its last workflow runs on GitHub, which the server asks for, how many
-commits of main `checks.json` records as green, and the runner units of this machine.
+"""The repo's checks: its last workflow runs on GitHub, how many commits of main `checks.json`
+records as green, and the runner units of this machine. The server asks GitHub for the runs.
 
 The runners are the units that `systemctl --user list-units 'actions-runner-*'` lists. The server
 asks for them on each request, read-only, and each has the state systemd gives it. The card says
@@ -78,10 +78,10 @@ def runners(read: Read) -> list[dict[str, str]] | None:
 
 def tally(runs: list[dict[str, Any]]) -> dict[str, list[int]]:
     """Which runs run now, which wait for a runner, and which failed, each by its place in
-    `runs`. A branch is among the failed once, while the newest run of one of its workflows
-    failed, and its place is that of the oldest of those runs. The runs are oldest first, as
-    `github.GitHub.runs` gives them. This is the one rule: the card and its drawer draw these
-    lists, and the overview counts them."""
+    `runs`. A branch is in the failed list once while the newest run of any of its workflows
+    failed. Its place there is the place of the oldest of those failed runs. The runs are oldest
+    first, as `github.GitHub.runs` gives them. This is the one rule: the card and its drawer draw
+    these lists, and the overview counts them."""
     newest = {(one.get("branch"), one.get("name")): at for at, one in enumerate(runs)}
     failed: dict[Any, int] = {}
     for at in sorted(newest.values()):
