@@ -1,8 +1,10 @@
-"""The harnesses jstack installs for, one row each: the name of its layout
-(`Machine.layout`), the title its README gives it, the root under HOME its agent reads
-skills from, the file under HOME its agent reads hook entries from, none for a harness
-that gets none, and the folder of a checkout its agent reads the repo's own skills from, none
-for a harness the install links none for. What each leaves out is `terms.LEAVES_OUT`."""
+"""The harnesses jstack installs for, one row each.
+
+A row has the name of the harness's layout (`Machine.layout`) and the title its README gives it.
+It has the root under HOME where the harness's agent reads skills. It has the file under HOME
+where that agent reads hook entries, or none when the harness gets no hook entries. It has the
+folder of a checkout where that agent reads the repo's own skills, or none when the install
+links no such skills for the harness. `terms.LEAVES_OUT` holds what each harness leaves out."""
 
 from dataclasses import dataclass
 

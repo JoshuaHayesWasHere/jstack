@@ -1,6 +1,7 @@
-"""`jroles <role>` prints the model selection a launch of that role takes, from the role map.
-It is run here as a thread runs it, against a map in a temporary config directory, and what
-it prints is put into the skills' own launch blocks and held against the tool's schema."""
+"""`jroles <role>` reads the role map and prints the model selection that a launch of that
+role takes. The tests run it as a thread runs it, against a map in a temporary config directory.
+They put what it prints into the skills' own launch blocks and check it against the tool's
+schema."""
 
 import json
 
@@ -20,7 +21,8 @@ review: inherit
 
 @pytest.fixture
 def roles(tmp_path, monkeypatch, capsys):
-    """Run `jroles <role>` over a map, or over none: what it printed, on stdout and stderr."""
+    """Run `jroles <role>` over a map, or with no map, and return what it printed on stdout
+    and stderr."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
 
     def run(role, text=None):
@@ -51,7 +53,8 @@ def test_an_expert_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
 
 
 def test_the_roles_are_the_four_threads_and_an_expert_and_no_other(roles):
-    """A line for a role that is gone refuses the map, and the role cannot be asked for."""
+    """`jroles` refuses a map with a line for a role that no longer exists, and it rejects
+    that role as an argument."""
     assert ROLES == ("crew", "scout", "review", "home", "expert")
     line = "orchestrator: claudeAgent claude-haiku-5-5"
     assert roles("crew", MAP + line + "\n") == ("", f"bad line 6: {line}\n")
@@ -165,7 +168,8 @@ def test_each_provider_names_its_effort_and_fast_by_its_own_option_id(roles, lin
     ],
 )
 def test_a_level_the_provider_does_not_list_refuses_every_review_line(roles, line, why):
-    """One refused line refuses the list: half a list of reviewers is a review nobody chose."""
+    """When `jroles` refuses one line, it refuses the whole list, because a launch of only some
+    of the reviewers would run a review that nobody chose."""
     text = f"review: codex gpt-6-sol effort=xhigh\n{line}\ncrew: grok grok-build\n"
     assert roles("review", text) == ("", f"refused review: {why}\n")
     assert roles("crew", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
@@ -235,8 +239,9 @@ def test_what_it_prints_is_a_model_selection_the_launch_tool_takes(roles, role, 
     ],
 )
 def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, line, effort):
-    """T3 Code launches a model with no effort option at its own default, which is high for
-    Claude Sonnet 5.5: the selection names one, so the role map never raises a thread."""
+    """When a selection has no effort option, T3 Code launches the model at its own default, which
+    is high for Claude Sonnet 5.5. The selection always names an effort, so the role map
+    never raises a thread's effort."""
     selection = json.loads(roles("scout", line + "\n").out)
     assert selection["options"] == [{"id": "effort", "value": effort}]
 
@@ -244,7 +249,8 @@ def test_a_claude_selection_always_names_an_effort_of_medium_or_lower(roles, lin
 @pytest.mark.parametrize("role", ["crew", "scout", "home", "expert"])
 @pytest.mark.parametrize("level", ["high", "xhigh", "max", "ultracode", "ultrathink", ""])
 def test_an_effort_above_medium_is_refused_and_the_launch_inherits(roles, role, level):
-    """Only the review line may run a Claude thread above medium: the user said so for it."""
+    """Only the review line may launch a Claude thread above medium effort, because the user
+    allowed it for that line."""
     text = f"{role}: claudeAgent claude-opus-5-5 effort={level}\nreview: grok grok-build\n"
     assert roles(role, text) == ("", f"refused {role}: effort={level} is not low or medium\n")
     assert roles("review", text) == ('{"provider": "grok", "model": "grok-build"}\n', "")
@@ -254,7 +260,8 @@ SONNETS = "review: claudeAgent claude-sonnet-5-5 effort=high\n" * 2
 
 
 def test_two_sonnet_review_lines_at_high_print_two_selections(roles):
-    """The user's word of 2026-10-20: every review is two Claude Sonnet 5.5 threads on High."""
+    """The user said on 2026-10-20 that every review is two Claude Sonnet 5.5 threads on
+    High."""
     sonnet = (
         '{"provider": "claudeAgent", "model": "claude-sonnet-5-5", '
         '"options": [{"id": "effort", "value": "high"}]}\n'
@@ -293,8 +300,8 @@ INVENTORY = {
 
 @pytest.fixture
 def pooled(tmp_path, monkeypatch, capsys):
-    """`jroles <role>` over a map of pools, the inventory, and a ledger, on a clock it is given:
-    its exit code and what it printed."""
+    """Run `jroles <role>` over a map of pools, the inventory, and a ledger, at a given time,
+    and return its exit code and what it printed."""
     from datetime import UTC, datetime
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
@@ -363,7 +370,9 @@ def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
 
 
 def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_nothing(pooled):
-    """Half a list of reviewers is a review nobody chose: every line waits for the reset."""
+    """A launch of only some of the reviewers would run a review that nobody chose, so jroles
+    holds every line of the role until the
+    reset."""
     (pooled.config / "roles").write_text(
         "review: codex gpt-6-sol codex effort=xhigh\n"
         f"review: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
@@ -381,8 +390,8 @@ def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_noth
 
 
 def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):
-    """An id the inventory does not declare under the line's provider refuses the line, and
-    one more line of the inventory lets it in."""
+    """`jroles` refuses a line with an id that the inventory does not declare under the line's
+    provider, and one more line in the inventory makes the line valid."""
     third = "claudeAgent_claude_third"
     (pooled.config / "roles").write_text(
         f"crew: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME},{third}\n"
@@ -422,8 +431,9 @@ def test_a_pool_that_names_an_instance_twice_or_none_is_refused(roles, pool):
 
 
 def test_a_launch_passes_an_instance_by_at_the_headroom_and_a_move_waits_for_the_cap(pooled):
-    """`jgauge limits` wrote claudeAgent at 90% of its five hours: a new crew goes to prime, a
-    running thread stays (failover's choice counts only 100), and under 90 it comes back."""
+    """`jgauge limits` wrote that claudeAgent has used 90% of its five-hour window. A new crew
+    launch goes to prime, and a running thread stays, since failover counts an instance full
+    only at 100. When claudeAgent's use falls under 90%, new launches go to claudeAgent again."""
     from datetime import UTC, datetime
 
     from jroles import ledger, pool
@@ -444,8 +454,8 @@ def test_a_launch_passes_an_instance_by_at_the_headroom_and_a_move_waits_for_the
 
 
 def test_a_declared_claude_agent_at_its_own_home_is_read_there_and_not_at_dot_claude(tmp_path):
-    """`~/.claude` stands for `claudeAgent` only where the inventory puts no home of its own
-    under that name: a declared home is never overwritten by the fallback."""
+    """`~/.claude` maps to `claudeAgent` only when the inventory gives that name no home of
+    its own. The fallback never overwrites a declared home."""
     from jroles.inventory import claude_instances, instances
 
     declared = instances(

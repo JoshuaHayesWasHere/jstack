@@ -1,10 +1,13 @@
 """The relative links of a Markdown file that a harness's layout places somewhere else.
 
-A link is read from where its file sits in the source. A target the layout holds becomes the
-link from the file's place in the layout to the target's; a source file or folder it leaves out
-becomes its GitHub address; anything else dangles, and is a fault. A link in fenced or inline
-code is no link, though a link whose text is code is one, and an address with a scheme, or an
-anchor alone, is left as it is.
+This module reads a link from where its file sits in the source, and each link's target is
+one of three cases. When the layout holds the target, the module rewrites the link as a path
+from the file's place in the layout to the target's place in the layout. When the target is a
+source file or folder that the layout leaves out, the module rewrites the link as the target's
+GitHub address. Any other link dangles, and that is a fault.
+
+A link inside fenced or inline code is not a link, but a link whose text is code is still a
+link. The module leaves an address with a scheme, or an anchor alone, as it is.
 """
 
 from __future__ import annotations
@@ -20,8 +23,8 @@ SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 def _target(href: str, at: str) -> tuple[str, str] | None:
-    """The repo path a relative `href` of the file at `at` names, and its anchor; None for one
-    that climbs out of the repo."""
+    """The repo path and the anchor that a relative `href` in the file at `at` names, or None
+    when the href resolves to a path outside the repo."""
     path, _, anchor = href.partition("#")
     joined = posixpath.normpath(posixpath.join(posixpath.dirname(at), path))
     if joined == ".." or joined.startswith("../"):
@@ -30,7 +33,8 @@ def _target(href: str, at: str) -> tuple[str, str] | None:
 
 
 def _folder(target: str, placed: dict[str, str]) -> str | None:
-    """Where the layout puts folder `target`, when it puts a file under it at the same depth."""
+    """Where the layout puts folder `target`, when the layout puts a file of that folder at
+    the same depth."""
     for source, copied in placed.items():
         if source.startswith(f"{target}/"):
             rest = source[len(target) :]
@@ -42,9 +46,11 @@ def _folder(target: str, placed: dict[str, str]) -> str | None:
 def rewrite(
     text: str, at: str, copy_at: str, placed: dict[str, str], root: Path, base: str
 ) -> tuple[str, list[str]]:
-    """`text`, the file at source path `at` placed at `copy_at`, with each relative link pointed
-    at the layout's target or at `base`/{blob|tree}/main/<path>; and each link that dangles, as
-    the href it has."""
+    """`text` and the links in it that dangle, each as its href.
+
+    `text` is the file at source path `at`, placed at `copy_at`. The function rewrites each
+    of its relative links to point at the layout's target, or at
+    `base`/{blob|tree}/main/<path>."""
     dangling: list[str] = []
 
     def one(head: str, href: str, tail: str) -> str:
@@ -71,8 +77,9 @@ def rewrite(
         return link
 
     def links(line: str) -> str:
-        """`line` with each link outside a code span rewritten: the spans' text is masked,
-        so a link inside one is none, and a link around one still matches whole."""
+        """`line` with each link outside a code span rewritten. The function masks the text
+        of each span, so a link inside a span does not match and a link around a span still
+        matches whole."""
         masked = CODE.sub(lambda span: span[1] + "x" * len(span["code"]) + span[1], line)
         out, last = [], 0
         for match in LINK.finditer(masked):

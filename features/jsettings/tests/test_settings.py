@@ -1,7 +1,8 @@
-"""The user's name and time zone are settings: `jsettings.load` reads them from one file, every
-command runs on defaults where there is none, and what was written under the old names, on
-disk before the name became a setting, is read as the new ones. Run as
-`features/jbus/tests/test_jbus.py` runs: the real command and the real pass, against the fakes."""
+"""The user's name and time zone are settings. `jsettings.load` reads them from one file, and
+every command runs on defaults when there is no file. Before the user's name became a setting, older
+versions wrote some files on disk under old names. The commands read those old names as the new
+ones. The tests run as `features/jbus/tests/test_jbus.py` runs, with the real command and the
+real pass against the fakes."""
 
 import json
 import os
@@ -30,7 +31,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def word(moment):
-    """What the machine's own zone prints after this time."""
+    """The abbreviation that the machine's own zone gives this time."""
     return moment.astimezone().tzname()
 
 
@@ -67,8 +68,8 @@ def test_a_zone_with_no_label_is_worded_as_the_zone_prints_it(jstack_config):
 
 
 def test_a_zone_is_read_on_a_machine_with_no_time_zone_database(jstack_config):
-    """An empty PYTHONTZPATH is a machine with no /usr/share/zoneinfo: Python then has only
-    the zones the project brings."""
+    """An empty PYTHONTZPATH imitates a machine with no /usr/share/zoneinfo. Python then has
+    only the zones in the project's own packages."""
     jstack_config.write_text('timezone = "America/New_York"\n')
     ran = subprocess.run(
         [sys.executable, "-c", "import jsettings; print(jsettings.load().zone)"],
@@ -80,8 +81,8 @@ def test_a_zone_is_read_on_a_machine_with_no_time_zone_database(jstack_config):
 
 
 def test_a_python_with_no_zones_at_all_says_so_and_does_not_blame_the_name(jstack_config):
-    """`install.sh` runs on a Python that has only `src`: `-S` leaves the project's packages
-    out, tzdata with them."""
+    """`install.sh` runs on a Python that has only `src`. `-S` leaves out the project's
+    packages, and tzdata with them."""
     jstack_config.write_text('timezone = "America/New_York"\n')
     said = "import jsettings\ntry: jsettings.load()\nexcept jsettings.Invalid as why: print(why)"
     ran = subprocess.run(

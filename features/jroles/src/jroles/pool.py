@@ -1,18 +1,20 @@
 """Which instance of a role's pool a launch or a move goes to.
 
 A role line names its pool in order (`crew: claudeAgent claude-opus-5-5
-claudeAgent,claudeAgent_claude_prime`). `choose` takes the first instance of it with headroom in
-the ledger (`jroles.ledger`): an instance is out only while one of its windows is full and has
-not reset. A new launch counts a window full at the user's `headroom` (`jsettings`, 90 by
-default), and a move off a running thread (`jbus.failover`) only at a real cap, 100. So every
-launch goes to the first account until it nears its cap, and a thread stays on the account it
-started on until that account is capped; nothing goes round the pool launch by launch. With
-every instance full there is no instance, and the choice says when the first of them resets.
+claudeAgent,claudeAgent_claude_prime`). `choose` takes the first instance of the pool with
+headroom in the ledger (`jroles.ledger`). It skips an instance only while one of its windows is
+full and has not reset. For a new launch, jroles counts a window full at the user's `headroom`
+(`jsettings`, 90 by default). For a move off a running thread (`jbus.failover`), jbus counts it
+full only at a real cap, 100. So every launch goes to the first account until that account nears its
+cap, and a thread stays on the account it started on until that account is capped. No launch
+rotates through the pool. When every instance is full, the choice names no instance, and gives
+the time when the first instance resets.
 
-The pool grows by a line of the provider inventory (`~/.config/jstack/providers.json`, T3
-Code's `providerInstances`) and one more id on the role line: an id the inventory does not
-declare under the line's provider refuses the line, so a Claude pool never names a Codex or a
-Cursor instance. Where there is no inventory the line is taken as it is written.
+To grow the pool, add a line to the provider inventory (`~/.config/jstack/providers.json`, T3
+Code's `providerInstances`) and one more id to the role line. `jroles` refuses a line with an id
+that the inventory does not declare under the line's provider, so a Claude pool never names a
+Codex or a Cursor instance. When there is no inventory, `jroles` takes the line as the user
+wrote it.
 """
 
 from __future__ import annotations
@@ -33,8 +35,9 @@ WAIT = 75
 @dataclass(frozen=True)
 class Choice:
     """Where a launch or a move goes, and why it is not the pool's first instance. `instance`
-    is None while every instance is capped or passed over, and `until` is then the first
-    reset, None where none is capped. `passed` is each instance `skip` passed over."""
+    is None while every instance is capped or named by `skip`. `until` is then the first
+    reset, or None when no instance is capped. `passed` holds each instance that `choose`
+    skipped because `skip` named it."""
 
     instance: str | None
     why: str
@@ -49,10 +52,10 @@ def choose(
     skip: Mapping[str, str] | None = None,
     full: float = ledger.FULL,
 ) -> Choice:
-    """The first instance of `pool` with headroom in `kept`: none of its windows used to `full`
-    or more. It passes over each instance `skip` names, for the reason it gives (`jbus`: one
-    that is not mirrored). With every instance passed over for `skip` there is no instance and
-    no reset to wait for."""
+    """The first instance of `pool` with headroom in `kept`, which means none of its windows
+    is used to `full` or more. The function skips each instance that `skip` names, for the
+    reason `skip` gives (`jbus` skips an instance that is not mirrored). When `skip` names
+    every instance, there is no instance and no reset to wait for."""
     skip = skip or {}
     capped, passed = [], tuple(instance for instance in pool if instance in skip)
     told = [skip[instance] for instance in passed]
@@ -82,8 +85,8 @@ def config_dir() -> Path:
 
 
 def declared(text: str) -> dict[str, str]:
-    """Each instance the inventory declares, with its driver. Refused when it is not in T3's
-    `providerInstances` shape."""
+    """Each instance that the inventory declares, with its driver. The function refuses an
+    inventory that is not in T3's `providerInstances` shape."""
     try:
         found = json.loads(text)
     except ValueError as error:
@@ -97,7 +100,8 @@ def declared(text: str) -> dict[str, str]:
 
 def check(role: str, selection: Selection, drivers: dict[str, str] | None) -> None:
     """Refuse a pool that names an instance the inventory does not declare under the line's
-    provider. The provider's built-in instance needs no line. None is no inventory."""
+    provider. The provider's built-in instance needs no line in the inventory. An inventory of
+    None means there is no inventory."""
     if drivers is None:
         return
     for instance in selection.pool:
@@ -109,7 +113,8 @@ def check(role: str, selection: Selection, drivers: dict[str, str] | None) -> No
 
 @dataclass(frozen=True)
 class Route:
-    """A role's selection and the instance of its pool the ledger leaves it."""
+    """A role's selection, and the instance of its pool that `choose` picked from the
+    ledger."""
 
     selection: Selection
     choice: Choice
@@ -119,9 +124,9 @@ class Route:
 
 
 def selections(role: str) -> tuple[Selection, ...]:
-    """The role's lines of the map, in order, each pool checked against the inventory, or none
-    where the role inherits. Only `review` has more than one. Refused for a map or an inventory
-    it cannot use."""
+    """The role's lines of the map, in order, with each pool checked against the inventory,
+    or none when the role inherits. Only `review` has more than one line. The function refuses
+    a map or an inventory that it cannot use."""
     where = config_dir()
     try:
         text = (where / "roles").read_text()
@@ -145,8 +150,9 @@ def selections(role: str) -> tuple[Selection, ...]:
 
 
 def routes(role: str, now: datetime) -> tuple[Route, ...]:
-    """Where each launch of `role` goes now, one for each of its lines, or none where it
-    inherits. An instance is full at the user's headroom. Refused for settings it cannot use."""
+    """Where each launch of `role` goes now, one for each of its lines, or none when the role
+    inherits. An instance is full at the user's headroom. The function refuses settings that
+    it cannot use."""
     chosen = selections(role)
     if not chosen:
         return ()
@@ -158,8 +164,8 @@ def routes(role: str, now: datetime) -> tuple[Route, ...]:
 
 
 def headroom(role: str) -> float:
-    """The share at which a new launch of `role` counts an instance full, the user's
-    `headroom`. Refused for settings it cannot use."""
+    """The user's `headroom`, which is the share at which jroles counts an instance full for a
+    new launch of `role`. The function refuses settings that it cannot use."""
     try:
         return jsettings.load().headroom
     except jsettings.Invalid as error:
