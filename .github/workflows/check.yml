@@ -38,16 +38,12 @@ jobs:
   # requires, and jmerge's REQUIRED, so its name stays `check`.
   check:
     if: github.event_name == 'pull_request'
-    # infra's fast lane, so a pull request's check never queues behind a full suite on the
-    # ephemeral runners (infra's docs/runbooks/fast-lane.md, "The contract"). The lane stops a
-    # container 10 minutes after its job started, so GitHub's cap is under that and a run too
-    # long for the lane is reported as timed out, not as a lost runner. Every CI job runs
-    # locally, by the owner's word ("EVERYTHING CI IS DONE LOCALLY. THAT IS THE DEFAULT."). This
-    # repo is public, so a stranger's pull request reaches that runner only through GitHub's
-    # gate: the repo requires approval for all external contributors, so a fork's run waits for
-    # the owner every time.
-    runs-on: [self-hosted, jstack-fast]
-    timeout-minutes: 9
+    # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
+    # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
+    # cost nothing. The image is pinned, not ubuntu-latest, so the tools the suite finds there
+    # (Google Chrome for browser.yml, git, gh, jq) change only with a change to this file.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -109,12 +105,9 @@ jobs:
   # real browser are not in it: browser.yml runs them, nightly and on a release.
   full:
     if: github.event_name != 'pull_request'
-    # The runner is the repo's to name, in its variable RUNS_ON: one label as it is, or a list
-    # of them as JSON, which starts with a bracket. With none it is the local ephemeral
-    # runner, never GitHub's.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    # The full suite runs about 15 minutes on a 2-CPU runner, plus setup and cleanup: 25 leaves 10 minutes of headroom, and a hung run still stops.
-    timeout-minutes: 25
+    # GitHub's hosted runner, as the check's.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -138,9 +131,15 @@ jobs:
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+      - name: probe tools (temporary)
+        run: |
+          for t in zsh tmux rg shellcheck sqlite3 gitleaks chromium chromium-browser google-chrome node systemd-analyze systemctl gh jq setsid; do printf '%s %s\n' "$t" "$(command -v $t || echo MISSING)"; done
+          nproc; cat /proc/self/cgroup; cat "/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/self/cgroup)/cpu.max" || true; make -n check | tail -1
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
+        env:
+          PYTEST_ADDOPTS: -rs
         run: make check JUNIT="$RUNNER_TEMP/junit.xml"
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed

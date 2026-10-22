@@ -20,10 +20,10 @@ jobs:
   # feature layout, and a change across two features with no `cross-cutting` label. It is a
   # check jmerge requires (REQUIRED in features/jmerge/src/jmerge/ready.py). Standard library
   # only, so no uv sync, and a label flip costs seconds. On GitHub's merge of the pull request
-  # HEAD^1 is the tip of the base. It runs on infra's fast lane, as the pull request's check
-  # does (check.yml).
+  # HEAD^1 is the tip of the base. It runs on GitHub's hosted runner, as every job does
+  # (check.yml).
   borders:
-    runs-on: [self-hosted, jstack-fast]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

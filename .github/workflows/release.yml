@@ -22,9 +22,8 @@ env:
 
 jobs:
   release:
-    # The runner is the repo's to name, as in check.yml: its variable RUNS_ON, or the local
-    # ephemeral runner, never GitHub's.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
+    # GitHub's hosted runner, as in check.yml.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
