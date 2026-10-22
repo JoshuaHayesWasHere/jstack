@@ -1,7 +1,7 @@
 """`make pstack-drift` lists what changed upstream in pstack since the pin, for the files this
-repo took from it. `jdrift` is run here against a temporary git repo that stands in for the
-upstream, one case per kind of line and per exit code, and the map in `THIRD_PARTY.md` is
-parsed by the same code and held against the files it credits."""
+repo took from it. The tests run `jdrift` against a temporary git repo in place of the upstream,
+with one case for each kind of line and each exit code. They also parse the map in
+`THIRD_PARTY.md` with the same code, and check it against the files it credits."""
 
 import re
 import subprocess
@@ -53,7 +53,7 @@ def git(cwd, *args):
 
 
 class Upstream:
-    """A repo that stands in for cursor/plugins, with a pin and four later commits in pstack/."""
+    """A repo in place of cursor/plugins, with a pin and four later commits in pstack/."""
 
     def __init__(self, path):
         self.path = path
@@ -270,7 +270,7 @@ def test_exit_2_with_a_map_that_does_not_parse(upstream, capsys, broken, said):
 
 
 def own(upstream, *paths):
-    """The checkout's `THIRD_PARTY.md` with a `jstack's own:` line naming `paths`."""
+    """The checkout's `THIRD_PARTY.md`, with a `jstack's own:` line that names `paths`."""
     line = "jstack's own: " + ", ".join(f"`{path}`" for path in paths)
     text = SECTION.format(pin=upstream.pin, map=MAP).replace(
         "\nNot taken:", f"\n{line}\n\nNot taken:"
@@ -322,8 +322,8 @@ WORKFLOW = ROOT / ".github" / "workflows" / "pstack-drift.yml"
 
 
 def step(tmp_path, make):
-    """Run the workflow's `run:` block with `make` as the given script. The exit, what it
-    printed, and the job summary."""
+    """Run the workflow's `run:` block with `make` as the given script. Return the exit code,
+    what the block printed, and the job summary."""
     lines = WORKFLOW.read_text().split("        run: |\n")[1].splitlines()
     script = "\n".join(line.removeprefix("          ") for line in lines)
     fake = tmp_path / "bin" / "make"
@@ -425,8 +425,8 @@ def test_shipped_map_has_every_file_whose_source_line_names_pstack_with_those_pa
 
 
 def credited(prose):
-    """The files under the directories of `TOPS` that the prose names: by path, by a directory
-    of theirs, or by a playbook's bare file name."""
+    """The files under the directories of `TOPS` that the prose names. The prose names a file
+    by its path, by a directory that holds it, or by a playbook's bare file name."""
     for token in re.findall(r"`([^`\s<*]+)`", prose):
         path = ROOT / token
         if token.startswith(tuple(f"{top}/" for top in TOPS)) and path.is_file():
@@ -447,8 +447,9 @@ def test_shipped_map_has_every_file_the_prose_credits():
 
 
 def placed(prose):
-    """Each file the prose places in a directory, `a.md` and `b.md` in `dir/` or more files in
-    `dir/` (the playbook files `a.md` and `b.md`), as the path it says that file has."""
+    """Each file that the prose places in a directory, as the path the prose gives it. The
+    prose places files in two forms: `a.md` and `b.md` in `dir/`, or more files in `dir/` (the
+    playbook files `a.md` and `b.md`)."""
     names = r"`[\w.-]+\.md`(?:(?:, | and |, and )`[\w.-]+\.md`)*"
     said = re.findall(rf"({names}) in `([\w/-]+/)`", prose)
     said += [
