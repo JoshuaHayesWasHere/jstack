@@ -1,4 +1,5 @@
-"""The two lessons skills, `correct` and `reflect`: their shell blocks are lifted out and run."""
+"""The two lessons skills, `correct` and `reflect`: the tests lift their shell blocks out and
+run them."""
 
 import json
 import os
@@ -257,7 +258,8 @@ WRITE_TOOLS = ["Edit", "NotebookEdit", "Write"]
 
 
 def write_tools(tools):
-    """The write tools an agent type has, from how the Agent tool words its tools."""
+    """The write tools that an agent type has. `tools` is the agent type's list of tools, as
+    the Agent tool gives it."""
     named = set(tools.removeprefix("All tools except ").split(", "))
     if tools == "*":
         return WRITE_TOOLS
@@ -267,7 +269,7 @@ def write_tools(tools):
 
 
 def launch_problems(call):
-    """What lets a subagent started with `call`, an Agent call, change a file."""
+    """What lets a subagent change a file when `call` starts it. `call` is an Agent call."""
     kind = call.get("subagent_type", "general-purpose")
     if kind not in AGENT_TYPES:
         return [f"{kind} is no agent type in testing/tests/fixtures/claude/agent-types.txt"]
@@ -278,7 +280,7 @@ def launch_problems(call):
 
 
 def reviewer_launch():
-    """The one JSON block of the reflect skill: the Agent call a reviewer is started with."""
+    """The one JSON block of the reflect skill: the Agent call that starts a reviewer."""
     (body,) = re.findall(r"^```json\n(.*?)^```$", SKILLS["reflect"].read_text(), re.M | re.S)
     return json.loads(body)
 
@@ -344,7 +346,8 @@ WORKTREE = block("reflect", "reflect-before")
 
 
 class Worktree:
-    """A git repository with one commit, and the reflect skill's worktree check run in it."""
+    """A git repository with one commit, in which the test runs the reflect skill's worktree
+    check."""
 
     def __init__(self, tmp_path):
         self.path = tmp_path / "repo"

@@ -1,7 +1,7 @@
 """What one thread cost, read from its transcript and nothing else.
 
-The transcript is the record. The counting rule is `transcript.calls`: once
-per `message.id`. Two figures come from it:
+The counting rule is `transcript.calls`, which counts each `message.id` once.
+The module computes two figures with it:
 
 - the total: input, cache write, cache read and output, summed over calls;
 - the peak context: the largest input side (input plus cache read plus cache
@@ -20,7 +20,7 @@ SUMMED = (*transcript.empty_totals(), "total")
 
 
 def _row(path: Path, role: str, seen: set[str]) -> dict:
-    """One transcript's counts. A message id already in `seen` is not counted again."""
+    """One transcript's counts. The function does not count a message id already in `seen` again."""
     entries = transcript.lines(path)
     found = [call for call in transcript.calls(entries) if call.id not in seen]
     seen.update(call.id for call in found)
@@ -43,7 +43,8 @@ def _row(path: Path, role: str, seen: set[str]) -> dict:
 
 
 def _total(sums: dict) -> int:
-    """Every token of a sum. A floor is output too, only not yet final."""
+    """The number of tokens in a sum: input, cache write, cache read and output. A floor
+    counts as output too, though it is not yet final."""
     return (
         sums["tokens_in"]
         + sums["cache_write"]
@@ -56,8 +57,9 @@ def _total(sums: dict) -> int:
 def _rows(path: Path, seen: set[str]) -> list[dict]:
     """A session's row, then one for each subagent it started.
 
-    The search goes down the whole `subagents/` directory: an agent a workflow
-    started is written a level below, in `subagents/workflows/<workflow id>/`.
+    The search goes down the whole `subagents/` directory. When a workflow starts an agent,
+    Claude Code writes that agent's transcript one level further down, in
+    `subagents/workflows/<workflow id>/`.
     """
     agents = sorted((path.with_suffix("") / "subagents").rglob("agent-*.jsonl"))
     return [_row(path, "session", seen), *(_row(agent, "subagent", seen) for agent in agents)]
@@ -69,7 +71,7 @@ def _sum(rows: list[dict]) -> dict:
 
 
 def of_transcript(path: Path) -> dict:
-    """A session's cost. Raises `TranscriptError` if its transcript cannot be read."""
+    """A session's cost. Raises `TranscriptError` if it cannot read the session's transcript."""
     rows = _rows(path, set())
     return {"transcript": str(path), "rows": rows, "total": _sum(rows)}
 

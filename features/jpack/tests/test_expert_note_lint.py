@@ -1,5 +1,6 @@
-"""The note lint: `features/jpack/src/jpack/lint-notes.sh` is run here on a made-up expert's
-folder in a temporary directory, by itself and by the block the `expert-study` playbook gives.
+"""The note lint: these tests run `features/jpack/src/jpack/lint-notes.sh` on a made-up expert's
+folder in a temporary directory, by itself and through the block the `expert-study` playbook
+gives.
 """
 
 import re
@@ -274,7 +275,7 @@ def step_six():
     ],
 )
 def test_the_study_playbook_runs_the_lint_on_the_whole_folder(tmp_path, notes, said):
-    """The pass wrote the first note only: the other is one an earlier pass left."""
+    """The pass wrote only the first note. An earlier pass left the other one."""
     expert = folder(tmp_path, notes)
     block = step_six().replace("<the notes of this pass>", next(iter(notes)))
     bin = tmp_path / "bin"

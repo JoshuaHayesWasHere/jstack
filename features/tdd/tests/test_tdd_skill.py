@@ -1,5 +1,5 @@
-"""The tdd skill names files outside its own directory: linked, it prints the repo's root,
-and every file it names from there is under it."""
+"""The tdd skill names files outside its own directory, by paths from the repo's root. When
+the skill is linked, its block prints that root, and every file the skill names is under it."""
 
 from skill_blocks import (
     home,

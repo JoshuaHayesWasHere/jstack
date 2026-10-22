@@ -1,5 +1,5 @@
-"""The ketchup skill's block: it prints the gates that are open, in the root home and in each
-scoped one, and says so when none is."""
+"""The ketchup skill's block prints the gates that are open, in the root home and in each scoped
+home. When no gate is open, it says so."""
 
 from skill_blocks import aged, block, home, outside, repo, run
 

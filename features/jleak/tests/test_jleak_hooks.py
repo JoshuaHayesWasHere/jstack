@@ -3,7 +3,7 @@
 The push tests make a repo with a bare remote, link `features/jleak/hooks/pre-push.sh` as its
 `pre-push` hook and run `git push`. The command tests feed
 `features/jleak/hooks/outbound-command.sh` what Claude Code gives a `PreToolUse` hook. The
-private patterns are made-up words in a file of the test's own.
+private patterns are made-up words in a file that the test writes for itself.
 """
 
 import json
@@ -29,7 +29,7 @@ def patterns(jstack_config):
 
 
 class Pushed:
-    """A repo on `main` with one clean commit pushed to a bare remote, and the hook linked."""
+    """A repo on `main` with one clean commit, pushed to a bare remote, and with the hook linked."""
 
     def __init__(self, tmp_path):
         self.remote, self.repo = tmp_path / "remote.git", tmp_path / "repo"
@@ -372,7 +372,8 @@ def test_a_pull_request_command_with_no_private_patterns_file_is_refused(pattern
 
 
 def refused_from(root, hooks, given):
-    """The command hook, copied to `<root>/<hooks>`, fed `given`: its exit code and stderr."""
+    """Copy the command hook to `<root>/<hooks>`, feed it `given`, and give its exit
+    code and stderr."""
     (root / hooks).mkdir(parents=True)
     (root / hooks / COMMAND.name).write_text(COMMAND.read_text())
     done = subprocess.run(

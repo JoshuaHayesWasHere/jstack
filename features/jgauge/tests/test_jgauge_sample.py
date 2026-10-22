@@ -27,7 +27,7 @@ def pressure(some, full):
 
 @pytest.fixture
 def machine(tmp_path, monkeypatch):
-    """A /proc made of files, and a log the sampler is pointed at, both under tmp_path."""
+    """A /proc made of files, and a log that the test points the sampler at, both under tmp_path."""
     proc = tmp_path / "proc"
     (proc / "pressure").mkdir(parents=True)
     (proc / "loadavg").write_text("11.54 8.96 7.51 11/2475 114345\n")
@@ -120,9 +120,10 @@ def test_a_log_with_other_columns_is_not_appended_to(machine, capsys):
 
 
 def fixture(log, at):
-    """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24): over the
-    line with CPU pressure low, at the line under 10 (both counted), over the line with CPU
-    pressure high, just under the line, CPU pressure not read, and quiet."""
+    """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24). One row is
+    over the line with CPU pressure low, and one is at the line with CPU pressure under 10: the
+    report counts both. One is over the line with CPU pressure high, and one is just under the
+    line. One has no CPU pressure reading, and the last has a low load."""
     log.parent.mkdir(parents=True, exist_ok=True)
     loads = [
         ("49.00", "5.00"),

@@ -1,9 +1,9 @@
-"""`/new-home <repo>`: the blocks of the skill are run, on a made-up home directory and repo.
+"""`/new-home <repo>`: the test runs the blocks of the skill on a made-up home directory and repo.
 
-Each block is taken out of `features/home/skills/new-home/SKILL.md`, its placeholders filled
-as the skill says, and run by `sh` with `jbus` on PATH as the real command over a made-up
-config. The steps that are tool calls are held to their tools' schemas by
-`features/repo-guards/tests/test_tool_calls.py`.
+The test takes each block out of `features/home/skills/new-home/SKILL.md`, fills its placeholders as
+the skill says, and runs it with `sh`, with `jbus` on PATH as the real command over a made-up
+config. `features/repo-guards/tests/test_tool_calls.py` checks the steps that are tool calls against
+their tools' schemas.
 """
 
 import os

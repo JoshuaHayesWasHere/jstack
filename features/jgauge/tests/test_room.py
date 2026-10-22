@@ -23,12 +23,14 @@ NEITHER = "five-hour and weekly limits are not known: {} does not give them"
 
 
 def check():
-    """The check before a launch: `room.sh`, the one copy, which `jgauge room` runs."""
+    """The check before a launch: `room.sh`, which `jgauge room` runs. It is the one copy of the
+    check."""
     return ROOM.read_text()
 
 
 def limits(windows):
-    """The file the status line writes: a window a line, its name, percent used and reset time."""
+    """The file the status line writes: one window to a line, with its name, percent used and
+    reset time."""
     now = int(time.time())
     return "".join(f"{name} {used} {now + left}\n" for name, (used, left) in windows.items())
 
@@ -42,9 +44,10 @@ def table(slots, used):
 
 
 def put(path, text, mode=0o644):
-    """Write the file whole: beside itself first, then renamed into place, so a reader or an
-    exec of it sees the old file or the new one, never one half written or open for writing.
-    A file that already says that is left as it is."""
+    """Write the file whole. Write the text to a temporary file beside the target, then rename
+    the temporary file into place over the target. A reader or an exec of the target then sees
+    the old file or the new one, never one half written or open for writing. Leave a target
+    that already holds that text as it is."""
     if path.exists() and path.read_text() == text:
         return
     part = path.with_name(f".{path.name}.part")
@@ -54,8 +57,8 @@ def put(path, text, mode=0o644):
 
 
 def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="0.00"):
-    """A machine made of files, as `room` reads one, and the environment that points it there.
-    It can be written anew while `room` reads it."""
+    """A machine made of files, as `room` reads one, and the environment that points `room`
+    there. A test can rewrite the machine's files while `room` reads them."""
     proc, stub, tmp = where / "proc", where / "stub", where / "stub" / "tmp"
     (proc / "pressure").mkdir(parents=True, exist_ok=True)
     tmp.mkdir(parents=True, exist_ok=True)
@@ -102,7 +105,8 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
 
 
 def uv(stub):
-    """A `uv` that runs the command after `run --project <path>` as it is, from PATH."""
+    """A `uv` stand-in that drops `run --project <path>`. It runs the rest of the command as
+    given, and it finds that command on PATH."""
     (stub / "uv").write_text(
         '#!/bin/sh\n[ "$1 $2" = "run --project" ] || exit 64\nshift 3\nexec "$@"\n'
     )
@@ -110,7 +114,8 @@ def uv(stub):
 
 
 def ran(env, script=None):
-    """What `jgauge room` says on that machine, or a changed copy of its file run as it is."""
+    """What `jgauge room` says on that machine. With `script`, a changed copy of room's file,
+    the function runs that script as it is instead."""
     command = ["sh", "-c", script] if script else [str(BIN / "jgauge"), "room"]
     return subprocess.run(command, env=env, capture_output=True, text=True, check=True)
 
@@ -125,8 +130,8 @@ def test_an_idle_machine_has_room(tmp_path):
 
 
 def test_yelenas_busiest_load_with_little_cpu_pressure_goes(tmp_path):
-    """Load 29 on 24 cores with CPU pressure at 8, as yelena ran on 2026-10-19: busy, and
-    nothing waiting long for a core."""
+    """Load 29 on 24 cores with CPU pressure at 8, as yelena ran on 2026-10-19. The machine
+    was busy, and nothing waited long for a core."""
     busy = {**IDLE, "load": "29.00", "cores": "24", "cpu": "8.00"}
     assert says(machine(tmp_path, **busy)) == "go"
 
@@ -400,8 +405,8 @@ def test_the_one_window_a_file_gives_still_waits_past_the_cushion(tmp_path):
 
 
 def test_the_cushion_is_the_users_headroom_and_the_reason_gives_it(tmp_path):
-    """`jgauge room` hands `room.sh` the headroom of the user's settings, the line a launch's
-    pool is chosen by, and the script alone falls back to the same default."""
+    """`jgauge room` passes `room.sh` the headroom from the user's settings, from the line that
+    picks a launch's pool. Run alone, the script falls back to the same default."""
     assert check().count("CUSHION=${HEADROOM:-90}\n") == 1
     assert f"{jsettings.DEFAULTS.headroom:g}" == "90"
     env = machine(tmp_path, **IDLE, plan={**FRESH, "five_hour": ("72", 20 * 60 + 59)})
@@ -445,14 +450,17 @@ def test_the_check_reads_the_limits_file_of_the_account_it_runs_under(tmp_path):
 
 
 def waited(env, limit, every="0.05"):
-    """What `jgauge room --wait` printed and how it exited, looking that often."""
+    """What `jgauge room --wait` printed and how it exited, when it checks again at that
+    interval."""
     command = [str(BIN / "jgauge"), "room", "--wait", limit, "--every", every]
     ran = subprocess.run(command, env=env, capture_output=True, text=True, timeout=20)
     return ran.stdout.splitlines(), ran.returncode
 
 
 def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_path):
-    """A wait looks while a timer writes the machine anew, as the tests below do."""
+    """The tests below run `jgauge room --wait`, which reads the machine again and again while
+    a timer rewrites it. This test checks that a reader of the stubs never sees a stub half
+    written."""
     machine(tmp_path, **IDLE)
     stub, stop, seen = tmp_path / "stub", threading.Event(), []
 
@@ -569,7 +577,7 @@ STALE = 21 * 60
 
 def tmpfs(where, slots):
     """A machine whose `$TMPFS` is made of files: `df` counts every entry under it as a used
-    slot, out of `slots`, so what is removed from it is freed at once."""
+    slot, out of `slots`, so a file removed from it frees its slot at once."""
     env = machine(where, **IDLE, slots=None)
     put(
         where / "stub" / "df",
@@ -711,7 +719,7 @@ def test_no_skill_holds_a_copy_of_the_check(tmp_path):
 
 
 def light(env, *more):
-    """What `jgauge room --light` printed and how it exited: the check a review asks."""
+    """What `jgauge room --light` printed and how it exited: the check that a review asks for."""
     command = [str(BIN / "jgauge"), "room", "--light", *more]
     ran = subprocess.run(command, env=env, capture_output=True, text=True, timeout=20)
     return ran.stdout.splitlines(), ran.returncode
@@ -777,8 +785,9 @@ PRIME = "claudeAgent_claude_prime"
 
 
 def test_the_plan_is_read_for_the_instance_room_is_asked_about(tmp_path):
-    """The ledger is a file for each instance: `jgauge room --instance <id>` reads that one's,
-    and the built-in instance's is the file LIMITS names."""
+    """The ledger has a file for each instance: `jgauge room --instance <id>` reads that
+    instance's file, and the built-in instance's file is the one the variable `LIMITS`
+    names."""
     env = machine(tmp_path, **IDLE)
     Path(f"{env['LIMITS']}.{PRIME}").write_text(
         limits({**FRESH, "seven_day": ("100", 30 * HOUR + 59)})
@@ -804,7 +813,8 @@ def test_a_name_that_is_no_instance_is_a_wait(tmp_path):
 
 
 def pooled(env, *lines):
-    """The role map of the machine `env` points at: `crew:` and then each line as written."""
+    """The role map of the machine that `env` points at: `crew:` and then each line as
+    written."""
     roles = Path(env["XDG_CONFIG_HOME"]) / "jstack" / "roles"
     roles.parent.mkdir(parents=True, exist_ok=True)
     roles.write_text("".join(f"{line}\n" for line in lines))
@@ -812,7 +822,8 @@ def pooled(env, *lines):
 
 
 def ledgers(env, main, prime):
-    """Each instance's file of the ledger, the main one's at LIMITS and prime's beside it."""
+    """Each instance's file of the ledger. The main instance's file is at `LIMITS`, and
+    prime's file is beside it."""
     for file, plan in ((env["LIMITS"], main), (f"{env['LIMITS']}.{PRIME}", prime)):
         Path(file).write_text(limits(plan))
     return env
@@ -855,7 +866,8 @@ def test_a_pool_with_one_instance_full_goes_and_says_which_has_room(
 
 
 def test_a_pool_with_every_instance_full_waits_and_names_each_and_the_first_reset(tmp_path):
-    """An instance full on both windows is held until the later reset, which is the one named."""
+    """Room holds back an instance that is full on both windows until the later reset, and
+    names that reset."""
     both = {"five_hour": ("100", 2 * HOUR + 59), "seven_day": ("100", 50 * HOUR + 59)}
     env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), both, CAPPED_WEEK)
     assert says(env) == (
@@ -868,7 +880,8 @@ def test_a_pool_with_every_instance_full_waits_and_names_each_and_the_first_rese
 
 
 def test_a_full_instance_beside_one_the_ledger_does_not_know_goes_and_says_both(tmp_path):
-    """No file for prime is no cap: it is the instance with room, and its limits are not known."""
+    """Prime has no file, which does not make it capped. Prime is the instance that has room,
+    and `room` says that prime's limits are not known."""
     env = pooled(machine(tmp_path, **IDLE, plan=CAPPED), POOLED)
     looked = ran(env)
     assert looked.stdout == "go\n"
@@ -880,8 +893,8 @@ def test_a_full_instance_beside_one_the_ledger_does_not_know_goes_and_says_both(
 
 
 def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
-    """`--role` takes that role's line; the crew's is read with none, and `--instance` reads
-    the one instance it names whatever the map says."""
+    """`--role` takes that role's line, and room reads the crew's line when no role is given.
+    `--instance` reads the one instance that the flag names, whatever the map says."""
     env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
     pooled(env, "crew: inherit", f"scout: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}")
     room = [str(BIN / "jgauge"), "room"]
@@ -899,7 +912,8 @@ def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
 
 
 def test_a_role_with_no_pool_reads_limits_as_before(tmp_path):
-    """No role map, `inherit`, or a line that names no instance: the file LIMITS names."""
+    """With no role map, with `inherit`, or with a line that names no instance, `room` reads
+    the file that the variable `LIMITS` names."""
     env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
     full = "wait: the five-hour limit is 100% used, at or over 90%, and resets in 2 h 0 min"
     assert says(env) == full
@@ -918,7 +932,8 @@ def test_a_role_map_room_cannot_use_reads_limits_as_before_and_says_why(tmp_path
 
 
 def test_every_line_of_a_role_is_a_pool_and_any_one_full_waits(tmp_path):
-    """`review` alone has several lines, each a reviewer: one whose pool is full holds it."""
+    """`review` alone has several lines, one for each reviewer, and a line whose pool is full
+    makes the launch wait."""
     env = ledgers(machine(tmp_path, **IDLE), FRESH, CAPPED_WEEK)
     pooled(
         env, "review: claudeAgent claude-opus-5-5", f"review: claudeAgent claude-opus-5-5 {PRIME}"
@@ -931,7 +946,8 @@ def test_every_line_of_a_role_is_a_pool_and_any_one_full_waits(tmp_path):
 
 
 def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(tmp_path):
-    """Some awks stop on a directory they are asked to read: room skips it before awk reads."""
+    """Some awks stop on a directory given to them to read, so room skips the directory before
+    awk reads it."""
     env = pooled(machine(tmp_path, **IDLE, plan=CAPPED), POOLED)
     Path(f"{env['LIMITS']}.{PRIME}").mkdir()
     looked = ran(env)

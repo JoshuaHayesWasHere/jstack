@@ -1,13 +1,16 @@
-"""The process skills are gates, read from what each one leaves behind.
+"""The process skills are gates, and the tests check each one by the line it writes.
 
-A review's step 5 (blast-radius) leaves a `Proof:` line in its `## Review` section, and
-`jmerge` merges a guarded path only where that line proves the one safety fact at the head.
-A hold is lifted by `jmerge --accept`, the user's hand-merge, which asks for the same fact.
-A design call (`/architect`) leaves a `Design:` line in the brief, and `jbus queue add` queues
-no brief that has none. A row already approved is grandfathered and launches.
+A review's step 5 (blast-radius) writes a `Proof:` line in its `## Review` section.
+`jmerge` merges a pull request that changes a guarded path only when that line proves, at the
+pull request's head, the one fact that makes the change safe. `jmerge --accept`, the user's
+hand-merge, lifts a hold, and it asks for the same fact. A design call (`/architect`) writes a
+`Design:` line in the brief, and `jbus queue add` queues no brief without that line. jbus
+still launches a row that the user approved before this rule, and the tests call that row
+grandfathered.
 
-`jmerge` is run against `test_home_merge`'s fake `gh` and real origin, and the pass as
-`features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code server."""
+The tests run `jmerge` against `test_home_merge`'s fake `gh` and real origin, and they run the
+pass as `features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code
+server."""
 
 import json
 import re
@@ -323,7 +326,8 @@ def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code
 
 
 def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused():
-    """Step 5 of the review says how the form is filled, and gives one fact each way."""
+    """Step 5 of the review says how the reviewer fills in the form. It gives one fact that
+    passes as proven and one that `jmerge` refuses."""
     root = REPO
     template = (root / "features" / "pr-review" / "templates" / "review.md").read_text()
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
@@ -371,7 +375,8 @@ def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_mer
 
 
 def held(proven_merged):
-    """A pull request `jmerge` holds for the user, said in a pass of its own."""
+    """A pull request that `jmerge` holds for the user. A pass of `jmerge` prints the pull
+    request's `hold` line."""
     proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
     assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
     assert proven_merged.untouched()
@@ -432,8 +437,9 @@ def test_a_proof_carries_over_a_rebase_jmerge_compared_and_found_clean(proven_me
 
 
 def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_head(proven_merged):
-    """A drop is held once a review of the rebased head did not rule on it. That head is
-    compared with no other, so the proof of the commit before the rebase does not carry."""
+    """The rebase dropped a line, and the review of the rebased head did not rule on that line.
+    So `jmerge` holds the pull request. `--accept` asks for a proof at the rebased head itself,
+    so the proof of the commit before the rebase does not count."""
     rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"})
     ack = (
         f"Dropped on rebase: {rangediff.FILE}, 1 of main's, 0 of its own, "
@@ -452,8 +458,8 @@ def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_hea
 
 
 def test_accept_says_and_logs_every_hold_it_lifts(proven_merged):
-    """A drop the review did not rule on, on a pull request that also changes a protected
-    path: `jmerge` shows the first hold, and the accept names both."""
+    """A pull request has a drop the review did not rule on, and it also changes a protected
+    path. `jmerge` shows the first hold, and `jmerge --accept` names both holds."""
     files = (rangediff.FILE, SECRET)
     rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"}, files=files)
     ack = (
@@ -481,7 +487,7 @@ def test_a_merged_hold_is_taken_off_the_record_and_the_others_stay(proven_merged
 
 
 def test_the_waiting_line_is_read_off_what_jmerge_itself_prints(proven_merged):
-    """`stall.hand_merge` is given the real `jmerge --accept 7 --check`, not a stub of it."""
+    """The test gives `stall.hand_merge` the real `jmerge --accept 7 --check`, not a stub of it."""
     held(proven_merged)
 
     def asked(*command):
@@ -623,7 +629,8 @@ UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "")
 
 
 def test_queue_add_refuses_a_brief_with_no_design_line():
-    """A lint runs when a row is first queued: `jbus queue add` is where a brief is refused."""
+    """A lint runs when `jbus queue add` first queues a row, and that command is the one that
+    refuses a brief."""
     assert parse.NO_DESIGN in parse.faults(UNDESIGNED)
     assert parse.faults(brief("alpha")) == []
 
@@ -633,7 +640,8 @@ def launched(kitchen):
 
 
 def test_an_approved_row_whose_brief_has_no_design_line_is_grandfathered_and_launches(kitchen):
-    """A lint added after a row's go does not refuse it: it launches, and no gate is sent."""
+    """A lint added after the user approved a row does not refuse the row: jbus launches it
+    and asks the user no gate question."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", UNDESIGNED)
     add(kitchen, "beta", priority=2)

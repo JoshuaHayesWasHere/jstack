@@ -1,6 +1,7 @@
-"""A context pack checked with no model: `jpack lint`, `jpack verify` and `jpack stale` run on
-a made-up pack in a temporary git repo, the template's own example note among them, and the
-day's stale check of a jbus pass on a project whose checkout has a pack."""
+"""The tests check a context pack with no model. They run `jpack lint`, `jpack verify`
+and `jpack stale` on a made-up pack in a temporary git repo. One of the pack's notes is the
+template's own example note. They also run the stale check that a jbus pass makes once a day,
+on a project whose checkout has a pack."""
 
 import os
 import re
@@ -84,8 +85,8 @@ def days_ago(days):
 
 
 def pack(repo, notes):
-    """A pack in the repo's `docs/context/`: each note `(name, question, sources)`, each in the
-    index."""
+    """A pack in the repo's `docs/context/`. Each note is `(name, question, sources)`, and
+    the index lists each."""
     folder = repo / "docs" / "context"
     (folder / "notes").mkdir(parents=True)
     index = []
