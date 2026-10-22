@@ -315,6 +315,7 @@ def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, w
 
 def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     sous_chef, _, _ = hooks
+    sous_chef.hold = 0.5
     sent = body(event("gate", "user"))
     first = Relay(env_for(hooks), tmp_path / "state").up()
 
