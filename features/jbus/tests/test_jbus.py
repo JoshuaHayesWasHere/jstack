@@ -62,7 +62,7 @@ def test_a_config_or_a_token_others_can_read_stops_jbus(kitchen, name, mode):
 
 
 def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
-    tests = sorted((REPO / "tests").glob("test_jbus*.py"))
+    tests = sorted((REPO / "features/jbus/tests").glob("test_jbus*.py"))
     assert len(tests) > 10
     files = [
         *(REPO / "features/jbus/src/jbus").rglob("*.py"),
