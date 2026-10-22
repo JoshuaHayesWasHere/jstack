@@ -93,6 +93,12 @@ def test_a_read_of_a_home_thread_is_not_a_write(line):
     assert writes(line) == []
 
 
+def test_the_sweep_reads_the_docs_of_every_feature_but_home():
+    swept = {path.relative_to(REPO).as_posix() for path in scanned()}
+    assert "features/jbriefs/docs/jbriefs.md" in swept
+    assert not any(path.startswith("features/home/docs/") for path in swept)
+
+
 def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkeypatch):
     """A root home starts by steps 1 and 3 of the home skill, in the state directory jbus
     reads. Its id is in `home-id`, `home-thread` is not there, and the pass runs `jmerge`."""
