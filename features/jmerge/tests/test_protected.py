@@ -7,6 +7,7 @@ changes a guarded path merges under a gate, which `test_jmerge_guarded` tests. T
 reads its guarded list from `test_jmerge_guarded`, because the shipped
 `features/jmerge/src/jmerge/guarded.txt` is empty."""
 
+import json
 import re
 import shutil
 import sys
@@ -342,13 +343,89 @@ def test_a_path_a_rename_left_is_held_as_a_path_it_changes():
     )
 
 
-def test_jmerge_holds_a_pull_request_whose_file_list_github_cut_short(merged):
-    listed = [f"docs/{n}.md" for n in range(100)]
-    merged.home.open_pull_request(merged.head, files=listed, changed=101)
+def many(merged, *paths, changed=None, status=None):
+    """A ready pull request of more than 100 files. `gh pr list` lists the first 100, and the
+    files endpoint pages through up to 3000 of them, each with its status. `status` names the
+    paths that are not plain modifications."""
+    merged.home.open_pull_request(
+        merged.head, files=paths[:100], changed=len(paths) if changed is None else changed
+    )
+    every = ({"filename": path, "status": (status or {}).get(path, "modified")} for path in paths)
+    (merged.home.stub / "every").write_text("".join(f"{json.dumps(one)}\n" for one in every))
+
+
+def docs(count):
+    return [f"docs/{n}.md" for n in range(count)]
+
+
+@pytest.mark.parametrize("count", [101, 250])
+def test_jmerge_merges_a_pull_request_of_more_than_100_files_none_protected(merged, count):
+    many(merged, *docs(count))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_jmerge_holds_a_pull_request_whose_150th_file_is_protected(merged):
+    paths = docs(250)
+    paths[149] = "secrets/prod.json"
+    many(merged, *paths)
+    assert merged.run() == [f"hold 7 {merge.URL}: needs user, touches secrets/prod.json"]
+    assert merged.untouched()
+
+
+def test_jmerge_reads_a_rename_past_the_first_100_files(merged):
+    paths = docs(120)
+    many(merged, *paths, status={paths[110]: "renamed"})
+    (merged.home.stub / "left").write_text("secrets/old.json\n")
+    assert merged.run() == [f"hold 7 {merge.URL}: needs user, touches secrets/old.json"]
+    assert merged.untouched()
+
+
+def test_jmerge_reads_an_added_file_past_the_first_100_files(merged):
+    paths = docs(120)
+    many(merged, *paths, status={paths[110]: "added"})
+    (merged.home.stub / "left").write_text("secrets/old.json\n")
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_jmerge_holds_a_pull_request_past_github_s_3000_files_naming_the_counts(merged):
+    many(merged, *docs(3000), changed=3500)
+    assert merged.run() == [
+        f"hold 7 {merge.URL}: needs user, GitHub listed 3000 of the 3500 files it changes"
+    ]
+    assert merged.untouched()
+
+
+def test_jmerge_holds_a_pull_request_whose_full_file_list_cannot_be_read(merged):
+    merged.home.open_pull_request(merged.head, files=docs(100), changed=101)
     assert merged.run() == [
         f"hold 7 {merge.URL}: needs user, GitHub listed 100 of the 101 files it changes"
     ]
     assert merged.untouched()
+
+
+def test_the_full_file_list_is_asked_for_only_where_github_cut_it_short(merged):
+    merged.home.open_pull_request(merged.head, files=docs(100))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+    assert not [call for call in merge.calls(merged.home) if call.startswith("api ")]
+
+
+def test_a_full_file_list_carries_each_file_s_change_type():
+    one = pull_request(*docs(100), changed=102)
+    full = ready.listed_in_full(
+        one,
+        [
+            *({"filename": path, "status": "modified"} for path in docs(100)),
+            {"filename": "db/migrations/0042_more.sql", "status": "added"},
+            {"filename": "docs/moved.md", "status": "renamed"},
+        ],
+    )
+    assert len(full.files) == 102
+    assert full.added == ("db/migrations/0042_more.sql",)
+    assert full.renamed
+    assert ready.migrations(full, "db/migrations") == ("0042_more",)
 
 
 def test_a_protected_pull_request_that_is_short_of_ready_says_that_first(merged):
