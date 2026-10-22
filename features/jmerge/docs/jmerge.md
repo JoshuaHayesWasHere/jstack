@@ -147,7 +147,7 @@ The three limits keep that order: the check's own 15 minutes (`Fresh.TIMEOUT`), 
 
 The check runs every test, and a change needs fewer: `python3 scripts/select_tests.py <base> <head>` prints the test files a diff needs, one per line, or `all`.
 It reads `git diff --name-only --no-renames <base> <head>`, where `<base>` is where the pull request left main or the parent of its merge commit, and the imports of the tree: a changed module selects the tests that import it, through any chain of modules, and a changed file that is no module selects the tests that spell its path.
-The map in `.cursor/skills/verify-jstack/features/` and each `features/<name>/verify.md` adds to it: each feature file names the paths it owns (`Paths:`) and the tests that read them in a way no import shows (`Tests:`), and the map's README names the test files that read the whole tree (`Cross-cutting:`), which every diff runs.
+The pages in `testing/verify/` and each `features/<name>/verify.md` adds to it: each feature file names the paths it owns (`Paths:`) and the tests that read them in a way no import shows (`Tests:`), and the map's README names the test files that read the whole tree (`Cross-cutting:`), which every diff runs.
 An edit to a feature file selects that feature's tests, not `all`.
 Only `pyproject.toml`, `uv.lock`, the root `conftest.py`, a plugin of `testing/` it names, a test module a plugin loads for every test, and a fixture no test names select `all`.
 It needs no package, so it runs before `uv sync`, and the same two commits give the same lines.

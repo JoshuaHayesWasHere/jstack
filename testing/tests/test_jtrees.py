@@ -334,10 +334,13 @@ def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmat
         ),
         (
             lambda root: declare(root, "jpack", "nowhere"),
-            "features/jpack/feature.json: declares the project skill nowhere, which has no SKILL.md",
+            "features/jpack/feature.json: declares the project skill nowhere,"
+            " which has no SKILL.md",
         ),
         (
-            lambda root: declare(root, "jmerge", "red", like="features/jbus/project-skill/verify-main-red"),
+            lambda root: declare(
+                root, "jmerge", "red", like="features/jbus/project-skill/verify-main-red"
+            ),
             "features/jmerge/feature.json: declares the project skill verify-main-red, which is"
             " also features/jbus/project-skill/verify-main-red",
         ),

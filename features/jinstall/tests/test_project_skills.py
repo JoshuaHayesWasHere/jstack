@@ -11,8 +11,8 @@ import subprocess
 
 import pytest
 
+from jinstall.__main__ import install as run_install
 from jinstall.machine import Machine
-from jinstall.needs import needs
 from test_install import REPO, Ran, User, checkout_under, line_for
 
 ROOTS = (".claude/skills", ".cursor/skills")
@@ -58,8 +58,7 @@ def test_an_install_links_each_declared_project_skill_for_claude_code_and_cursor
             assert line_for(said, str(link)) == [f"ok hard {link}"]
             skill = (link / "SKILL.md").read_text()
             assert skill.startswith(f"---\nname: {name}\n")
-    assert run(user, checkout, "--check")[1] == said
-    assert code == 0, said
+    assert run(user, checkout, "--check") == (code, said)
 
 
 def test_a_skill_that_is_no_longer_declared_is_unlinked_by_the_next_run(user):
@@ -67,14 +66,16 @@ def test_a_skill_that_is_no_longer_declared_is_unlinked_by_the_next_run(user):
     run(user, checkout)
     catalog = checkout / "skills.json"
     listed = json.loads(catalog.read_text())
-    listed["projectSkills"] = [one for one in listed["projectSkills"] if one["name"] != "verify-main-red"]
+    listed["projectSkills"] = [
+        one for one in listed["projectSkills"] if one["name"] != "verify-main-red"
+    ]
     catalog.write_text(json.dumps(listed))
     gone = [checkout / root / "verify-main-red" for root in ROOTS]
 
     checked = run(user, checkout, "--check")[1]
+    was = checkout / DECLARED["verify-main-red"]
     assert [line_for(checked, str(link)) for link in gone] == [
-        [f"old hard {link} -> {checkout / DECLARED['verify-main-red']}, a skill no feature declares"]
-        for link in gone
+        [f"old hard {link} -> {was}, a skill no feature declares"] for link in gone
     ]
     said = run(user, checkout)[1]
 
@@ -125,18 +126,17 @@ def test_a_checkout_outside_a_sandboxed_home_and_a_release_get_no_project_links(
     home = tmp_path / "home"
     home.mkdir()
 
-    def named(machine):
-        return [one.name for one in needs(machine) if "/.claude/skills/verify" in one.name]
+    def named(checkout, account, release=None):
+        there = Machine(checkout, home, {}, lambda args: Ran(None, ""), account, release)
+        said = run_install(there, write=False).lines
+        return [line.split(" ", 2)[2] for line in said if "/.claude/skills/verify" in line]
 
-    def machine(checkout, account, release=None):
-        return Machine(checkout, home, {}, lambda args: Ran(None, ""), account, release)
-
-    assert named(machine(REPO, home)) == [
+    assert named(REPO, home) == [
         str(REPO / ".claude/skills/verify-jstack"),
         str(REPO / ".claude/skills/verify-main-red"),
     ]
-    assert named(machine(REPO, tmp_path / "account")) == []
-    assert named(machine(None, home, release=REPO)) == []
+    assert named(REPO, tmp_path / "account") == []
+    assert named(None, home, release=REPO) == []
 
 
 def test_git_tracks_nothing_under_the_checkouts_project_roots():

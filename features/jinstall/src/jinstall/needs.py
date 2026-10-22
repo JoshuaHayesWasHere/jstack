@@ -45,10 +45,19 @@ from jinstall.kinds import (
     declared,
     templates,
 )
-from jinstall.layout import UNREADABLE, Layout, git_hooks, hooks, skills, status_line
+from jinstall.layout import (
+    UNREADABLE,
+    Layout,
+    git_hooks,
+    hooks,
+    project_skills,
+    skills,
+    status_line,
+)
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
+from jinstall.project import ProjectLink, StrayProjectLink, stray
 from jroles import ledger
 from jroles.inventory import claude_instances
 
@@ -113,6 +122,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      ~/.codex/skills/<skill>       Link into Codex's
       hard      ~/.agents/skills/<skill>      Link into Cursor's, the root Cursor reads
       hard      <root>/<name>                 GoneLink, for each dead link into a layout
+      hard      <checkout>/.claude/skills/<name>  ProjectLink, for each project skill of
+                                              skills.json, in a checkout, and the same in
+                                              <checkout>/.cursor/skills (`Harness.project`)
+      hard      <checkout>/<folder>/<name>    StrayProjectLink, for each link there into the
+                                              checkout that no feature declares
       optional  patterns <path>               Patterns
       hard      hook <file> <event>           HookGroup, for each entry of each hook of
                                               skills.json, in the file its harness reads
@@ -127,8 +141,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     try:
         named, hooked = skills(machine.source), hooks(machine.source)
         line, pushed = status_line(machine.source), git_hooks(machine.source)
+        local = project_skills(machine.source)
     except UNREADABLE:
-        named, hooked, line, pushed = [], (), None, ()
+        named, hooked, line, pushed, local = [], (), None, (), ()
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
@@ -200,6 +215,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for path in _listed(root)
         if dead(path, machine) and path.name not in named
     ]
+    if repo is not None:
+        found += _project(repo, local)
     patterns = jleak.path(machine.config_home())
     found.append(Need(f"patterns {patterns}", Level.OPTIONAL, Patterns(patterns)))
     files = {harness.name: home / harness.hooks for harness in HARNESSES if harness.hooks}
@@ -248,6 +265,27 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     )
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
+
+
+def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:
+    """A link for each project skill in each harness's project folder of the checkout, and a
+    stray one for each link there into the checkout that no feature declares."""
+    roots = [repo / harness.project for harness in HARNESSES if harness.project]
+    declared = frozenset(one["name"] for one in local)
+    found = [
+        Need(
+            str(root / one["name"]), Level.HARD, ProjectLink(root / one["name"], repo / one["path"])
+        )
+        for root in roots
+        for one in local
+    ]
+    found += [
+        Need(str(path), Level.HARD, StrayProjectLink(path, declared))
+        for root in roots
+        for path in _listed(root)
+        if stray(path, repo, declared)
+    ]
+    return found
 
 
 def _commands(machine: Machine) -> Commands:

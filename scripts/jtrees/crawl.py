@@ -53,15 +53,11 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "conftest.py",
         "testing/**",
         "install.sh",
-        ".claude/skills/verify-jstack/SKILL.md",
-        ".claude/skills/verify-jstack/features/ci-check.md",
-        ".cursor/skills/verify-main-red/SKILL.md",
     ),
     "SHARED-DELETE": (
         "README.md",
         "CATALOG.md",
         "skills.json",
-        ".cursor/skills/verify-jstack",
     ),
 }
 
@@ -152,8 +148,33 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
         git_hooks=tuple(
             (one["name"], placed(one["script"])) for one in manifest.get("gitHooks", ())
         ),
+        project_skills=tuple(
+            skill
+            for one in manifest.get("projectSkills", ())
+            if (skill := _project_skill(root, at, one, where, faults))
+        ),
         nameable=tuple(manifest.get("nameable", ())),
     )
+
+
+def _project_skill(
+    root: Path, at: str, folder: str, where: str, faults: list[str]
+) -> tuple[str, str] | None:
+    """A project skill a manifest declares: the name its SKILL.md gives, and its folder from
+    the repo root."""
+    skill = root / at / folder / SKILL
+    if not skill.is_file():
+        faults.append(f"{where}: declares the project skill {folder}, which has no {SKILL}")
+        return None
+    try:
+        name = frontmatter.parse(skill.read_text(encoding="utf-8")).get("name")
+    except frontmatter.Refused as refused:
+        faults.append(f"{at}/{folder}/{SKILL}: frontmatter has {refused}")
+        return None
+    if not isinstance(name, str) or not name:
+        faults.append(f"{at}/{folder}/{SKILL}: its frontmatter names no skill")
+        return None
+    return name, f"{at}/{folder}"
 
 
 def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
@@ -206,6 +227,19 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
     return tuple(sorted(found.values(), key=lambda one: (one.kind, one.name)))
 
 
+def _project_skills_once(tree: Tree, faults: list[str]) -> None:
+    """A checkout links one project skill by each name: a second of the same name is a fault."""
+    seen: dict[str, str] = {}
+    for feature in tree.features:
+        for name, path in feature.project_skills:
+            if name in seen:
+                faults.append(
+                    f"{feature.folder}/{MANIFEST}: declares the project skill {name},"
+                    f" which is also {seen[name]}"
+                )
+            seen.setdefault(name, path)
+
+
 def _plugin(root: Path, faults: list[str]) -> None:
     plugin = _json(root / PLUGIN, faults, root)
     rules = _json(root / PLUGIN_SCHEMA, faults, root)
@@ -232,6 +266,7 @@ def crawl(root: Path) -> Tree:
     repo = tuple((name, tuple(pattern(one) for one in rows)) for name, rows in REPO_OWNERS.items())
     tree = Tree(root, tuple(features), (), repo)
     tree = Tree(root, tree.features, _items(root, tree, faults), repo)
+    _project_skills_once(tree, faults)
     _plugin(root, faults)
     if faults:
         raise Invalid(faults)

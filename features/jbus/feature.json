@@ -22,6 +22,9 @@
     "units/jbus.service",
     "units/jbus.timer"
   ],
+  "projectSkills": [
+    "project-skill/verify-main-red"
+  ],
   "docs": [
     "docs/jbus.md",
     "docs/chef.md"

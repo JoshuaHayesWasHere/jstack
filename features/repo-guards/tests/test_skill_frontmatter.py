@@ -15,7 +15,7 @@ import pytest
 from testing.paths import REPO, skills
 
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
-SHIPPED = sorted([*SKILLS, *REPO.glob(".cursor/skills/*/SKILL.md")])
+SHIPPED = sorted(SKILLS)
 NAMED_TREE = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
 NO_KEY = REPO / "testing" / "tests" / "fixtures" / "skills" / "no-key" / "SKILL.md"
 KEY = "disable-model-invocation"
@@ -183,7 +183,6 @@ def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp
     holds_this_test(tmp_path)
     if renamed:
         (tmp_path / "skills/fake-skill").rename(tmp_path / "skills/fake-renamed")
-        (tmp_path / ".cursor/skills/fake-verify").rename(tmp_path / ".cursor/skills/fake-moved")
         listed = tmp_path / "skills.json"
         listed.write_text(listed.read_text().replace("skills/fake-skill/", "skills/fake-renamed/"))
     done = subprocess.run(
@@ -196,7 +195,6 @@ def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp
     module = "tests/test_skill_frontmatter.py::"
     expected = (
         [
-            f"{module}test_every_shipped_skill_is_named_for_its_folder[.cursor/skills/fake-moved]",
             f"{module}test_every_shipped_skill_is_named_for_its_folder[skills/fake-renamed]",
             f"{module}test_every_skill_entry_in_skills_json_is_named_for_its_folder",
         ]
@@ -206,5 +204,4 @@ def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp
     assert (done.returncode, failed) == (1 if renamed else 0, expected), done.stdout
     if renamed:
         assert "is named 'fake-skill', not 'fake-renamed'" in done.stdout
-        assert "is named 'fake-verify', not 'fake-moved'" in done.stdout
         assert "names skills/fake-renamed/SKILL.md 'fake-skill', not 'fake-renamed'" in done.stdout

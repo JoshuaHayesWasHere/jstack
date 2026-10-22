@@ -65,7 +65,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
-MAP = ".claude/skills/verify-jstack/features"
+MAP = "testing/verify"
 CROSS = "features/verify-jstack/project-skill/map.md"
 PAGE = "verify.md"
 TESTS = re.compile(r"((features/[^/]+|testing)/)?tests/")
