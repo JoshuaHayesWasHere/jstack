@@ -349,7 +349,7 @@ class Code:
 class App(Writes):
     """What the server answers to a `GET` and to its two writes, on either address.
 
-    When the app starts, it takes each folder that is a panel then, and loads each panel
+    The app's panels are the panel folders that exist when it starts. It loads each of them
     once. When two panels give the same key, the app does not start. The app reads only a
     panel's script again on every request.
     `config` loads jbus's config, and only a write that has an answer to send calls it."""

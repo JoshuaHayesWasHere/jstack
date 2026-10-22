@@ -9,7 +9,7 @@ from view.page.browser import CHROMIUM, NAMED, heavy
 
 @pytest.fixture(autouse=True)
 def one_browser_at_a_time(request):
-    """The browser lock, which the test has for its whole run, so it waits for the lock
+    """The browser lock. The test has it for its whole run, so the test waits for the lock
     once, however often it browses. A test with a home of its own starts no real browser and
     takes its own lock."""
     if "own_home" in request.fixturenames:

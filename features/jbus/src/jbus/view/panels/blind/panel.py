@@ -1,9 +1,10 @@
 """What the page cannot say: each source that could not be read, what each panel cannot say now,
 and last what the view never can.
 
-Each line opens the panel that says it. The line of a source that could not be read opens the panel
-that names the source, where the page asks for that panel by itself, in a request of its own.
-Where it does not, the line opens the list of every source, which the pulse panel draws.
+Each line opens the panel that says it. A line can be about a source that could not be
+read. Some panels the page asks for in a request of their own. If the panel that names the
+source is one of those, the line opens that panel. Otherwise the line opens the list of every
+source, which the pulse panel draws.
 """
 
 from __future__ import annotations

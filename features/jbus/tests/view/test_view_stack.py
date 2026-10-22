@@ -126,7 +126,7 @@ def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path,
 
 def test_a_scratch_home_is_on_the_machine_with_its_thread_and_has_no_lane(tmp_path, monkeypatch):
     """A scratch home is on the machine row with its home thread. It has no queue, so the
-    words that jbus keeps for it give it no lane of a project."""
+    words that jbus keeps for it place it in no project's lane."""
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
