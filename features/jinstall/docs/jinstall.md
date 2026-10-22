@@ -63,6 +63,16 @@ A Markdown file with a link to a file the layout leaves out, such as a page of `
 The `README.md` of each layout names, for each skill, the tools and paths it asks for that the harness leaves out: Codex and Cursor have none of Claude Code's own tools, its home folder or its settings file.
 `--check` prints one line for each layout, `ok` when it is as the install assembles it, and `old` with the first file that is stale.
 
+## The checkout's own skills
+
+A skill for working on jstack itself, such as `verify-jstack`, lives in its feature and is named in that feature's `feature.json` under `projectSkills`.
+An install from a checkout links each one as `<checkout>/.claude/skills/<name>` for Claude Code and `<checkout>/.cursor/skills/<name>` for Cursor, which is where each reads a repo's own skills.
+git tracks neither folder, so a checkout has them once `install.sh` has run in it.
+The next install unlinks a link there whose skill no feature declares any more.
+`--check` prints one line for each link: `ok`, `missing`, or `old` with where it points.
+An install from a release makes none, and neither does a run under a HOME that is not your own for a checkout outside that HOME.
+A linked worktree gets none: `install.sh` refuses to run from one under your own HOME, so a worktree reads a project skill from its feature's folder.
+
 ## Hook entries
 
 The install writes one entry for each hook that `skills.json` lists, and `install.sh --uninstall` removes them: you write none of them by hand.
