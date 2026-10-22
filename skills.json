@@ -497,7 +497,7 @@
       "kind": "skill",
       "path": "features/skill-library/skills/maintain-verification-skill/SKILL.md",
       "source": "pstack",
-      "description": "Keep a repo's verify skill, `.claude/skills/verify-<app>/`, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
+      "description": "Keep a repo's verify skill, `.claude/skills/verify-<app>/` or a `verify-<app>` project skill, and its feature map honest as the app changes: typed in the repo's home, it sends one scout per feature file to read the feature from source, then writes one crewmate brief for the live pass over every feature and at most one pull request of proven corrections. Use for /maintain-verification-skill or \"audit the verify skill\"."
     },
     {
       "name": "make-bot-ui",

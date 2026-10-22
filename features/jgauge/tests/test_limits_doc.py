@@ -1,9 +1,8 @@
 """features/jgauge/docs/limits.md stays true. When a row's Where column names a `path:line` of
 this repo, that file holds the row's Value as text. Every machine size and room line has a
-row. The
-test treats the line number as a pointer and does not check it: a change to any other line of
-the file would move it, and a test that pinned it would fail every pull request that touched
-that file."""
+row. The test treats the line number as a pointer and does not check it: a change to any other
+line of the file would move it, and a test that pinned it would fail every pull request that
+touched that file."""
 
 import re
 

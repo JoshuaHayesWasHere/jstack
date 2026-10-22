@@ -66,9 +66,9 @@ CHAT = "chat"
 
 @dataclass(frozen=True)
 class Basis:
-    """The user's words that a steer by the user is based on, named the way an approval names
-    them (`queue.basis`). They are a word that `jbus word` kept, the answer that closed a
-    question, or a message that jbus read from T3 Code."""
+    """A Basis names the user's words that a steer by the user is based on, the way an approval
+    names them (`queue.basis`). The words are a word that `jbus word` kept, the answer that
+    closed a question, or a message that jbus read from T3 Code."""
 
     kind: str
     ref: str

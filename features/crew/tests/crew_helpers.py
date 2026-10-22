@@ -31,7 +31,7 @@ def sections():
 
 
 def block(heading, about):
-    """The one `sh` block under the heading that contains `word`, as an agent reads it."""
+    """The one `sh` block under `heading` that contains `about`, as an agent reads it."""
     (found,) = [text for text in FENCED.findall(sections()[heading]) if about in text]
     return textwrap.dedent(found)
 

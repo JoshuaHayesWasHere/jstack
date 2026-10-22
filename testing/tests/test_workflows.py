@@ -115,7 +115,8 @@ def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_an
 
 
 def worked(expression, values):
-    """What an expression gives with these values for the names in it, worked out here.
+    """Return what a workflow expression gives with these values for its names. This function
+    works the expression out itself, without GitHub.
 
     It reads `&&`, `||`, `==`, `!=` and a string in single quotes.
     """
@@ -405,7 +406,8 @@ EVENTS = ("pull_request", "push", "workflow_dispatch")
 
 
 def ran_on(job):
-    """The events a job of the check runs on, worked out from its `if`."""
+    """Return the events a job of the check runs on. This function works them out from the
+    job's `if`."""
     inside, when = False, None
     for line in CHECK.read_text().splitlines():
         indent = len(line) - len(line.lstrip())

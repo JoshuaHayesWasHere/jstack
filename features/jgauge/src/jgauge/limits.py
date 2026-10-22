@@ -10,8 +10,8 @@ answers:
    `<home>/.credentials.json`, while that token has not expired. Claude Code makes the same
    call for `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
 2. The answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`),
-   `cachedUsageUtilization`, while it is less than 15 minutes old (`FRESH`) and belongs to the
-   account signed in there.
+   `cachedUsageUtilization`, while it is younger than `FRESH` and belongs to the account signed
+   in there.
 
 The command never refreshes, writes or prints a token, and it never writes either file. A
 refresh token rotates on each refresh, so a refresh here would conflict with the sessions signed
@@ -203,8 +203,7 @@ def age(file: Path, now: datetime) -> timedelta | None:
 
 
 def stale(file: Path, now: datetime) -> str | None:
-    """Why the file is not a fresh reading, or None while it is less than 15 minutes
-    (`FRESH`) old."""
+    """Why the file is not a fresh reading, or None while it is younger than `FRESH`."""
     old = age(file, now)
     if old is None:
         return f"no {file}"

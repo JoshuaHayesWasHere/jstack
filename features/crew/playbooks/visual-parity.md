@@ -10,7 +10,7 @@ Copy the numbered steps below into your todo list, word for word, before any tod
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-Verify skill: `.claude/skills/verify-*/`.
+Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json`'s `projectSkills` (jstack: `features/verify-jstack/project-skill/`).
 
 **You own pixel-exact equivalence of one component.** The baseline is the spec, and you do not touch it. Equivalence is shown by an image diff, not by eye. Three things are held from the first step to the last: the harness is not changed, the baseline is not changed, and the component is not restructured so that a diff passes.
 

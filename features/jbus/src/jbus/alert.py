@@ -257,7 +257,8 @@ def flush(run: wake.Pass) -> int:
     more, it ends that streak with no line and drops what waited for the route. If the top-level
     pair comes back later, the route gets only what is new. It also posts to the second target
     before the others, with its own streak, so that an alert from that streak goes to the others in
-    the same pass.
+    the same pass. The same holds for the second target: for a project with no second target any
+    more, it ends that streak with no line and drops what waited for the target.
     """
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:

@@ -66,8 +66,8 @@ if (spec.lavish) {
 const sandbox = vm.createContext({ document, window, setTimeout() {} });
 const scripts = root.walk().filter((node) => node.tagName === 'script' && !node.attrs.type);
 // A name declared at the top of a script stays in the context after the run, `const` and `let`
-// included, and in a browser it shares a scope with the window's own names. Ask the context
-// for each name the script declares anywhere, and for the window's.
+// included, and in a browser it can collide with one of the window's own names. Ask the
+// context for each name the script declares anywhere, and for the window's.
 const names = new Set(['top', 'name', 'status', 'parent', 'self', 'length', 'origin']);
 scripts.forEach((script) => {
   for (const [, name] of script.own.matchAll(/\b(?:var|let|const|function|class)\s+([A-Za-z_$][\w$]*)/g)) names.add(name);
