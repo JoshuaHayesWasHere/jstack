@@ -21,10 +21,15 @@ fi
 It reads only what jbus keeps and asks no service.
 Each line it prints is one blocker of this home, and its first word says what to do:
 
-- `cleared question <n>`: a question nobody answered for 30 minutes, whose default the thread already acted on. `jbus clear` took that default, logged it in this home's `gates.md` as the home's, and closed the question. Nothing is posted and nothing more is done: a later answer from the user still replaces it.
-- `decision <what>`: the user has to decide it, and the pass raises it once, as one `decision` event with a reply the user can send as it is. Do nothing more for it. The reply comes back as the user's word ("The user's word, carried by jbus"): act on it then.
+- `cleared question <n>`: a question nobody answered for 30 minutes, whose default the thread already acted on.
+  `jbus clear` took that default, logged it in this home's `gates.md` as the home's, and closed the question.
+  Nothing is posted and nothing more is done: a later answer from the user still replaces it.
+- `decision <what>`: the user has to decide it, and the pass raises it once, as one `decision` event with a reply the user can send as it is.
+  Do nothing more for it.
+  The reply comes back as the user's word ("The user's word, carried by jbus"): act on it then.
 - `fix <key>`: brief a fix, as below, and queue it.
-- `wait <key>`: a fix of the key is queued and not over. Nothing to do.
+- `wait <key>`: a fix of the key is queued and not over.
+  Nothing to do.
 - `nothing blocks this home`: nothing to do.
 
 **Brief a fix** of a failed check, a refused or stuck row, or a leftover, as "Handing a task to a crewmate" says, with two lines more in the brief's head, above its first `## ` heading:
