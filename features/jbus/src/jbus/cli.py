@@ -74,22 +74,21 @@ LAUNCH = "the launch"
 
 @dataclass
 class Half:
-    """A `Half` holds what a project's pass has for its steps, the dispatch, and its second half.
+    """A `Half` is the state of a project's pass that its steps, the dispatch and its second
+    half read.
 
-    `first_half` makes it when the pass starts, and the pass fills it in as it runs its fixed
-    steps in order. A step reads what those steps had set by the time its slot comes
-    (`verbs.SLOTS`). `held` is the keys of the questions on record, or None where
-    `questions.json` does not parse. `turns` is set when the project may launch: T3 Code and
-    GitHub answered and the queue parses. `blind` marks a pass that cannot tell which slugs
-    were removed, since `removed.json` does not parse. Such a pass reads no brief, acts on no
-    thread or pull request, and leaves the list of what waits as it was. It still counts its
-    crews out.
+    `first_half` makes it when the pass starts, and the pass fills it in as it runs its fixed steps
+    in order, so a step reads what they set before its slot (`verbs.SLOTS`). `held` is the keys of
+    the questions on record, or None where `questions.json` does not parse. `turns` is set when the
+    project may launch: T3 Code and GitHub answered and the queue parses. `blind` marks a pass that
+    cannot tell which slugs were removed, since `removed.json` does not parse. Such a pass reads no
+    brief, acts on no thread or pull request, and leaves the list of what waits as it was. It still
+    counts its crews out.
 
     The second half fills in the rest: whether it `derived` the table and `read` every
-    brief, the `states` it judged, and the `table` its steps read. Where the second half
-    derived the table anew, it also fills in what `changed`. Last come what `jmerge` said as
-    the user hears it (`users`), and what `stall.tell` and `waiting.keep` found (`roots`,
-    `listed`).
+    brief, the `states` it judged, the `table` its steps read, and what `changed` where it
+    derived the table anew. It also keeps what `jmerge` said as the user hears it (`users`),
+    and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
     run: wake.Pass
@@ -121,9 +120,8 @@ class Half:
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank. Each step runs only where the pass has what the step
-    needs when its turn comes. A step of `derive` judges the rows that the steps after it
-    need."""
+    """Run the steps of a slot by rank, each only where the pass has what it needs. A step of
+    `derive` judges the rows that the steps after it need."""
     for step in RANKED[slot]:
         has = {
             "sight": not half.blind,
@@ -136,11 +134,9 @@ def steps(half: Half, slot: str) -> None:
 
 
 def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
-    """Do what a project's pass does before any launch: merge, read, ask, and say what it
-    found.
+    """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
-    This function spells out the fixed steps of the pass in order, and runs the steps of each
-    slot at that slot's place.
+    This function lists the fixed steps of the pass, and runs each slot's steps in its place.
     """
     name = run.project.name
     half = Half(run, client)
@@ -181,11 +177,9 @@ def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
 
 
 def second_half(half: Half, client: t3.Client | None) -> None:
-    """Do what a project's pass does after the launches: build the table, list what waits,
-    and send the wake.
+    """Run a project's pass after the launches: build the table, list what waits, and wake.
 
-    This function spells out the fixed steps of the pass in order, and runs the steps of each
-    slot at that slot's place.
+    This function lists the fixed steps of the pass, and runs each slot's steps in its place.
     """
     run, rows, world = half.run, half.rows, half.seen.world
     half.derived = world is not None and client is not None and rows is not None
@@ -203,22 +197,19 @@ def second_half(half: Half, client: t3.Client | None) -> None:
 def poll(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Run one pass over every project. A second pass that finds the lock held prints
-    `busy`.
+    """Run one pass over every project. A second pass that finds the lock held prints `busy`.
 
-    Every project's first half runs before any launch, so the crews out are counted over
-    all of them, and every project's second half runs after the launches.
+    Every project's first half runs before any launch, so the pass counts the crews out over
+    all of them. Every project's second half runs after the launches.
 
-    When a project raises, the pass says so, keeps the error as the project's `last_error`,
-    and goes on. The other projects still run, and the pass still writes the status file.
-    The pass then returns 1. It launches nothing, since it does not know that project's crews
-    out. A pass in which nothing raised ends the `pass` streak that `jbus alarm` counts, and
-    the `stale` streak that `jbus alarm --stale` counts. When the pass cannot write its
-    record, it says so and does everything else as it would with one.
+    When a project raises, the pass says so, keeps the error as its `last_error`, still runs the
+    others and writes the status file, and returns 1. It launches nothing, since it does not
+    know that project's crews out. A pass in which nothing raised ends the `pass` streak that
+    `jbus alarm` counts, and the `stale` streak that `jbus alarm --stale` counts. When the pass
+    cannot write its record, it says so and does everything else as it would with one.
 
-    When the config still has a key that nothing reads, the pass says so in one line, on each
-    pass until the user removes the key. The pass ends by writing the status file
-    (`record.write_status`).
+    When the config still has a key that nothing reads, each pass says so in one line until the
+    user removes the key. The pass ends by writing the status file (`record.write_status`).
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:

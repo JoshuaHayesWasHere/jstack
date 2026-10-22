@@ -182,9 +182,10 @@ def _over(run: Pass, world: World) -> dict[str, set[str]]:
 
 def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:
     """Return the usage limit the thread's last run ended on and the instance that run was on,
-    from the last items the thread wrote, or None. The cap is on the run's instance, not on
-    the thread's instance now: a thread moved by hand after the failure is on another one. It
-    reads a reset the text gives at the time the run ended, not at the pass."""
+    or None. It reads both from the last items the thread wrote. The cap is on the run's
+    instance, not on the thread's instance now: a thread moved by hand after the failure is
+    on another one. It reads a reset the text gives at the time the run ended, not at the
+    pass."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],
@@ -350,8 +351,8 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """Return the move a cap makes of the thread, read and chosen with nothing written,
-    against the ledger as it is with the cap in it. Return None for a thread whose
+    """Return the move a cap makes of the thread, against the ledger as it is with the cap
+    in it. `plan` reads and chooses, and writes nothing. It returns None for a thread whose
     configuration names no model.
 
     A replay sets `fill`. With it, the cap fills the window the ledger has running for the

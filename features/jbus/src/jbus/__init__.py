@@ -223,7 +223,7 @@ def current_kind(name: str, names: dict[str, str]) -> str:
     """Return a kind of event by the name it has now. `names` is `old_names`.
 
     `wake.Box` reads the outbox, the keys of what it sent, and the log through here, and
-    nothing writes an old name. The name a level had is no kind: a key of `sent.json` may
+    nothing writes an old name. It maps no old name of a level to a kind: a key of `sent.json` may
     begin with any word, the user's name among them. A module that looks one key up in
     `sent.json` reads the file as it is, since none looks up a kind that changed.
     """

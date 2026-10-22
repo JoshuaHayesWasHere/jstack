@@ -2,7 +2,7 @@
 owes.
 
 A brief whose `Review:` line says `after` merges on its check alone (`jmerge.ready.after`).
-Its review's findings hold nothing back, and a row of their own fixes them later. The
+Its review's findings do not block the merge, and a row of their own fixes them later. The
 reviewer runs this command once it has written its section, and pipes what it prints into
 `jbus queue add cleanup-<slug>`. That command queues the row without approving it, so the
 row waits for the user's go like any other.
@@ -15,10 +15,11 @@ the command prints nothing and ends 1 with the reason on one line. That is when 
 does not say `after` or `twice`, when the review is clean or has no verdict, or when the row
 is already in the queue. A `queue add` on a row that is already there would take its go back.
 
-A brief that says `twice` answers its first review in one fix round. The row files its second
-review (`ready.second_review`): each finding of severity `warning` or `error`, whatever its
-bucket. It drops the `info` findings and counts them. Until the reviewer writes that second
-review, the command prints `FIRST`, because the first review goes to the crew.
+A brief that says `twice` answers its first review in one fix round. The row's brief lists
+the findings of its second review (`ready.second_review`): each one of severity `warning`
+or `error`, whatever its bucket. The command drops the `info` findings and counts them.
+Until the reviewer writes that second review, the command prints `FIRST`, because the first
+review goes to the crew.
 """
 
 from __future__ import annotations

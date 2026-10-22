@@ -418,8 +418,8 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
     """Tell each crew what its pull request has been short of for `AFTER` passes, once per
     reason and head. Say the stall of a crew that is no further on after `PASSES` idle
     passes. Return the pull requests whose hold is in hand here, which the user sees as a
-    `wait`. A hold that stalled with nobody at work is in hand for that pass, and the user's
-    from the next.
+    `wait`. A hold that stalled with nobody at work is in hand for that pass. It is the user's
+    hold from the next pass on.
     """
     by_number = {pull["number"]: slug for slug, pull in world.open.items()}
     was: dict[str, Any] = read_json(run.state / FILE, {})

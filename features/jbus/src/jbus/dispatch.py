@@ -147,8 +147,8 @@ def arguments(
     run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None
 ) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: the home skill's crew launch with the
-    brief in it, and the model selection that the role map's `crew` line gives on the instance
-    `routed` chose."""
+    brief in it. The model selection is the one the role map's `crew` line gives for the
+    instance that `routed` chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",

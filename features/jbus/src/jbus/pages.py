@@ -1,5 +1,5 @@
 """`python -m jbus.pages [--check]`: build the event table of `features/jbus/docs/jbus/`
-from the code.
+out of the code.
 
 Run it in this repo's root. It writes the built part of one page,
 `features/jbus/docs/jbus/events-and-the-webhook.md`: the text between `<!-- built: events -->`

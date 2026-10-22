@@ -1,5 +1,5 @@
-"""Tell a failure that repeats once, and its end once. This module is the only place that keeps
-a streak.
+"""Tell the user once about a failure that repeats, and once about its end. This module is the
+only place that keeps a streak.
 
 A streak is the failures in a row of one thing, under a key:
 

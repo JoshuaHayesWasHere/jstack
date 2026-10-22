@@ -12,8 +12,9 @@ before the lever can write it:
 
 A value `true` or `false` is a boolean, a whole number or a decimal is a number, and
 anything else is text. The command refuses a name that is not a field of the ledger, so a
-typo does not leave a silent gap in the series. Where the run has `GITHUB_STEP_SUMMARY`, the
-command also writes the fields there as a table, for whoever reads the run.
+typo cannot leave a field missing from the series without a word. Where the run has
+`GITHUB_STEP_SUMMARY`, the command also writes the fields there as a table, for whoever
+reads the run.
 """
 
 from __future__ import annotations
