@@ -70,13 +70,12 @@ class Reviewer:
     def run(self):
         """The skill's block, with the block at the top that gives H and T."""
         (body,) = [one for one in blocks(SKILL.read_text(), "sh") if "jbus cleanup" in one]
-        top = f'H="{self.home}/.local/state/home/demo"\nT="{REPO}/templates"\n'
+        top = f'H="{self.home}/.local/state/home/demo"\nT="{REPO}/features/crew/templates"\n'
         env = {
             "HOME": str(self.home),
             "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}",
             "JBUS_CONFIG_DIR": str(self.config),
             "JBUS_STATE_DIR": str(self.state.parent),
-            "PYTHONPATH": str(REPO / "src"),
         }
         done = subprocess.run(
             ["sh", "-c", top + body.replace("<slug>", "alpha")],

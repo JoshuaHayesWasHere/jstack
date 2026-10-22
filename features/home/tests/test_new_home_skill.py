@@ -56,7 +56,6 @@ class Machine:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "JBUS_CONFIG_DIR": str(self.config.parent),
             "XDG_CONFIG_HOME": str(self.home / ".config"),
-            "PYTHONPATH": str(REPO / "src"),
         }
         done = subprocess.run(
             [shell, "-c", body], cwd=cwd or self.home, env=env, capture_output=True, text=True

@@ -19,7 +19,6 @@ import pytest
 from skill_blocks import block, git
 from test_jbus_kitchen import NOW
 from testing.layouts import assembled
-from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
@@ -67,7 +66,6 @@ class Machine:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "JBUS_CONFIG_DIR": str(self.config.parent),
             "XDG_CONFIG_HOME": str(self.home / ".config"),
-            "PYTHONPATH": str(REPO / "src"),
         }
         done = subprocess.run(
             ["sh", "-c", body], cwd=self.repo, env=env, capture_output=True, text=True
