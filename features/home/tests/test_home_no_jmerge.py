@@ -1,7 +1,7 @@
-"""One merger for a repo: jbus runs `jmerge` while `home-thread` is empty or missing, so no
-skill step may run it then. Every `sh` block of a skill that runs `jmerge` to merge, land or
-sweep is lifted and run, with the blocks its skill says to run first, against a stub `jmerge`
-that records its calls."""
+"""A repo has one merger. jbus runs `jmerge` while `home-thread` is empty or missing, so no skill
+step may run it then. The tests take every `sh` block of a skill that runs `jmerge` to merge, land
+or sweep. Each test runs such a block after the blocks that its skill says to run first. The
+blocks run against a stub `jmerge` that records its calls."""
 
 import json
 import os
@@ -53,8 +53,9 @@ cat "$OPEN"
 
 
 def blocks(skill, read=Path.read_text):
-    """Each `sh` block of a skill, with the line it starts on: of the file alone, or with
-    `as_read`, of the skill as an agent reads it."""
+    """Each `sh` block of a skill, with the number of the line it starts on. By default the
+    number counts the lines of the file alone. With `as_read` it counts the lines of the skill as
+    an agent reads it."""
     text = read(skill)
     return [
         (text.count("\n", 0, found.start(1)) + 1, textwrap.dedent(found.group(1)))
@@ -110,7 +111,8 @@ class Repo:
             (self.state / "home-thread").write_text(held)
 
     def sh(self, *texts, me=ME):
-        """Run blocks in one call, as a home would, each placeholder in quotes filled in."""
+        """Replace each placeholder with `me` in single quotes, and run the blocks in one call, as
+        a home would."""
         script = FILLED.sub(f"'{me}'", "\n".join(texts))
         ran = subprocess.run(
             ["sh", "-c", script],
@@ -133,7 +135,7 @@ class Repo:
         return ran.stdout.splitlines()
 
     def calls(self):
-        """What `jmerge` was run with, a line for each run."""
+        """The arguments the blocks gave `jmerge`, a line for each run."""
         try:
             return (self.stub / "calls").read_text().splitlines()
         except FileNotFoundError:
@@ -147,8 +149,9 @@ class Repo:
         return self.sh(*first(HOME), step.replace(line, f"flags='{' '.join(flags)}'"), me=me)
 
     def log(self, *lines):
-        """`jmerge`, run by jbus, prints these: each is appended to the log, dated, and a
-        `wait` or `hold` line is kept as the last one said of its pull request."""
+        """Write lines that `jmerge` prints when jbus runs it, the way jbus keeps them. jbus
+        appends each line to the log with a date. For each pull request, jbus also keeps the
+        last `wait` or `hold` line that `jmerge` printed about it."""
         with (self.state / "merge.log").open("a") as log:
             log.writelines(f"2026-10-12 13:40 {line}\n" for line in lines)
         last = self.state / "merge.log.last"
@@ -334,8 +337,9 @@ LANDING = re.compile(r"`(flags='[^'`]*--land <name>')`")
     ],
 )
 def test_a_playbooks_landing_is_the_merge_step_with_its_flags_line(repo, playbook, asked):
-    """The `flags=` lines a playbook gives are put in place of the merge step's own, as it
-    says, and the step is run: they reach its one `jmerge` line, and no other block runs."""
+    """The test puts the `flags=` lines a playbook gives in place of the merge step's own, as the
+    playbook says, and runs the step. The step passes those flags to its one `jmerge` line, and no
+    other block runs."""
     given = LANDING.findall((PLAYBOOKS / f"{playbook}.md").read_text())
     assert [line.replace("<name>", "demo") for line in given] == [f"flags='{a}'" for a in asked]
     (step,) = [text for _, text in blocks(HOME, as_read) if "flags=''" in text]
@@ -415,7 +419,7 @@ OWNERS = {
 
 
 def test_whose_a_brief_is_agrees_with_jmerge(repo):
-    """One case, three readers: the skill's `whose`, the `homes` of `jmerge --claims`, and
+    """Three readers agree on each case: the skill's `whose`, the `homes` of `jmerge --claims`, and
     the `others` of `jmerge --home`. A `Home:` line that names no home is the root's."""
     scope = repo.state / "billing"
     scope.mkdir()
@@ -447,8 +451,9 @@ def mine(repo, me):
 
 
 def test_a_brief_has_one_home_whoever_asks(repo):
-    """A thread that is no home now is left every brief, the ones that name it too: one
-    whose id is in no `home-id`, and one that handed off, a `Was home:` id."""
+    """For a thread that is no home now, `jmerge --home` leaves every brief to another home,
+    including a brief that names the thread. Such a thread has an id that is in no `home-id`, or
+    it handed off and has a `Was home:` id."""
     scope = repo.state / "billing"
     scope.mkdir()
     (scope / "home-id").write_text("mcp:scoped\n")

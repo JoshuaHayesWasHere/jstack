@@ -1,6 +1,6 @@
-"""A pull request short of something its crew can fix: jbus tells the crew what to do, once
-per reason and head, and the desk hears only when that did not work. Run as
-`test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
+"""When a pull request is short of something its crew can fix, jbus tells the crew what to do,
+once per reason and head. The desk gets a message only when that did not work. Like
+`test_jbus_guarded_ask.py`, the tests run the real pass against the fakes, with the lines
 `jmerge` prints, over commits that are really there."""
 
 import os
@@ -42,8 +42,9 @@ def later(minutes):
 
 
 class Short:
-    """Alpha, launched by a pass, whose thread ended its turn with pull request #7 open at
-    the second of two commits, and whose Result and first pass are heard and put away."""
+    """Alpha is a row that a pass launched. Its thread ended its turn with pull request #7 open
+    at the second of two commits. A pass has read its Result, and the test has cleared what the
+    first passes sent from the outbox and the webhook."""
 
     def __init__(self, kitchen):
         self.kitchen = kitchen
@@ -59,7 +60,8 @@ class Short:
         self.heard()
 
     def heard(self, result=""):
-        """A pass that hears the Result as it is, with nothing short yet, and puts it away."""
+        """Run a pass that reads the Result as it is, while the pull request is short of nothing
+        yet. Then clear what the pass sent from the outbox and the webhook."""
         self.out("", result=result)
         self.kitchen.poll(NOW - timedelta(minutes=20 - self.minute))
         jbus.write_json(self.kitchen.state / "outbox.json", [])
@@ -73,7 +75,7 @@ class Short:
         return ran.stdout.strip()
 
     def out(self, reason, word="wait", result="", head=None, review=True):
-        """What the crew wrote, and what `jmerge` says its pull request is short of."""
+        """Write what the crew wrote, and set what `jmerge` says its pull request is short of."""
         head = head or self.head
         text = self.launched + DONE.format(url=URL) + result
         text += REVIEW.format(saw=self.saw) if review else ""
@@ -82,7 +84,7 @@ class Short:
         self.kitchen.set("jmerge.txt", f"{word} 7 {URL}: {reason}\n" if reason else "")
 
     def passes(self, count):
-        """Run that many passes, a minute apart, and give everything they said."""
+        """Run that many passes, a minute apart, and return everything they said."""
         said = []
         for _ in range(count):
             said += self.kitchen.poll(later(self.minute))
@@ -285,7 +287,8 @@ def test_a_fix_review_owed_with_no_range_sends_the_crew_to_the_block_and_then_st
 def test_a_review_that_never_came_is_told_to_the_crew_once_and_to_the_user_as_one_stall(
     short, kitchen
 ):
-    """The reviewer ended its turn and wrote no section: nothing wakes it, so the crew is."""
+    """The reviewer ended its turn and wrote no section. Nothing wakes the reviewer, so jbus
+    wakes the crew."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
     short.passes(2)
@@ -316,7 +319,7 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_to_the_user_as_on
 
 
 def reviewer_says(tmp_path, asked, brief):
-    """What the reviewer's Start 1 prints when `asked` starts it on a brief."""
+    """Return what the reviewer's Start 1 prints when `asked` starts the reviewer on a brief."""
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     script = block("### Start", "case $asked").replace("<slug>", "alpha").replace(ASKED, asked)
@@ -328,10 +331,10 @@ def reviewer_says(tmp_path, asked, brief):
 def test_the_line_a_crew_sends_a_reviewer_that_wrote_nothing_is_one_the_reviewer_accepts(
     short, kitchen, tmp_path
 ):
-    """Pull request 69: the nudge had the crew resend the plain line and the reviewer refused
-    it, twice. The line the nudge names must work on a brief with a `## Review` and on one
-    without, and the event, the `Woke:` line the crew is told to write and the line the crew
-    sends are one text."""
+    """Pull request 69: jbus's nudge told the crew to send the plain line again, and the reviewer
+    refused it, twice. The line that the nudge names must work on a brief with a `## Review` and
+    on one without. The event, the `Woke:` line that jbus tells the crew to write, and the line
+    the crew sends must have the same text."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
     said = short.passes(3)
@@ -369,7 +372,7 @@ NO_REVIEWER = {
 def test_a_pull_request_the_crew_skill_leaves_with_no_reviewer_is_not_the_crew_s_to_fix(
     why, short, kitchen
 ):
-    """Each of these has its own gate or message already, so the desk hears nothing more."""
+    """Each of these already has its own gate or message, so the desk gets nothing more."""
     short.out(NO_REVIEW, result=NO_REVIEWER[why].format(head=short.head), review=False)
     short.passes(16)
     assert sends(kitchen) == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
@@ -380,7 +383,8 @@ def test_a_pull_request_the_crew_skill_leaves_with_no_reviewer_is_not_the_crew_s
 def test_a_reviewer_launched_beside_a_check_that_then_ended_badly_is_still_owed(
     why, short, kitchen
 ):
-    """The crew launches on `wait`, so the brief can have the line and a reviewer both."""
+    """The crew launches its reviewer on `wait`, so the brief can have both the line and a
+    reviewer."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     result = f"Reviewer: {reviewer['threadId']}\n" + NO_REVIEWER[why].format(head=short.head)
     short.out(NO_REVIEW, result=result, review=False)
@@ -627,7 +631,7 @@ def test_unruled_drops_jbus_cannot_ask_a_crew_about_are_the_user_s_as_before(sho
 
 def test_unruled_drops_with_no_rebase_line_are_asked_from_the_head_the_crew_kept(short, kitchen):
     """The crew skill keeps the head before a rebase under refs/jstack/pre-rebase/<slug>/ and
-    writes no `Rebase:` line, so that ref is where the old range of the scoped review starts."""
+    writes no `Rebase:` line. So the old range of the scoped review starts at that ref."""
     kitchen.git("update-ref", f"refs/jstack/pre-rebase/alpha/{short.saw[:12]}", short.saw)
     short.out(short.unruled(), "hold")
     said = short.passes(3)
@@ -687,7 +691,8 @@ def test_with_t3_code_silent_nobody_can_be_asked_so_the_hold_is_the_user_s_at_on
 
 
 def test_a_hold_in_hand_before_its_crew_is_told_stays_in_hand_through_a_silent_pass(short, kitchen):
-    """A pass that can ask, one that cannot, one that can: the list gains and loses nothing."""
+    """The test runs three passes: one that can ask, one that cannot, and one that can. The list
+    gains nothing and loses nothing."""
     short.heard(short.rebased())
     short.out(short.unruled(), "hold", short.rebased())
     short.passes(1)

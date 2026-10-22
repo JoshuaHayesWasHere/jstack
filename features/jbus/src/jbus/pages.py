@@ -1,14 +1,16 @@
-"""`python -m jbus.pages [--check]`: the event table of `features/jbus/docs/jbus/`, from the code.
+"""`python -m jbus.pages [--check]`: build the event table of `features/jbus/docs/jbus/`
+out of the code.
 
-Run in this repo's root, it writes the built part of one page: the text between
-`<!-- built: events -->` and the `<!-- built: end -->` after it, in
-`features/jbus/docs/jbus/events-and-the-webhook.md`, the table of the kinds of event, one row a
-level, its kinds sorted, read off `wake.LOUDNESS`. The rest of the page is hand-written and is left
-as it is. A second run changes nothing. The index of `features/jbus/docs/jbus.md` is written from
-the tree by `scripts/generate-jstack-trees.py`, which needs no import of jbus.
+Run it in this repo's root. It writes the built part of one page,
+`features/jbus/docs/jbus/events-and-the-webhook.md`: the text between `<!-- built: events -->`
+and the `<!-- built: end -->` after it. That part is the table of the kinds of event, one row
+for each level, with the level's kinds sorted, read from `wake.LOUDNESS`. It leaves the rest of
+the page, which a person wrote by hand, as it is. A second run changes nothing.
+`scripts/generate-jstack-trees.py` writes the index of `features/jbus/docs/jbus.md` from the
+tree, and needs no import of jbus.
 
 With `--check` it writes nothing, says whether a committed page is behind the tree, and exits
-1 when one is.
+1 when a page is behind.
 """
 
 from __future__ import annotations
@@ -36,11 +38,13 @@ HAPPENS = {
 
 
 class Refused(Exception):
-    """The tree cannot be built from: a page with no part, a part with no maker."""
+    """`build` cannot build from the tree: it found a page with no part, or a part with no
+    maker."""
 
 
 def events() -> str:
-    """The table of the kinds of event, one row a level, as `wake.LOUDNESS` has them."""
+    """Return the table of the kinds of event, one row for each level, as `wake.LOUDNESS`
+    lists them."""
     rows = ["| `loud` | Kinds | What happens |\n", "|---|---|---|\n"]
     for level in LEVELS:
         kinds = ", ".join(f"`{kind}`" for kind, at in sorted(wake.LOUDNESS.items()) if at == level)
@@ -49,7 +53,8 @@ def events() -> str:
 
 
 def build(root: Path) -> dict[str, str]:
-    """Each page with a built part, by its path, made again from the code."""
+    """Return each page that has a built part, by its path, with that part built again from
+    the code."""
     makers = {"events": events}
     built = {}
     for name, part in ((EVENTS_PAGE, "events"),):

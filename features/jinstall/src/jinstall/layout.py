@@ -1,23 +1,32 @@
-"""Each harness's layout: jstack's skills as that harness's agent reads them, assembled at
-install time from the source into ${XDG_DATA_HOME:-~/.local/share}/jstack/harness/<harness>/.
+"""Each harness's layout, which holds jstack's skills as that harness's agent reads them. The
+install assembles it from the source into
+${XDG_DATA_HOME:-~/.local/share}/jstack/harness/<harness>/.
 
-The source is a checkout, or the tree a release's wheel carries (`jbriefs.skills.packaged`),
-and the one thing read from it is its `skills.json`, which the generator writes from
-`features/`: each skill, principle, playbook, template and hook, at its path in the source. A
-layout holds every skill as `skills/<name>/`, flat, each file of its folder; every playbook as
-`playbooks/<name>.md`; every principle as `principles/<name>.md`, a stub that points at its
-skill; the templates; the hooks of that harness as `hooks/<file>`; a README;
-and `source`, a link to the source itself, the way back from a skill to the checkout (its
-`install.sh`, its git) or to the release. `skills/` and `templates/` are siblings, so a skill
-that finds its templates through its own link, `realpath ~/.claude/skills/<name>/../../templates`,
-finds them.
+The source is a checkout, or the tree that a release's wheel carries
+(`jbriefs.skills.packaged`). The assembly reads one thing from it, its `skills.json`. The
+generator writes that file from `features/`, and it lists each skill, principle, playbook,
+template and hook at its path in the source.
 
-Each entry is a symlink to its file in the source, so an edit there is live with no install,
-and a new file appears on the next one. A Markdown file whose relative links the layout would
-break is written instead, rewritten (`links`): a target the layout holds is linked where the
-layout puts it, and one it leaves out is its GitHub address. That file is stale once its
-source changes. The README lists the skills and, for each, the terms it names that the harness
-leaves out (`terms`).
+A layout holds these entries:
+- every skill as `skills/<name>/`, flat, with each file of its folder;
+- every playbook as `playbooks/<name>.md`;
+- every principle as `principles/<name>.md`, a stub that points at its skill;
+- the templates;
+- the hooks of that harness as `hooks/<file>`;
+- a README;
+- `source`, a link to the source itself. An agent follows it from a skill back to the
+  checkout (its `install.sh`, its git) or to the release.
+
+`skills/` and `templates/` are siblings, so an agent reaches a skill's templates through the
+skill's own link, `realpath ~/.claude/skills/<name>/../../templates`.
+
+Each entry is a symlink to its file in the source. So an edit to the source is live with no
+install, and a new file appears on the next install. Placing some Markdown files in the layout
+would break their relative links, so the assembly writes a rewritten copy of each of those files
+instead (`links`). In the copy, a link to a target that the layout holds points where the layout
+puts the target, and a link to a target that the layout leaves out becomes the target's GitHub
+address. The copy is stale once its source changes. The README lists the skills. For each skill,
+it also lists the terms that the skill names and the harness leaves out (`terms`).
 """
 
 from __future__ import annotations
@@ -35,7 +44,8 @@ from jinstall.machine import Dropped, Machine, Refused
 
 CATALOG = "skills.json"
 UNREADABLE = (OSError, ValueError, KeyError, TypeError)
-"""What reading a source whose `skills.json` is missing, not JSON or not its shape raises."""
+"""The errors that reading a source raises when its `skills.json` is missing, is not JSON,
+or does not have the expected shape."""
 PLUGIN = "plugin.json"
 SHOWN = 1
 NOT_THE_SKILL = frozenset(
@@ -56,7 +66,7 @@ class Linked:
 
 @dataclass(frozen=True)
 class Written:
-    """A file the assembly writes: a rewritten Markdown file, a stub, the README."""
+    """A file the assembly writes: a rewritten Markdown file, a stub, or the README."""
 
     content: bytes
 
@@ -66,8 +76,9 @@ Entry = Linked | Written
 
 @dataclass(frozen=True)
 class Assembled:
-    """A layout as the source makes it: each entry by its path in the layout; each skill's
-    terms the harness leaves out; and each link that dangles, as a fault."""
+    """A layout as the assembly builds it from the source. It holds each entry by its path in
+    the layout, the terms each skill names that the harness leaves out, and each link that
+    dangles, as a fault."""
 
     entries: dict[str, Entry]
     flagged: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -94,18 +105,20 @@ def hooks(source: Path) -> tuple[dict, ...]:
 
 
 def status_line(source: Path) -> dict | None:
-    """The status line of the source's `skills.json`, its script's name and path, if any."""
+    """The status line of the source's `skills.json`, as its script's name and path, if it
+    has one."""
     return _catalog(source).get("statusLine")
 
 
 def git_hooks(source: Path) -> tuple[dict, ...]:
-    """Every git hook of the source's `skills.json`, its name and its path in the source."""
+    """Every git hook of the source's `skills.json`, as its name and its path in the
+    source."""
     return tuple(_catalog(source).get("gitHooks", ()))
 
 
 def project_skills(source: Path) -> tuple[dict, ...]:
-    """Every project skill of the source's `skills.json`, its name and its folder in the
-    source, which the install links into a checkout's own skill folders."""
+    """Every project skill of the source's `skills.json`, as its name and its folder in the
+    source. The install links each one into a checkout's own skill folders."""
     return tuple(_catalog(source).get("projectSkills", ()))
 
 
@@ -117,8 +130,9 @@ def skills(source: Path) -> list[str]:
 
 
 def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
-    """Every file of the skill folder `skill`, as source paths, but what `NOT_THE_SKILL` names:
-    a feature's other parts, and its playbooks, which the layout puts in playbooks/."""
+    """Every file of the skill folder `skill`, as source paths, except what `NOT_THE_SKILL`
+    names. `NOT_THE_SKILL` names a feature's other parts and its playbooks, which the layout
+    puts in playbooks/."""
     for path in sorted((source / skill).rglob("*")):
         parts = path.relative_to(source / skill).parts
         if parts[0] in NOT_THE_SKILL or any(p.startswith(".") or p == "__pycache__" for p in parts):
@@ -128,8 +142,9 @@ def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
 
 
 def _placed(source: Path, harness: Harness) -> tuple[dict[str, str], dict[str, str], dict]:
-    """Each source file the layout holds, by where it goes in it; each stub, by the principle
-    skill it points at; and each skill's files, by its name."""
+    """Three maps. The first holds each source file the layout holds, by where it goes in the
+    layout. The second holds each stub, by the principle skill it points at. The third holds
+    each skill's files, by the skill's name."""
     placed: dict[str, str] = {}
     stubs: dict[str, str] = {}
     held: dict[str, list[str]] = {}
@@ -176,7 +191,8 @@ def _readme(source: Path, harness: Harness, flagged: dict[str, tuple[str, ...]])
 
 
 def assemble(source: Path, harness: Harness) -> Assembled:
-    """`harness`'s layout as the source at `source` makes it. Pure but for reading the source."""
+    """`harness`'s layout as the assembly builds it from the source at `source`. The function is
+    pure, except that it reads the source."""
     placed, stubs, held = _placed(source, harness)
     base = str(json.loads((source / PLUGIN).read_text(encoding="utf-8"))["repository"])
     entries: dict[str, Entry] = {}
@@ -209,7 +225,7 @@ def _text(source: Path, path: str) -> str:
 
 
 def _holds(path: Path, entry: Entry) -> bool:
-    """Whether `path` is `entry`: the same link, or a file of the same bytes."""
+    """Whether `path` matches `entry`: the same link, or a file with the same bytes."""
     if isinstance(entry, Linked):
         return path.is_symlink() and os.readlink(path) == str(entry.source)
     try:
@@ -219,7 +235,8 @@ def _holds(path: Path, entry: Entry) -> bool:
 
 
 def _found(at: Path) -> list[str]:
-    """Every file and link under `at`, as paths in it, and no path under a linked folder."""
+    """Every file and link under `at`, as paths relative to it. It lists no path under a
+    linked folder."""
     found = []
     for top, folders, files in os.walk(at):
         here = Path(top)
@@ -229,8 +246,8 @@ def _found(at: Path) -> list[str]:
 
 
 def stale(assembled: Assembled, at: Path) -> list[str]:
-    """Each path of the layout at `at` that is not as `assembled` has it: an entry missing or
-    different, and a file no entry makes."""
+    """Each path of the layout at `at` that differs from `assembled`. That is an entry that
+    is missing or different, or a file that no entry makes."""
     wrong = [path for path, entry in assembled.entries.items() if not _holds(at / path, entry)]
     strays = [path for path in _found(at) if path not in assembled.entries]
     return sorted(wrong + strays)
@@ -238,13 +255,15 @@ def stale(assembled: Assembled, at: Path) -> list[str]:
 
 @dataclass(frozen=True)
 class Layout:
-    """One harness's layout, as the source makes it.
-    ok: every entry is there and nothing else; the detail counts the skills that name a term
-      the harness leaves out. missing: no folder. old: `stale: <first path>, and <n> more`,
-      or the first link that dangles, `<path> links to <href>, which is not in the tree`.
-    put: write each stale entry by a rename, and remove each stray. A folder inside the layout
-      is not in the install's record (`Machine.make_dirs`): drop prunes it. drop: remove each
-      entry that is still as the install made it, and keep anything else."""
+    """One harness's layout, as the assembly builds it from the source.
+    ok: every entry is there and nothing else is. The detail counts the skills that name a
+      term the harness leaves out.
+    missing: the folder is not there.
+    old: the detail is `stale: <first path>, and <n> more`, or the first link that dangles,
+      `<path> links to <href>, which is not in the tree`.
+    put: write each stale entry by a rename, and remove each stray file. The install does not
+      record the folders inside the layout (`Machine.make_dirs`), so drop prunes them.
+    drop: remove each entry that is still as the install made it, and keep anything else."""
 
     harness: Harness
 
@@ -317,7 +336,8 @@ def _first(found: list[str]) -> str:
 
 
 def _prune(at: Path) -> None:
-    """Remove each empty directory under `at`, deepest first: what a removed skill left."""
+    """Remove each empty directory under `at`, deepest first. A removed skill leaves such
+    directories."""
     for top, _, _ in os.walk(at, topdown=False):
         if Path(top) != at and not os.listdir(top):
             os.rmdir(top)

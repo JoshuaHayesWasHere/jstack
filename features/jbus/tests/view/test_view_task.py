@@ -254,8 +254,8 @@ def test_a_task_that_is_merged_or_finished_is_not_on_the_line_and_a_lost_one_is(
 
 
 def test_a_fix_whose_scoped_review_is_not_written_is_on_the_second_pass(scene, served):
-    """jv-work-state's case of 2026-10-14: its pull request sat in the Unknown lane on this
-    reason, which `jmerge` gave and no rule named."""
+    """jv-work-state's case of 2026-10-14: its pull request was in the Unknown lane with this
+    reason. `jmerge` gave the reason, and no rule named it."""
     why = "wait: its fix is not reviewed: the scoped review of it is not written"
     scene.queue([row("jv-work-state", "pr", pr="#431", checks="passed", why=why)])
     task = tasks(served.json("/state.json?project=demo"))["jv-work-state"]
@@ -402,8 +402,8 @@ NOTE = "the style pass over the four pages of the guide, " + "page by page, " * 
 
 
 def leftovers(scene):
-    """Two tasks that are finished and left a note, and one that is stuck. `plum-jam` merged
-    and its brief has the note whole, where the row has it cut as a pass cuts it.
+    """Two tasks that are finished and left a note, and one that is stuck. `plum-jam` merged.
+    Its brief has the whole note, while the row has the note cut as a pass cuts it.
     `plum-pit` ended with no pull request, `plum-skin` is queued over a thread that failed,
     and `plum-stem` left a note in a Result that says it is paused. `plum-leaf` is done and
     its Result names no branch, `plum-bark` has a note and no brief to read, and `plum-sap`

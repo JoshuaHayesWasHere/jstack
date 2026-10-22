@@ -1,33 +1,34 @@
-"""The panels of the view: each folder of this directory is one, whole.
+"""The panels of the view: each folder of this directory is one whole panel.
 
-A panel's folder holds two files, and its name is the panel's. `panel.py` is its data:
+A panel's folder holds two files, and the folder's name is the panel's name. `panel.py` is its
+data:
 
 - `build(read)`, one function from the sources (`state.Read`) to a dict;
-- `SHAPE`, the shape that dict is cut to (`clean.keep`) before it leaves;
+- `SHAPE`, the shape that `clean.keep` cuts that dict to before the server sends it;
 - `SOURCES`, each source it reads, with who writes it (`state.Source`);
-- `FIRST`, True where the first screen needs the dict: then its keys are keys of
-  `/state.json`. Any other panel is asked for when its drawer opens, at
-  `/panel/<name>.json`;
+- `FIRST`, True where the first screen needs the dict: then its keys are keys of `/state.json`.
+  The page asks for any other panel when its drawer opens, at `/panel/<name>.json`;
 - `blind(read)`, the lines it cannot say now, and `NOT_KEPT`, the ones it never can
-  (`state.Spot`). Each opens the panel.
+  (`state.Spot`). Each line opens the panel.
 
-`panel.js` is its drawing, one call of `panel` with what it has of these:
+`panel.js` draws the panel, with one call of `panel` that passes whichever of these it has:
 
-- `drawer(arg, data)`, the drawer `data-open="<name>:<arg>"` opens, as HTML. `data` is the
-  dict of a panel that is not on the first screen;
+- `drawer(arg, data)`, the HTML of the drawer that `data-open="<name>:<arg>"` opens. `data` is
+  the dict of a panel that is not on the first screen;
 - `card()`, its card on the first screen. Only a panel that has one adds to that screen;
-- `adds`, what it adds to another panel's drawer: `adds.task(task)` is one line of the
-  task's drawer, and `adds.you()` one count of the wait band;
-- `wide`, for a drawer of the full width, and `title`, the heading of the drawer of a panel
-  that is asked for, while its answer is on its way.
+- `adds`, what it adds to another panel's drawer: `adds.task(task)` is one line of the task's
+  drawer, and `adds.you()` is one count of the wait band;
+- `wide`, for a drawer of the full width;
+- `title`, for a panel the page asks for: the heading its drawer shows while the page waits for
+  the answer;
 - `gloss`, what its cards mean, by name, as `[name, text]`: the glossary at `#/help` lists it;
-- `reads`, how fresh its drawer is, said once in the drawer's head: `"server"` for what the
+- `reads`, how fresh its drawer is, which the drawer's head says once: `"server"` for what the
   server reads itself on each request, `"mixed"` for both, and none for what a pass wrote.
 
-Nothing else names a panel. The server lists this directory when it starts (`found`), and
-the keys of `/state.json`, the shapes, the list of sources, the routes and the page's
-drawers are what it finds: the page is `page.html` with each `panel.js` in it, read on
-every request. A folder that comes or goes after the start is code on disk that is newer
+Nothing else names a panel. The server lists this directory when it starts (`found`). The keys of
+`/state.json`, the shapes, the list of sources, the routes and the page's drawers all come from
+what it finds. The page is `page.html` with each `panel.js` in it. The server reads those files
+on every request. A folder that is added or removed after the start counts as newer code on disk
 (`names`), and the server starts again for it.
 """
 
@@ -47,7 +48,7 @@ NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 @dataclass(frozen=True)
 class Panel:
-    """One folder: its name, its data as the module loaded, and where its script is."""
+    """One folder: its name, its data as the loaded module, and the path of its script."""
 
     name: str
     data: ModuleType
@@ -71,8 +72,8 @@ class Panel:
 
 
 def names(here: Path = HERE) -> tuple[str, ...]:
-    """The name of each panel there is under `here` now: every folder that holds the two
-    files, in order, and no name where the directory cannot be listed."""
+    """The name of each panel under `here` now, in order: every folder that holds the two files.
+    Where the directory cannot be listed, there are no names."""
     try:
         return tuple(
             sorted(

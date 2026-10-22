@@ -1,7 +1,8 @@
 """Before jbus puts a thread on a mirror instance, by a launch or by a failover move, it asks
-`jroles mirror --check` of it, runs the mirror once on drift, and passes over an instance
-that is still not mirrored for that pass. Run as `test_jbus_failover.py` runs, with a
-`jroles` on the kitchen's PATH that answers as the test sets it."""
+`jroles mirror --check` about the instance. On drift it runs the mirror once, and for the rest of
+that pass it passes over an instance that is still not mirrored. The tests run as
+`test_jbus_failover.py` runs, with a `jroles` on the kitchen's PATH that answers as the test sets
+it."""
 
 import json
 from datetime import timedelta
@@ -15,7 +16,8 @@ from test_jbus_resume import crew
 
 @pytest.fixture(autouse=True)
 def pools(kitchen, jstack_config, tmp_path):
-    """The crew's pool is claudeAgent then prime, and providers.json makes prime a mirror."""
+    """Make the crew's pool claudeAgent first and prime second, and have providers.json make
+    prime a mirror."""
     kitchen.machine(plan=None)
     (jstack_config.parent / "roles").write_text(
         f"crew: claudeAgent claude-sonnet-5-5 {POOL}\nhome: claudeAgent claude-opus-5-5 {POOL}\n"
@@ -31,8 +33,8 @@ def pools(kitchen, jstack_config, tmp_path):
 
 
 class Mirror:
-    """The fake `jroles`: `--check` passes once the mirror is made, and a run makes it only
-    where `mends` is set. `asked` is each call, in order."""
+    """`Mirror` is the fake `jroles`. `--check` passes once the mirror exists, and a run makes
+    the mirror only where `mends` is set. `asked` is each call, in order."""
 
     def __init__(self, kitchen, tmp_path):
         self.root = tmp_path / "fake-mirror"

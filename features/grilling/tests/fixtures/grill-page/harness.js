@@ -66,8 +66,8 @@ if (spec.lavish) {
 const sandbox = vm.createContext({ document, window, setTimeout() {} });
 const scripts = root.walk().filter((node) => node.tagName === 'script' && !node.attrs.type);
 // A name declared at the top of a script stays in the context after the run, `const` and `let`
-// included, and in a browser it meets the window's own names. Ask the context for each name
-// the script declares anywhere, and for the window's.
+// included, and in a browser it shares a scope with the window's own names. Ask the context
+// for each name the script declares anywhere, and for the window's.
 const names = new Set(['top', 'name', 'status', 'parent', 'self', 'length', 'origin']);
 scripts.forEach((script) => {
   for (const [, name] of script.own.matchAll(/\b(?:var|let|const|function|class)\s+([A-Za-z_$][\w$]*)/g)) names.add(name);
@@ -77,7 +77,7 @@ const before = [...names].filter(known);
 scripts.forEach((script) => vm.runInContext(script.own, sandbox));
 
 const forms = () => root.walk().filter((node) => 'data-lavish-question' in node.attrs);
-// After a reload Lavish puts back each pick under the name of the form it was made in.
+// After a reload Lavish puts back each pick under the name of the form the user made it in.
 for (const [name, option] of Object.entries(spec.restored || {})) {
   const form = forms().find((node) => node.attrs['data-lavish-question'] === name);
   if (form) form.walk().filter((node) => node.type === 'radio').forEach((input) => { input.checked = input.value === option; });

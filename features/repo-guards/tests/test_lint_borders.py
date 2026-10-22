@@ -1,8 +1,9 @@
-"""`scripts/lint-borders.py [--base <ref>] [--labels a,b] [--hard]`: a warning, as GitHub reads
-one, for each tracked path with no owner or two, each tracked path outside the feature layout
-and the root's own files, and a diff that touches two features with no `cross-cutting` label.
-It exits 0 with warnings, and 1 with them under `--hard`; a manifest with `owns` is refused, 2.
-Each test runs the script in a git repo."""
+"""`scripts/lint-borders.py [--base <ref>] [--labels a,b] [--hard]` prints warnings that GitHub
+reads as annotations. It warns for each tracked path with no owner or with two owners, and for
+each tracked path outside the feature layout and the root's own files. It also warns for a diff
+that touches two features with no `cross-cutting` label. It exits 0 when it warns, and under
+`--hard` it exits 1 when it warns. It refuses a manifest with `owns` and exits 2. Each test runs
+the script in a git repo."""
 
 import json
 import os

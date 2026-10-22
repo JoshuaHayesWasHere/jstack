@@ -1,6 +1,7 @@
-"""`jroles mirror` keeps each extra Claude home of providers.json a mirror of `~/.claude`, its
-login aside. Run through the command, in a throwaway HOME with a fake `~/.claude` and two
-mirror homes, one that a second account has used for a while and one that is new."""
+"""For each extra Claude home that providers.json declares, `jroles mirror` keeps that home a
+mirror of `~/.claude`, except for its login. The tests run the command in a throwaway HOME with
+a fake `~/.claude` and two mirror homes. A second account has used one of them for a while, and
+the other is new."""
 
 import json
 import os
@@ -22,9 +23,9 @@ def write(path, text):
 
 @pytest.fixture
 def home(tmp_path, monkeypatch, jstack_config):
-    """A HOME whose `~/.claude` has memory, transcripts, skills, settings and a login, a
-    prime home that has its own projects, history and login, and a third home with only a
-    login."""
+    """A HOME with three Claude homes. Its `~/.claude` has memory, transcripts, skills,
+    settings and a login. A prime home has its own projects, history and login. A third home
+    has only a login."""
     user = tmp_path / "user"
     monkeypatch.setenv("HOME", str(user))
     main = user / ".claude"
@@ -98,7 +99,7 @@ def mirror(capsys, *args):
 
 
 def tree(root: Path) -> dict[str, str]:
-    """Every path under `root`, with a link's target or a file's bytes."""
+    """Every path under `root`, each with its link target or its file bytes."""
     found = {}
     for at, dirs, files in os.walk(root):
         for name in dirs + files:
@@ -227,8 +228,9 @@ def test_no_providers_json_mirrors_nothing(home, capsys, jstack_config):
 
 
 def test_a_run_that_stopped_after_the_move_merges_what_the_backup_holds(home, capsys):
-    """The step crashed between moving the mirror's projects aside and linking: the next run
-    links, and nothing the backup holds is left unmerged, since the merge ran first."""
+    """The step crashed after it moved the mirror's projects aside and before it linked
+    them. The next run links them, and it leaves nothing in the backup unmerged, since the
+    merge ran first."""
     from jroles import mirror as module
 
     main, prime = home / ".claude", home / ".claude_prime"
@@ -245,8 +247,9 @@ def test_a_run_that_stopped_after_the_move_merges_what_the_backup_holds(home, ca
 def test_a_move_whose_name_main_took_meanwhile_is_not_nested_and_the_next_run_merges_it(
     home, capsys
 ):
-    """Two runs on two mirrors planned the same move: the second finds the name in
-    `~/.claude` and leaves its entry, and the run after backs it up and merges it."""
+    """Two runs on two mirrors planned the same move. The second run finds the name already in
+    `~/.claude` and leaves its own entry where it is. The run after that backs up the entry and
+    merges it."""
     from jroles import mirror as module
 
     main, third = home / ".claude", home / ".claude_third"
@@ -288,8 +291,9 @@ def test_a_run_holds_the_main_homes_lock_while_it_writes(home, capsys, monkeypat
 
 
 def test_claude_codes_own_temp_beside_claude_json_is_left_where_it_is(home, capsys):
-    """Claude Code writes `.claude.json` by a temp file it renames: a run that moved it into
-    `~/.claude` would turn the mirror's `.claude.json` into a link once the rename lands."""
+    """Claude Code writes `.claude.json` by renaming a temporary file over it. If a run moved
+    that temporary file into `~/.claude`, the mirror's `.claude.json` would become a link once
+    the rename happened."""
     prime = home / ".claude_prime"
     temp = write(prime / ".claude.json.tmp.33724.6382429c52d5", "{}\n")
     code, said, _ = mirror(capsys, "--check", "--instance", PRIME)
@@ -328,7 +332,8 @@ def test_check_names_each_shared_key_of_claude_json_that_differs(home, capsys):
 
 
 def used(path, usage):
-    """Write `usage` as the skillUsage of the `.claude.json` at `path`, its other keys kept."""
+    """Write `usage` as the skillUsage of the `.claude.json` at `path`, and keep its other
+    keys."""
     found = json.loads(path.read_text())
     found["skillUsage"] = usage
     path.write_text(json.dumps(found))
@@ -343,7 +348,8 @@ def ms(minutes_ago=0):
 
 
 def test_skill_use_in_each_home_is_pooled_into_every_home(home, capsys):
-    """Two accounts each used a skill the others did not: after a run every home has all."""
+    """Two accounts each used a skill that the other did not. After a run, every home records
+    the use of every skill."""
     main = home / ".claude.json"
     prime, third = home / ".claude_prime" / ".claude.json", home / ".claude_third" / ".claude.json"
     used(main, {"crew": {"usageCount": 3, "lastUsedAt": ms(60)}})
@@ -432,7 +438,7 @@ def test_claude_json_missing_a_skill_for_longer_than_a_sync_period_fails(home, c
 
 
 def test_the_doctors_check_pools_every_declared_home(home, capsys):
-    """`check` is what the doctor asks: it reads the same pool `--check` does."""
+    """The doctor calls `check`, which reads the same pool that `--check` reads."""
     from jroles import mirror as module
 
     mirror(capsys)
@@ -453,8 +459,8 @@ def test_pooling_into_claude_json_keeps_its_mode(home, capsys):
 
 
 def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys):
-    """A run writes no `~/.claude.json` that is absent, so `--check` names nothing to pool
-    into one."""
+    """A run does not create an absent `~/.claude.json`, so `--check` names nothing to pool
+    into a `~/.claude.json` that does not exist."""
     (home / ".claude.json").unlink()
     used(home / ".claude_prime" / ".claude.json", {"tdd": {"usageCount": 1, "lastUsedAt": ms(90)}})
     code, _, err = mirror(capsys)

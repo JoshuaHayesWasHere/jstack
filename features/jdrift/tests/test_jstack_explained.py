@@ -1,15 +1,17 @@
 """`features/jdrift/docs/jstack-explained.html` has a card for everything it explains, and loads
-nothing.
+nothing from outside the page.
 
-The page is read with an HTML parser and held against the repo itself: the step numbers of
-its lead drawing against 1 to 10, the rules file of each command against the tree, and each
-attribute that loads a file against the page's own anchors. The page's sentences are not
-compared with anything.
+The tests read the page with an HTML parser and check it against the repo itself. They check
+that the step numbers of its lead drawing run from 1 to 10. They check the rules file of each
+command against the tree. They check each attribute that loads a file against the page's own
+anchors. They compare
+none of the page's sentences with anything.
 
-The cards of the skills, playbooks and principles, and the links above them, are not
-hand-written: `python -m jdrift.explained` builds them from a card line in each file. So the
-ids of those cards are held against the directories on the page as it is built from the tree,
-not on the committed one, which the docs sweep brings up to date and no task edits.
+Nobody writes the cards of the skills, playbooks and principles, or the links above them, by
+hand: `python -m jdrift.explained` builds them from a card line in each file. So the tests check
+the ids of those cards against the directories on the page that `python -m jdrift.explained`
+builds from the tree. They do not
+use the committed page, which the docs sweep brings up to date and no task edits.
 """
 
 import re
@@ -36,7 +38,8 @@ URL = re.compile(r"url\(\s*['\"]?([^'\")]*)")
 
 
 class Page(HTMLParser):
-    """Each id with its text and its heading, each `<code>`, the style, and what loads a file."""
+    """The page's parts: each id with its text and its heading, each `<code>`, the style, and
+    each attribute that loads a file."""
 
     def __init__(self):
         super().__init__()
@@ -160,8 +163,8 @@ MADE_UP = {
 
 @pytest.fixture
 def tree(tmp_path):
-    """A made-up tree of two skills (one moved into its feature), two playbooks and a principle,
-    with a page of four tiles."""
+    """A made-up tree of two skills (one of them moved into its feature), two playbooks and a
+    principle, with a page of four tiles."""
     for name, text in {
         **MADE_UP,
         "features/jdrift/docs/jstack-explained.html": MADE_UP_PAGE,
@@ -177,7 +180,7 @@ def explained(tree, *args):
 
 
 def part(text, begin):
-    """What the page has between the marker `begin` and the end marker after it."""
+    """The text of the page between the marker `begin` and the end marker after it."""
     assert text.count(f"<!-- built: {begin} -->") == 1, begin
     return read(text.split(f"<!-- built: {begin} -->")[1].split("<!-- built: end -->")[0])
 

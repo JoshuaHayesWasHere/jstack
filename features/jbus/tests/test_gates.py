@@ -1,10 +1,10 @@
-"""A question only the user can answer is one numbered record in jbus, and a home keeps no
-copy of it: it reads the open ones from jbus, runs `jbus answer` with the user's words, and
-takes a word `jbus word` carried as theirs.
+"""A question only the user can answer is one numbered record in jbus, and a home keeps no copy
+of it. The home reads the open questions from jbus, runs `jbus answer` with the user's words, and
+treats a word that `jbus word` delivered as the user's own.
 
-The home skill's blocks are lifted from the skill and run as it says to run them, against the
-real `jbus` in the temporary state directory of `test_jbus`'s kitchen. The passes are the
-real ones, against its faked T3 Code server. Nothing reaches the network."""
+The tests take the home skill's blocks out of the skill file and run them as the skill says,
+against the real `jbus` in the temporary state directory of `test_jbus`'s kitchen. The passes are
+the real ones, against the kitchen's faked T3 Code server. Nothing reaches the network."""
 
 import json
 import os
@@ -45,7 +45,8 @@ REST = (
 
 
 def a_gate(question=ASKED, slug="alpha", **changed):
-    """The template filled in as the asking thread sends it: every `<...>` but `<n>`."""
+    """Return the template as the asking thread sends it, with every `<...>` placeholder filled
+    in except `<n>`."""
     said = {
         "Asked by": f"{slug}, thread {CREW}",
         "Default": "tea",
@@ -66,12 +67,13 @@ def a_gate(question=ASKED, slug="alpha", **changed):
 
 
 def whole(question=ASKED, slug="alpha", **changed):
-    """A gate as jbus takes it: the template filled in, with its context and its options."""
+    """Return a gate as jbus takes it: the template filled in, with its context and its options."""
     return f"{a_gate(question, slug, **changed)}\n{CONTEXT}\n{PROPOSED}"
 
 
 class Home:
-    """The kitchen's repo with a root home and a scoped one, and the skills as a user has them."""
+    """`Home` is the kitchen's repo with a root home and a scoped one, and the skills as a user
+    has them."""
 
     def __init__(self, tmp_path, monkeypatch):
         self.kitchen = Kitchen(tmp_path / "kitchen", monkeypatch)
@@ -100,7 +102,7 @@ class Home:
         return ran.stdout.strip()
 
     def home(self, holding, thread=ROOT, cwd=None, **filled):
-        """A block of the home skill, in one call with the three blocks it is run after."""
+        """Run a block of the home skill, in one call with the three blocks that run before it."""
         found = block("home", holding)
         if FILLED in filled:
             found = a_gate_in(found, filled.pop(FILLED))
@@ -111,7 +113,8 @@ class Home:
         return self.sh(f"{top}\n{found}", cwd or self.main)
 
     def pipes(self, skill="crew", question=ASKED, slug="alpha"):
-        """A crewmate or a scout pipes a gate by its own skill's block, from its worktree."""
+        """Pipe a gate the way a crewmate or a scout does: run the block of that role's own
+        skill, in that role's worktree."""
         sends = block(skill, "jbus gate '<slug>'")
         sends = a_gate_in(sends, a_gate(question, slug)).replace("<slug>", slug)
         return self.sh(f"{paths(skill)}\n{sends}", self.worktree)
@@ -146,7 +149,8 @@ class Home:
         return self.home("no word: ", thread, **more)
 
     def make_page(self, slug):
-        """Step 1 of the grilling skill's "On a page", with the slug the home skill gives."""
+        """Run step 1 of the grilling skill's "On a page", with the slug the home skill gives,
+        and return the page's path."""
         (top,) = [text for text in [paths("grilling")] if text]
         make = block("grilling", 'cp "$T/grill-page.html"')
         stub = self.user / "bin" / "lavish-axi"
@@ -178,7 +182,8 @@ def home(tmp_path, monkeypatch):
 
 
 def polled(sent):
-    """What `lavish-axi poll` prints for a prompt the page sent: one row, the prompt quoted."""
+    """Return what `lavish-axi poll` prints for a prompt the page sent: one row, with the prompt
+    quoted."""
     (_, text, options), _ = sent
     whole = text + "\n\nContext data:\n" + json.dumps(options["data"], indent=2)
     return (
@@ -217,7 +222,8 @@ def test_a_piped_gate_leaves_its_number_as_the_one_line_to_keep(home, skill):
 
 @pytest.mark.parametrize("skill", ["crew", "scout", "home"])
 def test_the_context_and_the_options_a_skills_block_writes_are_kept_with_their_marks(home, skill):
-    """The block's own `Context:` and `Option:` lines, filled in as it writes them."""
+    """The test uses the block's own `Context:` and `Option:` lines, filled in as the block
+    writes them."""
     said = home.asks() if skill == "home" else home.pipes(skill).splitlines()[0]
     assert said.endswith("queued: question 1")
     (kept,) = home.records()
@@ -505,8 +511,8 @@ def test_a_word_that_waits_or_went_to_another_project_is_not_this_homes(home):
 
 
 def old_file(home, where=None, gate=None):
-    """A `gates.md` an older home left: its gates have no options, as none had. With
-    `whole` for `gate`, one whose gates were given their options since."""
+    """Write a `gates.md` that an older home left. Its gates have no options, since no gate had
+    options then. When `gate` is `whole`, the file's gates have the options that gates got later."""
     gate = gate or a_gate
     file = (where or home.dir) / "gates.md"
     done = gate("a closed one?").replace("<n>", "1").replace("Status: open", "Status: answered: no")

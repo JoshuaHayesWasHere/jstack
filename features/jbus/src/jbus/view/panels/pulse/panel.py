@@ -1,9 +1,9 @@
-"""Is the bus alive: the timer and the service as systemd has them, the last pass, the
-status file, and which code of the view answers.
+"""Whether the bus is alive: the timer and the service as systemd reports them, the last pass,
+the status file, and which code of the view answers.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than `QUIET`
-seconds ago and systemd does not say one is running now. A pass that starts and dies each
-minute has stopped too: a start is no end.
+seconds ago and systemd does not report a pass running now. A pass that starts and crashes each
+minute has stopped too, because only the end of a pass counts, not its start.
 """
 
 from __future__ import annotations
@@ -72,8 +72,9 @@ NOT_KEPT = (
 
 
 def systemd(read: Read) -> dict[str, dict[str, str]] | None:
-    """What systemd says of the timer and the service, or None where it did not answer. It is
-    the machine's, so one answer of the server asks it once (`Read.machine`)."""
+    """What systemd says of the timer and the service, or None where systemd did not answer. The
+    answer is the same for the whole machine, so the server asks systemd once for each answer
+    it builds (`Read.machine`)."""
     try:
         asked = subprocess.run(
             ["systemctl", "--user", "show", TIMER, SERVICE, "-p", ASKED],
@@ -176,8 +177,9 @@ def _hook(one: Any) -> dict[str, Any] | None:
 
 
 def _code(said: dict[str, Any]) -> dict[str, Any]:
-    """Which code answers: when the server started, whether a file it runs is newer on disk
-    than that, and why the code on disk did not start where it was tried and did not."""
+    """Which code answers requests: when the server started, and whether a file it runs is newer
+    on disk than that start. Where the server tried the code on disk and that code did not start,
+    the answer also says why."""
     return {
         "started": when(said.get("started")),
         "stale": said.get("stale") is True,
@@ -203,7 +205,7 @@ SOURCES = (
 
 
 def blind(read: Read) -> list[Spot]:
-    """While the last pass could not ask a source, how many tasks are not confirmed."""
+    """How many tasks the last pass could not confirm, because it could not ask a source."""
     tasks, unconfirmed = read.tasks, read.unconfirmed
     if not unconfirmed or not tasks:
         return []

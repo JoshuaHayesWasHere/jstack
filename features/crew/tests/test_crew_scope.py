@@ -1,4 +1,4 @@
-"""The crew skill's "Do the task": the changed files outside the brief's Where, asked of jmerge."""
+"""The crew skill's "Do the task" asks jmerge for the changed files outside the brief's Where."""
 
 import os
 import subprocess
@@ -10,8 +10,9 @@ from testing.paths import REPO
 
 
 def test_the_files_outside_the_where_are_asked_of_jmerge_before_the_pull_request_opens(tmp_path):
-    """The block runs `jmerge --scope` over the crewmate's branch, and the line it tells the
-    crewmate to write for each file it prints is the line that makes it print `wider:`."""
+    """The block runs `jmerge --scope` over the crewmate's branch. For each file that `jmerge`
+    prints, the block tells the crewmate to write a line, and once the crewmate writes that
+    line, `jmerge` prints `wider:` for the file."""
     pr = PullRequest(tmp_path, None, "other.txt")
     user = tmp_path / "user"
     brief = user / ".local" / "state" / "home" / "main" / "tasks" / "a-task.md"

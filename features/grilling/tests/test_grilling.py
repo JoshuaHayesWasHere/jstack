@@ -1,4 +1,5 @@
-"""The grilling skill: the home's pointer to it resolves, and its round format is a round."""
+"""The grilling skill: the home's pointer to it names a file that exists, and the skill's round
+format is one round of numbered questions, each with its answer."""
 
 import re
 

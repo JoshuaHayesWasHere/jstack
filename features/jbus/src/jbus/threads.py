@@ -1,17 +1,19 @@
-"""Tying each crew to its thread, which a home did by hand: the link, the relay, the settle.
+"""This module ties each crew to its thread, work that a home used to do by hand: the link, the
+relay, the settle.
 
-`link` gives an open pull request to the thread jbus launched for its branch, so T3 Code
-shows it there. `relay` sends a review's findings to the crewmate when the reviewer could
-not. `settle` puts away the threads of a slug that is finished, and the subagent threads
-under them, and archives the review threads of a pull request that merged or closed.
-`resume` tells a crewmate whose thread ended with no Result to carry on, twice
-at most, and then leaves it to the Chef. `merged` tells a crewmate whose pull request
-merged, and whose Result leaves work for after the merge, to carry on, once. `out` is every
-thread that is not settled, whatever its title, with the role its title gives it (`ROLES`)
-and its liveness.
+`link` links an open pull request to the thread that jbus launched for the pull request's branch, so
+T3 Code shows the pull request in that thread. `relay` sends a review's findings to the crewmate
+when the reviewer could not send them. `settle` settles the threads of a slug that is finished, and
+the subagent threads under them. `settle` also archives the review threads of a pull request that
+merged or closed. `resume` tells a crewmate to carry on when its thread ended with no Result.
+`resume` does this twice at most, and after that the Chef handles the crewmate. `merged` tells a
+crewmate to carry on, once, when its pull request merged and its Result leaves work for after the
+merge. `out` lists every thread that is not settled, whatever its title, with the role that its
+title gives it (`ROLES`) and its liveness.
 
-Each action happens once. Its key is recorded in `sent.json` beside the keys of the events,
-and only after T3 Code said yes, so one that got no answer is tried again on the next pass.
+Each action happens once. jbus records the action's key in `sent.json`, beside the keys of the
+events, but only after T3 Code accepted the call. So when an action got no answer, the next pass
+tries it again.
 """
 
 from __future__ import annotations
@@ -55,10 +57,12 @@ OTHER = "other"
 
 @dataclass(frozen=True)
 class Role:
-    """A kind of thread, which the start of its title (`prefix`) gives it, and how the view
-    shows it: `holder` is who holds the work its thread is on (`work.holder`) and the shape
-    the page draws, `called` what the page calls one, `one` and `many` how the drawer of the
-    threads counts them, and `says` what one is. The drawer lists them in this order."""
+    """A `Role` is a kind of thread. The start of a thread's title (`prefix`) gives the thread its
+    role, and the other fields say how the view shows the role. `holder` is who holds the work that
+    the thread does (`work.holder`), and `holder` also sets the shape that the page draws. `called`
+    is the page's name for one thread of the role. `one` and `many` are the words that the threads
+    drawer uses to count threads of the role, and `says` describes one thread of the role. The
+    drawer lists the roles in the order of `ROLES`."""
 
     name: str
     prefix: str
@@ -140,7 +144,7 @@ SKILLS = {"crew": "crew", "reviewer": "pr-review", "scout": "scout"}
 
 
 def skill_file(name: str) -> Path:
-    """The jstack checkout's own file of skill `name`, as `skills.json` lists it."""
+    """Return the file of skill `name` in the jstack checkout itself, as `skills.json` lists it."""
     return skills.where("skill", name)
 
 
@@ -152,13 +156,14 @@ READ_SKILL = (
 
 
 def resume_message(template: str, title: str, home: Path, **fields: Any) -> str:
-    """The text that resumes the thread titled `title`: the template filled in, and for a role
-    that has a skill (`SKILLS`) the path of its file, since a skill loads only when its slash
-    command is typed and a resumed thread, which never typed it or lost it to a compaction,
-    cannot load it through the Skill tool. The brief it names is the one in `home`, by its
-    full path, since the thread's own worktree has no `tasks/`. A reviewer's message ends with
-    `END_TURN` too: its proof is a run its turn waits for. A title that gives no such role gets
-    the template."""
+    """Return the text that resumes the thread titled `title`. The text is the template filled in.
+    For a role that has a skill (`SKILLS`), the text also gives the path of the skill's file. A
+    skill loads only when someone types the skill's slash command. A resumed thread never typed that
+    command, or lost the loaded skill to a compaction, and such a thread cannot load the skill
+    through the Skill tool. The text names the brief in `home` by its full path, since the thread's
+    own worktree has no `tasks/`. A reviewer's message also ends with `END_TURN`, since the
+    reviewer's turn waits for a run, and that run is the reviewer's proof. For a title that gives no
+    such role, the text is the template alone."""
     message = template.format(**fields)
     role = role_of(title)[0]
     name = SKILLS.get(role)
@@ -202,12 +207,13 @@ def link(run: Pass, client: Client, world: World) -> None:
 
 
 def relay(run: Pass, client: Client, world: World) -> None:
-    """Send the crewmate the findings its reviewer could not, once per Review.
+    """Send the crewmate the findings that its reviewer could not send, once per Review.
 
-    Only for a pull request that is open: the findings of one that merged or closed ask
-    for nothing any more. Nor for a brief that says `Review: after`: it merges on its check,
-    and its findings go to a cleanup row (`jbus.cleanup`), not to its crew. Nor for the
-    second review of a brief that says `Review: twice`, which goes to such a row too.
+    `relay` sends findings only for a pull request that is open, since a merged or closed pull
+    request needs no more work from its crew. It sends none for a brief that says `Review: after`.
+    Such a brief merges when its check passes, and its review's findings go to a cleanup row
+    (`jbus.cleanup`), not to its crew. It sends none for the second review of a brief that says
+    `Review: twice` either, since that review also goes to a cleanup row.
     """
     briefs = _briefs(run)
     client.recipients = frozenset(filter(None, map(dispatch.thread_of, briefs.values())))
@@ -246,12 +252,13 @@ UNSEEN = "its page has no session in Lavish's state at {}, so its thread stays"
 
 
 def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> str:
-    """Why the page a scout's Report names may still wait on the user, or nothing.
+    """Return why the page that a scout's Report names may still wait on the user, or nothing.
 
-    Its session is the one whose address the `Page:` line gives, or the one of the file the
-    scout skill writes a page to. It waits until that session has ended and no answer is
-    left queued in it: Lavish ends a session on the user's last send and keeps what they
-    sent until a poll takes it. A session Lavish does not know keeps the scout too.
+    The page's session is the one at the address on the `Page:` line, or else the session of the
+    file to which the scout skill writes a page. The page waits until that session has ended and no
+    answer is left queued in it. Lavish ends a session on the user's final send, and keeps what the
+    user sent until a poll takes it. When Lavish does not know the session, the scout's thread also
+    stays.
     """
     if not page:
         return ""
@@ -268,7 +275,8 @@ def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> s
 
 
 def _scouts(run: Pass) -> dict[str, str]:
-    """Each scout with a Report, and why its thread stays: nothing for one that is over."""
+    """Return each scout that has a Report, with the reason its thread stays. The reason is empty
+    for a scout that is over."""
     pages = {}
     for slug, text in _briefs(run, "scouts").items():
         whole = mirror.sections(text, gates_inside=True)
@@ -280,9 +288,10 @@ def _scouts(run: Pass) -> dict[str, str]:
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
-    """The slugs whose pull request merged or closed, as `watch.pull` has it, and never one
-    whose last Result names a pull request that is open: `watch.pull` knows an open one
-    under the one slug `tied` gives it, and another brief naming it would read as closed."""
+    """Return the slugs whose pull request merged or closed, as `watch.pull` has it. Leave out every
+    slug whose last Result names a pull request that is open. `watch.pull` lists an open pull
+    request under only the one slug that `tied` gives it. Without this rule, another brief that
+    names the same pull request would read as closed."""
     open_at = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
     found = set(world.merged) - set(world.open)
     for slug, text in briefs.items():
@@ -295,16 +304,16 @@ def shut(world: World, briefs: dict[str, str]) -> set[str]:
 
 
 def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> dict[str, set[str]]:
-    """The slugs whose threads may be put away, by the title such a thread starts with, and
-    under `archive` those whose review threads are archived too.
+    """Return the slugs whose threads may be put away, by the start of such a thread's title. Under
+    `archive`, also return the slugs whose review threads jbus archives.
 
-    A task is over when its pull request merged, or when its last Result says `Status:
-    done` and `Left: none` and names no pull request: the crew skill keeps a thread with
-    something left where the user sees it. A reviewer is over when its pull request merged
-    or closed, or its task is over, and the brief's last Review has a verdict: one that
-    stopped early stays. It is archived when its pull request merged or closed. A scout is
-    over when its Report is written, and the page its last Report names, if any, waits on
-    nobody.
+    A task is over when its pull request merged, or when its last Result says `Status: done` and
+    `Left: none` and names no pull request. Under the crew skill, a thread that has something left
+    stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
+    either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
+    that stopped early stays. jbus archives a reviewer when its pull request merged or closed. A
+    scout is over when it has written its Report and nobody waits on the page that its last Report
+    names, if it names one.
     """
     briefs = _briefs(run)
     tasks = set(world.merged) - set(world.open)
@@ -350,13 +359,13 @@ def slug_in(title: str, prefix: str) -> str | None:
 
 
 def shown() -> list[dict[str, str]]:
-    """The roles as the page has them, in the order of `ROLES`."""
+    """Return the roles as the page has them, in the order of `ROLES`."""
     return [asdict(role) for role in ROLES]
 
 
 def role_of(title: str) -> tuple[str, str]:
-    """The role a thread's title gives it and the slug after it: `OTHER` and no slug for a
-    title that starts with the prefix of none of `ROLES`."""
+    """Return the role and the slug that a thread's title gives. A title that starts with none of
+    the prefixes of `ROLES` gives `OTHER` and no slug."""
     for role in ROLES:
         slug = slug_in(title, role.prefix) if role.prefix else None
         if slug is not None:
@@ -365,7 +374,7 @@ def role_of(title: str) -> tuple[str, str]:
 
 
 def _silent(now: datetime, updated: Any) -> float | None:
-    """The minutes since a thread last wrote, or None where T3 Code gave no time for it."""
+    """Return the minutes since a thread last wrote, or None where T3 Code gave no time for it."""
     try:
         return (now - when(updated)).total_seconds() / 60
     except (TypeError, ValueError):
@@ -373,27 +382,29 @@ def _silent(now: datetime, updated: Any) -> float | None:
 
 
 def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[Out] | None:
-    """Every thread of the project that is not settled, oldest first, each with its role,
-    its slug and its liveness (`live.judge`). None where T3 Code could not list them.
+    """Return every thread of the project that is not settled, oldest first, each with its role, its
+    slug and its liveness (`live.judge`). Return None where T3 Code could not list the threads.
 
-    When a thread last wrote is `wrote`: its `updatedAt` as of the pass that last saw its
-    count of items change. `updatedAt` alone will not do, since T3 Code moves it when a
-    message is queued to the thread, and a wake queued behind a hung turn is the very case
-    this is for. The count is kept from pass to pass in `pass.json`. A thread seen for the
-    first time, or one T3 Code gives no count for, wrote at its `updatedAt`. A turn cannot
-    have been silent since before it started: where a read gives the active run a later
-    `startedAt`, the silence is counted from that, so a turn started on a thread that ended
-    long ago is not hung at once.
+    `wrote` is when a thread last wrote. `wrote` is the thread's `updatedAt`, taken at the last pass
+    that saw the thread's count of items change. `updatedAt` alone will not do, because T3 Code
+    moves `updatedAt` when someone queues a message to the thread. A wake queued behind a hung turn
+    is exactly the case for which this check exists. jbus keeps the count from pass to pass in
+    `pass.json`. For a thread seen for the first time, or a thread for which T3 Code gives no count,
+    `wrote` is its `updatedAt`. A turn cannot have been silent since before it started. So where a
+    read gives the active run a later `startedAt`, `out` counts the silence from that time. So a
+    turn that just started on a thread that ended long ago is not hung at once.
 
-    Only a thread that is `quiet` or `hung` by that alone is read, for the run that is
-    active, when it started, the runs queued behind it and the requests that wait: a pass
-    with nothing quiet reads none. The threads in `also` are read too, whatever they are. A
-    scout holds a page while its last Report names one that waits.
+    `out` reads a thread only when the thread is `quiet` or `hung` by the listed data alone. The
+    read gives the active run, when it started, the runs queued behind it and the requests that
+    wait. A pass with no quiet thread reads no thread. `out` also reads the threads in `also`,
+    whatever their state. A scout's entry has `page` set while its last Report names a page that
+    waits.
 
-    `run` is the run a read gave as active, and nothing for a thread that was not read: the
-    list names only a thread's newest run, which is a queued one whenever a run waits. So a
-    thread that could not be read is `quiet` at most. Whether it is hung, or waits on a
-    request, is said by the first pass that reads it, of the run that pass names.
+    `run` is the run that a read gave as active, and nothing for a thread that was not read. T3
+    Code's list of threads names only a thread's newest run, and that run is a queued one whenever a
+    run waits. So a thread that could not be read is `quiet` at most. The first pass that reads the
+    thread decides whether the thread is hung or waits on a request, for the run that this pass
+    names.
     """
     try:
         listed = _listed(client, run.project.project_id, settled=False)
@@ -466,10 +477,10 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
 
 
 def settle(run: Pass, client: Client, world: World) -> None:
-    """Settle the threads of each finished slug and the subagent threads under them, once each,
-    and archive a review thread whose pull request merged or closed, with what is under it.
+    """Settle the threads of each finished slug, and the subagent threads under them, once each.
+    Archive each review thread whose pull request merged or closed, with the threads under it.
 
-    A thread that is still at work is left, with what is under it, for the next pass.
+    `settle` skips a thread that is still at work, and the threads under it, until the next pass.
     """
     held = _scouts(run)
     over = finished(run, world, held)
@@ -536,9 +547,10 @@ def settle(run: Pass, client: Client, world: World) -> None:
 def resume(run: Pass, client: Client, world: World) -> None:
     """Tell each crew whose thread ended with no Result to carry on, once per ended run.
 
-    Only the one thread of a slug jbus launched, that the brief names on its `Thread:` line,
-    with no pull request yet. The keys of the carry-ons a thread has had are its count: at
-    `CARRY_ONS` the next end is a gate, and a new thread for the slug starts from none.
+    `resume` tells only the one thread of a slug that jbus launched and that the brief names on its
+    `Thread:` line, and only while the slug has no pull request. `resume` counts a thread's
+    carry-ons by the keys that `resume` wrote for them. When the count reaches `CARRY_ONS`, the
+    thread's next end becomes a gate. A new thread for the slug starts again from zero.
     """
     briefs = _briefs(run)
     sent = read_json(run.state / "sent.json", [])
@@ -589,10 +601,11 @@ def resume(run: Pass, client: Client, world: World) -> None:
 
 
 def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
-    """Tell the crew of each row whose pull request merged with work left for after it, once.
+    """Tell the crew of each row whose pull request merged with work left for after the merge, once.
 
-    The thread is the one the brief names on its `Thread:` line, or the one jbus launched
-    for the slug, or the one T3 Code lists. A row told in this pass is on `Pass.told`.
+    `merged` sends to the thread that the brief names on its `Thread:` line, or else the thread that
+    jbus launched for the slug, or else the thread that T3 Code lists. `merged` adds each row it
+    tells in this pass to `Pass.told`.
     """
     briefs = _briefs(run)
     for slug in sorted(row["slug"] for row in rows):
@@ -629,8 +642,8 @@ def tie(run: Pass, client: Client, world: World) -> None:
 
 
 def _out(half: Half) -> None:
-    """The crews out, for the record, and then `stall.hung` over them: one step, so that no
-    rank can put `hung` before the list it reads."""
+    """List the crews out for the record, then run `stall.hung` over that list. The two run as one
+    step, so that no rank can put `hung` before the list that `stall.hung` reads."""
     half.out = out(half.run, half.client, stall.watched(half.run))
     stall.hung(half.run, half.out)
 

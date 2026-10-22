@@ -1,10 +1,12 @@
-"""Each line of a work item's log is a card for Sous Chef's chat (`card`): one body of the
-kind `item`, whose `id` is the project and the line's id, so the relay sends each once and
-Sous Chef replaces the item's card with the newest. A pass posts the lines no card went for
-yet (`post`), to each webhook route that is the relay (`relayed`), and a route's first pass
-posts one card for each live item instead of the whole log.
+"""Make each line of a work item's log a card for Sous Chef's chat (`card`). A card is one
+body of the kind `item`, and its `id` is the project and the line's id. So the relay sends
+each card once, and Sous Chef replaces the item's card with the newest. A pass posts a card
+for each line that has none yet (`post`) to each webhook route that is the relay
+(`relayed`). On the first pass for a route, the pass posts one card for each live item
+instead of one for each line of the log.
 
-A card's `actions` are what the relay's `POST /item` takes back from the chat (`jbus.chat`).
+A card's `actions` are the decisions that the relay's `POST /item` accepts from the chat
+(`jbus.chat`).
 """
 
 from __future__ import annotations
@@ -61,9 +63,10 @@ SAID_IN = {Where.VIEW: " in jbus view", Where.CHAT: " in chat", Where.CLI: " fro
 
 
 def actions(item: Item) -> list[str]:
-    """What the card offers: nothing for a review item, which is decided in the view, and
-    else each of `ACTIONS` that `MOVES` has from the item's state. A redirected item is
-    approved only by its id in the view or the command, so its card offers no approval."""
+    """Return what the card offers. A review item gets nothing, since the user decides it in
+    the view. Any other item gets each of `ACTIONS` that `MOVES` has from the item's state.
+    The user approves a redirected item only by its id, in the view or the command, so its
+    card offers no approval."""
     if item.risk is Risk.REVIEW:
         return []
     offered = [one for one in ACTIONS if (item.state, one) in MOVES]
@@ -71,16 +74,18 @@ def actions(item: Item) -> list[str]:
 
 
 def last(line: dict[str, Any], user: jsettings.Settings) -> str:
-    """The line in one sentence for the card, as "Approved in jbus view by Josh, 11:52 EDT"."""
+    """Return the line as one sentence for the card, such as
+    "Approved in jbus view by Josh, 11:52 EDT"."""
     where = Where(line["where"])
     said = f"{SAID[move_of(line)]}{SAID_IN.get(where, '')} by {line['by']}"
     return f"{said}, {user.clock(datetime.fromisoformat(line['at']))}"
 
 
 def view_link(project: str, name: str) -> str:
-    """The item's page in jbus view: at the first origin `JBUS_VIEW_ORIGINS` gives, the
-    proxy the view is reached through, else at the first name `JBUS_VIEW_NAMES` gives, else
-    the address `JBUS_VIEW_HOST` gives, else 127.0.0.1, at the view's port."""
+    """Return the item's page in jbus view. The page is at the first origin in `JBUS_VIEW_ORIGINS`,
+    which is the proxy in front of the view. Without such an origin, the page is at the first name
+    in `JBUS_VIEW_NAMES`, then at the address in `JBUS_VIEW_HOST`, and last at 127.0.0.1, at the
+    view's port."""
     page = f"/#/{project}/item/{name}"
     origins = [one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(",")]
     origin = next((one for one in origins if one), "")
@@ -92,8 +97,9 @@ def view_link(project: str, name: str) -> str:
 
 
 def card(item: Item, line: dict[str, Any], user: jsettings.Settings) -> dict[str, Any]:
-    """The card of one line: the item as it stood after the line, with its risk now. Its
-    `id` is the project and the line's id, since an item's id is the project's own."""
+    """Make the card of one line: the item as it stood after the line, with its risk now. The
+    card's `id` is the project and the line's id, since an item's id is unique only within its
+    project."""
     return {
         "kind": CARD,
         "id": f"{item.project}.{line['id']}",
@@ -110,8 +116,9 @@ def card(item: Item, line: dict[str, Any], user: jsettings.Settings) -> dict[str
 
 
 def relayed(route: wake.Route) -> bool:
-    """Whether the route is the relay, on this machine at `RELAY_PORT` (4390, or the
-    `RELAY_PORT` of the environment): the one door to Sous Chef's chat, where a card goes."""
+    """Say whether the route is the relay on this machine, at `RELAY_PORT` (4390, or the
+    `RELAY_PORT` of the environment). The relay is the one way into Sous Chef's chat, which
+    is where a card goes."""
     if not route.url or route.blocking:
         return False
     try:
@@ -125,8 +132,9 @@ def relayed(route: wake.Route) -> bool:
 def cards(
     state: Path, lines: list[dict[str, Any]], user: jsettings.Settings, after: int | None
 ) -> list[dict[str, Any]]:
-    """The cards owed after the first `after` of the log's `lines`, in order. With None, no
-    card went yet: one for each live item, at its last line, and not the whole log."""
+    """Return the cards still to post after the first `after` of the log's `lines`, in order. When
+    `after` is None, no card has gone out yet, so return one card for each live item, at its last
+    line, and not one for each line of the log."""
     risks: dict[str, Risk] = {}
     found: dict[str, Item] = {}
     made: list[tuple[Item, dict[str, Any]]] = []
@@ -147,10 +155,10 @@ def cards(
 
 
 def post(run: wake.Pass) -> int:
-    """The pass's step: post each card owed to each route that is the relay, in order, and
-    keep in the route's `cards.json` how many lines of the log are carded. A POST that fails
-    ends that route's turn, and the next pass posts from it again. The answer is how many
-    went."""
+    """Run the pass's step that posts cards. Post each card still to post, in order, to each route
+    that is the relay. Record in the route's `cards.json` how many lines of the log have their card.
+    When a POST fails, this function posts nothing more to that route in this pass, and the next
+    pass starts again from that card. Return how many cards it posted."""
     state, sent = run.state, 0
     for route in run.box.routes:
         if not relayed(route):

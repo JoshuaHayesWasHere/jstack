@@ -1,6 +1,6 @@
-"""The files every brief still out holds are printed by one command, `jmerge --claims`, for
-the homes of a repo to read before a launch. It is run as a home runs `jmerge`, against a fake
-`gh` and a temporary state directory."""
+"""One command, `jmerge --claims`, prints the files that each brief still out claims, while the
+brief is out. The homes of a repo read that list before a launch. The tests run the command as a
+home runs `jmerge`, against a fake `gh` and a temporary state directory."""
 
 import json
 
@@ -15,7 +15,7 @@ WHERE = "`src/alpha/`, a new test file"
 
 
 def brief(slug, thread=True, result="", home="", where=WHERE):
-    """A brief as a home writes it, then what its crewmate added."""
+    """The brief as a home writes it, followed by the lines its crewmate added."""
     return (
         f"# {slug}: a task\n"
         'Task: "do it"\n'
@@ -37,7 +37,7 @@ class Claims:
         self.open()
 
     def open(self, *numbers):
-        """The pull requests GitHub lists as open."""
+        """The pull requests that GitHub lists as open."""
         listed = [{"number": number, "url": PULLS.format(number)} for number in numbers]
         (self.home.stub / "list.json").write_text(json.dumps(listed))
 
@@ -87,7 +87,7 @@ def test_a_brief_whose_pull_request_is_no_longer_open_claims_nothing(claims):
 
 
 def test_a_brief_folded_into_another_claims_nothing(claims):
-    """As `fewer-messages` was: the home wrote its Result, which names no pull request."""
+    """As with `fewer-messages`, the home wrote the Result, which names no pull request."""
     folded = "\n## Result\nStatus: done (folded into `home-listens`, pull request 31, merged)\n"
     claims.write("alpha", result=folded)
     claims.write("beta", result=result())
@@ -156,7 +156,8 @@ def test_a_scoped_home_is_also_known_by_its_directory_and_by_the_home_it_took_ov
     ],
 )
 def test_a_brief_has_one_home_by_each_of_the_three_kinds_of_home_line(claims, line, home):
-    """No line, a scope's name, and the thread id a brief written before has."""
+    """The three kinds are no `Home:` line, a `Home:` line that names a scope, and a `Home:`
+    line with the thread id that an older brief has."""
     scope = claims.home.state / "pstack"
     scope.mkdir()
     (scope / "plan.md").write_text("# a plan\n")
@@ -177,8 +178,9 @@ LINES = ["", "speed", "speed (a second home)", OTHER, "mcp:before", ME, "mcp:roo
 @pytest.mark.parametrize("reader", READERS)
 @pytest.mark.parametrize("scope", SCOPES)
 def test_a_thread_finds_a_brief_the_home_jmerge_gives_it(claims, reader, scope):
-    """The block a thread finds its home with and `jmerge --claims` are run over one state
-    directory, for every kind of `Home:` line and every state a scope is left in."""
+    """The tests run two things over one state directory: the block that a thread uses to find
+    its home, and `jmerge --claims`. They run both for every kind of `Home:` line and every
+    state a scope may be left in."""
     state = claims.home.state
     (state / "handoff.md").write_text("# Handoff\nWas home: mcp:root-before\n")
     (state / "speed").mkdir()
@@ -208,7 +210,8 @@ def test_a_brief_with_no_where_line_is_still_listed(claims):
 
 
 def kept(state):
-    """Every file of the state but the mark of the merge step, which this test runs it in."""
+    """Return every file of the state except the mark that the merge step leaves. This test
+    runs inside that step, so the mark is always there."""
     return [path for path in state.rglob("*") if path.is_file() and path.name != "merge-seen"]
 
 

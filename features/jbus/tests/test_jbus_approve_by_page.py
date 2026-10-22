@@ -1,8 +1,8 @@
-"""A pick the user sends from a Lavish page is a basis for `queue approve`, read by jbus.
+"""A pick that the user sends from a Lavish page is a basis for `queue approve`, and jbus reads it.
 
-`--page <session key>/<entry id>` names a chat entry of a session in Lavish's own state
-file. jbus reads the file itself, and takes only an entry whose role is the user's. Every
-test runs the real command against a small state file written where the kitchen points
+`--page <session key>/<entry id>` names a chat entry of a session in Lavish's own state file. jbus
+reads the file itself, and takes only an entry whose role is the user's. Every test runs the real
+command against a small state file, which the test writes where the kitchen points
 `LAVISH_AXI_STATE_DIR`.
 """
 
@@ -37,7 +37,8 @@ def chat(*more):
 
 
 def lavish(kitchen, sessions):
-    """Lavish's state file, as Lavish writes it: sessions by their key."""
+    """Write Lavish's state file as Lavish writes it, with the sessions by their key, and return
+    its path."""
     where = kitchen.root / "lavish"
     where.mkdir(exist_ok=True)
     (where / "state.json").write_text(json.dumps({"sessions": sessions}))

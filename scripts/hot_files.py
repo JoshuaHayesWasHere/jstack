@@ -1,30 +1,35 @@
-"""Where changes collide: `hot_files.py --since <date> [--until <date>] [--home <dir>] [--top <n>]`.
+"""Find the hot files: `hot_files.py --since <date> [--until <date>] [--home <dir>] [--top <n>]`.
 
-It prints three tables for the days from `--since` to `--until` (today when left out), each
-file with its count, highest first, the first `--top` (20) of each:
+It prints three tables for the days from `--since` to `--until`, which is today when the
+command leaves it out. Each table lists files with their counts, highest first, and keeps the
+first `--top` (20):
 
-1. merged pull requests that touched the file, from `gh pr list --state merged --search
-   merged:<since>..<until> --json number,files,createdAt,mergedAt`, run in the repo checked out
-   here. The days are local days: the search gives each end with its local offset, since
+1. merged pull requests that touched the file, from a run of `gh pr list --state merged
+   --search merged:<since>..<until> --json number,files,createdAt,mergedAt` in the repo checked
+   out here. The days are local days: the search gives each end with its local offset, since
    GitHub reads a bare date as UTC.
-2. concurrent-open pairs: two of those pull requests that touched the file and whose times
-   from created to merged overlap, counted once a pair.
-3. rebases that dropped lines, from the home's `merge.log`: a `wait` or `hold` line for a pull
-   request of this repo that says `the rebase dropped <n> of ... in <file> and ...`, logged in
-   the range, counted once for each pull request and head (a hold line names no head, so once
-   for what it says dropped), with the lines dropped beside it; and the rebases that changed
-   the patch, the `Rebase: patch changed in <files>, before <sha>, head <sha>` lines of the
-   home's briefs, once a head, for a brief whose pull request is one of table 1's. The list
-   is free text ("a.md and b.md", "12 feature files"): a word counts as a path of that pull
-   request, or the name one of its paths alone ends with, and the rest is named on stderr.
+2. concurrent-open pairs: pairs of those pull requests that touched the file and were open at
+   the same time, from creation to merge. The table counts each pair once.
+3. rebases that dropped lines, from the home's `merge.log`. The script reads the `wait` and
+   `hold` lines that jmerge logged in the range for pull requests of this repo, the lines that
+   say `the rebase dropped <n> of ... in <file> and ...`. It counts each such line once for each
+   pull request and head, and puts the lines dropped beside the count. A hold line names no
+   head, so the script counts it once for each drop it reports.
+   The table also counts the rebases that changed the patch. Those are the `Rebase: patch
+   changed in <files>, before <sha>, head <sha>` lines of the home's briefs. The script counts
+   each one once for each head, for a brief whose pull request is in table 1. Their list of
+   files is free text ("a.md and b.md", "12 feature files"). The script counts a word of it
+   when the word is a path of that pull request, or a name that only one of its paths ends
+   with. It names the other words on stderr.
 
 jmerge logs a wait or hold line only when it differs from the last one for its pull request
-(`merge.log.last`), so table 3 counts a rebase once however long it waited, and a pull request
-that waited on two drops in turn shows both.
+(`merge.log.last`). So table 3 counts a rebase once, however long its pull request waited. A pull
+request that waited on one drop and then on another shows both drops.
 
-`gh pr list --json files` gives at most 100 files of a pull request: one that lists 100 is
-named on stderr as undercounted. The home is `~/.local/state/home/<repo>` unless `--home`
-names one. It needs only the standard library and `gh`.
+`gh pr list --json files` gives at most 100 files of a pull request, so when a pull request
+lists 100 files, the script names it on stderr as undercounted. The home is
+`~/.local/state/home/<repo>` unless `--home` names one. The script needs only the standard
+library and `gh`.
 """
 
 import argparse
@@ -114,10 +119,10 @@ def drops(log, repo, since, until):
 
 
 def changed(briefs, repo, files):
-    """Per file, the rebases that changed the patch of a pull request in `files` (number ->
-    the paths it touched). The line's list is free text, so a word counts only as a path of
-    that pull request, or as the name one of its paths alone ends with; what is left is
-    named on stderr."""
+    """The rebases that changed a pull request's patch, counted for each file. `files` maps each
+    pull request's number to the paths it touched. The list of files on a brief's `Rebase:` line is
+    free text, so the script counts a word only when it is a path of that pull request, or a name
+    that only one of its paths ends with. It names the other words on stderr."""
     heads = set()
     counted = Counter()
     for brief in briefs:

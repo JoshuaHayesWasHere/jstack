@@ -1,15 +1,16 @@
-"""No swept file holds a plain comment: a new one fails here, with its file and line.
+"""No swept file holds a plain comment. The test fails on a new one and names its file and line.
 
-A Python file is read with `tokenize`, so a `#` in a string is no comment, and a shell file
-character by character, so a `#` in quotes is none either. A systemd unit and a list of
-jmerge's paths are read line by line: a line that starts with `#` is a comment, and in a unit
-one that starts with `;` too. What a tool reads as an instruction
-is let through: a shebang, `# type:` and `# pragma`. A `# noqa` is not: what it silences is
-written so that ruff has nothing to say.
+The test reads a Python file with `tokenize`, so a `#` in a string is no comment. It reads a shell
+file character by character, so a `#` in quotes is no comment either. It reads a systemd unit and a
+list of jmerge's paths line by line: a line that starts with `#` is a comment, and in a unit so is a
+line that starts with `;`. The test lets through what a tool reads as an instruction: a shebang, `#
+type:` and `# pragma`. It does not let a `# noqa` through: write the code so that ruff reports
+nothing on it instead.
 
-A script, and the `<script>` and `<style>` of a page, is read for `/* */` and `//` past its
-strings, its regular expressions and a `://`. A comment there that holds an `https://` link
-is let through: it names a fact of the platform, with where it is written down.
+In a script, and in the `<script>` and `<style>` of a page, the test looks for `/* */` and `//`. It
+skips strings, regular expressions and a `://`. It lets through a comment there that holds an
+`https://` link. Such a comment names a fact of the platform, and the link is the page that
+documents that fact.
 """
 
 import io

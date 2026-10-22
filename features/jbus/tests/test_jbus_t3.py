@@ -1,6 +1,7 @@
-"""`jbus.t3` is the one way to T3 Code: the sign-in, its eight tools and nothing else, a call
-that changes a thread refused before it goes out in any form but the one jbus makes, and a
-sign-in near its end said on the first pass of each day.
+"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its eight tools, and nothing else. It
+refuses any call that changes a thread unless the call has the one form jbus makes, and it refuses
+the call before it goes out. When the sign-in is about to run out, it says so on the first pass of
+each day.
 
 Every test runs the real command or the real client against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.

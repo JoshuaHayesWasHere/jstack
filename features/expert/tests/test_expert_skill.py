@@ -1,6 +1,6 @@
-"""The expert skill: every shell block it gives is lifted from it and run here, under a
-temporary `HOME` with a made-up expert's folder, and the calls its blocks print are held
-against the tools' schemas. The answer template is read beside the file that has the tiers."""
+"""The expert skill: these tests lift every shell block the skill gives and run it here, under
+a temporary `HOME` with a made-up expert's folder. They check the calls its blocks print against
+the tools' schemas, and they read the answer template beside the file that has the tiers."""
 
 import json
 import os
@@ -67,8 +67,9 @@ def block(which):
 
 
 class Scene:
-    """A user's home directory with the skill linked as `install.sh` links it, a made-up
-    expert's folder, and a directory that is in no repo to run from."""
+    """A user's home directory, a made-up expert's folder, and a directory outside any repo for
+    the blocks to run from. The skill is linked into the home directory the way `install.sh`
+    links it."""
 
     def __init__(self, tmp_path, repo=None):
         self.user = tmp_path / "user"
@@ -88,8 +89,8 @@ class Scene:
         self.elsewhere.mkdir()
 
     def run(self, which, name=NAME, **filled):
-        """What the block prints, run after the block at the top with its placeholders filled.
-        The exit code comes first when it is not 0."""
+        """Run the block at the top and then the block `which`, with the placeholders filled,
+        and return what they print. The exit code comes first when it is not 0."""
         body = block("top").replace("<name>", name)
         if which != "top":
             body += block(which)
@@ -115,14 +116,17 @@ class Scene:
         }
 
     def asked(self, playbook, thread=THREAD):
-        """What the block of an ask prints for the thread that is the expert, or was."""
+        """What the ask's block prints for a thread that is the expert now or was the expert
+        before."""
         if not (self.folder / "home-id").exists():
             self.run("id", threadId=thread)
         return self.run("playbook", threadId=thread, playbook=playbook)
 
     def taken(self, thread, posts_into, **filled):
-        """What the block says after the call that takes the webhook over, over a list in
-        which the webhook kept posts into `posts_into`, or is not there."""
+        """What the block says after the call that takes the webhook over. The test gives the
+        block a reply of `list_scheduled_tasks`. When `posts_into` is set, the reply lists the
+        webhook whose id the expert's folder keeps, and that webhook posts into `posts_into`.
+        When `posts_into` is empty, the reply lists no webhook."""
         id = (self.folder / "webhook").read_text().split()[0]
         tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
         reply = json.dumps({"tasks": tasks if posts_into else []})
@@ -130,7 +134,8 @@ class Scene:
         return self.run("taken", **asked)
 
     def starts(self, thread=THREAD):
-        """The blocks of a start, in its order, with what a `create` returns kept."""
+        """Run the blocks of an expert's start in the skill's order, and keep what a `create`
+        returns."""
         self.run("read")
         self.run("id", threadId=thread)
         (said,) = self.run("webhook", threadId=thread)
@@ -337,7 +342,8 @@ def test_the_skills_calls_rename_pin_and_keep_a_webhook_and_settle_nothing():
 
 
 def made(tmp_path, playbooks):
-    """A repo the skill lives in, with these playbooks: each name and what follows `Run by:`."""
+    """A repo that holds the skill and the playbooks in `playbooks`. `playbooks` maps the name of
+    each playbook to the text that follows its `Run by:`."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
     (repo / "skills" / "expert").mkdir(parents=True)
@@ -408,7 +414,7 @@ def test_a_thread_with_no_id_opens_no_playbook_whoever_the_expert_is(tmp_path, t
 
 
 class Bus:
-    """A `jbus` on the PATH that keeps what it was run with and what it read."""
+    """A `jbus` on the PATH that records its arguments and what it read."""
 
     def __init__(self, scene, exit_code=0, says="queued"):
         self.kept = scene.bin / "kept.json"
@@ -519,8 +525,9 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
 
 
 def started(scene, t3, thread):
-    """An expert's start with its calls made of a made-up T3 Code: the pin, and the unpin of
-    the thread the block of step 3 says this one takes over from."""
+    """An expert's start, with the calls it makes to a made-up T3 Code. It pins `thread`. It
+    also unpins the earlier thread that `thread` takes over from. The block of step 3 names
+    that earlier thread."""
     pin, unpin = (
         call
         for call in calls.CALLS
@@ -541,8 +548,8 @@ def test_a_roll_over_cut_off_anywhere_and_run_again_leaves_one_thread_pinned(sce
     t3 = T3()
 
     def rolls_over(steps):
-        """The first `steps` of a roll over, in the skill's order: its block, the launch,
-        the rename."""
+        """Run the first `steps` steps of a roll-over in the skill's order. The steps are the
+        roll-over block, the launch and the rename."""
         said = scene.run("roll", threadId=THREAD) if steps else [""]
         if not said[0].startswith("launch: "):
             return

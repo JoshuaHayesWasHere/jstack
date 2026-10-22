@@ -2,9 +2,9 @@
 
 Each line between the opening `---` and the closing one is `key: value`. A value is a
 double-quoted string (with `\\"` and `\\\\` escaped), a single-quoted one (with `''`), `true`,
-`false`, an inline list `[a, "b"]`, or the plain rest of the line. Anything else, a nested
-map, a block scalar or a line with no key, is refused, so a file never reads one way here and
-another way in a harness.
+`false`, an inline list `[a, "b"]`, or the plain rest of the line. The parser refuses anything
+else, such as a nested map, a block scalar or a line with no key. So this parser and a harness
+never read a file in two different ways.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ _ESCAPES = {'"': '"', "\\": "\\", "n": "\n", "t": "\t", "/": "/"}
 
 
 class Refused(ValueError):
-    """A frontmatter outside the subset, with the line that is."""
+    """A frontmatter outside the subset, with the line that falls outside it."""
 
 
 def _scalar(text: str) -> str:

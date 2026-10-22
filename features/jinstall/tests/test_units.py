@@ -1,6 +1,7 @@
-"""The systemd units of `templates/` and of each feature's `units/`: systemd takes each one's
-documentation, a section of the docs beside it that is there, and an exit status a unit names
-is the one its program exits with."""
+"""The systemd units of `templates/` and of each feature's `units/`.
+
+systemd accepts each unit's documentation, which names a section that exists in the docs
+beside the unit. An exit status that a unit names is the one its program exits with."""
 
 import configparser
 import re
@@ -26,7 +27,8 @@ def unit(name):
 
 
 def anchors(name, page):
-    """The sections of `page` in the docs `%Y/../docs/` names: beside the folder of `name`."""
+    """The sections of `page` in the docs folder that `%Y/../docs/` names. `%Y` is systemd's
+    specifier for the unit file's folder, so the docs folder is beside the folder of `name`."""
     docs = PATHS[name].parent.parent / "docs"
     headings = re.findall(r"^#+ (.+)$", (docs / page).read_text(), re.M)
     return {re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings}

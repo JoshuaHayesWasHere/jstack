@@ -79,8 +79,8 @@ WORDS_AT = "#/demo/words/approval/tea-cups"
     ],
 )
 def test_every_route_opens_cold_from_a_pasted_link(scene, tmp_path, route, drawer):
-    """A view is a link: pasted in a new tab it opens on its own, with the drawer it names, and
-    an old `&open=` link is rewritten to its route."""
+    """Each view has a link of its own. Pasted in a new tab, the link opens the view with the
+    drawer it names. The page rewrites an old `&open=` link to its route."""
     said_by_him(scene)
     (first,) = walked(scene, tmp_path, route, ["look"])
     assert first["open"] is bool(drawer)
@@ -147,9 +147,9 @@ def test_the_arrow_and_the_breadcrumbs_lead_to_real_pages(scene, tmp_path):
 
 
 def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, tmp_path):
-    """Esc on a drawer a pasted link opened rewrites its entry to the page. Forward again, the
-    arrow still goes back to that drawer, not to the page, and a drawer opened over another
-    puts the focus on its own Close."""
+    """On a drawer that a pasted link opened, Esc rewrites the history entry to the page.
+    After the user goes forward again, the back arrow still goes back to that drawer, not to
+    the page. A drawer opened over another puts the focus on its own Close."""
     said_by_him(scene)
     steps = walked(
         scene,
@@ -175,7 +175,7 @@ def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, t
 
 
 def test_a_filter_in_a_drawer_redraws_it_in_place(scene, tmp_path):
-    """The role filters of the threads drawer are no layers: Esc after two of them shuts it."""
+    """The role filters of the threads drawer add no layers: Esc after two of them shuts it."""
     said_by_him(scene)
     steps = walked(
         scene,
@@ -284,11 +284,11 @@ def test_a_task_drawer_says_its_approval_in_a_line_that_opens_your_words_at_it(s
 def test_an_address_read_and_written_again_names_the_same_view(
     scene, tmp_path, route, hash, title, crumbs, notice, tap
 ):
-    """The page reads where it is from the address alone, and writes each link it draws from
-    what it read: `#/` is every project, `#/<project>` one, `#/help` the glossary over every
-    project, a part that is no name (`%E0`) a project kept as it was written, and an old
-    `?project=` link is rewritten to its route. Followed, the link to where the page is
-    names the same view again."""
+    """The page reads where it is from the address alone. It builds each link it draws from what
+    it read. `#/` is every project, `#/<project>` is one project, and `#/help` is the glossary
+    over every project. The page takes an address part that is no name (`%E0`) as a project, and
+    keeps the part as it was written. The page rewrites an old `?project=` link to its route. A
+    link to the page's own address opens the same view again."""
     said_by_him(scene)
     first, again = walked(scene, tmp_path, route, ["look", f"tap:{tap}"])
     assert (first["hash"], first["title"], first["crumbs"]) == (hash, title, crumbs)

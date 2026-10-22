@@ -1,8 +1,8 @@
-"""The user's word goes down to a home by `jbus word`: kept by jbus, sent once to the thread
-in the home's `home-id`, and posted to no webhook.
+"""`jbus word` sends the user's word to a home. jbus keeps the word, sends it once to the thread in
+the home's `home-id`, and posts it to no webhook.
 
-Every test runs the real command and the real pass against the faked T3 Code server and
-webhook of `test_jbus_kitchen`. Nothing reaches the network.
+Every test runs the real command and the real pass against the faked T3 Code server and webhook of
+`test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
@@ -60,7 +60,7 @@ def test_jbus_events_prints_the_word_with_its_words_by_at_and_where_it_went(kitc
 
 
 def test_no_webhook_is_posted_the_word_and_the_post_another_event_starts_has_none_of_it(kitchen):
-    """Sent from a checkout that is no project's."""
+    """The test sends the word from a checkout that is no project's."""
     (kitchen.home / "home-id").write_text("home-1\n")
     desk = kitchen.root / "elsewhere"
     kitchen.git("init", "-q", str(desk), cwd=kitchen.root)
@@ -97,7 +97,8 @@ def test_all_sends_it_once_to_each_projects_home(kitchen):
 
 
 def kept_not_posted(kitchen, why, project="demo", thread="home-1", name=ID):
-    """What the command says of a word it kept and posted to nobody, and the record it left."""
+    """Return what the command says of a word it kept and posted to nobody, and the record it
+    left."""
     (one,) = [each for each in word.load(kitchen.state) if each.id == name]
     assert one.thread == thread and one.sent_at and one.waits == ""
     return f"kept: {project}, not posted, {why}, word {name}\n"
@@ -255,7 +256,7 @@ def test_a_word_t3_code_refuses_waits_and_no_webhook_is_posted_anything_of_it(ki
 
 
 def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):
-    """The command read the word unsent, and a pass sent it before the command's send failed."""
+    """The command read the word unsent, and a pass sent it before the command's own send failed."""
     (kitchen.home / "home-id").write_text("home-1\n")
     config = jbus.load()
     run = wake.Pass(config, config.project("demo"), NOW, lambda _: None)
@@ -338,7 +339,7 @@ def test_all_passes_over_a_project_whose_words_file_does_not_parse(kitchen):
 
 
 def test_a_word_sent_whose_record_was_not_written_goes_again_under_the_same_key(kitchen):
-    """A run that stopped after T3 Code's yes and before `sent_at` was written."""
+    """The run stopped after T3 Code said yes and before the command wrote `sent_at`."""
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.main("word", "--to", "demo", *SAID)
     (kept,) = jbus.read_json(kitchen.state / "words.json", None)

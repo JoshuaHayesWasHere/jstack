@@ -1,18 +1,19 @@
 """The long-lived processes a test starts, and the guarantee that none outlives it.
 
-`start` runs a command as a daemon of the test: in a session of its own, so that stopping it
-reaches what it started, and with `PR_SET_PDEATHSIG` set to SIGKILL, so that a pytest killed
-outright (a SIGKILL, the kernel's OOM kill, `os._exit` from pytest-timeout's thread method)
-takes its daemons down with it. Nothing else could: a killed process runs no finalizer.
-Every daemon is also registered, and the autouse fixture `no_daemons_left` stops each one at
-the end of the test, whether it passed, failed an assert or timed out.
+`start` runs a command as a daemon of the test. The daemon runs in a session of its own, so that
+stopping it also stops what it started. It has `PR_SET_PDEATHSIG` set to SIGKILL, so that when
+pytest is killed outright (a SIGKILL, the kernel's OOM kill, `os._exit` from pytest-timeout's thread
+method), the kernel kills its daemons too. No other mechanism could stop them, since a killed
+process runs no finalizer. `start` also registers every daemon, and the autouse fixture
+`no_daemons_left` stops each one at the end of the test, whether it passed, failed an assert or
+timed out.
 
-The kernel signals a child when the thread that started it ends, not the process, so a daemon
-is started from the thread that runs the test, as pytest runs it.
+The kernel signals a child when the thread that started it ends, not when the process ends. So a
+test starts each daemon from the thread that pytest runs the test in.
 
-`GUARD` is what the child runs before the command: it asks for SIGKILL when the parent dies,
-gives up if the parent died before the request (the request would never fire for a child
-whose parent is gone), and `exec`s the command, which keeps the setting.
+`GUARD` is what the child runs before the command. It asks for SIGKILL when the parent dies. It
+exits with code 97 if the parent died before the request, since the kernel would never send the
+signal to a child whose parent is gone. Then it `exec`s the command, which keeps the setting.
 """
 
 from __future__ import annotations
@@ -47,9 +48,9 @@ def start(argv: list[str], **options) -> subprocess.Popen:
 
 
 def stop(process: subprocess.Popen) -> str:
-    """Stop the daemon and what it started: SIGTERM to its session, and SIGKILL to it if it has
-    not ended in `STOPPED_WITHIN` seconds. Gives back what it printed, if its output was piped.
-    Safe to repeat, and on a daemon that has ended."""
+    """Stop the daemon and what it started. This sends SIGTERM to its session, and SIGKILL if
+    the daemon has not ended in `STOPPED_WITHIN` seconds. Return what the daemon printed, if its
+    caller piped its output. It is safe to call again, and on a daemon that has ended."""
     said = ""
     try:
         if process.poll() is None:
@@ -71,7 +72,8 @@ def signal_session(process: subprocess.Popen, number: int) -> None:
 
 
 def stop_all() -> None:
-    """Stop every registered daemon, each one even when stopping another raised."""
+    """Stop every registered daemon, and stop each one even when stopping another daemon
+    raised an error."""
     failed = []
     while running:
         process = running.pop()

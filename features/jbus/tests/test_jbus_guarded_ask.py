@@ -1,7 +1,8 @@
-"""A guarded pull request whose fix was pushed after its last review has no proof at its
-head, and `jmerge` waits on it. jbus asks its crew for the one scoped review that proves it,
-once per head. Run as `test_jbus_rereview.py` runs: the real pass, against the fakes,
-with the line `jmerge` prints for such a pull request, over commits that are really there."""
+"""When the crew of a guarded pull request pushes a fix after its last review, the head has no
+proof, so `jmerge` waits on the pull request. jbus asks its crew, once per head, for the one
+scoped review that proves it. Like `test_jbus_rereview.py`, the tests run the real pass against
+the fakes, with the line `jmerge` prints for such a pull request, over commits that are really
+there."""
 
 import subprocess
 from datetime import timedelta
@@ -24,14 +25,15 @@ def review(head, verdict="findings"):
 
 
 def waits(text, head):
-    """What `jmerge` prints after the url for a guarded head with no proof at it."""
+    """Return what `jmerge` prints after the url for a guarded head with no proof at it."""
     return f"guarded (touches {PATH}), {proof.short(text, head)}"
 
 
 class Fixed:
-    """Alpha, launched by a pass, with a branch whose first commit a review saw and whose
-    second is the fix pushed for its findings, open as pull request #7 at the fix. Its
-    thread's turn has ended: one at work is asked nothing."""
+    """Alpha is a row that a pass launched. A review saw the first commit of its branch, and the
+    second commit is the fix the crew pushed for the findings. Alpha's branch is open as pull
+    request #7 at the fix. Alpha's thread's turn has ended, since jbus asks nothing of a thread
+    at work."""
 
     def __init__(self, kitchen):
         self.kitchen = kitchen
@@ -53,8 +55,8 @@ class Fixed:
         return ran.stdout.strip()
 
     def out(self, result="", reviews=None, head=None, status="done", named=None):
-        """What the crew and its reviewers wrote, and what `jmerge` says of the head, or of
-        the commit it compared the head with."""
+        """Write what the crew and its reviewers wrote, and set what `jmerge` says of the head,
+        or of the commit it compared the head with."""
         head = head or self.head
         done = DONE.format(url=URL).replace("Status: done", f"Status: {status}")
         text = self.launched + done + result + (review(self.saw) if reviews is None else reviews)

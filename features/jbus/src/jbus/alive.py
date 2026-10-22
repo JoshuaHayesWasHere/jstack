@@ -1,6 +1,6 @@
-"""`jbus alarm`: count a pass that did not finish, or with `--stale`, look for a pass that
-ended within a limit. `jbus-failed.service` runs the first when a pass fails, and
-`jbus-stale.timer` the second, so a timer that is stopped is seen too.
+"""`jbus alarm`: count a pass that did not finish, or, with `--stale`, look for a pass that
+ended within a limit. `jbus-failed.service` runs the count when a pass fails.
+`jbus-stale.timer` runs the `--stale` look, so jbus also notices a pass timer that is stopped.
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a pass that did not finish. The third in a row alerts every project, once,
-    and the desk (`alert.sound`)."""
+    """Count a pass that did not finish. On the third in a row, alert every project and the
+    desk, once (`alert.sound`)."""
     now = now or datetime.now(UTC)
     failing = alert.streak(config.state_dir, alert.PASS)
     say(f"pass failed: {failing.count + 1 if failing else 1} in a row")
@@ -33,7 +33,7 @@ SIZES = (("d", 1440), ("h", 60), ("m", 1))
 
 
 def span(given: str) -> timedelta:
-    """A limit as the user types it: a number and m, h or d, as `2h`."""
+    """Parse a limit as the user types it: a number and m, h or d, as `2h`."""
     found = SPAN.fullmatch(given)
     if found is None:
         raise argparse.ArgumentTypeError(f"a limit is a number and m, h or d, as 2h: not {given}")
@@ -41,7 +41,7 @@ def span(given: str) -> timedelta:
 
 
 def _shown(limit: timedelta) -> str:
-    """A limit as `span` reads it, in its largest whole unit."""
+    """Format a limit the way `span` reads it, in its largest whole unit."""
     minutes = int(limit.total_seconds() // 60)
     return next(f"{minutes // size}{unit}" for unit, size in SIZES if minutes % size == 0)
 
@@ -52,14 +52,15 @@ def stale(
     now: datetime | None = None,
     say: Callable[[str], None] = print,
 ) -> int:
-    """Look for a pass that ended within `limit`, from a timer of its own, so a `jbus.timer`
-    that is stopped or a `jbus.service` that never starts is seen: `jbus-failed.service` runs
-    only when a pass fails.
+    """Look for a pass that ended within `limit`. A timer of its own runs this look. So jbus
+    also sees a `jbus.timer` that is stopped or a `jbus.service` that never starts, which
+    `jbus-failed.service` does not see, since it runs only when a pass fails.
 
     The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
-    one that died. Past the limit, and with no record at all, it counts a failure of the
-    `stale` streak, which alerts at the first, once (`alert.sound`). The next pass in which
-    nothing raised ends the streak, and says it recovered (`poll`).
+    a pass that died. When the last pass is past the limit, or there is no record at all, the
+    look counts a failure of the `stale` streak. That streak alerts once, at its first failure
+    (`alert.sound`). The next pass in which nothing raised ends the streak and reports the
+    recovery (`poll`).
     """
     now = now or datetime.now(UTC)
     kept = record.read(config)

@@ -36,7 +36,7 @@ def test_a_chain_of_three_names_each_blocker_and_the_first_blocks_two(scene, ser
 
 
 def test_each_queued_row_has_a_wave_and_the_one_row_it_waits_on_last(scene, served):
-    """A chain of four, `pea-soup` behind three rows, and `pea-vine` behind a row that is out.
+    """A chain of four: `pea-soup` is behind three rows. `pea-vine` is behind a row that is out.
     `pea-mash` waits on two rows of one wave, and `pea-pod` is the first of them in the queue.
     `pea-husk` is not approved, and `pea-salt` is behind a row that merged."""
     scene.queue(

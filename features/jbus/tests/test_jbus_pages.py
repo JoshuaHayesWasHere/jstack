@@ -1,7 +1,8 @@
-"""The built part of `features/jbus/docs/jbus/`, and the length of every docs page.
+"""These tests check the built part of `features/jbus/docs/jbus/`, and the length of every docs
+page.
 
-`LONG` names each page over the cap, by its path under docs/, until it is split: the list only
-shrinks."""
+`LONG` names each page over the cap, by its path under docs/, until somebody splits the page. The
+list only shrinks."""
 
 import shutil
 import subprocess
@@ -18,8 +19,8 @@ LONG = frozenset()
 
 
 def over(root, allowed):
-    """The pages under `root/docs` over the cap that `allowed` lacks, and those it lists that
-    are not over it any more."""
+    """Return the pages under `root/docs` that are over the cap and that `allowed` lacks, and the
+    pages that `allowed` lists that are no longer over the cap."""
     lengths = {
         str(path.relative_to(root / "docs")): len(path.read_text().splitlines())
         for path in (root / "docs").glob("**/*.md")
@@ -32,7 +33,7 @@ def over(root, allowed):
 
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
-    """A copy of the folder, with this test in it."""
+    """Make a copy of the folder, with this test in it."""
     folder = Path(pages.EVENTS_PAGE).parent
     shutil.copytree(REPO / folder, tmp_path / folder)
     monkeypatch.chdir(tmp_path)

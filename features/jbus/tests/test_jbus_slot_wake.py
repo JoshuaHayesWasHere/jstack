@@ -1,6 +1,6 @@
-"""A thread that waits on a test slot is woken when a slot of its lane is free: the oldest
-waiter, once for each free slot, and once for each wait. Run as `test_jbus_kitchen.py`
-runs: the real pass, against the fakes, and slots that are lock files in a directory of the
+"""jbus wakes a thread that waits on a test slot when a slot of its lane is free. It wakes the
+oldest waiter, once for each free slot, and once for each wait. Like `test_jbus_kitchen.py`, the
+tests run the real pass against the fakes, with slots that are lock files in a directory of the
 kitchen's own."""
 
 import fcntl
@@ -18,7 +18,8 @@ LANES = {"short": slot.short(), "full": slot.full(2)}
 
 
 class Slots:
-    """The lock files of the kitchen's slots: `hold` takes them as a running test would."""
+    """`Slots` is the lock files of the kitchen's slots, and `hold` takes them as a running test
+    would."""
 
     def __init__(self, locks):
         self.locks, self.fds = Path(locks), {}
@@ -47,7 +48,8 @@ def slots(kitchen):
 
 
 def waiter(kitchen, kind="short", ago=0, status="completed", **more):
-    """A thread that ended its turn to wait on a slot, registered `ago` minutes before NOW."""
+    """Make a thread that ended its turn to wait on a slot, and register its wait `ago` minutes
+    before NOW."""
     thread = kitchen.t3.thread("waiter", status, idle=timedelta(minutes=2), **more)
     lane = LANES[kind]
     command = ["uv", "run", "pytest", thread["threadId"]]

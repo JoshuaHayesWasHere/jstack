@@ -1,9 +1,9 @@
-"""When `jmerge` or `jbus` cannot ask GitHub, the line that says so also says what `gh` said:
-its exit code and the first line of its stderr, with tokens and URL queries cut out.
+"""When `jmerge` or `jbus` cannot ask GitHub, the line that says so also says what `gh` said: its
+exit code and the first line of its stderr, with tokens and URL queries cut out.
 
-`gh` is a stub that fails with a known stderr and exit code. `jmerge` is run as a home runs
-it, and `jbus` through a pass of the kitchen, so each line is read where a person reads it:
-what the command prints, `merge.log`, and the alert."""
+`gh` is a stub that fails with a known stderr and exit code. The tests run `jmerge` as a home
+runs it, and `jbus` through a pass of the kitchen. So they read each line where a person reads
+it: in what the command prints, in `merge.log`, and in the alert."""
 
 import re
 
@@ -32,8 +32,8 @@ exec "$STUB/gh-works" "$@"
 
 
 def gh_fails(home, code=1, said="", on="", out=""):
-    """Make the home's `gh` fail on every command that has `on` in it, and work as before for
-    the rest: it exits `code`, prints `out` and has `said` on stderr."""
+    """Make the home's `gh` fail on every command that has `on` in it, and work as before for the
+    rest. A call that fails exits with `code`, prints `out` and has `said` on stderr."""
     stub = home.stub
     if not (stub / "gh-works").exists():
         (stub / "gh").rename(stub / "gh-works")
@@ -164,7 +164,8 @@ def test_a_sweep_keeps_a_branch_whose_pull_request_gh_answers_with_no_json_and_s
 
 
 def real_jmerge_line(tmp_path, name, **fails):
-    """The one line the real `jmerge` prints in a home of its own when `gh` fails so."""
+    """Return the one line that the real `jmerge` prints in a home of its own when `gh` fails
+    this way."""
     home = merge.Home(tmp_path / name)
     gh_fails(home, **fails)
     (line,) = home.run()

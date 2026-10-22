@@ -1,28 +1,30 @@
-"""jroles: the model each role's thread is launched on, read from the role map.
+"""jroles: the model that each role's thread launches on, which jroles reads from the role map.
 
-This module is the model: the map's lines, read into the answer for one role. The map is
-`${XDG_CONFIG_HOME:-~/.config}/jstack/roles`, one line a role, `#` for a comment:
+This module turns the map's lines for one role into that role's model selections. The map is
+`${XDG_CONFIG_HOME:-~/.config}/jstack/roles`, with one line for each role, and `#` starts a
+comment:
 
     crew: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<level>] [fast=<on|off>]
     review: <provider> <model> [<instanceId>[,...]] [effort=<level>] [fast=<on|off>]
     review: <provider> <model> [<instanceId>[,...]] [effort=<level>] [fast=<on|off>]
 
-A role with no line, or with `inherit`, is launched on the model of the thread that launches it.
-The instances are a line's pool, in order: a launch goes to the first of them with headroom in
-the ledger (`jroles.pool`). A line that names none has the provider's built-in instance as its
-pool of one.
-`review` alone may have several lines: each is one reviewer, in the order they are written,
-and every pull request gets a review from each.
+A role with no line, or with a line that says `inherit`, runs on the model of the thread that
+launches it.
+The instances that a line names are its pool, in order. A launch goes to the first of them
+with headroom in the ledger (`jroles.pool`). A line that names no instance has a pool of one,
+the provider's built-in instance.
+Only `review` may have several lines. Each line is one reviewer, in the order the user wrote
+the lines, and every pull request gets a review from each reviewer.
 
-Each provider names its effort with its own option id, and takes only the levels T3 Code
-lists for it (`PROVIDERS`), up to the ceiling the user's rule gives the role
-(`Provider.allowed`). A Claude selection always carries its effort, `medium` where the line
-names none. T3 Code launches a model with no effort option at that model's own default,
-which is `high` for some (Claude Sonnet 5.5, Claude Opus 5), and the user's rule is that no
-Claude thread runs above medium unless told: so the map may lower a Claude role to `low`, and
-raises only `review`, to `high`, which the user told (2026-10-20). The other providers launch
-at their own default where the line names no effort. `fast=` is Cursor's alone, whose
-default is on.
+Each provider names its effort with its own option id. jroles accepts only the effort levels
+that T3 Code lists for the provider (`PROVIDERS`), up to the ceiling that the user's rule sets
+for the role (`Provider.allowed`). A Claude selection always names its effort, which is
+`medium` when the line names none. When a selection has no effort option, T3 Code launches the
+model at that model's own default effort, and that default is `high` for some models (Claude
+Sonnet 5.5, Claude Opus 5). The user's rule is that no Claude thread runs above medium unless
+the user says so. So the map may lower a Claude role to `low`, and it raises only `review`, to
+`high`, as the user said on 2026-10-20. When a line for another provider names no effort, T3
+Code launches that model at its own default. Only Cursor takes `fast=`, and its default is on.
 """
 
 from __future__ import annotations
@@ -41,9 +43,10 @@ _FAST = {"on": True, "off": False}
 
 @dataclass(frozen=True)
 class Provider:
-    """What T3 Code calls a provider's options, and the levels it lists for its effort,
-    lowest first. `ceiling` is the user's rule, the highest level a role may name, and
-    `raised` the roles the user lifted above it: T3 Code listing a level never allows it."""
+    """The ids that T3 Code gives a provider's options, and the levels it lists for the
+    provider's effort, lowest first. `ceiling` is the user's rule, the highest level a role may
+    name. `raised` holds the roles that the user allowed above the ceiling. jroles does not
+    allow a level just because T3 Code lists it."""
 
     name: str
     effort: str | None = None
@@ -54,7 +57,8 @@ class Provider:
     raised: tuple[tuple[str, str], ...] = ()
 
     def allowed(self, role: str) -> tuple[str, ...]:
-        """The levels a line of `role` may name: the listed ones, up to the role's ceiling."""
+        """The levels that a line of `role` may name: the levels that T3 Code lists, up to the
+        role's ceiling."""
         top = dict(self.raised).get(role, self.ceiling)
         return self.levels if top is None else self.levels[: self.levels.index(top) + 1]
 
@@ -79,12 +83,14 @@ PROVIDERS = {
 
 
 class Refused(Exception):
-    """The map gives the role no model selection. The message is the one line to print."""
+    """jroles found no model selection for the role in the map. The message is the one line
+    to print."""
 
 
 @dataclass(frozen=True)
 class Selection:
-    """What `t3_thread_launch` takes as `modelSelection`: one line of the map."""
+    """What `t3_thread_launch` takes as `modelSelection`, which jroles builds from one line of
+    the map."""
 
     provider: str
     model: str
@@ -94,13 +100,14 @@ class Selection:
 
     @property
     def instances(self) -> tuple[str, ...]:
-        """The pool, or the provider's built-in instance where the line names none."""
+        """The pool, or the provider's built-in instance when the line names no instance."""
         return self.pool or (self.provider,)
 
     def as_json(self, instance: str | None = None) -> dict[str, object]:
-        """The selection on `instance`, the first of the pool where none is given. A line that
-        names no instance launches on the provider's own, and names none either. Each option
-        goes by the id the provider gives it."""
+        """The selection on `instance`, or on the first instance of the pool when the caller
+        gives none. When the line names no instance, the thread launches on the provider's
+        own instance, and the selection names no instance either. Each option has the id that
+        the provider gives it."""
         given: dict[str, object] = {"provider": self.provider, "model": self.model}
         if self.pool:
             given["instanceId"] = instance or self.pool[0]
@@ -116,11 +123,13 @@ class Selection:
 
 
 def read_map(text: str, role: str) -> tuple[Selection, ...]:
-    """The selections the map gives `role`, in order, or none for no line or `inherit`.
+    """The selections that the map's lines for `role` name, in order, or none when the role
+    has no line or has a line that says `inherit`.
 
-    A line that is not the map's refuses the whole map, whichever role it is for: a map that
-    is half read would launch a thread on a model nobody chose. For the same reason one line
-    of a role that is refused refuses every line of that role."""
+    The function refuses the whole map when one line does not fit the map's format, whichever
+    role the line is for. If it read only part of the map, jroles could launch a thread on a
+    model that nobody chose. For the same reason, when it refuses one line of a role, it
+    refuses every line of that role."""
     lines: dict[str, list[tuple[str, ...]]] = {}
     bad = []
     for number, line in enumerate(text.splitlines(), 1):
@@ -141,7 +150,8 @@ def read_map(text: str, role: str) -> tuple[Selection, ...]:
 
 
 def _whole(words: tuple[str, ...]) -> bool:
-    """`inherit` alone, or two or three plain words and then each option once."""
+    """Whether the words make a whole line: `inherit` alone, or two or three plain words
+    followed by options, where the line names each option at most once."""
     if words == (INHERIT,):
         return True
     plain = len(words) - len(_options(words))
@@ -155,7 +165,7 @@ def _whole(words: tuple[str, ...]) -> bool:
 
 
 def _options(words: tuple[str, ...]) -> tuple[str, ...]:
-    """The words at the end of a line that are options, `effort=` or `fast=`."""
+    """The words at the end of a line that are options, which are `effort=` or `fast=`."""
     at = len(words)
     while at and _OPTION.fullmatch(words[at - 1]):
         at -= 1
@@ -163,8 +173,8 @@ def _options(words: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _fits(before: list[tuple[str, ...]], role: str, words: tuple[str, ...]) -> bool:
-    """Whether a line can join the lines of its role before it: only `review` takes more than
-    one, and `inherit` is never one of several."""
+    """Whether a role may have this line in addition to its earlier lines. Only `review` may
+    have more than one line, and a line that says `inherit` must be the role's only line."""
     if not before:
         return True
     return role == LISTED and (INHERIT,) not in (*before, words)
@@ -202,6 +212,7 @@ def _selection(role: str, words: tuple[str, ...]) -> Selection:
 
 
 def _names(names: Iterable[str]) -> str:
-    """Each provider by its name and each level as it is, as one list: `a, b or c`."""
+    """One list, `a, b or c`, that names each provider by its name and writes each level
+    unchanged."""
     *first, last = [PROVIDERS[name].name if name in PROVIDERS else name for name in names]
     return f"{', '.join(first)} or {last}" if first else last

@@ -1,8 +1,10 @@
 """The reviewer's scoped pass: one review of what a rebase changed in a reviewed patch.
 
-The block of the skill's "A scoped pass" is run as a reviewer runs it, in a real repo, with
-the two ranges of the message jbus sends. The section it leads to is then read by `jmerge`,
-which merges the rebased head on it."""
+The tests run the block of the skill's "A scoped pass" as a reviewer runs it, in a real repo,
+with the two ranges of the message jbus sends. The reviewer writes the section that the
+block's output asks for. `jmerge` then reads that section, and the section lets it merge the
+rebased head.
+"""
 
 import os
 import re
@@ -26,7 +28,8 @@ MESSAGE = re.compile(r"`(/pr-review run (\S+) scoped (\S+) (\S+))`")
 
 
 def asked(number, command):
-    """The launch message jbus gives the crew for the line `jmerge` prints, and its parts."""
+    """The launch message jbus gives the crew for the line `jmerge` prints. The match that
+    this returns holds the message's parts as its groups."""
     line = (
         f"wait {number} https://example.test/pull/{number}: the rebase changed the content "
         f"after its review; scoped review of {command}"

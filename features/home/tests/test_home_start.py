@@ -1,6 +1,6 @@
-"""`features/home/hooks/home-start.sh` in every repo: where it speaks, where it stays silent,
-and that the home skill's first step and the nohome skill agree with it. Every test runs the
-hook, and the blocks are lifted from the skill that gives them."""
+"""The tests cover `features/home/hooks/home-start.sh` in every repo: where it prints, where it
+prints nothing, and whether the home skill's first step and the nohome skill agree with it. Every
+test runs the hook and takes the blocks from the skill that gives them."""
 
 import json
 import os
@@ -135,7 +135,7 @@ def test_a_repo_with_a_home_gets_the_line_it_got(scene):
 
 
 def first_step(typed=""):
-    """Step 1 of the home skill's start, with what was typed after `/home` filled in."""
+    """Step 1 of the home skill's start, with what the user typed after `/home` filled in."""
     found = block("home", "first home")
     assert "<the text after /home>" in found
     return found.replace("<the text after /home>", typed)
@@ -271,8 +271,9 @@ def bus(tmp_path, monkeypatch):
 
 
 def rows(bus, *made):
-    """Rows of the queue, each `(slug, status, pr, why)`, added by the real verb, then given
-    the columns a pass would have derived."""
+    """Add rows to the queue with the real verb, one for each entry of `made`. Each entry is a
+    tuple `(slug, status, pr, why)`: a slug, a status, a pull request and a reason. Then give the
+    rows the columns that a pass would have derived."""
     for slug, *_ in made:
         added = bus.kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
         assert added[0] == 0, added
@@ -284,7 +285,8 @@ def rows(bus, *made):
 
 
 def a_note(bus, *briefs):
-    """The note the last home left. Each brief given was shown to a home at its start."""
+    """The note the last home left. The test marks each brief in `briefs` as one that a home's
+    start already showed."""
     for slug in briefs:
         bus.kitchen.brief(slug, "\n## Result\nStatus: done\n")
         with (bus.dir / "read-seen").open("a") as seen:
@@ -293,7 +295,8 @@ def a_note(bus, *briefs):
 
 
 def parts(printed):
-    """What the start block printed, by its parts: the lines before the first under `""`."""
+    """What the start block printed, split into its parts, with the lines before the first part
+    under `""`."""
     found, heading = {"": []}, ""
     for line in printed.splitlines():
         if line.startswith("## "):

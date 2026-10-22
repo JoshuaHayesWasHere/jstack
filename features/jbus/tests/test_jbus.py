@@ -1,9 +1,10 @@
-"""What holds for the package as a whole: what its source imports and names, what the repo
-may hold, the example config and the units that run a pass, and what `jbus/__init__.py`
-keeps for every pass: the config it refuses and the status file.
+"""These tests check what holds for the package as a whole. They check what its source imports and
+names, and what the repo may hold. They check the example config and the units that run a pass. They
+also check two things that `jbus/__init__.py` does for every pass: it refuses a bad config, and it
+writes the status file.
 
-The tests that run a pass run it in the kitchen of `test_jbus_kitchen`, against a faked T3
-Code server, `gh`, `jmerge` and webhook. Nothing reaches the network.
+The tests that run a pass run it in the kitchen of `test_jbus_kitchen`, against a faked T3 Code
+server, `gh`, `jmerge` and webhook. Nothing reaches the network.
 """
 
 import configparser
@@ -120,7 +121,8 @@ def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
 
 
 def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
-    """The three units as systemd reads them, and the commands the services name."""
+    """The test reads the three units as systemd reads them. It also reads the commands that the
+    services name."""
     units = {}
     for name in ("jbus.service", "jbus.timer", "jbus-failed.service"):
         units[name] = configparser.ConfigParser(interpolation=None)
@@ -137,8 +139,9 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
 
 
 def test_a_fresh_check_ends_before_jbus_stops_jmerge_and_jmerge_before_systemd_stops_the_pass():
-    """The three limits, each named once: the check's own, what a pass allows `jmerge`, and
-    the unit's. A check that outran a later one was killed before it recorded (03:26 ET)."""
+    """The test names each of the three limits once: the check's own, what a pass allows
+    `jmerge`, and the unit's. Once, at 03:26 ET, a check ran past a later limit and was killed
+    before it recorded its result."""
     service = configparser.ConfigParser(interpolation=None)
     service.optionxform = str
     service.read(REPO / "features" / "jbus" / "units" / "jbus.service")

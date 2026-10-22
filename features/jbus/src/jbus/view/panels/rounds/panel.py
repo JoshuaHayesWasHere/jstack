@@ -1,11 +1,13 @@
-"""The rounds of each task: its brief's `## Review` sections in order, each with its verdict,
-its head and its count of findings, whether a second or a scoped pass was needed, and how
-many times the crewmate was woken and the branch rebased.
+"""The rounds of each task. They are its brief's `## Review` sections in order, each with its
+verdict, its head and its count of findings. For the task as a whole, the panel also gives whether
+it needed a second or a scoped pass, how many wakes the crewmate had, and how many rebases the
+branch had.
 
-The sections are read by `jmerge`'s own reader (`ready.said_of`), the one the merge goes by.
-A section keeps no time of its own: a round has one only where the event log has a `review`
-event of the slug whose section names the same head, and none where it has not. A brief
-that cannot be read says so, and has no count at all: it is never a task of no review.
+`jmerge`'s own reader, `ready.said_of`, reads the sections. The merge decides by what that
+reader returns. A section has no time of its own. A round has a time only where the event log
+has a `review` event of the slug for the same head that the round's section names. Where the
+panel cannot read a brief, it says so and gives no count at all: it never shows that task as a
+task with no review.
 """
 
 from __future__ import annotations
@@ -35,7 +37,8 @@ _WOKE = re.compile(r"Wok(e|en)\b")
 
 
 def brief(read: Read, slug: str) -> tuple[str | None, str]:
-    """The slug's brief, from its home or from the copy jbus keeps, or None and why not."""
+    """The slug's brief, from its home or from the copy jbus keeps, or None and the reason
+    there is no brief."""
     if not _SLUG.fullmatch(slug):
         return None, "its slug is not one a brief is named by"
     paths: tuple[Path, ...] = (
@@ -53,8 +56,8 @@ def brief(read: Read, slug: str) -> tuple[str | None, str]:
 
 
 def _times(read: Read, slug: str) -> dict[str, list[str]]:
-    """The time of each `review` event of the slug, by the head its section names, oldest
-    first."""
+    """The time of each `review` event of the slug, oldest first, keyed by the head that the
+    event's section names."""
     found: dict[str, list[str]] = {}
     for one in read.logged or []:
         at = when(one.get("at"))

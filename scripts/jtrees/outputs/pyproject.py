@@ -1,9 +1,11 @@
-"""The regions of `pyproject.toml` the manifests write: the commands, the wheel's packages, the
-source tree the wheel carries beside them, and the paths pytest and ruff read.
+"""The regions of `pyproject.toml` that the generator writes from the manifests: the commands, the
+wheel's packages, the source tree the wheel ships beside them, and the paths pytest and ruff
+read.
 
-A region is the lines between `# generated: <part> ...` and the next `# end generated`; the
-rest of the file is hand-written and is left as it is. hatch reads static lists, so these
-are written into the file and not found at build time.
+A region is the lines between `# generated: <part> ...` and the next `# end generated`. The
+generator leaves the rest of the file, which is hand-written, as it is. hatch reads only static
+lists, so the generator writes these lists into the file instead of hatch finding them at build
+time.
 """
 
 from __future__ import annotations
@@ -30,8 +32,8 @@ SHARED_TESTS = "testing/tests"
 
 
 def _list(key: str, values: list[str]) -> str:
-    """One entry a line, each with its trailing comma, so two changes to different entries
-    change different lines and merge."""
+    """The list with one entry on each line, each with its trailing comma. So two changes to
+    different entries touch different lines, and git merges them."""
     return f"{key} = [\n" + "".join(f"    {json.dumps(one)},\n" for one in values) + "]\n"
 
 

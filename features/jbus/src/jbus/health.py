@@ -1,44 +1,46 @@
-"""`jbus health`: one look at the machine the stack runs on, taken by `jbus health` and by every
-`jbus poll`, so a failure no thread trips on is still seen.
+"""`jbus health` takes one look at the machine the stack runs on. Every `jbus poll` takes the
+same look, so jbus sees a failure that no thread runs into.
 
-Each check gives a `Reading`: the number, what it counts, and the limit it is held against.
+Each check returns a `Reading`: the number, what it counts, and the limit jbus compares it
+with.
 
-- `disk <mount>` and `inodes <mount>`: the space and the inodes used of each mount the stack
-  writes (jbus's state and homes, each project's checkout, the temp directory, the user's
-  home, the ledger, the relay's state), at `FULL` (80%) or more. A filesystem that counts
-  no inodes (btrfs) has no inode number.
-- `timeout jbus` and `timeout jmerge`: the passes systemd stopped at `jbus.service`'s
-  TimeoutStartSec, and the `jmerge` runs a pass stopped at `JMERGE_TIMEOUT`, in the journal of
-  `jbus.service` over the last `TIMEOUT_MINUTES`. One is an incident. A pass systemd stopped
-  cannot say so itself, so the journal is the one place both are seen.
-- `relay`, `relay heartbeat`, `relay silent`, `relay errors`: only where the config posts to
-  the relay (a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file,
-  which `jbus.service` does not load). Its unit not active; a heartbeat older than
-  `BEAT_MINUTES`; no body heard for the heartbeat's `silent_minutes`,
-  `RELAY_SILENT_MINUTES` in the relay's env; a route whose POSTs have failed for
-  `ERRORS_MINUTES`; a body a target refused for good in the last `REFUSED_MINUTES`, which is
-  in the relay's `dead/` and never goes (`jbus.relay`). Silence and errors are not judged from
-  a heartbeat that is stale.
-- `quota <instance> <window>` and `capped <instance>`: each instance of the role map's pools
-  and the built-in one, from the ledger the threads' status lines and their limit failures
-  write (`jroles.ledger`). The seven-day window pages at `FULL`; the five-hour one, which
-  fills and resets each day, pages only when it is full. `capped` is the instance
-  `jroles.pool.choose` skips: while it holds, new launches go to the next instance of the
-  pool, and with every instance capped none starts. It clears at the reset by itself, and
-  its recovered line says launches on the instance resume.
+- `disk <mount>` and `inodes <mount>` are the space and the inodes used on each mount the
+  stack writes to (jbus's state and homes, each project's checkout, the temp directory, the
+  user's home, the ledger, the relay's state). Each is over its limit at `FULL` (80%) or
+  more. A filesystem that counts no inodes (btrfs) has no inode number.
+- `timeout jbus` and `timeout jmerge` count the passes systemd stopped at `jbus.service`'s
+  TimeoutStartSec, and the runs of `jmerge` that a pass stopped at `JMERGE_TIMEOUT`. Both read the
+  journal of `jbus.service` over the last `TIMEOUT_MINUTES`. A single one is an incident. A pass
+  that systemd stopped cannot say so itself, so the journal is the one place that shows both.
+- `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config posts to
+  the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file, which
+  `jbus.service` does not load. Each is over its limit in one of these cases: the relay's unit is
+  not active; its heartbeat is older than `BEAT_MINUTES`; the relay heard no body for the
+  heartbeat's `silent_minutes`, `RELAY_SILENT_MINUTES` in the relay's env; a route's POSTs have
+  failed for `ERRORS_MINUTES`; a target refused a body permanently in the last `REFUSED_MINUTES`.
+  Such a body stays in the relay's `dead/` and the relay never sends it (`jbus.relay`). jbus does
+  not judge silence and errors from a heartbeat that is stale.
+- `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's pools
+  and the built-in one. They read the ledger (`jroles.ledger`), which gets its entries from the
+  threads' status lines and from their limit failures. jbus pages for the seven-day window at
+  `FULL`. The five-hour window fills and resets each day, so jbus pages for it only when it is full.
+  A `capped` reading is over while `jroles.pool.choose` skips its instance. While the cap lasts, new
+  launches go to the next instance of the pool, and with every instance capped no launch starts. The
+  cap ends by itself at the reset, and its recovered line says that launches on the instance resume.
 
-A reading that is over its limit is an incident, its key `health <the reading's key>`, kept as a
-streak of `jbus.alert`: it is paged once when it starts (`alert.opened`) and once when a
-reading under the limit ends it (`alert.closed`). A reading that could not be taken (`over`
-None) leaves its incident as it is. An incident whose reading is not taken any more, a mount
-or an instance gone, a relay the config no longer posts to, ends with no line. A page goes to
-the desk and, as an event of the machine, to the top-level webhook once (`wake.Box.send`).
+A reading over its limit is an incident, with the key `health <the reading's key>`, which
+`jbus.alert` keeps as a streak. jbus pages it once when it starts (`alert.opened`), and once
+when a reading under the limit ends it (`alert.closed`). When jbus could not take a reading
+(`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
+incident's reading, because a mount or an instance is gone or the config no longer posts to
+a relay, jbus ends the incident with no line. jbus sends a page to the desk, and once to
+the top-level webhook as an event of the machine (`wake.Box.send`).
 
-`jbus poll` pages: the look is the first step of the config's first project (rank 6 of
-`before-watch`, ahead of every other step), so it runs in every pass before another step can
-raise, and before the launch, so a capped instance's lines come before the launch that skips
-it or goes back to it. A look that raises
-is said, and the pass goes on. `jbus health` prints every reading and pages nothing.
+`jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
+`before-watch`, ahead of every other step), so the look runs in every pass before another
+step can raise. It also runs before the launch, so a capped instance's lines come before the
+launch that skips the instance or goes back to it. When the look raises, the pass says so
+and goes on. `jbus health` prints every reading and pages nothing.
 """
 
 from __future__ import annotations
@@ -77,8 +79,9 @@ GIB = 2**30
 
 @dataclass(frozen=True)
 class Mount:
-    """A mount the stack writes: the bytes used and still free to a user, and the inodes used
-    and in all, which are 0 on a filesystem that does not count them."""
+    """A `Mount` is a mount the stack writes. It holds the bytes used and the bytes still free
+    to a user, and the inodes used and the inodes in all. The two inode counts are 0 on a
+    filesystem that does not count inodes."""
 
     point: str
     used: int
@@ -89,7 +92,8 @@ class Mount:
 
 @dataclass(frozen=True)
 class Relay:
-    """What the relay shows: its unit's state, and its heartbeat, None where it has none."""
+    """A `Relay` is what the relay shows. `state` is its unit's state, and `beat` is its
+    heartbeat, or None when the relay has none."""
 
     state: str
     beat: dict[str, Any] | None
@@ -98,7 +102,8 @@ class Relay:
 
 @dataclass(frozen=True)
 class Machine:
-    """One look, as read at the boundary. `journal` is None where it could not be read."""
+    """A `Machine` is one look, as `gather` reads it from the system. `journal` is None where
+    `gather` could not read it."""
 
     mounts: tuple[Mount, ...] = ()
     journal: tuple[str, ...] | None = ()
@@ -110,9 +115,10 @@ class Machine:
 
 @dataclass(frozen=True)
 class Reading:
-    """One check's number. `said` is the number and what it counts, `limit` what it is held
-    against, `over` whether it is past it, None where it could not be read. `then` is what
-    follows while it is over, `after` what follows once it is not."""
+    """A `Reading` is one check's number. `said` is the number and what it counts, and `limit`
+    is what jbus compares it with. `over` is whether the number is past the limit, or None
+    where jbus could not read it. `then` is what follows while the reading is over, and
+    `after` is what follows once it is not."""
 
     key: str
     said: str
@@ -129,10 +135,10 @@ class Reading:
 
 
 class Senses:
-    """What `gather` reads off the machine. A test gives its own."""
+    """`Senses` reads the machine for `gather`. A test passes its own `Senses`."""
 
     def mounts(self, paths: Iterable[Path]) -> list[Mount]:
-        """The mount of each path, once each, by its mount point."""
+        """Return the mount of each path, once each, by its mount point."""
         found: dict[str, Mount] = {}
         for path in paths:
             while not path.exists() and path != path.parent:
@@ -179,20 +185,21 @@ SENSES = Senses()
 
 
 def clock() -> datetime:
-    """The time `jbus health` looks at."""
+    """Return the time at which `jbus health` takes its look."""
     return datetime.now(UTC)
 
 
 def relay_env() -> Path:
-    """The relay's settings file, which `jbus-relay.service` loads and `jbus.service` does not."""
+    """Return the relay's settings file, which `jbus-relay.service` loads and `jbus.service`
+    does not."""
     base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
     return Path(base) / "jbus-relay" / "env"
 
 
 def relay_setting(name: str, default: str) -> str:
-    """One of the relay's settings as the relay reads it: the line of its env file, else this
-    process's environment, else the relay's default. No other line of the file is kept: it
-    holds the relay's keys."""
+    """Read one of the relay's settings as the relay reads it: the line of its env file, else
+    this process's environment, else the relay's default. It keeps no other line of the file,
+    since the file holds the relay's keys."""
     try:
         lines = relay_env().read_text().splitlines()
     except (OSError, UnicodeDecodeError):
@@ -205,12 +212,12 @@ def relay_setting(name: str, default: str) -> str:
 
 
 def relay_state() -> Path:
-    """Where the relay keeps its state, `RELAY_STATE`."""
+    """Return where the relay keeps its state, `RELAY_STATE`."""
     return Path(relay_setting("RELAY_STATE", "~/.local/state/jbus-relay")).expanduser()
 
 
 def posts_to_relay(config: jbus.Config) -> bool:
-    """Whether the config posts to the relay: a webhook on this machine at its port,
+    """Return whether the config posts to the relay: a webhook on this machine at its port,
     `RELAY_PORT` (4390)."""
     try:
         port = int(relay_setting("RELAY_PORT", "4390"))
@@ -223,7 +230,7 @@ def posts_to_relay(config: jbus.Config) -> bool:
 
 
 def instances(say: Callable[[str], None]) -> tuple[str, ...]:
-    """The built-in instance and every instance a role's pool names."""
+    """Return the built-in instance and every instance a role's pool names."""
     found = [ledger.BUILT_IN]
     for role in jroles.ROLES:
         try:
@@ -236,7 +243,7 @@ def instances(say: Callable[[str], None]) -> tuple[str, ...]:
 def gather(
     config: jbus.Config, now: datetime, say: Callable[[str], None], senses: Senses
 ) -> Machine:
-    """One look at the machine, read with `senses`."""
+    """Read the machine's state once, through `senses`."""
     wired = posts_to_relay(config)
     paths = [config.state_dir, config.home_dir, *(p.checkout for p in config.projects)]
     paths += [Path(tempfile.gettempdir()), Path.home(), ledger.path().parent]
@@ -261,7 +268,7 @@ def gather(
 
 
 def _share(used: int, whole: int) -> int:
-    """A share in whole percent, rounded up, as `df` gives it."""
+    """Return a share in whole percent, rounded up, as `df` shows it."""
     return math.ceil(used * 100 / whole) if whole else 0
 
 
@@ -309,9 +316,9 @@ def _minutes(since: Any, now: datetime) -> int | None:
 
 
 def relays(relay: Relay | None, now: datetime) -> list[Reading]:
-    """The relay's readings. Silence runs from the last body heard, which a restart keeps;
-    `started` is only for a relay that has never heard one, so one restarted often still
-    goes silent."""
+    """Return the relay's readings. jbus counts silence from the last body the relay heard,
+    and a restart does not reset that time. `started` counts only for a relay that has never
+    heard a body, so a relay that restarts often still reads as silent."""
     if relay is None:
         return [Reading("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
     found = [
@@ -411,7 +418,7 @@ def quotas(
 
 
 def readings(machine: Machine, now: datetime, user: jsettings.Settings) -> list[Reading]:
-    """Every check of one look, in the order `jbus health` prints them."""
+    """Return every check of one look, in the order `jbus health` prints them."""
     return [
         *disks(machine.mounts),
         *timeouts(machine.journal, machine.start_timeout),
@@ -427,7 +434,7 @@ def look(
 
 
 def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> list[Reading]:
-    """Look, and page each incident that starts or ends: see the module."""
+    """Take a look, and page each incident that starts or ends: see the module."""
     found = look(config, now, say)
     state = config.state_dir
     taken = {PREFIX + one.key: one for one in found}
@@ -451,7 +458,7 @@ def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> lis
 
 
 def first(half: Any) -> None:
-    """The look of a pass, in the first step of the config's first project: see the module."""
+    """Take the look of a pass, in the first step of the config's first project: see the module."""
     run = half.run
     if run.project != run.config.projects[0]:
         return
@@ -476,7 +483,7 @@ def show(found: list[Reading]) -> list[str]:
 
 
 def run_health(args: argparse.Namespace, config: jbus.Config) -> int:
-    """Print every reading. 1 when one is over its limit."""
+    """Print every reading, and return 1 when a reading is over its limit."""
     found = look(config, clock(), print)
     for line in show(found):
         print(line)

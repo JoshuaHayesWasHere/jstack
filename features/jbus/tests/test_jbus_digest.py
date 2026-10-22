@@ -1,7 +1,7 @@
-"""`waiting-on-user.json` is the one list of what waits on the user, and `jbus digest --json`
-prints what a model used to read, with no model.
+"""`waiting-on-user.json` is the one list of what waits on the user. `jbus digest --json` prints
+what a model used to read, without running a model.
 
-Run as `test_jbus_kitchen.py` runs: the real command and the real pass, against a faked T3
+Like `test_jbus_kitchen.py`, the tests run the real command and the real pass against a faked T3
 Code server, `gh`, `jmerge` and webhook. Nothing reaches the network.
 """
 
@@ -44,7 +44,7 @@ def approval(slug):
 
 
 def four(kitchen):
-    """One of each kind: an open gate, a row at `gate`, a row with no approval, a hold."""
+    """Make one of each kind: an open gate, a row at `gate`, a row with no approval, and a hold."""
     kitchen.config(max_running=6)
     (kitchen.home / "gates.md").write_text(
         gate(4, "which way?") + gate(5, "is it done?", "answered 2026-10-12: yes")
@@ -207,7 +207,7 @@ def test_a_change_of_the_list_is_one_event_for_the_chat_and_a_pass_with_none_sen
 
 
 def test_only_a_pass_that_adds_to_the_list_posts_and_its_line_names_what_is_new(kitchen):
-    """Three passes: one adds an approval, one removes, one does both."""
+    """The test runs three passes: one adds an approval, one removes one, and one does both."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
@@ -233,7 +233,7 @@ def test_only_a_pass_that_adds_to_the_list_posts_and_its_line_names_what_is_new(
 
 
 def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(kitchen):
-    """The removal is in the log, and the POST something else starts does not carry it."""
+    """The removal is in the log, and a POST that something else starts does not carry it."""
     four(kitchen)
     kitchen.poll()
     posts = len(kitchen.webhook.posts)
@@ -280,7 +280,7 @@ def test_a_list_left_by_an_older_jbus_is_read_and_its_roots_are_not_new(kitchen)
 
 
 def scene(kitchen):
-    """Two passes: `beta` merges in the first, `gamma` in the second, `alpha` has a pull
+    """Run two passes. `beta` merges in the first and `gamma` in the second, `alpha` has a pull
     request that waits, and `unsaid` has no approval."""
     kitchen.config(max_running=6)
     for priority, slug in enumerate(("alpha", "beta", "gamma"), start=1):
@@ -437,7 +437,8 @@ def test_a_digest_that_cannot_be_given_is_refused(kitchen, argv, says):
 
 
 def test_no_webhook_url_no_key_and_no_token_is_in_the_list_the_digest_or_a_line(kitchen):
-    """A fake of each is planted in every source the list and the digest read."""
+    """The test puts a fake webhook URL, key and token in every source that the list and the
+    digest read."""
     hook = f"{kitchen.webhook.url}/hooks/s3cr3t-path-of-the-relay?sig=a-signature-for-it"
     host = kitchen.webhook.url.partition("//")[2]
     kitchen.config(url=hook, max_running=6)

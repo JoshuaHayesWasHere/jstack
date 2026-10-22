@@ -1,6 +1,7 @@
-"""What jbus reads off a line `jmerge` prints, by what each reader does with it: `merge`
-sends it, `watch.waits` gives a row its reason, and `stall.hand_merge` says what an accept is
-short of. The lines are made up, and some have a shape `jmerge` never prints."""
+"""These tests cover what jbus reads off a line that `jmerge` prints, by what each reader does
+with it. `merge` sends the line, `watch.waits` takes a row's reason from it, and
+`stall.hand_merge` uses it to say what an accept is short of. The tests make the lines up, and
+some have a shape `jmerge` never prints."""
 
 from datetime import timedelta
 from types import SimpleNamespace
@@ -113,8 +114,8 @@ def test_with_the_home_off_jmerge_runs_and_each_line_is_an_event_once(kitchen):
 
 
 def test_a_merged_line_with_its_revert_and_a_hold_line_are_each_an_event_once(kitchen):
-    """The lines as `jmerge` prints them now: jbus reads the slug as the third word of a
-    `merged` line, whatever follows the commit, and a `hold` line by its number."""
+    """The test uses the lines as `jmerge` prints them now. jbus reads the slug as the third word
+    of a `merged` line, whatever follows the commit, and reads a `hold` line by its number."""
     merged = (
         'merged 7 alpha abc1234 "feat: the task, done", kept: alpha is not at the merged head, '
         "revert: gh pr revert https://example.test/pull/7"

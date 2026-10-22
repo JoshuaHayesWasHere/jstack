@@ -26,11 +26,12 @@ FENCE = re.compile(r"^[ \t]*```[^\n]*\n.*?^[ \t]*```[ \t]*$", re.M | re.S)
 
 
 def loaded(text, typed, names=()):
-    """A skill's text as Claude Code hands it over when the skill is typed with arguments.
+    """A skill's text as Claude Code hands it over when the user types the skill with arguments.
 
-    This is `nHe` of the installed build (claude 2.1.296), the function behind "String
-    substitutions" in https://code.claude.com/docs/en/skills, then the `${CLAUDE_*}`
+    It ports `nHe` of the installed build (claude 2.1.296), the function that does the "String
+    substitutions" in https://code.claude.com/docs/en/skills. It then replaces the `${CLAUDE_*}`
     names and the `!` command forms that page lists.
+
     """
     try:
         args = shlex.split(typed)

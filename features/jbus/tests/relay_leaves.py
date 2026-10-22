@@ -1,9 +1,9 @@
-"""A test that starts a relay and then fails, hangs, or is killed, for `test_jbus_relay.py` to
-run in a pytest of its own and look at what it leaves.
+"""This module holds a test that starts a relay and then fails, hangs, or is killed.
+`test_jbus_relay.py` runs it in a pytest of its own and looks at what it leaves.
 
-Not collected: the name has no `test_` prefix, and `test_jbus_relay.py` names this file.
-`LEAVES_PIDFILE` is where the relay's pid is written once it listens, and `LEAVES_HOW` is
-what the test does next: `fail` asserts false, `hang` sleeps until something ends it.
+pytest does not collect it: the name has no `test_` prefix, and `test_jbus_relay.py` names this
+file. The relay's pid goes to `LEAVES_PIDFILE` once the relay listens. `LEAVES_HOW` is what the test
+does next: `fail` asserts false, and `hang` sleeps until something ends it.
 """
 
 import os

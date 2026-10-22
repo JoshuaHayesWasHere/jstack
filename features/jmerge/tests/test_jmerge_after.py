@@ -1,7 +1,8 @@
-"""A brief whose `Review:` line says `after` merges on its check alone: its review runs
-beside the merge or after it, and what it finds goes to a cleanup row, never to a hold.
-Driven through `ready.short_of`, the reader the merge goes by, and through `jmerge` itself
-against a real origin and a fake `gh` (`features/jmerge/tests/test_jmerge_fresh.py`)."""
+"""A brief whose `Review:` line says `after` merges on its check alone. Its review runs beside
+the merge or after it, and what the review finds goes to a cleanup row, never to a hold. The
+tests drive it through `ready.short_of`, the function that `jmerge` calls before a merge, and
+through `jmerge` itself against a real origin and a fake `gh`
+(`features/jmerge/tests/test_jmerge_fresh.py`)."""
 
 import json
 
@@ -33,8 +34,9 @@ def test_an_after_brief_with_no_review_is_short_of_nothing_and_a_review_brief_is
 
 
 def test_findings_that_land_on_an_after_brief_change_nothing_jmerge_reads():
-    """No `Fixed:` line, no answered findings, a decline the scoped pass overruled on a risk:
-    each would hold a `Review: review` brief, and none holds this one."""
+    """The brief has no `Fixed:` line and no answered findings, and the scoped pass overruled a
+    decline on a risk. Each of these would hold a `Review: review` brief, and none of them
+    holds this one."""
     bare = brief("after", "Reviewer: mcp:9\n")
     found = bare + review()
     risky = review(found=("error a.py:3 a leak (bucket: Act on) (risk: data)",))
@@ -66,8 +68,8 @@ def test_an_after_brief_still_owes_its_skills_and_the_crews_own_drop_lines():
 
 
 def after(kitchen, slug, extra=""):
-    """The brief as an `after` crewmate leaves it: a Result and its reviewer, and whatever
-    the review wrote since."""
+    """The brief as an `after` crewmate leaves it: a Result and its reviewer, and whatever the
+    review wrote since."""
     pull = kitchen.pulls[slug]
     (kitchen.home.tasks / f"{slug}.md").write_text(
         f'# {slug}: a task\nTask: "do it"\nPull request: open one when done\nReview: after\n\n'

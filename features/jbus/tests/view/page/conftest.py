@@ -9,8 +9,9 @@ from view.page.browser import CHROMIUM, NAMED, heavy
 
 @pytest.fixture(autouse=True)
 def one_browser_at_a_time(request):
-    """The browser lock, held for the whole test: one wait for it, whatever it browses. A test
-    with a home of its own starts no real browser and takes its own lock."""
+    """The browser lock. The test has it for its whole run, so the test waits for the lock
+    once, however often it browses. A test with a home of its own starts no real browser and
+    takes its own lock."""
     if "own_home" in request.fixturenames:
         yield
         return
@@ -20,8 +21,8 @@ def one_browser_at_a_time(request):
 
 @pytest.fixture(autouse=True)
 def a_browser():
-    """With no browser a desk skips the test, and a runner fails it. A browser named in
-    `JSTACK_TEST_BROWSER` that is not there fails it anywhere."""
+    """With no browser, this fixture skips the test on a desk and fails it on a runner. When
+    `JSTACK_TEST_BROWSER` names a browser that is not there, it fails the test anywhere."""
     if NAMED and not CHROMIUM:
         pytest.fail(f"JSTACK_TEST_BROWSER is {NAMED}, which is no program to open the page in")
     if CHROMIUM:

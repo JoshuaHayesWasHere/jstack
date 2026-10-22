@@ -1,11 +1,11 @@
-"""A repo's merge gate: the one-line command in a `merge-gate` file of its state, which
-`jmerge` runs before every merge, once every other reason is clear, in a checkout of the head,
-with the merge base and the head as its last two arguments and as `BASE` and `HEAD`. A
-non-zero exit is a hold whose line quotes the gate's first line, and `merge.log` keeps the
-whole output. A repo with no such file merges as before
-(`features/jmerge/tests/test_jmerge_fresh.py`).
+"""A repo's merge gate is the one-line command in a `merge-gate` file of its state. `jmerge`
+runs it before every merge, once every other reason is clear, in a checkout of the head.
+`jmerge` passes the merge base and the head as the gate's last two arguments, and also as
+the environment variables `BASE` and `HEAD`. A non-zero exit holds the pull request, and the
+hold line quotes the first line of the gate's output. `merge.log` keeps the whole output. A
+repo with no such file merges as before (`features/jmerge/tests/test_jmerge_fresh.py`).
 
-The command is run against a real origin and a fake `gh`, as
+The tests run the command against a real origin and a fake `gh`, as
 `features/jmerge/tests/test_jmerge_fresh.py` runs it."""
 
 import fcntl
@@ -37,8 +37,8 @@ def kitchen(tmp_path):
 
 
 def gate(kitchen, code=0, say=""):
-    """A gate script that records how it was called, says `say` and exits `code`, named in
-    the repo's `merge-gate` file. The directory it records in."""
+    """Write a gate script that records how it was called, prints `say` and exits with `code`.
+    Name the script in the repo's `merge-gate` file, and return the directory it records in."""
     record = kitchen.tmp / "record"
     record.mkdir(exist_ok=True)
     script = kitchen.tmp / "gate.sh"
@@ -201,9 +201,10 @@ def test_jbus_tells_the_crew_of_each_gate_hold():
 
 
 def test_a_gate_ends_before_jbus_stops_the_jmerge_that_runs_it():
-    """A run starts no gate once its gates took their budget, so the budget and one more
-    gate's limit are under what a pass gives `jmerge`: a gate over its limit is stopped by
-    `jmerge` and held, not killed with it."""
+    """A run starts no new gate once its gates have used up their budget. The budget plus one
+    gate's time limit is less than the time that a pass gives `jmerge`. `jmerge` stops a gate
+    that runs over its limit and holds the pull request, so jbus does not kill the gate when it
+    stops `jmerge`."""
     assert cli.Gate.BUDGET + cli.Gate.TIMEOUT < wake.JMERGE_TIMEOUT
 
 

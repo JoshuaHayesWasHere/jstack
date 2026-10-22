@@ -1,9 +1,12 @@
-"""The checkout's own skills: `install.sh` links each project skill a feature declares
-(`projectSkills`, which the generator lists in skills.json) into the checkout's
-`.claude/skills/<name>` and `.cursor/skills/<name>`, where Claude Code and Cursor read a repo's
-skills, and unlinks one whose declaration is gone. git tracks neither folder. Each test runs
-the script under a temporary HOME, from a checkout inside it, but for the release's, which has
-no checkout to run from."""
+"""The checkout's own skills.
+
+A feature declares a project skill in `projectSkills`, which the generator lists in
+skills.json. `install.sh` links each one into the checkout's `.claude/skills/<name>` and
+`.cursor/skills/<name>`, where Claude Code and Cursor read a repo's skills. It unlinks a skill
+whose declaration is gone. git tracks neither folder.
+
+Each test runs the script under a temporary HOME, from a checkout inside it. The release's
+test is the exception, since a release has no checkout to run from."""
 
 import json
 import os
@@ -34,7 +37,7 @@ def run(user, checkout, *args):
 
 
 def links(checkout):
-    """Each link under the checkout's project roots, by where it points."""
+    """Each link under the checkout's project roots, keyed by where it points."""
     return {
         f"{root}/{one.name}": os.readlink(one)
         for root in ROOTS

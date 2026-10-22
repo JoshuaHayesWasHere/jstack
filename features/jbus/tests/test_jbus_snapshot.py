@@ -1,10 +1,10 @@
-"""`jbus snapshot` commits the homes' state tree and pushes it, twice a day, and a snapshot that
-did not finish alerts once.
+"""`jbus snapshot` commits the homes' state tree and pushes it, twice a day, and a snapshot that did
+not finish alerts once.
 
-Each test runs the real verb on a real git repo in the kitchen's home tree, and pushes to a
-bare repo beside it. It uses the real gitleaks where the machine has one; on a machine with
-none, a stand-in that finds nothing reads the changes and the secret test is skipped. The
-units are read as systemd reads them, and by `systemd-analyze verify` where the machine has it.
+Each test runs the real verb on a real git repo in the kitchen's home tree, and pushes to a bare
+repo beside it. It uses the real gitleaks where the machine has one. On a machine with none, a
+stand-in that finds nothing reads the changes, and pytest skips the secret test. The tests read the
+units as systemd reads them, and with `systemd-analyze verify` where the machine has it.
 """
 
 import configparser
@@ -40,10 +40,10 @@ def git(tree, *args):
 
 @pytest.fixture
 def tree(kitchen, monkeypatch):
-    """The homes' state tree as a git repo with one commit, and a git that knows who commits.
+    """Make the homes' state tree a git repo with one commit, and give git a name to commit as.
 
-    On a machine with no gitleaks, as GitHub's runner is, a gitleaks that finds nothing
-    stands in for it, so a commit can be made: the secret test needs the real one.
+    On a machine with no gitleaks, such as GitHub's runner, a gitleaks that finds nothing takes its
+    place so that a commit can go through. The secret test needs the real one.
     """
     for name in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{name}_NAME", "t")
@@ -95,7 +95,7 @@ def test_with_nothing_changed_nothing_is_committed(tree, tmp_path):
 
 
 def test_with_no_remote_a_change_is_committed_and_the_snapshot_fails(tree):
-    """A snapshot that backed up nowhere is not a success: the unit fails and alarms."""
+    """A snapshot that backed up nowhere is not a success, so the unit fails and alarms."""
     (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
     assert take() == (1, [no_remote(tree)])
     assert git(tree, "log", "-1", "--format=%s") == "snapshot 2026-10-12 11:00 ET"
@@ -232,8 +232,8 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
 
 
 def systemd_manager_answers(env=None):
-    """A systemd manager is reachable: the system bus has its socket and the user manager says
-    what state it is in. A CI job container runs neither."""
+    """Return whether a systemd manager is reachable: the system bus has its socket, and the user
+    manager says what state it is in. A CI job container runs neither."""
     if not (shutil.which("systemctl") and Path("/run/dbus/system_bus_socket").exists()):
         return False
     try:
@@ -318,8 +318,8 @@ def test_why_is_not_taken_with_alarm(kitchen, tree):
 
 
 def undo_section():
-    """The shell lines of the section of features/home/docs/state.md that undoes an edit to
-    standing.md."""
+    """Return the shell lines of the section of features/home/docs/state.md that undoes an edit
+    to standing.md."""
     text = (REPO / "features" / "home" / "docs" / "state.md").read_text()
     section = text.split("## Undo an edit to standing.md\n", 1)[1].split("\n## ", 1)[0]
     block = section.split("```sh\n", 1)[1].split("```", 1)[0]
@@ -381,7 +381,8 @@ def test_the_documented_undo_of_the_edit_that_made_the_file_removes_it(kitchen, 
 
 
 def test_a_snapshot_waits_for_one_that_is_running(tree, tmp_path):
-    """Each home snapshots after an edit, beside the timer: a second run waits, never collides."""
+    """Each home takes a snapshot after an edit, on top of the timer's runs. A second run waits
+    and never collides with the first."""
     with_origin(tree, tmp_path)
     (tree / "demo" / "standing.md").write_text("1. a rule\n")
     before = git(tree, "rev-parse", "HEAD")

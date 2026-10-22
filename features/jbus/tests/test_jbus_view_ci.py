@@ -1,5 +1,6 @@
-"""The CI panel: the nine targets of `jbus ci`, each by day, with a mark at the merge of each
-change that was to move it. It reads `ci.jsonl` and `ci-prs.jsonl` of the project's state."""
+"""The CI panel shows the nine targets of `jbus ci`, each by day, with a mark at the merge of
+each change that was meant to move it. It reads `ci.jsonl` and `ci-prs.jsonl` of the project's
+state."""
 
 import json
 from datetime import datetime
@@ -23,7 +24,7 @@ def later(stamp):
 
 
 def keep(scene):
-    """The recording's ledger, moved in time to end at the scene's now."""
+    """Write the recording's ledger, moved in time to end at the scene's now."""
     state = scene.state.parents[1] / "recorded"
     collect.collect(Replay(), "o/jstack", state, RECORDED, 14)
     jobs = [

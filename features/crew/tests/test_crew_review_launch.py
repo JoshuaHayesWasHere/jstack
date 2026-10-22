@@ -1,4 +1,4 @@
-"""The crew skill finds what it launches by, and says whether to launch a reviewer."""
+"""The crew skill finds the values it needs to launch a reviewer, and says whether to launch one."""
 
 import os
 import re

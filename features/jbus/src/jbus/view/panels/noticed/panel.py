@@ -1,12 +1,14 @@
-"""What the threads noticed: each record of `noticed.json`, newest first, with its task, when
-a pass first found it, its mark and what took it or why it was dropped. Each poll of the first
-screen has every new record and the newest `MARKED` of the marked ones, and the count of the
-older marked ones, which `jbus noticed --all` prints: a first pass marks hundreds. The wait
-band counts the new ones and opens this panel, and says nothing where there is none.
+"""What the threads noticed: each record of `noticed.json`, newest first. Each record has its
+task, when a pass first found it, its mark, and the row that took it or the reason its `drop`
+gave. Each poll of the first screen gets three things: every new record, the newest `MARKED` of
+the marked records, and the count of the older marked records. A first pass marks hundreds of
+records, so the poll only counts the older ones, and `jbus noticed --all` prints them. The wait
+band counts the new records and opens this panel. Where there is no new record, the wait band
+says nothing.
 
-It reads `noticed.json`, which a pass writes and `jbus noticed take|drop` marks, and writes
-nothing. Where the file is not there yet there is no record, and one that does not parse is a
-source that could not be read.
+The panel reads `noticed.json` and writes nothing. A pass writes the file, and
+`jbus noticed take|drop` marks its records. Where the file does not exist yet, there is no
+record. A file that does not parse is a source that could not be read.
 """
 
 from __future__ import annotations
@@ -38,8 +40,8 @@ MARKED = 20
 
 
 def _kept(read: Read) -> list[noticed.Record] | None:
-    """The records, none where no pass has kept any yet, or None for a file that does not
-    parse."""
+    """The records: an empty list where no pass has kept any yet, or None for a file that
+    does not parse."""
     try:
         return (noticed.read(read.state) or []) if read.name else None
     except noticed.Unparsable:

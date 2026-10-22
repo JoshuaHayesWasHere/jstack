@@ -425,13 +425,15 @@ class Gated(NamedTuple):
 
 
 class Gate:
-    """The repo's merge gate: the command in its state's `merge-gate` file, run before every
-    merge in a checkout of the head, with the merge base and the head as its last two
-    arguments and as `BASE` and `HEAD`. It is run on every judgement, and its answer is kept
-    for that run only: a fix outside git is seen on the next. A run starts no gate once its
-    gates took `BUDGET`, so that one more, stopped at `TIMEOUT`, still ends inside the time
-    jbus gives `jmerge`. A gate runs holding `<state>/gate.lock`, so a run that overlaps
-    another, a hand run beside jbus's, waits and never removes the checkout under it."""
+    """The repo's merge gate: the command in its state's `merge-gate` file. `jmerge` runs it
+    before every merge, in a checkout of the head, with the merge base and the head as its
+    last two arguments and as `BASE` and `HEAD`. It runs on every judgement, and `jmerge`
+    keeps its answer for that run only, so the next run sees a fix made outside git. Once a
+    run's gates have used `BUDGET`, the run starts no more gates. So a last gate that
+    `jmerge` stops at `TIMEOUT` still ends within the time that jbus gives `jmerge`. A gate
+    runs holding `<state>/gate.lock`. A run that overlaps another, such as a hand run beside
+    jbus's, waits for the lock, so it never removes the checkout that the other run's gate is
+    using."""
 
     TIMEOUT = 10 * 60
     BUDGET = 5 * 60
@@ -764,8 +766,9 @@ class Repo:
         return branch, "" if branch else asked_why(asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
-        """GitHub retargets an open pull request based on a branch deleted after its own pull
-        request merged, so deleting it would change a stack's order:
+        """When a pull request merges and its branch is deleted, GitHub retargets every open pull
+        request whose base was that branch. So deleting the branch would change a stack's
+        order:
         https://github.blog/changelog/2020-05-19-pull-request-retargeting/
         """
         asked = _run(
@@ -795,7 +798,7 @@ class Repo:
 
     def left(self, one: ready.PullRequest) -> tuple[str, ...] | None:
         """`gh pr list` lists a rename under its new path alone, and only the files endpoint
-        gives the path it left, as `previous_filename`:
+        gives the file's old path, as `previous_filename`:
         https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files
         """
         if not one.renamed:
@@ -1074,9 +1077,11 @@ class Repo:
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
-        """Main's red hold for a pull request into main, and for one into an integration
-        branch that branch's own: its tip's latest checks, asked of GitHub once a run. A
-        branch GitHub gives no answer for is not known to be red, as a main jbus never judged."""
+        """The red hold on a pull request. For a pull request into main it is main's hold, and
+        for a pull request into an integration branch it is that branch's hold. It reads the
+        latest checks of the branch's tip, and asks GitHub once per run. When GitHub gives no
+        answer for a branch, the branch is not known to be red, as with a main that jbus never
+        judged."""
         if one.base == default:
             return rows.red(self.main_state, slug)
         if one.base not in self.reds:
@@ -1373,7 +1378,8 @@ class Sweep:
 
     def _safe(self, commit: str, head: str, pull: str) -> bool:
         """GitHub keeps a pull request's head as `refs/pull/<number>/head` after its branch is
-        deleted, so a merged head no longer here is fetched from there:
+        deleted. So when the main checkout no longer has a merged head, `jmerge` fetches it
+        from that ref:
         https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally
         """
         if commit == head or self._within(commit, self.tip):
@@ -1519,7 +1525,7 @@ class Sweep:
 
 
 def _job(repo: str, job: str) -> dict:
-    """A job as GitHub gives it, or {} where it gives none."""
+    """A job as GitHub gives it, or an empty dict where GitHub gives none."""
     given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
     try:
         found = json.loads(given.stdout) if not given.returncode else {}

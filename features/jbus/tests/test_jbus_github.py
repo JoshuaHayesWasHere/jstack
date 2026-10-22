@@ -1,9 +1,13 @@
-"""No watch of T3 Code's wakes a crew: jbus tells it what GitHub says it must act on, once
-per head. A check that ran and failed is one message, a conflict before the review is
-another, a conflict after the review is the rebase message, a green pull request that owes
-the home a line is told it passed, and a green pull request with nothing owed is told
-nothing. Run as `test_jbus_main_moved.py` runs: the real pass,
-against the fakes."""
+"""No T3 Code watch wakes a crew. Instead, jbus tells the crew what GitHub says it must act on,
+once per head:
+
+- A check that ran and failed is one message.
+- A conflict before the review is another message.
+- A conflict after the review is the rebase message.
+- When a green pull request owes the home a line, jbus tells its crew that it passed.
+- When a green pull request owes nothing, jbus tells its crew nothing.
+
+Like `test_jbus_main_moved.py`, the tests run the real pass against the fakes."""
 
 from datetime import timedelta
 
@@ -32,8 +36,8 @@ CONFLICTED = (
 
 @pytest.fixture
 def launched(tmp_path, monkeypatch):
-    """Alpha, launched by a first pass, with its thread's turn ended: one at work is told
-    nothing yet."""
+    """Alpha is a row that a first pass launched, and its thread's turn has ended. jbus tells
+    nothing yet to a thread that is at work."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     add(kitchen, "alpha")
     assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
@@ -226,8 +230,9 @@ def test_a_fixed_green_pull_request_is_told_once_while_a_home_merges(launched):
 def test_a_green_after_pull_request_is_told_once_while_a_home_merges_with_its_reviewer_out(
     launched, home
 ):
-    """A `Review: after` pull request merges on green, and its review never holds it: a home
-    that merges hears it is green from its crew, whose reviewer may still be at work."""
+    """A `Review: after` pull request merges on green, and its review never holds it. The crew
+    tells the merging home that the pull request is green, while the crew's reviewer may still be
+    at work."""
     brief = launched.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text().replace("Review: review\n", "Review: after\n"))
     result(launched, "Reviewer: mcp:reviewer\n")

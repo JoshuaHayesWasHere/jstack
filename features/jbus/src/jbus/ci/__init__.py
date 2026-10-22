@@ -1,14 +1,14 @@
-"""`jbus ci`: what a project's CI costs, kept as numbers and held to nine targets.
+"""`jbus ci`: count what a project's CI costs, keep the numbers, and compare them to nine targets.
 
 `jbus ci` asks GitHub for the Actions jobs and pull requests of the last `--days` days
-(`jbus.ci.collect`), keeps each job once in `ci.jsonl` and each pull request in
-`ci-prs.jsonl` of the project's state (`jbus.ci.ledger`), and prints the nine targets
-(`jbus.ci.numbers`), each with how it was counted. The `ci` panel of `jbus view` draws the
+(`jbus.ci.collect`). It keeps each job once in `ci.jsonl` and each pull request in
+`ci-prs.jsonl` of the project's state (`jbus.ci.ledger`). Then it prints the nine targets
+(`jbus.ci.numbers`), each with how it counts. The `ci` panel of `jbus view` shows the
 same ledger.
 
-`--report` also writes `reports/ci-week-<date>.md` in the project's home and alerts the
-project once if a target was missed (`jbus.ci.report`), over the last `WEEK` days:
-`jbus-ci.timer` runs it every Monday at 09:00 ET.
+`--report` also writes `reports/ci-week-<date>.md` in the project's home over the last
+`WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`).
+`jbus-ci.timer` runs `jbus ci --report` every Monday at 09:00 ET.
 
 `--notice` is for a CI job: it prints the annotation that gives the collector the job's
 telemetry (`jbus.ci.notice`), and needs no config.
@@ -31,7 +31,7 @@ REMOTE = "origin"
 
 
 def repo_of(checkout: Path) -> str:
-    """`<owner>/<name>` from the checkout's origin."""
+    """Return `<owner>/<name>` from the checkout's origin."""
     asked = subprocess.run(
         ["git", "-C", str(checkout), "remote", "get-url", REMOTE], capture_output=True, text=True
     )

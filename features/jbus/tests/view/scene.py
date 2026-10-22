@@ -1,9 +1,9 @@
-"""`jbus view` is one server over what the passes left. It prints no secret, and its one write
+"""`jbus view` is one server that reads what the passes left. It prints no secret, and its one write
 is the user's answer to a question.
 
 Each test starts the real server on a free port over a temporary state directory, and asks
 it over HTTP as a browser would. `gh` and `systemctl` are stand-ins on `PATH` that write
-down how they were called. A test of an answer that is sent runs the server over a kitchen
+down how the test called them. A test of an answer that is sent runs the server over a kitchen
 of `test_jbus_kitchen`, whose T3 Code is a stand-in too. Nothing reaches the network, and every name
 here is made up.
 """
@@ -115,7 +115,8 @@ WORK = ("value", "who", "facts", "confirmed")
 
 
 def value_of(one):
-    """The value a pass that wrote this row would have judged it, where a test names none."""
+    """The value that a pass would have judged this row to have when it wrote the row. A test
+    gets it where the test names no value."""
     status, why = one.get("status", "queued"), one.get("why", "")
     if status == "queued":
         if not one.get("approved") or why.startswith("brief changed"):
@@ -134,8 +135,8 @@ def value_of(one):
 
 
 def judge_row(one, state=None):
-    """A line of `work.json` for a row, as `work.entry` writes one, with its holder from
-    `work.holder` and what `leftover.json` says of it."""
+    """A line of `work.json` for a row, as `work.entry` writes one. Its holder comes from
+    `work.holder`, and it has what `leftover.json` says of the row."""
     value = one.get("value") or value_of(one)
     pattern = work.BY_VALUE[value]
     facts = {"pull": "merged" if one.get("status") == "merged" else "none"} | one.get("facts", {})
@@ -168,8 +169,8 @@ def judge_row(one, state=None):
 
 
 def table():
-    """A queue with every way a row waits: the three ways a queued row does, and the
-    pull requests that `jmerge` waits on or holds."""
+    """A queue with every way a row waits: the three ways a queued row waits, and the pull
+    requests that `jmerge` waits on or holds back."""
     lost = "2 of main's lines in src/a.py"
     dropped = f"wait: {ready.DROPPED.format(lost=lost, head='0123456789ab')}"
     moved = "wait: the rebase changed the content after its review; scoped review of a..b c..d"
@@ -285,8 +286,9 @@ class Scene:
         self.state.joinpath(name).write_text("".join(json.dumps(one) + "\n" for one in records))
 
     def queue(self, rows, judged=True):
-        """The table, and `work.json` beside it as the pass that wrote the table judged it:
-        a row's `value`, `who` and `facts`, where a test gives them, or what `judged` gives."""
+        """The table, and `work.json` beside it, as the pass that wrote the table judged it.
+        Each row's `value`, `who` and `facts` are what the test gives, or else what `judged`
+        gives."""
         made = [{k: v for k, v in one.items() if k not in WORK} for one in rows]
         path, table = self.state / "work.json", self.state / "queue.json"
         was = {one["slug"]: one for one in json.loads(table.read_text())} if table.exists() else {}
@@ -337,8 +339,9 @@ class Scene:
         self.write("merge.log.last", last, self.home)
 
     def passed(self, seconds_ago, running=False, threads=(), rows=None):
-        """The last pass ended this long ago: `pass.json`, and the status file beside it.
-        It saw these threads out, and this of each row."""
+        """`pass.json` and the status file beside it, for a last pass that ended
+        `seconds_ago` seconds ago. That pass saw these threads as out, and saw each row as
+        given here."""
         ended = ago(seconds=seconds_ago)
         record = {
             "started": iso(ended - timedelta(seconds=21)).replace("+00:00", "Z"),
@@ -372,7 +375,8 @@ class Scene:
 
     def runners(self, *units):
         """What `systemctl list-units` lists of the runners: each unit as its name, its active
-        state and its sub state. Three that run, as this machine has, where none is given."""
+        state and its sub state. Where the test gives none, three units run, as on this
+        machine."""
         units = units or tuple((f"actions-runner-{n}.service", "active", "running") for n in "abc")
         listed = [
             {
@@ -401,9 +405,9 @@ class Scene:
         )
 
     def github(self, runs=None, **pull):
-        """What the stand-in `gh` answers: the runs, as `(branch, status, conclusion)` from
-        the oldest, with the workflow's name after them where it is not `check`, and the one
-        pull request."""
+        """What the stand-in `gh` answers: the runs and the one pull request. Each run is
+        `(branch, status, conclusion)`, oldest first, with the workflow's name after them
+        where it is not `check`."""
         runs = [
             {
                 "id": 500 + at,
@@ -483,7 +487,7 @@ def free_port(host="127.0.0.1"):
 
 
 class Served:
-    """The server, open on a free port, and what it answers."""
+    """The server, running on a free port, and what it answers."""
 
     def __init__(self, scene, host=None, names=(), retry=60.0, port=None, origins=()):
         self.port = port or free_port()
@@ -503,9 +507,9 @@ class Served:
             link.close()
 
     def write(self, body, origin=None, path=None, **how):
-        """A write as the server's own page makes it, to the one project of the state
-        directory, or from the origin given: `""` is a request with no `Origin` header. The
-        answer is its status and what it said."""
+        """A write to the one project of the state directory, made as the server's own page
+        makes it. With an origin given, the write comes from that origin, and `""` is a
+        request with no `Origin` header. The answer is its status and what it said."""
         if path is None:
             path = "/answer?project=" + built.projects(self.doors.app.sources)[0]
         origin = f"http://127.0.0.1:{self.port}" if origin is None else origin
@@ -528,11 +532,11 @@ def tasks(state):
 
 
 def stacked(scene):
-    """Beside `demo`, two projects of the state directory, made up small: `pantry`, with
-    one task running, one at a gate and one merged today, a gate it asks and a noticed line,
-    in a repo of its own, and `larder`, whose queue is empty. Beside them a directory with
-    no queue, which is no project, and a retired project, which jbus no longer looks after
-    and the view never reads."""
+    """Beside `demo`, two small made-up projects of the state directory. `pantry` is in a
+    repo of its own. It has one task running, one at a gate and one merged today, and it also
+    has a gate it asks and a noticed line. `larder` has an empty queue. Beside them are a
+    directory with no queue, which is no project, and a retired project. jbus no longer looks
+    after the retired project, and the view never reads it."""
     pantry, larder = scene.state_dir / "pantry", scene.state_dir / "larder"
     for made in (pantry, larder, scene.home_dir / "pantry", scene.home_dir / "larder"):
         made.mkdir()
@@ -580,8 +584,9 @@ PROXIED, PANTRY, EVIL, IPV6 = (
 
 
 def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle"):
-    """Two questions, one of them answered; a word sent on and one that waits; and a row
-    approved on the word sent, beside the table's rows, which hold only a typed string."""
+    """Two questions, one of them answered; a word sent on and one that waits; and a row the
+    user approved on the word that was sent. That row is beside the table's rows, which have
+    only a typed string."""
     user = jsettings.load()
     asks(scene, "milk?")
     number = asks(scene, "which pot?")
@@ -643,10 +648,10 @@ JMERGE = {
 
 def kinds(scene):
     """One row of most values, as the last pass judged it: a row of every status a row has,
-    and a pull request on every step. `fig-pip` is a row that is wrong, queued while the pass
-    judged it merged, and `fig-stem` waits behind it. `fig-pod` and `fig-tree` are finished
-    and leave nothing. The page's first screen holds the scene to its word budget, so
-    `quiet`, `closed` and `unknown` have scenes of their own."""
+    and a pull request on every step. `fig-pip` is a row that is wrong: it is queued, but
+    the pass judged it merged. `fig-stem` waits behind it. `fig-pod` and `fig-tree` are
+    finished and leave nothing. The tests limit the page's first screen to its word budget
+    for this scene, so `quiet`, `closed` and `unknown` have scenes of their own."""
     pulls = [
         row(
             f"fig-{step}",
@@ -735,7 +740,8 @@ def kinds(scene):
 
 
 def out(title, live="moving", status="running", minutes=1, **more):
-    """One thread as a pass leaves it in `pass.json`, which last wrote so long ago."""
+    """One thread as a pass leaves it in `pass.json`, which the thread last wrote `minutes`
+    minutes ago."""
     role, _, slug = title.partition(": ")
     known = {"crew": "crew", "review": "reviewer", "scout": "scout", "home": "home"}
     return {
@@ -788,10 +794,11 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 
 
 class Process:
-    """The real server as a process of its own, `jbus view` over a copy of the packages it
-    runs, with the check every 0.2 s where the server has it every `view.CHECK` seconds. It
-    copies each folder the packages sit in (`testing.paths.sources`), and `src` is the copy that
-    holds `jbus`."""
+    """The real server as a process of its own: `jbus view` over a copy of the packages it
+    runs. This process checks its code every 0.2 s, where `jbus view` otherwise checks every
+    `view.CHECK` seconds.
+    It copies each folder the packages are in (`testing.paths.sources`), and `src` is the copy
+    that has `jbus`."""
 
     def __init__(self, scene):
         self.port = free_port()
@@ -950,7 +957,7 @@ def rounded(scene, slug="oat-milk"):
 
 def a_noticed(scene, *made):
     """Records of `noticed.json`, each `(slug, mark, minutes ago, more)`, as a pass and the
-    two marks write them."""
+    two mark commands write them."""
     records = []
     for slug, mark, minutes, more in made:
         said = f"{slug} saw a thing"

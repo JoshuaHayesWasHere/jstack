@@ -1,9 +1,9 @@
-"""A wake carries the key in the two headers the Chef's webhook takes, in bounded POSTs.
-Each POST is `{"say": [...], "events": [...]}`: the lines for the chat, and the events.
+"""A wake carries the key in the two headers that the Chef's webhook takes, in POSTs of bounded
+size. Each POST is `{"say": [...], "events": [...]}`: the lines for the chat, and the events.
 
-Every test drives the real `wake.Box` and `wake._post` against a webhook faked on a local
-port. Like the real one, it answers 401 unless both headers carry the key exactly.
-Nothing reaches the network.
+Every test drives the real `wake.Box` and `wake._post` against a webhook faked on a local port. Like
+the real one, the fake answers 401 unless both headers carry the key exactly. Nothing reaches the
+network.
 """
 
 import http.server

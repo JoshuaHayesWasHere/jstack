@@ -1,9 +1,9 @@
-"""Every gate carries a default that is the recommended option, and the thread acts on it
-at once. A question the user has not answered in 2 hours closes with that default, unless its
-gate holds: its default is irreversible or slow to revert, and it names its fail-safe.
+"""Every gate carries a default that is the recommended option, and the thread acts on it at once. A
+question the user has not answered in 2 hours closes with that default, unless its gate holds. A
+gate holds when its default is irreversible or slow to revert, and it names its fail-safe.
 
-The tests run the real `jbus gate`, `jbus answer` and pass against the faked T3 Code server
-of `test_jbus_kitchen`, with the clock of `jbus gate` held at `NOW`.
+The tests run the real `jbus gate`, `jbus answer` and pass against the faked T3 Code server of
+`test_jbus_kitchen`, with the clock of `jbus gate` held at `NOW`.
 """
 
 import json

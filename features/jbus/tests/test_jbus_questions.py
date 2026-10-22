@@ -1,9 +1,9 @@
-"""A question for the user is one numbered record in jbus: `jbus gate` writes it, it waits
-on the user until `jbus answer` closes it, and a pass carries an answer that is not the
-default to the thread that asked.
+"""A question for the user is one numbered record in jbus. `jbus gate` writes it, and it waits on
+the user until `jbus answer` closes it. A pass delivers an answer that is not the default to the
+thread that asked.
 
-The tests run the real commands and the real pass against the faked T3 Code server and
-webhook of `test_jbus_kitchen`. Nothing reaches the network.
+The tests run the real commands and the real pass against the faked T3 Code server and webhook of
+`test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
@@ -50,13 +50,13 @@ def records(kitchen):
 
 
 def listed(kitchen):
-    """The gates on the list the last pass left."""
+    """Return the gates on the list that the last pass left."""
     kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     return [one for one in kept if one["kind"] == "gate"]
 
 
 def shown(kitchen):
-    """The state the view gives for the project, read now."""
+    """Return the state that the view gives for the project, read now."""
     sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home")
     return view_state.build(sources, "demo", NOW, lambda _: {})
 
@@ -630,8 +630,9 @@ def test_a_gate_that_does_not_propose_two_options_with_the_default_is_not_sent(
 
 
 def test_the_refusal_alone_is_enough_to_write_lines_jbus_takes(kitchen):
-    """A thread whose skill is older than the options has the refusal and nothing else: the
-    form it shows, filled in as it stands and once more with no mark, is a gate jbus takes."""
+    """A thread whose skill is older than the options has only the refusal to go by. jbus accepts
+    the refusal's form as a gate in two ways: filled in as shown, and filled in again with no
+    mark."""
     _, said = kitchen.main("gate", "alpha", stdin=BARE)
     (form,) = [part for part in said.split('"') if part.startswith("Option: ")]
     first = form.replace("<short name>", "tea").replace("<what follows from it>", "the cups stay")
@@ -646,7 +647,7 @@ def test_the_refusal_alone_is_enough_to_write_lines_jbus_takes(kitchen):
 
 
 def before_options(kitchen, *asked):
-    """A `questions.json` as jbus wrote it before a gate had options: no record has a
+    """Write a `questions.json` as jbus wrote it before a gate had options: no record has a
     `context` or an `options`."""
     kept = [
         {

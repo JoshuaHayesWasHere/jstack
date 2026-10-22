@@ -1,14 +1,16 @@
-/* The axe run the page test adds to the page, after axe itself (`axe.min.js` beside this file,
-   which the test reads and the view never serves). A moment after the page loads it runs axe
-   over the view, then opens every drawer the view and each drawer name, and runs axe over each. It also puts the focus, as a keyboard would, on everything that takes it
-   and measures the ring each draws. It writes what it found into a pre the browser prints, in the page that holds
-   the frame when the page is in one, as the probe does. */
+/* The axe run that the page test adds to the page, after axe itself (`axe.min.js` beside this
+   file, which the test reads and the view never serves). A moment after the page loads, it runs
+   axe over the view. Then it opens every drawer that the view and each drawer name, and runs axe
+   over each one. It also puts the focus on everything that takes it, as a keyboard would, and
+   measures the ring each one draws. It writes what it found into a pre that the browser prints.
+   When the page is in a frame, the pre goes into the page that holds the frame, as the probe
+   does. */
 window.addEventListener("load", function () { setTimeout(function () {
   var drawer = document.getElementById("drawer"), found = [], rings = [], looked = [], errors = [];
   window.addEventListener("error", function (e) { errors.push(String(e.message)); });
   function all(q, root) { return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
   function shown(el) { return el.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true }); }
-  /* Each thing a key can reach, focused in turn: its ring, an outline or a shadow, must show. */
+  /* Focus each thing a key can reach, in turn. Its ring, an outline or a shadow, must show. */
   function ring(root, where) {
     all('a[href], button:not([disabled]), input, textarea, select, summary, [tabindex]:not([tabindex="-1"])', root).filter(shown).forEach(function (el) {
       if (!drawer.open && drawer.contains(el)) return;

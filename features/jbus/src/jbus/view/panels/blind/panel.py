@@ -1,9 +1,10 @@
-"""What the page cannot say: each source that could not be read, what each panel cannot
-say now, and last what the view never can.
+"""What the page cannot say: each source that could not be read, what each panel cannot say now,
+and last what the view never can.
 
-A line opens the panel that says it. A source that could not be read opens the panel that
-names it where that panel is asked for by itself, and the list of every source, which the
-pulse panel draws, where it is not.
+Each line opens the panel that says it. A line can be about a source that could not be
+read. Some panels the page asks for in a request of their own. If the panel that names the
+source is one of those, the line opens that panel. Otherwise the line opens the list of every
+source, which the pulse panel draws.
 """
 
 from __future__ import annotations
@@ -19,8 +20,9 @@ SHAPE = {"blind": [{"line": None, "open": None}]}
 
 
 def _unread(read: Read) -> list[dict[str, str]]:
-    """Each source that could not be read, but for one a session writes: no session is no
-    fault. It opens the one panel that names it, where that panel is not on the first screen."""
+    """Each source that the view could not read, except a source that a session writes, since
+    having no session is no fault. Each line opens the one panel that names its source, where
+    that panel is not on the first screen."""
     names: dict[str, list[str]] = {}
     for panel in read.panels:
         for source in panel.sources:

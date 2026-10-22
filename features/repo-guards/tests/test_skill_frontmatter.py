@@ -1,7 +1,8 @@
-"""Every skill loads only when typed: its frontmatter sets `disable-model-invocation: true`, and
-names it for its folder with a description. Every skill jstack ships, in each of its skill trees,
-and each skill entry of skills.json, is named for its folder. The fixtures show the checks catch one
-that is not."""
+"""Every skill loads only when the user types it. Its frontmatter sets
+`disable-model-invocation: true`, gives a description, and gives the skill the name of its
+folder. Every skill jstack ships has the name of its folder, in each of jstack's skill trees,
+and so does each skill entry of skills.json. The fixtures show that the checks catch a skill
+whose name is not its folder's."""
 
 import json
 import re
@@ -75,8 +76,9 @@ def test_lint_a_skill_loads_only_when_typed(path):
 
 
 def holds_this_test(root):
-    """Puts this file in `root/tests`, with `testing/` but for its tests and a `pyproject.toml`:
-    `REPO` is then `root`, and the copy's tests read its tree and not this checkout's."""
+    """Put this file in `root/tests`, with a copy of `testing/` that leaves out its tests, and
+    a `pyproject.toml`. `REPO` is then `root`, so the copy's tests read its tree and not this
+    checkout's."""
     (root / "tests").mkdir()
     shutil.copy(__file__, root / "tests")
     shutil.copytree(
@@ -88,7 +90,8 @@ def holds_this_test(root):
 
 @pytest.mark.parametrize("mended", [False, True], ids=["broken", "mended"])
 def test_lint_fails_on_the_broken_fixture_and_passes_it_mended(tmp_path, mended):
-    """The lint, run as CI runs it, over a skills folder that holds only the fixture."""
+    """The test gives the lint a skills folder that holds only the fixture, and has it run as
+    CI runs it."""
     holds_this_test(tmp_path)
     skill = tmp_path / "skills" / NO_KEY.parent.name / NO_KEY.name
     skill.parent.mkdir(parents=True)
@@ -178,7 +181,8 @@ def test_every_skill_entry_in_skills_json_is_named_for_its_folder():
 
 @pytest.mark.parametrize("renamed", [False, True], ids=["as-named", "renamed"])
 def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp_path, renamed):
-    """The name checks, run as CI runs them, over a FAKE tree whose folders are renamed."""
+    """This runs the name checks as CI runs them, over a FAKE tree whose folders the test
+    renamed."""
     shutil.copytree(NAMED_TREE, tmp_path, dirs_exist_ok=True)
     holds_this_test(tmp_path)
     if renamed:

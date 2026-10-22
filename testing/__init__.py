@@ -1,2 +1,2 @@
-"""What the tests of every feature share: the fixtures every test runs with, loaded as a pytest
-plugin by the root `conftest.py`, and the paths a test finds the checkout by."""
+"""What the tests of every feature share. It holds the fixtures every test runs with, which the root
+`conftest.py` loads as a pytest plugin, and the paths by which a test finds the checkout."""

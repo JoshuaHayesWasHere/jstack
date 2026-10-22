@@ -1,10 +1,10 @@
-"""`jbus queue`: the verbs on the queue's table, and what they ask of everything else.
+"""Declare `jbus queue`: the verbs on the queue's table, and what they ask of the other modules.
 
-The table and its verbs are `jbus.queue`, which asks nobody: what a removal or an approval
-needs to know of T3 Code, GitHub, the launches and the words that were kept, it is given as
-a `queue.Asks`. `_asks` makes that one for a project, out of the modules that know, each of
-which is built on the queue. So the verb is declared here, above them all, and not in
-`jbus.queue`.
+The table and its verbs are in `jbus.queue`, which calls no other module for a fact. A
+removal or an approval needs facts from T3 Code, GitHub, the launch records and the words that
+jbus recorded, and `jbus.queue` gets them as a `queue.Asks`. `_asks` builds one for a project
+with the modules that read those facts, and each of those modules imports the queue. So this
+module, which imports all of them, declares the verb, and `jbus.queue` does not.
 """
 
 from __future__ import annotations
@@ -37,18 +37,19 @@ from jmerge.asked import Silent
 
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
-    """What `queue remove` and `queue approve` ask, and the one quiet event a removal sends.
+    """Return what `queue remove` and `queue approve` ask, and the one quiet event a removal
+    sends.
 
-    `said` gives the words an approval names: a word of the project's `words.json`, the
+    `said` returns the words an approval names: a word of the project's `words.json`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
     read from Lavish's state file, or a rule of the home's `standing.md`.
 
-    `out` asks T3 Code and GitHub now: a thread that is at work, an open pull request, or a
-    merged one. A thread that ended or was settled is not out. Where either cannot be asked,
-    that is said, and nothing is known. `launched` reads the launch records: one at
-    `intent` is a launch T3 Code has not answered yet, and one written since this began is a
-    pass that launched the slug after `out` was asked. The event has the row as it was,
-    waits in the outbox, and starts no POST.
+    `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
+    merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
+    them, it says so, and the answer is unknown. `launched` reads the launch records. A record
+    at `intent` is a launch that T3 Code has not answered yet. A record written after this
+    call began means that a pass launched the slug after `out` asked. The event carries the
+    row as it was, and jbus leaves it in the outbox and starts no POST for it.
     """
     run = wake.Pass(config, project, datetime.now(UTC))
     began = time.time()
@@ -168,9 +169,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
 
 
 def _item(state: Path, slug: str, given: str) -> str:
-    """The work item a row that is added is linked to: the one `--item` names, which must be
-    one it can be linked to, the one the row has, the one a pass linked to its slug, or one
-    reserved for it now (`jbus.item`)."""
+    """Pick the work item that a newly added row links to. The first choice is the item that
+    `--item` names, which must be one the row can link to. Next is the item the row has, then
+    the item a pass linked to its slug. Last, this function reserves a new item for the row
+    now (`jbus.item`)."""
     if given:
         item.linkable(state, given, slug)
         return given
@@ -183,8 +185,9 @@ def _item(state: Path, slug: str, given: str) -> str:
 
 
 def _verify(state: Path, slug: str, given: str | None) -> int:
-    """Print, as JSON, the row's approval record and the brief checked against it: the
-    stored brief, or the file `--brief` names. It exits 0 when the go holds for that brief."""
+    """Print, as JSON, the row's approval record and the brief that this verb checks against
+    it: the stored brief, or the file `--brief` names. Exit 0 when the approval still applies
+    to that brief."""
     try:
         row = next((row for row in queue.load(state) if row["slug"] == slug), None)
     except queue.Unparsable as error:

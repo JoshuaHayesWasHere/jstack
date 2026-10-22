@@ -1,16 +1,17 @@
 """Ask GitHub for a project's Actions jobs and pull requests, and keep them (`jbus.ci.ledger`).
 
-Everything is a read through `gh api`: the repo's workflow runs of the last `days` days, the
-jobs of each run that has not been kept yet (`filter=all`, so every attempt of a rerun), the
-pull requests, and for each its timeline, where a force-push of its branch is an event. A
-red job on a local runner has its log read once, for the failing tests it names and the
-runner faults it shows.
+Every call is a read through `gh api`. The collector reads the repo's workflow runs of the last
+`days` days and the pull requests. For each run it reads the jobs the ledger does not keep yet, with
+`filter=all` so that it gets every attempt of a rerun. For each pull request it reads the timeline,
+where a force-push of its branch is an event. For a red job on a local runner it reads the log once,
+for the failing tests the log names and the runner faults the log shows.
 
-A job's telemetry is read from its check run's annotations, the one carrier of a job's own
-words that the API gives back (a job summary is not readable by the API): an annotation
-titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
+The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
+API returns only its annotations, since the API cannot read a job summary. The telemetry is an
+annotation titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
 
-`Gh` is the seam: `Cli` asks GitHub, and a test gives one that answers from a recording.
+`Gh` is the interface to GitHub: `Cli` asks GitHub, and a test passes a `Gh` that replays
+a recording.
 """
 
 from __future__ import annotations
@@ -50,7 +51,8 @@ class Unavailable(Exception):
 
 
 class Gh(Protocol):
-    """`pages` is the list a path gives, under `key` where each page is an object."""
+    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path. When each page is
+    an object, the list is under `key` in it."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]: ...
 
@@ -65,7 +67,7 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 class Cli:
-    """`gh api`, one call at a time, read-only."""
+    """Ask GitHub through `gh api`, one call at a time, and only read."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
         asked = _run(["gh", "api", "--paginate", "--slurp", path])
@@ -97,7 +99,8 @@ def kind(labels: list[str]) -> str:
 
 
 def evidence(log: str) -> list[str]:
-    """The lines of a job's log that say what failed: the stamp taken off, the rest cut."""
+    """Return the lines of a job's log that say what failed, with the stamp removed and each
+    line cut short."""
     lines = (STAMP.sub("", ESCAPES.sub("", one)).strip() for one in log.splitlines())
     return [one[:200] for one in lines if EVIDENCE.match(one)]
 
@@ -120,8 +123,8 @@ def _time(text: str | None) -> datetime | None:
 
 
 def pull_for(run: dict[str, Any], job: dict[str, Any], pulls: list[dict[str, Any]]) -> int | None:
-    """The pull request a job ran for: the one its run names, the one a push to main merged,
-    or the one whose branch the run is of and which was open when the job was created."""
+    """Return the pull request a job ran for: the one its run names, the one a push to main
+    merged, or the one that was open on the run's branch when GitHub created the job."""
     named = run.get("pull_requests") or []
     if named:
         return int(named[0]["number"])
@@ -140,7 +143,8 @@ def pull_for(run: dict[str, Any], job: dict[str, Any], pulls: list[dict[str, Any
 
 
 def notice(gh: Gh, repo: str, job: int) -> dict[str, Any]:
-    """The telemetry a job wrote, or nothing where it wrote none or GitHub did not answer."""
+    """Return the telemetry a job wrote, or nothing where it wrote none or GitHub did not
+    answer."""
     try:
         found = gh.pages(f"repos/{repo}/check-runs/{job}/annotations?per_page=100")
     except Unavailable:
@@ -196,7 +200,8 @@ def row(
 
 
 def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
-    """The pull requests updated since `since`, each with the times its branch was force-pushed."""
+    """Return the pull requests updated since `since`, each with the times someone
+    force-pushed its branch."""
     found = gh.pages(f"repos/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100")
     kept = []
     for one in found:
@@ -222,7 +227,8 @@ def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
 
 
 def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
-    """Keep the jobs of the last `days` days that are not kept yet, and the pull requests."""
+    """Add to the ledger the jobs of the last `days` days that it does not have yet. Also keep
+    the pull requests."""
     with ledger.locked(state):
         return _collect(gh, repo, state, now, days)
 
