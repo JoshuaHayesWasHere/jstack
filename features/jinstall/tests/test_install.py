@@ -218,7 +218,6 @@ class User:
             *layouts(self.home),
             *(f"hard {link}" for link in self.links()),
             f"optional patterns {self.patterns}",
-            # skills.json's order: each hook script by name, each of its entries in turn.
             f"hard hook {self.settings} PreToolUse",
             f"hard hook {self.settings} PostToolUse",
             f"hard hook {self.settings} SessionStart",

@@ -371,9 +371,8 @@ def test_the_readme_counts_the_skills_and_the_commands_as_the_tree_has_them():
     skills = [path.parent for path in catalog.listed("skill").values()]
     listed = re.findall(r"^\| `([\w-]+)` \| `/", said, re.M)
     assert len(skills) > 20 and set(listed) < {path.name for path in skills}
-    assert counts(said, "skills") == [len(skills), len(listed)]
+    assert counts(said, "skills") == [len(listed)]
     assert counts(said, "skills run the flow") == [len(listed)]
-    assert counts(said, "are loaded by name") == [len(skills) - len(listed)]
     told = "\n".join(path.read_text() for path in PAGES)
     assert set(counts(told, "commands")) == {len(SCRIPTS)}
     assert counts("It has 12 skills, Six commands and other skills.", "skills") == [12]

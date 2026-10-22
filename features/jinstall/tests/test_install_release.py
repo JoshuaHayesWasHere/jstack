@@ -128,7 +128,6 @@ def release_parts(home, source):
         *layouts(home),
         *(f"hard {home / root / name}" for root in ROOTS for name in names),
         f"optional patterns {home / '.config' / 'jstack' / 'outbound.toml'}",
-        # skills.json's order: each hook script by name, each of its entries in turn.
         f"hard hook {settings} PreToolUse",
         f"hard hook {settings} PostToolUse",
         f"hard hook {settings} SessionStart",
