@@ -1,6 +1,7 @@
-"""`jgauge context` and `hooks/home-gauge.sh`: the count a home is told, when it is told it,
-the tool calls it is refused past its ceiling, and the record the hook leaves. Every hook test
-runs the hook on a made-up transcript."""
+"""The tests cover `jgauge context` and `hooks/home-gauge.sh`. They check the count that the hook
+tells a home, and when the hook tells the home that count. They check the tool calls that the hook
+refuses once a home is past its ceiling, and the record that the hook leaves. Every hook test runs
+the hook on a made-up transcript."""
 
 import json
 import os
@@ -90,9 +91,9 @@ class Scene:
         self.count = 300004
 
     def gauge(self, root=None, *, cwd=None, t3=T3[0], event="PostToolUse", path=None, **more):
-        """Run the hook as the harness does after a tool call of a thread opened in `root`,
-        whose shell is in `cwd` by now. `t3` is the variable T3 Code sets for the thread, or
-        None outside T3 Code."""
+        """Run the hook as the harness does after a tool call in a thread opened in `root`. At
+        the time of the call, the thread's shell is in `cwd`. `t3` is the variable T3 Code sets
+        for the thread, or None outside T3 Code."""
         root = root or self.main
         env = {key: value for key, value in os.environ.items() if key not in T3}
         env.update(HOME=str(self.user), CLAUDE_PROJECT_DIR=str(root))
@@ -468,7 +469,8 @@ def big(size):
     ],
 )
 def test_the_count_the_hook_records_is_the_one_jgauge_context_prints(scene, capsys, entries):
-    """Also when `jgauge context` prints none, for a transcript with no line it can read."""
+    """The counts agree even when `jgauge context` prints no count. It prints none for a transcript
+    that has no line it can read."""
     scene.transcript.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
     with scene.transcript.open("a") as file:
         file.write('{"type": "assistant", "message": {"id": "m9", "usa')

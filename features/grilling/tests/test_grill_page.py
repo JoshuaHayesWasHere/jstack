@@ -1,4 +1,5 @@
-"""The grilling page: its script is run in node, on a round, with a stand-in `window.lavish`."""
+"""The grilling page: the tests run its script in node, on a round, with a stand-in
+`window.lavish`."""
 
 import json
 import os
@@ -109,7 +110,8 @@ CONTEXT = {"slug": "cutover", "round": 2, "answers": ANSWERS}
 
 
 def page(round_=ROUND, picks=(), lavish=True, template=TEMPLATE, **more):
-    """What the page did with `round_` in its data block, `picks` made and the button pressed."""
+    """What the page did with `round_` in its data block, once the test made `picks` and
+    pressed the button."""
     if not shutil.which("node"):
         pytest.skip("no node on PATH to run the page's script in")
     spec = {"round": round_, "picks": list(picks), "lavish": lavish, **more}
@@ -322,7 +324,8 @@ def on_a_page():
 
 
 def a_path_of(tmp_path, *commands):
-    """A `PATH` of one directory that holds these commands and no other, so no `lavish-axi`."""
+    """A `PATH` of one directory that holds these commands and no other, so it has no
+    `lavish-axi`."""
     only = tmp_path / "only"
     only.mkdir()
     for command in commands:

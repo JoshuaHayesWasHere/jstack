@@ -1,7 +1,10 @@
-"""`/make-bot-ui`: its `schedule_task` block is a call the tool takes, whose signature the
-server it ships signs to, and that server, run as the skill runs it against a stand-in
-webhook on 127.0.0.1, sends both key headers and the signature, tries once within its timeout,
-logs a failed body, and binds 127.0.0.1 and the address it is given, never every address."""
+"""`/make-bot-ui`: T3 Code's `schedule_task` tool accepts the call in the skill's block. The
+server that comes with the skill signs each request with an HMAC, under the header, prefix and
+encoding that the call's `signature` field names.
+The tests run the server as the skill runs it, against a stand-in webhook on 127.0.0.1. The
+server sends the key in two headers, `Authorization` and `X-Automation-Key`. It also sends the
+signature, and it tries once within its timeout. It logs the
+body of a failed request. It binds 127.0.0.1 and the address it is given, never every address."""
 
 import hashlib
 import hmac
@@ -191,7 +194,7 @@ def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addre
 
 @pytest.mark.timeout(60)
 def test_the_server_listens_on_both_addresses_at_once_however_slow_a_reverse_lookup_is(tmp_path):
-    """A runner whose DNS is slow to answer for 127.0.0.2 had the server listen on 127.0.0.1
+    """On a runner whose DNS was slow to answer for 127.0.0.2, the server listened on 127.0.0.1
     and not yet on 127.0.0.2: `HTTPServer` looks up a name for each address it binds."""
     config = tmp_path / "ui" / "config.json"
     assert run("key", config).returncode == 0

@@ -1,6 +1,6 @@
-"""The `Home:` line: a brief or a scout's request names its home by its scope, and never by a
-thread. A thread reads the id in that home's `home-id` each time it sends, so a new home
-rewrites no brief. Every block here is lifted from the skill that gives it."""
+"""The `Home:` line: a brief or a scout's request names its home by the home's scope, and never
+by a thread. A thread reads the id in that home's `home-id` each time it sends, so a new home
+rewrites no brief. Each test takes every block from the skill that gives it."""
 
 import os
 import shutil
@@ -29,7 +29,7 @@ class Homes(Scene):
         (self.home_dir / SCOPE / "plan.md").write_text("# the second home: plan\n")
 
     def sent(self, reader, slug, *lines):
-        """A brief or a request the reader's thread was launched from."""
+        """A brief or a request from which the home launched the reader's thread."""
         text = "\n".join([f"# {slug}: a title", 'Task: "make it so"', *lines])
         (self.home_dir / HOME_LINE_IN[reader] / f"{slug}.md").write_text(text + "\n")
         return slug
@@ -148,8 +148,8 @@ def test_each_home_is_told_of_its_own_and_of_no_other_homes(homes, reader):
 
 @pytest.mark.parametrize("reader", READERS)
 def test_a_brief_written_before_names_a_thread_and_still_finds_its_home(homes, reader):
-    """An id in a `home-id` is that home, and so is the id of the thread a scoped home's
-    handoff names. Any other id is the root home."""
+    """An id in a `home-id` names that home. A scoped home's handoff names a thread, and that
+    thread's id names the scoped home too. Any other id names the root home."""
     scoped = homes.sent(reader, "scoped", f"Home: {OTHER}")
     root = homes.sent(reader, "root", f"Home: {THREAD}  ")
     gone = homes.sent(reader, "gone", "Home: mcp:a-home-of-long-ago (the root home)")
@@ -233,8 +233,9 @@ def test_the_start_of_a_second_home_changes_no_brief_and_no_request(homes):
 
 @pytest.mark.parametrize("reader", READERS)
 def test_a_scope_no_home_has_run_in_is_no_home_and_its_brief_is_the_roots(homes, reader):
-    """A directory with a plan and no `home-id` and no `Was home:` line is no home to
-    `jmerge`, which counts the brief as the root's: the thread tells the root home."""
+    """`jmerge` counts no home in a directory with a plan, no `home-id` and no `Was home:` line.
+    It counts a brief of that scope as the root's, so a thread that reads the brief tells the root
+    home."""
     slug = homes.sent(reader, "a-task", f"Home: {SCOPE}")
     (homes.home_dir / SCOPE / "handoff.md").write_text("# the second home: handoff\n")
     homes.home_starts(THREAD)

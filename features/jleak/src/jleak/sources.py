@@ -1,24 +1,26 @@
-"""Where outbound text comes from: each function gives the `Text`s of one way out.
+"""Where outbound text comes from: each function gives the `Text`s of one way that text leaves
+this machine.
 
     tree      every tracked file of a repo, and each file's own name
     files     the files named, with `-` for what is piped in
     pushed    what a `git push` is about to send, as git tells a `pre-push` hook
     command   a shell command an agent is about to run
 
-A `git push` sends a ref's name and every commit the destination does not have yet, so
-`pushed` gives the name, and for each such commit its message, the lines it adds and the name
-of each file it creates. What the destination has is asked of the destination, by its URL:
-the checkout's own record of a remote says what some remote had, under a name that may point
-elsewhere by now. A line that was already there, or that a commit takes out, is not sent
-anew and is not given, and a merge gives only what the merge itself adds.
+A `git push` sends a ref's name and every commit the destination does not have yet, so `pushed`
+gives the ref's name. For each such commit, `pushed` also gives the commit's message, the lines the
+commit adds and the name of each file the commit creates. `pushed` asks the destination itself, by
+its URL, what it has. It does not trust the checkout's own record of a remote. That record says only
+what a remote had when the checkout last fetched, and the remote's name may now point to another
+URL. The push does not send again a line the destination already has, or a line that a commit
+removes, so `pushed` gives neither. For a merge, `pushed` gives only what the merge adds.
 
-`command` reads a command as the shell would: joined over a backslash at a line's end, cut
-into words with their quotes taken off, and into simple commands at `;`, `&&`, `|` and a new
-line. A simple command that runs `gh pr create`, `edit`, `comment` or `review` gives each
-of its words, since a title or a body can be any of them, and its body file. One that runs
-`git ... push` gives a finding when it would skip the `pre-push` hook. Nothing else in the
-command is read: a `cd`, a `grep`, a commit's message. A command inside a quoted string
-(`sh -c "..."`) is not seen.
+`command` reads a command as the shell would. It joins a line that ends in a backslash to the next.
+It cuts the command into words, takes their quotes off, and splits it into simple commands at `;`,
+`&&`, `|` and a new line. For a simple command that runs `gh pr create`, `edit`, `comment` or
+`review`, it gives each of that command's words and the command's body file. It gives every word
+because a title or a body can be any of them. For one that runs `git ... push`, it gives a finding
+when the push would skip the `pre-push` hook. It reads nothing else in the command: not a `cd`, a
+`grep` or a commit's message. It does not see a command inside a quoted string (`sh -c "..."`).
 """
 
 import os
@@ -50,7 +52,8 @@ DIFF = (
 
 
 class Unreadable(Exception):
-    """Text that is on its way out could not be read, so it cannot be checked."""
+    """jleak could not read text that a push or a command is about to send, so it cannot check
+    that text."""
 
 
 def git(*args: str, cwd: Path | None = None, given: str = "") -> str:
@@ -94,8 +97,9 @@ def files(names: Iterable[str], piped: str, field: str) -> Iterator[Text]:
 
 
 def _added(commit: str, diff: str) -> Iterator[Text]:
-    """The lines a commit's diff adds, a Text for each file, and before it the file's own
-    name at line 0 when the commit creates the file or moves one there."""
+    """The lines a commit's diff adds, as one Text for each file. When the commit creates
+    a file, or renames or copies a file to that name, the Text has the file's own name at line
+    0, before the lines."""
     name, lines, new, head, at = "", [], False, True, 0
 
     def ended() -> Iterator[Text]:
@@ -129,8 +133,9 @@ def _added(commit: str, diff: str) -> Iterator[Text]:
 def pushed(refs: Iterable[str], url: str) -> Iterator[Text]:
     """`refs` is what git writes to a `pre-push` hook: a line
     `<local ref> <local commit> <remote ref> <remote commit>` for each ref. `url` is the
-    hook's second argument, where the push goes. A commit is left out only when it is
-    reachable from a commit that `git ls-remote` of that URL lists and this checkout holds."""
+    hook's second argument, where the push goes. The function leaves a commit out only when
+    the commit is reachable from a commit that this checkout holds and that `git ls-remote`
+    lists for that URL."""
     refs = [ref.split() for ref in refs if ref.strip()]
     if all(NO_COMMIT.fullmatch(local) for _, local, _, _ in refs):
         return
@@ -150,9 +155,10 @@ def pushed(refs: Iterable[str], url: str) -> Iterator[Text]:
 
 
 def _simple(typed: str) -> list[tuple[list[str], bool]]:
-    """The simple commands of a shell command, each as its words and whether it reads a
-    here-document. One that does takes every word after it too, since the document's lines
-    are its input. Raises ValueError for a command whose quotes do not close."""
+    """The simple commands of a shell command. Each is a pair: the simple command's words, and a
+    flag that says whether the simple command reads a here-document. A simple command that reads a
+    here-document also gets every word after the `<<`, since the document's lines are that command's
+    input. Raises ValueError for a command whose quotes do not close."""
     lexer = shlex.shlex(CONTINUED.sub(" ", typed), posix=True, punctuation_chars="();<>|&\n")
     lexer.whitespace, lexer.whitespace_split, lexer.commenters = " \t\r", True, ""
     found, words, here = [], [], False
@@ -167,7 +173,8 @@ def _simple(typed: str) -> list[tuple[list[str], bool]]:
 
 
 def _run(words: list[str]) -> list[str]:
-    """The words from the program on: without the assignments and the wrappers in front."""
+    """The program's name and the words after it, without the assignments and wrappers in
+    front of the program."""
     at = 0
     while at < len(words) and (ASSIGNED.match(words[at]) or words[at] in WRAPPERS):
         at += 1
@@ -175,7 +182,8 @@ def _run(words: list[str]) -> list[str]:
 
 
 def _push_rules(words: list[str]) -> Iterator[str]:
-    """The rules a `git ... push` breaks: the names of what would skip the `pre-push` hook."""
+    """The rules a `git ... push` breaks: the names of the flags and settings in it that would
+    skip the `pre-push` hook."""
     at, set_here = 1, []
     while at < len(words) and words[at].startswith("-"):
         if words[at] in TAKES_A_VALUE:
@@ -191,7 +199,8 @@ def _push_rules(words: list[str]) -> Iterator[str]:
 
 
 def _sent(words: list[str], here: bool, cwd: Path) -> Iterator[Text]:
-    """The words of a `gh pr` command that writes, and its body file."""
+    """The words of a `gh pr` command that writes to a pull request, and the command's body
+    file."""
     named, kept, skip = [], [], False
     for word in words:
         if skip:
@@ -223,9 +232,10 @@ def _sent(words: list[str], here: bool, cwd: Path) -> Iterator[Text]:
 
 
 def command(typed: str, cwd: Path) -> tuple[list[Finding], list[Text]]:
-    """What a command breaks by itself, and the text it sends to a pull request. A command
-    that cannot be cut into words is given whole when it names `gh` and `pr`, and is a
-    finding when it names a push and a way around the hook."""
+    """The findings that come from a command's own words, such as a push that skips the hook,
+    and the text the command sends to a pull request. When the function cannot cut a command
+    into words, it gives the whole command as text if the command names `gh` and `pr`. It gives
+    a finding if the command names a push and a way around the hook."""
     try:
         simple = _simple(typed)
     except ValueError:

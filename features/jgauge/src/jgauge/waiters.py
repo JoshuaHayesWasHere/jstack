@@ -1,30 +1,35 @@
-"""The threads that wait on a test slot: one file, which the slot queue owns.
+"""The threads that wait on a test slot. The module keeps them in one file, the queue of the
+test slots.
 
 A thread that finds every slot of a lane taken does not poll and does not end its turn
-silent. It registers here, `jgauge test-slot --thread <id>` does that for it, and ends its turn
-with one line. `jbus poll` reads this file, and when a lane has a slot free it sends the
-oldest waiter on that lane one message (`jbus.slotwait`). This module is the file and nothing
-else: it knows no T3 Code, and jbus asks it for every change.
+silent. It registers here, through `jgauge test-slot --thread <id>`, and ends its turn with
+one line. `jbus poll` reads this file, and when a lane has a slot free it sends the oldest
+waiter on that lane one message (`jbus.slotwait`). This module handles the file and nothing
+else: it knows nothing of T3 Code, and jbus calls it for every change.
 
-`test-slot-waiters.json` lies beside the slots' lock files and is a list of `Waiter`. Each
-change holds `test-slot-waiters.lock` and writes the file whole by a rename, so a reader never
-sees half a list. A waiter is one wait:
+`test-slot-waiters.json` is beside the slots' lock files and is a list of `Waiter`. Each
+change takes the lock `test-slot-waiters.lock` and replaces the whole file with a rename, so a
+reader never sees half a list. A waiter is one wait:
 
-- `thread`, `lane` and `slots` say who waits on what (`lane` is `short` or `full`, `slots` how
-  many the lane has), and `command` what it will run, for the message that wakes it;
-- `since` is when the thread first waited, and orders the queue: a thread that is woken and
-  finds the slot taken again waits on from the same `since`, so it does not go to the back;
-- `id` names this wait, so a retry of its wake is one message and the next wait is another;
-- `woken` is when the wake was sent, or nothing. A wait is woken once.
+- `thread`, `lane` and `slots` say who waits on what: `lane` is `short` or `full`, and `slots`
+  is how many slots the lane has;
+- `command` is what the thread will run, for the message that wakes it;
+- `since` is when the thread first waited, and orders the queue. A thread that jbus wakes and
+  that finds the slot taken again keeps waiting from the same `since`, so it does not go to the
+  back;
+- `id` names this wait. A retry of its wake is still one message, and the thread's next wait
+  gets a message of its own;
+- `woken` is when jbus sent the wake, or nothing. jbus wakes a wait once.
 
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
 leaves the file (`drop`).
 
-A thread is named one way: T3 Code's id is `mcp:<uuid>`, and an id given without the prefix
-gets it (`thread_id`). Two records for one thread, as a file written before held, are one wait
-that keeps the older one's place: the older, or where it was woken and the later was not, the
-later with the older `since`. The file is written so on its next change.
+A thread has one form of id, T3 Code's `mcp:<uuid>`, and `thread_id` adds the prefix to an id
+given without it. A file written before this rule may hold two records for one thread. They
+count as one wait that keeps the older record's place. The module keeps the older record.
+Where jbus woke the older record and not the later one, the module keeps the later record
+instead, with the older `since`. The next change writes the file in that form.
 """
 
 from __future__ import annotations
@@ -58,7 +63,7 @@ class Waiter:
 
 
 def thread_id(text: str) -> str:
-    """The thread's id in T3 Code's form, `mcp:` and its id."""
+    """The thread's id in T3 Code's form: the prefix `mcp:`, then the id."""
     return text if not text or text.startswith(PREFIX) else PREFIX + text
 
 
@@ -124,9 +129,9 @@ def read(locks: Path) -> list[Waiter]:
 def register(
     locks: Path, thread: str, lane: str, slots: int, command: list[str], now: datetime
 ) -> Waiter:
-    """Make `thread` a waiter on `lane`, and give back its wait. One that already waits there,
-    not yet woken, keeps its wait and its place. One that was woken and is back keeps its place
-    in the queue and has a new wait."""
+    """Make `thread` a waiter on `lane`, and return its wait. A thread that already waits
+    there, not yet woken, keeps its wait and its place. A thread that jbus woke and that
+    registers again keeps its place in the queue and has a new wait."""
     made: list[Waiter] = []
     thread = thread_id(thread)
 
@@ -147,8 +152,8 @@ def register(
 
 
 def drop(locks: Path, thread: str) -> None:
-    """Take `thread` out: it took its slot. With no waiters file there is nothing to take it
-    out of, and none is made."""
+    """Take `thread` out of the waiters, since it took its slot. When there is no waiters
+    file, the function does nothing and creates no file."""
     if not (locks / NAME).exists():
         return
     thread = thread_id(thread)
@@ -156,12 +161,13 @@ def drop(locks: Path, thread: str) -> None:
 
 
 def forget(locks: Path, ids: set[str]) -> None:
-    """Take out the waits with these ids. A thread that waits again has another id, and stays."""
+    """Take out the waits with these ids. A thread that waits again has a new id, so its new
+    wait stays in the file."""
     _change(locks, lambda waiters: [one for one in waiters if one.id not in ids])
 
 
 def woken(locks: Path, wait: str, now: datetime) -> None:
-    """Record that the wait with this id was sent its wake."""
+    """Record that jbus sent its wake to the wait with this id."""
     _change(
         locks,
         lambda waiters: [
@@ -172,11 +178,12 @@ def woken(locks: Path, wait: str, now: datetime) -> None:
 
 
 def holding(waiter: Waiter, now: datetime) -> bool:
-    """Whether a woken wait still has the slot it was woken for: it was woken `HOLDS` ago or
-    less, and has not taken it yet."""
+    """Whether a woken wait still has the slot that jbus woke it for: jbus woke it `HOLDS` ago
+    or less, and its thread has not taken the slot yet."""
     return bool(waiter.woken) and now - _when(waiter.woken) <= HOLDS
 
 
 def lapsed(waiter: Waiter, now: datetime) -> bool:
-    """Whether a woken wait is long past: its thread was told, and nothing came of it."""
+    """Whether a woken wait is long past: jbus woke its thread over `FORGOTTEN` ago, and the
+    thread has not taken the slot."""
     return bool(waiter.woken) and now - _when(waiter.woken) > FORGOTTEN

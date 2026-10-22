@@ -60,8 +60,9 @@ def _interval(asked: str) -> float:
 
 
 def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, str]) -> int:
-    """Look until `room` says `go` or the limit passes, the last look at the limit itself.
-    Print what the last look said, its notes too, and tell the two apart by the exit code."""
+    """Run `room` until it prints `go` or the time limit passes, and run it a last time at the
+    limit itself. Print what the last run printed, with its notes. Exit with code 0 on `go`,
+    and with the code `NO_ROOM` otherwise."""
     until = time.monotonic() + limit
     while True:
         looked = subprocess.run(look, capture_output=True, text=True, env=env)
@@ -76,9 +77,10 @@ def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, s
 
 
 def _pool(role: str) -> str:
-    """The role's pools as `room.sh` takes them, `POOL`: the instances of a line joined by
-    commas, one line from the next by a space. Empty where the role inherits, or where the map
-    cannot be used, which is said: `room.sh` then reads the built-in instance's file."""
+    """The role's pools in the form `room.sh` reads from `POOL`: commas join the instances of a
+    line, and a space separates one line from the next. The value is empty where the role
+    inherits. It is also empty where `pool.selections` refuses the role map, and the function
+    then prints a note on stderr: `room.sh` reads the built-in instance's file instead."""
     try:
         chosen = pool.selections(role)
     except jroles.Refused as refused:
@@ -159,7 +161,8 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
 
 
 def cmd_sizes(args: argparse.Namespace) -> int:
-    """Print the three machine sizes as their callers get them, then room's lines."""
+    """Print the three machine sizes as their callers get them. After the sizes, print room's
+    lines."""
     jbus_config = Path(os.environ.get("JBUS_CONFIG_DIR") or Path.home() / ".config" / "jbus")
     try:
         found = sizes.every(jbus_config / "config.toml")

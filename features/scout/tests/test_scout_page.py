@@ -1,4 +1,5 @@
-"""The scout's page: the block that serves it is run with and without `lavish-axi` on `PATH`."""
+"""The scout's page: the tests run the block that serves it, with and without `lavish-axi` on
+`PATH`."""
 
 import os
 import re
@@ -64,7 +65,8 @@ def test_with_lavish_axi_the_built_page_is_served(scene, stub):
 
 
 def test_the_block_named_for_a_closed_tab_serves_the_page_again(scene, stub):
-    """The sentence on `browser_disconnected` names a section and a command: that block is run."""
+    """The sentence on `browser_disconnected` names a section and a command. The test runs the
+    block of that section that runs that command."""
     (said,) = [line for line in scout.SKILL.read_text().splitlines() if DISCONNECTED in line]
     section, command = re.search(r'the block of "([^"]+)" that runs `([^`]+)`', said).groups()
     assert [block.strip() for block in scout.given(section)].count(command) == 1
@@ -79,7 +81,8 @@ def test_a_report_whose_page_is_none_for_want_of_lavish_axi_settles_the_scout(tm
 
 
 def test_the_poll_is_a_block_that_returns_only_when_the_poll_has(scene, tmp_path):
-    """A poll in the background of the call would let the turn end with nobody listening."""
+    """If the call ran the poll in the background, the turn could end before anything reads the
+    poll's answer."""
     path = a_path_of(tmp_path, *NEEDED, "sleep")
     command, heard = tmp_path / "only" / "lavish-axi", tmp_path / "heard"
     command.write_text(f'#!/bin/sh\nsleep 0.3\necho "answered: $*" > "{heard}"\n')

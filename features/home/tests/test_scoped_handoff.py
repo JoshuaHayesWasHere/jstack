@@ -1,6 +1,6 @@
-"""A handoff in a repo with a root home and a scoped one: each home's `/handoff` archives,
-writes and closes in its own directory, and launches its own successor. Every block here is
-lifted from the handoff skill and run in a temporary repo that has both homes."""
+"""A handoff in a repo with a root home and a scoped one: each home's `/handoff` archives, writes
+and closes in its own directory, and launches its own successor. Each test takes every block from
+the handoff skill and runs it in a temporary repo that has both homes."""
 
 import json
 import re
@@ -58,14 +58,16 @@ class HandingOff(Homes):
         return self.run("handoff", found.replace("<threadId>", thread), self.main)
 
     def closes(self, thread):
-        """Step 6, the block that says who starts the next home. Its output, in lines."""
+        """Run step 6, the block that says who starts the next home, and return the lines it
+        prints."""
         ran = self.does('rm -f "$M/home-id"', thread)
         assert ran.returncode == 0
         return ran.stdout.splitlines()
 
     def hands_off(self, thread, own):
-        """A handoff's steps on disk, in order: find the home, write the note, close. What the
-        close printed of the tasks, with no reply of `list_scheduled_tasks` given, is left out.
+        """Run a handoff's steps on disk, in order: find the home, write the note, close. The test
+        gives the close no reply from `list_scheduled_tasks`, so the result has no lines about the
+        scheduled tasks.
         """
         found = self.does(WHERE, thread).stdout.splitlines()
         (own / "handoff.next.md").write_text(PAGE)

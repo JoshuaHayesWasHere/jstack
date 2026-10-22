@@ -1,7 +1,7 @@
-"""The mechanical unslop rules in comments and docstrings: `features/writing/scripts/
-comment_lint.py` is run here with `python3 -I -S`, which holds it to the standard library, on
-files written to a temporary directory. It warns on one hit of each rule it holds, says nothing of
-the text it lets through, and exits 0 either way."""
+"""The mechanical unslop rules in comments and docstrings. The tests run
+`features/writing/scripts/comment_lint.py` with `python3 -I -S`, which limits it to the standard
+library, on files written to a temporary directory. It warns on one hit of each rule it checks,
+says nothing of the text it lets through, and exits 0 either way."""
 
 import subprocess
 import sys
