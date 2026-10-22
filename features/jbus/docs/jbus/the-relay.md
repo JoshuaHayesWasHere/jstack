@@ -11,7 +11,7 @@ Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.serv
 The install links `features/jbus/units/jbus-relay.service` on every machine, and enables and starts it only once that file holds every key the relay needs.
 With no file it leaves the unit off, and nothing alerts.
 A file that would stop the relay at start leaves the unit as it was, and the doctor's `relay` line names each key and why.
-A hand-made `jbus-relay.service` that differs is not replaced: remove it first, and `install.sh --check` says when it is gone.
+A hand-made `jbus-relay.service` that differs is not replaced: remove it first, and `jinstall --check` says when it is gone.
 
 | Key | What it is |
 |---|---|
@@ -47,7 +47,7 @@ jbus's bodies carry no time, so the same alert said again later has the same has
 A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
 
 The pager is a third route, `page`, spooled as the others are, with the pager as its target.
-It fires in the two cases of [What blocks](what-blocks.md), and its body is `{"message"}`, one line: the project, the item's `line`, how long it has blocked, and for a body your chat bot did not take, its event id, as `jstack: gate 33: tea or coffee?, blocking 47 min`.
+It fires in the two cases of [What blocks](what-blocks.md), and its body is `{"message"}`, one line: the project, the item's `line`, how long it has blocked, and for a body your chat bot did not take, its event id, as `demo: gate 33: tea or coffee?, blocking 47 min`.
 A URL in the line that carries a key, as a query or a user, is cut to `<url>`.
 A page's id is kept for good, so it goes once, also across a restart.
 One the pager did not take goes again as any route's does, and one it refused for good (a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`) stays in `dead/page/` and is not paged again.
@@ -62,7 +62,9 @@ The items that body carried are seen, and the relay answers 200 with `{"id", "se
 An id that carried no item still open is answered 404.
 Until your chat bot sends it, every item that still blocks at 45 minutes pages.
 
-Who posts to the relay is the config: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key. As of 2026-10-15 nothing does: the top-level `webhook_url` is another address, no project has its own, and no `blocking_url` is set, so the relay is posted nothing until one of them names it. `blocking_url` is the one that sends it what blocks (`waiting.blocking`).
+Who posts to the relay is the config: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key.
+Until one of them names it, the relay is posted nothing.
+`blocking_url` is the one that sends it what blocks (`waiting.blocking`).
 
 ## Decisions from the chat
 
@@ -70,7 +72,7 @@ Your chat bot sends a decision made on a card back with `POST /item` on the rela
 The body is one JSON object:
 
 ```json
-{"project": "jstack", "item": "w3", "verb": "approve", "words": "go w3", "by": "you", "message": "<the chat message's id or link>", "seen_event": "jstack.w3.4"}
+{"project": "demo", "item": "w3", "verb": "approve", "words": "go w3", "by": "you", "message": "<the chat message's id or link>", "seen_event": "demo.w3.4"}
 ```
 
 | Field | What it is |
@@ -78,7 +80,7 @@ The body is one JSON object:
 | `project`, `item` | The card's `project` and `item`: an item's id is its project's own, so both are named. |
 | `verb` | One of the card's `actions`: `approve`, `message` or `hold`. A hold is confirmed by the button that sent it. |
 | `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
-| `by` | `Sous Chef`, the word the chat bot sends for a steer of its own whatever its name, or the user (`user` in `~/.config/jstack/config.toml`). |
+| `by` | The literal `Sous Chef`, which the chat bot sends for a steer of its own whatever its own name is, or the user (`user` in `~/.config/jstack/config.toml`). |
 | `message` | The chat message the user said it in, its id or its link: a decision by the user without it, or without `words`, is 403. |
 | `seen_event` | The `id` of the card the decision was made on. |
 
@@ -102,7 +104,7 @@ A POST that fails stops that route's cards until the next pass, which posts them
 This is the contract for the chat bot's side, whose code is outside this repo:
 
 ```json
-{"kind": "item", "id": "jstack.w3.5", "item": "w3", "project": "jstack", "title": "One card per work item in the chat", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/jstack/item/w3"}
+{"kind": "item", "id": "demo.w3.5", "item": "w3", "project": "demo", "title": "One card per work item in the chat", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/demo/item/w3"}
 ```
 
 | Field | What the chat bot does with it |
