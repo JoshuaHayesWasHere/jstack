@@ -1,13 +1,15 @@
-"""jleak: what must not leave this machine for a public repo, found before it leaves.
+"""jleak finds text that must not go from this machine to a public repo, before git or a
+command sends it.
 
-One shape runs through the package. A `Text` is a named piece of outbound text with its lines
+The package uses one shape throughout. A `Text` is a named piece of outbound text with its lines
 numbered: a file, a branch name, a commit message, the lines a commit adds, a command. A
-`Pattern` is a name and a regular expression. `scan` holds every line of every text against
-every pattern and gives a `Finding` for each match: where, the line, and the pattern's name.
-The text that matched is in no finding, so a key that is found is not printed again.
+`Pattern` is a name and a regular expression. `scan` matches every pattern against every line of
+every text and gives a `Finding` for each match. A finding holds the text's `where`, the line
+number and the pattern's name. It does not hold the text that matched, so jleak never prints a
+key it found, which would leak the key a second time.
 
-The patterns come from two places. `BUILT_IN` is in the tree and holds only shapes anyone may
-read: the forms of keys. What is private to a machine (a name, a home path, a thread id) is
+The patterns come from two places. `BUILT_IN` is in the tree and holds only patterns anyone
+may read: the formats of keys. What is private to a machine (a name, a home path, a thread id) is
 never in the tree: `load` reads it from the user's own file,
 
     ${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml
@@ -15,10 +17,11 @@ never in the tree: `load` reads it from the user's own file,
     [patterns]
     <name> = '<regular expression>'
 
-One table, `[patterns]`. Each key is a pattern's name, lower case with digits and `-`, and no
-built-in pattern's name. Each value is a string, a regular expression of Python's `re`, held
-against one line at a time, in the case it is written in (`(?i)` at its start for any case).
-The install makes the file with `example`, and never writes it again.
+The file has one table, `[patterns]`. Each key is a pattern's name. The name is lower case,
+with digits and `-`, and it is not the name of a built-in pattern. Each value is a string, a
+regular expression of Python's `re`. jleak matches it against one line at a time. The match is
+case-sensitive, and a `(?i)` at the start of the expression makes it match any case. The
+install makes the file with `example`, and never writes it again.
 """
 
 import re
@@ -39,8 +42,8 @@ class Pattern:
 
 @dataclass(frozen=True)
 class Text:
-    """Outbound text. `where` is a file or a field, and each line has the number it is
-    printed with: its place in a file, or 0 for the file's own name."""
+    """A piece of outbound text. `where` is a file or a field. Each line has a number, which
+    jleak prints beside the line: the line's place in a file, or 0 for the file's own name."""
 
     where: str
     lines: tuple[tuple[int, str], ...]
@@ -61,8 +64,8 @@ class Finding:
 
 
 class Invalid(Exception):
-    """The private patterns cannot be used, with the reason as it is printed. The reason
-    never holds a pattern's value: the value is private."""
+    """jleak cannot use the private patterns. The error holds the reason as jleak prints it, and the
+    reason never holds a pattern's value, since the value is private."""
 
 
 class Missing(Invalid):
@@ -101,8 +104,9 @@ def path(config_home: Path) -> Path:
 
 
 def load(file: Path) -> tuple[Pattern, ...]:
-    """The private patterns of `file`, parsed once, here. Raises Missing when there is no
-    file, and Invalid for one that is not of the shape above."""
+    """The private patterns of `file`. No other function parses the file, and this one parses it
+    once. Raises Missing when there is no file, and Invalid for a file that is not of the shape
+    above."""
     try:
         read = file.read_text()
     except FileNotFoundError:
@@ -139,9 +143,10 @@ def load(file: Path) -> tuple[Pattern, ...]:
 
 
 def example(home: Path) -> str:
-    """The file as the install makes it. What it can know without asking is a pattern at
-    once: the home directory, and the shapes of a thread id and of a tailnet's names and
-    addresses. A name it cannot know is an example to fill in, behind a `#`."""
+    """The file as the install makes it. The install writes a pattern for each value it can find on
+    this machine without asking the user: the home directory, and the formats of a thread id and
+    of a tailnet's names and addresses. For a name it cannot find, it writes an example for the
+    user to fill in, as a line commented out with a `#`."""
     return f"""# What must never leave this machine for a public repo. jleak reads this file,
 # and the hooks that call it refuse a push or a pull request that matches. It is yours:
 # the install makes it once and never writes it again. Keep it out of every repo.

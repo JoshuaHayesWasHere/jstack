@@ -1,7 +1,7 @@
-"""A home is pinned at its start, and a handoff leaves nothing pointing at the old home. The
-shell is the skills' own blocks, run in a temporary state directory over the replies of a
-made-up T3 Code, and each call made of it is a JSON block of a skill, held to its tool's
-schema before it changes anything."""
+"""A home pins itself at its start, and a handoff leaves nothing pointing at the old home. The tests
+run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers their
+calls. Each call the blocks make is a JSON block of a skill. The test checks the call against its
+tool's schema before the call changes anything."""
 
 import itertools
 import json
@@ -22,7 +22,8 @@ TITLE = FILLED["<title>"]
 
 
 def call(skill, tool, **holding):
-    """The one JSON call the skill gives for the tool that sends these values."""
+    """The one JSON call that the skill gives for `tool` and that sends the values in
+    `holding`."""
     found, *same = [
         call
         for call in CALLS
@@ -35,10 +36,11 @@ def call(skill, tool, **holding):
 
 
 class T3:
-    """What T3 Code keeps of threads and scheduled tasks, by the rules the skills rest on: a
-    pin is kept once, a settle clears it, a thread that settles itself is settled when its
-    turn ends well, a task is bound by the thread that calls, and a run of a task that is on
-    makes the thread it posts into active again."""
+    """What T3 Code keeps of threads and scheduled tasks, following the rules the skills rely on.
+    T3 Code keeps a pin once, and a settle clears it. When a thread settles itself, T3 Code settles
+    the thread at the end of its turn, unless something cut the turn off. T3 Code binds a task to
+    the thread that calls. Each run of a task that is on makes the thread that the task posts into
+    active again."""
 
     def __init__(self):
         self.threads = {}
@@ -51,7 +53,7 @@ class T3:
         self.threads[id] = {"threadId": id, "title": title, "settled": False, "pinned": False}
 
     def ends(self, id, well=True):
-        """A turn ends."""
+        """End the turn of the thread `id`."""
         on = self.threads[id]
         if on.pop("settles", False) and well:
             on.update(pinned=False, settled=True)
@@ -67,7 +69,8 @@ class T3:
         }
 
     def call(self, caller, call, **filled):
-        """Make a skill's call as `caller`, its placeholders filled, if the tool takes it."""
+        """Fill in a skill's call and make the call as the thread `caller`. The call goes
+        through only if it matches the tool's schema."""
         given = {key: filled.get(value, value) for key, value in call.given.items()}
         assert errors(call, given) == [], call.where
         on = self.threads[given.get("threadId") or caller]
@@ -108,7 +111,8 @@ class T3:
         return json.dumps({"tasks": list(self.tasks.values())})
 
     def runs(self, task):
-        """A run of a task: a message in the thread it posts into, when the task is on."""
+        """Run a task. When the task is on, the run posts a message in its thread, which makes
+        that thread active again."""
         if self.tasks[task]["enabled"]:
             self.threads[self.tasks[task]["boundThreadId"]]["settled"] = False
 
@@ -145,8 +149,9 @@ class Home(Scene):
         ).stdout.splitlines()
 
     def takes(self, thread):
-        """The first steps of a home's start, as the skill orders them: its id, its pin, then
-        the last home's tasks. What the block said of the tasks, after the calls."""
+        """Run the first steps of a home's start in the order the skill gives. The home writes
+        its id, pins itself, then takes over or deletes the last home's tasks. After the home makes
+        those calls, return what the block says about the tasks."""
         self.t3.threads.get(thread) or self.t3.thread(thread)
         self.home_starts(thread)
         self.t3.call(thread, call("home", "t3_thread_organize", action="pin"))
@@ -163,7 +168,8 @@ class Home(Scene):
         return self.tasks_of_the_last(thread, refused=" ".join(refused))
 
     def looks(self, thread):
-        """The last look of a home's start, at the last home's thread. What the block said."""
+        """Run the last step of a home's start, which checks the last home's thread, and return
+        what the block said."""
         (said,) = self.thread_of_the_last(thread)
         if said.startswith("settle "):
             settle = call("home", "t3_thread_organize", action="settle")
@@ -174,8 +180,9 @@ class Home(Scene):
         return [*self.takes(thread), self.looks(thread)]
 
     def listed_at_handoff(self, thread, reply=None):
-        """The handoff's close, the note written, with a reply of `list_scheduled_tasks`. What
-        it printed of the tasks: the lines under the ones on whether to launch."""
+        """Give the handoff's close a reply from `list_scheduled_tasks`, and run the close once
+        the note is there. Return the lines the close printed about the tasks. They come after
+        the lines that say whether to launch."""
         if not (self.home_dir / "handoff.next.md").exists():
             (self.home_dir / "handoff.next.md").write_text(NOTE)
         found = block("handoff", "Scheduled task \\(").replace("<threadId>", thread)
@@ -187,10 +194,11 @@ class Home(Scene):
         return [line for line in said[1:] if not line.startswith(("title: ", "message: "))]
 
     def hands_off(self, thread, next, steps=4):
-        """The first `steps` of the four steps a handoff ends with, then the turn is cut off:
-        it writes the handoff and leaves `home-id`, launches, renames, settles. The home it
-        launches starts while this one is still in its turn, and looks at it after that turn.
-        What that start's blocks said, or nothing when this thread is not the home."""
+        """Run the first `steps` of the four steps a handoff ends with, then cut the turn off. The
+        first step writes the handoff and removes `home-id`. The other three launch, rename and
+        settle. The next home starts while `thread` is still in its turn, and the next home checks
+        `thread` after that turn ends. Return what the next home's start blocks said, or nothing
+        when `thread` is not the home."""
         if not self.home_hands_off(thread).stdout.startswith("the home"):
             return None
         said = self.takes(next) if steps > 1 else []

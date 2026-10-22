@@ -1,9 +1,9 @@
-"""One sentence per line, for new prose: `features/writing/scripts/prose_lint.py <base>` is run
-here as `make check-fast` runs it, with `python3 -I -S`, in a repo made from
-`features/writing/tests/fixtures/prose/`, with a pull request's commit on top of it. A prose
-line the commit adds or changes fails when it holds more than one sentence, and a line it
-leaves alone is never judged. `sentences`, the one function that says what a sentence is, is
-tested on its own."""
+"""New prose has one sentence per line. The tests run
+`features/writing/scripts/prose_lint.py <base>` with `python3 -I -S`, as `make check-fast` runs
+it. They run it in a repo made from `features/writing/tests/fixtures/prose/`, with a pull
+request's commit on top of it. A prose line the commit adds or changes fails when it holds more
+than one sentence. The lint never judges a line the commit leaves alone. `sentences`, the one
+function that says what a sentence is, has tests of its own."""
 
 import importlib.util
 import shutil
@@ -36,7 +36,8 @@ def git(repo, *args):
 
 @pytest.fixture
 def repo(tmp_path):
-    """A repo whose `main` holds the old page at `docs/old.md`, on a branch `pr` from it."""
+    """A repo whose `main` holds the old page at `docs/old.md`. The repo has a branch `pr`,
+    made from `main`, and has it checked out."""
     (tmp_path / "docs").mkdir()
     shutil.copy(OLD, tmp_path / "docs" / "old.md")
     git(tmp_path, "init", "-q", "-b", "main")

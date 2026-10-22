@@ -1,9 +1,9 @@
-"""The two probe sessions behind features/jgauge/docs/meter-findings.md, against the hand
-recounts.
+"""The two probe sessions behind features/jgauge/docs/meter-findings.md, checked against the
+hand recounts.
 
 The fixtures are trimmed copies of the real transcripts (features/jgauge/tests/fixtures/README.md).
-The expected numbers are a recount made by hand from the untrimmed files: every
-one is a count read from a file, none is computed here.
+The expected numbers come from a recount by hand of the untrimmed files. Each expected number
+was counted from one of those transcript files, and this test file computes none of them.
 """
 
 from pathlib import Path

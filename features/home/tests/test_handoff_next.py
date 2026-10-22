@@ -1,8 +1,7 @@
-"""The end of a handoff: a repo's home writes a note of ten lines at most, starts the next
-home, then renames and settles itself, and any other thread starts nothing. A party's home
-starts its next thread on the model the role map gives its role. The shell is the handoff
-skill's own block, run in a temporary repo, and the calls are the skill's own JSON blocks,
-checked against the tools."""
+"""The end of a handoff: a repo's home writes a note of ten lines at most, starts the next home,
+then renames and settles itself. Any other thread starts nothing. A party's home starts its next
+thread on the model that the role map gives the thread's role. The tests run the handoff skill's own
+shell block in a temporary repo and check the skill's own JSON blocks against the tools."""
 
 import json
 import re
@@ -40,15 +39,17 @@ def scene(tmp_path):
 
 
 def hands_off(scene, thread, checkout=None):
-    """What the handoff's close prints, run by `thread` as step 3 says, the note written and
-    the reply of `list_scheduled_tasks` left out: its lines on the tasks are not here."""
+    """What the handoff's close prints when `thread` runs the close. The test first writes the
+    note, and `thread` then runs the close the way step 3 says to. The test gives the close no
+    reply from `list_scheduled_tasks`, so the output has no lines about the scheduled tasks."""
     ran = scene.home_hands_off(thread, checkout)
     assert ran.returncode == 0
     return "".join(line for line in ran.stdout.splitlines(True) if not line.startswith("not read:"))
 
 
 def was_home(scene):
-    """The thread the next home's start settles, read as the home skill's block reads it."""
+    """The thread that the next home's start settles. The test reads it the way the home skill's
+    block does."""
     before = block("home", "so no thread is looked for")
     (line,) = [line for line in before.splitlines() if "was=$(" in line]
     return scene.run("home", f'{line}\nprintf "%s" "$was"', scene.main).stdout
@@ -92,8 +93,8 @@ CLOSED_BEFORE = re.compile(r"closed before: .*Launch only if no next home was st
 
 
 def test_a_close_run_twice_and_cut_before_the_launch_ends_where_one_run_ends(scene):
-    """The close is run again, and the turn cut between the removal of `home-id` and the
-    launch: the next home's start finds the note and writes its own id."""
+    """The test runs the close again and cuts the turn between the removal of `home-id` and the
+    launch. The next home's start finds the note and writes its own id."""
     scene.home_starts(THREAD)
     assert hands_off(scene, THREAD) == THE_HOME
     after = state(scene)
@@ -145,7 +146,8 @@ def test_the_launch_takes_a_seed_written_from_the_template():
 
 
 def filled_in(text=None):
-    """The template as a home fills it in: each label with an entry, and the guide line gone."""
+    """The template as a home fills it in: the home gives each label an entry and deletes the
+    guide line."""
     lines = (text or template("handoff.md")).splitlines()
     return "".join(f"{line.split(' <')[0]} none\n" for line in lines if not line.startswith("<"))
 
@@ -219,7 +221,8 @@ def role_map(jstack_config):
 
 
 def launched(printed):
-    """The launch call a party's close printed, and that the launch tool takes it."""
+    """The launch call that a party's close printed. The function first checks that the call
+    matches the schema of the launch tool."""
     given = json.loads(dict(printed)["launch"])
     assert takes("t3_thread_launch", given) == []
     return given

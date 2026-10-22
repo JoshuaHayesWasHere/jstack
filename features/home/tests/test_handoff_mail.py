@@ -1,9 +1,9 @@
-"""A handoff does not lose a message sent to the home. A thread that handed off sends what
-still reaches it on to the next home. No party keeps a file for the home: the user's word
-comes down by `jbus word`, so a `to-<repo>.md` left beside the home is neither read at a start
-nor named on a handoff, and the handoff tells no party the new id. Every block here is lifted
-from the skill that gives it and run in a temporary state directory, and each call is the
-skill's own JSON, held against the tool's schema."""
+"""A handoff does not lose a message sent to the home. When a message still comes to a thread that
+handed off, that thread sends the message on to the next home. No party keeps a file for the home.
+The user's word reaches the home by `jbus word`. So a home's start does not read a `to-<repo>.md`
+left beside the home, a handoff does not name that file, and the handoff tells no party the new id.
+Each test takes every block it runs from the skill that has the block, and runs it in a temporary
+state directory. The test checks the skill's own JSON for each call against the tool's schema."""
 
 import json
 import os
@@ -25,7 +25,7 @@ PASS_ON, TELL_THE_SENDER = (
 
 
 class Mail(Scene):
-    """A repo's home, and beside its state directory the directory of another party."""
+    """A repo's home, and the directory of another party beside the home's state directory."""
 
     def __init__(self, tmp_path):
         super().__init__(tmp_path)
@@ -41,14 +41,14 @@ class Mail(Scene):
         return own
 
     def to_read(self, thread=THREAD):
-        """What step 4 of a home's start prints, in lines."""
+        """The lines that step 4 of a home's start prints."""
         return self.run("home", start_block(), self.main, thread).stdout.splitlines()
 
     def hands_off(self, thread=THREAD, page=PAGE):
         assert self.home_hands_off(thread, note=page).returncode == 0
 
     def sent_a_message(self, thread):
-        """What the block of "After the handoff" prints for a thread a message reached."""
+        """What the block of "After the handoff" prints when a message has come to `thread`."""
         found = block("handoff", "Do not act on the message")
         return self.run("handoff", found.replace("<threadId>", thread), self.main).stdout
 

@@ -1,7 +1,7 @@
-"""The root home's side of a scoped home: it makes a scope by one block, reads each scope's
-handoff and open plan entries when the user asks for status, and before a launch runs
-`jmerge --claims` in place of reading every brief, to name the overlaps. Every block and the
-command are lifted from the home skill and run in a temporary repo."""
+"""The root home's side of a scoped home. The root home makes a scope with one block. When the user
+asks for status, it reads each scope's handoff and open plan entries. Before a launch it runs
+`jmerge --claims` to name the overlaps, in place of reading every brief. The tests take every block
+and the command from the home skill and run them in a temporary repo."""
 
 import json
 import os
@@ -37,14 +37,15 @@ def homes(tmp_path):
 
 
 def make(homes, thread=ROOT, scope=NEW, prefix=PREFIX, owns=OWNS):
-    """What the block that makes a scope prints, run by the home whose thread id is `thread`."""
+    """What the block that makes a scope prints when the home whose thread id is `thread` runs
+    the block."""
     filled = {"<scope>": scope, "<prefix>": prefix, "<what the scope owns>": owns}
     return homes.step(MAKES, thread, **filled).stdout.splitlines()
 
 
 def test_the_root_home_makes_a_scope_with_its_plan_and_its_section_of_the_shared_notes(homes):
-    """The block dates the plan and the notes with the day it runs on, which may be the next
-    one by the time it runs."""
+    """The block dates the plan and the notes with the day it runs on. The test accepts the day
+    it started and the next day, since the block may run after midnight."""
     before = homes.state()
     first = date.today().isoformat()
     made, launch = make(homes)

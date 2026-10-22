@@ -1,5 +1,5 @@
-"""`home-id`: a home writes its thread id there, in its own directory. Three skills read the
-root home's to know whom to tell, and the handoff removes it. Every block here is lifted from
+"""`home-id`: a home writes its thread id there, in its own directory. Three skills read the root
+home's `home-id` to know whom to tell, and the handoff removes it. Each test takes every block from
 the skill that gives it."""
 
 import os
@@ -41,7 +41,7 @@ def named(path):
 
 def as_read(path):
     """A skill's text as an agent reads it: each file beside it that a line says to read now
-    follows that line. A file the line names that is not there fails the test."""
+    follows that line. The test fails when a file that such a line names is not there."""
     out = []
     for line in path.read_text().splitlines(keepends=True):
         out += [line, *("\n" + found.read_text() for found in beside(line, path))]
@@ -71,9 +71,10 @@ PROPOSED = "Option: tea (default, recommended): the cups stay\nOption: coffee: t
 
 
 def a_gate_in(sends, entry):
-    """A skill's gate block with a gate in it, as a thread fills it in: the entry in place of
-    the block's one line, its `Context:` line filled, and its `Option:` line twice: once as
-    the block writes it, both marks kept, and once with no mark."""
+    """A skill's gate block with a gate in it, as a thread fills it in. The entry takes the place of
+    the block's one line, and the thread fills the `Context:` line. The `Option:` line appears
+    twice. The first copy is as the block writes it, with the block's two marks kept, and the
+    second has no mark."""
     assert FILLED in sends
     (context,) = [line for line in sends.splitlines() if line.startswith("Context: <")]
     (option,) = [line for line in sends.splitlines() if line.startswith("Option: <")]
@@ -85,15 +86,15 @@ def a_gate_in(sends, entry):
 
 
 def about_the_home_id(skill):
-    """The one block the skill gives that touches the root home's `home-id`. For the home
-    skill, the one that writes a home's own: step 3 of its start. For the handoff skill, the
-    one that removes a home's own: its step 6."""
+    """The one block the skill gives that touches the root home's `home-id`. In the home skill
+    it is the block that writes a home's own id, step 3 of its start. In the handoff skill it is
+    the block that removes that id, its step 6."""
     own = {"home": '> "$M/home-id"', "handoff": 'rm -f "$M/home-id"'}
     return block(skill, own.get(skill, 'jbus home "$B"'))
 
 
 def start_block():
-    """Step 4 of a home's start, after the block it is run after that reads jbus ("Gates")."""
+    """Step 4 of a home's start, after the block that reads jbus ("Gates"), which runs first."""
     return f"{block('home', 'OPEN=')}\n{block('home', '## to read')}"
 
 
@@ -129,10 +130,10 @@ class Scene:
         git(self.main, "worktree", "add", "-q", str(self.worktree))
 
     def run(self, skill, block, checkout, thread=""):
-        """Run a block as the skill says to: in one call with the block at the top, and for a
-        home with the block that finds it. A home with no id is the root, in a session with no
-        tool that gives one. `thread=None` leaves that block out, as the start's first steps do.
-        """
+        """Run a block as the skill says to: in one call with the block at the top. For a home, the
+        call also has the block that finds this home. In a session with no tool that gives an id, a
+        home with no id is the root. `thread=None` leaves the block that finds the home out, as the
+        start's first steps do."""
         top = paths(skill)
         if skill == "home" and thread is not None:
             top = f"{top}\n{finds_this_home(thread)}"
@@ -147,14 +148,14 @@ class Scene:
         return ran
 
     def which_home(self, typed="", checkout=None):
-        """What step 1 of a home's start prints for what was typed after `/home`, in lines."""
+        """The lines step 1 of a home's start prints for what the user typed after `/home`."""
         first = block("home", "title: home:")
         assert TYPED in first
         ran = self.run("home", first.replace(TYPED, typed), checkout or self.main, None)
         return ran.stdout.splitlines()
 
     def home_starts(self, thread=THREAD, typed=""):
-        """Steps 1 and 3 of a home's start. What step 3 printed."""
+        """Run steps 1 and 3 of a home's start, and return what step 3 printed."""
         which, *_ = self.which_home(typed)
         third = about_the_home_id("home")
         assert "<threadId>" in third and WHICH in third
@@ -164,7 +165,7 @@ class Scene:
         return done.stdout
 
     def home_hands_off(self, thread=THREAD, checkout=None, note=NOTE):
-        """Steps 2 and 3 of a handoff: the note written where none is, then the close."""
+        """Run steps 2 and 3 of a handoff: write the note if there is none yet, then close."""
         for own in (self.home_dir, *self.home_dir.iterdir()):
             ids = own / "home-id"
             mine = ids.is_file() and ids.read_text().split() == [thread]
@@ -282,8 +283,8 @@ def test_a_handoff_by_the_home_removes_its_file_and_names_it_on_the_note(scene):
 
 @pytest.mark.parametrize("switch", [None, "", f"{OTHER}\n"])
 def test_a_start_and_a_handoff_leave_the_merge_switch_as_it_was(scene, switch):
-    """`home-thread` hands merging from jbus to a home, and is set by hand: a home that starts
-    and hands off neither writes it nor removes it."""
+    """`home-thread` hands merging from jbus to a home, and the user sets it by hand: a home that
+    starts and hands off neither writes nor removes `home-thread`."""
     merges = scene.home_dir / "home-thread"
     if switch is not None:
         merges.write_text(switch)

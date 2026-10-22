@@ -1,29 +1,34 @@
 """The machine's sizes: how many full test slots, how many short ones, and the crew cap.
 
-Three numbers in jstack are sizes of the machine and not design choices. Each has a default,
-derived here from whole-machine facts, and one local home where the owner may set it:
+Three numbers in jstack are sizes of the machine and not design choices. This module derives
+a default for each from whole-machine facts. Each number also has one local home, a file where
+the owner may set it:
 
 - `test_slots`, read by `jgauge test-slot` and by `jbus poll` for its waiters, set in
   `~/.config/jstack/machine.toml`;
 - `short_slots`, read the same way for the short lane, set in the same file;
-- `max_running`, the crew cap `jbus` dispatch reads, set in `~/.config/jbus/config.toml`, its
-  home before this module: jbus parses that file and hands the raw value here, so its check and
-  its default are this module's.
+- `max_running`, the crew cap that `jbus` reads when it dispatches, set in
+  `~/.config/jbus/config.toml`,
+  where it lived before this module. jbus parses that file and passes the raw value here, so
+  this module checks the value and gives its default.
 
-Every caller arrives at the same count because a default reads only whole-machine facts: the
-`cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`. Never the caller's cgroup
-quota, its affinity or `nproc`, which differ between `jbus.service`, a desk shell, an agent's
-slice and a CI container on the same machine. The Makefile's workers do read the quota, on
-purpose: a run's workers are sized to the run, and the machine's slots to the machine.
+Every caller arrives at the same count because the module derives a default from whole-machine
+facts only: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`. The module
+never reads the caller's
+cgroup quota, its affinity or `nproc`, which differ between `jbus.service`, a desk shell, an
+agent's slice and a CI container on the same machine. The Makefile does read the quota for its
+workers, on purpose: it sizes a run's workers to the run, and this module sizes the machine's
+slots to the machine.
 
-The order, first that is set wins: `--slots` and `TEST_SLOTS` (the full lane only), the local
-home, the derivation. `TEST_SLOTS` is an override for one run: set in a shell profile it is a
-count `jbus.service` does not see, and `jgauge sizes` says so.
+The module takes the first source that is set, in this order: `--slots` and `TEST_SLOTS` (the
+full lane only), the local home, the derivation. `TEST_SLOTS` overrides the count for one run.
+Set in a shell profile, it is a count that `jbus.service` does not see, and `jgauge sizes` says
+so.
 
-Room's six lines stay in room.sh, ratios and floors that mean the same on any machine, and the
-Makefile keeps its worker share, since CI has no jstack venv. `features/jgauge/docs/limits.md`
-lists every limit, with what it protects and the measurement it rests on. Nothing here writes
-a file.
+Room's six lines stay in room.sh: they are ratios and floors that mean the same on any machine.
+The Makefile keeps its worker share, since CI has no jstack venv.
+`features/jgauge/docs/limits.md` lists every limit, with what it protects and the measurement
+behind it. No function here writes a file.
 """
 
 from __future__ import annotations
@@ -94,8 +99,9 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Machine:
-    """The whole-machine facts a default is derived from. `fell_back` names each fact that
-    could not be read and was taken as its fallback: a count is never refused for that."""
+    """The whole-machine facts that `derive` computes a default from. `fell_back` names each
+    fact that `here` could not read and replaced with its fallback value. A fact that `here`
+    could not read never makes a count fail with `Refused`."""
 
     cores: int
     memory_gib: int
@@ -103,8 +109,8 @@ class Machine:
 
     @classmethod
     def here(cls, proc: Path | None = None) -> Machine:
-        """The facts of `proc`, else `$PROC`, else `/proc`, as room.sh reads them, so a test
-        gives both one fake tree."""
+        """Read the facts of `proc`, else `$PROC`, else `/proc`, as room.sh reads them. A test
+        can then give room.sh and this method the same fake tree."""
         root = proc or Path(os.environ.get("PROC") or "/proc")
         fell: list[str] = []
         cores = len(_CPU.findall(_read(root / "stat")))
@@ -142,12 +148,14 @@ def desk_workers(cores: int) -> int:
 def derive(name: Name, machine: Machine) -> int:
     """The default of `name` on `machine`, 1 or more.
 
-    `test_slots`: every full slot at once runs at most one desk worker a processor, and each
-    has `SUITE_GIB` of memory; 1, 4, 4, 4, 4 on 2, 8, 12, 24 and 64 cores.
-    `short_slots`: one for each `SHORT_PER_CORES` processors, from 2 to 8; a short run holds
+    `test_slots`: with every full slot taken, at most one desk worker runs per processor, and
+    each slot has `SUITE_GIB` of memory. That gives 1, 4, 4, 4 and 4 slots on 2, 8, 12, 24 and
+    64 cores.
+    `short_slots`: one for each `SHORT_PER_CORES` processors, from 2 to 8. A short run holds
     one for at most 120 s, beside the full lane.
-    `max_running`: one crew a processor, a crew's heavy work being under the slots, while each
-    has `CREW_GIB`; 24 on yelena's 24 cores and 62 GiB.
+    `max_running`: one crew for each processor, as long as each crew has `CREW_GIB` of memory.
+    One crew per processor is enough because a crew's heavy work runs under the slots. That
+    gives 24 on yelena's 24 cores and 62 GiB.
     """
     cores, memory = machine.cores, machine.memory_gib
     if name is Name.TEST_SLOTS:
@@ -176,15 +184,17 @@ class Limit:
 
 
 def path() -> Path:
-    """`$XDG_CONFIG_HOME/jstack/machine.toml`, `~/.config` with none: beside jsettings' file."""
+    """`$XDG_CONFIG_HOME/jstack/machine.toml`, or under `~/.config` when that variable is not
+    set. The file is beside jsettings' file."""
     config = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
     return Path(config) / "jstack" / "machine.toml"
 
 
 def count(value: object, said: str, name: Name) -> int:
-    """`value` as a count, or `Refused` naming `said`, the flag, variable or file it came from.
-    A TOML integer of 1 or more is one, and so is a string of decimal digits, since `--slots`
-    and `TEST_SLOTS` arrive as strings. A bool, a float or a word is refused."""
+    """`value` as a count. Otherwise the function raises `Refused`, which names `said`: the
+    flag, variable or file that `value` came from.
+    A TOML integer of 1 or more is a valid count, and so is a string of decimal digits, since
+    `--slots` and `TEST_SLOTS` arrive as strings. The function refuses a bool, a float or a word."""
     if isinstance(value, int) and not isinstance(value, bool) and value >= 1:
         return value
     if isinstance(value, str) and value.isdecimal() and int(value) >= 1:
@@ -193,7 +203,8 @@ def count(value: object, said: str, name: Name) -> int:
 
 
 def read_file(file: Path | None = None) -> dict[Name, int]:
-    """The counts the machine file sets, checked whole, or none where there is no file."""
+    """The counts that the machine file sets, or none where there is no file. The function
+    checks the whole file before it returns any count."""
     file = file or path()
     try:
         raw = tomllib.loads(file.read_text())
@@ -219,11 +230,11 @@ def resolve(
     written_in: Path | None = None,
     machine: Machine | None = None,
 ) -> Limit:
-    """The value of `name` and where it came from: the first that is set of `flag` and
-    `TEST_SLOTS` (for `test_slots` only), the local home, and `derive`. The local home of the
-    slots is `path()`; that of `max_running` is jbus's config, which jbus has parsed: it passes
-    the raw value as `written` and the file as `written_in`. Raises `Refused` for a value that
-    is set and is not a count, never for a fact it cannot read."""
+    """The value of `name` and where it came from. The first of these that is set wins: `flag`
+    and `TEST_SLOTS` (for `test_slots` only), the local home, and `derive`. The local home of
+    the slots is `path()`. The local home of `max_running` is jbus's config, which jbus has
+    already parsed: jbus passes the raw value as `written` and the file as `written_in`. Raises
+    `Refused` for a value that is set and is not a count, never for a fact it cannot read."""
     machine = machine or Machine.here()
     derived = derive(name, machine)
     env = os.environ if env is None else env
@@ -245,8 +256,9 @@ def resolve(
 
 
 def every(jbus_config: Path, env: Mapping[str, str] | None = None) -> tuple[Limit, ...]:
-    """The three, each as its own caller gets it: the slots as `jgauge test-slot` sees them in
-    `env`, and `max_running` as jbus reads it from `jbus_config` (only that key is read)."""
+    """The three sizes, each as its own caller gets it: the slots as `jgauge test-slot` sees
+    them in `env`, and `max_running` as jbus reads it from `jbus_config`. The function reads
+    only that key."""
     machine = Machine.here()
     written = None
     try:

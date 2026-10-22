@@ -1,7 +1,7 @@
-"""The verify-jstack skill's scripts: `launch.sh` says `ready:` only when a drive can run,
-`doctor.sh` fails a feature whose seed the sandbox lacks, and `record.sh` heads the evidence
-with what a stand-in set up. Every test runs the scripts, under a temporary `TMPDIR`, but the
-last, which follows each link of the pages to the file it names."""
+"""The verify-jstack skill's scripts. `launch.sh` says `ready:` only when a drive can run.
+`doctor.sh` fails a feature whose seed the sandbox lacks. At the top of the evidence, `record.sh`
+writes what a stand-in set up. Every test but the last runs the scripts, under a temporary
+`TMPDIR`. The last follows each link of the pages to the file it names."""
 
 import os
 import re
@@ -58,7 +58,8 @@ def sandbox(tmp_path):
 
 
 def checkout_with(tmp_path, tool, body):
-    """A checkout with this one's scripts and build, but for one command, which is `body`."""
+    """A checkout with this checkout's scripts and build. Only the command `tool` differs: its
+    script is `body`."""
     checkout = tmp_path / "checkout"
     scripts = checkout / "features" / "verify-jstack" / "project-skill" / "scripts"
     shutil.copytree(SCRIPTS, scripts)
