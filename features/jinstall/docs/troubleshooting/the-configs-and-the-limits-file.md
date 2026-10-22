@@ -15,7 +15,7 @@
 | `missing optional ci report <path> -> no jbus config, so no project asks for it` | `jbus` is not set up, so no week's CI report is written. | Nothing. |
 | `missing optional ci report <path> -> no project has ci_report = true, so jbus-ci.timer is off` | No project asks for the week's CI report, so the install leaves its timer off. | Nothing, or add `ci_report = true` to a `[[project]]` table, as [Configuration](../configuration.md#jbus) shows, then run `sh install.sh`. |
 | `ok optional ci report <path> -> <names>` | Each project named asks for the week's CI report, and `jbus-ci.timer` is on. | Nothing. |
-| `old optional ci report <path> -> <why>` | `jbus` refuses its config, so the install leaves `jbus-ci.timer` as it is. | Read the `jbus config` line above. |
+| `old optional ci report <path> -> <why>` | `jbus` refuses its config, so the install leaves `jbus-ci.timer` as it is. | Read the doctor's line for the jbus config, above. |
 | `missing optional relay <path> -> no env file, so the relay is off` | The relay is an optional integration with a chat bot of your own, and it is off. Nothing alerts. | Nothing, or write its keys to `<path>` as [The relay](../../../jbus/docs/jbus/the-relay.md) says, then run `sh install.sh`. |
 | `old optional relay <path> -> the relay would not start: <why>` | The relay would refuse the env file, so the install does not turn it on, and a relay already on stays on. `<why>` names each key, never a value. | Correct each key `<why>` names, then run `sh install.sh`. |
 | `missing optional jbus sign-in <path> -> run jbus t3 login` | `jbus` has not signed in to T3 Code. | Run `jbus t3 login`. |

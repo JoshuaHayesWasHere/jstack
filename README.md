@@ -59,7 +59,6 @@ These steps take a new machine to one merged pull request.
 	```
 
 	Setup walks every need of the machine once and prints a line for each: `done <name>`, `already <name>`, or `needs you <name> -> <command>`. Run each command it names, such as `gh auth login` or `jbus t3 login`, then run `jinstall --setup` again. [jinstall](features/jinstall/docs/jinstall.md) says what it puts. To work on jstack itself, clone it and run `sh install.sh --setup` in the checkout, which takes every verb of `jinstall`.
-	A `missing optional <name> -> <command>` line is a layer you have not set up, such as the relay or the backup, and you may leave it off.
 
 2. Check the install. Every line must start with `ok`.
 
