@@ -132,8 +132,8 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
 
 
 def release_parts(home, source):
-    """The line of each part that a release puts, after its state: each layout's line, then
-    the rest."""
+    """The line of each part that a release puts, without the leading state word. Each
+    layout's line comes first, then the rest."""
     settings = home / ".claude" / "settings.json"
     names = layout.skills(source)
     return [

@@ -105,8 +105,8 @@ def hard_coded(machine):
 
 
 def test_the_install_still_builds_each_hook_need_it_hard_coded_and_in_the_same_order():
-    """`needs()` builds each need it once hard-coded from the manifests. In each file, the
-    groups of each event keep their order, which is the order a fresh install writes them in.
+    """`needs()` now builds, from the manifests, each need that it once hard-coded. In each
+    file, the groups of each event keep their order, which is the order a fresh install writes them in.
     `needs()` also builds a hook added since then, and the manifests test checks that one."""
     machine = Machine.here(REPO)
     hooked = (HookGroup, StatusLine, GitHook)

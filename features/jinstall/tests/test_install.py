@@ -2,8 +2,8 @@
 each, what `--check` says of each part, and what `--uninstall` takes away.
 
 Every test runs the script under a temporary `HOME`, with stand-ins for `uv` and `systemctl`.
-Three tests are the exception: they ask the machine a question that no argument of the script
-can reach."""
+Three tests are the exception: each asks the machine a question that no argument of the script
+controls."""
 
 import fcntl
 import json

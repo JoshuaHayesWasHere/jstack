@@ -23,13 +23,13 @@ Three writers keep the files, and `room.sh` and `jroles` read them:
 than `SAME` apart are one window, which keeps the larger share and the later reset. Otherwise
 the later reset wins. A writer floors its reset to the second, and the usage endpoint's reset
 moves by a second either way from call to call. So one window can come as 1792531799 from one
-writer and 1792531800 from another, and a lower share of that window never replaces a cap. So
-merging the same failure or the same reading twice changes nothing, and the next window
-replaces a window that has reset.
+writer and 1792531800 from another, and a lower share of that window never replaces a cap.
+Under this rule, merging the same failure or the same reading twice changes nothing, and the
+next window replaces a window that has reset.
 
 For a move off a running thread, an instance is full at `FULL`, a real cap. A new launch counts
-the instance full earlier, at the user's `headroom` (`jsettings`), so new launches pass it by
-before the cap.
+the instance full earlier, at the user's `headroom` (`jsettings`), so new launches go to
+another instance before this one reaches the cap.
 """
 
 from __future__ import annotations

@@ -323,8 +323,8 @@ def _files(directory: Path) -> Iterator[Path]:
 
 
 def merge(source: Path, into: Path, kept: Path) -> list[str]:
-    """Copy each file under `source` that `into` lacks. Name each file that both hold with
-    different bytes, and whose copy from the mirror is under `kept`."""
+    """Copy each file under `source` that `into` lacks. For each file that both hold with
+    different bytes, return a conflict line that says the mirror's copy is under `kept`."""
     said = []
     for relative in _files(source):
         there = into / relative

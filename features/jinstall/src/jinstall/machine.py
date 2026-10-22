@@ -336,9 +336,10 @@ class Machine:
             next_to.write_text("".join(f"{digest} {path}\n" for path, digest in seeded.items()))
 
     def seed(self, path: Path, text: str, mode: int) -> None:
-        """Write a file that is not there, with `mode` from its first byte, and record the
-        digest of what it wrote first. The method refuses any path that is there, a link to
-        nothing included, so it never writes over a file of the user's."""
+        """Write a file that is not there, and record the digest of what it wrote. The file
+        has `mode` from the moment it is created, before its first byte. The method refuses any
+        path that is there, even a link to nothing, so it never writes over a file of the
+        user's."""
         if path.is_symlink() or path.exists():
             raise Refused(f"{path} is there and is not written over")
         data = text.encode()
@@ -352,7 +353,8 @@ class Machine:
     def unseed(self, path: Path) -> bool | None:
         """Remove a seeded file while its bytes are the ones `seed` wrote. Return True when
         it removed the file, False when it kept the file, and None when no seeded file is
-        there. The record forgets a file that is gone, and keeps a file that stays."""
+        there. The method drops a file that is gone from the record, and keeps the entry of a
+        file that stays."""
         seeded = self._seeded()
         if path not in seeded:
             return None

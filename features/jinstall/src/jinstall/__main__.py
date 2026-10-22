@@ -51,8 +51,8 @@ def say(need: Need, found: Found) -> str:
 
 def refused(machine: Machine, verb: str) -> Report | None:
     """The refusal for a linked worktree under the account's own HOME, or None for any other
-    checkout. The worktree's links would move every live skill to it, so the install writes
-    nothing from one."""
+    checkout. The install writes nothing from such a worktree, because its links would point
+    every live skill at the worktree."""
     if not machine.in_a_worktree_of_the_account():
         return None
     why = f"install.sh: {machine.checkout} is a linked worktree, and HOME is your own: "

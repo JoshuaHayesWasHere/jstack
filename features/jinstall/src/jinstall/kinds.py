@@ -732,14 +732,14 @@ def templates(machine: Machine) -> dict[str, Path]:
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
     install links ~/.config/systemd/user/<name> to its template, and it enables each of
-    `timers`. The template is the checkout's, or else the release's. In a checkout, it is where
-    links pointed before the copy, and where systemd's own links under `timers.target.wants`
-    still point.
+    `timers`. The template is the checkout's, or else the release's. The checkout's template is
+    the file that the links pointed at before the copy, and that systemd's own links under
+    `timers.target.wants` still point at.
 
     due: jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, and ~/.local/bin/jbus is there, since the units
       run it. When the manager reads this HOME, each timer is also enabled and no reload is
-      due. With a manager that reads another HOME (a sandbox), the links alone decide. Under
+      due. With a manager that reads another HOME (a sandbox), the probe checks only the links. Under
       the account's own HOME, a manager that does not answer makes the need old, since
       nothing enabled the timer.
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
@@ -747,7 +747,8 @@ class Units:
       its template is a copy that someone made by hand from the README, and the install may
       replace it.
     foreign: a file that differs from its template, `jbus.service -> not a link, differs`.
-      Also what no put repairs: `no ~/.local/bin/jbus`, and a manager that did not answer.
+      The need is also foreign for two cases that no put repairs: `no ~/.local/bin/jbus`,
+      and a manager that did not answer.
     put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
       Otherwise make `timers.target.wants` through the machine, link, run daemon-reload, and
       run enable --now.
