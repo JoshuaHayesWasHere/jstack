@@ -29,36 +29,8 @@
   ],
   "docs": [
     "docs/state.md",
-    "docs/flow.md"
-  ],
-  "owns": [
-    "skills/home/**",
-    "skills/new-home/**",
-    "skills/nohome/**",
-    "skills/handoff/**",
-    "hooks/home-*.sh",
-    "docs/state.md",
-    "docs/flow.*",
-    "templates/gates.md",
-    "templates/handoff*.md",
-    "templates/hook-message.md",
-    "templates/plan-entry.md",
-    "tests/test_home_*.py",
-    "tests/test_scope_root.py",
-    "tests/test_scoped_home.py",
-    "tests/test_scoped_handoff.py",
-    "tests/test_handoff_*.py",
-    "tests/test_party_handoff.py",
-    "tests/test_new_home_skill.py",
-    "tests/test_queue.py",
-    "tests/test_quiet_home.py",
-    "tests/test_titles.py",
-    "tests/test_flow_doc.py",
-    ".claude/skills/verify-jstack/features/home-skills.md",
-    "playbooks/autopilot-*.md",
-    "playbooks/multi-phase-plan.md",
-    "playbooks/orchestrate.md",
-    "playbooks/session-pickup.md",
-    "playbooks/shipping.md"
+    "docs/flow.md",
+    "docs/hooks.md",
+    "docs/playbooks.md"
   ]
 }

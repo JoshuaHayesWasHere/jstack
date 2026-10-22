@@ -14,8 +14,9 @@ import pytest
 from jgauge import cli
 from testing.paths import REPO
 
-HOOK = REPO / "hooks" / "home-gauge.sh"
-HANDOFF = REPO.resolve() / "skills" / "handoff" / "SKILL.md"
+CHECKOUT = REPO.resolve() / "features" / "home"
+HOOK = CHECKOUT / "hooks" / "home-gauge.sh"
+HANDOFF = CHECKOUT / "skills" / "handoff" / "SKILL.md"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 SESSION = "22222222-2222-4222-8222-222222222222"
 OVER = (
@@ -350,7 +351,7 @@ def test_past_the_ceiling_a_call_the_handoff_makes_still_runs(scene, tool, given
     if "file_path" in given:
         given = given | {"file_path": scene.state(given["file_path"])}
     if "checkout" in given:
-        given = {"file_path": f"{REPO.resolve()}/{given['checkout']}"}
+        given = {"file_path": f"{CHECKOUT}/{given['checkout']}"}
     assert scene.before(tool, **given) == ""
     assert refused(scene.before("Agent")) == REFUSED.format(count=350000, ceiling=350000)
 
@@ -371,11 +372,11 @@ def test_past_the_ceiling_a_call_the_handoff_does_not_make_is_denied(scene):
         ("Read", {"file_path": str(scene.main / "README.md")}),
         ("Read", {"file_path": scene.state("../../../../../code/demo/README.md")}),
         ("Write", {"file_path": str(scene.home_dir.parent) + "-old/plan.md", "content": "x"}),
-        ("Read", {"file_path": f"{REPO.resolve()}/hooks/home-gauge.sh"}),
-        ("Read", {"file_path": f"{REPO.resolve()}/templates/../README.md"}),
+        ("Read", {"file_path": f"{CHECKOUT}/hooks/home-gauge.sh"}),
+        ("Read", {"file_path": f"{CHECKOUT}/templates/../README.md"}),
         ("Read", {"file_path": "templates/handoff.md"}),
-        ("Write", {"file_path": f"{REPO.resolve()}/templates/handoff.md", "content": "x"}),
-        ("Edit", {"file_path": f"{REPO.resolve()}/skills/home/SKILL.md"}),
+        ("Write", {"file_path": f"{CHECKOUT}/templates/handoff.md", "content": "x"}),
+        ("Edit", {"file_path": f"{CHECKOUT}/skills/home/SKILL.md"}),
         ("Edit", {}),
         ("Skill", {"skill": "home"}),
         ("Skill", {}),

@@ -26,7 +26,7 @@ The principle skills of the `principles` feature are adapted from the principle 
 - Also covered, from pstack 0.15.29 (cursor/plugins 88d47514b82e7c44f00f2b2a72ff6dd12158038c, #729, which is after the commit above): `features/sharpen/SKILL.md`, from `pstack/skills/sharpen/SKILL.md`, upstream's text, plus a `tip:` and a `card:` line in the frontmatter and a `Source:` line under it. #729 makes `/sharpen` rewrite only: it asks the four questions of a deeper task, rewrites the prompt to ask for exactly that and does not do the task. That is what jstack's own `deeper` skill did, so that skill is retired with this copy, and its eval, the `deeper` directory under `evals/`, is kept as a record that nothing runs. #712 (75fabac), which dropped the ban on a rewritten prompt, is in the same file and is replaced whole by #729. The pin stays at the commit above, so `jdrift` still prints this file as `changed` by those two commits until the pin moves past them.
 - Also covered, from pstack 0.15.26 (cursor/plugins 4382e68, which is after the commit above): `features/skill-library/skills/create-formal-verification-skill/SKILL.md`, adapted from `pstack/skills/create-formal-verification-skill/SKILL.md`. Changed here: a `Source:` line, a `tip:` and a `card:` line, a section that says it runs in a durable thread (a crewmate, or a scout for the read-only part) and never in a subagent, the place a generated skill goes in this repo (`.cursor/skills/verify-<area>/`), and that the proof step's scratch break runs in the thread's own worktree and is dropped with `git restore`.
 - Also covered, from the pin above: `features/skill-library/skills/figure-it-out/SKILL.md`, adapted from `pstack/skills/figure-it-out/SKILL.md`, which is the same at e5136d8.
-  Changed here: it is typed in a home and frames the task in `$H/reports/frame-<slug>.md`, then plans the units as entries by `playbooks/multi-phase-plan.md`, each brief naming `show-me-your-work`; in any other thread it writes the frame and points at `/home`.
+  Changed here: it is typed in a home and frames the task in `$H/reports/frame-<slug>.md`, then plans the units as entries by `features/home/skills/home/playbooks/multi-phase-plan.md`, each brief naming `show-me-your-work`; in any other thread it writes the frame and points at `/home`.
   poteto-mode, the subagents, their reasoning levels and the in-thread loop are gone: each unit is a crewmate's durable thread, a one-way door goes to the home's `features/arena-swarm/skills/arena/playbooks/arena.md` once that playbook is the home's and is parked until then, and the loop and the log are the crewmate's.
 - Also covered, from the commit above: `features/skill-library/skills/create-verification-skill/` and `features/skill-library/skills/maintain-verification-skill/SKILL.md`, adapted from `pstack/skills/create-verification-skill/` and `pstack/skills/maintain-verification-skill/SKILL.md`, with the three files of `references/feature-map-example/` taken whole. Changed here: a `Source:` line, a `tip:` and a `card:` line, prose broken at its sentence ends, and no em dash. A generated skill goes in `.claude/skills/verify-<app>/`, where Claude Code loads project skills, and not in `.cursor/skills/`. `create-verification-skill` runs in a crewmate under the `authoring-a-skill` playbook, and its proof run goes in the Result. `maintain-verification-skill` is typed in the home: in place of a read-only subagent per feature it writes one scout request per feature file, launched ten at a time, and in place of the coordinator's live pass it writes one crewmate brief from the scouts' reports, checked by the brief lint, which drives every feature and opens at most one pull request. `.cursor/skills/verify-jstack` moved to `.claude/skills/verify-jstack` with it, and the old path is a relative link.
 - Also covered, from the same commit: `features/skill-library/skills/make-bot-ui/SKILL.md`, adapted from `pstack/skills/make-bot-ui/SKILL.md`; changed here: a `Source:` line, a `tip:` and a `card:` line, a first section that sends the user to a Lavish page with `sendToClaude` or to `jbus view`'s one write when either is enough, Cursor's routine, panel and `SendToUser` card replaced by T3 Code's `schedule_task` webhook bound to the thread that is woken, `request_secret` and `signature.secretRef`, the key made on this machine by the skill's own server and copied to the card by the clipboard, the server built by a crewmate's brief (`Playbook: feature`), the `0.0.0.0` bind replaced by `jbus view`'s rule of `127.0.0.1` and the tailnet address only, and the Tailscale install and `tailscale up` steps dropped, since the node is already online; upstream's #702 (a968159), after the pin, names the skill for its folder, as it already is here, so `jdrift` prints it as `changed` until the pin moves.
@@ -69,24 +69,24 @@ features/arena-swarm/skills/arena/playbooks/arena.md <- pstack/skills/arena/SKIL
 features/skill-library/playbooks/authoring-a-playbook.md <- pstack/skills/figure-it-out/SKILL.md, pstack/skills/poteto-mode/SKILL.md
 features/skill-library/playbooks/authoring-a-skill.md <- pstack/skills/poteto-mode/playbooks/authoring-a-skill.md
 features/crew/playbooks/autonomous-run.md <- pstack/skills/poteto-mode/playbooks/autonomous-run.md
-playbooks/autopilot-full.md <- pstack/skills/poteto-mode/playbooks/autopilot-full.md
-playbooks/autopilot-stack.md <- pstack/skills/poteto-mode/playbooks/autopilot-stack.md
+features/home/skills/home/playbooks/autopilot-full.md <- pstack/skills/poteto-mode/playbooks/autopilot-full.md
+features/home/skills/home/playbooks/autopilot-stack.md <- pstack/skills/poteto-mode/playbooks/autopilot-stack.md
 features/crew/playbooks/bug-fix.md <- pstack/skills/poteto-mode/playbooks/bug-fix.md, pstack/skills/tdd/SKILL.md
 features/lessons/skills/correct/playbooks/correct.md <- pstack/skills/correct/SKILL.md
 playbooks/eval.md <- pstack/skills/poteto-mode/playbooks/eval.md
 features/crew/playbooks/feature.md <- pstack/skills/poteto-mode/playbooks/feature.md
 features/crew/playbooks/hillclimb.md <- pstack/skills/poteto-mode/playbooks/hillclimb.md
 features/scout/playbooks/investigation.md <- pstack/skills/poteto-mode/playbooks/investigation.md, pstack/skills/how/SKILL.md, pstack/skills/why/SKILL.md
-playbooks/multi-phase-plan.md <- pstack/skills/poteto-mode/playbooks/multi-phase-plan.md
+features/home/skills/home/playbooks/multi-phase-plan.md <- pstack/skills/poteto-mode/playbooks/multi-phase-plan.md
 features/writing/playbooks/opening-a-pr.md <- pstack/skills/poteto-mode/playbooks/opening-a-pr.md
-playbooks/orchestrate.md <- pstack/skills/poteto-mode/playbooks/orchestrate.md
+features/home/skills/home/playbooks/orchestrate.md <- pstack/skills/poteto-mode/playbooks/orchestrate.md
 features/crew/playbooks/pause-safely.md <- pstack/skills/poteto-mode/playbooks/pause-safely.md
 features/crew/playbooks/perf-issue.md <- pstack/skills/poteto-mode/playbooks/perf-issue.md
 features/crew/playbooks/prototype.md <- pstack/skills/poteto-mode/playbooks/prototype.md
 features/crew/playbooks/refactoring.md <- pstack/skills/poteto-mode/playbooks/refactoring.md
 features/crew/playbooks/runtime-forensics.md <- pstack/skills/poteto-mode/playbooks/runtime-forensics.md
-playbooks/session-pickup.md <- pstack/skills/poteto-mode/playbooks/session-pickup.md
-playbooks/shipping.md <- pstack/skills/poteto-mode/playbooks/shipping.md
+features/home/skills/home/playbooks/session-pickup.md <- pstack/skills/poteto-mode/playbooks/session-pickup.md
+features/home/skills/home/playbooks/shipping.md <- pstack/skills/poteto-mode/playbooks/shipping.md
 features/arena-swarm/skills/swarm/playbooks/swarm.md <- pstack/skills/swarm/SKILL.md
 features/scout/playbooks/trace-forensics.md <- pstack/skills/poteto-mode/playbooks/trace-forensics.md
 features/crew/playbooks/visual-parity.md <- pstack/skills/poteto-mode/playbooks/visual-parity.md
@@ -289,7 +289,7 @@ Two things a review looks for under its sixth question, in the `SCOPE` text of `
 
 ## Felix Rieseberg
 
-`features/principles/skills/principle-depth-over-breadth/SKILL.md` and the four questions of the home's deeper-version step (`skills/home/handing-a-task-to-a-crewmate.md`) are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).
+`features/principles/skills/principle-depth-over-breadth/SKILL.md` and the four questions of the home's deeper-version step (`features/home/skills/home/handing-a-task-to-a-crewmate.md`) are built on the Depth type of Felix Rieseberg's four types of ambition (Speed, Altitude, Depth and Range).
 
 - Source: Felix Rieseberg, "How to be more ambitious: A tutorial for humans with models", 2026-10-13: https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/
 - Taken from: the prompt the post gives for Depth, as the home step's four questions, and the Depth moves the principle names: the instruments the best in the field use, reproducing a number from the raw data, an ambitious target said to be reasonable, and an outside judge in place of the model judging itself.

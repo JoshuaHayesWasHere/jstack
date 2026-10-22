@@ -2,7 +2,7 @@
 
 **Status: experimental.** This is one person's stack, shared as is, with no support promised. Read it and fork it: the repo takes no issues and no pull requests. [Limits](#limits) says who it is for and what it costs.
 
-![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](docs/flow.svg)
+![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](features/home/docs/flow.svg)
 
 jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thread in its own worktree, and each ends in a pull request that gets one review.
 
@@ -11,7 +11,7 @@ jstack runs a repo's tasks as agent threads under T3 Code. Each task is one thre
 - A **scout** thread researches a question with read-only tool calls before a task is briefed.
 - A **reviewer** thread reviews one pull request and fixes nothing.
 
-[How a task flows](docs/flow.md) has every step of the picture, and what you are asked for along the way.
+[How a task flows](features/home/docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
 Nine commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
 
@@ -134,9 +134,9 @@ Each command has one page.
 | [Configuration](docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
 | [Troubleshooting](docs/troubleshooting.md) | Fix a line the doctor or `install.sh --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
 | [The Chef](docs/chef.md) | Make the agent behind a `jbus` webhook. |
-| [Hooks](docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
-| [State](docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
-| [Playbooks, principles and templates](docs/playbooks.md) | Give a task numbered steps. |
+| [Hooks](features/home/docs/hooks.md) | See what the start hook, the tips hook and the limits writer do. |
+| [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
+| [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |
 
 ## Skills
 
@@ -159,11 +159,10 @@ The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 
 | Path | Holds |
 |---|---|
-| `skills/` | The skills. `~/.{claude,agents,codex}/skills/<name>` are symlinks to them. |
-| `templates/` | The one copy of each text the skills and the start hook fill in, and the systemd units of `jbus`. |
+| `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
+| `templates/` | The systemd units of `jbus`. |
 | `playbooks/` | The numbered steps for one kind of task. |
 | `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
-| `hooks/` | `home-start.sh` and `home-gauge.sh`, while jgauge's status line is `features/jgauge/hooks/limits.sh`. |
 | `src/` | The nine commands, one package each. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
 | `docs/` | The pages above, and `features/jgauge/docs/meter-findings.md`: what two probe sessions showed about Claude Code's transcripts, and why `jgauge` counts as it does. |

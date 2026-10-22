@@ -7,8 +7,9 @@ reads the tree once and holds each page to it:
   fenced block, or "the `<name>` skill", is a skill under `skills/` or in `EXTERNAL`.
 - paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`)
   exists. One with a placeholder, a glob, or a `/` before it is somewhere else and not read.
-  A skill is read from its layout, so it may also name a playbook or a skill's file where the
-  layout puts it (`playbooks/<p>.md`, `skills/<n>/<file>`), once a move took it out of there.
+  A skill is read from its layout, so it may also name a playbook, a template, a hook or a
+  skill's file where the layout puts it (`playbooks/<p>.md`, `templates/<t>`, `hooks/<h>`,
+  `skills/<n>/<file>`), once a move took it out of there.
 - links and anchors: a relative Markdown link outside code points at a file that exists and, with
   a `#anchor` into a Markdown file, at a heading of it as GitHub slugs it (fences skipped, `-N`
   for repeats).
@@ -17,7 +18,7 @@ reads the tree once and holds each page to it:
 - models: every `claude-<family>-N-N` id in the README or a docs page is in the `## Models` table
   of `features/jroles/docs/jroles.md`.
 - tables: a row of a README table names each command, and a page of the docs links each skill's
-  `SKILL.md` and each playbook (the generated catalog of `docs/playbooks.md` does).
+  `SKILL.md` and each playbook (the generated catalog of `features/home/docs/playbooks.md` does).
 
 It prints `FAIL <doc>:<line> <why>` for each problem, then `<n> problems`, and exits 1 on any.
 A thing no page lists is reported at `README.md:1`.
@@ -25,6 +26,7 @@ A thing no page lists is reported at `README.md:1`.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import tomllib
@@ -155,12 +157,16 @@ class Tree:
         return path == f"principles/{name}.md" and name in self.principles
 
     def laid(self, path: str) -> bool:
-        """Whether `path` is where each layout puts a playbook, `playbooks/<name>.md`, or a file
-        of a skill, `skills/<name>/<file>`, which a move into its feature takes out of the
-        source tree."""
+        """Whether `path` is where each layout puts a playbook, `playbooks/<name>.md`, a
+        template, `templates/<name>`, a hook, `hooks/<file>`, or a file of a skill,
+        `skills/<name>/<file>`, which a move into its feature takes out of the source tree."""
         kind, _, rest = path.partition("/")
         if kind == "playbooks":
             return "/" not in rest and rest.removesuffix(".md") in self.playbooks
+        if kind == "templates":
+            return any(self.root.glob(f"features/*/templates/{rest}"))
+        if kind == "hooks":
+            return rest in hook_names(self.root)
         name, _, file = rest.partition("/")
         return (
             kind == "skills"
@@ -192,6 +198,16 @@ def models_of(page: Path) -> frozenset[str]:
         elif inside and line.text.startswith("|"):
             found |= set(MODEL.findall(line.text.split("|")[1]))
     return frozenset(found)
+
+
+def hook_names(root: Path) -> set[str]:
+    """The file name of each hook a feature's `feature.json` declares under `hooks`, which a
+    layout holds as `hooks/<file>`: a git hook is linked into `.git/hooks/` and is not one."""
+    return {
+        Path(hook["script"]).name
+        for manifest in root.glob("features/*/feature.json")
+        for hook in json.loads(manifest.read_text()).get("hooks", ())
+    }
 
 
 def skill_files(root: Path) -> list[Path]:

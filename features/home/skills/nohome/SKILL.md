@@ -9,7 +9,8 @@ card: "Run the pipeline | 7 | Opts this thread, or every new thread in the repo,
 
 # nohome
 
-A new T3 Code thread in any repo's main checkout becomes that repo's home by itself: a session-start hook (`hooks/home-start.sh` in the checkout that holds this skill) tells it to follow the `home` skill. This skill is the way out.
+A new T3 Code thread in any repo's main checkout becomes that repo's home by itself: a session-start hook (`hooks/home-start.sh` in the layout that holds this skill) tells it to follow the `home` skill.
+This skill is the way out.
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")

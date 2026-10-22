@@ -6,9 +6,9 @@ import pytest
 from jbus import threads
 from test_home_thread import NAME, Scene, as_read
 from test_tool_calls import CALLS, FILLED, errors
-from testing.paths import REPO
+from testing.paths import skills
 
-SKILL = REPO / "skills" / "home" / "SKILL.md"
+SKILL = skills()["home"] / "SKILL.md"
 SLUG = "fix-login"
 OTHER_ROLES = ["review", "scout"]
 SELECTION = FILLED["<model selection>"]

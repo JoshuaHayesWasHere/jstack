@@ -15,7 +15,7 @@ from jinstall import layout, terms
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from test_install import User, laid, line_for
 from testing.layouts import place
-from testing.paths import REPO
+from testing.paths import REPO, skills
 
 sys.path.insert(0, str(REPO / "scripts"))
 tracked = importlib.import_module("jtrees.crawl").tracked
@@ -100,7 +100,8 @@ def test_a_written_file_is_stale_once_its_source_changes_and_a_stray_is_named(co
         if isinstance(entry, layout.Written) and path.startswith("skills/")
     )
     assert written, "a skill that links into docs/ is written, rewritten"
-    source = copy / "skills" / written[0].removeprefix("skills/")
+    name, _, file = written[0].removeprefix("skills/").partition("/")
+    source = skills(copy)[name] / file
     source.write_text(source.read_text() + "\nOne more line.\n")
     (at / "skills" / "crew" / "stray.md").write_text("not the install's\n")
     found = layout.stale(layout.assemble(copy, CLAUDE_CODE), at)
@@ -111,13 +112,13 @@ def test_a_link_to_a_file_the_layout_leaves_out_points_at_github(copy):
     skill = copy / "features" / "bro" / "SKILL.md"
     skill.write_text(
         skill.read_text()
-        + "\nSee [the state](../../docs/state.md#homes), [jbus](../../src/jbus/) and"
+        + "\nSee [the state](../home/docs/state.md#homes), [jbus](../../src/jbus/) and"
         " [ketchup](../ketchup/SKILL.md), but not `[code](../../nowhere.md)`.\n"
     )
     entry = layout.assemble(copy, CLAUDE_CODE).entries["skills/bro/SKILL.md"]
     assert isinstance(entry, layout.Written)
     text = entry.content.decode()
-    assert f"[the state]({GITHUB}/blob/main/docs/state.md#homes)" in text
+    assert f"[the state]({GITHUB}/blob/main/features/home/docs/state.md#homes)" in text
     assert f"[jbus]({GITHUB}/tree/main/src/jbus)" in text
     assert "[ketchup](../ketchup/SKILL.md)" in text
     assert "`[code](../../nowhere.md)`" in text
@@ -127,7 +128,7 @@ def test_a_link_that_dangles_is_a_fault_naming_the_file_and_a_link_in_code_is_no
     playbook = copy / "features" / "crew" / "playbooks" / "bug-fix.md"
     playbook.write_text(
         playbook.read_text()
-        + "\nSee [`state`](../../../docs/state.md), [`gone`](../../../docs/gone.md)"
+        + "\nSee [`state`](../../home/docs/state.md), [`gone`](../../../docs/gone.md)"
         + " and `[code](../x.md)`.\n"
     )
     assert layout.assemble(copy, CLAUDE_CODE).faults == (
@@ -138,7 +139,10 @@ def test_a_link_that_dangles_is_a_fault_naming_the_file_and_a_link_in_code_is_no
     assembled = layout.assemble(copy, CLAUDE_CODE)
     assert assembled.faults == ()
     text = assembled.entries["playbooks/bug-fix.md"].content.decode()
-    assert f"See [`state`]({GITHUB}/blob/main/docs/state.md) and `[code](../x.md)`." in text
+    assert (
+        f"See [`state`]({GITHUB}/blob/main/features/home/docs/state.md) and `[code](../x.md)`."
+        in text
+    )
 
 
 def test_a_principle_skill_is_a_skill_with_a_stub_where_principles_are_read(copy):

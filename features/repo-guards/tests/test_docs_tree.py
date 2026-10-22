@@ -52,7 +52,7 @@ def copy(tmp_path):
     for source in REPO.iterdir():
         if source.is_file():
             shutil.copy(source, tmp_path / source.name)
-    for name in ROOTS:
+    for name in (one for one in ROOTS if (REPO / one).is_dir()):
         shutil.copytree(REPO / name, tmp_path / name, ignore=shutil.ignore_patterns("__pycache__"))
     return tmp_path
 
@@ -61,25 +61,32 @@ def test_a_copy_with_a_broken_link_an_unknown_skill_and_a_wrong_count_fails_each
     assert ran(copy) == []
     readme = copy / "README.md"
     readme.write_text(readme.read_text() + "\nSee [FAKE page](docs/fake-missing.md).\n")
-    page = copy / "docs" / "state.md"
+    page = copy / "features" / "home" / "docs" / "state.md"
     page.write_text(page.read_text() + "\nRun `/fake-skill` first.\n")
-    count = copy / "docs" / "playbooks.md"
+    count = copy / "features" / "home" / "docs" / "playbooks.md"
     count.write_text(count.read_text() + "\nThe tree has 99 principles.\n")
     found = ran(copy)
     assert len(found) == 3, found
     assert found[0].startswith("FAIL README.md:") and "docs/fake-missing.md" in found[0]
-    assert found[1].startswith("FAIL docs/playbooks.md:") and "counts 99 principles" in found[1]
-    assert found[2].startswith("FAIL docs/state.md:") and "/fake-skill is named" in found[2]
+    assert (
+        found[1].startswith("FAIL features/home/docs/playbooks.md:")
+        and "counts 99 principles" in found[1]
+    )
+    assert (
+        found[2].startswith("FAIL features/home/docs/state.md:")
+        and "/fake-skill is named" in found[2]
+    )
     for line in found:
         assert re.match(r"FAIL [\w/.-]+:\d+ \S", line), line
 
 
 def test_a_broken_anchor_in_the_tree_fails_with_its_line(copy):
-    page = copy / "docs" / "state.md"
+    page = copy / "features" / "home" / "docs" / "state.md"
     lines = page.read_text().count("\n")
-    page.write_text(page.read_text() + "See [the jbus page](jbus.md#no-such-heading).\n")
+    link = "../../../docs/jbus.md#no-such-heading"
+    page.write_text(page.read_text() + f"See [the jbus page]({link}).\n")
     assert ran(copy) == [
-        f"FAIL docs/state.md:{lines + 1} the link jbus.md#no-such-heading goes to a heading "
+        f"FAIL features/home/docs/state.md:{lines + 1} the link {link} goes to a heading "
         "that is not there"
     ]
 
@@ -210,6 +217,33 @@ def test_a_skill_names_a_moved_playbook_or_skill_file_where_the_layout_puts_it(s
         "FAIL skills/beta/SKILL.md:4 playbooks/gone.md is named and the tree has no such path",
         "FAIL skills/beta/SKILL.md:4 skills/crew/none.md is named and the tree has no such path",
         "FAIL skills/beta/SKILL.md:4 skills/gone/SKILL.md is named and the tree has no such path",
+    ]
+
+
+def test_a_skill_names_a_moved_template_or_hook_where_the_layout_puts_it(small):
+    make(
+        small,
+        {
+            "features/home/feature.json": (
+                '{"hooks": [{"event": "SessionStart", "script": "hooks/moved.sh"}],'
+                ' "gitHooks": [{"name": "pre-push", "script": "hooks/pre-push.sh"}]}'
+            ),
+            "features/home/templates/moved.md": "# Moved\n",
+            "features/home/hooks/moved.sh": "#!/bin/sh\n",
+            "features/home/hooks/pre-push.sh": "#!/bin/sh\n",
+            "skills/beta/SKILL.md": (
+                "# Beta\n\n`templates/moved.md` `hooks/moved.sh`\n"
+                "`templates/gone.md` `hooks/gone.sh` `hooks/pre-push.sh`\n"
+            ),
+            "docs/a.md": "`templates/moved.md` `hooks/moved.sh`\n",
+        },
+    )
+    assert ran(small) == [
+        "FAIL docs/a.md:1 templates/moved.md is named and the tree has no such path",
+        "FAIL docs/a.md:1 hooks/moved.sh is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 templates/gone.md is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 hooks/gone.sh is named and the tree has no such path",
+        "FAIL skills/beta/SKILL.md:4 hooks/pre-push.sh is named and the tree has no such path",
     ]
 
 

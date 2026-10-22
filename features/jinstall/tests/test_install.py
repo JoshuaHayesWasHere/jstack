@@ -1064,7 +1064,7 @@ def checkout_under(user):
     checkout.mkdir(parents=True)
     for name in ("install.sh", "pyproject.toml", "skills.json", "plugin.json"):
         shutil.copy(REPO / name, checkout / name)
-    for name in ("src", "features", "hooks", "templates", "skills", "playbooks"):
+    for name in ("src", "features", "templates", "playbooks"):
         shutil.copytree(REPO / name, checkout / name, ignore=shutil.ignore_patterns("__pycache__"))
     subprocess.run(["git", "init", "-q", checkout], check=True)
     return checkout, f"hard hook {checkout / '.git' / 'hooks' / 'pre-push'} pre-push"

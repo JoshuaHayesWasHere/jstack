@@ -313,8 +313,9 @@ def test_why_is_not_taken_with_alarm(kitchen, tree):
 
 
 def undo_section():
-    """The shell lines of the section of docs/state.md that undoes an edit to standing.md."""
-    text = (REPO / "docs" / "state.md").read_text()
+    """The shell lines of the section of features/home/docs/state.md that undoes an edit to
+    standing.md."""
+    text = (REPO / "features" / "home" / "docs" / "state.md").read_text()
     section = text.split("## Undo an edit to standing.md\n", 1)[1].split("\n## ", 1)[0]
     block = section.split("```sh\n", 1)[1].split("```", 1)[0]
     return [line for line in block.splitlines() if line and not line.startswith("#")]

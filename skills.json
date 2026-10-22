@@ -29,13 +29,13 @@
     {
       "name": "autopilot-full",
       "kind": "playbook",
-      "path": "playbooks/autopilot-full.md",
+      "path": "features/home/skills/home/playbooks/autopilot-full.md",
       "source": "josh"
     },
     {
       "name": "autopilot-stack",
       "kind": "playbook",
-      "path": "playbooks/autopilot-stack.md",
+      "path": "features/home/skills/home/playbooks/autopilot-stack.md",
       "source": "josh"
     },
     {
@@ -108,7 +108,7 @@
     {
       "name": "multi-phase-plan",
       "kind": "playbook",
-      "path": "playbooks/multi-phase-plan.md",
+      "path": "features/home/skills/home/playbooks/multi-phase-plan.md",
       "source": "josh"
     },
     {
@@ -120,7 +120,7 @@
     {
       "name": "orchestrate",
       "kind": "playbook",
-      "path": "playbooks/orchestrate.md",
+      "path": "features/home/skills/home/playbooks/orchestrate.md",
       "source": "josh"
     },
     {
@@ -156,13 +156,13 @@
     {
       "name": "session-pickup",
       "kind": "playbook",
-      "path": "playbooks/session-pickup.md",
+      "path": "features/home/skills/home/playbooks/session-pickup.md",
       "source": "josh"
     },
     {
       "name": "shipping",
       "kind": "playbook",
-      "path": "playbooks/shipping.md",
+      "path": "features/home/skills/home/playbooks/shipping.md",
       "source": "josh"
     },
     {
@@ -453,14 +453,14 @@
     {
       "name": "handoff",
       "kind": "skill",
-      "path": "skills/handoff/SKILL.md",
+      "path": "features/home/skills/handoff/SKILL.md",
       "source": "josh",
       "description": "Close this thread and leave the next one a short start - stop what runs, write a note of ten lines at most, and, for a repo's home, start the next home and settle this thread. The next home reads the rest from jbus. Use when the user invokes /handoff or $handoff, says to wrap up, move on or start fresh, or when the home skill's hand-off conditions are met."
     },
     {
       "name": "home",
       "kind": "skill",
-      "path": "skills/home/SKILL.md",
+      "path": "features/home/skills/home/SKILL.md",
       "source": "josh",
       "description": "Make this thread the home for the repo it runs in - read the repo's short handoff, plan work with the user, hand each task to a crewmate thread, and hand off to a fresh home before the context grows. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off."
     },
@@ -509,7 +509,7 @@
     {
       "name": "new-home",
       "kind": "skill",
-      "path": "skills/new-home/SKILL.md",
+      "path": "features/home/skills/new-home/SKILL.md",
       "source": "josh",
       "description": "Set up a repo's first home - its state directory, its T3 Code project, its table in jbus's config, what it lacks for jbus to merge in it, and its home thread. It finishes a home that was started by hand, and does only what is missing. Use for /new-home <repo>."
     },
@@ -523,7 +523,7 @@
     {
       "name": "nohome",
       "kind": "skill",
-      "path": "skills/nohome/SKILL.md",
+      "path": "features/home/skills/nohome/SKILL.md",
       "source": "josh",
       "description": "Opt out of the automatic home - make this thread an ordinary thread, or switch the automatic home off or back on for the whole repo, or switch the repo's automatic merge off or back on. Use when the user invokes /nohome or $nohome, or says this thread should not be a home, should just do the work itself, or should stop planning and handing out."
     },
@@ -671,7 +671,7 @@
     {
       "name": "gates.md",
       "kind": "template",
-      "path": "templates/gates.md",
+      "path": "features/home/templates/gates.md",
       "source": "josh"
     },
     {
@@ -689,19 +689,19 @@
     {
       "name": "handoff-seed.md",
       "kind": "template",
-      "path": "templates/handoff-seed.md",
+      "path": "features/home/templates/handoff-seed.md",
       "source": "josh"
     },
     {
       "name": "handoff.md",
       "kind": "template",
-      "path": "templates/handoff.md",
+      "path": "features/home/templates/handoff.md",
       "source": "josh"
     },
     {
       "name": "hook-message.md",
       "kind": "template",
-      "path": "templates/hook-message.md",
+      "path": "features/home/templates/hook-message.md",
       "source": "josh"
     },
     {
@@ -779,7 +779,7 @@
     {
       "name": "plan-entry.md",
       "kind": "template",
-      "path": "templates/plan-entry.md",
+      "path": "features/home/templates/plan-entry.md",
       "source": "josh"
     },
     {
@@ -834,14 +834,14 @@
   "hooks": [
     {
       "name": "home-gauge.sh",
-      "path": "hooks/home-gauge.sh",
+      "path": "features/home/hooks/home-gauge.sh",
       "harnesses": [
         "claude-code"
       ]
     },
     {
       "name": "home-start.sh",
-      "path": "hooks/home-start.sh",
+      "path": "features/home/hooks/home-start.sh",
       "harnesses": [
         "claude-code",
         "codex"

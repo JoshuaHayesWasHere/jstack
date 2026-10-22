@@ -27,7 +27,7 @@ A `kind` that is neither `repo` nor `scratch` is refused, and a table with no `k
 ## Its thread, and your word
 
 The home's thread is found as a repo's is: the first word of `~/.local/state/home/<name>/home-id`.
-The home skill writes it when the thread starts as the scratch home (`skills/home/a-scratch-home.md`).
+The home skill writes it when the thread starts as the scratch home (`features/home/skills/home/a-scratch-home.md`).
 
 `jbus word --to <name>` sends your word to that thread, as [Your word to a home](your-word-to-a-home.md) says, and a word recorded `--from` the home's own thread is kept and not posted back.
 `jbus word --all` is the home of every project, and a scratch home is none: a word about the repos does not reach it.

@@ -8,7 +8,7 @@ from testing.layouts import assembled
 from testing.paths import REPO
 
 SKILL = REPO / "features" / "grilling" / "SKILL.md"
-HOME = REPO / "skills" / "home" / "SKILL.md"
+HOME = REPO / "features" / "home" / "skills" / "home" / "SKILL.md"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 QUESTION = re.compile(r"^❓ \*\*Q(\d+)\*\* - \*\*.+?\*\*: .+$", re.M)
 ANSWER = re.compile(r"^➡️ .+$", re.M)

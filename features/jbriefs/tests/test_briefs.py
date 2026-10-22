@@ -679,7 +679,7 @@ def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_fil
         next(one for one in text.splitlines() if one.startswith("Playbook:")), "Playbook: feature"
     )
     assert (parse.sized(filled), parse.playbook(filled)) == ("", "")
-    entry = (REPO / "templates" / "plan-entry.md").read_text().splitlines()
+    entry = (REPO / "features" / "home" / "templates" / "plan-entry.md").read_text().splitlines()
     assert [one for one in entry if one.startswith("Size:")] == [line]
 
 

@@ -1,27 +1,30 @@
 # Hooks
 
-`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](../features/jinstall/docs/jinstall.md#the-layouts)).
+`install.sh` writes five hook entries and one status line, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
 This page says what each script does and shows the entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
-[Configuration](configuration.md) lists the entries with every other file you write.
+[Configuration](../../../docs/configuration.md) lists the entries with every other file you write.
 
 Each hook below is a feature's, as its `features/<name>/feature.json` declares it.
 
 <!-- generated: hooks by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
 | Hook | Script | Harnesses | Feature |
 |---|---|---|---|
-| `SessionStart`, matcher `startup` | [hooks/home-start.sh](../hooks/home-start.sh) | claude-code, codex | `home` |
-| `PreToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
-| `PostToolUse` | [hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
-| the status line | [features/jgauge/hooks/limits.sh](../features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
-| `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](../features/jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
-| git `pre-push` | [features/jleak/hooks/pre-push.sh](../features/jleak/hooks/pre-push.sh) | git | `jleak` |
-| `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../features/skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
+| `SessionStart`, matcher `startup` | [features/home/hooks/home-start.sh](../hooks/home-start.sh) | claude-code, codex | `home` |
+| `PreToolUse` | [features/home/hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
+| `PostToolUse` | [features/home/hooks/home-gauge.sh](../hooks/home-gauge.sh) | claude-code | `home` |
+| the status line | [features/jgauge/hooks/limits.sh](../../jgauge/hooks/limits.sh) | claude-code | `jgauge` |
+| `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](../../jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
+| git `pre-push` | [features/jleak/hooks/pre-push.sh](../../jleak/hooks/pre-push.sh) | git | `jleak` |
+| `UserPromptSubmit` | [features/skill-library/hooks/skill-tips.sh](../../skill-library/hooks/skill-tips.sh) | claude-code | `skill-library` |
 <!-- generated: end -->
 
 ## The start hook
 
-`hooks/home-start.sh` is a `SessionStart` hook. It makes a new T3 Code thread the repo's home without anyone typing `/home`. It prints `templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply. It prints nothing unless all of these hold:
+`features/home/hooks/home-start.sh` is a `SessionStart` hook.
+It makes a new T3 Code thread the repo's home without anyone typing `/home`.
+It prints `features/home/templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply.
+It prints nothing unless all of these hold:
 
 - the session is new, not a resume, a `/clear` or a compaction;
 - it runs inside T3 Code, where `T3_CODE_MCP_AUTHORIZATION` or `T3_MCP_BEARER_TOKEN` is set;
@@ -92,7 +95,10 @@ To switch it off, run `touch ~/.local/state/skill-tips/off`. Leave the group in 
 
 ## The gauge hook
 
-`hooks/home-gauge.sh` is a `PostToolUse` hook and a `PreToolUse` hook. After a tool call it tells a home how full its context is, once the count reaches the home's limit. Before a tool call it refuses the call, once the count reaches the home's ceiling. The count is what `jgauge context` prints for the session's transcript: the input side of its last call.
+`features/home/hooks/home-gauge.sh` is a `PostToolUse` hook and a `PreToolUse` hook.
+After a tool call it tells a home how full its context is, once the count reaches the home's limit.
+Before a tool call it refuses the call, once the count reaches the home's ceiling.
+The count is what `jgauge context` prints for the session's transcript: the input side of its last call.
 
 At the limit, and after every tool call from then on, the agent gets one line:
 
@@ -166,12 +172,12 @@ The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcrip
 
 ## The limits writer
 
-`features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../features/jroles/docs/jroles.md#the-ledger)).
+`features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers: `jgauge limits` writes it ahead of time, every two minutes, and `jbus` at a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
 Claude Code pipes its status JSON to the script, and the script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
 The account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 `claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`, and another instance's is `<that path>.<instanceId>`.
 An account the inventory does not declare writes nothing, so one account's limits never stand for another's.
-`jgauge room` reads those files ([jroles](../features/jroles/docs/jroles.md#the-ledger)).
+`jgauge room` reads those files ([jroles](../../jroles/docs/jroles.md#the-ledger)).
 The script prints nothing and exits 0 on any input, so the status line it leaves is empty.
 
 `install.sh` sets it as `statusLine` in `~/.claude/settings.json` only when that key is absent:
@@ -185,4 +191,5 @@ The script prints nothing and exits 0 on any input, so the status line it leaves
 }
 ```
 
-A status line of your own is left as it is. [Configuration](configuration.md#the-limits-file) shows how to call the script from it.
+A status line of your own is left as it is.
+[Configuration](../../../docs/configuration.md#the-limits-file) shows how to call the script from it.

@@ -7,7 +7,7 @@ Paths:
 - `features/jbriefs/templates/brief.md`
 - `features/crew/templates/result.md`
 - `features/crew/templates/rerun.md`
-- `templates/gates.md`
+- `features/home/templates/gates.md`
 - `features/crew/playbooks/pause-safely.md`
 Tests: none
 

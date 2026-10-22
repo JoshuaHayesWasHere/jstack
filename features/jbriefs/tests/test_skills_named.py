@@ -330,7 +330,8 @@ def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonic
 
 def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_list():
     assert skills.root() == REPO.resolve()
-    assert skills.where("template", "gates.md") == REPO.resolve() / "templates" / "gates.md"
+    gates = REPO.resolve() / "features" / "home" / "templates" / "gates.md"
+    assert skills.where("template", "gates.md") == gates
     assert skills.where("skill", "crew") == REPO.resolve() / "features" / "crew" / "SKILL.md"
     assert skills.where("playbook", "feature").is_file()
     assert skills.where("principle", "principle-prove-it-works").is_file()

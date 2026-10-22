@@ -1,6 +1,9 @@
 ## When a home starts
 
-A home starts in one of two ways. The user types `/home`. Or the session-start hook (`hooks/home-start.sh` in the checkout that holds this skill) adds a `[home]` line to a new T3 Code thread opened in the main checkout of any repo, one that never had a home included, and the thread invokes this skill before its first reply. In the second case the user's first message is their opening request, unless it starts with `/home`, which is the first case: do the five steps below, keep step 5 to the lines that matter for that request, and then take the request as the start of planning.
+A home starts in one of two ways.
+The user types `/home`.
+Or the session-start hook (`hooks/home-start.sh` in the layout that holds this skill) adds a `[home]` line to a new T3 Code thread opened in the main checkout of any repo, one that never had a home included, and the thread invokes this skill before its first reply.
+In the second case the user's first message is their opening request, unless it starts with `/home`, which is the first case: do the five steps below, keep step 5 to the lines that matter for that request, and then take the request as the start of planning.
 
 The first word after `/home` may name a scope: step 1 says. Text after `/home`, or after the scope, that says the previous home wrote it is a seed: that home's handoff launched this thread with it. It is not the user's opening request. Do the five steps, do what the seed says to keep doing, and do not wait for the user: step 5 merges, launches and gives the status by itself.
 
@@ -97,7 +100,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
    When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then `$H/notes.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
-   A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../features/jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
+   A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../../jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
    Then run it in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"), in the main checkout:
 
    ```sh

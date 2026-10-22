@@ -18,7 +18,7 @@
 |---|---|
 | a file under `tasks/` (a brief) | `role crew: /crew <slug> (features/crew/SKILL.md)` |
 | a file under `scouts/` (a scout's request) | `role scout: /scout <slug> (features/scout/SKILL.md)` |
-| `-`, text on stdin, or any other file | `role home: /home (skills/home/SKILL.md)` |
+| `-`, text on stdin, or any other file | `role home: /home (features/home/skills/home/SKILL.md)` |
 
 The lines after the role line:
 

@@ -314,7 +314,7 @@ def test_each_trigger_of_the_repos_skills_gets_that_skills_tip(tmp_path, name, p
 
 def wired(layout):
     """The hook's command, from the settings the hooks page gives, for one layout."""
-    text = (REPO / "docs" / "hooks.md").read_text()
+    text = (REPO / "features" / "home" / "docs" / "hooks.md").read_text()
     (found,) = [
         json.loads(block)
         for block in re.findall(r"^```json\n(.*?)^```$", text, re.M | re.S)

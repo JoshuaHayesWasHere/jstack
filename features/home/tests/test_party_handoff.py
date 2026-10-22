@@ -43,7 +43,7 @@ class Party:
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(REPO / "skills")
+        (self.user / ".claude" / "skills").symlink_to(REPO / "features" / "home" / "skills")
         self.root = self.user / ".local" / "state" / "home"
         self.own = self.folder("desk", DESK)
         (self.own / "log").mkdir()
@@ -163,7 +163,7 @@ def test_a_partys_handoff_keeps_the_old_page_writes_the_new_one_and_starts_its_n
         DESK,
         f"{party.own}/handoff.md",
         f"{party.own}/RESTART.md",
-        str(REPO / "skills/handoff/SKILL.md"),
+        str(REPO / "features/home/skills/handoff/SKILL.md"),
         "with desk in place of <party>",
     ):
         assert named in told
@@ -349,7 +349,7 @@ def test_a_reply_that_is_not_the_list_is_not_read(party):
 
 
 def test_the_path_runs_nothing_of_a_home_and_launches_only_its_own_next_thread(party):
-    (section,) = SECTION.findall((REPO / "skills/handoff/SKILL.md").read_text())
+    (section,) = SECTION.findall((REPO / "features/home/skills/handoff/SKILL.md").read_text())
     in_the_section = [textwrap.dedent(text) for text in FENCED.findall(section)]
     assert len(in_the_section) == 2
     on_the_path = [paths("handoff"), block("handoff", WHERE), *in_the_section]

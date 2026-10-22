@@ -82,7 +82,7 @@ def test_a_question_is_the_homes_and_its_tip_is_named(home):
     from_stdin = jbriefs("-", stdin=QUESTION)
     assert from_file == from_stdin
     assert from_stdin == [
-        "role home: /home (skills/home/SKILL.md)",
+        "role home: /home (features/home/skills/home/SKILL.md)",
         "playbook none: (no row the home runs fits)",
         'tip grilling: /grilling (features/grilling/SKILL.md), its tip "grill me"',
     ]
@@ -116,7 +116,7 @@ def test_a_brief_with_no_playbook_line_takes_the_row_of_its_role_that_fits(tmp_p
     (tmp_path / "tasks").mkdir()
     cases = {
         "Where: src/jgauge/": "feature",
-        "Where: skills/grilling/SKILL.md, skills/grilling/references/": "authoring-a-skill",
+        "Where: features/grilling/SKILL.md, features/grilling/references/": "authoring-a-skill",
         "Where: playbooks/feature.md, tests/test_playbooks.py": "authoring-a-playbook",
         "Where: src/x/\nCandidates: two\nJudge: the user\nPull request: ask first": "eval",
     }

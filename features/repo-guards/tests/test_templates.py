@@ -11,7 +11,7 @@ from testing.layouts import assembled
 from testing.paths import REPO, skills
 
 TEMPLATES = assembled() / "templates"
-HOOK = REPO / "hooks" / "home-start.sh"
+HOOK = REPO / "features" / "home" / "hooks" / "home-start.sh"
 NAMES = [
     "brief.md",
     "expert-answer.md",
@@ -31,7 +31,7 @@ HOOK_PRINTED = "\n".join(
     [
         "[home] This thread opened in the main checkout of {repo}, which has a home at {home_dir}.",
         "This thread is that repo's home. Before replying to the user's first message,"
-        f" read {REPO / 'skills' / 'home' / 'SKILL.md'} and follow it.",
+        f" read {HOOK.parents[1] / 'skills' / 'home' / 'SKILL.md'} and follow it.",
         "The first message is the user's opening request, not a command:"
         " give the skill's short status, then take the message as the start of planning.",
         "A first message that starts with /home is that command and not a request:"
@@ -49,7 +49,7 @@ def carriers():
     says to read now, and each hook."""
     files = [folder / "SKILL.md" for folder in skills().values()]
     beside = [found for skill in files for found in named(skill)]
-    return files + beside + sorted((REPO / "hooks").iterdir())
+    return files + beside + sorted(REPO.glob("features/*/hooks/*"))
 
 
 def wording(name):

@@ -227,7 +227,7 @@ def test_the_homes_limit_is_the_one_home_gauge_holds_it_to(place, scene, served,
     held = asked(served)["limit"]
     assert f"limit={held['limit']} ;;" in script
     assert f"ceiling={held['ceiling']} ;;" in script
-    assert held["from"].endswith("hooks/home-gauge.sh")
+    assert held["from"].endswith("features/home/hooks/home-gauge.sh")
     (scene.home_dir / "demo").mkdir(parents=True, exist_ok=True)
     (scene.home_dir / "demo" / "limit").write_text("250000\n")
     held = asked(served)["limit"]
@@ -239,15 +239,15 @@ def test_a_release_reads_the_limit_from_the_home_gauge_its_copy_carries(
     place, scene, served, monkeypatch
 ):
     copy = place / "release" / skills.PACKAGED
-    (copy / "hooks").mkdir(parents=True)
+    (copy / usage.GAUGE.parent).mkdir(parents=True)
     (copy / skills.CATALOG).write_text('{"items": []}')
-    script = (skills.root() / "hooks" / "home-gauge.sh").read_text()
+    script = (skills.root() / usage.GAUGE).read_text()
     script = script.replace("limit=300000 ;;", "limit=123000 ;;")
-    (copy / "hooks" / "home-gauge.sh").write_text(script.replace("=350000", "=456000"))
+    (copy / usage.GAUGE).write_text(script.replace("=350000", "=456000"))
     monkeypatch.setattr(skills, "root", skills.root.__wrapped__)
     monkeypatch.setattr(skills, "checkout", lambda: None)
     monkeypatch.setattr(sys, "prefix", str(place / "release"))
     monkeypatch.chdir(place)
     held = asked(served)["limit"]
     assert (held["limit"], held["ceiling"]) == (123000, 456000)
-    assert held["from"] == str(copy / "hooks" / "home-gauge.sh")
+    assert held["from"] == str(copy / usage.GAUGE)

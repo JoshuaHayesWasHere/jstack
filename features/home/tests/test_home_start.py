@@ -1,6 +1,6 @@
-"""`hooks/home-start.sh` in every repo: where it speaks, where it stays silent, and that the
-home skill's first step and the nohome skill agree with it. Every test runs the hook, and the
-blocks are lifted from the skill that gives them."""
+"""`features/home/hooks/home-start.sh` in every repo: where it speaks, where it stays silent,
+and that the home skill's first step and the nohome skill agree with it. Every test runs the
+hook, and the blocks are lifted from the skill that gives them."""
 
 import json
 import os
@@ -12,15 +12,17 @@ import pytest
 
 from test_home_thread import as_read
 from test_jbus_kitchen import complete
-from testing.paths import REPO
+from testing.layouts import assembled
 
-HOOK = REPO / "hooks" / "home-start.sh"
+HOOK = assembled() / "hooks" / "home-start.sh"
 NAME = "demo"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
 MARK = "$first"
-FIRST, USUAL, *REST = (REPO / "templates" / "hook-message.md").read_text().splitlines(keepends=True)
+FIRST, USUAL, *REST = (
+    (assembled() / "templates" / "hook-message.md").read_text().splitlines(keepends=True)
+)
 
 
 def filled(text, **values):
@@ -30,7 +32,7 @@ def filled(text, **values):
 
 def blocks(skill):
     """Every shell block the skill gives, as an agent reads it."""
-    text = as_read(REPO / "skills" / skill / "SKILL.md")
+    text = as_read(assembled() / "skills" / skill / "SKILL.md")
     return [textwrap.dedent(block) for block in FENCED.findall(text)]
 
 
@@ -56,7 +58,7 @@ class Scene:
     def __init__(self, tmp_path, name=NAME):
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(REPO / "skills")
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         self.home_dir = self.user / ".local" / "state" / "home" / name
         self.main = tmp_path / "code" / name
         self.main.mkdir(parents=True)
@@ -91,7 +93,7 @@ class Scene:
             line + "".join(REST),
             repo=self.main.name,
             home_dir=str(self.home_dir),
-            skills=str(REPO / "skills"),
+            skills=str(assembled() / "skills"),
         )
 
 

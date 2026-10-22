@@ -12,9 +12,9 @@ import textwrap
 import pytest
 
 from test_home_thread import as_read
-from testing.paths import REPO
+from testing.paths import skills
 
-SKILL = REPO / "skills" / "home" / "SKILL.md"
+SKILL = skills()["home"] / "SKILL.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 KINDS = ("research", "perf", "analysis", "outcome")
 

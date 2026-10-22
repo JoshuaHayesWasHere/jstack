@@ -70,7 +70,7 @@ These have their `Paths:` and `Tests:` lines and no recipe yet:
 - [The evals](./evals.md), not driven yet.
 - [An expert answers asks](../../../../features/expert/verify.md), not driven yet.
 - [Grilling the user](../../../../features/grilling/verify.md), not driven yet.
-- [A home and its handoff](./home-skills.md), not driven yet.
+- [A home and its handoff](../../../../features/home/verify.md), not driven yet.
 - [jbriefs reads a brief](../../../../features/jbriefs/verify.md), not driven yet.
 - [A jbus pass](./jbus-pass.md), not driven yet.
 - [jbus view](./jbus-view.md), not driven yet.
@@ -111,7 +111,7 @@ Cross-cutting:
 - `tests/test_daemons.py`
 - `features/repo-guards/tests/test_docs_true.py`
 - `features/repo-guards/tests/test_docs_tree.py`
-- `tests/test_home_merge_guard.py`
+- `features/home/tests/test_home_merge_guard.py`
 - `features/jdrift/tests/test_jstack_explained.py`
 - `features/repo-guards/tests/test_no_comments.py`
 - `features/repo-guards/tests/test_no_mistakes_gone.py`
