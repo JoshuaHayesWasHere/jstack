@@ -1,9 +1,10 @@
-"""The check workflow runs on main and on the integration branch `migration` as well as on
-every pull request, and a run on either is never cancelled by the next one: each push's run is
-a concurrency group of its own. A pull request gets the job `check`, the fast one, with the
-lint and the tests its change reaches, and a push to main or to `migration` and a manual run
-get the job `full`, the whole suite. A push to `migration` is checked as one to main is, so
-jmerge's red hold for a pull request into it has a check to read on its tip.
+"""The check workflow runs on main and on the integration branches, `unslop` and any
+`train/...`, as well as on every pull request, and a run on any of them is never cancelled by
+the next one: each push's run is a concurrency group of its own. A pull request gets the job
+`check`, the fast one, with the lint and the tests its change reaches, and a push to main or to
+an integration branch and a manual run get the job `full`, the whole suite. A push to an
+integration branch is checked as one to main is, so jmerge's red hold for a pull request into
+it has a check to read on its tip.
 
 The workflow file is read as YAML, by the little of it these two blocks use: mappings by
 their indentation, a scalar, and a list in brackets.
@@ -111,10 +112,10 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_migration_and_by_hand():
+def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_and_by_hand():
     assert block("on") == {
         "pull_request": None,
-        "push": {"branches": ["main", "migration"]},
+        "push": {"branches": ["main", "unslop", "train/**"]},
         "workflow_dispatch": None,
     }
 
