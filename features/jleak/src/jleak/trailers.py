@@ -9,7 +9,8 @@ message. A pattern is held against one line at a time, as jleak's other patterns
 
     ai-co-author                 a Co-authored-by trailer that names Claude, Codex, OpenAI,
                                  Cursor or Copilot, or an @anthropic.com address
-    generated-with-claude-code   the line Claude Code adds under a pull request's body
+    generated-with-claude-code   the line Claude Code adds under a pull request's body, which
+                                 starts the line after any emoji or punctuation
 """
 
 import re
@@ -22,7 +23,7 @@ PATTERNS = (
         "ai-co-author",
         re.compile(rf"(?i)^\s*co-authored-by\s*[:=].*(?:\b(?:{NAMES})\b|@anthropic\.com\b)"),
     ),
-    Pattern("generated-with-claude-code", re.compile(r"(?i)generated with \[?claude code\b")),
+    Pattern("generated-with-claude-code", re.compile(r"(?i)^\W*generated with \[?claude code\b")),
 )
 
 
